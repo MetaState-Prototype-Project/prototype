@@ -9,7 +9,7 @@ The metastate ecosystem has the only 1 type of identifiers, W3ID (did:w3id proto
 ### _Users & Groups_
 
 Users and groups would have a persistent, unchanging identifier which is referred to as Web 3 Identifier
-In case of a person, the W3ID is the life-long anchor which connects keys and the physical essence of a person. It is represented on the diagram below
+In case of a person, the
 (1-2 relations) personal W3ID and personal keys via eID certificate from PKI
 (2-3 relations) personal W3ID and body characteristics, physical passport and friends.
 
@@ -22,12 +22,6 @@ eVault: An eVault would use its own unique W3ID, which is not shared with a user
 
 W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be used in the W3ID URI scheme to retrieve a envelope.
 
-## Technical Requirements and Guarantees:
-
-- The identity must be globally persistent, and unique.
-- The identity must exist on a namespace with more range higher than 10^22
-- The identity must support rotation of secrets and must only be loosely bound to keys
-- The identity must be loosely tied to a passport in form of binding document
 
 ## W3ID URI Scheme
 
@@ -37,6 +31,32 @@ W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be u
 UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
 
 ### Example:
+
+
+### W3ID URI format:
+
+`w3id://<UUID in HEX>` (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
+UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
+
+### Example:
+
+
+### W3ID URI format:
+
+`w3id://<UUID in HEX>` (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
+UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
+
+### Example:
+
+
+### W3ID URI format:
+
+`w3id://<UUID in HEX>` (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
+UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
+
+### Example:
+
+
 
 `w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
 If a local ID is needed, it is added after “/”, also as UUID range e.g.:
