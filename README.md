@@ -85,6 +85,14 @@ Learn more about the power of Turborepo:
 
 # MetaState Prototype
 
+## Progress Tracker
+
+| Project                        | Status      |
+| ------------------------------ | ----------- |
+| [W3ID](./infrastructure/w3id/) | In Progress |
+| EVault Core                    | Planned     |
+| Web3 Adapter                   | Planned     |
+
 ## Project Structure
 
 ```
@@ -123,11 +131,3 @@ prototype/
 ├─ README.md (This File)
 └─ turbo.json (Configures TurboRepo)
 ```
-
-## Progress Tracker
-
-| Project      | Status      |
-| ------------ | ----------- |
-| W3ID         | In Progress |
-| EVault Core  | Planned     |
-| Web3 Adapter | Planned     |
