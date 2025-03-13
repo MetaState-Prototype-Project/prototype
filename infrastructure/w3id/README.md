@@ -25,7 +25,7 @@ W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be u
 ## Technical Requirements and Guarantees:
 
 - The identity must be globally persistent, and unique.
-- The identity must exist on a namespace with more range higher than 10^20
+- The identity must exist on a namespace with more range higher than 10^22
 - The identity must support rotation of secrets and must only be loosely bound to keys
 - The identity must be loosely tied to a passport in form of binding document
 
@@ -33,19 +33,18 @@ W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be u
 
 ### W3ID URI format:
 
-w3id://<UUID in HEX> (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
-UUID range is 2122 or 15 orders larger than expected amount of IDs (1022) therefore it fits the purpose perfectly.
+`w3id://<UUID in HEX>` (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
+UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
 
 ### Example:
 
-w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a
+`w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
 If a local ID is needed, it is added after “/”, also as UUID range e.g.:
-w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7
-which means “the object f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7 at the eVault e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a,
-where e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a could be:
+`w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
+which means “the object `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7` at the eVault `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`,
+where `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` could be:
 either the exact URL of the eVault, or
 the URL of its “controller”, the owner, then such URL should be resolved to the current eVault which this person (or group) controls
-PKI
 
 ## W3ID Key binding
 
