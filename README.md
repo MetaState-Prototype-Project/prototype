@@ -87,11 +87,12 @@ Learn more about the power of Turborepo:
 
 ## Progress Tracker
 
-| Project                        | Status      |
-| ------------------------------ | ----------- |
-| [W3ID](./infrastructure/w3id/) | In Progress |
-| EVault Core                    | Planned     |
-| Web3 Adapter                   | Planned     |
+| Project                                    | Status      |
+| ------------------------------------------ | ----------- |
+| [W3ID](./infrastructure/w3id/)             | In Progress |
+| [eID Wallet](./infrastructure/eid-wallet/) | In Progress |
+| EVault Core                                | Planned     |
+| Web3 Adapter                               | Planned     |
 
 ## Project Structure
 
