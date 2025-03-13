@@ -24,23 +24,23 @@ W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be u
 
 ## Technical Requirements and Guarantees:
 
-- The identity must be globally persistent, and unique.
-- The identity must exist on a namespace with more range higher than 10^22
-- The identity must support rotation of secrets and must only be loosely bound to keys
-- The identity must be loosely tied to a passport in form of binding document
+- The identifier must be globally persistent, and unique.
+- The identifier must exist on a namespace with more range higher than 10^22
+- The identifier must support rotation of secrets and must only be loosely bound to keys
+- The identifier must be loosely tied to a passport in form of binding document
 
 ## W3ID URI Scheme
 
 ### W3ID URI format:
 
-`w3id://<UUID in HEX>` (case insensitive, like any URI) formed by the rules of RFC4122. In particular, the number and positioning of the dashes in the string is mandatory!
+`@<UUID in HEX>` (case insensitive, like any URI) formed by the rules of [RFC4122](https://datatracker.ietf.org/doc/html/rfc4122). In particular, the number and positioning of the dashes in the string is mandatory!
 UUID range is 2^122 or 15 orders larger than expected amount of IDs (10^22) therefore it fits the purpose perfectly.
 
 ### Example:
 
-`w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
+`@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
 If a local ID is needed, it is added after “/”, also as UUID range e.g.:
-`w3id://e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
+`@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
 which means “the object `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7` at the eVault `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`,
 where `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` could be:
 either the exact URL of the eVault, or
@@ -49,6 +49,18 @@ the URL of its “controller”, the owner, then such URL should be resolved to 
 ## W3ID Key binding
 
 The Identifier would be loosely bound to a set of keys, meaning an identifier is not derived from a set of keys making it easy to change the keys in case someone's keys gets compromised, or they turn up on the beach naked and need a new set of keys as their device is lost.
+
+### Additional Considerations
+
+#### Friend Based Recovery
+
+2-3 Friends may verify the identity of a person to recover lost metastate ID on the eVault. This would be based on a trust list which a person can create while they do still have access to their keys. This trust list by default would have a list of all notaries in the ecosystem but the user may modify it and add people who always need to approve the action of changing keys at their end as well. 
+
+So for example a user "Jack" says I trust the notary but I also want "Bob" to approve the action each time a notary tries to change the keys which are controlled by Jack.
+
+#### Migration of eVault
+
+In the implementation it must be ensured that the file is still accessible regardless of the eVault it is stored in. This can be done via recording also-known-as records in the register for an eVault each time someone migrates their eVault. For example if a user migrates  evault `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` to `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`, the register will store an entry pointing all requests to `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` to be redirected to `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
 
 ## W3ID Document Binding
 
