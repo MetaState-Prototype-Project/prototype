@@ -1,4 +1,4 @@
-# Turborepo starter
+<!-- # Turborepo starter
 
 This Turborepo starter is maintained by the Turborepo core team.
 
@@ -81,4 +81,53 @@ Learn more about the power of Turborepo:
 - [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
 - [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
 - [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference) -->
+
+# MetaState Prototype
+
+## Project Structure
+
+```
+prototype/
+├─ .vscode/
+│  └─ settings.json
+├─ infrastructure/
+│  ├─ evault-core/
+│  │  └─ package.json
+│  └─ w3id/
+│     └─ package.json
+├─ packages/
+│  ├─ eslint-config/
+│  │  ├─ base.js
+│  │  ├─ next.js
+│  │  ├─ package.json
+│  │  ├─ react-internal.js
+│  │  └─ README.md
+│  └─ typescript-config/
+│     ├─ base.json
+│     ├─ nextjs.json
+│     ├─ package.json
+│     └─ react-library.json
+├─ platforms/
+│  └─ .gitkeep
+├─ services/
+│  ├─ ontology/ (MetaState Ontology Service)
+│  │  └─ package.json
+│  └─ web3-adapter/ (MetaState Web-3 Adapter Service)
+│     └─ package.json
+├─ .gitignore (Ignores files while upstream to repo)
+├─ .npmrc (Dependency Manager Conf)
+├─ package.json (Dependency Management)
+├─ pnpm-lock.yaml (Reproducability)
+├─ pnpm-workspace.yaml (Configures MonoRepo)
+├─ README.md (This File)
+└─ turbo.json (Configures TurboRepo)
+```
+
+## Progress Tracker
+
+| Project      | Status      |
+| ------------ | ----------- |
+| W3ID         | In Progress |
+| EVault Core  | Planned     |
+| Web3 Adapter | Planned     |
