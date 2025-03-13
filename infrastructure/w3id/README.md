@@ -24,10 +24,10 @@ W3 Envelope would use a W3ID, which is globally unique, and this W3ID would be u
 
 ## Technical Requirements and Guarantees:
 
-- The identity must be globally persistent, and unique.
-- The identity must exist on a namespace with more range higher than 10^22
-- The identity must support rotation of secrets and must only be loosely bound to keys
-- The identity must be loosely tied to a passport in form of binding document
+- The identifier must be globally persistent, and unique.
+- The identifier must exist on a namespace with more range higher than 10^22
+- The identifier must support rotation of secrets and must only be loosely bound to keys
+- The identifier must be loosely tied to a passport in form of binding document
 
 ## W3ID URI Scheme
 
