@@ -54,7 +54,9 @@ The Identifier would be loosely bound to a set of keys, meaning an identifier is
 
 #### Friend Based Recovery
 
-2-3 Friends may verify the identity of a person to recover lost metastate ID on the eVault.
+2-3 Friends may verify the identity of a person to recover lost metastate ID on the eVault. This would be based on a trust list which a person can create while they do still have access to their keys. This trust list by default would have a list of all notaries in the ecosystem but the user may modify it and add people who always need to approve the action of changing keys at their end as well. 
+
+So for example a user "Jack" says I trust the notary but I also want "Bob" to approve the action each time a notary tries to change the keys which are controlled by Jack.
 
 #### Migration of eVault
 
