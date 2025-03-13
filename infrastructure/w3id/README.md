@@ -60,7 +60,7 @@ So for example a user "Jack" says I trust the notary but I also want "Bob" to ap
 
 #### Migration of eVault
 
-In the implementation it must be ensured that the file is still accessible regardless of the eVault it is stored in.
+In the implementation it must be ensured that the file is still accessible regardless of the eVault it is stored in. This can be done via recording also-known-as records in the register for an eVault each time someone migrates their eVault. For example if a user migrates  evault `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` to `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`, the register will store an entry pointing all requests to `e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` to be redirected to `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
 
 ## W3ID Document Binding
 
