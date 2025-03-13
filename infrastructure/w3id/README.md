@@ -8,7 +8,7 @@ The metastate ecosystem has the only 1 type of identifiers, W3ID (did:w3id proto
 
 ### _Users & Groups_
 
-Users and groups would have a persistent, unchanging identifier which is referred to as Web 3 Identifier
+Users and groups would have a persistent, changing identifier which is referred to as Web 3 Identifier
 In case of a person, the W3ID is the life-long anchor which connects keys and the physical essence of a person. It is represented on the diagram below
 (1-2 relations) personal W3ID and personal keys via eID certificate from PKI
 (2-3 relations) personal W3ID and body characteristics, physical passport and friends.
