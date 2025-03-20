@@ -11,6 +11,6 @@
 <button class="btn btn-soft btn-warning">Warning</button>
 <button class="btn btn-soft btn-error">Error</button>
 
-<h1 class="text-primary-900">Archivo font Everyone</h1>
+<h1 class="text-lg text-primary-900">Archivo font Everyone</h1>
 
 <div class="bg-secondary-700 text-primary-500 p-4">Secondary Background</div>
