@@ -25,6 +25,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.0.14",
     "@tauri-apps/cli": "^2",
+    "autoprefixer": "^10.4.21",
     "daisyui": "^5.0.6",
     "postcss": "^8.5.3",
     "svelte": "^5.0.0",
