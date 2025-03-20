@@ -36,6 +36,9 @@
   --color-black-500: #797979;
   --color-black-300: #a5a5a5;
   --color-black-100: #d2d2d2;
+
+  --color-danger-500: #ff5255;
+  --color-danger-300: #ffdcdd;
 }
 
 body {
