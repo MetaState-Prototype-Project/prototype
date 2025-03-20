@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+@plugin "daisyui" {
+  themes: false; /* Disable built-in themes */
+  darktheme: 'light';
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-VariableFont_wdth,wght.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@theme {
+  /* Custom theme */
+  --color-primary: #8e52ff;
+  --color-primary-100: #e8dcff;
+  --color-primary-300: #d2baff;
+  --color-primary-500: #bb97ff;
+  --color-primary-700: #a575ff;
+  --color-primary-900: #8e52ff;
+
+  --color-secondary: #73efd5;
+  --color-secondary-100: #e3fcf7;
+  --color-secondary-300: #c7f9ee;
+  --color-secondary-500: #abf6e6;
+  --color-secondary-700: #8ff2dd;
+  --color-secondary-900: #73efd5;
+
+  --color-gray-900: #f5f5f5;
+
+  --color-white-900: #ffffff;
+
+  --color-black-900: #171a27;
+  --color-black-700: #4c4c4c;
+  --color-black-500: #797979;
+  --color-black-300: #a5a5a5;
+  --color-black-100: #d2d2d2;
+
+  --color-danger-500: #ff5255;
+  --color-danger-300: #ffdcdd;
+}
+
+body {
+  font-family: 'Archivo', sans-serif;
+}
+
+/* Custom classes */
+.spin-slow {
+  animation: spin 3s linear infinite;
+}
