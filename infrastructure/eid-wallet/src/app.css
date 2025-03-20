@@ -4,6 +4,13 @@
   darktheme: 'light';
 }
 
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-VariableFont_wdth,wght.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @theme {
   /* Custom theme */
   --color-primary: #8e52ff;
@@ -31,7 +38,7 @@
   --color-black-100: #d2d2d2;
 }
 
-.body {
+body {
   font-family: 'Archivo', sans-serif;
 }
 
