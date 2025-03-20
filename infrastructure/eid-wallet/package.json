@@ -26,6 +26,7 @@
     "@tailwindcss/vite": "^4.0.14",
     "@tauri-apps/cli": "^2",
     "daisyui": "^5.0.6",
+    "postcss": "^8.5.3",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "tailwindcss": "^4.0.14",

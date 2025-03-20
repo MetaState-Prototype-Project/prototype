@@ -47,6 +47,9 @@ export default {
 			daisyui: {
 				darkTheme: 'light'
 			}
+		},
+		daisyui: {
+			themes: false, // Disable built-in themes
 		}
 	},
 
