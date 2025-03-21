@@ -33,7 +33,7 @@
 			parentElement: 'body',
 			breaks: {
 				top: { enabled: true, height: window.innerHeight },
-				middle: { enabled: true, height: window.innerHeight * 0.4 },
+				middle: { enabled: true, height: window.innerHeight * 0.3 },
 				bottom: { enabled: true, height: 0 }
 			},
 			initialBreak: 'middle',
@@ -61,7 +61,7 @@
 	});
 
 	const cBase = cn(
-		"fixed bottom-0 left-0 w-full bg-white shadow-lg rounded-t-3xl py-6",
+		"fixed bottom-0 left-0 w-full bg-white-900 shadow-[32px] rounded-3xl py-[2.3vh] px-[6vw]",
 		restProps.class
 	);
 </script>
@@ -87,7 +87,7 @@
 >
 
 	<div class="flex justify-center mb-[6px]">
-		<div class="w-[62px] h-[6px] bg-gray-300 rounded-full"></div>
+		<div class="w-[62px] h-[6px] bg-drawer-indicator rounded-full"></div>
 	</div>
 
 	<div class="px-6">
