@@ -31,12 +31,13 @@
 		if (!drawerElem) return;
 		pane = new CupertinoPane(drawerElem, {
 			parentElement: 'body',
+			fitHeight: true,
 			breaks: {
-				top: { enabled: true, height: window.innerHeight },
-				middle: { enabled: true, height: window.innerHeight * 0.3 },
-				bottom: { enabled: true, height: 0 }
+				top: { enabled: false },
+    			middle: { enabled: false },
+    			bottom: { enabled: true, height: 300 }
 			},
-			initialBreak: 'middle',
+			initialBreak: 'bottom',
 			buttonDestroy: false
 		});
 
@@ -61,7 +62,7 @@
 	});
 
 	const cBase = cn(
-		"fixed bottom-0 left-0 w-full bg-white-900 rounded-[32px] py-[2.3vh] px-[6vw]",
+		"fixed bottom-0 left-0 w-full bg-primary-900 rounded-[32px] py-[2.3vh] px-[6vw]",
 		restProps.class
 	);
 </script>
