@@ -4,7 +4,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { twMerge } from 'tailwind-merge';
 	import { swipe } from 'svelte-gestures';
-	import { clickOutside } from '$lib/utils';
+	import { clickOutside, cn } from '$lib/utils';
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		isPaneOpen?: boolean;
@@ -58,12 +58,12 @@
 		});
 	});
 
-	const cBase = twMerge(`py-[40px] bg-white-900 ${restProps.class}`);
+	const cBase = cn("py-[40px] bg-white-900", restProps.class);
 </script>
 
 <div
 	bind:this={backdrop}
-	class={`${isPaneOpen ? 'block' : 'hidden'} fixed inset-0 backdrop-blur-lg pointer-events-none`}
+	class={cn(isPaneOpen ? "block" : "hidden", "fixed inset-0 backdrop-blur-lg pointer-events-none")}
 ></div>
 <div
 	{...restProps}
@@ -74,7 +74,7 @@
 	onswipe={() => {
 		handleSwipe?.(isPaneOpen);
 	}}
-	class="cupertino-pane {cBase}"
+	class={cBase}
 	bind:this={drawerElem}
 	use:clickOutside
 >

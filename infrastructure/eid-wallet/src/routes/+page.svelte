@@ -15,4 +15,6 @@
 
 <div class="bg-secondary-700 text-primary-500 p-4">Secondary Background</div>
 
-<Drawer/>
+<Drawer isPaneOpen={true}>
+    bjfnsdfkjnajfblka
+</Drawer>
