@@ -12,7 +12,7 @@
 
 </script>
 
-<div  {...restProps} class={cn("flex items-center justify-between px-3 py-2", restProps.class)}>
+<div {...restProps} class={cn("flex items-center justify-between px-3 py-2", restProps.class)}>
     <div class="flex items-center gap-2">
         <div class="p-3 bg-gray-900 max-w-max rounded-4xl object-cover">
             <img class="size-6" src={imgSrc} alt={connectionName}>
