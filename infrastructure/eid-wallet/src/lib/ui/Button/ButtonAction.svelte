@@ -8,7 +8,6 @@
     isLoading?: boolean
     cb?: () => Promise<void>
     blockingClick?: boolean
-    icon?: Snippet
   }
 
   let {
