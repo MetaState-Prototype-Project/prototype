@@ -42,11 +42,11 @@
 	{...restProps}
 	class={cn(
 		[
-			restProps.class,
 			classes.common,
 			classes.background,
 			classes.text,
-			disabled && classes.disabled
+			disabled && classes.disabled,
+			restProps.class,
 		].join(' ')
 	)}
 	disabled={isLoading || restProps.disabled}
