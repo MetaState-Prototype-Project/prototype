@@ -85,9 +85,9 @@
 <style>
 	:global(.pane) {
 	width: 95% !important;
-	max-height: 500px !important;
+	max-height: 600px !important;
 	min-height: 250px !important;
-	height: 300px !important;
+	height: auto !important;
 	position: fixed !important;
 	bottom: 30px !important;
 	left: 50% !important;
