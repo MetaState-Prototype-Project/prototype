@@ -2,7 +2,6 @@
 	import { CupertinoPane } from 'cupertino-pane';
 	import {type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { twMerge } from 'tailwind-merge';
 	import { swipe } from 'svelte-gestures';
 	import { clickOutside, cn } from '$lib/utils';
 
@@ -80,3 +79,9 @@
 >
 	{@render children?.()}
 </div>
+
+<style>
+	:global(.move) {
+		margin-top: 5px !important;
+	}
+</style>
