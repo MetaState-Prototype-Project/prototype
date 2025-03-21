@@ -1,5 +1,5 @@
 <script lang="ts">
-
+    import { Drawer } from "$lib/ui";
 </script>
 
 <button class="btn btn-soft">Default</button>
@@ -14,3 +14,5 @@
 <h1 class="text-lg text-primary-900">Archivo font Everyone</h1>
 
 <div class="bg-secondary-700 text-primary-500 p-4">Secondary Background</div>
+
+<Drawer/>
