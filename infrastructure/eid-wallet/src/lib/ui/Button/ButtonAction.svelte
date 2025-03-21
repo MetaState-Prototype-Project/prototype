@@ -85,3 +85,29 @@
     </div>
   </div>
 </button>
+
+<!-- 
+@component
+export default ButtonAction
+@description
+This component is a button with a loading spinner that can be used to indicate that an action is being performed.
+
+@props
+- variant: The variant of the button. Default is `solid`.
+- isLoading: A boolean to indicate if the button is in a loading state.
+- cb: A callback function that will be called when the button is clicked.
+- blockingClick: A boolean to indicate if the button should block the click event while the callback function is being executed.
+- icon: A slot for an icon to be displayed inside the button.
+- ...restProps: Any other props that can be passed to a button element.
+
+@usage
+```html
+<script lang="ts">
+    import * as Button from '$lib/ui/Button'
+</script>
+
+<Button.Action variant="solid" cb={() => console.log('clicked')}>
+  Click me
+</Button.Action>
+```
+ -->
