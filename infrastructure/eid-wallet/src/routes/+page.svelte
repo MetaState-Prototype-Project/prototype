@@ -8,5 +8,9 @@
 
 
 <Drawer bind:isPaneOpen>
-   <div class="bg-red-300">aslkfamfoasdiownednciaosndoasfnas dfklaklfndskalnflka skflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdnskflndalknfsdkalfnlksndafknsdkjlfngskjngfjnasdfjnasjkdfnjksdanfjnsadjknfjksandflknsdn</div>
+   <div class="bg-red-300">aslkfamfoasdiownednciaosndoasfnas </div>
+   <div>asfnladmfpamsfl asd</div>
+   <div>aslkfasf;,;</div>
+   <button class="btn btn-soft" >Open</button>
+   <button class="btn btn-soft">Open</button>
 </Drawer>

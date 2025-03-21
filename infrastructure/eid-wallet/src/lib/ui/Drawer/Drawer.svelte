@@ -35,7 +35,7 @@
 			breaks: {
 				top: { enabled: false },
     			middle: { enabled: false },
-    			bottom: { enabled: true, height: 300 }
+    			bottom: { enabled: true, height: 600 }
 			},
 			initialBreak: 'bottom',
 			buttonDestroy: false
@@ -61,10 +61,10 @@
 		});
 	});
 
-	const cBase = cn(
-		"fixed bottom-0 left-0 w-full bg-primary-900 rounded-[32px] py-[2.3vh] px-[6vw]",
-		restProps.class
-	);
+	// const cBase = cn(
+	// 	"w-[95%] mx-auto bg-primary-900 rounded-[32px] py-[2.3vh] px-[6vw]",
+	// 	restProps.class
+	// );
 </script>
 
 <div
@@ -82,18 +82,25 @@
 		minSwipeDistance: 60
 	})}
 	onswipe={() => handleSwipe?.(isPaneOpen)}
-	class={cBase}
 	bind:this={drawerElem}
 	use:clickOutside
 >
-
-	<div class="flex justify-center mb-[6px]">
-		<div class="w-[62px] h-[6px] bg-drawer-indicator rounded-full"></div>
-	</div>
-
 	<div class="px-6">
 		{@render children?.()}
 	</div>
 </div>
+
+<style>
+	:global(.pane){
+		width: 95% !important;
+		border-radius: 32px !important;
+		padding: 20px !important;
+		background-color: var(--color-white-900) !important;
+	}
+
+	:global(.move) {
+		margin-block: 6px  !important;
+	}
+</style>
 
 
