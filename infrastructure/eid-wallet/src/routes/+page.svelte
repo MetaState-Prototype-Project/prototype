@@ -7,7 +7,7 @@
 
 
 
-<Drawer bind:isPaneOpen>
+<Drawer bind:isPaneOpen isCancelRequired={true}>
    <div class="bg-red-300">aslkfamfoasdiownednciaosndoasfnas </div>
    <div>asfnladmfpamsfl asd</div>
    <div>aslkfasf;,;</div>

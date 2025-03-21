@@ -7,6 +7,7 @@
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		isPaneOpen?: boolean;
+		isCancelRequired?: boolean;
 		children?: Snippet;
 		handleSwipe?: (isOpen: boolean | undefined) => void;
 	}
@@ -16,6 +17,7 @@
 
 	let {
 		isPaneOpen = $bindable(),
+		isCancelRequired = false,
 		children = undefined,
 		handleSwipe,
 		...restProps
@@ -34,14 +36,14 @@
 			backdropOpacity: 0.5,
 			backdropBlur: true,
 			bottomClose: true,
-			buttonDestroy: false,
+			buttonDestroy: isCancelRequired,
 			showDraggable: true,
 			upperThanTop: true,
 			breaks: {
 			bottom: { enabled: true, height: 300 }, 
 			},
 			initialBreak: 'bottom',
-			bottomOffset: -70, 
+			bottomOffset: -80, 
 		});
 
 		if (isPaneOpen) {
@@ -85,7 +87,8 @@
 	:global(.pane){
 		width: 95% !important;
 		border-radius: 32px !important;
-		padding: 20px !important;
+		padding-block-start: 50px !important;
+		padding-block-end: 20px;
 		background-color: var(--color-white-900) !important;
 	}
 

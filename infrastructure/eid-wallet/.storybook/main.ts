@@ -14,7 +14,6 @@ const config: StorybookConfig = {
   stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|ts)"],
   addons: [
     getAbsolutePath("@storybook/addon-essentials"),
-    getAbsolutePath("@storybook/addon-svelte-csf"),
     getAbsolutePath("@chromatic-com/storybook"),
     getAbsolutePath("@storybook/experimental-addon-test"),
   ],
