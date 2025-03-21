@@ -12,7 +12,6 @@
 	}
 
 	let drawerElem: HTMLDivElement;
-	let backdrop: HTMLDivElement;
 	let pane: CupertinoPane;
 
 	let {
