@@ -30,15 +30,19 @@
 	$effect(() => {
 		if (!drawerElem) return;
 		pane = new CupertinoPane(drawerElem, {
-			parentElement: 'body',
-			fitHeight: true,
+			fitHeight:true,
+			backdrop: true,
+			backdropOpacity: 0.5,
+			backdropBlur: true,
+			bottomClose: true,
+			buttonDestroy: false,
+			showDraggable: true,
+			upperThanTop: true,
 			breaks: {
-				top: { enabled: false },
-    			middle: { enabled: false },
-    			bottom: { enabled: true, height: 600 }
+			bottom: { enabled: true, height: 300 }, 
 			},
 			initialBreak: 'bottom',
-			buttonDestroy: false
+			bottomOffset: -70, 
 		});
 
 		if (isPaneOpen) {
@@ -60,20 +64,7 @@
 			handleClickOutside();
 		});
 	});
-
-	// const cBase = cn(
-	// 	"w-[95%] mx-auto bg-primary-900 rounded-[32px] py-[2.3vh] px-[6vw]",
-	// 	restProps.class
-	// );
 </script>
-
-<div
-	bind:this={backdrop}
-	class={cn(
-		isPaneOpen ? "block" : "hidden",
-		"fixed inset-0 backdrop-blur-lg pointer-events-none"
-	)}
-></div>
 
 <div
 	{...restProps}
@@ -84,6 +75,7 @@
 	onswipe={() => handleSwipe?.(isPaneOpen)}
 	bind:this={drawerElem}
 	use:clickOutside
+	class={cn(restProps.class)}
 >
 	<div class="px-6">
 		{@render children?.()}

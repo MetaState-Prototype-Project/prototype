@@ -4,6 +4,7 @@
 </script>
 
 <button class="btn btn-soft" onclick={() => isPaneOpen = true}>Open</button>
+<button class="btn btn-soft" onclick={() => window.location.reload()}>Open</button>
 
 
 
