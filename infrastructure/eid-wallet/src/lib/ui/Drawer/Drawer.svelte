@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { CupertinoPane } from 'cupertino-pane';
-	import {type Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { swipe } from 'svelte-gestures';
 	import { clickOutside, cn } from '$lib/utils';
@@ -13,6 +13,8 @@
 
 	let drawerElem: HTMLDivElement;
 	let backdrop: HTMLDivElement;
+	let pane: CupertinoPane;
+
 	let {
 		isPaneOpen = $bindable(),
 		children = undefined,
@@ -20,18 +22,14 @@
 		...restProps
 	}: IDrawerProps = $props();
 
-	/**
-	 * @type {CupertinoPane}
-	 */
-	let pane: CupertinoPane;
-
 	const handleClickOutside = () => {
-		pane.destroy({ animate: true });
+		pane?.destroy({ animate: true });
 		isPaneOpen = false;
 	};
 
 	$effect(() => {
-		pane = new CupertinoPane('.cupertino-pane', {
+		if (!drawerElem) return;
+		pane = new CupertinoPane(drawerElem, {
 			parentElement: 'body',
 			breaks: {
 				top: { enabled: true, height: window.innerHeight },
@@ -41,47 +39,60 @@
 			initialBreak: 'middle',
 			buttonDestroy: false
 		});
+
+		if (isPaneOpen) {
+			pane.present({ animate: true });
+		} else {
+			pane.destroy({ animate: true });
+		}
+
 		return () => pane.destroy();
 	});
 
 	$effect(() => {
 		if (isPaneOpen) {
-			pane.present({ animate: true }); // Open the pane
+			pane.present({ animate: true });
 		} else {
-			pane.destroy({ animate: true }); // Close the pane with animation
+			pane.destroy({ animate: true });
 		}
-		const paneHeader = document.getElementsByClassName('draggable');
-		const paneWrapper = document.getElementsByClassName('pane');
 		drawerElem.addEventListener('click_outside', () => {
 			handleClickOutside();
 		});
 	});
 
-	const cBase = cn("py-[40px] bg-white-900", restProps.class);
+	const cBase = cn(
+		"fixed bottom-0 left-0 w-full bg-white shadow-lg rounded-t-3xl py-6",
+		restProps.class
+	);
 </script>
 
 <div
 	bind:this={backdrop}
-	class={cn(isPaneOpen ? "block" : "hidden", "fixed inset-0 backdrop-blur-lg pointer-events-none")}
+	class={cn(
+		isPaneOpen ? "block" : "hidden",
+		"fixed inset-0 backdrop-blur-lg pointer-events-none"
+	)}
 ></div>
+
 <div
 	{...restProps}
 	use:swipe={() => ({
-		timeframe: 300, // Optional: Time limit for swipe
-		minSwipeDistance: 60 // Optional: Minimum distance for swipe to trigger
+		timeframe: 300, 
+		minSwipeDistance: 60
 	})}
-	onswipe={() => {
-		handleSwipe?.(isPaneOpen);
-	}}
+	onswipe={() => handleSwipe?.(isPaneOpen)}
 	class={cBase}
 	bind:this={drawerElem}
 	use:clickOutside
 >
-	{@render children?.()}
+
+	<div class="flex justify-center mb-[6px]">
+		<div class="w-[62px] h-[6px] bg-gray-300 rounded-full"></div>
+	</div>
+
+	<div class="px-6">
+		{@render children?.()}
+	</div>
 </div>
 
-<style>
-	:global(.move) {
-		margin-top: 5px !important;
-	}
-</style>
+
