@@ -1,54 +1,58 @@
 <script lang="ts" generics="T">
+    import { cn } from '$lib/utils'
 	import type { HTMLButtonAttributes } from 'svelte/elements';
-	import { twMerge } from 'tailwind-merge';
 
-	/** Specifies the type of the button. */
 	interface IButtonProps extends HTMLButtonAttributes {
-		variant?: 'primary' | 'secondary' | 'danger';
+		variant?: 'solid' | 'soft' | 'danger' | 'danger-soft';
 		isLoading?: boolean;
-		loaderData?: T;
 	}
 
 	let {
-		variant = 'primary',
+		variant = 'solid',
 		isLoading,
-		loaderData = undefined,
 		children = undefined,
 		...restProps
 	}: IButtonProps = $props();
 
-	let commonClass =
-		'w-full flex items-center justify-center px-5 py-2.5 rounded-lg text-sm font-medium border-[1px]';
-	const primaryClass = twMerge(
-		[commonClass, 'bg-primary-400 border-transparent text-white'].join(' ')
-	);
-	const secondaryClass = twMerge(
-		[
-			commonClass,
-			'border-secondary-200 bg-white dark:bg-darker-background dark:border-secondary-500 text-primary-400'
-		].join(' ')
-	);
-	const dangerClass = twMerge(
-		[commonClass, 'border-transparent text-white bg-danger-400'].join(' ')
-	);
-	const disabledClass = twMerge(
-		[commonClass, 'bg-secondary-500 cursor-not-allowed hover:bg-secondary-500'].join(' ')
-	);
+	let disabled = restProps.disabled || isLoading;
+
+	const variantClasses = {
+    solid: { background: 'bg-primary-900', text: 'text-white' },
+    soft: { background: 'bg-primary-100', text: 'text-primary-900' },
+    danger: { background: 'bg-danger-500', text: 'text-white' },
+    'danger-soft': { background: 'bg-danger-300', text: 'text-danger-500' }
+  };
+
+  const disabledVariantClasses = {
+    solid: { background: 'bg-primary-500', text: 'text-white' },
+	soft: { background: 'bg-primary-100', text: 'text-primary-500' },
+	danger: { background: 'bg-danger-500', text: 'text-white' },
+	'danger-soft': { background: 'bg-danger-300', text: 'text-danger-500' }
+  };
+
+  let classes = {
+    common: 'flex items-center justify-center px-8 py-2.5 rounded-full text-xl font-semibold h-[56px]',
+    background: disabled ? disabledVariantClasses[variant].background || variantClasses[variant].background : variantClasses[variant].background,
+    text: disabled ? disabledVariantClasses[variant].text || variantClasses[variant].text : variantClasses[variant].text,
+    disabled: 'cursor-not-allowed'
+  };
 </script>
 
 <button
 	{...restProps}
-	class={twMerge(
+	class={cn(
 		[
-			variant === 'primary' ? primaryClass : variant === 'secondary' ? secondaryClass : dangerClass,
 			restProps.class,
-			restProps.disabled ? disabledClass : ''
+			classes.common,
+			classes.background,
+			classes.text,
+			disabled && classes.disabled
 		].join(' ')
 	)}
 	disabled={isLoading || restProps.disabled}
 >
 	{@render children?.()}
-
+<div class="py-2.5 text-xl font- leadin."></div>
 	{#if isLoading}
 			<div class="loader"></div>
 	{/if}
