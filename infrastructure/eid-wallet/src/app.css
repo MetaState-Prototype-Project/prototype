@@ -39,6 +39,8 @@
 
   --color-danger-500: #ff5255;
   --color-danger-300: #ffdcdd;
+
+  --color-drawer-indicator: #EBEDF0;
 }
 
 body {
