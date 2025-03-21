@@ -40,10 +40,9 @@
 			showDraggable: true,
 			upperThanTop: true,
 			breaks: {
-			bottom: { enabled: true, height: 300 }, 
+			bottom: { enabled: true, height: 250 }, 
 			},
 			initialBreak: 'bottom',
-			bottomOffset: -80, 
 		});
 
 		if (isPaneOpen) {
@@ -84,13 +83,21 @@
 </div>
 
 <style>
-	:global(.pane){
-		width: 95% !important;
-		border-radius: 32px !important;
-		padding-block-start: 50px !important;
-		padding-block-end: 20px;
-		background-color: var(--color-white-900) !important;
-	}
+	:global(.pane) {
+	width: 95% !important;
+	max-height: 500px !important;
+	min-height: 250px !important;
+	height: 300px !important;
+	position: fixed !important;
+	bottom: 30px !important;
+	left: 50% !important;
+	transform: translateX(-50%) !important;
+	border-radius: 32px !important;
+	padding-block-start: 50px !important;
+	padding-block-end: 20px !important;
+	background-color: var(--color-white-900) !important;
+	overflow: hidden !important; /* Prevents content overflow */
+}
 
 	:global(.move) {
 		margin-block: 6px  !important;
