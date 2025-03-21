@@ -17,6 +17,6 @@ export const Primary = {
 		connectionName: "Facebook.com",
 		lastConnected:
 			new Date().toDateString() + ", " + new Date().toLocaleTimeString(),
-		onclick: () => alert("Disconnected!"),
+		onClick: () => alert("Disconnected!"),
 	},
 };

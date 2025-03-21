@@ -6,15 +6,16 @@
         imgSrc: string;
         connectionName: string;
         lastConnected: Date;
+        onClick?: () => void;
     }
 
-    let { imgSrc, connectionName, lastConnected, ...restProps}: IConnection = $props();
+    let { imgSrc, connectionName, lastConnected, onClick, ...restProps}: IConnection = $props();
 
 </script>
 
 <div {...restProps} class={cn("flex items-center justify-between px-3 py-2", restProps.class)}>
     <div class="flex items-center gap-2">
-        <div class="p-3 bg-gray-900 max-w-max rounded-4xl object-cover">
+        <div class="p-3 bg-gray-900 max-w-max rounded-4xl object-cover flex items-center">
             <img class="size-6" src={imgSrc} alt={connectionName}>
         </div>
         <div>
@@ -24,6 +25,8 @@
     </div>
     <button 
         class="p-2 text-md font-semibold text-primary-900"
+        onclick={onClick}
+
     >
             Disconnect
     </button>
