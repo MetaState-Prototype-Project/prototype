@@ -1,6 +1,5 @@
 <script lang="ts" generics="T">
   import { cn } from '$lib/utils'
-  import type { Snippet } from 'svelte'
   import type { HTMLButtonAttributes } from 'svelte/elements'
 
   interface IButtonProps extends HTMLButtonAttributes {
@@ -8,6 +7,7 @@
     isLoading?: boolean
     cb?: () => Promise<void>
     blockingClick?: boolean
+    type?: 'button' | 'submit' | 'reset'
   }
 
   let {
@@ -15,6 +15,7 @@
     isLoading,
     cb,
     blockingClick,
+    type = 'button',
     children = undefined,
     ...restProps
   }: IButtonProps = $props()
@@ -23,11 +24,16 @@
   let disabled = $derived(restProps.disabled || isLoading || isSubmitting)
 
   const handleClick = async () => {
-    if (!cb) return
+    if (typeof cb !== 'function') return
 
     if (blockingClick) isSubmitting = true
-    await cb().catch(() => (isSubmitting = false))
-    isSubmitting = false
+    try {
+      await cb()
+    } catch (error) {
+      console.error('Error in button callback:', error)
+    } finally {
+      isSubmitting = false
+    }
   }
 
   const variantClasses = {
@@ -71,6 +77,7 @@
   )}
   {disabled}
   onclick={handleClick}
+  {type}
 >
   <div class="relative flex items-center justify-center">
     {#if isLoading || isSubmitting}
