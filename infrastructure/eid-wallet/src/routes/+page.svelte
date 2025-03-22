@@ -1,5 +1,4 @@
 <script lang="ts">
-
 </script>
 
 <button class="btn btn-soft">Default</button>
