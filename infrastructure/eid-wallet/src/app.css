@@ -37,10 +37,11 @@
   --color-black-300: #a5a5a5;
   --color-black-100: #d2d2d2;
 
-  --color-black: #1F1F1F;
+  --color-black: #1f1f1f;
 
   --color-danger-500: #ff5255;
-  --color-danger-300: #ffdcdd;
+  --color-danger-300: #ff7d7f;
+  --color-danger-100: #ffdcdd;
 }
 
 body {
