@@ -51,6 +51,7 @@ importers:
       '@storybook/addon-essentials':
         specifier: ^8.6.7
         version: 8.6.7(@types/react@19.0.12)(storybook@8.6.7(prettier@3.5.3))
+
       '@storybook/addon-svelte-csf':
         specifier: ^5.0.0-next.28
         version: 5.0.0-next.28(@storybook/svelte@8.6.7(storybook@8.6.7(prettier@3.5.3))(svelte@5.23.2))(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.23.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(lightningcss@1.29.2)))(storybook@8.6.7(prettier@3.5.3))(svelte@5.23.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(lightningcss@1.29.2))
@@ -59,6 +60,7 @@ importers:
         version: 8.6.7(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(storybook@8.6.7(prettier@3.5.3))
       '@storybook/experimental-addon-test':
         specifier: ^8.6.7
+
         version: 8.6.7(@vitest/browser@3.0.9(@types/node@22.13.10)(playwright@1.51.1)(typescript@5.6.3)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(lightningcss@1.29.2))(vitest@3.0.9))(@vitest/runner@3.0.9)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)(storybook@8.6.7(prettier@3.5.3))(vitest@3.0.9(@types/node@22.13.10)(@vitest/browser@3.0.9)(jiti@2.4.2)(lightningcss@1.29.2)(msw@2.7.3(@types/node@22.13.10)(typescript@5.6.3)))
       '@storybook/svelte':
         specifier: ^8.6.7
@@ -69,6 +71,7 @@ importers:
       '@storybook/test':
         specifier: ^8.6.7
         version: 8.6.7(storybook@8.6.7(prettier@3.5.3))
+
       '@sveltejs/adapter-static':
         specifier: ^3.0.6
         version: 3.0.8(@sveltejs/kit@2.20.1(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.23.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(lightningcss@1.29.2)))(svelte@5.23.2)(vite@6.2.2(@types/node@22.13.10)(jiti@2.4.2)(lightningcss@1.29.2)))
@@ -480,6 +483,7 @@ packages:
   '@eslint/plugin-kit@0.2.7':
     resolution: {integrity: sha512-JubJ5B2pJ4k4yGxaNLdbjrnk9d/iDz6/q8wOilpIowd6PJPgaxCuHBnBszq7Ce2TyMrywm5r4PnKm6V3iiZF+g==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
 
   '@hugeicons/core-free-icons@1.0.13':
     resolution: {integrity: sha512-H0TwkJmvYXdAeUYvNXdQ4b94Xv6vIxZu2aQK+8fnm6Gho74yDrLH9pNqLk931OY8pVvLxPgEOZEDtBO2aZacng==}
@@ -5916,9 +5920,7 @@ snapshots:
       is-core-module: 2.16.1
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
-
   reusify@1.1.0: {}
-
   rimraf@2.7.1:
     dependencies:
       glob: 7.2.3
@@ -6164,7 +6166,6 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
-
   supports-preserve-symlinks-flag@1.0.0: {}
 
   svelte-ast-print@0.4.2(svelte@5.23.2):
@@ -6234,7 +6235,6 @@ snapshots:
   tailwindcss@4.0.14: {}
 
   tapable@2.2.1: {}
-
   test-exclude@7.0.1:
     dependencies:
       '@istanbuljs/schema': 0.1.3
