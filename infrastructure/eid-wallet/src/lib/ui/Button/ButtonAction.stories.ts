@@ -15,7 +15,13 @@ const meta: Meta<ButtonAction> = {
     variant: {
       control: {
         type: 'select',
-        options: ['solid', 'soft', 'danger', 'danger-soft'],
+        options: ['solid', 'soft', 'danger', 'danger-soft', 'white'],
+      },
+    },
+    size: {
+      control: {
+        type: 'select',
+        options: ['sm', 'md'],
       },
     },
     isLoading: { control: 'boolean' },

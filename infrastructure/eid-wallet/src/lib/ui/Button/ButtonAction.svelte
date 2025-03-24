@@ -119,6 +119,7 @@ This component is a button with a loading spinner that can be used to indicate t
 
 @props
 - variant: The variant of the button. Default is `solid`.
+- size: The size of the button. Default is `md`.
 - isLoading: A boolean to indicate if the button is in a loading state.
 - cb: A callback function that will be called when the button is clicked.
 - blockingClick: A boolean to indicate if the button should block the click event while the callback function is being executed.
