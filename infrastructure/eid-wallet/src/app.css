@@ -7,7 +7,7 @@
 @font-face {
   font-family: 'Archivo';
   src: url('/fonts/Archivo-VariableFont_wdth,wght.ttf') format('truetype');
-  font-weight: normal;
+  font-weight: 100 900;
   font-style: normal;
 }
 
@@ -36,6 +36,8 @@
   --color-black-500: #797979;
   --color-black-300: #a5a5a5;
   --color-black-100: #d2d2d2;
+
+  --color-black: #1F1F1F;
 
   --color-danger-500: #ff5255;
   --color-danger-300: #ffdcdd;
