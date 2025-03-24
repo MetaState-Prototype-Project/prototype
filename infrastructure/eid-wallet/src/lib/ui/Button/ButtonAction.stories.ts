@@ -26,7 +26,7 @@ const meta: Meta<ButtonAction> = {
     },
     isLoading: { control: 'boolean' },
     blockingClick: { control: 'boolean' },
-    cb: { action: 'clicked' },
+    callback: { action: 'clicked' },
   },
 }
 
@@ -57,7 +57,7 @@ export const BlockingClick: Story = {
   args: {
     blockingClick: true,
     children: ButtonText,
-    cb: async () => {
+    callback: async () => {
       await new Promise((resolve) => setTimeout(resolve, 2000))
     },
   },

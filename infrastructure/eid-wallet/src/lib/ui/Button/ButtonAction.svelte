@@ -5,7 +5,7 @@
   interface IButtonProps extends HTMLButtonAttributes {
     variant?: 'solid' | 'soft' | 'danger' | 'danger-soft' | 'white'
     isLoading?: boolean
-    cb?: () => Promise<void>
+    callback?: () => Promise<void>
     blockingClick?: boolean
     type?: 'button' | 'submit' | 'reset'
     size?: 'sm' | 'md'
@@ -14,7 +14,7 @@
   let {
     variant = 'solid',
     isLoading,
-    cb,
+    callback,
     blockingClick,
     type = 'button',
     size = 'md',
@@ -26,11 +26,11 @@
   let disabled = $derived(restProps.disabled || isLoading || isSubmitting)
 
   const handleClick = async () => {
-    if (typeof cb !== 'function') return
+    if (typeof callback !== 'function') return
 
     if (blockingClick) isSubmitting = true
     try {
-      await cb()
+      await callback()
     } catch (error) {
       console.error('Error in button callback:', error)
     } finally {
@@ -121,7 +121,7 @@ This component is a button with a loading spinner that can be used to indicate t
 - variant: The variant of the button. Default is `solid`.
 - size: The size of the button. Default is `md`.
 - isLoading: A boolean to indicate if the button is in a loading state.
-- cb: A callback function that will be called when the button is clicked.
+- callback: A callback function that will be called when the button is clicked.
 - blockingClick: A boolean to indicate if the button should block the click event while the callback function is being executed.
 - icon: A slot for an icon to be displayed inside the button.
 - ...restProps: Any other props that can be passed to a button element.
@@ -132,7 +132,7 @@ This component is a button with a loading spinner that can be used to indicate t
     import * as Button from '$lib/ui/Button'
 </script>
 
-<Button.Action variant="solid" cb={() => console.log('clicked')}>
+<Button.Action variant="solid" callback={() => console.log('clicked')}>
   Click me
 </Button.Action>
 ```
