@@ -1,4 +1,6 @@
 <script lang="ts">
+	import IdentityCard from "$lib/ui/IdentityCard/IdentityCard.svelte";
+
 
 </script>
 
@@ -14,3 +16,5 @@
 <h1 class="text-lg text-primary-900">Archivo font Everyone</h1>
 
 <div class="bg-secondary-700 text-primary-500 p-4">Secondary Background</div>
+
+<IdentityCard></IdentityCard>
