@@ -15,3 +15,10 @@ export const Default = {
         size: 4
 	}
 };
+
+export const Small = {
+	args: {
+        size: 4,
+        variant: "sm"
+	}
+};

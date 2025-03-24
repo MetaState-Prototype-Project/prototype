@@ -1,7 +1,7 @@
 <script lang="ts">
+    import { cn } from '$lib/utils';
 	import { onMount } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { twMerge } from 'tailwind-merge';
 
 	const KEYBOARD = {
 		BACKSPACE: 'Backspace',
@@ -14,6 +14,7 @@
 
 	interface IInputPinProps extends HTMLAttributes<HTMLDivElement> {
 		pin: string;
+        variant: "lg" | "sm";
 		size: number;
 		focusOnMount?: boolean | undefined;
 		inFocus?: boolean | undefined;
@@ -22,6 +23,7 @@
 
 	let {
 		pin = $bindable(''),
+        variant = "lg",
 		size = 6,
 		focusOnMount = true,
 		inFocus = false,
@@ -99,7 +101,7 @@
 	let uniqueId = 'input' + Math.random().toString().split('.')[1];
 </script>
 
-<div {...restProps} class={twMerge(['pin-input', restProps.class].join(' '))}>
+<div {...restProps} class={cn(`pin-input ${variant === "sm" && "sm" }`, restProps.class)}>
 	{#if inputs.length}
 		{#each inputs as item, i}
 			<div class="singular-input">
@@ -143,6 +145,11 @@
 		flex-wrap: nowrap;
 	}
 
+    .sm {
+        scale: 0.8;
+        transform-origin: 0 0;
+    }
+
 	.singular-input {
 		position: relative;
 		block-size: 68px;
@@ -162,7 +169,7 @@
 	}
 
 	.dark-mode .mask {
-		color: #d1d5db;
+		color: var(--color-black);
 	}
 
 	input.error + .mask {
@@ -190,7 +197,7 @@
 
 	input:focus {
 		outline: none;
-		border-color: var(--color-primary-900)
+		border-color: var(--color-primary-900);
 	}
 
 	/* Show the mask when the input has a value */
