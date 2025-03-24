@@ -10,7 +10,26 @@ export default {
     }),
 };
 
-export const Main = {
+export const Primary = {
     args: {
+        title: "Create PIN",
+        isBackRequired: false,
+        isUserLoggedIn: false
+    },
+};
+
+export const Secondary = {
+    args: {
+        title: "Create PIN",
+        isBackRequired: true,
+        isUserLoggedIn: false
+    },
+};
+
+export const Tertiary = {
+    args: {
+        title: "Create PIN",
+        isBackRequired: true,
+        isUserLoggedIn: true
     },
 };

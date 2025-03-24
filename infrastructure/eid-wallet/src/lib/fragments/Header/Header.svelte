@@ -12,12 +12,22 @@
     let {title= "Create PIN", isUserLoggedIn = true, isBackRequired = true}:IHeaderProps = $props()
 </script>
 
-<header class="flex justify-between items-center">
+<header class="h-[5.2vh] grid grid-cols-3 items-center">
     {#if isBackRequired}
-    <HugeiconsIcon size="5.5vw"  color="var(--color-black-700)" icon={ArrowLeft01Icon} />
+    <span class="flex justify-start">
+        <HugeiconsIcon size="5.5vw"  color="var(--color-black-700)" icon={ArrowLeft01Icon} />
+    </span>
+    {:else}
+    <!-- svelte-ignore element_invalid_self_closing_tag -->
+    <span aria-hidden="true"/>
     {/if}
-    <h1 class="text-3xl text-black font-semibold">{title}</h1>
+    <h1 class="text-3xl text-black text-center font-semibold">{title}</h1>
     {#if isUserLoggedIn}
-    <HugeiconsIcon size="8.1vw" color="var(--color-black-700)" icon={UserCircleIcon} />
+    <span class="flex justify-end">
+        <HugeiconsIcon size="8.1vw" color="var(--color-black-700)" icon={UserCircleIcon} />
+    </span>
+    {:else}
+    <!-- svelte-ignore element_invalid_self_closing_tag -->
+    <span aria-hidden="true"/>
     {/if}
 </header>
