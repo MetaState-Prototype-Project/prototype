@@ -143,6 +143,7 @@
 		gap: 24px;
 		flex-direction: row;
 		flex-wrap: nowrap;
+        user-select: none;
 	}
 
     .sm {
@@ -157,6 +158,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        user-select: none;
 	}
 
 	.singular-input .mask {
@@ -189,6 +191,8 @@
 		transition: all 0.4s;
         line-height: 81px;
         background-color: var(--color-gray-900);
+        user-select: none;
+        -webkit-text-security: disc; 
 	}
 
 	input.error {
