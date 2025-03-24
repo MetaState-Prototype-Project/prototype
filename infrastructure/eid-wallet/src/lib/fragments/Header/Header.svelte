@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { cn } from "$lib/utils";
     import { ArrowLeft01Icon, UserCircleIcon } from "@hugeicons/core-free-icons";
     import { HugeiconsIcon } from "@hugeicons/svelte";
     import type { HTMLAttributes } from "svelte/elements";
@@ -9,10 +10,11 @@
         isBackRequired?: boolean;
     }
 
-    let {title= "Create PIN", isUserLoggedIn = true, isBackRequired = true}:IHeaderProps = $props()
+    let {title= "Create PIN", isUserLoggedIn = true, isBackRequired = true, ...restProps}:IHeaderProps = $props()
+    const cBase = "w-full h-[9vh] flex justify-between items-center"
 </script>
 
-<header class="h-[5.2vh] grid grid-cols-3 items-center">
+<header {...restProps} class={cn(cBase, restProps.class)}>
     {#if isBackRequired}
     <span class="flex justify-start">
         <HugeiconsIcon size="5.5vw"  color="var(--color-black-700)" icon={ArrowLeft01Icon} />
