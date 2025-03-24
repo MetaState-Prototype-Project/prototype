@@ -140,7 +140,7 @@
 		display: flex;
 		justify-content: start;
 		align-items: center;
-		gap: 24px;
+		gap: 10px;
 		flex-direction: row;
 		flex-wrap: nowrap;
         user-select: none;
