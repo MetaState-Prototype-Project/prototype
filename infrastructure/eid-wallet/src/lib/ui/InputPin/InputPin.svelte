@@ -1,0 +1,199 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { twMerge } from 'tailwind-merge';
+
+	const KEYBOARD = {
+		BACKSPACE: 'Backspace',
+		DELETE: 'Delete',
+		ANDROID_BACKSPACE: 'Backspace'
+	};
+
+	let inputs = $state([0]);
+	let pins: { [key: number]: string } = $state({});
+
+	interface IInputPinProps extends HTMLAttributes<HTMLDivElement> {
+		pin: string;
+		size: number;
+		focusOnMount?: boolean | undefined;
+		inFocus?: boolean | undefined;
+		isError?: boolean;
+	}
+
+	let {
+		pin = $bindable(''),
+		size = 6,
+		focusOnMount = true,
+		inFocus = false,
+		isError = $bindable(false),
+		...restProps
+	}: IInputPinProps = $props();
+
+	onMount(async () => {
+		inputs = createArray(size);
+		pins = await createValueSlot(inputs);
+		pin = calcPin(pins);
+		if (!focusOnMount) return;
+		document.getElementById('pin0')?.focus();
+	});
+
+	$effect(() => {
+		pin = calcPin(pins);
+	});
+
+	const calcPin = (pins: { [key: number]: string }) => {
+		return Object.values(pins).join('') || '';
+	};
+
+	const isKeyDelete = (key: string) => {
+		return (
+			key === KEYBOARD.BACKSPACE || key === KEYBOARD.DELETE || key === KEYBOARD.ANDROID_BACKSPACE
+		);
+	};
+
+	const changeHandler = (e: KeyboardEvent, i: number) => {
+		const current = document.activeElement ?? document.getElementById('pin0');
+		const items = Array.from(document.getElementsByClassName('pin-item'));
+		const currentIndex = items.indexOf(current as HTMLElement);
+		let newIndex: number;
+
+		const regx = /^\d+$/;
+
+		// backspace pressed
+		if (isKeyDelete(e.key)) {
+			if (pins[i] !== '') {
+				// If there is a value in the current pin, just clear it and stay on the same input
+				pins[i] = '';
+				return;
+			} else {
+				// If the current input is already empty, move to the previous input
+				newIndex = (currentIndex - 1 + items.length) % items.length;
+			}
+		} else {
+			// When a number is typed, replace the current digit with the typed number
+			if (regx.test(e.key)) {
+				pins[i] = e.key;
+				newIndex = (currentIndex + 1) % items.length;
+			} else {
+				return;
+			}
+		}
+
+		// Set focus to the new input if it’s needed
+		(items[newIndex] as HTMLInputElement)?.focus();
+	};
+
+	const createArray = (size: number) => {
+		return new Array(size);
+	};
+
+	const createValueSlot = (arr: any[]) => {
+		return arr.reduce((obj, item) => {
+			return {
+				...obj,
+				[item]: ''
+			};
+		}, {});
+	};
+
+	let uniqueId = 'input' + Math.random().toString().split('.')[1];
+</script>
+
+<div {...restProps} class={twMerge(['pin-input', restProps.class].join(' '))}>
+	{#if inputs.length}
+		{#each inputs as item, i}
+			<div class="singular-input">
+				<input
+					bind:value={pins[i]}
+					maxLength="1"
+					class="pin-item {pins[i] ? 'has-value' : ''}"
+					class:error={isError}
+					id={uniqueId}
+					type="tel"
+					pattern="\d{1}"
+					onfocusin={() => (inFocus = true)}
+					onfocusout={() => {
+						if (i === inputs.length - 1) inFocus = false;
+					}}
+					maxlength="1"
+					onkeydown={(event) => {
+						event.preventDefault();
+						changeHandler(event, i);
+					}}
+					placeholder=""
+				/>
+				{#if pins[i] !== ''}
+					<div class="mask">·</div>
+				{/if}
+			</div>
+		{/each}
+	{/if}
+</div>
+
+<style>
+	.pin-input {
+		position: relative;
+		inline-size: 100%;
+		margin-inline: auto;
+		display: flex;
+		justify-content: start;
+		align-items: center;
+		gap: 24px;
+		flex-direction: row;
+		flex-wrap: nowrap;
+	}
+
+	.singular-input {
+		position: relative;
+		block-size: 68px;
+		inline-size: 81px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+	}
+
+	.singular-input .mask {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 24px;
+		visibility: hidden;
+	}
+
+	.dark-mode .mask {
+		color: #d1d5db;
+	}
+
+	input.error + .mask {
+		color: #f05252;
+	}
+
+	input {
+		inline-size: 68px;
+		block-size: 81px;
+		border-radius: 64px;
+		border: 1px solid #d1d5db;
+		color: transparent;
+		font-size: 16px;
+		text-align: center;
+		background: transparent;
+		box-sizing: border-box;
+		transition: all 0.4s;
+        line-height: 81px;
+	}
+
+	input.error {
+		border-color: #f05252;
+	}
+
+	input:focus {
+		outline: none;
+		border-color: #8da2fb;
+	}
+
+	/* Show the mask when the input has a value */
+	.singular-input input.has-value + .mask {
+		visibility: visible;
+	}
+</style>
