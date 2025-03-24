@@ -54,15 +54,15 @@
     white: { background: 'bg-black-100', text: 'text-black-700' },
   }
 
-  const padding = {
-    sm: 'px-4 py-1.5',
-    md: 'px-8 py-2.5',
+  const sizeVariant = {
+    sm: 'px-4 py-1.5 text-base h-11',
+    md: 'px-8 py-2.5 text-xl h-14',
   }
 
   let classes = $derived({
     common: cn(
-      'cursor-pointer w-min flex items-center justify-center rounded-full text-xl font-semibold h-[56px] duration-100',
-      padding[size]
+      'cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100',
+      sizeVariant[size]
     ),
     background: disabled
       ? disabledVariantClasses[variant].background ||
