@@ -166,14 +166,14 @@
 	}
 
 	input.error + .mask {
-		color: #f05252;
+		color: var(--color-danger-500);
 	}
 
 	input {
 		inline-size: 68px;
 		block-size: 81px;
 		border-radius: 64px;
-		border: 1px solid #d1d5db;
+		border: 1px solid transparent;
 		color: transparent;
 		font-size: 16px;
 		text-align: center;
@@ -181,15 +181,16 @@
 		box-sizing: border-box;
 		transition: all 0.4s;
         line-height: 81px;
+        background-color: var(--color-gray-900);
 	}
 
 	input.error {
-		border-color: #f05252;
+		border-color: var(--color-danger-500);
 	}
 
 	input:focus {
 		outline: none;
-		border-color: #8da2fb;
+		border-color: var(--color-primary-900)
 	}
 
 	/* Show the mask when the input has a value */

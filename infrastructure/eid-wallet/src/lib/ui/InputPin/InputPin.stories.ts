@@ -12,5 +12,6 @@ export default {
 
 export const Default = {
 	args: {
+        size: 4
 	}
 };
