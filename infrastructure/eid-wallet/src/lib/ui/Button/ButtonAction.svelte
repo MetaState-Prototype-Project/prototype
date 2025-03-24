@@ -3,7 +3,7 @@
   import type { HTMLButtonAttributes } from 'svelte/elements'
 
   interface IButtonProps extends HTMLButtonAttributes {
-    variant?: 'solid' | 'soft' | 'danger' | 'danger-soft'
+    variant?: 'solid' | 'soft' | 'danger' | 'danger-soft' | 'white'
     isLoading?: boolean
     cb?: () => Promise<void>
     blockingClick?: boolean
@@ -41,6 +41,7 @@
     soft: { background: 'bg-primary-100', text: 'text-primary-900' },
     danger: { background: 'bg-danger-500', text: 'text-white' },
     'danger-soft': { background: 'bg-danger-300', text: 'text-danger-500' },
+    white: { background: 'bg-white', text: 'text-black' },
   }
 
   const disabledVariantClasses = {
@@ -48,6 +49,7 @@
     soft: { background: 'bg-primary-100', text: 'text-primary-500' },
     danger: { background: 'bg-danger-500', text: 'text-white' },
     'danger-soft': { background: 'bg-danger-300', text: 'text-danger-500' },
+    white: { background: 'bg-black-100', text: 'text-black-700' },
   }
 
   let classes = $derived({
