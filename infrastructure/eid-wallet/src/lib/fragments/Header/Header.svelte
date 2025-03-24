@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { Back } from "$lib/icons";
-    import Avatar from "$lib/icons/Avatar.svelte";
     import type { HTMLAttributes } from "svelte/elements";
 
     interface IHeaderProps extends HTMLAttributes<HTMLElement> {
@@ -13,7 +11,7 @@
 </script>
 
 <header class="flex justify-between items-center">
-    <Back/>
-    <h1 class="">{title}</h1>
-    <Avatar/>
+    back
+    <h1 class="text-3xl text-">{title}</h1>
+    avatar
 </header>
