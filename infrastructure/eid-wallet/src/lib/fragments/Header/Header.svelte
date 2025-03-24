@@ -28,6 +28,8 @@
     {/if}
     <h1 class="text-3xl text-black text-center font-semibold">{title}</h1>
     {#if isUserLoggedIn}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <span class="flex justify-end" onclick={handleProfile}>
         <HugeiconsIcon size="8.1vw" color="var(--color-black-700)" icon={UserCircleIcon} />
     </span>
