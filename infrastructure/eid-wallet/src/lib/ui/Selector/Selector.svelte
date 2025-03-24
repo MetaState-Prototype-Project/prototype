@@ -8,7 +8,7 @@
     id,
     name,
     value,
-    icon = undefined,
+    flagIcon = undefined,
     selected = $bindable(),
     children = undefined,
     ...restProps
@@ -18,8 +18,8 @@
 <!-- {#each langs as lang}
 <Selector id={lang.id} name="lang" icon={lang.icon}>{lang.label}</Selector>
 {/each} -->
-<div class="flex w-full justify-between">
-  <div>
+<div class="flex w-full justify-between items-center">
+  <div class="flex">
     <input
       type="radio"
       {id}
@@ -29,10 +29,11 @@
       bind:group={selected}
       {...restProps}
     />
-    <label for={id} class="capitalize">
-      {#if icon}
-        <HugeiconsIcon {icon} className="mr-4" />
+    <label for={id} class="capitalize flex items-center">
+      {#if flagIcon}
+        <div class="mr-4">{@render flagIcon(id)}</div>
       {/if}
+
       {@render children()}
     </label>
   </div>
