@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "dev": "tsc --watch",
     "check-format": "prettier --check \"src/**/*.ts\"",
     "format": "npx @biomejs/biome format --write ./src",
@@ -22,7 +22,10 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.2"
+    "@ngneat/falso": "^7.3.0",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   },
   "main": "./dist/node/index.js",
   "module": "./dist/browser/index.js",
