@@ -91,23 +91,15 @@
   {type}
 >
   <div class="relative flex items-center justify-center">
-    {#if isLoading || isSubmitting}
-      <div
-        class="loading loading-spinner absolute {size === 'md'
-          ? 'loading-md -left-4'
-          : 'loading-sm -left-3'}"
-      ></div>
-    {/if}
     <div
-      class="flex items-center justify-center duration-100 {isLoading ||
-      isSubmitting
-        ? size === 'md'
-          ? 'translate-x-4'
-          : 'translate-x-3'
-        : ''}"
+      class="flex items-center justify-center duration-100"
+      class:blur-xs={isLoading || isSubmitting}
     >
       {@render children?.()}
     </div>
+    {#if isLoading || isSubmitting}
+      <div class="loading loading-spinner absolute loading-xl text-white"></div>
+    {/if}
   </div>
 </button>
 
