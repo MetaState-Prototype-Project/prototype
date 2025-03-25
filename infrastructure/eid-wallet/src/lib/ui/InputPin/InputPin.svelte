@@ -99,9 +99,10 @@
 	};
 
 	let uniqueId = 'input' + Math.random().toString().split('.')[1];
+	const cBase = "relative w-full margin-x-[auto] flex justify-start items-center gap-[10px] flex-row flex-nowrap select-none"
 </script>
 
-<div {...restProps} class={cn(`pin-input ${variant === "sm" && "sm" }`, restProps.class)}>
+<div {...restProps} class={cn(`${cBase} ${variant === "sm" && "sm" }`, restProps.class)}>
 	{#if inputs.length}
 		{#each inputs as item, i}
 			<div class="singular-input relative w-[68px] h-[81px] flex justify-center items-center select-none">
@@ -133,19 +134,6 @@
 </div>
 
 <style>
-	.pin-input {
-		position: relative;
-		inline-size: 100%;
-		margin-inline: auto;
-		display: flex;
-		justify-content: start;
-		align-items: center;
-		gap: 10px;
-		flex-direction: row;
-		flex-wrap: nowrap;
-        user-select: none;
-	}
-
     .sm {
         scale: 0.8;
         transform-origin: 0 0;
