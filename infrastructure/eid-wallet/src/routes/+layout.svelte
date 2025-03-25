@@ -12,8 +12,14 @@
 </script>
 
 {#if showSplashScreen}
-    <div class="flex items-center justify-center">
-        <img class="w-full" src="/images/SplashScreen.svg" alt="splash-screen">
+    <div class="relative w-full h-[100vh] bg-primary">
+        <img class="absolute w-full bottom-[-80px] start-0" src="/images/Shape1.svg" alt="illustration">
+        <img class="absolute w-full top-[50px] end-[100px]" src="/images/Shape2.svg" alt="illustration">
+        <div class="absolute w-full top-[42%] start-[50%] translate-x-[-50%] translate-y-[-42%]">
+            <h1 class="text-center text-white text-[44px]">eAgency</h1>
+            <p class="text-center text-white">Your self-sovereign digital entity</p>
+        </div>
+        <img class="absolute bottom-[116px] start-[50%] translate-x-[-50%]" src="/images/W3DSLogoWhite.svg" alt="logo">
     </div>
 {:else}
     {@render children?.()}
