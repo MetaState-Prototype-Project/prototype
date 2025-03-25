@@ -3,12 +3,16 @@ import {
   BasicContent,
   WithIconContent,
 } from './Selector.stories.snippet.svelte'
+import type { ComponentProps } from 'svelte'
 
 export default {
   title: 'UI/Selector',
   component: Selector,
   tags: ['autodocs'],
-  render: (args: any) => ({
+  render: (args: {
+    Component: Selector
+    props: ComponentProps<typeof Selector>
+  }) => ({
     Component: Selector,
     props: args,
   }),

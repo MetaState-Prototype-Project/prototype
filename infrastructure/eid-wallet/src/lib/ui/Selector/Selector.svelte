@@ -1,4 +1,4 @@
-<script lang="ts" generics="T">
+<script lang="ts">
   import { cn } from '$lib/utils'
   import { Tick01Icon } from '@hugeicons/core-free-icons'
   import { HugeiconsIcon } from '@hugeicons/svelte'
