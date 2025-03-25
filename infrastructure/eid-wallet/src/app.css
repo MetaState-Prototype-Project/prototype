@@ -39,6 +39,12 @@
 
   --color-black: #1F1F1F;
 
+  --color-red-900: #FF5255;
+  --color-red-700: #FF7B77;
+  --color-red-500: #FF968E;
+  --color-red-300: #FFB1A7;
+  --color-red-100: #FFDCDD;
+
   --color-danger-500: #ff5255;
   --color-danger-300: #ffdcdd;
 }
