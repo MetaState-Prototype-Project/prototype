@@ -10,8 +10,20 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "check-lint": {
+      "dependsOn": ["^check-lint"]
+    },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "check": {
+      "dependsOn": ["^check"]
+    },
+    "format": {
+      "dependsOn": ["^format"]
+    },
+    "check-format": {
+      "dependsOn": ["^check-format"]
     },
     "dev": {
       "cache": false,

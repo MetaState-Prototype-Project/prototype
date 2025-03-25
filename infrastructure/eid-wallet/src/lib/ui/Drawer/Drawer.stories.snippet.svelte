@@ -1,5 +1,5 @@
 <script context="module">
-	export { InnerContent };
+export { InnerContent };
 </script>
 
 {#snippet InnerContent()}

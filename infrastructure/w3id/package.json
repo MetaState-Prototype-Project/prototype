@@ -5,10 +5,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsc --watch",
-    "check-format": "prettier --check \"src/**/*.ts\"",
     "format": "npx @biomejs/biome format --write ./src",
+    "check-format": "npx @biomejs/biome format ./src",
     "lint": "npx @biomejs/biome lint --write ./src",
-    "check": "npx @biomejs/biome check --write ./src",
+    "check-lint": "npx @biomejs/biome lint ./src",
+    "check": "npx @biomejs/biome check ./src",
     "check-types": "tsc --noEmit",
     "build": "npm run build:node && npm run build:browser",
     "build:node": "tsc -p tsconfig.node.json",
@@ -19,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@biomejs/biome": "^1.9.4",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
