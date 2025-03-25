@@ -104,11 +104,11 @@
 <div {...restProps} class={cn(`pin-input ${variant === "sm" && "sm" }`, restProps.class)}>
 	{#if inputs.length}
 		{#each inputs as item, i}
-			<div class="singular-input">
+			<div class="singular-input relative w-[68px] h-[81px] flex justify-center items-center select-none">
 				<input
 					bind:value={pins[i]}
 					maxLength="1"
-					class="pin-item {pins[i] ? 'has-value' : ''}"
+					class="pin-item w-[68px] h-[81px] rounded-[64px] border-[1px] border-transparent text-xl text-center bg-gray-900 select-none {pins[i] ? 'has-value' : ''}"
 					class:error={isError}
 					id={uniqueId}
 					type="tel"
@@ -151,16 +151,6 @@
         transform-origin: 0 0;
     }
 
-	.singular-input {
-		position: relative;
-		block-size: 68px;
-		inline-size: 81px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        user-select: none;
-	}
-
 	.singular-input .mask {
 		position: absolute;
 		top: 50%;
@@ -170,28 +160,15 @@
 		visibility: hidden;
 	}
 
-	.dark-mode .mask {
-		color: var(--color-black);
-	}
-
 	input.error + .mask {
 		color: var(--color-danger-500);
 	}
 
 	input {
-		inline-size: 68px;
-		block-size: 81px;
-		border-radius: 64px;
-		border: 1px solid transparent;
 		color: transparent;
-		font-size: 16px;
-		text-align: center;
-		background: transparent;
 		box-sizing: border-box;
 		transition: all 0.4s;
         line-height: 81px;
-        background-color: var(--color-gray-900);
-        user-select: none;
         -webkit-text-security: disc; 
 	}
 
