@@ -25,5 +25,5 @@ jobs:
           echo "installing deps for packages"
           pnpm i
 
-      - name: Check Lint
+      - name: Check Code
         run: pnpm check
