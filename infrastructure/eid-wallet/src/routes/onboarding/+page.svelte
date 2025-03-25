@@ -23,7 +23,7 @@
     <section>
         <p>By continuing you agree to our <a href="/">Terms & Conditions </a> and <a href="/">privacy policy.</a></p>
         <div class="grid grid-cols-2 items-center gap-[11px] whitespace-nowrap mt-[1.2vh]">
-            <ButtonAction cb={handleLogin}>Log in</ButtonAction>
+            <ButtonAction variant="soft" cb={handleLogin}>Log in</ButtonAction>
             <ButtonAction cb={handleGetStarted}>Get Started</ButtonAction>
         </div>
     </section>
