@@ -1,11 +1,14 @@
 <script lang="ts">
     import type { HTMLAttributes } from 'svelte/elements';
 	import ButtonAction from '../../ui/Button/ButtonAction.svelte'
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { CheckmarkBadge02Icon, ViewIcon } from '@hugeicons/core-free-icons';
     interface IIdentityCard extends HTMLAttributes<HTMLElement>{
         variant: string;
         userId: string;
-        copyBtn: () => void;
-
+        copyBtn?: () => void;
+        viewBtn?: () => void;
+        userData: string[];
     }
 
 </script>
@@ -17,7 +20,7 @@
     </div>
     <div class="p-5 flex flex-col gap-2">
         <div>
-            <img src="/images/GreenCheckmark.svg" alt="">
+            <HugeiconsIcon size="35px"  color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
         </div>
         <div>
             <h2 class="text-md text-gray-400 font-semibold">Your W3ID</h2>
@@ -36,8 +39,9 @@
     </div>
     <div class="p-5 flex flex-col gap-4">
         <div class="flex justify-between">
-            <img src="/images/GreenCheckmark.svg" alt="">
-            <img src="/images/Eye.svg" alt="">
+            <HugeiconsIcon size="35px"  color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
+            <HugeiconsIcon size="35px"  color="var(--color-black-700)" icon={ViewIcon} />
+
         </div>
         <div class="flex gap-2 flex-col">
             <div class="flex justify-between">
