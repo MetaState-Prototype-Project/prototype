@@ -15,12 +15,18 @@ const meta: Meta<ButtonAction> = {
     variant: {
       control: {
         type: 'select',
-        options: ['solid', 'soft', 'danger', 'danger-soft'],
+        options: ['solid', 'soft', 'danger', 'danger-soft', 'white'],
+      },
+    },
+    size: {
+      control: {
+        type: 'select',
+        options: ['sm', 'md'],
       },
     },
     isLoading: { control: 'boolean' },
     blockingClick: { control: 'boolean' },
-    cb: { action: 'clicked' },
+    callback: { action: 'clicked' },
   },
 }
 
@@ -51,7 +57,7 @@ export const BlockingClick: Story = {
   args: {
     blockingClick: true,
     children: ButtonText,
-    cb: async () => {
+    callback: async () => {
       await new Promise((resolve) => setTimeout(resolve, 2000))
     },
   },
