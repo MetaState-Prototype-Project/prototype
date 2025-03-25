@@ -21,8 +21,8 @@
         <p class="text-base text-black-700 font-normal">Store your IDs, verify instantly with QR codes, and manage your digital identity with ease.</p>
     </section>
     <section>
-        <p class="text-center text-xs text-black-500">By continuing you agree to our <a href="/" class="text-primary">Terms & Conditions </a> and <a href="/" class="text-primary">privacy policy.</a></p>
-        <div class="grid grid-cols-2 items-center gap-[11px] whitespace-nowrap mt-[1.2vh]">
+        <p class="max-w-[300px] mx-[auto] text-center text-xs text-black-500">By continuing you agree to our <a href="/" class="text-primary underline underline-offset-5">Terms & Conditions </a> and <a href="/" class="text-primary underline underline-offset-5">privacy policy.</a></p>
+        <div class="grid grid-cols-2 items-center gap-[11px] whitespace-nowrap mt-[2vh]">
             <ButtonAction variant="soft" cb={handleLogin}>Log in</ButtonAction>
             <ButtonAction cb={handleGetStarted}>Get Started</ButtonAction>
         </div>
