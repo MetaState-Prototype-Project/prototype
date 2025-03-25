@@ -13,7 +13,7 @@
 
 {#if showSplashScreen}
     <div class="flex items-center justify-center">
-        <img class="w-full object-cover" src="/images/SplashScreen.svg" alt="splash-screen">
+        <img class="w-full" src="/images/SplashScreen.svg" alt="splash-screen">
     </div>
 {:else}
     {@render children?.()}
