@@ -10,7 +10,7 @@
     }
 </script>
 
-<main class="pt-[3vh] px-[6vw]">
+<main class="pt-[3vh] px-[6vw] pb-[4.5vh]">
     <article class="flex justify-center mb-[4vh]">
         <img src="/images/Onboarding.svg" alt="card">
     </article>
@@ -22,9 +22,9 @@
     </section>
     <section>
         <p class="max-w-[300px] mx-[auto] text-center text-xs text-black-500">By continuing you agree to our <a href="/" class="text-primary underline underline-offset-5">Terms & Conditions </a> and <a href="/" class="text-primary underline underline-offset-5">privacy policy.</a></p>
-        <div class="grid grid-cols-2 items-center gap-[11px] whitespace-nowrap mt-[2vh]">
-            <ButtonAction variant="soft" cb={handleLogin}>Log in</ButtonAction>
-            <ButtonAction cb={handleGetStarted}>Get Started</ButtonAction>
+        <div class="flex justify-center items-center gap-[11px] whitespace-nowrap mt-[2vh]">
+            <ButtonAction class="w-full" variant="soft" callback={handleLogin}>Log in</ButtonAction>
+            <ButtonAction class="w-full" callback={handleGetStarted}>Get Started</ButtonAction>
         </div>
     </section>
 </main>
