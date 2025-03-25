@@ -26,6 +26,6 @@ export const Small = {
 export const Error = {
 	args: {
         size: 4,
-		isError: true
+		isError: true,
 	}
 };

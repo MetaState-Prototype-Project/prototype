@@ -14,8 +14,8 @@
 
 	interface IInputPinProps extends HTMLAttributes<HTMLDivElement> {
 		pin: string;
-        variant: "lg" | "sm";
-		size: number;
+        variant?: "lg" | "sm";
+		size?: number;
 		focusOnMount?: boolean | undefined;
 		inFocus?: boolean | undefined;
 		isError?: boolean;
@@ -24,7 +24,7 @@
 	let {
 		pin = $bindable(''),
         variant = "lg",
-		size = 6,
+		size = 4,
 		focusOnMount = true,
 		inFocus = false,
 		isError = $bindable(false),
