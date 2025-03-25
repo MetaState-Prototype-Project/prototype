@@ -6,3 +6,4 @@
 </script>
 
 <ButtonAction callback={async() => await(goto("/onboarding"))}>Onboarding Flow</ButtonAction>
+<ButtonAction callback={async() => await(goto("/register"))}>Create PIN</ButtonAction>
