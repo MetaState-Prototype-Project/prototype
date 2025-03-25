@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import { Drawer, ButtonAction } from "$lib/ui";
 
     let isPaneOpen = $state(false);
@@ -10,6 +11,7 @@
 
     const handleNext = async() => {
         //handle next functionlity
+        goto("/verify")
     }
 </script>
 
