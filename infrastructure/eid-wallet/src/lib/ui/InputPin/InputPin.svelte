@@ -201,7 +201,7 @@
 
 	input:focus {
 		outline: none;
-		border-color: var(--color-primary-900);
+		border-color: var(--color-primary);
 	}
 
 	/* Show the mask when the input has a value */
