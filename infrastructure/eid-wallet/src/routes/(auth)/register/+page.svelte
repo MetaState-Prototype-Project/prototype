@@ -1,13 +1,13 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import {ButtonAction, InputPin} from "$lib/ui";
-    import Drawer from "$lib/ui/Drawer/Drawer.svelte";
+    import EnableBiometricsCard from "$lib/fragments/EnableBiometricsCard/EnableBiometricsCard.svelte";
+    import {ButtonAction, InputPin,Drawer} from "$lib/ui";
     
     let pin = $state("");
     let repeatPin = $state("");
     let firstStep = $state(true);
     let showDrawer = $state(false);
     let isBiometricScreen = $state(false);
+    let isModalOpen = $state(false);
 
     const handleFirstStep = async() => {
         if(pin.length === 4) firstStep = false;
@@ -29,6 +29,11 @@
 
     const handleSetupBiometrics = async() => {
         //handle setup biometrics logic goes here
+        isModalOpen = true
+    }
+
+    const handleEnableBiometrics = async() => {
+        //handle enable biometrics logic goes here
     }
 </script>
 
@@ -68,3 +73,5 @@
     </div>
     {/if}
 </Drawer>
+
+<EnableBiometricsCard bind:isModalOpen {handleEnableBiometrics}/>
