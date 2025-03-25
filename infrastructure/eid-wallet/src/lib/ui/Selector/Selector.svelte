@@ -2,47 +2,56 @@
   import { cn } from '$lib/utils'
   import { Tick01Icon } from '@hugeicons/core-free-icons'
   import { HugeiconsIcon } from '@hugeicons/svelte'
-  import { fly, slide } from 'svelte/transition'
+  import type { HTMLLabelAttributes } from 'svelte/elements'
+  import { fade } from 'svelte/transition'
+
+  interface ISelectorProps extends HTMLLabelAttributes {
+    id: string
+    name: string
+    value: string
+    icon?: (id: string) => any
+    selected?: string
+    children?: () => any
+  }
 
   let {
     id,
     name,
     value,
-    flagIcon = undefined,
+    icon = undefined,
     selected = $bindable(),
     children = undefined,
     ...restProps
-  } = $props()
+  }: ISelectorProps = $props()
 </script>
 
-<!-- {#each langs as lang}
-<Selector id={lang.id} name="lang" icon={lang.icon}>{lang.label}</Selector>
-{/each} -->
-<div class="flex w-full justify-between items-center">
+<label
+  {...restProps}
+  for={id}
+  class={cn(
+    ['flex w-full justify-between items-center py-4', restProps.class].join(' ')
+  )}
+>
   <div class="flex">
-    <input
-      type="radio"
-      {id}
-      {name}
-      {value}
-      class="appearance-none"
-      bind:group={selected}
-      {...restProps}
-    />
-    <label for={id} class="capitalize flex items-center">
-      {#if flagIcon}
-        <div class="mr-4">{@render flagIcon(id)}</div>
+    <div class="capitalize flex items-center">
+      <input
+        type="radio"
+        {id}
+        {name}
+        {value}
+        class="appearance-none"
+        bind:group={selected}
+      />
+      {#if icon}
+        <div>{@render icon(id)}</div>
       {/if}
-
-      {@render children()}
-    </label>
+      {#if children}
+        {@render children()}
+      {/if}
+    </div>
   </div>
   {#if selected === value}
-    <div
-      in:fly={{ duration: 150, delay: 0, x: 20, opacity: 0 }}
-      out:fly={{ duration: 150, delay: 0, x: 20, opacity: 0 }}
-      class="overflow-hidden"
-    >
+    <div in:fade={{ duration: 150, delay: 0 }} class="overflow-hidden">
       <HugeiconsIcon
         color="var(--color-white)"
         icon={Tick01Icon}
@@ -50,8 +59,27 @@
       />
     </div>
   {/if}
-</div>
+</label>
 
 <!-- 
   @component
-   -->
+  export default Selector
+  @description
+  A radio button with an icon and a label
+  @props
+  - id: string
+  - name: string
+  - value: string
+  - icon: (id: string) => any
+  - selected: string
+  - children: () => any
+  @slots
+  - default: The label of the radio button
+  @example
+  ```svelte
+  <Selector id="gb" name="lang" value="English UK (Default)" bind:selected={$selected}>
+    <div class="rounded-full fi fis fi-gb scale-150 mr-12 outline-8 outline-gray-900"></div>
+    English UK (Default)
+  </Selector>
+  ```
+-->
