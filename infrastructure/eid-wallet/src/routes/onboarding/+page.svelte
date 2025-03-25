@@ -1,10 +1,6 @@
 <script lang="ts">
     import ButtonAction from "$lib/ui/Button/ButtonAction.svelte";
 
-    const handleLogin = async() => {
-        // login fucntionality
-    }
-
     const handleGetStarted = async() => {
         //get started functionality
     }
@@ -23,7 +19,6 @@
     <section>
         <p class="max-w-[300px] mx-[auto] text-center text-xs text-black-500">By continuing you agree to our <a href="/" class="text-primary underline underline-offset-5">Terms & Conditions </a> and <a href="/" class="text-primary underline underline-offset-5">privacy policy.</a></p>
         <div class="flex justify-center items-center gap-[11px] whitespace-nowrap mt-[2vh]">
-            <ButtonAction class="w-full" variant="soft" callback={handleLogin}>Log in</ButtonAction>
             <ButtonAction class="w-full" callback={handleGetStarted}>Get Started</ButtonAction>
         </div>
     </section>
