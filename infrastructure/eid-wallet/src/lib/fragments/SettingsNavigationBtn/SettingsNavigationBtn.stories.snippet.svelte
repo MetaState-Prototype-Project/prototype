@@ -1,8 +1,8 @@
 <script context="module">
-	import { LanguageSquareIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
+import { LanguageSquareIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
-	export { icon };
+export { icon };
 </script>
 
 {#snippet icon()}

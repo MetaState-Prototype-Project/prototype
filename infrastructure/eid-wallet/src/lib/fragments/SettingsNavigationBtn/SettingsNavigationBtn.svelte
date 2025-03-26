@@ -1,18 +1,17 @@
 <script lang="ts">
-	import { cn } from "$lib/utils";
-	import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-	import type { Snippet } from "svelte";
-	import type { HTMLAttributes } from "svelte/elements";
+import { cn } from "$lib/utils";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { Snippet } from "svelte";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface ISettingsNavigationBtn extends HTMLAttributes<HTMLElement> {
-        icon: Snippet;
-        label: string;
-        onClick: () => void;
+interface ISettingsNavigationBtn extends HTMLAttributes<HTMLElement> {
+	icon: Snippet;
+	label: string;
+	onClick: () => void;
 }
 
-let {icon, label, onClick, ...restProps}: ISettingsNavigationBtn = $props();
-
+let { icon, label, onClick, ...restProps }: ISettingsNavigationBtn = $props();
 </script>
 
 <div {...restProps} class={cn('flex items-center justify-between px-3 py-2', restProps.class)} onclick={onClick}>

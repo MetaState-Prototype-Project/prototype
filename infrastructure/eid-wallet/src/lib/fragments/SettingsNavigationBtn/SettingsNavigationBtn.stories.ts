@@ -1,6 +1,6 @@
 import type { Snippet } from "svelte";
-import SettingsNavigationBtn from "./SettingsNavigationBtn.svelte";
 import { icon } from "./SettingsNavigationBtn.stories.snippet.svelte";
+import SettingsNavigationBtn from "./SettingsNavigationBtn.svelte";
 
 export default {
 	title: "Fragments/SettingsNavigationBtn",
