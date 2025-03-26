@@ -1,30 +1,43 @@
 <script lang="ts">
-    import type { HTMLAttributes } from 'svelte/elements';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { CheckmarkBadge02Icon,  Upload03Icon, ViewIcon } from '@hugeicons/core-free-icons';
+import type { HTMLAttributes } from "svelte/elements";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import {
+	CheckmarkBadge02Icon,
+	Upload03Icon,
+	ViewIcon,
+} from "@hugeicons/core-free-icons";
 
-    interface userData {
-        [fieldName: string]: string;
-    }
-    interface IIdentityCard extends HTMLAttributes<HTMLElement>{
-        variant?: 'eName' | 'ePassport' | 'eVault';
-        userId?: string;
-        viewBtn?: () => void;
-        shareBtn?: () => void;
-        userData?: userData;
-        totalStorage?: number;
-        usedStorage?: number;
-    }
+interface userData {
+	[fieldName: string]: string;
+}
+interface IIdentityCard extends HTMLAttributes<HTMLElement> {
+	variant?: "eName" | "ePassport" | "eVault";
+	userId?: string;
+	viewBtn?: () => void;
+	shareBtn?: () => void;
+	userData?: userData;
+	totalStorage?: number;
+	usedStorage?: number;
+}
 
-    let {variant = 'eName', userId, viewBtn, shareBtn, userData, totalStorage, usedStorage, ...restProps}: IIdentityCard = $props();
-    const state = $state({
-        progressWidth: "0%"
-    });
-    
-    $effect(() => {
-        state.progressWidth = usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
-    });
+let {
+	variant = "eName",
+	userId,
+	viewBtn,
+	shareBtn,
+	userData,
+	totalStorage,
+	usedStorage,
+	...restProps
+}: IIdentityCard = $props();
+const state = $state({
+	progressWidth: "0%",
+});
 
+$effect(() => {
+	state.progressWidth =
+		usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
+});
 </script>
 
 <div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">

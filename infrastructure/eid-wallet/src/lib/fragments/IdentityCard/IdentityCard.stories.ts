@@ -1,10 +1,22 @@
 import IdentityCard from "./IdentityCard.svelte";
 
+interface userData {
+	[fieldName: string]: string;
+}
+
 export default {
 	title: "UI/IdentityCard",
 	component: IdentityCard,
 	tags: ["autodocs"],
-	render: (args: any) => ({
+	render: (args: {
+		variant: string;
+		userId: string;
+		shareBtn: () => void;
+		viewBtn: () => void;
+		userData: userData;
+		usedStorage: number;
+		totalStorage: number;
+	}) => ({
 		Component: IdentityCard,
 		props: args,
 	}),
