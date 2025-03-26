@@ -1,9 +1,10 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import { IdentifierCard } from "$lib/fragments";
     import { ButtonAction } from "$lib/ui";
 
     const handleNext = async() => {
-
+        await goto("/e-passport")
     }
 </script>
 
