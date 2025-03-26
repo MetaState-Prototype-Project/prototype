@@ -1,69 +1,69 @@
 <script lang="ts">
-    import { clickOutside, cn } from "$lib/utils";
-    import { CupertinoPane } from "cupertino-pane";
-    import { type Snippet } from "svelte";
-    import { swipe } from "svelte-gestures";
-    import type { HTMLAttributes } from "svelte/elements";
+import { clickOutside, cn } from "$lib/utils";
+import { CupertinoPane } from "cupertino-pane";
+import { type Snippet } from "svelte";
+import { swipe } from "svelte-gestures";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
-        isPaneOpen?: boolean;
-        isCancelRequired?: boolean;
-        children?: Snippet;
-        handleSwipe?: (isOpen: boolean | undefined) => void;
-    }
+interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
+	isPaneOpen?: boolean;
+	isCancelRequired?: boolean;
+	children?: Snippet;
+	handleSwipe?: (isOpen: boolean | undefined) => void;
+}
 
-    let drawerElem: HTMLDivElement;
-    let pane: CupertinoPane;
+let drawerElem: HTMLDivElement;
+let pane: CupertinoPane;
 
-    let {
-        isPaneOpen = $bindable(),
-        isCancelRequired = false,
-        children = undefined,
-        handleSwipe,
-        ...restProps
-    }: IDrawerProps = $props();
+let {
+	isPaneOpen = $bindable(),
+	isCancelRequired = false,
+	children = undefined,
+	handleSwipe,
+	...restProps
+}: IDrawerProps = $props();
 
-    const handleClickOutside = () => {
-        pane?.destroy({ animate: true });
-        isPaneOpen = false;
-    };
+const handleClickOutside = () => {
+	pane?.destroy({ animate: true });
+	isPaneOpen = false;
+};
 
-    $effect(() => {
-        if (!drawerElem) return;
-        pane = new CupertinoPane(drawerElem, {
-            fitHeight: true,
-            backdrop: true,
-            backdropOpacity: 0.5,
-            backdropBlur: true,
-            bottomClose: true,
-            buttonDestroy: isCancelRequired,
-            showDraggable: true,
-            upperThanTop: true,
-            breaks: {
-                bottom: { enabled: true, height: 250 },
-            },
-            initialBreak: "bottom",
-        });
+$effect(() => {
+	if (!drawerElem) return;
+	pane = new CupertinoPane(drawerElem, {
+		fitHeight: true,
+		backdrop: true,
+		backdropOpacity: 0.5,
+		backdropBlur: true,
+		bottomClose: true,
+		buttonDestroy: isCancelRequired,
+		showDraggable: true,
+		upperThanTop: true,
+		breaks: {
+			bottom: { enabled: true, height: 250 },
+		},
+		initialBreak: "bottom",
+	});
 
-        if (isPaneOpen) {
-            pane.present({ animate: true });
-        } else {
-            pane.destroy({ animate: true });
-        }
+	if (isPaneOpen) {
+		pane.present({ animate: true });
+	} else {
+		pane.destroy({ animate: true });
+	}
 
-        return () => pane.destroy();
-    });
+	return () => pane.destroy();
+});
 
-    $effect(() => {
-        if (isPaneOpen) {
-            pane.present({ animate: true });
-        } else {
-            pane.destroy({ animate: true });
-        }
-        drawerElem.addEventListener("click_outside", () => {
-            handleClickOutside();
-        });
-    });
+$effect(() => {
+	if (isPaneOpen) {
+		pane.present({ animate: true });
+	} else {
+		pane.destroy({ animate: true });
+	}
+	drawerElem.addEventListener("click_outside", () => {
+		handleClickOutside();
+	});
+});
 </script>
 
 <div
