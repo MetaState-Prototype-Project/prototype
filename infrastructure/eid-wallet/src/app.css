@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
 
-/* biome-ignore lint: weird unknown property warning */
 @plugin "daisyui" {
+	/* biome-ignore lint/correctness/noUnknownProperty: DaisyUI v5 specific stuff, not handled yet by Biome */
 	themes: false;
+	/* biome-ignore lint/correctness/noUnknownProperty: DaisyUI v5 specific stuff, not handled yet by Biome */
 	darktheme: "light";
 }
 
