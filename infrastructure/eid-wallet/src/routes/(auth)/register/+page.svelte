@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import {ButtonAction, InputPin,Drawer} from "$lib/ui";
     import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
     import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -8,7 +9,7 @@
     let firstStep = $state(true);
     let showDrawer = $state(false);
     let isBiometricScreen = $state(false);
-    let isModalOpen = $state(false);
+    let isBiometricsAdded = $state(false);
 
     const handleFirstStep = async() => {
         if(pin.length === 4) firstStep = false;
@@ -30,11 +31,16 @@
 
     const handleSetupBiometrics = async() => {
         //handle setup biometrics logic goes here
-        isModalOpen = true
+        isBiometricsAdded = true
     }
 
     const handleEnableBiometrics = async() => {
         //handle enable biometrics logic goes here
+    }
+
+    const handleBiometricsAdded = async() => {
+        //handle logic when biometrics added successfully
+        goto("/review");
     }
 </script>
 
@@ -79,11 +85,15 @@
         <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line">
         <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
     </div>
-    <h1 class="text-black text-xl font-medium">Add biometrics</h1>
-    <p class="text-black-700 text-base font-normal mt-[0.5vh] mb-[2.3vh]">Use your fingerprint or face recognition for faster, more secure logins.</p>
+    <h1 class="text-black text-xl font-medium">{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h1>
+    <p class="text-black-700 text-base font-normal mt-[0.5vh] mb-[2.3vh]">{ isBiometricsAdded ? "Your biometrics have been successfully added." : "Use your fingerprint or face recognition for faster, more secure logins."}</p>
+    {#if !isBiometricsAdded}
     <div class="flex justify-center items-center gap-[11px]">
         <ButtonAction class="w-full bg-primary-100 text-primary" callback={handleSkip}>Skip</ButtonAction>
         <ButtonAction class="w-full" callback={handleSetupBiometrics}>Set up</ButtonAction>
     </div>
+    {:else}
+    <ButtonAction class="w-full" callback={handleBiometricsAdded}>Continue</ButtonAction>
+    {/if}
     {/if}
 </Drawer>
