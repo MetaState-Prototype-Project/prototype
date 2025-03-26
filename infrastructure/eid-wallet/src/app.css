@@ -1,12 +1,12 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
 
-/* eslint-disable */
-@plugin "daisyui" {
-	themes: false;
-	darktheme: "light";
+@layer utilities {
+	@plugin "daisyui" {
+		themes: false;
+		darktheme: "light";
+	}
 }
-/* eslint-enable */
 
 @font-face {
 	font-family: "Archivo";
