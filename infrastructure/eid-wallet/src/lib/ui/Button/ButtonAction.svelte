@@ -39,18 +39,18 @@
   }
 
   const variantClasses = {
-    solid: { background: 'bg-primary-900', text: 'text-white' },
-    soft: { background: 'bg-primary-100', text: 'text-primary-900' },
+    solid: { background: 'bg-primary-500', text: 'text-white' },
+    soft: { background: 'bg-primary-100', text: 'text-primary-500' },
     danger: { background: 'bg-danger-500', text: 'text-white' },
     'danger-soft': { background: 'bg-danger-100', text: 'text-danger-500' },
     white: { background: 'bg-white', text: 'text-black' },
   }
 
   const disabledVariantClasses = {
-    solid: { background: 'bg-primary-500', text: 'text-white' },
-    soft: { background: 'bg-primary-100', text: 'text-primary-500' },
-    danger: { background: 'bg-danger-300', text: 'text-white' },
-    'danger-soft': { background: 'bg-danger-100', text: 'text-danger-300' },
+    solid: { background: 'bg-primary-300', text: 'text-white' },
+    soft: { background: 'bg-primary-100', text: 'text-primary-300' },
+    danger: { background: 'bg-danger-400', text: 'text-white' },
+    'danger-soft': { background: 'bg-danger-100', text: 'text-danger-400' },
     white: { background: 'bg-black-100', text: 'text-black-700' },
   }
 

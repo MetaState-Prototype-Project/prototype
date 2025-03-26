@@ -55,7 +55,7 @@
       <HugeiconsIcon
         color="var(--color-white)"
         icon={Tick01Icon}
-        className="bg-primary-900 rounded-full w-6 h-6"
+        className="bg-primary-500 rounded-full w-6 h-6"
       />
     </div>
   {/if}
@@ -106,7 +106,7 @@
       <Selector {id} name="lang" {value} bind:selected={$selected}>
         {#snippet icon(id: string)}
           <div
-            class="rounded-full fi fis fi-{id} scale-150 mr-12 outline-8 outline-gray-900"
+            class="rounded-full fi fis fi-{id} scale-150 mr-12 outline-8 outline-gray"
           ></div>
         {/snippet}
         {value}

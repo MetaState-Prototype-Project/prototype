@@ -1,14 +1,11 @@
 <script lang="ts">
-  import { Drawer } from '$lib/ui'
-  let isPaneOpen = $state(false)
 </script>
 
-<button class="btn btn-soft" onclick={() => (isPaneOpen = true)}>Open</button>
-
-<Drawer bind:isPaneOpen isCancelRequired={true}>
-  <div class="bg-red-300">aslkfamfoasdiownednciaosndoasfnas</div>
-  <div>asfnladmfpamsfl asd</div>
-  <div>aslkfasf;,;</div>
-  <button class="btn btn-soft">Open</button>
-  <button class="btn btn-soft">Open</button>
-</Drawer>
+<div class="w-screen h-6 bg-red-100">red 100</div>
+<div class="w-screen h-6 bg-danger-100">danger 100</div>
+<div class="w-screen h-6 bg-red-200">red 200</div>
+<div class="w-screen h-6 bg-red-300">red 300</div>
+<div class="w-screen h-6 bg-danger-300">danger 300</div>
+<div class="w-screen h-6 bg-red-400">red 400</div>
+<div class="w-screen h-6 bg-red-500">red 500</div>
+<div class="w-screen h-6 bg-danger-500">danger 500</div>
