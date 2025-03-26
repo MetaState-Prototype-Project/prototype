@@ -1,6 +1,7 @@
+/* biome-ignore lint */
 @import 'tailwindcss';
 @import 'flag-icons/css/flag-icons.min.css';
-// eslint-disable-next-line
+
 @plugin "daisyui" {
   themes: false; /* Disable built-in themes */
   darktheme: 'light';
