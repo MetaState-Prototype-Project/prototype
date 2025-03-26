@@ -1,9 +1,9 @@
 import type { ComponentProps } from "svelte";
-import Selector from "./Selector.svelte";
 import {
 	BasicContent,
 	WithIconContent,
 } from "./Selector.stories.snippet.svelte";
+import Selector from "./Selector.svelte";
 
 export default {
 	title: "UI/Selector",
