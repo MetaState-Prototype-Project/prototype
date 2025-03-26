@@ -1,0 +1,29 @@
+name: "Check Lint"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "dev"
+      - "main"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install Dependencies
+        run: |
+          echo "installing pnpm"
+          npm install -g pnpm
+          echo "installing deps for packages"
+          pnpm i
+
+      - name: Check Lint
+        run: pnpm check-lint

@@ -1,42 +1,42 @@
-<script lang="ts" generics="T">
-  import { cn } from '$lib/utils'
-  import type { HTMLButtonAttributes } from 'svelte/elements'
+<script lang="ts">
+import { cn } from "$lib/utils";
+import type { HTMLButtonAttributes } from "svelte/elements";
 
-  interface IButtonProps extends HTMLButtonAttributes {
-    variant?: 'solid' | 'soft' | 'danger' | 'danger-soft' | 'white'
-    isLoading?: boolean
-    callback?: () => Promise<void>
-    blockingClick?: boolean
-    type?: 'button' | 'submit' | 'reset'
-    size?: 'sm' | 'md'
-  }
+interface IButtonProps extends HTMLButtonAttributes {
+	variant?: "solid" | "soft" | "danger" | "danger-soft" | "white";
+	isLoading?: boolean;
+	callback?: () => Promise<void>;
+	blockingClick?: boolean;
+	type?: "button" | "submit" | "reset";
+	size?: "sm" | "md";
+}
 
-  let {
-    variant = 'solid',
-    isLoading,
-    callback,
-    blockingClick,
-    type = 'button',
-    size = 'md',
-    children = undefined,
-    ...restProps
-  }: IButtonProps = $props()
+let {
+	variant = "solid",
+	isLoading,
+	callback,
+	blockingClick,
+	type = "button",
+	size = "md",
+	children = undefined,
+	...restProps
+}: IButtonProps = $props();
 
-  let isSubmitting = $state(false)
-  let disabled = $derived(restProps.disabled || isLoading || isSubmitting)
+let isSubmitting = $state(false);
+let disabled = $derived(restProps.disabled || isLoading || isSubmitting);
 
-  const handleClick = async () => {
-    if (typeof callback !== 'function') return
+const handleClick = async () => {
+	if (typeof callback !== "function") return;
 
-    if (blockingClick) isSubmitting = true
-    try {
-      await callback()
-    } catch (error) {
-      console.error('Error in button callback:', error)
-    } finally {
-      isSubmitting = false
-    }
-  }
+	if (blockingClick) isSubmitting = true;
+	try {
+		await callback();
+	} catch (error) {
+		console.error("Error in button callback:", error);
+	} finally {
+		isSubmitting = false;
+	}
+};
 
   const variantClasses = {
     solid: { background: 'bg-primary-500', text: 'text-white' },
@@ -54,25 +54,25 @@
     white: { background: 'bg-black-100', text: 'text-black-700' },
   }
 
-  const sizeVariant = {
-    sm: 'px-4 py-1.5 text-base h-11',
-    md: 'px-8 py-2.5 text-xl h-14',
-  }
+const sizeVariant = {
+	sm: "px-4 py-1.5 text-base h-11",
+	md: "px-8 py-2.5 text-xl h-14",
+};
 
-  let classes = $derived({
-    common: cn(
-      'cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100',
-      sizeVariant[size]
-    ),
-    background: disabled
-      ? disabledVariantClasses[variant].background ||
-        variantClasses[variant].background
-      : variantClasses[variant].background,
-    text: disabled
-      ? disabledVariantClasses[variant].text || variantClasses[variant].text
-      : variantClasses[variant].text,
-    disabled: 'cursor-not-allowed',
-  })
+let classes = $derived({
+	common: cn(
+		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
+		sizeVariant[size],
+	),
+	background: disabled
+		? disabledVariantClasses[variant].background ||
+			variantClasses[variant].background
+		: variantClasses[variant].background,
+	text: disabled
+		? disabledVariantClasses[variant].text || variantClasses[variant].text
+		: variantClasses[variant].text,
+	disabled: "cursor-not-allowed",
+});
 </script>
 
 <button

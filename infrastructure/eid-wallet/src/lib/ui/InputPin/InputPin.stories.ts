@@ -1,31 +1,31 @@
-import InputPin from './InputPin.svelte';
+import InputPin from "./InputPin.svelte";
 
 export default {
-	title: 'UI/InputPin',
+	title: "UI/InputPin",
 	component: InputPin,
-	tags: ['autodocs'],
+	tags: ["autodocs"],
 	render: (args: any) => ({
 		Component: InputPin,
-		props: args
-	})
+		props: args,
+	}),
 };
 
 export const Default = {
 	args: {
-        size: 4
-	}
+		size: 4,
+	},
 };
 
 export const Small = {
 	args: {
-        size: 4,
-        variant: "sm"
-	}
+		size: 4,
+		variant: "sm",
+	},
 };
 
 export const Error = {
 	args: {
-        size: 4,
+		size: 4,
 		isError: true,
-	}
+	},
 };

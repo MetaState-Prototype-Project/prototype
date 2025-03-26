@@ -1,5 +1,5 @@
 <script context="module">
-  export { BasicContent, WithIconContent }
+export { BasicContent, WithIconContent };
 </script>
 
 {#snippet BasicContent()}

@@ -5,16 +5,18 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "pnpm -F=* format",
+    "check-lint": "turbo run check-lint",
+    "format": "turbo run format",
+    "check-format": "turbo run check-format",
+    "check": "turbo run check",
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
     "prettier": "^3.5.3",
     "turbo": "^2.4.4",
     "typescript": "5.8.2"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.6.5",
   "engines": {
     "node": ">=18"
   }

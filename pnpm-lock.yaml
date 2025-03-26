@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@biomejs/biome':
-        specifier: ^1.9.4
-        version: 1.9.4
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
@@ -23,6 +20,9 @@ importers:
 
   infrastructure/eid-wallet:
     dependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
       '@hugeicons/core-free-icons':
         specifier: ^1.0.13
         version: 1.0.13
@@ -149,6 +149,9 @@ importers:
 
   infrastructure/w3id:
     dependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
       uuid:
         specifier: ^11.1.0
         version: 11.1.0

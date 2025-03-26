@@ -1,13 +1,13 @@
-@import 'tailwindcss';
-@import 'flag-icons/css/flag-icons.min.css';
+@import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
 @plugin "daisyui" {
   themes: false; /* Disable built-in themes */
-  darktheme: 'light';
+  darktheme: "light";
 }
 
 @font-face {
-  font-family: 'Archivo';
-  src: url('/fonts/Archivo-VariableFont_wdth,wght.ttf') format('truetype');
+  font-family: "Archivo";
+  src: url("/fonts/Archivo-VariableFont_wdth,wght.ttf") format("truetype");
   font-weight: 100 900;
   font-style: normal;
 }
@@ -47,7 +47,7 @@
 }
 
 body {
-  font-family: 'Archivo', sans-serif;
+  font-family: "Archivo", sans-serif;
 }
 
 /* Custom classes */
