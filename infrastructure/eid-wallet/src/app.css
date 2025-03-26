@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
 @plugin "daisyui" {
 	themes: false; /* Disable built-in themes */
 	darktheme: "light";
@@ -39,8 +40,15 @@
 
 	--color-black: #1f1f1f;
 
+	--color-red-900: #ff5255;
+	--color-red-700: #ff7b77;
+	--color-red-500: #ff968e;
+	--color-red-300: #ffb1a7;
+	--color-red-100: #ffdcdd;
+
 	--color-danger-500: #ff5255;
-	--color-danger-300: #ffdcdd;
+	--color-danger-300: #ff7d7f;
+	--color-danger-100: #ffdcdd;
 }
 
 body {
