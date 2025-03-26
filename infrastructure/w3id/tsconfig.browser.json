@@ -1,8 +1,8 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "ESNext",
-    "outDir": "./dist/browser",
-    "lib": ["DOM", "ESNext"]
-  }
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"outDir": "./dist/browser",
+		"lib": ["DOM", "ESNext"]
+	}
 }
