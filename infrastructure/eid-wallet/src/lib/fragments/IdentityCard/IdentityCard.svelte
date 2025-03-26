@@ -1,65 +1,93 @@
 <script lang="ts">
     import type { HTMLAttributes } from 'svelte/elements';
-	import ButtonAction from '../../ui/Button/ButtonAction.svelte'
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { CheckmarkBadge02Icon, ViewIcon } from '@hugeicons/core-free-icons';
-    interface IIdentityCard extends HTMLAttributes<HTMLElement>{
-        variant: string;
-        userId: string;
-        copyBtn?: () => void;
-        viewBtn?: () => void;
-        userData: string[];
+	import { CheckmarkBadge02Icon,  Upload03Icon, ViewIcon } from '@hugeicons/core-free-icons';
+
+    interface userData {
+        [fieldName: string]: string;
     }
+    interface IIdentityCard extends HTMLAttributes<HTMLElement>{
+        variant?: 'eName' | 'ePassport' | 'eVault';
+        userId?: string;
+        viewBtn?: () => void;
+        shareBtn?: () => void;
+        userData?: userData;
+        totalStorage?: number;
+        usedStorage?: number;
+    }
+
+    let {variant = 'eName', userId, viewBtn, shareBtn, userData, totalStorage, usedStorage, ...restProps}: IIdentityCard = $props();
+    const state = $state({
+        progressWidth: "0%"
+    });
+    
+    $effect(() => {
+        state.progressWidth = usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
+    });
 
 </script>
 
-<div class="relative bg-black-900 rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden mb-5">
+<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary-900" : "bg-gray-900"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
-        <div class="w-10 bg-white/10 h-[300%] rotate-40"></div>
-        <div class="w-10 bg-white/10 h-[300%] rotate-40"></div>
+        <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
+        <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
     </div>
     <div class="p-5 flex flex-col gap-2">
-        <div>
-            <HugeiconsIcon size="35px"  color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
-        </div>
-        <div>
-            <h2 class="text-md text-gray-400 font-semibold">Your W3ID</h2>
-            <div class="flex items-center justify-between w-full">
-                <p class="text-white w-[60%]">@caa0f630-2413-5ace-aa2c-4628ce93e497</p>
-                <ButtonAction variant="soft">Copy</ButtonAction>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="relative bg-primary-900 rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
-    <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
-        <div class="w-10 bg-white/10 h-[300%] rotate-40"></div>
-        <div class="w-10 bg-white/10 h-[300%] rotate-40"></div>
-    </div>
-    <div class="p-5 flex flex-col gap-4">
         <div class="flex justify-between">
-            <HugeiconsIcon size="35px"  color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
-            <HugeiconsIcon size="35px"  color="var(--color-black-700)" icon={ViewIcon} />
-
+            {#if variant === 'eName'}  
+                <HugeiconsIcon size={30} strokeWidth={2} color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div class="flex gap-3 items-center">
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <span class="flex justify-start" onclick={shareBtn}>
+                    <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={Upload03Icon} />
+                    </span>
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
+                    <span class="flex justify-start" onclick={viewBtn}>
+                        <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
+                    </span>
+                </div>
+            {:else if variant === 'ePassport'}
+                <p class="bg-white text-black-900 flex items-center rounded-4xl px-5 py-2 text-xs">HIGH SECURITY</p>
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <span class="flex justify-start" onclick={viewBtn}>
+                    <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
+                </span>
+            {:else if variant === 'eVault'}
+            <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
+            {/if}
         </div>
-        <div class="flex gap-2 flex-col">
-            <div class="flex justify-between">
-                <div class="text-md font-normal">Name</div>
-                <div class="text-md font-medium">Ananya Rana</div>
+        <div>
+            {#if variant === "eName"}        
+                <h2 class="text-md text-gray-400 font-semibold">Your W3ID</h2>
+                <div class="flex items-center justify-between w-full">
+                    <p class="text-white w-[60%]">@{userId}</p>
+                </div>
+            {:else if variant === "ePassport"}
+                <div class="flex gap-2 flex-col">
+                    {#each Object.entries(userData) as [fieldName, value] }    
+                    <div class="flex justify-between">
+                        <div class="text-md font-normal">{fieldName}</div>
+                        <div class="text-md font-medium">{value}</div>
+                    </div>
+                    {/each}
+                </div>
+            {:else if variant === "eVault"}
+            <div>
+                <div class="flex justify-between text-black mb-1">
+                    <div>{usedStorage}GB Used</div>
+                    <div>{totalStorage}GB Used</div>
+                </div>
+                <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-700">
+                    <div class="h-full bg-secondary rounded-full" style={`width: calc(${state.progressWidth})`}></div>
+                </div>
             </div>
-            <div class="flex justify-between">
-                <div class="text-md font-normal">Name</div>
-                <div class="text-md font-medium">Ananya Rana</div>
-            </div>
-            <div class="flex justify-between">
-                <div class="text-md font-normal">Name</div>
-                <div class="text-md font-medium">Ananya Rana</div>
-            </div>
-            <div class="flex justify-between">
-                <div class="text-md font-normal">Name</div>
-                <div class="text-md font-medium">Ananya Rana</div>
-            </div>
+            {/if}
         </div>
     </div>
 </div>
+
+
