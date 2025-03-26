@@ -27,7 +27,7 @@
 
 </script>
 
-<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary-900" : "bg-gray-900"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
+<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
@@ -50,7 +50,7 @@
                     </span>
                 </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white text-black-900 flex items-center rounded-4xl px-5 py-2 text-xs">HIGH SECURITY</p>
+                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs">HIGH SECURITY</p>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <span class="flex justify-start" onclick={viewBtn}>
@@ -62,7 +62,7 @@
         </div>
         <div>
             {#if variant === "eName"}        
-                <h2 class="text-md text-gray-400 font-semibold">Your W3ID</h2>
+                <h2 class="text-md text-gray font-semibold">Your eName</h2>
                 <div class="flex items-center justify-between w-full">
                     <p class="text-white w-[60%]">@{userId}</p>
                 </div>
@@ -70,8 +70,8 @@
                 <div class="flex gap-2 flex-col">
                     {#each Object.entries(userData) as [fieldName, value] }    
                     <div class="flex justify-between">
-                        <div class="text-md font-normal">{fieldName}</div>
-                        <div class="text-md font-medium">{value}</div>
+                        <div class="text-md font-normal text-gray">{fieldName}</div>
+                        <div class="text-md font-medium text-white">{value}</div>
                     </div>
                     {/each}
                 </div>
@@ -81,7 +81,7 @@
                     <div>{usedStorage}GB Used</div>
                     <div>{totalStorage}GB Used</div>
                 </div>
-                <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-700">
+                <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400">
                     <div class="h-full bg-secondary rounded-full" style={`width: calc(${state.progressWidth})`}></div>
                 </div>
             </div>

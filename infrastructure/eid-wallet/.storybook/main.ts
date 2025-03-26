@@ -1,5 +1,4 @@
 import type { StorybookConfig } from "@storybook/sveltekit";
-
 import { join, dirname } from "path";
 
 function getAbsolutePath(value: string): any {

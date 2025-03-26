@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@biomejs/biome':
-        specifier: ^1.9.4
-        version: 1.9.4
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
@@ -23,6 +20,9 @@ importers:
 
   infrastructure/eid-wallet:
     dependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
       '@hugeicons/core-free-icons':
         specifier: ^1.0.13
         version: 1.0.13
@@ -41,6 +41,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      flag-icons:
+        specifier: ^7.3.2
+        version: 7.3.2
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.0.2
@@ -146,6 +149,9 @@ importers:
 
   infrastructure/w3id:
     dependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -266,7 +272,7 @@ packages:
       '@biomejs/cli-linux-x64-musl': 1.9.4
       '@biomejs/cli-win32-arm64': 1.9.4
       '@biomejs/cli-win32-x64': 1.9.4
-    dev: true
+    dev: false
 
   /@biomejs/cli-darwin-arm64@1.9.4:
     resolution: {integrity: sha512-bFBsPWrNvkdKrNCYeAp+xo2HecOGPAy9WyNyB/jKnnedgzl4W4Hb9ZMzYNbf8dMCGmUdSavlYHiR01QaYR58cw==}
@@ -274,7 +280,7 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-darwin-x64@1.9.4:
@@ -283,7 +289,7 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-linux-arm64-musl@1.9.4:
@@ -292,7 +298,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-linux-arm64@1.9.4:
@@ -301,7 +307,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-linux-x64-musl@1.9.4:
@@ -310,7 +316,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-linux-x64@1.9.4:
@@ -319,7 +325,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-win32-arm64@1.9.4:
@@ -328,7 +334,7 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@biomejs/cli-win32-x64@1.9.4:
@@ -337,7 +343,7 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
+    dev: false
     optional: true
 
   /@bundled-es-modules/cookie@2.0.1:
@@ -3465,6 +3471,10 @@ packages:
       locate-path: 6.0.0
       path-exists: 4.0.0
     dev: true
+
+  /flag-icons@7.3.2:
+    resolution: {integrity: sha512-QkaZ6Zvai8LIjx+UNAHUJ5Dhz9OLZpBDwCRWxF6YErxIcR16jTkIFm3bFu54EkvKQy4+wicW+Gm7/0631wVQyQ==}
+    dev: false
 
   /flat-cache@3.2.0:
     resolution: {integrity: sha512-CYcENa+FtcUKLmhhqyctpclsq7QF38pKjZHsGNiSQF5r4FtoKDWabFDl3hzaEQMvT1LHEysw5twgLvpYYb4vbw==}

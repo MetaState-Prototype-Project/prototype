@@ -1,5 +1,5 @@
 <script context="module">
-  export { ButtonText }
+export { ButtonText };
 </script>
 
 {#snippet ButtonText()}
