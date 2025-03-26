@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'flag-icons/css/flag-icons.min.css';
 @plugin "daisyui" {
   themes: false; /* Disable built-in themes */
   darktheme: 'light';
