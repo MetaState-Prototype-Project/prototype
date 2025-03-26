@@ -48,21 +48,21 @@
   }
 
   const variantClasses = {
-    white: { background: 'bg-white-900', text: 'text-black' },
+    white: { background: 'bg-white', text: 'text-black' },
     'clear-on-light': { background: 'transparent', text: 'text-black' },
     'clear-on-dark': { background: 'transparent', text: 'text-white' },
   }
 
   const disabledClasses = {
-    white: { background: 'bg-white-900', text: 'text-black-500' },
+    white: { background: 'bg-white', text: 'text-black-500' },
     'clear-on-light': { background: 'bg-transparent', text: 'text-black-500' },
     'clear-on-dark': { background: 'bg-transparent', text: 'text-black-500' },
   }
 
   const isActiveClasses = {
-    white: { background: 'bg-secondary-900', text: 'text-black' },
-    'clear-on-light': { background: 'bg-secondary-900', text: 'text-black' },
-    'clear-on-dark': { background: 'bg-secondary-900', text: 'text-black' },
+    white: { background: 'bg-secondary-500', text: 'text-black' },
+    'clear-on-light': { background: 'bg-secondary-500', text: 'text-black' },
+    'clear-on-dark': { background: 'bg-secondary-500', text: 'text-black' },
   }
 
   const sizeVariant = {
