@@ -63,7 +63,7 @@ $effect(() => {
                     </span>
                 </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs">HIGH SECURITY</p>
+                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs font-semibold">HIGH SECURITY</p>
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <span class="flex justify-start" onclick={viewBtn}>
@@ -75,9 +75,9 @@ $effect(() => {
         </div>
         <div>
             {#if variant === "eName"}        
-                <h2 class="text-md text-gray font-semibold">Your eName</h2>
+                <h2 class="text-md text-gray font-light">Your eName</h2>
                 <div class="flex items-center justify-between w-full">
-                    <p class="text-white w-[60%]">@{userId}</p>
+                    <p class="text-white w-[60%] font-medium">@{userId}</p>
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
