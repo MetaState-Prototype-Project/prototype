@@ -1,28 +1,29 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import { Tick01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import type { HTMLLabelAttributes } from "svelte/elements";
-import { fade } from "svelte/transition";
+  import { cn } from '$lib/utils'
+  import { Tick01Icon } from '@hugeicons/core-free-icons'
+  import { HugeiconsIcon } from '@hugeicons/svelte'
+  import type { Snippet } from 'svelte'
+  import type { HTMLLabelAttributes } from 'svelte/elements'
+  import { fade } from 'svelte/transition'
 
-interface ISelectorProps extends HTMLLabelAttributes {
-	id: string;
-	name: string;
-	value: string;
-	icon?: (id: string) => any;
-	selected?: string;
-	children?: () => any;
-}
+  interface ISelectorProps extends HTMLLabelAttributes {
+    id: string
+    name: string
+    value: string
+    icon?: Snippet<[string]>
+    selected?: string
+    children?: Snippet
+  }
 
-let {
-	id,
-	name,
-	value,
-	icon = undefined,
-	selected = $bindable(),
-	children = undefined,
-	...restProps
-}: ISelectorProps = $props();
+  let {
+    id,
+    name,
+    value,
+    icon = undefined,
+    selected = $bindable(),
+    children = undefined,
+    ...restProps
+  }: ISelectorProps = $props()
 </script>
 
 <label
@@ -43,11 +44,9 @@ let {
         bind:group={selected}
       />
       {#if icon}
-        <div>{@render icon(id)}</div>
+        <div>{@render icon?.(id)}</div>
       {/if}
-      {#if children}
-        {@render children()}
-      {/if}
+      {@render children?.()}
     </div>
   </div>
   {#if selected === value}

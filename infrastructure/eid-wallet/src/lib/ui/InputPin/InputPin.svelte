@@ -69,18 +69,17 @@
         // If there is a value in the current pin, just clear it and stay on the same input
         pins[i] = ''
         return
-      } else {
-        // If the current input is already empty, move to the previous input
-        newIndex = (currentIndex - 1 + items.length) % items.length
       }
+      // If the current input is already empty, move to the previous input
+      newIndex = (currentIndex - 1 + items.length) % items.length
+    }
+
+    // When a number is typed, replace the current digit with the typed number
+    if (regx.test(e.key)) {
+      pins[i] = e.key
+      newIndex = (currentIndex + 1) % items.length
     } else {
-      // When a number is typed, replace the current digit with the typed number
-      if (regx.test(e.key)) {
-        pins[i] = e.key
-        newIndex = (currentIndex + 1) % items.length
-      } else {
-        return
-      }
+      return
     }
 
     // Set focus to the new input if it’s needed
@@ -91,16 +90,17 @@
     return new Array(size)
   }
 
-  const createValueSlot = (arr: any[]) => {
-    return arr.reduce((obj, item) => {
-      return {
-        ...obj,
-        [item]: '',
-      }
-    }, {})
+  const createValueSlot = (arr: number[]) => {
+    return arr.reduce(
+      (obj, item) => {
+        obj[item] = ''
+        return obj
+      },
+      {} as Record<number, string>
+    )
   }
 
-  let uniqueId = 'input' + Math.random().toString().split('.')[1]
+  let uniqueId = `input${Math.random().toString().split('.')[1]}`
   const cBase =
     'relative w-full margin-x-[auto] flex justify-start items-center gap-[10px] flex-row flex-nowrap select-none'
 </script>
