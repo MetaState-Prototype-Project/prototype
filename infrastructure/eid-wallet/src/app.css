@@ -1,11 +1,10 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
 
-@layer utilities {
-	@plugin "daisyui" {
-		themes: false;
-		darktheme: "light";
-	}
+/* biome-ignore lint: weird unknown property warning */
+@plugin "daisyui" {
+	themes: false;
+	darktheme: "light";
 }
 
 @font-face {
