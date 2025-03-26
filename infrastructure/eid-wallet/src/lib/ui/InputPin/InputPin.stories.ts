@@ -1,10 +1,14 @@
+import type { ComponentProps } from "svelte";
 import InputPin from "./InputPin.svelte";
 
 export default {
 	title: "UI/InputPin",
 	component: InputPin,
 	tags: ["autodocs"],
-	render: (args: any) => ({
+	render: (args: {
+		Component: InputPin;
+		props: ComponentProps<typeof InputPin>;
+	}) => ({
 		Component: InputPin,
 		props: args,
 	}),
@@ -23,7 +27,7 @@ export const Small = {
 	},
 };
 
-export const Error = {
+export const isError = {
 	args: {
 		size: 4,
 		isError: true,

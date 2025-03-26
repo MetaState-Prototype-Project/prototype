@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { cn } from '$lib/utils'
-  import type { HTMLAttributes } from 'svelte/elements'
+import { cn } from "$lib/utils";
+import type { HTMLAttributes } from "svelte/elements";
 
-  interface IConnection extends HTMLAttributes<HTMLElement> {
-    imgSrc: string
-    connectionName: string
-    lastConnected: Date
-    onClick?: () => void
-  }
+interface IConnection extends HTMLAttributes<HTMLElement> {
+	imgSrc: string;
+	connectionName: string;
+	lastConnected: Date;
+	onClick?: () => void;
+}
 
-  let {
-    imgSrc,
-    connectionName,
-    lastConnected,
-    onClick,
-    ...restProps
-  }: IConnection = $props()
+let {
+	imgSrc,
+	connectionName,
+	lastConnected,
+	onClick,
+	...restProps
+}: IConnection = $props();
 </script>
 
 <div

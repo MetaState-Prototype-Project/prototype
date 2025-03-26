@@ -1,59 +1,41 @@
-import type { Meta, StoryObj } from "@storybook/svelte";
+import type { ComponentProps } from "svelte";
 import ButtonAction from "./ButtonAction.svelte";
 import { ButtonText } from "./ButtonSnippets.svelte";
 
-const meta: Meta<ButtonAction> = {
-	title: "Components/ButtonAction",
+export default {
+	title: "UI/ButtonAction",
 	component: ButtonAction,
-	args: {
-		variant: "solid",
-		isLoading: false,
-		blockingClick: false,
-		children: "Click Me", // Ensure this is a function returning text
-	},
-	argTypes: {
-		variant: {
-			control: {
-				type: "select",
-				options: ["solid", "soft", "danger", "danger-soft", "white"],
-			},
-		},
-		size: {
-			control: {
-				type: "select",
-				options: ["sm", "md"],
-			},
-		},
-		isLoading: { control: "boolean" },
-		blockingClick: { control: "boolean" },
-		callback: { action: "clicked" },
-	},
+	tags: ["autodocs"],
+	render: (args: {
+		Component: ButtonAction;
+		props: ComponentProps<typeof ButtonAction>;
+	}) => ({
+		Component: ButtonAction,
+		props: args,
+	}),
 };
 
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Solid: Story = {
+export const Solid = {
 	args: { variant: "solid", children: ButtonText },
 };
 
-export const Soft: Story = {
+export const Soft = {
 	args: { variant: "soft", children: ButtonText },
 };
 
-export const Danger: Story = {
+export const Danger = {
 	args: { variant: "danger", children: ButtonText },
 };
 
-export const DangerSoft: Story = {
+export const DangerSoft = {
 	args: { variant: "danger-soft", children: ButtonText },
 };
 
-export const Loading: Story = {
+export const Loading = {
 	args: { isLoading: true, children: ButtonText },
 };
 
-export const BlockingClick: Story = {
+export const BlockingClick = {
 	args: {
 		blockingClick: true,
 		children: ButtonText,

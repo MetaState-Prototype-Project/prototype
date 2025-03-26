@@ -38,21 +38,21 @@ const handleClick = async () => {
 	}
 };
 
-  const variantClasses = {
-    solid: { background: 'bg-primary-500', text: 'text-white' },
-    soft: { background: 'bg-primary-100', text: 'text-primary-500' },
-    danger: { background: 'bg-danger-500', text: 'text-white' },
-    'danger-soft': { background: 'bg-danger-100', text: 'text-danger-500' },
-    white: { background: 'bg-white', text: 'text-black' },
-  }
+const variantClasses = {
+	solid: { background: "bg-primary-500", text: "text-white" },
+	soft: { background: "bg-primary-100", text: "text-primary-500" },
+	danger: { background: "bg-danger-500", text: "text-white" },
+	"danger-soft": { background: "bg-danger-100", text: "text-danger-500" },
+	white: { background: "bg-white", text: "text-black" },
+};
 
-  const disabledVariantClasses = {
-    solid: { background: 'bg-primary-300', text: 'text-white' },
-    soft: { background: 'bg-primary-100', text: 'text-primary-300' },
-    danger: { background: 'bg-danger-400', text: 'text-white' },
-    'danger-soft': { background: 'bg-danger-100', text: 'text-danger-400' },
-    white: { background: 'bg-black-100', text: 'text-black-700' },
-  }
+const disabledVariantClasses = {
+	solid: { background: "bg-primary-300", text: "text-white" },
+	soft: { background: "bg-primary-100", text: "text-primary-300" },
+	danger: { background: "bg-danger-400", text: "text-white" },
+	"danger-soft": { background: "bg-danger-100", text: "text-danger-400" },
+	white: { background: "bg-black-100", text: "text-black-700" },
+};
 
 const sizeVariant = {
 	sm: "px-4 py-1.5 text-base h-11",
@@ -76,31 +76,33 @@ let classes = $derived({
 </script>
 
 <button
-  {...restProps}
-  class={cn(
-    [
-      classes.common,
-      classes.background,
-      classes.text,
-      disabled && classes.disabled,
-      restProps.class,
-    ].join(' ')
-  )}
-  {disabled}
-  onclick={handleClick}
-  {type}
+    {...restProps}
+    class={cn(
+        [
+            classes.common,
+            classes.background,
+            classes.text,
+            disabled && classes.disabled,
+            restProps.class,
+        ].join(" ")
+    )}
+    {disabled}
+    onclick={handleClick}
+    {type}
 >
-  <div class="relative flex items-center justify-center">
-    <div
-      class="flex items-center justify-center duration-100"
-      class:blur-xs={isLoading || isSubmitting}
-    >
-      {@render children?.()}
+    <div class="relative flex items-center justify-center">
+        <div
+            class="flex items-center justify-center duration-100"
+            class:blur-xs={isLoading || isSubmitting}
+        >
+            {@render children?.()}
+        </div>
+        {#if isLoading || isSubmitting}
+            <div
+                class="loading loading-spinner absolute loading-xl text-white"
+            ></div>
+        {/if}
     </div>
-    {#if isLoading || isSubmitting}
-      <div class="loading loading-spinner absolute loading-xl text-white"></div>
-    {/if}
-  </div>
 </button>
 
 <!-- 

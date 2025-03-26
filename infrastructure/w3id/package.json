@@ -1,43 +1,41 @@
 {
-  "name": "w3id",
-  "version": "1.0.0",
-  "description": "",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsc --watch",
-    "format": "npx @biomejs/biome format --write ./src",
-    "check-format": "npx @biomejs/biome format ./src",
-    "lint": "npx @biomejs/biome lint --write ./src",
-    "check-lint": "npx @biomejs/biome lint ./src",
-    "check": "npx @biomejs/biome check ./src",
-    "check-types": "tsc --noEmit",
-    "build": "npm run build:node && npm run build:browser",
-    "build:node": "tsc -p tsconfig.node.json",
-    "build:browser": "tsc -p tsconfig.browser.json",
-    "postinstall": "npm run build"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "uuid": "^11.1.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.8.2"
-  },
-  "main": "./dist/node/index.js",
-  "module": "./dist/browser/index.js",
-  "types": "./dist/types/index.d.ts",
-  "exports": {
-    ".": {
-      "require": "./dist/node/index.js",
-      "import": "./dist/browser/index.js",
-      "types": "./dist/types/index.d.ts"
-    },
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "dist/**/*"
-  ]
+	"name": "w3id",
+	"version": "1.0.0",
+	"description": "",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"dev": "tsc --watch",
+		"format": "npx @biomejs/biome format --write ./src",
+		"check-format": "npx @biomejs/biome format ./src",
+		"lint": "npx @biomejs/biome lint --write ./src",
+		"check-lint": "npx @biomejs/biome lint ./src",
+		"check": "npx @biomejs/biome check ./src",
+		"check-types": "tsc --noEmit",
+		"build": "npm run build:node && npm run build:browser",
+		"build:node": "tsc -p tsconfig.node.json",
+		"build:browser": "tsc -p tsconfig.browser.json",
+		"postinstall": "npm run build"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"uuid": "^11.1.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.8.2"
+	},
+	"main": "./dist/node/index.js",
+	"module": "./dist/browser/index.js",
+	"types": "./dist/types/index.d.ts",
+	"exports": {
+		".": {
+			"require": "./dist/node/index.js",
+			"import": "./dist/browser/index.js",
+			"types": "./dist/types/index.d.ts"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": ["dist/**/*"]
 }

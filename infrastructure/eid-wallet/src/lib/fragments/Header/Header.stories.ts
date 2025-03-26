@@ -4,7 +4,11 @@ export default {
 	title: "Fragments/Header",
 	component: Header,
 	tags: ["autodocs"],
-	render: (args: any) => ({
+	render: (args: {
+		title: string;
+		isBackRequired: boolean;
+		isUserLoggedIn: boolean;
+	}) => ({
 		Component: Header,
 		props: args,
 	}),

@@ -2,6 +2,7 @@
 import { cn } from "$lib/utils";
 import { Tick01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { Snippet } from "svelte";
 import type { HTMLLabelAttributes } from "svelte/elements";
 import { fade } from "svelte/transition";
 
@@ -9,11 +10,12 @@ interface ISelectorProps extends HTMLLabelAttributes {
 	id: string;
 	name: string;
 	value: string;
-	icon?: (id: string) => any;
+	icon?: Snippet<[string]>;
 	selected?: string;
-	children?: () => any;
+	children?: Snippet;
 }
 
+// biome-ignore lint/style/useConst: selected is bindable, can't be a const
 let {
 	id,
 	name,
@@ -26,39 +28,39 @@ let {
 </script>
 
 <label
-  {...restProps}
-  for={id}
-  class={cn(
-    ['flex w-full justify-between items-center py-4', restProps.class].join(' ')
-  )}
+    {...restProps}
+    for={id}
+    class={cn(
+        ["flex w-full justify-between items-center py-4", restProps.class].join(
+            " "
+        )
+    )}
 >
-  <div class="flex">
-    <div class="capitalize flex items-center">
-      <input
-        type="radio"
-        {id}
-        {name}
-        {value}
-        class="appearance-none"
-        bind:group={selected}
-      />
-      {#if icon}
-        <div>{@render icon(id)}</div>
-      {/if}
-      {#if children}
-        {@render children()}
-      {/if}
+    <div class="flex">
+        <div class="capitalize flex items-center">
+            <input
+                type="radio"
+                {id}
+                {name}
+                {value}
+                class="appearance-none"
+                bind:group={selected}
+            />
+            {#if icon}
+                <div>{@render icon?.(id)}</div>
+            {/if}
+            {@render children?.()}
+        </div>
     </div>
-  </div>
-  {#if selected === value}
-    <div in:fade={{ duration: 150, delay: 0 }} class="overflow-hidden">
-      <HugeiconsIcon
-        color="var(--color-white)"
-        icon={Tick01Icon}
-        className="bg-primary-500 rounded-full w-6 h-6"
-      />
-    </div>
-  {/if}
+    {#if selected === value}
+        <div in:fade={{ duration: 150, delay: 0 }} class="overflow-hidden">
+            <HugeiconsIcon
+                color="var(--color-white)"
+                icon={Tick01Icon}
+                className="bg-primary-500 rounded-full w-6 h-6"
+            />
+        </div>
+    {/if}
 </label>
 
 <!-- 
