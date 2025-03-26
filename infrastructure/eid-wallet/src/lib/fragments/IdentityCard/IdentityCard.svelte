@@ -26,8 +26,8 @@ let {
 	viewBtn,
 	shareBtn,
 	userData,
-	totalStorage,
-	usedStorage,
+	totalStorage = 0,
+	usedStorage = 0,
 	...restProps
 }: IIdentityCard = $props();
 const state = $state({
@@ -81,12 +81,14 @@ $effect(() => {
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
-                    {#each Object.entries(userData) as [fieldName, value] }    
-                    <div class="flex justify-between">
-                        <div class="text-md font-normal text-gray">{fieldName}</div>
-                        <div class="text-md font-medium text-white">{value}</div>
-                    </div>
-                    {/each}
+                    {#if userData}
+                        {#each Object.entries(userData) as [fieldName, value] }    
+                            <div class="flex justify-between">
+                                <div class="text-md font-normal text-gray">{fieldName}</div>
+                                <div class="text-md font-medium text-white">{value}</div>
+                            </div>
+                        {/each}
+                    {/if}
                 </div>
             {:else if variant === "eVault"}
             <div>
