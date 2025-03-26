@@ -3,9 +3,10 @@
 
 /* eslint-disable */
 @plugin "daisyui" {
-	themes: false; /* Disable built-in themes */
+	themes: false;
 	darktheme: "light";
 }
+/* eslint-enable */
 
 @font-face {
 	font-family: "Archivo";
