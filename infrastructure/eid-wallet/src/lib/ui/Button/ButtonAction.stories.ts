@@ -1,33 +1,18 @@
-import type { Meta, StoryObj } from "@storybook/svelte";
+import type { ComponentProps } from "svelte";
 import ButtonAction from "./ButtonAction.svelte";
 import { ButtonText } from "./ButtonSnippets.svelte";
 
 export default {
 	title: "UI/ButtonAction",
 	component: ButtonAction,
-	args: {
-		variant: "solid",
-		isLoading: false,
-		blockingClick: false,
-		children: "Click Me",
-	},
-	argTypes: {
-		variant: {
-			control: {
-				type: "select",
-				options: ["solid", "soft", "danger", "danger-soft", "white"],
-			},
-		},
-		size: {
-			control: {
-				type: "select",
-				options: ["sm", "md"],
-			},
-		},
-		isLoading: { control: "boolean" },
-		blockingClick: { control: "boolean" },
-		callback: { action: "clicked" },
-	},
+	tags: ["autodocs"],
+	render: (args: {
+		Component: ButtonAction;
+		props: ComponentProps<typeof ButtonAction>;
+	}) => ({
+		Component: ButtonAction,
+		props: args,
+	}),
 };
 
 export const Solid = {
