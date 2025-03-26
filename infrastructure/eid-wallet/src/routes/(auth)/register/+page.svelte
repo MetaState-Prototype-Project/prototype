@@ -1,6 +1,7 @@
 <script lang="ts">
-    import EnableBiometricsCard from "$lib/fragments/EnableBiometricsCard/EnableBiometricsCard.svelte";
     import {ButtonAction, InputPin,Drawer} from "$lib/ui";
+    import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
     
     let pin = $state("");
     let repeatPin = $state("");
@@ -38,7 +39,7 @@
 </script>
 
 {#if firstStep}
-<main class="h-[100vh] pt-[3vh] px-[6vw] pb-[4.5vh] flex flex-col justify-between items-center">
+<main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h1 class="text-3xl text-black font-semibold mb-[1vh]">Create a pin</h1>
         <p class="text-base text-black-700 font-normal mb-[14vh]">Enter a 4-digit PIN code</p>
@@ -47,7 +48,7 @@
     <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
 </main>
 {:else}
-<main class="h-[100vh] pt-[3vh] px-[6vw] pb-[4.5vh] flex flex-col justify-between items-center">
+<main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h1 class="text-3xl text-black font-semibold mb-[1vh]">Re-enter your pin</h1>
         <p class="text-base text-black-700 font-normal mb-[14vh]">Confirm by entering pin again</p>
@@ -57,14 +58,27 @@
 </main>
 {/if}
 
+
 <Drawer bind:isPaneOpen={showDrawer} isCancelRequired={true}>
     {#if !isBiometricScreen}
-    <img src="" alt="lock-icon">
+    <div class="relative bg-gray-900 w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
+        <span class="relative z-[1]">
+            <HugeiconsIcon icon={CircleLock01Icon} color="var(--color-primary)"/>
+        </span>
+        <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line">
+        <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
+    </div>
     <h1 class="text-black text-xl font-medium">Pin code set!</h1>
     <p class="text-black-700 text-base font-normal mt-[0.5vh] mb-[2.3vh]">Your PIN has been created. You’ll use it to access your digital entity securely.</p>
     <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
     {:else}
-    <img src="" alt="lock-icon">
+    <div class="relative bg-gray-900 w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
+        <span class="relative z-[1]">
+            <HugeiconsIcon icon={FaceIdIcon} color="var(--color-primary)" />
+        </span>
+        <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line">
+        <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
+    </div>
     <h1 class="text-black text-xl font-medium">Add biometrics</h1>
     <p class="text-black-700 text-base font-normal mt-[0.5vh] mb-[2.3vh]">Use your fingerprint or face recognition for faster, more secure logins.</p>
     <div class="flex justify-center items-center gap-[11px]">
@@ -73,5 +87,3 @@
     </div>
     {/if}
 </Drawer>
-
-<EnableBiometricsCard bind:isModalOpen {handleEnableBiometrics}/>
