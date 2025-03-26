@@ -1,11 +1,11 @@
 <script lang="ts">
-import type { HTMLAttributes } from "svelte/elements";
-import { HugeiconsIcon } from "@hugeicons/svelte";
 import {
 	CheckmarkBadge02Icon,
 	Upload03Icon,
 	ViewIcon,
 } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { HTMLAttributes } from "svelte/elements";
 
 interface userData {
 	[fieldName: string]: string;
