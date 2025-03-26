@@ -1,21 +1,32 @@
 <script lang="ts" generics="T">
   import { cn } from '$lib/utils'
   import type { HTMLButtonAttributes } from 'svelte/elements'
+  import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/svelte'
 
   interface IButtonProps extends HTMLButtonAttributes {
-    variant?: 'white' | 'clear'
+    variant?: 'white' | 'clear-on-light' | 'clear-on-dark'
     isLoading?: boolean
-    cb?: () => Promise<void>
+    callback?: () => Promise<void>
+    onclick?: () => void
     blockingClick?: boolean
     type?: 'button' | 'submit' | 'reset'
+    size?: 'sm' | 'md' | 'lg'
+    iconSize?: 'sm' | 'md' | 'lg' | number
+    icon: IconSvgElement
+    isActive?: boolean
   }
 
   let {
     variant = 'white',
     isLoading,
-    cb,
+    callback,
+    onclick,
     blockingClick,
     type = 'button',
+    size = 'md',
+    icon,
+    iconSize = undefined,
+    isActive = false,
     children = undefined,
     ...restProps
   }: IButtonProps = $props()
@@ -24,11 +35,11 @@
   let disabled = $derived(restProps.disabled || isLoading || isSubmitting)
 
   const handleClick = async () => {
-    if (typeof cb !== 'function') return
+    if (typeof callback !== 'function') return
 
     if (blockingClick) isSubmitting = true
     try {
-      await cb()
+      await callback()
     } catch (error) {
       console.error('Error in button callback:', error)
     } finally {
@@ -38,24 +49,52 @@
 
   const variantClasses = {
     white: { background: 'bg-white-900', text: 'text-black' },
-    clear: { background: 'transparent', text: 'text-white-900' },
+    'clear-on-light': { background: 'transparent', text: 'text-black' },
+    'clear-on-dark': { background: 'transparent', text: 'text-white' },
   }
 
-  const disabledVariantClasses = {
-    white: { background: 'bg-white-300', text: 'text-black' },
-    clear: { background: 'bg-transparent', text: 'text-white-300' },
+  const disabledClasses = {
+    white: { background: 'bg-white-900', text: 'text-black-500' },
+    'clear-on-light': { background: 'bg-transparent', text: 'text-black-500' },
+    'clear-on-dark': { background: 'bg-transparent', text: 'text-black-500' },
   }
+
+  const isActiveClasses = {
+    white: { background: 'bg-secondary-900', text: 'text-black' },
+    'clear-on-light': { background: 'bg-secondary-900', text: 'text-black' },
+    'clear-on-dark': { background: 'bg-secondary-900', text: 'text-black' },
+  }
+
+  const sizeVariant = {
+    sm: 'h-8 w-8',
+    md: 'h-[54px] w-[54px]',
+    lg: 'h-[108px] w-[108px]',
+  }
+
+  const iconSizeVariant = {
+    sm: 24,
+    md: 24,
+    lg: 36,
+  }
+
+  let resolvedIconSize =
+    typeof iconSize === 'number' ? iconSize : iconSizeVariant[iconSize ?? size]
 
   let classes = $derived({
-    common:
-      'cursor-pointer flex items-center justify-center p-8 rounded-full text-xl font-semibold h-[56px] duration-100',
+    common: cn(
+      'cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100',
+      sizeVariant[size]
+    ),
     background: disabled
-      ? disabledVariantClasses[variant].background ||
-        variantClasses[variant].background
-      : variantClasses[variant].background,
+      ? disabledClasses[variant].background
+      : isActive
+        ? isActiveClasses[variant].background
+        : variantClasses[variant].background,
     text: disabled
-      ? disabledVariantClasses[variant].text || variantClasses[variant].text
-      : variantClasses[variant].text,
+      ? disabledClasses[variant].text
+      : isActive
+        ? isActiveClasses[variant].text
+        : variantClasses[variant].text,
     disabled: 'cursor-not-allowed',
   })
 </script>
@@ -72,44 +111,55 @@
     ].join(' ')
   )}
   {disabled}
-  onclick={handleClick}
+  onclick={callback ? handleClick : onclick}
   {type}
 >
-  <div class="relative flex items-center justify-center">
-    {#if isLoading || isSubmitting}
-      <div class="loading loading-spinner loading-md absolute -left-4"></div>
-    {/if}
+  {#if isLoading || isSubmitting}
     <div
-      class="flex items-center justify-center duration-100"
-      class:translate-x-4={isLoading || isSubmitting}
-    >
-      {@render children?.()}
-    </div>
-  </div>
+      class="loading loading-spinner absolute loading-lg {variantClasses[
+        variant
+      ].text}"
+    ></div>
+  {:else}
+    <HugeiconsIcon {icon} size={resolvedIconSize} />
+  {/if}
 </button>
 
 <!-- 
-  @component
-  export default ButtonAction
-  @description
-  This component is a button with a loading spinner that can be used to indicate that an action is being performed.
-  
-  @props
-  - variant: The variant of the button. Default is `solid`.
-  - isLoading: A boolean to indicate if the button is in a loading state.
-  - cb: A callback function that will be called when the button is clicked.
-  - blockingClick: A boolean to indicate if the button should block the click event while the callback function is being executed.
-  - icon: A slot for an icon to be displayed inside the button.
-  - ...restProps: Any other props that can be passed to a button element.
-  
-  @usage
-  ```html
-  <script lang="ts">
+    @component
+    export default ButtonIcon
+    @description
+    ButtonIcon component is a button with an icon.
+    
+    @props
+    - variant: 'white' | 'clear-on-light' | 'clear-on-dark' .
+    - isLoading: boolean 
+    - callback: () => Promise<void> 
+    - onclick: () => void 
+    - blockingClick: boolean - Prevents multiple clicks
+    - type: 'button' | 'submit' | 'reset' 
+    - size: 'sm' | 'md' | 'lg' 
+    - iconSize: 'sm' | 'md' | 'lg' | number 
+    - icon: IconSvgElement - Needs icon from Hugeicon library
+    - isActive: boolean 
+
+   
+    @usage
+    ```html
+    <script lang="ts">
       import * as Button from '$lib/ui/Button'
-  </script>
-  
-  <Button.Action variant="solid" cb={() => console.log('clicked')}>
-    Click me
-  </Button.Action>
-  ```
-   -->
+      import { FlashlightIcon } from '@hugeicons/core-free-icons'
+      
+      let flashlightOn = $state(false)
+    </script>
+
+    <Button.Icon
+      variant="white"
+      aria-label="Open pane"
+      size="md"
+      icon={FlashlightIcon}
+      onclick={() => (flashlightOn = !flashlightOn)}
+      isActive={flashlightOn}
+    ></Button.Icon>
+    ```
+     -->
