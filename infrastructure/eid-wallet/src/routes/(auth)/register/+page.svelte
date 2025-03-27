@@ -18,8 +18,10 @@ const handleFirstStep = async () => {
 
 const handleConfirm = async () => {
 	//confirm pin logic goes here
-	if (pin.length === 4 && repeatPin.length === 4 && pin === repeatPin)
-		showDrawer = true;
+	if (repeatPin && repeatPin.length === 4 && pin !== repeatPin) isError = true;
+	else isError = false;
+
+	if (!isError) showDrawer = true;
 };
 
 const handleNext = async () => {
@@ -46,8 +48,7 @@ const handleBiometricsAdded = async () => {
 };
 
 $effect(() => {
-	if (repeatPin && repeatPin.length === 4 && pin !== repeatPin) isError = true;
-	else isError = false;
+	if (repeatPin && repeatPin.length === 4 && pin === repeatPin) isError = false;
 });
 </script>
 

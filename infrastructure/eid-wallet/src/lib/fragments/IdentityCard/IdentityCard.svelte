@@ -40,7 +40,7 @@ $effect(() => {
 });
 </script>
 
-<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
+<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white overflow-hidden">
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
@@ -63,7 +63,7 @@ $effect(() => {
                     <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
                 </button>
             {:else if variant === 'eVault'}
-            <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
+            <h3 class="text-black-300! font-semibold! mb-3">{state.progressWidth} Used</h3>
             {/if}
         </div>
         <div>
