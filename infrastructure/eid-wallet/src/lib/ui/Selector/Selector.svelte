@@ -15,7 +15,6 @@ interface ISelectorProps extends HTMLLabelAttributes {
 	children?: Snippet;
 }
 
-// biome-ignore lint/style/useConst: selected is bindable, can't be a const
 let {
 	id,
 	name,
