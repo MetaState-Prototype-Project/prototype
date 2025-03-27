@@ -15,6 +15,35 @@
 	font-style: normal;
 }
 
+/* Typoraphy */
+.header-0 {
+	@apply text-[90px] text-black font-semibold;
+}
+
+.header-1 {
+	@apply text-6xl text-black font-semibold;
+}
+
+.header-2 {
+	@apply text-3xl text-black font-semibold;
+}
+
+.header-1 {
+	@apply text-xl text-black font-semibold;
+}
+
+.body-large {
+	@apply text-lg text-black font-normal;
+}
+
+.body-medium {
+	@apply text-base text-black font-normal;
+}
+
+.body-small {
+	@apply text-xs text-black font-normal;
+}
+
 @theme {
 	/* Custom theme */
 	--color-primary: #8e52ff;
