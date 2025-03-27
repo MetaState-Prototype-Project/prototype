@@ -1,7 +1,7 @@
 <script lang="ts" generics="T">
 import { cn } from "$lib/utils";
-import type { HTMLButtonAttributes } from "svelte/elements";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
+import type { HTMLButtonAttributes } from "svelte/elements";
 
 interface IButtonProps extends HTMLButtonAttributes {
 	variant?: "white" | "clear-on-light" | "clear-on-dark";
