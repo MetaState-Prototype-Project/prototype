@@ -15,7 +15,7 @@ const { icon, label, ...restProps }: ISettingsNavigationBtn = $props();
 <div {...restProps} class={cn('flex items-center justify-between px-3 py-2', restProps.class)}>
     <div class="flex items-center gap-2">
         <div class="p-3 bg-gray max-w-max rounded-full object-cover flex items-center" >
-            <HugeiconsIcon {icon} />
+            <HugeiconsIcon {icon} size={30}  color="var(--color-black-500)" />
         </div>
         <h1>{label}</h1>
     </div>
