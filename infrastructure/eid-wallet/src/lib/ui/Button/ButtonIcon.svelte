@@ -4,28 +4,30 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
 import type { HTMLButtonAttributes } from "svelte/elements";
 
 interface IButtonProps extends HTMLButtonAttributes {
+	icon: IconSvgElement;
 	variant?: "white" | "clear-on-light" | "clear-on-dark";
 	isLoading?: boolean;
 	callback?: () => Promise<void>;
 	onclick?: () => void;
 	blockingClick?: boolean;
 	type?: "button" | "submit" | "reset";
-	size?: "sm" | "md" | "lg";
+	bgSize?: "sm" | "md" | "lg";
 	iconSize?: "sm" | "md" | "lg" | number;
-	icon: IconSvgElement;
+	strokeWidth?: number;
 	isActive?: boolean;
 }
 
 const {
+	icon,
 	variant = "white",
 	isLoading,
 	callback,
 	onclick,
 	blockingClick,
 	type = "button",
-	size = "md",
-	icon,
+	bgSize = "md",
 	iconSize = undefined,
+	strokeWidth,
 	isActive = false,
 	children = undefined,
 	...restProps
@@ -73,17 +75,17 @@ const sizeVariant = {
 
 const iconSizeVariant = {
 	sm: 24,
-	md: 24,
+	md: 30,
 	lg: 36,
 };
 
 const resolvedIconSize =
-	typeof iconSize === "number" ? iconSize : iconSizeVariant[iconSize ?? size];
+	typeof iconSize === "number" ? iconSize : iconSizeVariant[iconSize ?? bgSize];
 
 const classes = $derived({
 	common: cn(
 		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
-		sizeVariant[size],
+		variant === "white" ? sizeVariant[bgSize] : "",
 	),
 	background: disabled
 		? disabledClasses[variant].background
@@ -121,7 +123,7 @@ const classes = $derived({
       ].text}"
     ></div>
   {:else}
-    <HugeiconsIcon {icon} size={resolvedIconSize} />
+    <HugeiconsIcon {icon} size={resolvedIconSize} {strokeWidth} />
   {/if}
 </button>
 
@@ -132,15 +134,16 @@ const classes = $derived({
     ButtonIcon component is a button with an icon.
     
     @props
+	- icon: IconSvgElement - Needs icon from Hugeicon library
     - variant: 'white' | 'clear-on-light' | 'clear-on-dark' .
     - isLoading: boolean 
     - callback: () => Promise<void> 
     - onclick: () => void 
     - blockingClick: boolean - Prevents multiple clicks
     - type: 'button' | 'submit' | 'reset' 
-    - size: 'sm' | 'md' | 'lg' 
+    - bgSize: 'sm' | 'md' | 'lg' 
     - iconSize: 'sm' | 'md' | 'lg' | number 
-    - icon: IconSvgElement - Needs icon from Hugeicon library
+	- strokeWidth: number
     - isActive: boolean 
 
    
@@ -156,7 +159,7 @@ const classes = $derived({
     <Button.Icon
       variant="white"
       aria-label="Open pane"
-      size="md"
+      bgSize="md"
       icon={FlashlightIcon}
       onclick={() => (flashlightOn = !flashlightOn)}
       isActive={flashlightOn}

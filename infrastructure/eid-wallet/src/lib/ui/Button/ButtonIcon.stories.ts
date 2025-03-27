@@ -21,7 +21,7 @@ export const Default = {
 		props: {
 			variant: "white",
 			ariaLabel: "Default button",
-			size: "md",
+			bgSize: "md",
 			icon: FlashlightIcon,
 		},
 	}),
@@ -33,7 +33,7 @@ export const Loading = {
 		props: {
 			variant: "white",
 			ariaLabel: "Loading button",
-			size: "md",
+			bgSize: "md",
 			icon: FlashlightIcon,
 			isLoading: true,
 		},
@@ -46,7 +46,7 @@ export const Active = {
 		props: {
 			variant: "white",
 			ariaLabel: "Active button",
-			size: "md",
+			bgSize: "md",
 			icon: FlashlightIcon,
 			isActive: true,
 		},
