@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { ButtonAction, InputPin, Drawer } from "$lib/ui";
+import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { Drawer, ButtonAction } from "$lib/ui";
+import { ButtonAction, Drawer } from "$lib/ui";
 
 let isPaneOpen = $state(false);
 
