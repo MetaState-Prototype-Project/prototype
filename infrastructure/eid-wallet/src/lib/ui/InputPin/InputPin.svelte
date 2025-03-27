@@ -101,7 +101,7 @@ const createValueSlot = (arr: number[]) => {
 
 let uniqueId = `input${Math.random().toString().split(".")[1]}`;
 const cBase =
-	"relative w-full margin-x-[auto] flex justify-start items-center gap-[10px] flex-row flex-nowrap select-none";
+	"relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
 </script>
 
 <div

@@ -15,7 +15,7 @@ const handleNext = async () => {
 };
 </script>
 
-<main class="pt-[3vh] px-[6vw] pb-[4.5vh]">
+<main class="pt-[3vh] px-[5vw] pb-[4.5vh]">
     <article class="flex justify-center mb-[4vh]">
         <img src="/images/Onboarding.svg" alt="info-graphic-card">
     </article>

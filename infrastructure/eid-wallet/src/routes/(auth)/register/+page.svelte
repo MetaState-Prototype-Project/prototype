@@ -52,7 +52,7 @@ $effect(() => {
 </script>
 
 {#if firstStep}
-<main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
+<main class="h-[100vh] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h3 class="mb-[1vh]">Create a pin</h3>
         <p class="text-black-700! mb-[14vh]">Enter a 4-digit PIN code</p>
@@ -61,7 +61,7 @@ $effect(() => {
     <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
 </main>
 {:else}
-<main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
+<main class="h-[100vh] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h3 class="mb-[1vh]">Re-enter your pin</h3>
         <p class="text-black-700! mb-[14vh]">Confirm by entering pin again</p>
