@@ -10,6 +10,7 @@
     let showDrawer = $state(false);
     let isBiometricScreen = $state(false);
     let isBiometricsAdded = $state(false);
+    let isError = $state(false);
 
     const handleFirstStep = async() => {
         if(pin.length === 4) firstStep = false;
@@ -42,6 +43,11 @@
         //handle logic when biometrics added successfully
         goto("/review");
     }
+
+    $effect(() => {
+        if(repeatPin && repeatPin.length === 4 && pin !== repeatPin) isError = true;
+        else isError = false;
+    })
 </script>
 
 {#if firstStep}
@@ -58,7 +64,8 @@
     <section>
         <h1 class="text-3xl text-black font-semibold mb-[1vh]">Re-enter your pin</h1>
         <p class="text-base text-black-700 font-normal mb-[14vh]">Confirm by entering pin again</p>
-        <InputPin bind:pin={repeatPin}/>
+        <InputPin bind:pin={repeatPin} {isError}/>
+        <p class={`text-base font-normal text-red-900 mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <ButtonAction class="w-full" callback={handleConfirm}>Confirm</ButtonAction>
 </main>
