@@ -58,27 +58,27 @@ $effect(() => {
                     </button>
                 </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white flex items-center rounded-4xl px-5 py-2 small font-semibold!">HIGH SECURITY</p>
+                <p class="bg-white flex items-center rounded-4xl px-5 py-2 small font-semibold">HIGH SECURITY</p>
                 <button class="flex justify-start" onclick={viewBtn}>
                     <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
                 </button>
             {:else if variant === 'eVault'}
-            <h3 class="text-black-300! font-semibold! mb-3">{state.progressWidth} Used</h3>
+            <h3 class="text-black-300 font-semibold mb-3">{state.progressWidth} Used</h3>
             {/if}
         </div>
         <div>
             {#if variant === "eName"}        
-                <p class="text-gray! font-light!">Your eName</p>
+                <p class="text-gray font-light">Your eName</p>
                 <div class="flex items-center justify-between w-full">
-                    <p class="text-white! w-[60%] font-medium!">@{userId}</p>
+                    <p class="text-white w-[60%] font-medium">@{userId}</p>
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
                     {#if userData}
                         {#each Object.entries(userData) as [fieldName, value] }    
                             <div class="flex justify-between">
-                                <p class="text-gray!">{fieldName}</p>
-                                <p class=" font-medium! text-white!">{value}</p>
+                                <p class="text-gray">{fieldName}</p>
+                                <p class=" font-medium text-white">{value}</p>
                             </div>
                         {/each}
                     {/if}

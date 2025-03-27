@@ -15,29 +15,32 @@
 	font-style: normal;
 }
 
-/* Typoraphy */
-h1 {
-	@apply text-[90px] text-black font-semibold;
-}
+@layer base {
+	/* Typoraphy */
 
-h2 {
-	@apply text-6xl text-black font-semibold;
-}
+	h1 {
+		@apply text-[90px] text-black font-semibold;
+	}
 
-h3 {
-	@apply text-3xl text-black font-semibold;
-}
+	h2 {
+		@apply text-6xl text-black font-semibold;
+	}
 
-h4 {
-	@apply text-xl text-black font-semibold;
-}
+	h3 {
+		@apply text-3xl text-black font-semibold;
+	}
 
-p {
-	@apply text-base text-black font-normal;
-}
+	h4 {
+		@apply text-xl text-black font-semibold;
+	}
 
-.small {
-	@apply text-xs text-black font-normal;
+	p {
+		@apply text-base text-black font-normal;
+	}
+
+	.small {
+		@apply text-xs text-black font-normal;
+	}
 }
 
 @theme {

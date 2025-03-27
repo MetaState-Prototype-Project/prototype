@@ -56,7 +56,7 @@ $effect(() => {
 <main class="h-[100vh] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h3 class="mb-[1vh]">Create a pin</h3>
-        <p class="text-black-700! mb-[14vh]">Enter a 4-digit PIN code</p>
+        <p class="text-black-700 mb-[14vh]">Enter a 4-digit PIN code</p>
         <InputPin bind:pin/>
     </section>
     <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
@@ -65,9 +65,9 @@ $effect(() => {
 <main class="h-[100vh] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
         <h3 class="mb-[1vh]">Re-enter your pin</h3>
-        <p class="text-black-700! mb-[14vh]">Confirm by entering pin again</p>
+        <p class="text-black-700 mb-[14vh]">Confirm by entering pin again</p>
         <InputPin bind:pin={repeatPin} {isError}/>
-        <p class={`text-danger! mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
+        <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <ButtonAction class="w-full" callback={handleConfirm}>Confirm</ButtonAction>
 </main>
