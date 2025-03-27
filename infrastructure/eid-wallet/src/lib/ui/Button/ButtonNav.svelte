@@ -34,7 +34,7 @@ This component is a wrapper for a button that navigates to a different page.
 </script>
 
 <Button.Nav href="/settings">
-    <SettingsNavigationBtn icon={SettingsIcon} label="Settings" />
+    // The content of the button
 </Button.Nav>
 ```
  -->
