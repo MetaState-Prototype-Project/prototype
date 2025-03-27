@@ -1,102 +1,102 @@
 <script lang="ts" generics="T">
-  import { cn } from '$lib/utils'
-  import type { HTMLButtonAttributes } from 'svelte/elements'
-  import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/svelte'
+import { cn } from "$lib/utils";
+import type { HTMLButtonAttributes } from "svelte/elements";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
 
-  interface IButtonProps extends HTMLButtonAttributes {
-    variant?: 'white' | 'clear-on-light' | 'clear-on-dark'
-    isLoading?: boolean
-    callback?: () => Promise<void>
-    onclick?: () => void
-    blockingClick?: boolean
-    type?: 'button' | 'submit' | 'reset'
-    size?: 'sm' | 'md' | 'lg'
-    iconSize?: 'sm' | 'md' | 'lg' | number
-    icon: IconSvgElement
-    isActive?: boolean
-  }
+interface IButtonProps extends HTMLButtonAttributes {
+	variant?: "white" | "clear-on-light" | "clear-on-dark";
+	isLoading?: boolean;
+	callback?: () => Promise<void>;
+	onclick?: () => void;
+	blockingClick?: boolean;
+	type?: "button" | "submit" | "reset";
+	size?: "sm" | "md" | "lg";
+	iconSize?: "sm" | "md" | "lg" | number;
+	icon: IconSvgElement;
+	isActive?: boolean;
+}
 
-  let {
-    variant = 'white',
-    isLoading,
-    callback,
-    onclick,
-    blockingClick,
-    type = 'button',
-    size = 'md',
-    icon,
-    iconSize = undefined,
-    isActive = false,
-    children = undefined,
-    ...restProps
-  }: IButtonProps = $props()
+const {
+	variant = "white",
+	isLoading,
+	callback,
+	onclick,
+	blockingClick,
+	type = "button",
+	size = "md",
+	icon,
+	iconSize = undefined,
+	isActive = false,
+	children = undefined,
+	...restProps
+}: IButtonProps = $props();
 
-  let isSubmitting = $state(false)
-  let disabled = $derived(restProps.disabled || isLoading || isSubmitting)
+let isSubmitting = $state(false);
+const disabled = $derived(restProps.disabled || isLoading || isSubmitting);
 
-  const handleClick = async () => {
-    if (typeof callback !== 'function') return
+const handleClick = async () => {
+	if (typeof callback !== "function") return;
 
-    if (blockingClick) isSubmitting = true
-    try {
-      await callback()
-    } catch (error) {
-      console.error('Error in button callback:', error)
-    } finally {
-      isSubmitting = false
-    }
-  }
+	if (blockingClick) isSubmitting = true;
+	try {
+		await callback();
+	} catch (error) {
+		console.error("Error in button callback:", error);
+	} finally {
+		isSubmitting = false;
+	}
+};
 
-  const variantClasses = {
-    white: { background: 'bg-white', text: 'text-black' },
-    'clear-on-light': { background: 'transparent', text: 'text-black' },
-    'clear-on-dark': { background: 'transparent', text: 'text-white' },
-  }
+const variantClasses = {
+	white: { background: "bg-white", text: "text-black" },
+	"clear-on-light": { background: "transparent", text: "text-black" },
+	"clear-on-dark": { background: "transparent", text: "text-white" },
+};
 
-  const disabledClasses = {
-    white: { background: 'bg-white', text: 'text-black-500' },
-    'clear-on-light': { background: 'bg-transparent', text: 'text-black-500' },
-    'clear-on-dark': { background: 'bg-transparent', text: 'text-black-500' },
-  }
+const disabledClasses = {
+	white: { background: "bg-white", text: "text-black-500" },
+	"clear-on-light": { background: "bg-transparent", text: "text-black-500" },
+	"clear-on-dark": { background: "bg-transparent", text: "text-black-500" },
+};
 
-  const isActiveClasses = {
-    white: { background: 'bg-secondary-500', text: 'text-black' },
-    'clear-on-light': { background: 'bg-secondary-500', text: 'text-black' },
-    'clear-on-dark': { background: 'bg-secondary-500', text: 'text-black' },
-  }
+const isActiveClasses = {
+	white: { background: "bg-secondary-500", text: "text-black" },
+	"clear-on-light": { background: "bg-secondary-500", text: "text-black" },
+	"clear-on-dark": { background: "bg-secondary-500", text: "text-black" },
+};
 
-  const sizeVariant = {
-    sm: 'h-8 w-8',
-    md: 'h-[54px] w-[54px]',
-    lg: 'h-[108px] w-[108px]',
-  }
+const sizeVariant = {
+	sm: "h-8 w-8",
+	md: "h-[54px] w-[54px]",
+	lg: "h-[108px] w-[108px]",
+};
 
-  const iconSizeVariant = {
-    sm: 24,
-    md: 24,
-    lg: 36,
-  }
+const iconSizeVariant = {
+	sm: 24,
+	md: 24,
+	lg: 36,
+};
 
-  let resolvedIconSize =
-    typeof iconSize === 'number' ? iconSize : iconSizeVariant[iconSize ?? size]
+const resolvedIconSize =
+	typeof iconSize === "number" ? iconSize : iconSizeVariant[iconSize ?? size];
 
-  let classes = $derived({
-    common: cn(
-      'cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100',
-      sizeVariant[size]
-    ),
-    background: disabled
-      ? disabledClasses[variant].background
-      : isActive
-        ? isActiveClasses[variant].background
-        : variantClasses[variant].background,
-    text: disabled
-      ? disabledClasses[variant].text
-      : isActive
-        ? isActiveClasses[variant].text
-        : variantClasses[variant].text,
-    disabled: 'cursor-not-allowed',
-  })
+const classes = $derived({
+	common: cn(
+		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
+		sizeVariant[size],
+	),
+	background: disabled
+		? disabledClasses[variant].background
+		: isActive
+			? isActiveClasses[variant].background
+			: variantClasses[variant].background,
+	text: disabled
+		? disabledClasses[variant].text
+		: isActive
+			? isActiveClasses[variant].text
+			: variantClasses[variant].text,
+	disabled: "cursor-not-allowed",
+});
 </script>
 
 <button
