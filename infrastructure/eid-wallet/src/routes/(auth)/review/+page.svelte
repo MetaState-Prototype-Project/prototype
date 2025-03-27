@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { IdentifierCard } from "$lib/fragments";
-    import { ButtonAction } from "$lib/ui";
+import { goto } from "$app/navigation";
+import { IdentifierCard } from "$lib/fragments";
+import { ButtonAction } from "$lib/ui";
 
-    const handleNext = async() => {
-        await goto("/e-passport")
-    }
+const handleNext = async () => {
+	await goto("/e-passport");
+};
 </script>
 
 <main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">

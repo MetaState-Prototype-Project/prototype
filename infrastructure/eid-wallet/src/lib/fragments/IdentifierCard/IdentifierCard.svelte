@@ -1,24 +1,25 @@
 <script lang="ts">
-    import { ButtonAction } from "$lib/ui";
-    import { cn } from "$lib/utils";
-    import type { HTMLAttributes } from "svelte/elements";
+import { ButtonAction } from "$lib/ui";
+import { cn } from "$lib/utils";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface IIdentifierCard extends HTMLAttributes<HTMLElement> {
-        eName: string, code: string
-    }
+interface IIdentifierCard extends HTMLAttributes<HTMLElement> {
+	eName: string;
+	code: string;
+}
 
-    let {eName = "", code = "", ...restProps}:IIdentifierCard  = $props();
+let { eName = "", code = "", ...restProps }: IIdentifierCard = $props();
 
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(code);
-            console.log("Copied to clipboard!");
-        } catch (error) {
-            console.error("Failed to copy:", error);
-        }
-    };
+const handleCopy = async () => {
+	try {
+		await navigator.clipboard.writeText(code);
+		console.log("Copied to clipboard!");
+	} catch (error) {
+		console.error("Failed to copy:", error);
+	}
+};
 
-    const cBase = "relative w-full bg-black py-6 px-8 rounded-2xl";
+const cBase = "relative w-full bg-black py-6 px-8 rounded-2xl";
 </script>
 
 <article {...restProps} class={cn(`${cBase}`, restProps.class)}>

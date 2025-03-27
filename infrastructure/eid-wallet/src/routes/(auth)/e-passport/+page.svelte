@@ -1,12 +1,10 @@
 <script lang="ts">
-    import { ButtonAction } from "$lib/ui";
+import { ButtonAction } from "$lib/ui";
 
-    let usedStorage = $state(50);
-    let totalStorage = $state(90);
+let usedStorage = $state(50);
+let totalStorage = $state(90);
 
-    const handleFinish = async() => {
-
-    }
+const handleFinish = async () => {};
 </script>
 
 
@@ -19,12 +17,12 @@
         <h1 class="text-xl text-black font-semibold mb-[0.5vh]">Your eVault</h1>
         <p class="text-base text-black-700 font-normal mb-[3vh]">We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control.</p>
     </section>
-    <section class="bg-gray-900 rounded-[24px] p-[24px]">
+    <section class="bg-gray rounded-[24px] p-[24px]">
         <div class="flex justify-between items-center mb-[12px]">
             <p class="text-base font-normal text-black">{usedStorage}GB used</p>
             <p class="text-base font-normal text-black">{totalStorage}GB total storage</p>
         </div>
-        <progress class="progress progress-secondary bg-primary-700 w-full h-[16px] rounded-xl" value={(usedStorage/totalStorage)*100} max="100"></progress>
+        <progress class="progress progress-secondary bg-primary-400 w-full h-[16px] rounded-xl" value={(usedStorage/totalStorage)*100} max="100"></progress>
     </section>
     <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
 </main>

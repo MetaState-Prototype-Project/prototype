@@ -1,18 +1,18 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Drawer, ButtonAction } from "$lib/ui";
+import { goto } from "$app/navigation";
+import { Drawer, ButtonAction } from "$lib/ui";
 
-    let isPaneOpen = $state(false);
+let isPaneOpen = $state(false);
 
-    const handleGetStarted = async() => {
-        //get started functionality
-        isPaneOpen = true;
-    }
+const handleGetStarted = async () => {
+	//get started functionality
+	isPaneOpen = true;
+};
 
-    const handleNext = async() => {
-        //handle next functionlity
-        goto("/verify")
-    }
+const handleNext = async () => {
+	//handle next functionlity
+	goto("/verify");
+};
 </script>
 
 <main class="pt-[3vh] px-[6vw] pb-[4.5vh]">

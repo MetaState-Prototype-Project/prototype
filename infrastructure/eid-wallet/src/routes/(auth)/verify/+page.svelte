@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import {ButtonAction} from "$lib/ui";
+import { goto } from "$app/navigation";
+import { ButtonAction } from "$lib/ui";
 </script>
 
 <main class="h-[100vh] pt-[3vh] px-[6vw] pb-[4.5vh] flex flex-col justify-between items-center">
