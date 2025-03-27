@@ -1,14 +1,14 @@
 <script lang="ts">
-    import "../app.css"
-    const { children } = $props();
+import "../app.css";
+const { children } = $props();
 
-    let showSplashScreen = $state(true);
+let showSplashScreen = $state(true);
 
-    $effect(() => {
-		setTimeout(() => {
-			showSplashScreen = false;
-		}, 500);
-	});
+$effect(() => {
+	setTimeout(() => {
+		showSplashScreen = false;
+	}, 500);
+});
 </script>
 
 {#if showSplashScreen}
