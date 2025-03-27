@@ -11,7 +11,7 @@ interface IButtonProps extends HTMLButtonAttributes {
 	size?: "sm" | "md";
 }
 
-let {
+const {
 	variant = "solid",
 	isLoading,
 	callback,
@@ -23,7 +23,7 @@ let {
 }: IButtonProps = $props();
 
 let isSubmitting = $state(false);
-let disabled = $derived(restProps.disabled || isLoading || isSubmitting);
+const disabled = $derived(restProps.disabled || isLoading || isSubmitting);
 
 const handleClick = async () => {
 	if (typeof callback !== "function") return;
@@ -59,7 +59,7 @@ const sizeVariant = {
 	md: "px-8 py-2.5 text-xl h-14",
 };
 
-let classes = $derived({
+const classes = $derived({
 	common: cn(
 		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
 		sizeVariant[size],

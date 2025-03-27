@@ -1,6 +1,6 @@
 import type { ComponentProps } from "svelte";
+import { ButtonText } from "./Button.stories.snippet.svelte";
 import ButtonAction from "./ButtonAction.svelte";
-import { ButtonText } from "./ButtonSnippets.svelte";
 
 export default {
 	title: "UI/ButtonAction",
