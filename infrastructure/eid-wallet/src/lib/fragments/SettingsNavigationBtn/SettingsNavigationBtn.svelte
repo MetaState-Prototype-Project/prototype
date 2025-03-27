@@ -1,9 +1,9 @@
 <script lang="ts">
+import * as Button from "$lib/ui/Button";
 import { cn } from "$lib/utils";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
-import * as Button from "$lib/ui/Button";
 
 interface ISettingsNavigationBtn extends HTMLAttributes<HTMLElement> {
 	icon: IconSvgElement;
