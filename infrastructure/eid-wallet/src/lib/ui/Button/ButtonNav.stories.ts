@@ -1,9 +1,9 @@
 import type { ComponentProps } from "svelte";
-import ButtonNav from "./ButtonNav.svelte";
 import {
 	ButtonNavSettings,
 	ButtonNavText,
 } from "./Button.stories.snippet.svelte";
+import ButtonNav from "./ButtonNav.svelte";
 
 export default {
 	title: "UI/ButtonNav",
