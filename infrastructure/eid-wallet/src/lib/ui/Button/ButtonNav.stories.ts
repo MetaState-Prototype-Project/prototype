@@ -23,5 +23,9 @@ export const Default = {
 };
 
 export const ForSettings = {
-	args: { href: "#", children: ButtonNavSettings },
+	args: {
+		href: "#",
+		children: ButtonNavSettings,
+		class: "flex items-center justify-between px-3 py-2",
+	},
 };
