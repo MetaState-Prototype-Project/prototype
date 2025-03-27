@@ -23,11 +23,9 @@ const cBase = "w-full h-[9vh] flex justify-between items-center";
 
 <header {...restProps} class={cn(cBase, restProps.class)}>
     {#if isBackRequired}
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <span class="flex justify-start" onclick={() => window.history.back()}>
+    <button class="flex justify-start" onclick={() => window.history.back()}>
         <HugeiconsIcon size="5.5vw"  color="var(--color-black-700)" icon={ArrowLeft01Icon} />
-    </span>
+    </button>
     {:else}
     <!-- svelte-ignore element_invalid_self_closing_tag -->
     <span aria-hidden="true"/>

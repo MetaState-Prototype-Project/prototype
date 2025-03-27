@@ -49,26 +49,19 @@ $effect(() => {
         <div class="flex justify-between">
             {#if variant === 'eName'}  
                 <HugeiconsIcon size={30} strokeWidth={2} color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <div class="flex gap-3 items-center">
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <span class="flex justify-start" onclick={shareBtn}>
-                    <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={Upload03Icon} />
-                    </span>
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <span class="flex justify-start" onclick={viewBtn}>
+                <div class="flex gap-3 items-center"> 
+                    <button class="flex justify-start" onclick={shareBtn}>
+                        <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={Upload03Icon} />
+                    </button>
+                    <button class="flex justify-start" onclick={viewBtn}>
                         <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
-                    </span>
+                    </button>
                 </div>
             {:else if variant === 'ePassport'}
                 <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs font-semibold">HIGH SECURITY</p>
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <span class="flex justify-start" onclick={viewBtn}>
+                <button class="flex justify-start" onclick={viewBtn}>
                     <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
-                </span>
+                </button>
             {:else if variant === 'eVault'}
             <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
             {/if}
