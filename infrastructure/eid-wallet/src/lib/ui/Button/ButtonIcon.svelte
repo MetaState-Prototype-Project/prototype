@@ -27,7 +27,6 @@ const {
 	icon,
 	iconSize = undefined,
 	isActive = false,
-	children = undefined,
 	...restProps
 }: IButtonProps = $props();
 
