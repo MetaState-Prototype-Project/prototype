@@ -24,9 +24,9 @@ const cBase = "relative w-full bg-black py-6 px-8 rounded-2xl";
 
 <article {...restProps} class={cn(`${cBase}`, restProps.class)}>
     <img src="" alt="tick" class="" />
-    <p class="text-sm font-normal text-gray-400">Your {eName}</p>
+    <p class="text-sm! font-normal text-gray-400!">Your {eName}</p>
     <div class="grid grid-cols-[65%_35%] items-center gap-2">
-        <h1 class="text-white text-sm font-medium break-all">{code}</h1>
+        <p class="text-white! font-medium! break-all">{code}</p>
         <ButtonAction callback={handleCopy} class="bg-white text-black z-[1]">Copy</ButtonAction>
     </div>
     <img class="absolute bottom-0 end-[30px]" src="/images/Line3.svg" alt="lines">

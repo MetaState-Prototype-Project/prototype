@@ -10,8 +10,8 @@ const handleNext = async () => {
 
 <main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <h1 class="header-2 mb-[0.5vh]">Here’s your eName</h1>
-        <p class="body-medium text-black-700!  mb-[3vh]">This identifier is permanently yours, and it stays with you for your whole life.</p>
+        <h3 class="mb-[0.5vh]">Here’s your eName</h3>
+        <p class="text-black-700!  mb-[3vh]">This identifier is permanently yours, and it stays with you for your whole life.</p>
         
         <IdentifierCard eName="AbcXyz" code="@asdasd-asdafaf-asdaffa-asfafaf"/>
     </section>

@@ -54,8 +54,8 @@ $effect(() => {
 {#if firstStep}
 <main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <h1 class="header-2 mb-[1vh]">Create a pin</h1>
-        <p class="body-medium text-black-700! mb-[14vh]">Enter a 4-digit PIN code</p>
+        <h3 class="mb-[1vh]">Create a pin</h3>
+        <p class="text-black-700! mb-[14vh]">Enter a 4-digit PIN code</p>
         <InputPin bind:pin/>
     </section>
     <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
@@ -63,10 +63,10 @@ $effect(() => {
 {:else}
 <main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <h1 class="header-2 mb-[1vh]">Re-enter your pin</h1>
-        <p class="body-medium text-black-700! mb-[14vh]">Confirm by entering pin again</p>
+        <h3 class="mb-[1vh]">Re-enter your pin</h3>
+        <p class="text-black-700! mb-[14vh]">Confirm by entering pin again</p>
         <InputPin bind:pin={repeatPin} {isError}/>
-        <p class={`body-medium text-danger! mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
+        <p class={`text-danger! mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <ButtonAction class="w-full" callback={handleConfirm}>Confirm</ButtonAction>
 </main>
@@ -82,8 +82,8 @@ $effect(() => {
         <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line">
         <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
     </div>
-    <h1 class="header-1 font-medium">Pin code set!</h1>
-    <p class="text-black-700! body-medium mt-[0.5vh] mb-[2.3vh]">Your PIN has been created. You’ll use it to access your digital entity securely.</p>
+    <h4>Pin code set!</h4>
+    <p class="text-black-700! mt-[0.5vh] mb-[2.3vh]">Your PIN has been created. You’ll use it to access your digital entity securely.</p>
     <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
     {:else}
     <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
@@ -93,8 +93,8 @@ $effect(() => {
         <img class="absolute top-0 start-0" src="/images/Line.svg" alt="line">
         <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
     </div>
-    <h1 class="header-1 font-medium!">{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h1>
-    <p class="text-black-700! body-normal mt-[0.5vh] mb-[2.3vh]">{ isBiometricsAdded ? "Your biometrics have been successfully added." : "Use your fingerprint or face recognition for faster, more secure logins."}</p>
+    <h4>{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h4>
+    <p class="text-black-700! mt-[0.5vh] mb-[2.3vh]">{ isBiometricsAdded ? "Your biometrics have been successfully added." : "Use your fingerprint or face recognition for faster, more secure logins."}</p>
     {#if !isBiometricsAdded}
     <div class="flex justify-center items-center gap-[11px]">
         <ButtonAction class="w-full bg-primary-100 text-primary" callback={handleSkip}>Skip</ButtonAction>
