@@ -10,7 +10,7 @@ const handleFinish = async () => {};
 
 <main class="h-[100vh] pt-[5.2vh] px-[2.3vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <h1 class="header-3 mb-[0.5vh]">Your ePassport and eVault are ready</h1>
+        <h1 class="header-2 mb-[0.5vh]">Your ePassport and eVault are ready</h1>
         <p class="body-medium text-black-700! mb-[3vh]">Log into any W3DS platform without passwords. It’s tied to this phone; if lost, you’ll need to revoke and reissue it on a new device.</p>
     </section>
     <section>
