@@ -1,4 +1,4 @@
-import { SettingsIcon } from "@hugeicons/core-free-icons";
+import { LanguageSquareIcon } from "@hugeicons/core-free-icons";
 import type { ComponentProps } from "svelte";
 import SettingsNavigationBtn from "./SettingsNavigationBtn.svelte";
 
@@ -17,7 +17,8 @@ export default {
 
 export const Primary = {
 	args: {
-		icon: SettingsIcon,
+		icon: LanguageSquareIcon,
 		label: "Language",
+		href: "#",
 	},
 };
