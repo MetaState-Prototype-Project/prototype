@@ -1,7 +1,7 @@
 <script lang="ts">
 import { clickOutside, cn } from "$lib/utils";
 import { CupertinoPane } from "cupertino-pane";
-import { type Snippet } from "svelte";
+import type { Snippet } from "svelte";
 import { swipe } from "svelte-gestures";
 import type { HTMLAttributes } from "svelte/elements";
 
