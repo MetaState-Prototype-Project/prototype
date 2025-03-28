@@ -27,7 +27,7 @@ const cBase = "w-full h-[9vh] flex justify-between items-center";
     {:else}
         <span aria-hidden="true"></span>
     {/if}
-    <h1 class="text-3xl text-black text-center font-semibold">{title}</h1>
+    <h3 class="text-center">{title}</h3>
     {#if isUserLoggedIn}
         <Button.Icon icon={UserCircleIcon} iconSize="8.1vw" iconColor={"text-black-700"} onclick={handleProfile} />
     {:else}

@@ -63,26 +63,24 @@ const changeHandler = (e: KeyboardEvent, i: number) => {
 
 	const regx = /^\d+$/;
 
-	// backspace pressed
 	if (isKeyDelete(e.key)) {
 		if (pins[i] !== "") {
-			// If there is a value in the current pin, just clear it and stay on the same input
 			pins[i] = "";
 			return;
 		}
-		// If the current input is already empty, move to the previous input
-		newIndex = (currentIndex - 1 + items.length) % items.length;
+		if (currentIndex > 0) {
+			newIndex = currentIndex - 1;
+			(items[newIndex] as HTMLInputElement)?.focus();
+		}
 	}
 
-	// When a number is typed, replace the current digit with the typed number
 	if (regx.test(e.key)) {
 		pins[i] = e.key;
-		newIndex = (currentIndex + 1) % items.length;
-	} else {
-		return;
+		if (currentIndex < items.length - 1) {
+			newIndex = currentIndex + 1;
+			(items[newIndex] as HTMLInputElement)?.focus();
+		}
 	}
-	// Set focus to the new input if it’s needed
-	(items[newIndex] as HTMLInputElement)?.focus();
 };
 
 const createArray = (size: number) => {
@@ -101,8 +99,9 @@ const createValueSlot = (arr: number[]) => {
 
 let uniqueId = `input${Math.random().toString().split(".")[1]}`;
 const cBase =
-	"relative w-full margin-x-[auto] flex justify-start items-center gap-[10px] flex-row flex-nowrap select-none";
+	"relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
 </script>
+  
 
 <div
   {...restProps}

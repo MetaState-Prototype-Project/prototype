@@ -19,7 +19,7 @@ let { icon, label, onClick, ...restProps }: ISettingsNavigationBtn = $props();
         <div class="p-3 bg-gray max-w-max rounded-4xl object-cover flex items-center" >
             {@render icon?.()}
         </div>
-        <h1>{label}</h1>
+        <p class="font-medium!">{label}</p>
     </div>
     <HugeiconsIcon size={30}  color="var(--color-black-500)" icon={ArrowRight01Icon} />
 </div>

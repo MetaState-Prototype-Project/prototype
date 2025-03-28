@@ -40,8 +40,8 @@ $effect(() => {
 		usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
 });
 </script>
-    
-<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white shadow-lg overflow-hidden">
+
+<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white overflow-hidden">
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
@@ -64,7 +64,7 @@ $effect(() => {
         </div>
         <div>
             {#if variant === "eName"}        
-                <h2 class="text-md text-gray font-light">Your eName</h2>
+                <p class="text-gray font-light">Your eName</p>
                 <div class="flex items-center justify-between w-full">
                     <p class="text-white w-[60%] font-medium">@{userId}</p>
                 </div>
@@ -73,17 +73,17 @@ $effect(() => {
                     {#if userData}
                         {#each Object.entries(userData) as [fieldName, value] }    
                             <div class="flex justify-between">
-                                <div class="text-md font-normal text-gray">{fieldName}</div>
-                                <div class="text-md font-medium text-white">{value}</div>
+                                <p class="text-gray">{fieldName}</p>
+                                <p class=" font-medium text-white">{value}</p>
                             </div>
                         {/each}
                     {/if}
                 </div>
             {:else if variant === "eVault"}
             <div>
-                <div class="flex justify-between text-black mb-1">
-                    <div>{usedStorage}GB Used</div>
-                    <div>{totalStorage}GB Used</div>
+                <div class="flex justify-between mb-1 ">
+                    <p class="z-[1]">{usedStorage}GB Used</p>
+                    <p class="z-[1]">{totalStorage}GB Used</p>
                 </div>
                 <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400">
                     <div class="h-full bg-secondary rounded-full" style={`width: calc(${state.progressWidth})`}></div>
