@@ -16,7 +16,7 @@
 }
 
 @layer base {
-	/* Typoraphy */
+	/* Typography */
 
 	h1 {
 		@apply text-[90px] text-black font-semibold;
