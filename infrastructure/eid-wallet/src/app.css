@@ -1,13 +1,6 @@
 @import "tailwindcss";
 @import "flag-icons/css/flag-icons.min.css";
 
-@plugin "daisyui" {
-	/* biome-ignore lint/correctness/noUnknownProperty: DaisyUI v5 specific stuff, not handled yet by Biome */
-	themes: false;
-	/* biome-ignore lint/correctness/noUnknownProperty: DaisyUI v5 specific stuff, not handled yet by Biome */
-	darktheme: "light";
-}
-
 @font-face {
 	font-family: "Archivo";
 	src: url("/fonts/Archivo-VariableFont_wdth,wght.ttf") format("truetype");
@@ -17,7 +10,6 @@
 
 @layer base {
 	/* Typography */
-
 	h1 {
 		@apply text-[90px] text-black font-semibold;
 	}
@@ -79,9 +71,4 @@
 
 body {
 	font-family: "Archivo", sans-serif;
-}
-
-/* Custom classes */
-.spin-slow {
-	animation: spin 3s linear infinite;
 }
