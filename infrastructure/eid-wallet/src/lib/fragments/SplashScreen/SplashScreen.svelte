@@ -1,6 +1,6 @@
 <script lang="ts">
-import { cubicInOut, cubicOut } from "svelte/easing";
-import { fade, slide, scale } from "svelte/transition";
+import { cubicOut } from "svelte/easing";
+import { fade, scale } from "svelte/transition";
 </script>
 
 <div  out:fade={{duration: 150}} class="z-50 absolute w-screen h-screen overflow-hidden" >
