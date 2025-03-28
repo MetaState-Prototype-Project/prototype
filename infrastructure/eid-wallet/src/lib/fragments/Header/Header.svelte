@@ -30,7 +30,7 @@ const cBase = "w-full h-[9vh] flex justify-between items-center";
         <!-- svelte-ignore element_invalid_self_closing_tag -->
         <span aria-hidden="true"/>
     {/if}
-    <h1 class="text-3xl text-black text-center font-semibold">{title}</h1>
+    <h3 class="text-center">{title}</h3>
     {#if isUserLoggedIn}
         <button class="flex justify-end" onclick={handleProfile}>
             <HugeiconsIcon size="8.1vw" color="var(--color-black-700)" icon={UserCircleIcon} />

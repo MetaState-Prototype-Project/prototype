@@ -19,7 +19,7 @@ const { icon, label, href, ...restProps }: ISettingsNavigationBtn = $props();
         <div class="p-3 bg-gray max-w-max rounded-full object-cover flex items-center" >
             <HugeiconsIcon {icon} size={30}  color="var(--color-black-500)" />
         </div>
-        <h1>{label}</h1>
+        <p class="font-medium!">{label}</p>
     </div>
     <HugeiconsIcon size={30}  color="var(--color-black-500)" icon={ArrowRight01Icon} />
 </Button.Nav>

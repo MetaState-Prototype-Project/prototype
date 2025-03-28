@@ -1,7 +1,7 @@
 <script lang="ts">
-import SettingsNavigationBtn from "$lib/fragments/SettingsNavigationBtn/SettingsNavigationBtn.svelte";
-import { SettingsIcon } from "@hugeicons/core-free-icons";
+import { goto } from "$app/navigation";
+import ButtonAction from "$lib/ui/Button/ButtonAction.svelte";
 </script>
 
-<SettingsNavigationBtn href={"/settings"} icon={SettingsIcon} label="Settings" />
-
+<ButtonAction callback={async() => await(goto("/onboarding"))}>Onboarding Flow</ButtonAction>
+<ButtonAction callback={async() => await(goto("/register"))}>Create PIN</ButtonAction>
