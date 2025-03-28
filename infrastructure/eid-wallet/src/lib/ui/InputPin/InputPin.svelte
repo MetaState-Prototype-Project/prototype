@@ -97,7 +97,7 @@ const createValueSlot = (arr: number[]) => {
 	);
 };
 
-let uniqueId = `input${Math.random().toString().split(".")[1]}`;
+const uniqueId = `input${Math.random().toString().split(".")[1]}`;
 const cBase =
 	"relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
 </script>
@@ -115,11 +115,7 @@ const cBase =
         <input
           bind:value={pins[i]}
           maxLength="1"
-          class="pin-item w-[68px] h-[81px] rounded-[64px] border-[1px] border-transparent text-xl text-center bg-gray select-none {pins[
-            i
-          ]
-            ? 'has-value'
-            : ''}"
+          class="pin-item w-[68px] h-[81px] rounded-[64px] border-[1px] border-transparent text-xl text-center bg-gray select-none"
           class:error={isError}
           id={uniqueId}
           type="tel"
@@ -136,7 +132,10 @@ const cBase =
           placeholder=""
         />
         {#if pins[i] !== ''}
-          <div class="mask">·</div>
+          <div 
+            class="mask w-[9px] h-[9px] bg-black rounded-full"
+            class:hidden={!pins[i]} 
+          ></div>
         {/if}
       </div>
     {/each}
@@ -154,8 +153,6 @@ const cBase =
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 24px;
-    visibility: hidden;
   }
 
   input.error + .mask {
@@ -177,10 +174,5 @@ const cBase =
   input:focus {
     outline: none;
     border-color: var(--color-primary);
-  }
-
-  /* Show the mask when the input has a value */
-  .singular-input input.has-value + .mask {
-    visibility: visible;
   }
 </style>

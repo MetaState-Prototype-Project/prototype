@@ -17,7 +17,7 @@ const handleNext = async () => {
 
 <main class="pt-[3vh] px-[5vw] pb-[4.5vh]">
     <article class="flex justify-center mb-[4vh]">
-        <img src="/images/Onboarding.svg" alt="info-graphic-card">
+        <img class="aspect-square w-full object-cover" src="/images/Onboarding.svg" alt="Infographic card">
     </article>
     <section class="mb-[9.3vh]">
         <h2 class="text-[42px]/[1] font-medium mb-[1vh]">Your <br>
