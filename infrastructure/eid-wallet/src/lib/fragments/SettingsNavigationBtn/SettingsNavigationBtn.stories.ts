@@ -1,12 +1,15 @@
-import type { Snippet } from "svelte";
-import { icon } from "./SettingsNavigationBtn.stories.snippet.svelte";
+import { LanguageSquareIcon } from "@hugeicons/core-free-icons";
+import type { ComponentProps } from "svelte";
 import SettingsNavigationBtn from "./SettingsNavigationBtn.svelte";
 
 export default {
 	title: "Fragments/SettingsNavigationBtn",
 	component: SettingsNavigationBtn,
 	tags: ["autodocs"],
-	render: (args: { icon: Snippet; label: string; onClick: () => void }) => ({
+	render: (args: {
+		Component: SettingsNavigationBtn;
+		props: ComponentProps<typeof SettingsNavigationBtn>;
+	}) => ({
 		Component: SettingsNavigationBtn,
 		props: args,
 	}),
@@ -14,8 +17,8 @@ export default {
 
 export const Primary = {
 	args: {
-		icon: icon,
+		icon: LanguageSquareIcon,
 		label: "Language",
-		onClick: () => alert("asdf"),
+		href: "#",
 	},
 };
