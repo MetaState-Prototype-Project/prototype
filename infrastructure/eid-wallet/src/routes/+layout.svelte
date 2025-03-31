@@ -1,26 +1,33 @@
 <script lang="ts">
+import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
+import { onMount } from "svelte";
 import "../app.css";
+
 const { children } = $props();
 
-let showSplashScreen = $state(true);
+let showSplashScreen = $state(false);
 
-$effect(() => {
-	setTimeout(() => {
-		showSplashScreen = false;
-	}, 500);
+// replace with actual data loading logic
+async function loadData() {
+	await new Promise((resolve) => setTimeout(resolve, 1500));
+}
+
+async function ensureMinimumDelay() {
+	await new Promise((resolve) => setTimeout(resolve, 500));
+}
+
+onMount(async () => {
+	showSplashScreen = true; // Can't set up the original state to true or animation won't start
+
+	await Promise.all([loadData(), ensureMinimumDelay()]);
+
+	showSplashScreen = false;
 });
 </script>
-
+    
 {#if showSplashScreen}
-    <div class="relative w-full h-screen bg-primary">
-        <img class="absolute w-full bottom-[-80px] start-0" src="/images/Shape1.svg" alt="illustration">
-        <img class="absolute w-full top-[50px] end-[100px]" src="/images/Shape2.svg" alt="illustration">
-        <div class="absolute w-full top-[42%] start-[50%] translate-x-[-50%] translate-y-[-42%]">
-            <h1 class="text-center text-white text-[44px]">eAgency</h1>
-            <p class="text-center text-white">Your self-sovereign digital entity</p>
-        </div>
-        <img class="absolute bottom-[116px] start-[50%] translate-x-[-50%]" src="/images/W3DSLogoWhite.svg" alt="logo">
-    </div>
+    <SplashScreen />
 {:else}
     {@render children?.()}
 {/if}
+    
