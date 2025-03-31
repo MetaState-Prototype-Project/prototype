@@ -44,4 +44,3 @@ const baseClasses = "w-full flex justify-between items-center";
         <span aria-hidden="true"></span>
     {/if}
 </header>
-    
