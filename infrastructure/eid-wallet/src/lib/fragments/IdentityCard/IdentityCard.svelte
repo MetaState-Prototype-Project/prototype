@@ -41,7 +41,7 @@ $effect(() => {
 });
 </script>
 
-<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-xl w-full min-h-[150px] text-white overflow-hidden">
+<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden">
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
