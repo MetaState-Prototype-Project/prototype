@@ -1,7 +1,7 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { Header } from "$lib/fragments";
-import { Header } from "$lib/fragments";
+import { Hero } from "$lib/fragments";
+import { Hero } from "$lib/fragments";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -57,7 +57,7 @@ $effect(() => {
 {#if firstStep}
     <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
         <section>
-            <Header
+            <Hero
             title="Create a pin"
             subtitle="Enter a 4-digit PIN code"
             class="mb-[14vh]"
@@ -71,7 +71,7 @@ $effect(() => {
 {:else}
     <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
         <section>
-            <Header
+            <Hero
             title="Re-enter your pin"
                 subtitle="Confirm by entering pin again"
             class="mb-[14vh]"

@@ -1,15 +1,15 @@
-import Header from "./Header.svelte";
+import Hero from "./Hero.svelte";
 
 export default {
-	title: "Fragments/Header",
-	component: Header,
+	title: "Fragments/Hero",
+	component: Hero,
 	tags: ["autodocs"],
 	render: (args: {
 		title: string;
 		isBackRequired: boolean;
 		isUserLoggedIn: boolean;
 	}) => ({
-		Component: Header,
+		Component: Hero,
 		props: args,
 	}),
 };

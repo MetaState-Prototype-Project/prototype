@@ -4,7 +4,7 @@ import { ArrowLeft01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 import type { HTMLAttributes } from "svelte/elements";
 import * as Button from "$lib/ui/Button";
 
-interface IHeaderProps extends HTMLAttributes<HTMLElement> {
+interface IHeroProps extends HTMLAttributes<HTMLElement> {
 	title: string;
 	subtitle?: string;
 	showSettings?: boolean;
@@ -19,7 +19,7 @@ const {
 	isBackRequired = false,
 	handleProfile = undefined,
 	...restProps
-}: IHeaderProps = $props();
+}: IHeroProps = $props();
 
 const classes = {
 	common: "w-full flex",

@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { Header, IdentityCard } from "$lib/fragments";
+import { Hero, IdentityCard } from "$lib/fragments";
 import { ButtonAction } from "$lib/ui";
 
 const handleNext = async () => {
@@ -10,7 +10,7 @@ const handleNext = async () => {
 
 <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <Header
+        <Hero
             title="Here’s your eName"
             subtitle="This identifier is permanently yours, and it stays with you for your whole life."
             class="mb-4"

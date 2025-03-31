@@ -1,12 +1,12 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import Header from "$lib/fragments/Header/Header.svelte";
+import Hero from "$lib/fragments/Hero/Hero.svelte";
 import { ButtonAction } from "$lib/ui";
 </script>
 
 <main class="h-screen pt-[3vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between items-center">
     <section>
-        <Header
+        <Hero
             title="Verify your account"
             subtitle="Get your passport ready. You’ll be directed to a site where you can verify your account in a swift and secure process"
         />
