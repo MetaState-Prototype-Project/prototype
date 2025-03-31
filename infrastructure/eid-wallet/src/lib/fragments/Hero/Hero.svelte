@@ -1,8 +1,9 @@
 <script lang="ts">
+import * as Button from "$lib/ui/Button";
 import { cn } from "$lib/utils";
 import { Settings02Icon } from "@hugeicons/core-free-icons";
 import type { HTMLAttributes } from "svelte/elements";
-import * as Button from "$lib/ui/Button";
+
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
 	title?: string;
 	subtitle?: string;
@@ -41,3 +42,28 @@ const baseClasses = "w-full flex justify-between items-center";
         <span aria-hidden="true"></span>
     {/if}
 </header>
+
+<!-- 
+@component
+@name Hero
+@description A component that displays a header with a title, subtitle, and optional settings icon.
+@props
+- title: string - The main title to display.
+- subtitle: string - An optional subtitle to display below the title.
+- showSettings: boolean - A flag to determine if the settings icon should be displayed.
+- titleClasses: string - Additional classes to apply to the title element.
+- children: Snippet - Optional child elements to render within the title.
+@slots
+- default - Slot for additional content to be rendered within the title.
+@usage
+```svelte
+<Hero
+        title="Good morning!"
+        subtitle="Don't forget to drink water."
+        class="mb-8"
+        titleClasses="-mb-2"
+        showSettings
+    >
+</Hero>
+```
+ -->
