@@ -30,4 +30,3 @@ onMount(async () => {
 {:else}
     {@render children?.()}
 {/if}
-    
