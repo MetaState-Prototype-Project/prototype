@@ -12,7 +12,7 @@ $effect(() => {
 </script>
 
 {#if showSplashScreen}
-    <div class="relative w-full h-[100vh] bg-primary">
+    <div class="relative w-full h-screen bg-primary">
         <img class="absolute w-full bottom-[-80px] start-0" src="/images/Shape1.svg" alt="illustration">
         <img class="absolute w-full top-[50px] end-[100px]" src="/images/Shape2.svg" alt="illustration">
         <div class="absolute w-full top-[42%] start-[50%] translate-x-[-50%] translate-y-[-42%]">
