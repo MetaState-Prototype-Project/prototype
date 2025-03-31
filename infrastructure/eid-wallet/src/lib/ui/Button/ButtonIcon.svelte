@@ -1,32 +1,49 @@
-<script lang="ts" generics="T">
+<script lang="ts">
 import { cn } from "$lib/utils";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
 import type { HTMLButtonAttributes } from "svelte/elements";
 
 interface IButtonProps extends HTMLButtonAttributes {
-	variant?: "white" | "clear-on-light" | "clear-on-dark";
+	icon: IconSvgElement;
 	isLoading?: boolean;
 	callback?: () => Promise<void>;
 	onclick?: () => void;
 	blockingClick?: boolean;
 	type?: "button" | "submit" | "reset";
-	size?: "sm" | "md" | "lg";
-	iconSize?: "sm" | "md" | "lg" | number;
-	icon: IconSvgElement;
-	isActive?: boolean;
+	bgSize?: "sm" | "md" | "lg" | number | string;
+	bgColor?:
+		| "black"
+		| "white"
+		| "gray"
+		| "primary"
+		| "secondary"
+		| "danger"
+		| string;
+	iconSize?: "sm" | "md" | "lg" | number | string;
+	iconColor?:
+		| "black"
+		| "white"
+		| "gray"
+		| "primary"
+		| "secondary"
+		| "danger"
+		| string;
+	strokeWidth?: number;
 }
 
 const {
-	variant = "white",
+	icon,
 	isLoading,
 	callback,
 	onclick,
 	blockingClick,
 	type = "button",
-	size = "md",
-	icon,
-	iconSize = undefined,
-	isActive = false,
+	bgSize,
+	bgColor = "transparent",
+	iconSize = "md",
+	iconColor = "black",
+	strokeWidth = 1.5,
+	children = undefined,
 	...restProps
 }: IButtonProps = $props();
 
@@ -46,119 +63,122 @@ const handleClick = async () => {
 	}
 };
 
-const variantClasses = {
-	white: { background: "bg-white", text: "text-black" },
-	"clear-on-light": { background: "transparent", text: "text-black" },
-	"clear-on-dark": { background: "transparent", text: "text-white" },
-};
-
-const disabledClasses = {
-	white: { background: "bg-white", text: "text-black-500" },
-	"clear-on-light": { background: "bg-transparent", text: "text-black-500" },
-	"clear-on-dark": { background: "bg-transparent", text: "text-black-500" },
-};
-
-const isActiveClasses = {
-	white: { background: "bg-secondary-500", text: "text-black" },
-	"clear-on-light": { background: "bg-secondary-500", text: "text-black" },
-	"clear-on-dark": { background: "bg-secondary-500", text: "text-black" },
-};
-
 const sizeVariant = {
 	sm: "h-8 w-8",
 	md: "h-[54px] w-[54px]",
 	lg: "h-[108px] w-[108px]",
-};
+} as const;
 
 const iconSizeVariant = {
 	sm: 24,
-	md: 24,
+	md: 30,
 	lg: 36,
-};
+} as const;
+
+const backgroundColor: Record<string, string> = {
+	black: "bg-black",
+	white: "bg-white",
+	gray: "bg-gray",
+	primary: "bg-primary",
+	secondary: "bg-secondary",
+	danger: "bg-danger",
+} as const;
+
+const textColor: Record<string, string> = {
+	black: "text-black",
+	white: "text-white",
+	gray: "text-gray",
+	primary: "text-primary",
+	secondary: "text-secondary",
+	danger: "text-danger",
+} as const;
 
 const resolvedIconSize =
-	typeof iconSize === "number" ? iconSize : iconSizeVariant[iconSize ?? size];
+	iconSize === undefined
+		? iconSizeVariant.md
+		: typeof iconSize === "number"
+			? iconSize
+			: iconSize in iconSizeVariant
+				? iconSizeVariant[iconSize as keyof typeof iconSizeVariant]
+				: iconSize;
+
+const resolvedBgSize =
+	bgSize === undefined
+		? "" // if bgSize is empty, there is no background
+		: typeof bgSize === "number"
+			? `h-${bgSize} w-${bgSize}`
+			: bgSize in sizeVariant
+				? sizeVariant[bgSize as keyof typeof sizeVariant]
+				: bgSize;
 
 const classes = $derived({
 	common: cn(
-		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
-		sizeVariant[size],
+		"cursor-pointer flex items-center justify-center rounded-full font-semibold duration-100",
 	),
-	background: disabled
-		? disabledClasses[variant].background
-		: isActive
-			? isActiveClasses[variant].background
-			: variantClasses[variant].background,
-	text: disabled
-		? disabledClasses[variant].text
-		: isActive
-			? isActiveClasses[variant].text
-			: variantClasses[variant].text,
-	disabled: "cursor-not-allowed",
+	bgSize: resolvedBgSize,
+	background: bgColor in backgroundColor ? backgroundColor[bgColor] : bgColor,
+	iconColor: iconColor in textColor ? textColor[iconColor] : iconColor,
+	disabled: "cursor-not-allowed opacity-50",
+	iconSize: resolvedIconSize,
 });
 </script>
 
 <button
-  {...restProps}
-  class={cn(
-    [
-      classes.common,
-      classes.background,
-      classes.text,
-      disabled && classes.disabled,
-      restProps.class,
-    ].join(' ')
-  )}
-  {disabled}
-  onclick={callback ? handleClick : onclick}
-  {type}
+	{...restProps}
+	class={cn([classes.common, classes.bgSize, classes.iconColor, classes.background, disabled && classes.disabled, restProps.class].join(' '))}
+	{disabled}
+	onclick={callback ? handleClick : onclick}
+	{type}
 >
-  {#if isLoading || isSubmitting}
-    <div
-      class="loading loading-spinner absolute loading-lg {variantClasses[
-        variant
-      ].text}"
-    ></div>
-  {:else}
-    <HugeiconsIcon {icon} size={resolvedIconSize} />
-  {/if}
+	{#if isLoading || isSubmitting}
+	<div class="loading loading-spinner absolute loading-lg {cn(classes.iconColor)}"></div>
+	{:else}
+	<HugeiconsIcon {icon} size={classes.iconSize} {strokeWidth} color={classes.iconColor} />
+	{/if}
 </button>
 
 <!-- 
     @component
     export default ButtonIcon
     @description
-    ButtonIcon component is a button with an icon.
-    
-    @props
-    - variant: 'white' | 'clear-on-light' | 'clear-on-dark' .
-    - isLoading: boolean 
-    - callback: () => Promise<void> 
-    - onclick: () => void 
-    - blockingClick: boolean - Prevents multiple clicks
-    - type: 'button' | 'submit' | 'reset' 
-    - size: 'sm' | 'md' | 'lg' 
-    - iconSize: 'sm' | 'md' | 'lg' | number 
-    - icon: IconSvgElement - Needs icon from Hugeicon library
-    - isActive: boolean 
+    ButtonIcon is a customizable icon button component supporting both predefined and custom styles for size and colors.
 
-   
+    @props
+    - icon: IconSvgElement - An icon from the Hugeicons library.
+    - isLoading: boolean - Displays a loading spinner when true.
+    - callback: () => Promise<void> - Async function executed on click.
+    - onclick: () => void - Regular click handler.
+    - blockingClick: boolean - Prevents multiple clicks while an async action is in progress.
+    - type: 'button' | 'submit' | 'reset' - Defines the button type.
+    - bgSize: 'sm' | 'md' | 'lg' | number | string - Predefined size, numeric pixel value, or a Tailwind class.
+    - iconSize: 'sm' | 'md' | 'lg' | number | string - Predefined size, numeric pixel value, or a Tailwind class.
+    - bgColor: 'black' | 'white' | 'gray' | 'primary' | 'secondary' | 'danger' | string - Predefined color or any Tailwind background class.
+    - iconColor: 'black' | 'white' | 'gray' | 'primary' | 'secondary' | 'danger' | string - Predefined color or any Tailwind text class.
+    - strokeWidth: number - Defines the stroke width of the icon.
+
     @usage
     ```html
     <script lang="ts">
-      import * as Button from '$lib/ui/Button'
-      import { FlashlightIcon } from '@hugeicons/core-free-icons'
+      import * as Button from '$lib/ui/Button';
+      import { FlashlightIcon, Upload03Icon } from '@hugeicons/core-free-icons';
+
+	  function shareBtn() {
+	  	console.log('Share button clicked');		
+	}				
       
-      let flashlightOn = $state(false)
+      let flashlightOn = $state(false);
     </script>
 
     <Button.Icon
-      variant="white"
-      aria-label="Open pane"
-      size="md"
+      aria-label="Toggle flashlight"
+      bgSize="w-12 h-12"  // Custom Tailwind class for background size
+      iconSize={32}        // Numeric pixel size
+      bgColor="primary"    // Predefined or Tailwind color class
+      iconColor="white"    // Predefined or Tailwind text color
       icon={FlashlightIcon}
       onclick={() => (flashlightOn = !flashlightOn)}
-      isActive={flashlightOn}
-    ></Button.Icon>
+    />
+
+	<Button.Icon icon={Upload03Icon} iconColor={"white"} strokeWidth={2} onclick={shareBtn} />
     ```
-     -->
+-->

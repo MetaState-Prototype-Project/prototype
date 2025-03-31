@@ -1,4 +1,5 @@
 <script lang="ts">
+import * as Button from "$lib/ui/Button";
 import {
 	CheckmarkBadge02Icon,
 	Upload03Icon,
@@ -20,7 +21,7 @@ interface IIdentityCard extends HTMLAttributes<HTMLElement> {
 	usedStorage?: number;
 }
 
-let {
+const {
 	variant = "eName",
 	userId,
 	viewBtn,
@@ -48,22 +49,17 @@ $effect(() => {
     <div class="p-5 flex flex-col gap-2">
         <div class="flex justify-between">
             {#if variant === 'eName'}  
-                <HugeiconsIcon size={30} strokeWidth={2} color="var(--color-secondary)" icon={CheckmarkBadge02Icon} />
-                <div class="flex gap-3 items-center"> 
-                    <button class="flex justify-start" onclick={shareBtn}>
-                        <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={Upload03Icon} />
-                    </button>
-                    <button class="flex justify-start" onclick={viewBtn}>
-                        <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
-                    </button>
-                </div>
+                <HugeiconsIcon size={30} strokeWidth={2} className="text-secondary" icon={CheckmarkBadge02Icon} />
+                <div class="flex gap-3 items-center">  
+                    <Button.Icon icon={Upload03Icon} iconColor={"white"} strokeWidth={2} onclick={shareBtn} />
+                    <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
+                    </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white flex items-center rounded-4xl px-5 py-2 small font-semibold">HIGH SECURITY</p>
-                <button class="flex justify-start" onclick={viewBtn}>
-                    <HugeiconsIcon size={30} strokeWidth={2} color="white" icon={ViewIcon} />
-                </button>
+                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs font-semibold">HIGH SECURITY</p>
+                <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
+                
             {:else if variant === 'eVault'}
-            <h3 class="text-black-300 font-semibold mb-3">{state.progressWidth} Used</h3>
+                <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
             {/if}
         </div>
         <div>
@@ -98,4 +94,5 @@ $effect(() => {
     </div>
 </div>
 
-
+    
+    
