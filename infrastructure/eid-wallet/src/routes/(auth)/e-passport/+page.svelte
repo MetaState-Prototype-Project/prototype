@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Header } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import { ButtonAction } from "$lib/ui";
 
@@ -8,8 +9,11 @@ const handleFinish = async () => {};
 
 <main class="h-[max-content] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
     <section>
-        <h3 class="mb-[0.5vh]">Your ePassport and eVault are ready</h3>
-        <p class="text-black-700 mb-[3vh]">Log into any W3DS platform without passwords. It’s tied to this phone; if lost, you’ll need to revoke and reissue it on a new device.</p>
+        <Header
+            title="Your ePassport and eVault are ready"
+            subtitle="Log into any W3DS platform without passwords. It’s tied to this phone; if lost, you’ll need to revoke and reissue it on a new device."
+            class="mb-2"
+        />
         <IdentityCard variant= "ePassport"
 		viewBtn= {() => alert("View")}
 		userData= {{
