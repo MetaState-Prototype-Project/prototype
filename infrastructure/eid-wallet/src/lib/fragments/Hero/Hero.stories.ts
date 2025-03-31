@@ -1,3 +1,4 @@
+import type { ComponentProps } from "svelte";
 import Hero from "./Hero.svelte";
 
 export default {
@@ -5,35 +6,26 @@ export default {
 	component: Hero,
 	tags: ["autodocs"],
 	render: (args: {
-		title: string;
-		isBackRequired: boolean;
-		isUserLoggedIn: boolean;
+		Component: Hero;
+		props: ComponentProps<typeof Hero>;
 	}) => ({
 		Component: Hero,
 		props: args,
 	}),
 };
 
-export const Primary = {
+export const Basic = {
 	args: {
 		title: "Create PIN",
-		isBackRequired: false,
-		isUserLoggedIn: false,
+		subtitle: "Create a PIN to protect your wallet",
 	},
 };
 
-export const Secondary = {
+export const WithSettings = {
 	args: {
-		title: "Create PIN",
-		isBackRequired: true,
-		isUserLoggedIn: false,
-	},
-};
-
-export const Tertiary = {
-	args: {
-		title: "Create PIN",
-		isBackRequired: true,
-		isUserLoggedIn: true,
+		title: "Good morning!",
+		subtitle: "Don't forget to drink water.",
+		titleClasses: "-mb-2",
+		showSettings: true,
 	},
 };
