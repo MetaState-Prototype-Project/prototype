@@ -11,27 +11,27 @@
 @layer base {
 	/* Typography */
 	h1 {
-		@apply text-[90px] text-black font-semibold;
+		@apply text-[90px] text-black font-semibold leading-[1.5];
 	}
 
 	h2 {
-		@apply text-6xl text-black font-semibold;
+		@apply text-6xl text-black font-semibold leading-[1.5];
 	}
 
 	h3 {
-		@apply text-3xl text-black font-semibold;
+		@apply text-3xl text-black font-semibold leading-[1.5];
 	}
 
 	h4 {
-		@apply text-xl text-black font-semibold;
+		@apply text-xl text-black font-semibold leading-[1.5];
 	}
 
 	p {
-		@apply text-base text-black font-normal;
+		@apply text-base text-black font-normal leading-[1.5];
 	}
 
 	.small {
-		@apply text-xs text-black font-normal;
+		@apply text-xs text-black font-normal leading-[1.5];
 	}
 }
 
