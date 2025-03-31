@@ -1,4 +1,9 @@
 packages:
-  - "apps/*"
-  - "packages/*"
-  - "infrastructure/*"
+  - apps/*
+  - packages/*
+  - infrastructure/*
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - esbuild
+  - msw
+  - svelte-preprocess
