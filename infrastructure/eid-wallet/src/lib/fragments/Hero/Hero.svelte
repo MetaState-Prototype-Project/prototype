@@ -1,57 +1,46 @@
 <script lang="ts">
 import { cn } from "$lib/utils";
-import { ArrowLeft01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { Settings02Icon } from "@hugeicons/core-free-icons";
 import type { HTMLAttributes } from "svelte/elements";
 import * as Button from "$lib/ui/Button";
 
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
-	title: string;
+	title?: string;
 	subtitle?: string;
 	showSettings?: boolean;
-	isBackRequired?: boolean;
-	handleProfile?: () => void;
+	titleClasses?: string;
 }
 
 const {
 	title,
 	subtitle,
 	showSettings = false,
-	isBackRequired = false,
-	handleProfile = undefined,
+	titleClasses,
+	children,
 	...restProps
 }: IHeroProps = $props();
 
-const classes = {
-	common: "w-full flex",
-	alignement: isBackRequired ? "justify-between items-center" : "items-start",
-};
+const baseClasses = "w-full flex justify-between items-center";
 </script>
 
-<header {...restProps} class={cn(classes.common, restProps.class)}>
-    {#if isBackRequired}
-        <Button.Icon icon={ArrowLeft01Icon} iconSize="5.5vw" iconColor={"text-black-700"} onclick={() => window.history.back()} />
-    {:else}
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
-    {/if}
-    <div class="flex flex-col items-start leading-}">
-        <h3 class="">{title}</h3>
+<header {...restProps} class={cn(baseClasses, restProps.class)}>
+    <div class="flex flex-col items-start">
+            <h3 class={cn(titleClasses)}>
+                {@render children?.()}
+                {title}
+            </h3>
         {#if subtitle}
             <p class="text-black-700 mt-2">{subtitle}</p>
         {/if}
     </div>
     {#if showSettings}
-    <Button.Action
-        variant="soft"
-        class="w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]"
-        aria-label="Settings"
-    >
-    <!-- <Button.Nav></Button.Nav> -->
-    </Button.Action>
-
-        
+        <Button.Nav href="/settings">
+            <Button.Icon
+                icon={Settings02Icon}
+                iconSize="lg"
+            />
+        </Button.Nav>
     {:else}
-        <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
     {/if}
 </header>
