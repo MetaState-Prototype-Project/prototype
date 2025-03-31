@@ -1,7 +1,7 @@
 <script lang="ts">
+import * as Button from "$lib/ui/Button";
 import { cn } from "$lib/utils";
 import { ArrowLeft01Icon, UserCircleIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface IHeaderProps extends HTMLAttributes<HTMLElement> {
@@ -11,7 +11,7 @@ interface IHeaderProps extends HTMLAttributes<HTMLElement> {
 	handleProfile?: () => void;
 }
 
-let {
+const {
 	title = "Create PIN",
 	isUserLoggedIn = true,
 	isBackRequired = true,
@@ -23,20 +23,14 @@ const cBase = "w-full h-[9vh] flex justify-between items-center";
 
 <header {...restProps} class={cn(cBase, restProps.class)}>
     {#if isBackRequired}
-        <button class="flex justify-start" onclick={() => window.history.back()}>
-            <HugeiconsIcon size="5.5vw"  color="var(--color-black-700)" icon={ArrowLeft01Icon} />
-        </button>
+        <Button.Icon icon={ArrowLeft01Icon} iconSize="5.5vw" iconColor={"text-black-700"} onclick={() => window.history.back()} />
     {:else}
-        <!-- svelte-ignore element_invalid_self_closing_tag -->
-        <span aria-hidden="true"/>
+        <span aria-hidden="true"></span>
     {/if}
     <h3 class="text-center">{title}</h3>
     {#if isUserLoggedIn}
-        <button class="flex justify-end" onclick={handleProfile}>
-            <HugeiconsIcon size="8.1vw" color="var(--color-black-700)" icon={UserCircleIcon} />
-        </button>
+        <Button.Icon icon={UserCircleIcon} iconSize="8.1vw" iconColor={"text-black-700"} onclick={handleProfile} />
     {:else}
-        <!-- svelte-ignore element_invalid_self_closing_tag -->
-        <span aria-hidden="true"/>
+        <span aria-hidden="true"></span>
     {/if}
 </header>
