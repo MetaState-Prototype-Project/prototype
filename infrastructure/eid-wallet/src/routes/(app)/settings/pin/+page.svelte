@@ -34,11 +34,11 @@ $effect(() => {
         </div>
         <div>
             <p class="mb-[1vh]">Enter your new PIN</p>
-            <InputPin bind:pin={newPin} variant="sm"/>
+            <InputPin bind:pin={newPin} {isError} variant="sm"/>
         </div>
         <div>
             <p class="mb-[1vh]">Confirm new PIN</p>
-            <InputPin bind:pin={repeatPin} variant="sm"/>
+            <InputPin bind:pin={repeatPin} {isError} variant="sm"/>
         </div>
         <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
