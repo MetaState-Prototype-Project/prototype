@@ -83,7 +83,7 @@ $effect(() => {
             <div>
                 <div class="flex justify-between mb-1 ">
                     <p class="z-[1]">{usedStorage}GB Used</p>
-                    <p class="z-[1]">{totalStorage}GB Used</p>
+                    <p class="z-[1]">{totalStorage}GB total storage</p>
                 </div>
                 <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400">
                     <div class="h-full bg-secondary rounded-full" style={`width: calc(${state.progressWidth})`}></div>
