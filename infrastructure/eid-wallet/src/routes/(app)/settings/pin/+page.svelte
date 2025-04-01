@@ -1,5 +1,4 @@
 <script lang="ts">
-import { Header } from "$lib/fragments";
 import { runtime } from "$lib/global/runtime.svelte";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon } from "@hugeicons/core-free-icons";
