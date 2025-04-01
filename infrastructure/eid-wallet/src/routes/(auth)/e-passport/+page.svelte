@@ -24,11 +24,8 @@ const handleFinish = async () => {};
 		}}/>
     </section>
     <section class="mt-[4vh] mb-[9vh]">
-        <Hero
-        title="Your eVault"
-        subtitle="We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control."
-        class="mb-2"
-        />
+        <h4>Your eVault</h4>
+        <p class="text-black-700">We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control.</p>
         <IdentityCard variant= "eVault"
 		usedStorage= {15}
 		totalStorage= {80}/>
