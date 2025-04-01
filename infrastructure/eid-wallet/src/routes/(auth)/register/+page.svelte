@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -55,8 +56,11 @@ $effect(() => {
 {#if firstStep}
     <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
         <section>
-            <h3 class="mb-[1vh]">Create a pin</h3>
-            <p class="text-black-700 mb-[14vh]">Enter a 4-digit PIN code</p>
+            <Hero
+            title="Create a pin"
+            subtitle="Enter a 4-digit PIN code"
+            class="mb-[14vh]"
+            />
             <InputPin bind:pin/>
         </section>
         <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
@@ -64,8 +68,11 @@ $effect(() => {
 {:else}
     <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
         <section>
-            <h3 class="mb-[1vh]">Re-enter your pin</h3>
-            <p class="text-black-700 mb-[14vh]">Confirm by entering pin again</p>
+            <Hero
+            title="Re-enter your pin"
+                subtitle="Confirm by entering pin again"
+            class="mb-[14vh]"
+            />
             <InputPin bind:pin={repeatPin} {isError}/>
             <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
         </section>

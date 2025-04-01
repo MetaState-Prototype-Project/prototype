@@ -1,4 +1,5 @@
 <script lang="ts">
+import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import { ButtonAction } from "$lib/ui";
 
@@ -20,8 +21,11 @@ const handleFinish = async () => {};
 		}}/>
     </section>
     <section class="mt-[4vh] mb-[9vh]">
-        <h4 class="mb-[0.5vh]">Your eVault</h4>
-        <p class="text-black-700 mb-[3vh]">We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control.</p>
+        <Hero
+        title="Your ePassport and eVault are ready"
+        subtitle="Log into any W3DS platform without passwords. It’s tied to this phone; if lost, you’ll need to revoke and reissue it on a new device."
+        class="mb-2"
+        />
         <IdentityCard variant= "eVault"
 		usedStorage= {15}
 		totalStorage= {80}/>

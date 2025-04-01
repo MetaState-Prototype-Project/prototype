@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
 import { ButtonAction, Drawer } from "$lib/ui";
 
 let isPaneOpen = $state(false);
@@ -20,10 +21,15 @@ const handleNext = async () => {
         <img class="aspect-square w-full object-cover" src="/images/Onboarding.svg" alt="Infographic card">
     </article>
     <section class="mb-[9.3vh]">
-        <h2 class="text-[42px]/[1] font-medium mb-[1vh]">Your <br>
+        <Hero
+        subtitle="Store your IDs, verify instantly with QR codes, and manage your digital identity with ease."
+        class="mb-4"
+        titleClasses="text-[42px]/[1.1] font-medium"
+        >
+            Your <br>
             Digital Identity,
-            Secured</h2>
-        <p class="text-black-700">Store your IDs, verify instantly with QR codes, and manage your digital identity with ease.</p>
+            Secured
+        </Hero>
     </section>
     <section>
         <p class="max-w-[300px] mx-[auto] text-center small text-black-500">By continuing you agree to our <a href="/" class="text-primary underline underline-offset-5">Terms & Conditions </a> and <a href="/" class="text-primary underline underline-offset-5">privacy policy.</a></p>
