@@ -55,7 +55,7 @@ $effect(() => {
                     <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                     </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs font-semibold">HIGH SECURITY</p>
+                <p class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium">HIGH SECURITY</p>
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                 
             {:else if variant === 'eVault'}
@@ -64,9 +64,9 @@ $effect(() => {
         </div>
         <div>
             {#if variant === "eName"}        
-                <p class="text-gray font-light">Your eName</p>
+                <p class="text-gray font-normal">Your eName</p>
                 <div class="flex items-center justify-between w-full">
-                    <p class="text-white w-[60%] font-medium">@{userId}</p>
+                    <p class="text-white w-full font-medium">@{userId}</p>
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
