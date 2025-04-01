@@ -1,4 +1,6 @@
 <script lang="ts">
+import { Header } from "$lib/fragments";
+import { runtime } from "$lib/global/runtime.svelte";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -20,11 +22,12 @@ const handleChangePIN = async () => {
 };
 
 $effect(() => {
+	runtime.header.title = "Change PIN";
 	if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
 });
 </script>
 
-<main class="h-[100vh] pt-[3vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between gap-[3vh]">
+<main class="h-[calc(100vh-14vh)] flex flex-col justify-between">
     <section>
         <div>
             <p class="mb-[1vh]">Enter you current PIN</p>

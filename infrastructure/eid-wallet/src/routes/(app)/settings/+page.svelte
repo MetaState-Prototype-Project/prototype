@@ -1,5 +1,6 @@
 <script lang="ts">
 import { SettingsNavigationBtn } from "$lib/fragments";
+import { runtime } from "$lib/global/runtime.svelte";
 import {
 	Key01Icon,
 	LanguageSquareIcon,
@@ -7,9 +8,13 @@ import {
 	PinCodeIcon,
 	Shield01Icon,
 } from "@hugeicons/core-free-icons";
+
+$effect(() => {
+	runtime.header.title = "Settings";
+});
 </script>
 
-<main class="pt-[3vh] px-[5vw] pb-[4.5vh]">
+<main>
     <!-- header part -->
     <SettingsNavigationBtn icon={LanguageSquareIcon} label="Language" href="/settings/language"/>
     <SettingsNavigationBtn icon={Link02Icon} label="History" href="/settings/history"/>

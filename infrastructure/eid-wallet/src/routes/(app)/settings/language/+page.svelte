@@ -1,4 +1,5 @@
 <script lang="ts">
+import { runtime } from "$lib/global/runtime.svelte";
 import { Selector } from "$lib/ui";
 
 let languages: { name: string; country: string }[] = [
@@ -8,11 +9,15 @@ let languages: { name: string; country: string }[] = [
 	{ name: "French", country: "fr" },
 ];
 let selected = $state("");
+
+$effect(() => {
+	runtime.header.title = "Language";
+});
 </script>
 
 
 
-<main class="pt-[3vh] px-[5vw] pb-[4.5vh]">
+<main>
     {#each languages as lang, i}
     <Selector id={`option-${i}`} name={lang.name} bind:selected value={lang.name}>
         {lang.name}
