@@ -6,14 +6,12 @@ import type { HTMLAttributes } from "svelte/elements";
 
 interface IHeaderProps extends HTMLAttributes<HTMLElement> {
 	title: string;
-	isUserLoggedIn?: boolean;
 	isBackRequired?: boolean;
 	handleProfile?: () => void;
 }
 
 const {
 	title = "Create PIN",
-	isUserLoggedIn = true,
 	isBackRequired = true,
 	handleProfile = undefined,
 	...restProps
@@ -28,9 +26,5 @@ const cBase = "w-full h-[9vh] flex justify-between items-center";
         <span aria-hidden="true"></span>
     {/if}
     <h4 class="text-center">{title}</h4>
-    <!-- {#if isUserLoggedIn}
-        <Button.Icon icon={UserCircleIcon} iconSize="8.1vw" iconColor={"text-black-700"} onclick={handleProfile} />
-    {:else} -->
-        <span aria-hidden="true"></span>
-    <!-- {/if} -->
+    <span aria-hidden="true"></span>
 </header>
