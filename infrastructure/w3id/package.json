@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest",
     "dev": "tsc --watch",
-    "check-format": "prettier --check \"src/**/*.ts\"",
+    "check-format": "npx @biomejs/biome format ./src",
     "format": "npx @biomejs/biome format --write ./src",
     "lint": "npx @biomejs/biome lint --write ./src",
     "check": "npx @biomejs/biome check --write ./src",
