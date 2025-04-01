@@ -59,7 +59,7 @@ $effect(() => {
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                 
             {:else if variant === 'eVault'}
-                <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
+                <h3 class="text-black-300 text-3xl font-semibold mb-3">{state.progressWidth} Used</h3>
             {/if}
         </div>
         <div>
