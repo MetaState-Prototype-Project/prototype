@@ -27,7 +27,7 @@ $effect(() => {
 });
 </script>
 
-<main class="h-[calc(100vh-14vh)] flex flex-col justify-between">
+<main class="h-[calc(100vh-14vh)] flex flex-col justify-between pt-[3vh]">
     <section>
         <div>
             <p class="mb-[1vh]">Enter you current PIN</p>
