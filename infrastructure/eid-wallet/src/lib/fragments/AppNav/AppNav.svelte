@@ -23,3 +23,15 @@ const baseClasses = "w-full relative flex justify-center h-14 items-center";
         {title}
     </h4>
 </nav>
+
+<!-- 
+@component
+@name AppNav
+@description A component that displays the title of the current page and a back button.
+@props
+- title: string - The main title to display.
+- titleClasses: string - Additional classes to apply to the title element.
+@usage
+```svelte
+<AppNav title="My Title" />
+ -->
