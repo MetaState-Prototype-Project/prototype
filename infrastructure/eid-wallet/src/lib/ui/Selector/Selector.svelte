@@ -30,7 +30,7 @@ let {
     {...restProps}
     for={id}
     class={cn(
-        ["flex w-full justify-between items-center ps-[5vw] py-4", restProps.class].join(
+        ["flex w-full justify-between items-center ps-[5vw] py-6", restProps.class].join(
             " "
         )
     )}
