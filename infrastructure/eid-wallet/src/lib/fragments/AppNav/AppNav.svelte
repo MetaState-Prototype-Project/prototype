@@ -6,8 +6,14 @@ import type { HTMLAttributes } from "svelte/elements";
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
 	title?: string;
 	titleClasses?: string;
+	iconColor?: string;
 }
-const { title, titleClasses, ...restProps }: IHeroProps = $props();
+const {
+	title,
+	titleClasses,
+	iconColor = "black",
+	...restProps
+}: IHeroProps = $props();
 const baseClasses = "w-full relative flex justify-center h-14 items-center";
 </script>
     
@@ -15,7 +21,7 @@ const baseClasses = "w-full relative flex justify-center h-14 items-center";
     <Button.Icon 
         icon={ArrowLeft01Icon}
         iconSize="md"
-        iconColor={"black"}
+        {iconColor}
         class="absolute left-2"
         onclick={() => window.history.back()}
     />
