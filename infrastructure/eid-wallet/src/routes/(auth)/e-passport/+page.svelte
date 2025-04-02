@@ -1,9 +1,12 @@
 <script lang="ts">
+import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import { ButtonAction } from "$lib/ui";
 
-const handleFinish = async () => {};
+const handleFinish = async () => {
+	await goto("/main");
+};
 </script>
 
 
