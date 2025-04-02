@@ -1,4 +1,5 @@
 <script lang="ts">
+import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
@@ -46,7 +47,7 @@ function shareQR() {
 {#snippet ePassport()}
     <IdentityCard
     variant="ePassport"
-    viewBtn={() => alert("View button clicked!")}
+    viewBtn={() => goto("/ePassport")}
     userData={dummyData}
     />
 {/snippet}
@@ -87,16 +88,18 @@ function shareQR() {
     </div>
 </Drawer>
 
-<Button.Action
-    variant="solid"
-    onclick={() => alert("Action button clicked!")}
-    class="mx-auto text-nowrap flex gap-8 fixed bottom-5 left-1/2 -translate-x-1/2 z-10"
->
-    <HugeiconsIcon
-        size={32}
-        strokeWidth={2}
-        className="mr-2"
-        icon={QrCodeIcon}
-    />
-    Scan to Login
-</Button.Action>
+<Button.Nav href="/scan-qr">
+    <Button.Action
+        variant="solid"
+        onclick={() => alert("Action button clicked!")}
+        class="mx-auto text-nowrap flex gap-8 fixed bottom-5 left-1/2 -translate-x-1/2 z-10"
+    >
+        <HugeiconsIcon
+            size={32}
+            strokeWidth={2}
+            className="mr-2"
+            icon={QrCodeIcon}
+        />
+        Scan to Login
+    </Button.Action>
+</Button.Nav>
