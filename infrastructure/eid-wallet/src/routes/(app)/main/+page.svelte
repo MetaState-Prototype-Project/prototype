@@ -59,9 +59,11 @@ function shareQR() {
     />
 {/snippet}
 
-{@render Section("eName", eName)}
-{@render Section("ePassport", ePassport)}
-{@render Section("eVault", eVault)}
+<main class="pb-16">
+    {@render Section("eName", eName)}
+    {@render Section("ePassport", ePassport)}
+    {@render Section("eVault", eVault)}
+</main>
 
 <Drawer
     title="Scan QR Code"
