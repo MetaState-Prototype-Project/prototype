@@ -59,7 +59,7 @@ $effect(() => {
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                 
             {:else if variant === 'eVault'}
-                <div class="text-black-300 text-3xl mb-3">{state.progressWidth} Used</div>
+                <h3 class="text-black-300 text-3xl font-semibold mb-3">{state.progressWidth} Used</h3>
             {/if}
         </div>
         <div>
@@ -83,7 +83,7 @@ $effect(() => {
             <div>
                 <div class="flex justify-between mb-1 ">
                     <p class="z-[1]">{usedStorage}GB Used</p>
-                    <p class="z-[1]">{totalStorage}GB Used</p>
+                    <p class="z-[1]">{totalStorage}GB total storage</p>
                 </div>
                 <div class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400">
                     <div class="h-full bg-secondary rounded-full" style={`width: calc(${state.progressWidth})`}></div>

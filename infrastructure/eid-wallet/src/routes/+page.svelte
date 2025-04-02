@@ -5,3 +5,4 @@ import ButtonAction from "$lib/ui/Button/ButtonAction.svelte";
 
 <ButtonAction callback={async() => await(goto("/onboarding"))}>Onboarding Flow</ButtonAction>
 <ButtonAction callback={async() => await(goto("/register"))}>Create PIN</ButtonAction>
+<ButtonAction callback={async() => await(goto("/settings"))}>Settings</ButtonAction>

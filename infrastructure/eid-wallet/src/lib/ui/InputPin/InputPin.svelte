@@ -144,8 +144,9 @@ const cBase =
 
 <style>
   .sm {
-    scale: 0.8;
+    scale: 0.7;
     transform-origin: 0 0;
+    justify-content: flex-start;
   }
 
   .singular-input .mask {

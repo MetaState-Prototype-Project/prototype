@@ -30,7 +30,7 @@ let {
     {...restProps}
     for={id}
     class={cn(
-        ["flex w-full justify-between items-center py-4", restProps.class].join(
+        ["flex w-full justify-between items-center ps-[5vw] py-6", restProps.class].join(
             " "
         )
     )}
@@ -46,9 +46,13 @@ let {
                 bind:group={selected}
             />
             {#if icon}
-                <div>{@render icon?.(id)}</div>
+            <div class="">
+              {@render icon?.(id)}
+            </div>
             {/if}
-            {@render children?.()}
+            <p>
+              {@render children?.()}
+            </p>
         </div>
     </div>
     {#if selected === value}
