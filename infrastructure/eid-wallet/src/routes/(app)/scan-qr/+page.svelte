@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { SVGAttributes } from "svelte/elements";
-import type { PageData } from "./$types";
 import * as Button from "$lib/ui/Button";
 import {
 	FlashlightIcon,
@@ -10,8 +9,6 @@ import {
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import { Drawer } from "$lib/ui";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-
-let { data }: { data: PageData } = $props();
 
 const pathProps: SVGAttributes<SVGPathElement> = {
 	stroke: "white",
@@ -47,7 +44,7 @@ let flashlightOn = $state(false);
         bgColor="white"
         bgSize="lg"
         iconSize="lg"
-        callback={() => (codeScannedDrawerOpen = true)}
+        callback={() => { codeScannedDrawerOpen = true; }}
     />
     <Button.Icon
     icon={FlashlightIcon}
@@ -90,7 +87,7 @@ let flashlightOn = $state(false);
         <Button.Action
             variant="danger-soft"
             class="w-full"
-            callback={() => (codeScannedDrawerOpen = false)}
+            callback={() => { codeScannedDrawerOpen = false; }}
         >
             Decline
         </Button.Action>
@@ -133,7 +130,7 @@ let flashlightOn = $state(false);
         <Button.Action
             variant="solid"
             class="w-full"
-            callback={() => (loggedInDrawerOpen = false)}
+            callback={() => { loggedInDrawerOpen = false; }}
         >
             Close
         </Button.Action>

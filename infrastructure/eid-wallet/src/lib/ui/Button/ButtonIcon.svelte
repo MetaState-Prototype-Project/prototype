@@ -6,7 +6,7 @@ import type { HTMLButtonAttributes } from "svelte/elements";
 interface IButtonProps extends HTMLButtonAttributes {
 	icon: IconSvgElement;
 	isLoading?: boolean;
-	callback?: () => Promise<void>;
+	callback?: () => Promise<void> | void;
 	onclick?: () => void;
 	blockingClick?: boolean;
 	type?: "button" | "submit" | "reset";
