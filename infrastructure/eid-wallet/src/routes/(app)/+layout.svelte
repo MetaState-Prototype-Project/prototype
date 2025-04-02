@@ -1,7 +1,7 @@
 <script lang="ts">
+import { page } from "$app/state";
 import type { Snippet } from "svelte";
 import type { LayoutData } from "./$types";
-import { page } from "$app/state";
 
 let { data, children }: { data: LayoutData; children: Snippet } = $props();
 

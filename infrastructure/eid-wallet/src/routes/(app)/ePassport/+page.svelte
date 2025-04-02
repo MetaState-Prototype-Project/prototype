@@ -1,7 +1,7 @@
 <script lang="ts">
 import { AppNav, IdentityCard } from "$lib/fragments";
-import { Share05Icon } from "@hugeicons/core-free-icons";
 import * as Button from "$lib/ui/Button";
+import { Share05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
 const dummyData = {

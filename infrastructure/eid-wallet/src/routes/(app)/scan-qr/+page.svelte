@@ -1,14 +1,14 @@
 <script lang="ts">
-import type { SVGAttributes } from "svelte/elements";
+import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
 	FlashlightIcon,
 	Image02Icon,
 	QrCodeIcon,
 } from "@hugeicons/core-free-icons";
-import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-import { Drawer } from "$lib/ui";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { SVGAttributes } from "svelte/elements";
 
 const pathProps: SVGAttributes<SVGPathElement> = {
 	stroke: "white",
