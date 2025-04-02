@@ -1,5 +1,6 @@
 <script lang="ts">
 import * as Button from "$lib/ui/Button";
+import { cn } from "$lib/utils";
 import {
 	CheckmarkBadge02Icon,
 	Upload03Icon,
@@ -39,9 +40,11 @@ $effect(() => {
 	state.progressWidth =
 		usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
 });
+
+const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden`;
 </script>
 
-<div {...restProps} class="relative {variant === 'eName' ? "bg-black-900" : variant === 'ePassport' ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden">
+<div {...restProps} class={cn(baseClasses, restProps.class)}>
     <div class="w-full h-full pointer-events-none flex gap-13 justify-end absolute right-15 bottom-20">
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
         <div class="w-10 {variant === 'eVault' ? "bg-white/40" : "bg-white/10"} h-[300%] rotate-40"></div>
@@ -55,7 +58,7 @@ $effect(() => {
                     <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                     </div>
             {:else if variant === 'ePassport'}
-                <p class="bg-white text-black flex items-center rounded-4xl px-5 py-2 text-xs font-semibold">HIGH SECURITY</p>
+                <p class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium">HIGH SECURITY</p>
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                 
             {:else if variant === 'eVault'}
@@ -64,9 +67,9 @@ $effect(() => {
         </div>
         <div>
             {#if variant === "eName"}        
-                <p class="text-gray font-light">Your eName</p>
+                <p class="text-gray font-normal">Your eName</p>
                 <div class="flex items-center justify-between w-full">
-                    <p class="text-white w-[60%] font-medium">@{userId}</p>
+                    <p class="text-white w-full font-medium">@{userId}</p>
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
@@ -93,6 +96,3 @@ $effect(() => {
         </div>
     </div>
 </div>
-
-    
-    

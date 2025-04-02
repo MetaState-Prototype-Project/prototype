@@ -53,17 +53,6 @@ $effect(() => {
 
 	return () => pane.destroy();
 });
-
-$effect(() => {
-	if (isPaneOpen) {
-		pane.present({ animate: true });
-	} else {
-		pane.destroy({ animate: true });
-	}
-	drawerElem.addEventListener("click_outside", () => {
-		handleClickOutside();
-	});
-});
 </script>
 
 <div
@@ -74,7 +63,7 @@ $effect(() => {
     })}
     onswipe={() => handleSwipe?.(isPaneOpen)}
     bind:this={drawerElem}
-    use:clickOutside
+    use:clickOutside={handleClickOutside}
     class={cn(restProps.class)}
 >
     <div class="px-6">

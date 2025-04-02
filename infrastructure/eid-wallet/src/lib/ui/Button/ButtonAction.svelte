@@ -5,7 +5,7 @@ import type { HTMLButtonAttributes } from "svelte/elements";
 interface IButtonProps extends HTMLButtonAttributes {
 	variant?: "solid" | "soft" | "danger" | "danger-soft" | "white";
 	isLoading?: boolean;
-	callback?: () => Promise<void>;
+	callback?: () => Promise<void> | void;
 	blockingClick?: boolean;
 	type?: "button" | "submit" | "reset";
 	size?: "sm" | "md";
@@ -15,6 +15,7 @@ const {
 	variant = "solid",
 	isLoading,
 	callback,
+	onclick,
 	blockingClick,
 	type = "button",
 	size = "md",
