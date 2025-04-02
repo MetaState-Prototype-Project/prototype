@@ -2,6 +2,7 @@
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import { onMount } from "svelte";
 import "../app.css";
+import { onNavigate } from "$app/navigation";
 
 const { children } = $props();
 
@@ -22,6 +23,22 @@ onMount(async () => {
 	await Promise.all([loadData(), ensureMinimumDelay()]);
 
 	showSplashScreen = false;
+});
+
+onNavigate((navigation) => {
+	if (!document.startViewTransition) return;
+
+	const currentRoute = navigation.from?.url.pathname;
+	const targetRoute = navigation.to?.url.pathname;
+
+	if (currentRoute === targetRoute) return;
+
+	return new Promise((resolve) => {
+		document.startViewTransition(async () => {
+			resolve();
+			await navigation.complete;
+		});
+	});
 });
 </script>
     
