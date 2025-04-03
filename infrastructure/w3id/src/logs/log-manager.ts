@@ -19,7 +19,7 @@ export class IDLogManager {
 
     private async createGenesisEntry() {}
 
-    async createLogEntry() {
+    async createLogEvent() {
         const entries = await this.logsRepository.findMany({});
         if (entries.length > 0) return this.appendEntry(entries);
         return this.createGenesisEntry();
