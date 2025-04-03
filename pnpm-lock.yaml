@@ -146,6 +146,9 @@ importers:
 
   infrastructure/w3id:
     dependencies:
+      canonicalize:
+        specifier: ^2.1.0
+        version: 2.1.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -1496,6 +1499,10 @@ packages:
 
   caniuse-lite@1.0.30001706:
     resolution: {integrity: sha512-3ZczoTApMAZwPKYWmwVbQMFpXBDds3/0VciVoUwPUbldlYyVLmRVuRs/PcUZtHpbLRpzzDvrvnFuREsGt6lUug==}
+
+  canonicalize@2.1.0:
+    resolution: {integrity: sha512-F705O3xrsUtgt98j7leetNhTWPe+5S72rlL5O4jA1pKqBVQ/dT1O1D6PFxmSXvc0SUOinWS57DKx0I3CHrXJHQ==}
+    hasBin: true
 
   chai@5.2.0:
     resolution: {integrity: sha512-mCuXncKXk5iCLhfhwTc0izo0gtEmpz5CtG2y8GiOINBlMVS6v8TMRc5TaLWKS6692m9+dVVfzgeVxR5UxWHTYw==}
@@ -4831,6 +4838,8 @@ snapshots:
   callsites@3.1.0: {}
 
   caniuse-lite@1.0.30001706: {}
+
+  canonicalize@2.1.0: {}
 
   chai@5.2.0:
     dependencies:
