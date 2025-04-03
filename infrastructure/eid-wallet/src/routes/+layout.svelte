@@ -26,6 +26,7 @@ onMount(async () => {
 });
 
 onNavigate((navigation) => {
+	if (showSplashScreen) return;
 	if (!document.startViewTransition) return;
 
 	const currentRoute = navigation.from?.url.pathname;
