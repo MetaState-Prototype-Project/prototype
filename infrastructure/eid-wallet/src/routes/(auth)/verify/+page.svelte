@@ -12,5 +12,5 @@ import { ButtonAction } from "$lib/ui";
         />
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport">
     </section>
-    <ButtonAction class="w-full" callback={async() => goto("/verify/id")}>I'm ready</ButtonAction>
+    <ButtonAction class="w-full" callback={async() => goto("/register")}>I'm ready</ButtonAction>
 </main>

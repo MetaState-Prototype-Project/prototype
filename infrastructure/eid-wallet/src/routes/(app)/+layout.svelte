@@ -15,6 +15,6 @@ let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
 </div>
 {/if}
 
-<div class="p-6 mb-16">
+<div class="p-6">
     {@render children()}
 </div>

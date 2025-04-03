@@ -76,3 +76,40 @@ body {
 	padding-left: env(safe-area-inset-left);
 	padding-right: env(safe-area-inset-right);
 }
+
+/* Enable View Transitions API */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0.25s;
+	animation-timing-function: ease-in-out;
+}
+
+/* Old page fades out */
+::view-transition-old(root) {
+	animation-name: fadeOut;
+}
+
+/* New page slides in from right */
+::view-transition-new(root) {
+	animation-name: slideIn;
+}
+
+/* Fade out animation */
+@keyframes fadeOut {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+/* Slide in from right animation */
+@keyframes slideIn {
+	from {
+		transform: translateX(100%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
