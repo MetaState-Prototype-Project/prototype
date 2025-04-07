@@ -68,7 +68,6 @@ function shareQR() {
 <Drawer
     title="Scan QR Code"
     bind:isPaneOpen={shareQRdrawerOpen}
-    isCancelRequired={true}
     class="flex flex-col gap-4 items-center justify-center"
 >
     <div class="flex justify-center relative items-center overflow-hidden h-full bg-gray rounded-3xl p-8">

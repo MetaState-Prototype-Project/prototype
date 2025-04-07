@@ -45,7 +45,7 @@ $effect(() => {
     <ButtonAction class="w-full" callback={handleChangePIN}>Change PIN</ButtonAction>
 </main>
 
-<Drawer bind:isPaneOpen={showDrawer} isCancelRequired={true}>
+<Drawer bind:isPaneOpen={showDrawer}>
         <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
             <span class="relative z-[1]">
                 <HugeiconsIcon icon={CircleLock01Icon} color="var(--color-primary)"/>
