@@ -7,7 +7,6 @@ import type { HTMLAttributes } from "svelte/elements";
 
 interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 	isPaneOpen?: boolean;
-	isCancelRequired?: boolean;
 	children?: Snippet;
 	handleSwipe?: (isOpen: boolean | undefined) => void;
 }
@@ -17,7 +16,6 @@ let pane: CupertinoPane;
 
 let {
 	isPaneOpen = $bindable(),
-	isCancelRequired = false,
 	children = undefined,
 	handleSwipe,
 	...restProps
@@ -36,7 +34,7 @@ $effect(() => {
 		backdropOpacity: 0.5,
 		backdropBlur: true,
 		bottomClose: true,
-		buttonDestroy: isCancelRequired,
+		buttonDestroy: false,
 		showDraggable: true,
 		upperThanTop: true,
 		breaks: {
@@ -89,6 +87,7 @@ $effect(() => {
     }
 
     :global(.move) {
+		display: none !important;
         margin-block: 6px !important;
     }
 </style>
