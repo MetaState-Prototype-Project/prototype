@@ -18,7 +18,6 @@ const handleFinish = async () => {
         class="mb-2"
         />
         <IdentityCard variant= "ePassport"
-		viewBtn= {() => alert("View")}
 		userData= {{
 			Name: "Ananya",
 			Dob: "29 Nov 2003",

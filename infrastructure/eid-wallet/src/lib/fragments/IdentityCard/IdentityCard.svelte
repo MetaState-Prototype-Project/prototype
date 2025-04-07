@@ -63,8 +63,9 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     </div>
             {:else if variant === 'ePassport'}
                 <p class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium">HIGH SECURITY</p>
+                {#if viewBtn}
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
-                
+                {/if}
             {:else if variant === 'eVault'}
                 <h3 class="text-black-300 text-3xl font-semibold mb-3 z-[1]">{state.progressWidth} Used</h3>
             {/if}
