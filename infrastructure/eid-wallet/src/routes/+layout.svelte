@@ -7,6 +7,8 @@ import { onNavigate } from "$app/navigation";
 const { children } = $props();
 
 let showSplashScreen = $state(false);
+let previousRoute = null;
+let navigationStack: string[] = [];
 
 // replace with actual data loading logic
 async function loadData() {
@@ -19,6 +21,7 @@ async function ensureMinimumDelay() {
 
 onMount(async () => {
 	showSplashScreen = true; // Can't set up the original state to true or animation won't start
+	navigationStack.push(window.location.pathname);
 
 	await Promise.all([loadData(), ensureMinimumDelay()]);
 
@@ -28,17 +31,27 @@ onMount(async () => {
 onNavigate((navigation) => {
 	if (!document.startViewTransition) return;
 
-	const currentRoute = navigation.from?.url.pathname;
-	const targetRoute = navigation.to?.url.pathname;
+	const from = navigation.from?.url.pathname;
+	const to = navigation.to?.url.pathname;
 
-	if (currentRoute === targetRoute) return;
+	if (from === to) return;
 
-	const direction =
-		currentRoute && targetRoute && targetRoute.length < currentRoute.length
-			? "left"
-			: "right";
+	let direction: "left" | "right" = "right";
+
+	// Determine direction by stack behavior
+	const last = navigationStack[navigationStack.length - 2]; // the one before the most recent
+	if (last === to) {
+		// Going back
+		direction = "left";
+		navigationStack.pop();
+	} else {
+		// Going forward
+		direction = "right";
+		navigationStack.push(to);
+	}
 
 	document.documentElement.setAttribute("data-transition", direction);
+	previousRoute = to;
 
 	return new Promise((resolve) => {
 		document.startViewTransition(async () => {
