@@ -26,13 +26,19 @@ onMount(async () => {
 });
 
 onNavigate((navigation) => {
-	if (showSplashScreen) return;
 	if (!document.startViewTransition) return;
 
 	const currentRoute = navigation.from?.url.pathname;
 	const targetRoute = navigation.to?.url.pathname;
 
 	if (currentRoute === targetRoute) return;
+
+	const direction =
+		currentRoute && targetRoute && targetRoute.length < currentRoute.length
+			? "left"
+			: "right";
+
+	document.documentElement.setAttribute("data-transition", direction);
 
 	return new Promise((resolve) => {
 		document.startViewTransition(async () => {

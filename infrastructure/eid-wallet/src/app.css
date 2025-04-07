@@ -77,25 +77,37 @@ body {
 	padding-right: env(safe-area-inset-right);
 }
 
-/* Enable View Transitions API */
-::view-transition-old(root),
-::view-transition-new(root) {
-	animation-duration: 0.25s;
-	animation-timing-function: ease-in-out;
+:root[data-transition]::view-transition-group(root),
+:root[data-transition]::view-transition-old(root),
+:root[data-transition]::view-transition-new(root) {
+	background-color: white !important;
 }
 
-/* Old page fades out */
-::view-transition-old(root) {
-	animation-name: fadeOut;
+.dark:root[data-transition]::view-transition-group(root),
+.dark:root[data-transition]::view-transition-old(root),
+.dark:root[data-transition]::view-transition-new(root) {
+	background-color: #0b0d13 !important;
 }
 
-/* New page slides in from right */
-::view-transition-new(root) {
-	animation-name: slideIn;
+:root[data-transition]::view-transition-old(root),
+:root[data-transition]::view-transition-new(root) {
+	contain: paint;
+	will-change: transform, opacity;
 }
 
-/* Fade out animation */
-@keyframes fadeOut {
+/* Animations */
+@keyframes slide-from-right {
+	from {
+		transform: translateX(100%);
+		opacity: 1;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+@keyframes fade-out {
 	from {
 		opacity: 1;
 	}
@@ -104,12 +116,12 @@ body {
 	}
 }
 
-/* Slide in from right animation */
-@keyframes slideIn {
-	from {
-		transform: translateX(100%);
-	}
-	to {
-		transform: translateX(0);
-	}
+:root[data-transition]::view-transition-old(root) {
+	animation: 400ms ease-out both fade-out;
+}
+
+:root[data-transition]::view-transition-new(root) {
+	animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
+	position: relative;
+	z-index: 1;
 }
