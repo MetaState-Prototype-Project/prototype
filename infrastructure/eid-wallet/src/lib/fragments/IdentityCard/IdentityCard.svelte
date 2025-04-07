@@ -53,8 +53,10 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
         <div class="flex justify-between">
             {#if variant === 'eName'}  
                 <HugeiconsIcon size={30} strokeWidth={2} className="text-secondary" icon={CheckmarkBadge02Icon} />
-                <div class="flex gap-3 items-center">  
+                <div class="flex gap-3 items-center"> 
+                    {#if shareBtn} 
                     <Button.Icon icon={Upload03Icon} iconColor={"white"} strokeWidth={2} onclick={shareBtn} />
+                    {/if}
                     <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
                     </div>
             {:else if variant === 'ePassport'}
