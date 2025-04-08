@@ -6,6 +6,7 @@ import {
     RotationLogOptions,
 } from "./log.types";
 import { StorageSpec } from "./storage/storage-spec";
+import { hash } from "../utils/hash";
 
 /**
  * Class to generate historic event logs for all historic events for an Identifier
@@ -26,6 +27,20 @@ export class IDLogManager {
         options: RotationLogOptions,
     ) {
         const latestEntry = entries[entries.length - 1];
+        const logHash = hash(latestEntry);
+        const index = Number(latestEntry.id.split("-")[0]) + 1;
+
+        const logEvent: LogEvent = {
+            id: latestEntry.id,
+            versionTime: new Date(Date.now()),
+            versionId: `${index}-${logHash}`,
+            updateKeys: options.updateKeys,
+            nextKeyHashes: options.nextKeyHashes,
+            // TODO: integrate this shit with the actual version of the package.json
+            method: `w3id:v0.0.0`,
+        };
+
+        await this.logsRepository.create(logEvent);
     }
 
     private async createGenesisEntry(options: GenesisLogOptions) {
