@@ -1,4 +1,10 @@
-import { LogEvent } from "./log.types";
+import {
+    CreateLogEventOptions,
+    GenesisLogOptions,
+    LogEvent,
+    LogEvents,
+    RotationLogOptions,
+} from "./log.types";
 import { StorageSpec } from "./storage/storage-spec";
 
 /**
@@ -15,13 +21,30 @@ export class IDLogManager {
         this.logsRepository = logsRepository;
     }
 
-    private async appendEntry(entries: LogEvent[]) {}
+    private async appendEntry(
+        entries: LogEvent[],
+        options: RotationLogOptions,
+    ) {}
 
-    private async createGenesisEntry() {}
+    private async createGenesisEntry(options: GenesisLogOptions) {
+        const { id, nextPubKey, signer } = options;
+        const logEvent: LogEvent = {
+            id,
+            versionId: `0-${id}`,
+            versionTime: new Date(Date.now()),
+            updateKeys: [signer.pubKey],
+            nextKeyHashes: [nextPubKey],
+            // TODO: integrate this shit with the actual version of the package.json
+            method: `w3id:v0.0.0`,
+        };
+        await this.logsRepository.create(logEvent);
+        return logEvent;
+    }
 
-    async createLogEvent() {
+    async createLogEvent(options: CreateLogEventOptions) {
         const entries = await this.logsRepository.findMany({});
-        if (entries.length > 0) return this.appendEntry(entries);
-        return this.createGenesisEntry();
+        if (options.type === LogEvents.Genesis)
+            return this.createGenesisEntry(options);
+        return this.appendEntry(entries, options);
     }
 }
