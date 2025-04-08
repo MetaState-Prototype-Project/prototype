@@ -26,7 +26,7 @@ export type GenesisLogOptions = {
 };
 
 export type Signer = {
-    sign: (buffer: Uint8Array) => Promise<Uint8Array> | Uint8Array;
+    sign: (string: string) => Promise<string> | string;
     pubKey: string;
 };
 
