@@ -34,7 +34,7 @@ onNavigate((navigation) => {
 	const from = navigation.from?.url.pathname;
 	const to = navigation.to?.url.pathname;
 
-	if (from === to) return;
+	if (!from || !to || from === to) return;
 
 	let direction: "left" | "right" = "right";
 
