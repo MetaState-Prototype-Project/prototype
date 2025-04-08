@@ -38,14 +38,15 @@ onNavigate((navigation) => {
 
 	let direction: "left" | "right" = "right";
 
-	// Determine direction by stack behavior
-	const last = navigationStack[navigationStack.length - 2]; // the one before the most recent
-	if (last === to) {
-		// Going back
+	const fromIndex = navigationStack.lastIndexOf(from);
+	const toIndex = navigationStack.lastIndexOf(to);
+
+	if (toIndex !== -1 && toIndex < fromIndex) {
+		// Backward navigation
 		direction = "left";
-		navigationStack.pop();
+		navigationStack = navigationStack.slice(0, toIndex + 1);
 	} else {
-		// Going forward
+		// Forward navigation (or new path)
 		direction = "right";
 		navigationStack.push(to);
 	}
