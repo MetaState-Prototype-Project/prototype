@@ -24,7 +24,9 @@ export class IDLogManager {
     private async appendEntry(
         entries: LogEvent[],
         options: RotationLogOptions,
-    ) {}
+    ) {
+        const latestEntry = entries[entries.length - 1];
+    }
 
     private async createGenesisEntry(options: GenesisLogOptions) {
         const { id, nextPubKey, signer } = options;
