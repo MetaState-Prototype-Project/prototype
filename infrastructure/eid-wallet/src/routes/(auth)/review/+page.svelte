@@ -15,7 +15,7 @@ const handleNext = async () => {
             subtitle="This identifier is permanently yours, and it stays with you for your whole life."
             class="mb-4"
         />
-        <IdentityCard variant="eName" userId= "acbsdjk-14n14k43-12412" shareBtn={() => null}  viewBtn={() => null}/>
+        <IdentityCard variant="eName" userId= "acbsdjk-14n14k43-12412"/>
     </section>
     <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
 </main>

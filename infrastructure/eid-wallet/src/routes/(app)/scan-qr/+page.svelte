@@ -61,7 +61,6 @@ let flashlightOn = $state(false);
 <Drawer
     title="Scan QR Code"
     bind:isPaneOpen={codeScannedDrawerOpen}
-    isCancelRequired={true}
     class="flex flex-col gap-4 items-center justify-center"
 >
     <div class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]">
@@ -108,7 +107,6 @@ let flashlightOn = $state(false);
 <Drawer
     title="Scan QR Code"
     bind:isPaneOpen={loggedInDrawerOpen}
-    isCancelRequired={true}
     class="flex flex-col gap-4 items-center justify-center"
 >
     <div class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]">

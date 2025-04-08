@@ -53,16 +53,21 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
         <div class="flex justify-between">
             {#if variant === 'eName'}  
                 <HugeiconsIcon size={30} strokeWidth={2} className="text-secondary" icon={CheckmarkBadge02Icon} />
-                <div class="flex gap-3 items-center">  
+                <div class="flex gap-3 items-center"> 
+                    {#if shareBtn} 
                     <Button.Icon icon={Upload03Icon} iconColor={"white"} strokeWidth={2} onclick={shareBtn} />
+                    {/if}
+                    {#if viewBtn}
                     <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
+                    {/if}
                     </div>
             {:else if variant === 'ePassport'}
                 <p class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium">HIGH SECURITY</p>
+                {#if viewBtn}
                 <Button.Icon icon={ViewIcon} iconColor={"white"} strokeWidth={2} onclick={viewBtn} />
-                
+                {/if}
             {:else if variant === 'eVault'}
-                <h3 class="text-black-300 text-3xl font-semibold mb-3">{state.progressWidth} Used</h3>
+                <h3 class="text-black-300 text-3xl font-semibold mb-3 z-[1]">{state.progressWidth} Used</h3>
             {/if}
         </div>
         <div>

@@ -59,14 +59,15 @@ function shareQR() {
     />
 {/snippet}
 
-{@render Section("eName", eName)}
-{@render Section("ePassport", ePassport)}
-{@render Section("eVault", eVault)}
+<main class="pb-16">
+    {@render Section("eName", eName)}
+    {@render Section("ePassport", ePassport)}
+    {@render Section("eVault", eVault)}
+</main>
 
 <Drawer
     title="Scan QR Code"
     bind:isPaneOpen={shareQRdrawerOpen}
-    isCancelRequired={true}
     class="flex flex-col gap-4 items-center justify-center"
 >
     <div class="flex justify-center relative items-center overflow-hidden h-full bg-gray rounded-3xl p-8">

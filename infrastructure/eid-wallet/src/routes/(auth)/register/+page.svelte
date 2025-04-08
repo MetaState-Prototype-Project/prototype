@@ -81,7 +81,7 @@ $effect(() => {
 {/if}
 
 
-<Drawer bind:isPaneOpen={showDrawer} isCancelRequired={true}>
+<Drawer bind:isPaneOpen={showDrawer}>
     {#if !isBiometricScreen}
         <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
             <span class="relative z-[1]">
