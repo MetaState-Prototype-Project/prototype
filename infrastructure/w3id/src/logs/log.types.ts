@@ -8,13 +8,13 @@ export type LogEvent = {
     proof?: string;
 };
 
-export enum LogEvents {
+export enum LogEventType {
     Rotation,
     Genesis,
 }
 
 export type RotationLogOptions = {
-    type: LogEvents.Rotation;
+    type: LogEventType.Rotation;
     nextKeyHashes: string[];
     signer: Signer;
     nextKeySigner: Signer;
@@ -27,7 +27,7 @@ export type VerifierCallback = (
 ) => Promise<boolean>;
 
 export type GenesisLogOptions = {
-    type: LogEvents.Genesis;
+    type: LogEventType.Genesis;
     nextKeyHashes: string[];
     id: string;
     signer: Signer;

@@ -1,7 +1,7 @@
 import { StorageSpec } from "../../src/logs/storage/storage-spec.ts";
 import {
     LogEvent,
-    LogEvents,
+    LogEventType,
     Signer,
     VerifierCallback,
 } from "../../src/logs/log.types.ts";
@@ -22,7 +22,6 @@ import {
     MalformedHashChainError,
     MalformedIndexChainError,
 } from "../../src/errors/errors.ts";
-import { sign } from "node:crypto";
 
 class InMemoryStorage<T extends LogEvent, K extends LogEvent>
     implements StorageSpec<T, K>
@@ -103,7 +102,7 @@ describe("LogManager", async () => {
         const signer = createSigner(keyPair);
         const logEvent = await logManager.createLogEvent({
             id: w3id,
-            type: LogEvents.Genesis,
+            type: LogEventType.Genesis,
             nextKeyHashes: [nextKeyHash],
             signer,
         });
@@ -117,7 +116,7 @@ describe("LogManager", async () => {
         const signer = createSigner(nextKeyPair);
         const nextKeySigner = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
-            type: LogEvents.Rotation,
+            type: LogEventType.Rotation,
             nextKeyHashes: [nextKeyHash],
             signer,
             nextKeySigner,
@@ -133,7 +132,7 @@ describe("LogManager", async () => {
         const signer = createSigner(keyPair);
         const nextKeySigner = createSigner(currNextKey);
         const logEvent = await logManager.createLogEvent({
-            type: LogEvents.Rotation,
+            type: LogEventType.Rotation,
             nextKeyHashes: [nextKeyHash],
             signer,
             nextKeySigner,
