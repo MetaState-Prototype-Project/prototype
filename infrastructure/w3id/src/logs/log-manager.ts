@@ -1,6 +1,7 @@
 import canonicalize from "canonicalize";
 import {
 	BadNextKeySpecifiedError,
+	BadOptionsSpecifiedError,
 	BadSignatureError,
 	MalformedHashChainError,
 	MalformedIndexChainError,
@@ -8,6 +9,8 @@ import {
 import { isSubsetOf } from "../utils/array";
 import { hash } from "../utils/hash";
 import {
+	isGenesisOptions,
+	isRotationOptions,
 	type CreateLogEventOptions,
 	type GenesisLogOptions,
 	type LogEvent,
@@ -135,8 +138,11 @@ export class IDLogManager {
 
 	async createLogEvent(options: CreateLogEventOptions) {
 		const entries = await this.repository.findMany({});
-		if (entries.length > 0)
-			return this.appendEntry(entries, options as RotationLogOptions);
-		return this.createGenesisEntry(options as GenesisLogOptions);
+		if (entries.length > 0) {
+			if (!isRotationOptions(options)) throw new BadOptionsSpecifiedError();
+			return this.appendEntry(entries, options);
+		}
+		if (!isGenesisOptions(options)) throw new BadOptionsSpecifiedError();
+		return this.createGenesisEntry(options);
 	}
 }

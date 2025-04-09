@@ -14,6 +14,11 @@ export type VerifierCallback = (
 	pubKey: string,
 ) => Promise<boolean>;
 
+export type Signer = {
+	sign: (string: string) => Promise<string> | string;
+	pubKey: string;
+};
+
 export type RotationLogOptions = {
 	nextKeyHashes: string[];
 	signer: Signer;
@@ -26,9 +31,15 @@ export type GenesisLogOptions = {
 	signer: Signer;
 };
 
-export type Signer = {
-	sign: (string: string) => Promise<string> | string;
-	pubKey: string;
-};
+export function isGenesisOptions(
+	options: CreateLogEventOptions,
+): options is GenesisLogOptions {
+	return "id" in options;
+}
+export function isRotationOptions(
+	options: CreateLogEventOptions,
+): options is RotationLogOptions {
+	return "nextKeySigner" in options;
+}
 
 export type CreateLogEventOptions = GenesisLogOptions | RotationLogOptions;
