@@ -146,6 +146,15 @@ importers:
 
   infrastructure/w3id:
     dependencies:
+      canonicalize:
+        specifier: ^2.1.0
+        version: 2.1.0
+      multiformats:
+        specifier: ^13.3.2
+        version: 13.3.2
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -1497,6 +1506,10 @@ packages:
   caniuse-lite@1.0.30001706:
     resolution: {integrity: sha512-3ZczoTApMAZwPKYWmwVbQMFpXBDds3/0VciVoUwPUbldlYyVLmRVuRs/PcUZtHpbLRpzzDvrvnFuREsGt6lUug==}
 
+  canonicalize@2.1.0:
+    resolution: {integrity: sha512-F705O3xrsUtgt98j7leetNhTWPe+5S72rlL5O4jA1pKqBVQ/dT1O1D6PFxmSXvc0SUOinWS57DKx0I3CHrXJHQ==}
+    hasBin: true
+
   chai@5.2.0:
     resolution: {integrity: sha512-mCuXncKXk5iCLhfhwTc0izo0gtEmpz5CtG2y8GiOINBlMVS6v8TMRc5TaLWKS6692m9+dVVfzgeVxR5UxWHTYw==}
     engines: {node: '>=12'}
@@ -2504,6 +2517,9 @@ packages:
       typescript:
         optional: true
 
+  multiformats@13.3.2:
+    resolution: {integrity: sha512-qbB0CQDt3QKfiAzZ5ZYjLFOs+zW43vA4uyM8g27PeEuXZybUOFyjrVdP93HPBHMoglibwfkdVwbzfUq8qGcH6g==}
+
   mute-stream@2.0.0:
     resolution: {integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==}
     engines: {node: ^18.17.0 || >=20.5.0}
@@ -3126,6 +3142,9 @@ packages:
 
   tween-functions@1.2.0:
     resolution: {integrity: sha512-PZBtLYcCLtEcjL14Fzb1gSxPBeL7nWvGhO5ZFPGqziCcr8uvHp0NDmdjBchp6KHL+tExcg0m3NISmKxhU394dA==}
+
+  tweetnacl@1.0.3:
+    resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -4832,6 +4851,8 @@ snapshots:
 
   caniuse-lite@1.0.30001706: {}
 
+  canonicalize@2.1.0: {}
+
   chai@5.2.0:
     dependencies:
       assertion-error: 2.0.1
@@ -6005,6 +6026,8 @@ snapshots:
       - '@types/node'
     optional: true
 
+  multiformats@13.3.2: {}
+
   mute-stream@2.0.0: {}
 
   nanoid@3.3.11: {}
@@ -6651,6 +6674,8 @@ snapshots:
       turbo-windows-arm64: 2.4.4
 
   tween-functions@1.2.0: {}
+
+  tweetnacl@1.0.3: {}
 
   type-check@0.4.0:
     dependencies:

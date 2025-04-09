@@ -19,6 +19,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "canonicalize": "^2.1.0",
+    "multiformats": "^13.3.2",
+    "tweetnacl": "^1.0.3",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
