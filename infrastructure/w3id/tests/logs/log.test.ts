@@ -17,6 +17,12 @@ import {
 } from "../../src/utils/codec";
 import { base58btc } from "multiformats/bases/base58";
 import falso from "@ngneat/falso";
+import {
+    BadSignatureError,
+    MalformedHashChainError,
+    MalformedIndexChainError,
+} from "../../src/errors/errors.ts";
+import { sign } from "node:crypto";
 
 class InMemoryStorage<T extends LogEvent, K extends LogEvent>
     implements StorageSpec<T, K>
@@ -151,7 +157,7 @@ describe("LogManager", async () => {
         events[1].versionId = `2-${falso.randUuid()}`;
         const result = IDLogManager.validateLogChain(events, verifierCallback);
 
-        await expect(result).rejects.toThrow();
+        await expect(result).rejects.toThrow(MalformedIndexChainError);
     });
 
     test("Verification: [Throws on Malformed Hash Chain]", async () => {
@@ -160,15 +166,18 @@ describe("LogManager", async () => {
         events[1].versionId = `1-${falso.randUuid()}`;
         const result = IDLogManager.validateLogChain(events, verifierCallback);
 
-        await expect(result).rejects.toThrow();
+        await expect(result).rejects.toThrow(MalformedHashChainError);
     });
 
     test("Verification: [Throws on Wrong Signature]", async () => {
         const _events = await logManager.repository.findMany({});
         const events = JSON.parse(JSON.stringify(_events));
-        events[1].proof = `12312313`;
+        const newKeyPair = nacl.sign.keyPair();
+        const signer = createSigner(newKeyPair);
+        delete events[1].proof;
+        events[1].proof = await signer.sign(events[1]);
         const result = IDLogManager.validateLogChain(events, verifierCallback);
 
-        await expect(result).rejects.toThrow();
+        await expect(result).rejects.toThrow(BadSignatureError);
     });
 });

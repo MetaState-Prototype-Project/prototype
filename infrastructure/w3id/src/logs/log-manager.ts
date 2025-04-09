@@ -10,6 +10,11 @@ import { StorageSpec } from "./storage/storage-spec";
 import { hash } from "../utils/hash";
 import canonicalize from "canonicalize";
 import { isSubsetOf } from "../utils/array";
+import {
+    BadSignatureError,
+    MalformedHashChainError,
+    MalformedIndexChainError,
+} from "../errors/errors";
 
 /**
  * Class to generate historic event logs for all historic events for an Identifier
@@ -37,7 +42,7 @@ export class IDLogManager {
         for (const e of log) {
             let [_index, _hash] = e.versionId.split("-");
             const index = Number(_index);
-            if (currIndex !== index) throw new Error("Malformed DID Log");
+            if (currIndex !== index) throw new MalformedIndexChainError();
             const hashedUpdateKeys = await Promise.all(
                 e.updateKeys.map(async (k) => await hash(k)),
             );
@@ -47,7 +52,7 @@ export class IDLogManager {
                     currentNextKeyHashesSeen,
                 );
                 if (!updateKeysSeen || lastHash !== _hash)
-                    throw new Error("Malformed chain");
+                    throw new MalformedHashChainError();
             }
 
             currentNextKeyHashesSeen = e.nextKeyHashes;
@@ -84,7 +89,7 @@ export class IDLogManager {
             );
             if (signValidates) verified = true;
         }
-        if (!verified) throw new Error("Invalid Proof");
+        if (!verified) throw new BadSignatureError();
     }
 
     private async appendEntry(
