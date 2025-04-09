@@ -1,7 +1,6 @@
 import { StorageSpec } from "../../src/logs/storage/storage-spec.ts";
 import {
     LogEvent,
-    LogEventType,
     Signer,
     VerifierCallback,
 } from "../../src/logs/log.types.ts";
@@ -103,7 +102,6 @@ describe("LogManager", async () => {
         const signer = createSigner(keyPair);
         const logEvent = await logManager.createLogEvent({
             id: w3id,
-            type: LogEventType.Genesis,
             nextKeyHashes: [nextKeyHash],
             signer,
         });
@@ -117,7 +115,6 @@ describe("LogManager", async () => {
         const signer = createSigner(nextKeyPair);
         const nextKeySigner = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
-            type: LogEventType.Rotation,
             nextKeyHashes: [nextKeyHash],
             signer,
             nextKeySigner,
@@ -133,7 +130,6 @@ describe("LogManager", async () => {
         const signer = createSigner(keyPair);
         const nextKeySigner = createSigner(currNextKey);
         const logEvent = await logManager.createLogEvent({
-            type: LogEventType.Rotation,
             nextKeyHashes: [nextKeyHash],
             signer,
             nextKeySigner,
@@ -174,6 +170,7 @@ describe("LogManager", async () => {
         const events = JSON.parse(JSON.stringify(_events));
         const newKeyPair = nacl.sign.keyPair();
         const signer = createSigner(newKeyPair);
+
         delete events[1].proof;
         events[1].proof = await signer.sign(events[1]);
         const result = IDLogManager.validateLogChain(events, verifierCallback);

@@ -11,7 +11,6 @@ import {
 	type CreateLogEventOptions,
 	type GenesisLogOptions,
 	type LogEvent,
-	LogEventType,
 	type RotationLogOptions,
 	type VerifierCallback,
 } from "./log.types";
@@ -136,8 +135,8 @@ export class IDLogManager {
 
 	async createLogEvent(options: CreateLogEventOptions) {
 		const entries = await this.repository.findMany({});
-		if (options.type === LogEventType.Genesis)
-			return this.createGenesisEntry(options);
-		return this.appendEntry(entries, options);
+		if (entries.length > 0)
+			return this.appendEntry(entries, options as RotationLogOptions);
+		return this.createGenesisEntry(options as GenesisLogOptions);
 	}
 }
