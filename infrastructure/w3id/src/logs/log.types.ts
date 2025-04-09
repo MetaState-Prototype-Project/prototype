@@ -5,6 +5,7 @@ export type LogEvent = {
     updateKeys: string[];
     nextKeyHashes: string[];
     method: `w3id:v${string}`;
+    proof?: string;
 };
 
 export enum LogEvents {
@@ -15,12 +16,13 @@ export enum LogEvents {
 export type RotationLogOptions = {
     type: LogEvents.Rotation;
     nextKeyHashes: string[];
-    updateKeys: string[];
+    signer: Signer;
+    nextKeySigner: Signer;
 };
 
 export type GenesisLogOptions = {
     type: LogEvents.Genesis;
-    nextPubKey: string;
+    nextKeyHashes: string[];
     id: string;
     signer: Signer;
 };

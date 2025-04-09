@@ -149,6 +149,9 @@ importers:
       canonicalize:
         specifier: ^2.1.0
         version: 2.1.0
+      multiformats:
+        specifier: ^13.3.2
+        version: 13.3.2
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
@@ -2513,6 +2516,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  multiformats@13.3.2:
+    resolution: {integrity: sha512-qbB0CQDt3QKfiAzZ5ZYjLFOs+zW43vA4uyM8g27PeEuXZybUOFyjrVdP93HPBHMoglibwfkdVwbzfUq8qGcH6g==}
 
   mute-stream@2.0.0:
     resolution: {integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA==}
@@ -6019,6 +6025,8 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
     optional: true
+
+  multiformats@13.3.2: {}
 
   mute-stream@2.0.0: {}
 

@@ -14,3 +14,7 @@ export function hexToUint8Array(hex: string): Uint8Array {
     }
     return bytes;
 }
+
+export function stringToUint8Array(str: string): Uint8Array {
+    return new TextEncoder().encode(str);
+}
