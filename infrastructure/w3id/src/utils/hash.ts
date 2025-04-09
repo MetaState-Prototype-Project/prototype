@@ -20,7 +20,6 @@ export async function hash(
 
   const buffer = new TextEncoder().encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-  // const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = uint8ArrayToHex(
     Array.from(new Uint8Array(hashBuffer)) as unknown as Uint8Array,
   );
