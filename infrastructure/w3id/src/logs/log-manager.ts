@@ -4,10 +4,12 @@ import {
     LogEvent,
     LogEvents,
     RotationLogOptions,
+    VerifierCallback,
 } from "./log.types";
 import { StorageSpec } from "./storage/storage-spec";
 import { hash } from "../utils/hash";
 import canonicalize from "canonicalize";
+import { isSubsetOf } from "../utils/array";
 
 /**
  * Class to generate historic event logs for all historic events for an Identifier
@@ -17,10 +19,72 @@ import canonicalize from "canonicalize";
 // TODO: Create a specification link inside our docs for how generation of identifier works
 
 export class IDLogManager {
-    private logsRepository: StorageSpec<LogEvent, LogEvent>;
+    repository: StorageSpec<LogEvent, LogEvent>;
 
-    constructor(logsRepository: StorageSpec<LogEvent, LogEvent>) {
-        this.logsRepository = logsRepository;
+    constructor(repository: StorageSpec<LogEvent, LogEvent>) {
+        this.repository = repository;
+    }
+
+    static async validateLogChain(
+        log: LogEvent[],
+        verifyCallback: VerifierCallback,
+    ) {
+        let currIndex: number = 0;
+        let currentNextKeyHashesSeen: string[] = [];
+        let lastUpdateKeysSeen: string[] = [];
+        let lastHash: string;
+
+        for (const e of log) {
+            let [_index, _hash] = e.versionId.split("-");
+            const index = Number(_index);
+            if (currIndex !== index) throw new Error("Malformed DID Log");
+            const hashedUpdateKeys = await Promise.all(
+                e.updateKeys.map(async (k) => await hash(k)),
+            );
+            if (index > 0) {
+                const updateKeysSeen = isSubsetOf(
+                    hashedUpdateKeys,
+                    currentNextKeyHashesSeen,
+                );
+                if (!updateKeysSeen || lastHash !== _hash)
+                    throw new Error("Malformed chain");
+            }
+
+            currentNextKeyHashesSeen = e.nextKeyHashes;
+            await this.verifyLogEventProof(
+                e,
+                lastUpdateKeysSeen.length > 0
+                    ? lastUpdateKeysSeen
+                    : e.updateKeys,
+                verifyCallback,
+            );
+            lastUpdateKeysSeen = e.updateKeys;
+            currIndex++;
+            lastHash = await hash(canonicalize(e) as string);
+        }
+        return true;
+    }
+
+    private static async verifyLogEventProof(
+        e: LogEvent,
+        currentUpdateKeys: string[],
+        verifyCallback: VerifierCallback,
+    ) {
+        const proof = e.proof;
+        const copy = JSON.parse(JSON.stringify(e));
+        delete copy.proof;
+        const canonicalJson = canonicalize(copy);
+        let verified = false;
+        if (!proof) throw new Error();
+        for (const key of currentUpdateKeys) {
+            const signValidates = await verifyCallback(
+                canonicalJson as string,
+                proof,
+                key,
+            );
+            if (signValidates) verified = true;
+        }
+        if (!verified) throw new Error("Invalid Proof");
     }
 
     private async appendEntry(
@@ -29,8 +93,8 @@ export class IDLogManager {
     ) {
         const { signer, nextKeyHashes, nextKeySigner } = options;
         const latestEntry = entries[entries.length - 1];
-        const logHash = hash(latestEntry);
-        const index = Number(latestEntry.id.split("-")[0]) + 1;
+        const logHash = await hash(latestEntry);
+        const index = Number(latestEntry.versionId.split("-")[0]) + 1;
 
         const currKeyHash = await hash(nextKeySigner.pubKey);
         if (!latestEntry.nextKeyHashes.includes(currKeyHash)) throw new Error();
@@ -45,13 +109,10 @@ export class IDLogManager {
             method: `w3id:v0.0.0`,
         };
 
-        const proof = await options.signer.sign(
-            canonicalize(logEvent) as string,
-        );
+        const proof = await signer.sign(canonicalize(logEvent) as string);
         logEvent.proof = proof;
 
-        await this.logsRepository.create(logEvent);
-
+        await this.repository.create(logEvent);
         return logEvent;
     }
 
@@ -68,12 +129,12 @@ export class IDLogManager {
         };
         const proof = await signer.sign(canonicalize(logEvent) as string);
         logEvent.proof = proof;
-        await this.logsRepository.create(logEvent);
+        await this.repository.create(logEvent);
         return logEvent;
     }
 
     async createLogEvent(options: CreateLogEventOptions) {
-        const entries = await this.logsRepository.findMany({});
+        const entries = await this.repository.findMany({});
         if (options.type === LogEvents.Genesis)
             return this.createGenesisEntry(options);
         return this.appendEntry(entries, options);
