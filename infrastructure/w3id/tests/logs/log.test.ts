@@ -18,6 +18,7 @@ import { base58btc } from "multiformats/bases/base58";
 import falso from "@ngneat/falso";
 import {
     BadNextKeySpecifiedError,
+    BadOptionsSpecifiedError,
     BadSignatureError,
     MalformedHashChainError,
     MalformedIndexChainError,
@@ -97,6 +98,17 @@ function createSigner(keyPair: nacl.SignKeyPair): Signer {
 }
 
 describe("LogManager", async () => {
+    test("GenesisEvent: [Throw at Bad Options]", async () => {
+        const nextKeyHash = await hash(uint8ArrayToHex(currNextKey.publicKey));
+        const signer = createSigner(keyPair);
+        const logEvent = logManager.createLogEvent({
+            nextKeySigner: signer,
+            nextKeyHashes: [nextKeyHash],
+            signer,
+        });
+        await expect(logEvent).rejects.toThrow(BadOptionsSpecifiedError);
+    });
+
     test("GenesisEvent: [Creates Entry]", async () => {
         const nextKeyHash = await hash(uint8ArrayToHex(currNextKey.publicKey));
         const signer = createSigner(keyPair);
@@ -106,6 +118,20 @@ describe("LogManager", async () => {
             signer,
         });
         expectTypeOf(logEvent).toMatchObjectType<LogEvent>();
+    });
+
+    test("KeyRotation: [Throw At Bad Options]", async () => {
+        const nextKeyPair = nacl.sign.keyPair();
+        const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
+
+        const signer = createSigner(nextKeyPair);
+        const logEvent = logManager.createLogEvent({
+            nextKeyHashes: [nextKeyHash],
+            signer,
+            id: `@{falso.randUuid()}`,
+        });
+
+        await expect(logEvent).rejects.toThrow(BadOptionsSpecifiedError);
     });
 
     test("KeyRotation: [Error At Wrong Next Key]", async () => {
