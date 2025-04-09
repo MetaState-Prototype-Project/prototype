@@ -18,6 +18,7 @@ import {
 import { base58btc } from "multiformats/bases/base58";
 import falso from "@ngneat/falso";
 import {
+    BadNextKeySpecifiedError,
     BadSignatureError,
     MalformedHashChainError,
     MalformedIndexChainError,
@@ -122,7 +123,7 @@ describe("LogManager", async () => {
             nextKeySigner,
         });
 
-        await expect(logEvent).rejects.toThrow();
+        await expect(logEvent).rejects.toThrow(BadNextKeySpecifiedError);
     });
 
     test("KeyRotation: [Creates Entry]", async () => {
