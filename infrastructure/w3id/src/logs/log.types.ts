@@ -15,7 +15,7 @@ export type VerifierCallback = (
 ) => Promise<boolean>;
 
 export type Signer = {
-	sign: (string: string) => Promise<string> | string;
+	sign: (message: string) => Promise<string> | string;
 	pubKey: string;
 };
 
