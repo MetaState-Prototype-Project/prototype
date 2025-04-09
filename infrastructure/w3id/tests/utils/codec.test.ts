@@ -3,7 +3,6 @@ import {
   hexToUint8Array,
   stringToUint8Array,
 } from "../../src/utils/codec";
-import falso from "@ngneat/falso";
 import { describe, test, expect } from "vitest";
 
 describe("Codec", () => {
