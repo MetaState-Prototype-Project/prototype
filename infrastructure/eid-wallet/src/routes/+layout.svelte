@@ -5,18 +5,18 @@ import "../app.css";
 import { onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
 
-import { checkStatus, type Status } from '@tauri-apps/plugin-biometric';
+import { checkStatus, type Status } from "@tauri-apps/plugin-biometric";
 import { runtime } from "$lib/global/runtime.svelte";
 
 const { children } = $props();
 
-let globalState: GlobalState | undefined = $state(undefined)
+let globalState: GlobalState | undefined = $state(undefined);
 
 let showSplashScreen = $state(false);
 let previousRoute = null;
 let navigationStack: string[] = [];
 
-setContext('globalState', () => globalState);
+setContext("globalState", () => globalState);
 
 // replace with actual data loading logic
 async function loadData() {
@@ -34,11 +34,11 @@ onMount(async () => {
     } catch (error) {
         status = {
             biometryType: 0,
-            isAvailable: false
-        }
+            isAvailable: false,
+        };
     }
     runtime.biometry = status.biometryType;
-	globalState = await GlobalState.create();
+    globalState = await GlobalState.create();
 
     showSplashScreen = true; // Can't set up the original state to true or animation won't start
     navigationStack.push(window.location.pathname);
