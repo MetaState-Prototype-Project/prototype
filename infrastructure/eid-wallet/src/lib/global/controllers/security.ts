@@ -1,6 +1,6 @@
-import type { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { checkStatus, type Status } from "@tauri-apps/plugin-biometric";
+import type { Store } from "@tauri-apps/plugin-store";
 /**
  * @author SoSweetHam <soham@auvo.io>
  * @description A security controller that can enable/disable biometric authentication for the app and provide for basic pin based application authentication schemes.
