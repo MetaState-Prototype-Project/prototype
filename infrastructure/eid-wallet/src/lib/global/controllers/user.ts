@@ -1,4 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
+import type { Store } from "@tauri-apps/plugin-store";
 
 /**
  * @version Stub/0.0.1-Alpha

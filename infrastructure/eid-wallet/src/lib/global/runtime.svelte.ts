@@ -1,4 +1,4 @@
-import { BiometryType } from "@tauri-apps/plugin-biometric";
+import type { BiometryType } from "@tauri-apps/plugin-biometric";
 
 export const runtime = $state<{
     header: {

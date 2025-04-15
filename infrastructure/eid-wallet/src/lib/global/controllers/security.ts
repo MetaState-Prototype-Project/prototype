@@ -1,4 +1,4 @@
-import { Store } from "@tauri-apps/plugin-store";
+import type { Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { checkStatus, type Status } from "@tauri-apps/plugin-biometric";
 /**
