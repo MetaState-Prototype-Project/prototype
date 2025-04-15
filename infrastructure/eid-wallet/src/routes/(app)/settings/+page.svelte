@@ -2,15 +2,15 @@
 import { SettingsNavigationBtn } from "$lib/fragments";
 import { runtime } from "$lib/global/runtime.svelte";
 import {
-	Key01Icon,
-	LanguageSquareIcon,
-	Link02Icon,
-	PinCodeIcon,
-	Shield01Icon,
+    Key01Icon,
+    LanguageSquareIcon,
+    Link02Icon,
+    PinCodeIcon,
+    Shield01Icon,
 } from "@hugeicons/core-free-icons";
 
 $effect(() => {
-	runtime.header.title = "Settings";
+    runtime.header.title = "Settings";
 });
 </script>
 

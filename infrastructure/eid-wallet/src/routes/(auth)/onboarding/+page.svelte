@@ -6,13 +6,13 @@ import { ButtonAction, Drawer } from "$lib/ui";
 let isPaneOpen = $state(false);
 
 const handleGetStarted = async () => {
-	//get started functionality
-	isPaneOpen = true;
+    //get started functionality
+    isPaneOpen = true;
 };
 
 const handleNext = async () => {
-	//handle next functionlity
-	goto("/verify");
+    //handle next functionlity
+    goto("/verify");
 };
 </script>
 

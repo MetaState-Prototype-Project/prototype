@@ -3,18 +3,18 @@ import { cn } from "$lib/utils";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface IConnection extends HTMLAttributes<HTMLElement> {
-	imgSrc: string;
-	connectionName: string;
-	lastConnected: Date;
-	onClick?: () => void;
+    imgSrc: string;
+    connectionName: string;
+    lastConnected: Date;
+    onClick?: () => void;
 }
 
 let {
-	imgSrc,
-	connectionName,
-	lastConnected,
-	onClick,
-	...restProps
+    imgSrc,
+    connectionName,
+    lastConnected,
+    onClick,
+    ...restProps
 }: IConnection = $props();
 </script>
 

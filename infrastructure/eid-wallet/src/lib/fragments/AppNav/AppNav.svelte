@@ -4,15 +4,15 @@ import { cn } from "$lib/utils";
 import { ArrowLeft01Icon, Settings02Icon } from "@hugeicons/core-free-icons";
 import type { HTMLAttributes } from "svelte/elements";
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
-	title?: string;
-	titleClasses?: string;
-	iconColor?: string;
+    title?: string;
+    titleClasses?: string;
+    iconColor?: string;
 }
 const {
-	title,
-	titleClasses,
-	iconColor = "black",
-	...restProps
+    title,
+    titleClasses,
+    iconColor = "black",
+    ...restProps
 }: IHeroProps = $props();
 const baseClasses = "w-full relative flex justify-center h-14 items-center";
 </script>

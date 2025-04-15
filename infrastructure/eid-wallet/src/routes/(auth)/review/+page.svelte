@@ -4,7 +4,7 @@ import { Hero, IdentityCard } from "$lib/fragments";
 import { ButtonAction } from "$lib/ui";
 
 const handleNext = async () => {
-	await goto("/e-passport");
+    await goto("/e-passport");
 };
 </script>
 

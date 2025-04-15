@@ -4,8 +4,8 @@ import type { Snippet } from "svelte";
 import type { HTMLAnchorAttributes } from "svelte/elements";
 
 interface IButtonNav extends HTMLAnchorAttributes {
-	href: string;
-	children: Snippet;
+    href: string;
+    children: Snippet;
 }
 
 const { href, children, ...restProps }: IButtonNav = $props();
