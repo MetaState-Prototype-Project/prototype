@@ -7,22 +7,22 @@ import type { HTMLLabelAttributes } from "svelte/elements";
 import { fade } from "svelte/transition";
 
 interface ISelectorProps extends HTMLLabelAttributes {
-	id: string;
-	name: string;
-	value: string;
-	icon?: Snippet<[string]>;
-	selected?: string;
-	children?: Snippet;
+    id: string;
+    name: string;
+    value: string;
+    icon?: Snippet<[string]>;
+    selected?: string;
+    children?: Snippet;
 }
 
 let {
-	id,
-	name,
-	value,
-	icon = undefined,
-	selected = $bindable(),
-	children = undefined,
-	...restProps
+    id,
+    name,
+    value,
+    icon = undefined,
+    selected = $bindable(),
+    children = undefined,
+    ...restProps
 }: ISelectorProps = $props();
 </script>
 

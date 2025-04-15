@@ -10,8 +10,8 @@ import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
  */
 
 export function generateUuid(
-	entropy: string,
-	namespace: string = uuidv4(),
+    entropy: string,
+    namespace: string = uuidv4(),
 ): string {
-	return uuidv5(entropy, namespace);
+    return uuidv5(entropy, namespace);
 }

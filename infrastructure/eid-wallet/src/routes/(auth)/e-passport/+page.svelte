@@ -5,7 +5,7 @@ import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import { ButtonAction } from "$lib/ui";
 
 const handleFinish = async () => {
-	await goto("/main");
+    await goto("/main");
 };
 </script>
 

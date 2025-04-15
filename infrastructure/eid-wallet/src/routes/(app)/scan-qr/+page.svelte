@@ -3,18 +3,18 @@ import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
-	FlashlightIcon,
-	Image02Icon,
-	QrCodeIcon,
+    FlashlightIcon,
+    Image02Icon,
+    QrCodeIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { SVGAttributes } from "svelte/elements";
 
 const pathProps: SVGAttributes<SVGPathElement> = {
-	stroke: "white",
-	"stroke-width": 7,
-	"stroke-linecap": "round",
-	"stroke-linejoin": "round",
+    stroke: "white",
+    "stroke-width": 7,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
 };
 
 let codeScannedDrawerOpen = $state(false);

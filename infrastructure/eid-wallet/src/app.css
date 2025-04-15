@@ -2,170 +2,170 @@
 @import "flag-icons/css/flag-icons.min.css";
 
 @font-face {
-	font-family: "Archivo";
-	src: url("/fonts/Archivo-VariableFont_wdth,wght.ttf") format("truetype");
-	font-weight: 100 900;
-	font-style: normal;
+    font-family: "Archivo";
+    src: url("/fonts/Archivo-VariableFont_wdth,wght.ttf") format("truetype");
+    font-weight: 100 900;
+    font-style: normal;
 }
 
 @layer base {
-	/* Typography */
-	h1 {
-		@apply text-[90px]/[1.5] text-black font-semibold;
-	}
+    /* Typography */
+    h1 {
+        @apply text-[90px]/[1.5] text-black font-semibold;
+    }
 
-	h2 {
-		@apply text-6xl/[1.5] text-black font-semibold;
-	}
+    h2 {
+        @apply text-6xl/[1.5] text-black font-semibold;
+    }
 
-	h3 {
-		@apply text-3xl/[1.5] text-black font-semibold;
-	}
+    h3 {
+        @apply text-3xl/[1.5] text-black font-semibold;
+    }
 
-	h4 {
-		@apply text-xl/[1.5] text-black font-semibold;
-	}
+    h4 {
+        @apply text-xl/[1.5] text-black font-semibold;
+    }
 
-	p {
-		@apply text-base/[1.5] text-black font-normal;
-	}
+    p {
+        @apply text-base/[1.5] text-black font-normal;
+    }
 
-	.small {
-		@apply text-xs/[1.5] text-black font-normal;
-	}
+    .small {
+        @apply text-xs/[1.5] text-black font-normal;
+    }
 }
 
 @theme {
-	/* Custom theme */
-	--color-primary: #8e52ff;
-	--color-primary-100: #e8dcff;
-	--color-primary-200: #d2baff;
-	--color-primary-300: #bb97ff;
-	--color-primary-400: #a575ff;
-	--color-primary-500: #8e52ff;
+    /* Custom theme */
+    --color-primary: #8e52ff;
+    --color-primary-100: #e8dcff;
+    --color-primary-200: #d2baff;
+    --color-primary-300: #bb97ff;
+    --color-primary-400: #a575ff;
+    --color-primary-500: #8e52ff;
 
-	--color-secondary: #73efd5;
-	--color-secondary-100: #e3fcf7;
-	--color-secondary-200: #c7f9ee;
-	--color-secondary-300: #abf6e6;
-	--color-secondary-400: #8ff2dd;
-	--color-secondary-500: #73efd5;
+    --color-secondary: #73efd5;
+    --color-secondary-100: #e3fcf7;
+    --color-secondary-200: #c7f9ee;
+    --color-secondary-300: #abf6e6;
+    --color-secondary-400: #8ff2dd;
+    --color-secondary-500: #73efd5;
 
-	--color-white: #ffffff;
-	--color-gray: #f5f5f5;
+    --color-white: #ffffff;
+    --color-gray: #f5f5f5;
 
-	--color-black: #1f1f1f;
-	--color-black-100: #d2d2d2;
-	--color-black-300: #a5a5a5;
-	--color-black-500: #797979;
-	--color-black-700: #4c4c4c;
-	--color-black-900: #1f1f1f;
+    --color-black: #1f1f1f;
+    --color-black-100: #d2d2d2;
+    --color-black-300: #a5a5a5;
+    --color-black-500: #797979;
+    --color-black-700: #4c4c4c;
+    --color-black-900: #1f1f1f;
 
-	--color-danger: #ff5255;
-	--color-danger-100: #ffdcdd;
-	--color-danger-200: #ffb1a7;
-	--color-danger-300: #ff968e;
-	--color-danger-400: #ff7b77;
-	--color-danger-500: #ff5255;
+    --color-danger: #ff5255;
+    --color-danger-100: #ffdcdd;
+    --color-danger-200: #ffb1a7;
+    --color-danger-300: #ff968e;
+    --color-danger-400: #ff7b77;
+    --color-danger-500: #ff5255;
 }
 
 body {
-	font-family: "Archivo", sans-serif;
-	padding-top: env(safe-area-inset-top);
-	padding-bottom: env(safe-area-inset-bottom);
-	padding-left: env(safe-area-inset-left);
-	padding-right: env(safe-area-inset-right);
+    font-family: "Archivo", sans-serif;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 /* Ensure background remains correct during transitions */
 :root[data-transition]::view-transition-group(root),
 :root[data-transition]::view-transition-old(root),
 :root[data-transition]::view-transition-new(root) {
-	background-color: white !important; /* Default to white */
+    background-color: white !important; /* Default to white */
 }
 
 .dark:root[data-transition]::view-transition-group(root),
 .dark:root[data-transition]::view-transition-old(root),
 .dark:root[data-transition]::view-transition-new(root) {
-	background-color: #0b0d13 !important; /* Use dark background in dark mode */
+    background-color: #0b0d13 !important; /* Use dark background in dark mode */
 }
 
 /* Prevent flickering */
 :root[data-transition]::view-transition-old(root),
 :root[data-transition]::view-transition-new(root) {
-	contain: paint;
-	will-change: transform, opacity;
+    contain: paint;
+    will-change: transform, opacity;
 }
 
 /* Slide-in from the right without fade */
 @keyframes slide-from-right {
-	from {
-		transform: translateX(100%); /* Start from the right */
-		opacity: 1; /* Ensure fully visible */
-	}
-	to {
-		transform: translateX(0); /* Move to original position */
-		opacity: 1;
-	}
+    from {
+        transform: translateX(100%); /* Start from the right */
+        opacity: 1; /* Ensure fully visible */
+    }
+    to {
+        transform: translateX(0); /* Move to original position */
+        opacity: 1;
+    }
 }
 
 /* Slide-out to the right without fade */
 @keyframes slide-to-right {
-	from {
-		transform: translateX(0); /* Start at original position */
-		opacity: 1;
-	}
-	to {
-		transform: translateX(100%); /* Move to the right */
-		opacity: 1;
-	}
+    from {
+        transform: translateX(0); /* Start at original position */
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%); /* Move to the right */
+        opacity: 1;
+    }
 }
 
 /* Slide-in from the left without fade */
 @keyframes slide-from-left {
-	from {
-		transform: translateX(-100%); /* Start from the left */
-		opacity: 1;
-	}
-	to {
-		transform: translateX(0); /* Move to original position */
-		opacity: 1;
-	}
+    from {
+        transform: translateX(-100%); /* Start from the left */
+        opacity: 1;
+    }
+    to {
+        transform: translateX(0); /* Move to original position */
+        opacity: 1;
+    }
 }
 
 /* Slide-out to the left without fade */
 @keyframes slide-to-left {
-	from {
-		transform: translateX(0); /* Start at original position */
-		opacity: 1;
-	}
-	to {
-		transform: translateX(-100%); /* Move to the left */
-		opacity: 1;
-	}
+    from {
+        transform: translateX(0); /* Start at original position */
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-100%); /* Move to the left */
+        opacity: 1;
+    }
 }
 
 @keyframes fade-out {
-	from {
-		opacity: 1;
-	}
-	to {
-		opacity: 0;
-	}
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }
 
 :root[data-transition]::view-transition-old(root) {
-	animation: 400ms ease-out both fade-out;
+    animation: 400ms ease-out both fade-out;
 }
 
 :root[data-transition="right"]::view-transition-new(root) {
-	animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
-	position: relative;
-	z-index: 1;
+    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
+    position: relative;
+    z-index: 1;
 }
 
 :root[data-transition="left"]::view-transition-new(root) {
-	animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-left;
-	position: relative;
-	z-index: 1;
+    animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-left;
+    position: relative;
+    z-index: 1;
 }

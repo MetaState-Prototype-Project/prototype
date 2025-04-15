@@ -6,50 +6,50 @@ import { swipe } from "svelte-gestures";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
-	isPaneOpen?: boolean;
-	children?: Snippet;
-	handleSwipe?: (isOpen: boolean | undefined) => void;
+    isPaneOpen?: boolean;
+    children?: Snippet;
+    handleSwipe?: (isOpen: boolean | undefined) => void;
 }
 
 let drawerElem: HTMLDivElement;
 let pane: CupertinoPane;
 
 let {
-	isPaneOpen = $bindable(),
-	children = undefined,
-	handleSwipe,
-	...restProps
+    isPaneOpen = $bindable(),
+    children = undefined,
+    handleSwipe,
+    ...restProps
 }: IDrawerProps = $props();
 
 const handleClickOutside = () => {
-	pane?.destroy({ animate: true });
-	isPaneOpen = false;
+    pane?.destroy({ animate: true });
+    isPaneOpen = false;
 };
 
 $effect(() => {
-	if (!drawerElem) return;
-	pane = new CupertinoPane(drawerElem, {
-		fitHeight: true,
-		backdrop: true,
-		backdropOpacity: 0.5,
-		backdropBlur: true,
-		bottomClose: true,
-		buttonDestroy: false,
-		showDraggable: true,
-		upperThanTop: true,
-		breaks: {
-			bottom: { enabled: true, height: 250 },
-		},
-		initialBreak: "bottom",
-	});
+    if (!drawerElem) return;
+    pane = new CupertinoPane(drawerElem, {
+        fitHeight: true,
+        backdrop: true,
+        backdropOpacity: 0.5,
+        backdropBlur: true,
+        bottomClose: true,
+        buttonDestroy: false,
+        showDraggable: true,
+        upperThanTop: true,
+        breaks: {
+            bottom: { enabled: true, height: 250 },
+        },
+        initialBreak: "bottom",
+    });
 
-	if (isPaneOpen) {
-		pane.present({ animate: true });
-	} else {
-		pane.destroy({ animate: true });
-	}
+    if (isPaneOpen) {
+        pane.present({ animate: true });
+    } else {
+        pane.destroy({ animate: true });
+    }
 
-	return () => pane.destroy();
+    return () => pane.destroy();
 });
 </script>
 

@@ -5,18 +5,18 @@ import { Settings02Icon } from "@hugeicons/core-free-icons";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface IHeroProps extends HTMLAttributes<HTMLElement> {
-	title?: string;
-	subtitle?: string;
-	showSettings?: boolean;
-	titleClasses?: string;
+    title?: string;
+    subtitle?: string;
+    showSettings?: boolean;
+    titleClasses?: string;
 }
 const {
-	title,
-	subtitle,
-	showSettings = false,
-	titleClasses,
-	children,
-	...restProps
+    title,
+    subtitle,
+    showSettings = false,
+    titleClasses,
+    children,
+    ...restProps
 }: IHeroProps = $props();
 const baseClasses = "w-full flex justify-between items-center";
 </script>

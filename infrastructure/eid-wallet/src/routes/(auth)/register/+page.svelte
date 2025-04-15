@@ -14,42 +14,44 @@ let isBiometricsAdded = $state(false);
 let isError = $state(false);
 
 const handleFirstStep = async () => {
-	if (pin.length === 4) firstStep = false;
+    if (pin.length === 4) firstStep = false;
 };
 
 const handleConfirm = async () => {
-	//confirm pin logic goes here
-	if (repeatPin && repeatPin.length === 4 && pin !== repeatPin) isError = true;
-	else isError = false;
+    //confirm pin logic goes here
+    if (repeatPin && repeatPin.length === 4 && pin !== repeatPin)
+        isError = true;
+    else isError = false;
 
-	if (!isError) showDrawer = true;
+    if (!isError) showDrawer = true;
 };
 
 const handleNext = async () => {
-	//handle next logic goes here
-	isBiometricScreen = true;
+    //handle next logic goes here
+    isBiometricScreen = true;
 };
 
 const handleSkip = async () => {
-	// handle skip biometics logic goes here
+    // handle skip biometics logic goes here
 };
 
 const handleSetupBiometrics = async () => {
-	//handle setup biometrics logic goes here
-	isBiometricsAdded = true;
+    //handle setup biometrics logic goes here
+    isBiometricsAdded = true;
 };
 
 const handleEnableBiometrics = async () => {
-	//handle enable biometrics logic goes here
+    //handle enable biometrics logic goes here
 };
 
 const handleBiometricsAdded = async () => {
-	//handle logic when biometrics added successfully
-	goto("/review");
+    //handle logic when biometrics added successfully
+    goto("/review");
 };
 
 $effect(() => {
-	if (repeatPin && repeatPin.length === 4 && pin === repeatPin) isError = false;
+    if (repeatPin && repeatPin.length === 4 && pin === repeatPin)
+        isError = false;
 });
 </script>
 

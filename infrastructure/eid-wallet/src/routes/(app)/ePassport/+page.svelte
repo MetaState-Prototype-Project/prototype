@@ -5,22 +5,22 @@ import { Share05Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 
 const dummyData = {
-	Name: "John Doe",
-	"Date of birth": "01-01-1990",
-	"ID submitted": "American Passport",
-	"Passport number": "1234567-US",
+    Name: "John Doe",
+    "Date of birth": "01-01-1990",
+    "ID submitted": "American Passport",
+    "Passport number": "1234567-US",
 };
 
 const secondDummyData = {
-	"Birth Name": "John Doe",
-	"Place of birth": "New York, USA",
-	Nationality: "American",
-	"ID submitted": "American Passport",
-	"Expiry date": "19-12-2027",
+    "Birth Name": "John Doe",
+    "Place of birth": "New York, USA",
+    Nationality: "American",
+    "ID submitted": "American Passport",
+    "Expiry date": "19-12-2027",
 };
 
 function shareEPassport() {
-	alert("EPassport Code shared!");
+    alert("EPassport Code shared!");
 }
 </script>
 

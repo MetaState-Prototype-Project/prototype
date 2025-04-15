@@ -8,17 +8,17 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { Snippet } from "svelte";
 
 const dummyData = {
-	Name: "John Doe",
-	"Date of birth": "01 - 01 - 1990",
-	"ID submitted": "American Passport",
-	"Passport number": "1234567-US",
+    Name: "John Doe",
+    "Date of birth": "01 - 01 - 1990",
+    "ID submitted": "American Passport",
+    "Passport number": "1234567-US",
 };
 
 let shareQRdrawerOpen = $state(false);
 
 function shareQR() {
-	alert("QR Code shared!");
-	shareQRdrawerOpen = false;
+    alert("QR Code shared!");
+    shareQRdrawerOpen = false;
 }
 </script>
 

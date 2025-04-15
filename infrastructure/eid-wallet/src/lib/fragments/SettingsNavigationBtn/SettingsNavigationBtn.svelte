@@ -6,9 +6,9 @@ import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface ISettingsNavigationBtn extends HTMLAttributes<HTMLElement> {
-	icon: IconSvgElement;
-	label: string;
-	href: string;
+    icon: IconSvgElement;
+    label: string;
+    href: string;
 }
 
 const { icon, label, href, ...restProps }: ISettingsNavigationBtn = $props();

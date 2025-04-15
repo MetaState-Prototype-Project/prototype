@@ -3,76 +3,76 @@ import { cn } from "$lib/utils";
 import type { HTMLButtonAttributes } from "svelte/elements";
 
 interface IButtonProps extends HTMLButtonAttributes {
-	variant?: "solid" | "soft" | "danger" | "danger-soft" | "white";
-	isLoading?: boolean;
-	callback?: () => Promise<void> | void;
-	blockingClick?: boolean;
-	type?: "button" | "submit" | "reset";
-	size?: "sm" | "md";
+    variant?: "solid" | "soft" | "danger" | "danger-soft" | "white";
+    isLoading?: boolean;
+    callback?: () => Promise<void> | void;
+    blockingClick?: boolean;
+    type?: "button" | "submit" | "reset";
+    size?: "sm" | "md";
 }
 
 const {
-	variant = "solid",
-	isLoading,
-	callback,
-	onclick,
-	blockingClick,
-	type = "button",
-	size = "md",
-	children = undefined,
-	...restProps
+    variant = "solid",
+    isLoading,
+    callback,
+    onclick,
+    blockingClick,
+    type = "button",
+    size = "md",
+    children = undefined,
+    ...restProps
 }: IButtonProps = $props();
 
 let isSubmitting = $state(false);
 const disabled = $derived(restProps.disabled || isLoading || isSubmitting);
 
 const handleClick = async () => {
-	if (typeof callback !== "function") return;
+    if (typeof callback !== "function") return;
 
-	if (blockingClick) isSubmitting = true;
-	try {
-		await callback();
-	} catch (error) {
-		console.error("Error in button callback:", error);
-	} finally {
-		isSubmitting = false;
-	}
+    if (blockingClick) isSubmitting = true;
+    try {
+        await callback();
+    } catch (error) {
+        console.error("Error in button callback:", error);
+    } finally {
+        isSubmitting = false;
+    }
 };
 
 const variantClasses = {
-	solid: { background: "bg-primary-500", text: "text-white" },
-	soft: { background: "bg-primary-100", text: "text-primary-500" },
-	danger: { background: "bg-danger-500", text: "text-white" },
-	"danger-soft": { background: "bg-danger-100", text: "text-danger-500" },
-	white: { background: "bg-white", text: "text-black" },
+    solid: { background: "bg-primary-500", text: "text-white" },
+    soft: { background: "bg-primary-100", text: "text-primary-500" },
+    danger: { background: "bg-danger-500", text: "text-white" },
+    "danger-soft": { background: "bg-danger-100", text: "text-danger-500" },
+    white: { background: "bg-white", text: "text-black" },
 };
 
 const disabledVariantClasses = {
-	solid: { background: "bg-primary-300", text: "text-white" },
-	soft: { background: "bg-primary-100", text: "text-primary-300" },
-	danger: { background: "bg-danger-400", text: "text-white" },
-	"danger-soft": { background: "bg-danger-100", text: "text-danger-400" },
-	white: { background: "bg-black-100", text: "text-black-700" },
+    solid: { background: "bg-primary-300", text: "text-white" },
+    soft: { background: "bg-primary-100", text: "text-primary-300" },
+    danger: { background: "bg-danger-400", text: "text-white" },
+    "danger-soft": { background: "bg-danger-100", text: "text-danger-400" },
+    white: { background: "bg-black-100", text: "text-black-700" },
 };
 
 const sizeVariant = {
-	sm: "px-4 py-1.5 text-base h-11",
-	md: "px-8 py-2.5 text-xl h-14",
+    sm: "px-4 py-1.5 text-base h-11",
+    md: "px-8 py-2.5 text-xl h-14",
 };
 
 const classes = $derived({
-	common: cn(
-		"cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
-		sizeVariant[size],
-	),
-	background: disabled
-		? disabledVariantClasses[variant].background ||
-			variantClasses[variant].background
-		: variantClasses[variant].background,
-	text: disabled
-		? disabledVariantClasses[variant].text || variantClasses[variant].text
-		: variantClasses[variant].text,
-	disabled: "cursor-not-allowed",
+    common: cn(
+        "cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100",
+        sizeVariant[size],
+    ),
+    background: disabled
+        ? disabledVariantClasses[variant].background ||
+          variantClasses[variant].background
+        : variantClasses[variant].background,
+    text: disabled
+        ? disabledVariantClasses[variant].text || variantClasses[variant].text
+        : variantClasses[variant].text,
+    disabled: "cursor-not-allowed",
 });
 </script>
 
