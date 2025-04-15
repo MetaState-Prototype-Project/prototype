@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { checkStatus, type Status } from "@tauri-apps/plugin-biometric";
+import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 import type { Store } from "@tauri-apps/plugin-store";
 /**
  * @author SoSweetHam <soham@auvo.io>
