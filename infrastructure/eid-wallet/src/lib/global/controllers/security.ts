@@ -5,8 +5,14 @@ import { checkStatus, type Status } from "@tauri-apps/plugin-biometric";
  * @author SoSweetHam <soham@auvo.io>
  * @description A security controller that can enable/disable biometric authentication for the app and provide for basic pin based application authentication schemes.
  *
+ * Uses the following namespaces in the store:
+ * - `pin` - The pin hash
+ * - `biometrics` - The biometric authentication status
+ *
+ * @memberof GlobalState
  * You should not use this class directly, it is intended for use through the GlobalState.
- * @constructor
+ *
+ * @constructor Meant to be used as a singleton through the GlobalState, should already be handled.
  * @param store - The store to use for storing the pin hash and biometric authentication status
  * @example
  * ```ts
@@ -25,6 +31,7 @@ export class SecurityController {
     /**
      * @author SoSweetHam <soham@auvo.io>
      * @description Store hash of app pin lock by providing the pin in 4 digit plain text
+     * @memberof SecurityController
      * @param pin - The pin in plain text
      * @returns void
      * @throws Error if the pin is not valid
@@ -60,6 +67,8 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @description Verify the pin for the app
+     * @memberof SecurityController
      * @param pin The pin in plain text.
      * @returns True if the pin is correct else False.
      * @throws Error if the pin is not set.
@@ -75,6 +84,7 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @memberof SecurityController
      * @description Set/Update the pin for the app
      * @param newPin The new pin in plain text
      * @param confirmPin Copy of new pin (ideally both user provided directly)
@@ -116,6 +126,7 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @memberof SecurityController
      * @description Get the pin hash for the app if set
      * @returns A promise for the pin hash
      * @example
@@ -131,6 +142,7 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @memberof SecurityController
      * @description Set the biometric authentication for the app
      * @param value - Enable/Disable biometric authentication
      * @returns void
@@ -155,6 +167,7 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @memberof SecurityController
      * @description Set the biometric authentication status for the app, if the biometric is not supported, it will be set to false
      * @param value - Enable/Disable biometric authentication
      * @returns void
@@ -171,6 +184,7 @@ export class SecurityController {
 
     /**
      * @author SoSweetHam <soham@auvo.io>
+     * @memberof SecurityController
      * @description Get the biometric authentication status for the app
      * @returns A promise for the biometric authentication status
      * @example
