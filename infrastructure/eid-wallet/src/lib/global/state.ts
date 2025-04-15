@@ -18,8 +18,6 @@ export class GlobalState {
    * @returns A promise of a new instance of GlobalState
    */
   static async create() {
-    const defaultTheme = "system";
-
     const store = await Store.load("global-state.json", {
       autoSave: true,
     });
