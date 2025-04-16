@@ -2,11 +2,8 @@ import { W3ID, W3IDBuilder } from "../src";
 import { describe, test, expect } from "vitest";
 import falso from "@ngneat/falso";
 import nacl from "tweetnacl";
-import {
-    createSigner,
-    InMemoryStorage,
-    verifierCallback,
-} from "./logs/log.test";
+import { createSigner, verifierCallback } from "./utils/crypto";
+import { InMemoryStorage } from "./utils/store";
 import { IDLogManager } from "../src/logs/log-manager";
 import { hash } from "../src/utils/hash";
 import { uint8ArrayToHex } from "../src/utils/codec";
@@ -19,6 +16,16 @@ describe("W3IDBuilder", () => {
         const id = await new W3IDBuilder().build();
         expect(id).toBeInstanceOf(W3ID);
         expect(id.logs).toBeUndefined();
+    });
+
+    test("ID Generation: Global ID begins with `@`", async () => {
+        const id = await new W3IDBuilder().withGlobal(true).build();
+        expect(id.id.startsWith("@")).toBe(true);
+    });
+
+    test("ID Generation: Local ID begins doesn't begin with `@`", async () => {
+        const id = await new W3IDBuilder().build();
+        expect(id.id.startsWith("@")).toBe(false);
     });
 
     test("ID Generation: UUID is Deterministic", async () => {

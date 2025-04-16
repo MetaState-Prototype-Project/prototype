@@ -24,9 +24,15 @@ export class W3IDBuilder {
     private entropy?: string;
     private namespace?: string;
     private nextKeyHash?: string;
+    private global?: boolean = false;
 
     public withEntropy(str: string): W3IDBuilder {
         this.entropy = str;
+        return this;
+    }
+
+    public withGlobal(isGlobal: boolean): W3IDBuilder {
+        this.global = isGlobal;
         return this;
     }
 
@@ -55,7 +61,9 @@ export class W3IDBuilder {
     public async build(): Promise<W3ID> {
         this.entropy = this.entropy ?? generateRandomAlphaNum();
         this.namespace = this.namespace ?? uuidv4();
-        const id = generateUuid(this.entropy, this.namespace);
+        const id = this.global
+            ? "@"
+            : "" + generateUuid(this.entropy, this.namespace);
         if (!this.signer) {
             return new W3ID(id);
         } else {
