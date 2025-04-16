@@ -10,9 +10,12 @@ export function generateRandomAlphaNum(length = 16): string {
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	let result = "";
 	const charsLength = chars.length;
+	const randomValues = new Uint32Array(length);
+
+	crypto.getRandomValues(randomValues);
 
 	for (let i = 0; i < length; i++) {
-		result += chars.charAt(Math.floor(Math.random() * charsLength));
+		result += chars.charAt(randomValues[i] % charsLength);
 	}
 
 	return result;
