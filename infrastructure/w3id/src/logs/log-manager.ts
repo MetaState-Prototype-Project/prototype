@@ -132,9 +132,10 @@ export class IDLogManager {
 
     private async createGenesisEntry(options: GenesisLogOptions) {
         const { id, nextKeyHashes } = options;
+        const idTag = id.includes("@") ? id.split("@")[1] : id;
         const logEvent: LogEvent = {
             id,
-            versionId: `0-${id.split("@")[1]}`,
+            versionId: `0-${idTag}`,
             versionTime: new Date(Date.now()),
             updateKeys: [this.signer.pubKey],
             nextKeyHashes: nextKeyHashes,

@@ -24,7 +24,7 @@ import {
     MalformedIndexChainError,
 } from "../../src/errors/errors.ts";
 
-class InMemoryStorage<T extends LogEvent, K extends LogEvent>
+export class InMemoryStorage<T extends LogEvent, K extends LogEvent>
     implements StorageSpec<T, K>
 {
     private data: K[] = [];
@@ -69,7 +69,7 @@ const signer = createSigner(keyPair);
 const logManager = new IDLogManager(InMemoryStorage.build(), signer);
 const w3id = `@${generateUuid("asdfa")}`;
 
-const verifierCallback: VerifierCallback = async (
+export const verifierCallback: VerifierCallback = async (
     message: string,
     signature: string,
     pubKey: string,
@@ -86,7 +86,7 @@ const verifierCallback: VerifierCallback = async (
     return isValid;
 };
 
-function createSigner(keyPair: nacl.SignKeyPair): Signer {
+export function createSigner(keyPair: nacl.SignKeyPair): Signer {
     const publicKey = uint8ArrayToHex(keyPair.publicKey);
     const signer: Signer = {
         pubKey: publicKey,

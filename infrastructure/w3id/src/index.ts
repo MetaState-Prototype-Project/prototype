@@ -11,7 +11,7 @@ import { generateRandomAlphaNum } from "./utils/rand";
 import { v4 as uuidv4 } from "uuid";
 import { generateUuid } from "./utils/uuid";
 
-class W3ID {
+export class W3ID {
     constructor(
         public id: string,
         public logs?: IDLogManager,
@@ -23,6 +23,7 @@ export class W3IDBuilder {
     private repository?: StorageSpec<LogEvent, LogEvent>;
     private entropy?: string;
     private namespace?: string;
+    private nextKeyHash?: string;
 
     public withEntropy(str: string): W3IDBuilder {
         this.entropy = str;
@@ -46,7 +47,12 @@ export class W3IDBuilder {
         return this;
     }
 
-    public build(): W3ID {
+    public withNextKeyHash(hash: string): W3IDBuilder {
+        this.nextKeyHash = hash;
+        return this;
+    }
+
+    public async build(): Promise<W3ID> {
         this.entropy = this.entropy ?? generateRandomAlphaNum();
         this.namespace = this.namespace ?? uuidv4();
         const id = generateUuid(this.entropy, this.namespace);
@@ -57,7 +63,16 @@ export class W3IDBuilder {
                 throw new Error(
                     "Repository is required, pass with \`withRepository\` method",
                 );
+
+            if (!this.nextKeyHash)
+                throw new Error(
+                    "NextKeyHash is required pass with \`withNextKeyHash\` method",
+                );
             const logs = new IDLogManager(this.repository, this.signer);
+            await logs.createLogEvent({
+                id,
+                nextKeyHashes: [this.nextKeyHash],
+            });
             return new W3ID(id, logs);
         }
     }
