@@ -21,14 +21,12 @@ export type Signer = {
 
 export type RotationLogOptions = {
 	nextKeyHashes: string[];
-	signer: Signer;
 	nextKeySigner: Signer;
 };
 
 export type GenesisLogOptions = {
 	nextKeyHashes: string[];
 	id: string;
-	signer: Signer;
 };
 
 export function isGenesisOptions(
