@@ -61,11 +61,13 @@ class InMemoryStorage<T extends LogEvent, K extends LogEvent>
         );
     }
 }
-const logManager = new IDLogManager(InMemoryStorage.build());
-const w3id = `@${generateUuid("asdfa")}`;
-
 const keyPair = nacl.sign.keyPair();
 let currNextKey = nacl.sign.keyPair();
+
+const signer = createSigner(keyPair);
+
+const logManager = new IDLogManager(InMemoryStorage.build(), signer);
+const w3id = `@${generateUuid("asdfa")}`;
 
 const verifierCallback: VerifierCallback = async (
     message: string,
@@ -104,18 +106,15 @@ describe("LogManager", async () => {
         const logEvent = logManager.createLogEvent({
             nextKeySigner: signer,
             nextKeyHashes: [nextKeyHash],
-            signer,
         });
         await expect(logEvent).rejects.toThrow(BadOptionsSpecifiedError);
     });
 
     test("GenesisEvent: [Creates Entry]", async () => {
         const nextKeyHash = await hash(uint8ArrayToHex(currNextKey.publicKey));
-        const signer = createSigner(keyPair);
         const logEvent = await logManager.createLogEvent({
             id: w3id,
             nextKeyHashes: [nextKeyHash],
-            signer,
         });
         expectTypeOf(logEvent).toMatchObjectType<LogEvent>();
     });
@@ -124,10 +123,8 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             id: `@{falso.randUuid()}`,
         });
 
@@ -138,11 +135,9 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(nextKeyPair);
         const nextKeySigner = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             nextKeySigner,
         });
 
@@ -153,11 +148,9 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(keyPair);
         const nextKeySigner = createSigner(currNextKey);
         const logEvent = await logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             nextKeySigner,
         });
 
