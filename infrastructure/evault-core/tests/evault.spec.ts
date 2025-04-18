@@ -104,7 +104,7 @@ describe("eVault E2E", () => {
                 input: {
                     ontology: testOntology,
                     payload: testPayload,
-                    acl: [w3id.id],
+                    acl: ["*"],
                 },
             },
             token,
@@ -201,7 +201,7 @@ describe("eVault E2E", () => {
                 input: {
                     ontology: "search-test",
                     payload: { note: term },
-                    acl: [w3id.id],
+                    acl: ["*"],
                 },
             },
             token,
