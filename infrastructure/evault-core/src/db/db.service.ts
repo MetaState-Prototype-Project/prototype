@@ -1,4 +1,4 @@
-import neo4j, { Driver } from "neo4j-driver";
+import { Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { serializeValue, deserializeValue } from "./schema";
 import {
