@@ -1,8 +1,9 @@
-import { IDLogManager } from "./logs/log-manager";
-import type { LogEvent, Signer } from "./logs/log.types";
-import type { StorageSpec } from "./logs/storage/storage-spec";
-import { generateRandomAlphaNum } from "./utils/rand";
 import { v4 as uuidv4 } from "uuid";
+import { IDLogManager } from "./logs/log-manager";
+import type { JWTHeader, JWTPayload, LogEvent, Signer } from "./logs/log.types";
+import type { StorageSpec } from "./logs/storage/storage-spec";
+import { signJWT } from "./utils/jwt";
+import { generateRandomAlphaNum } from "./utils/rand";
 import { generateUuid } from "./utils/uuid";
 
 export class W3ID {
@@ -10,6 +11,22 @@ export class W3ID {
 		public id: string,
 		public logs?: IDLogManager,
 	) {}
+
+	/**
+	 * Signs a JWT with the W3ID's signer
+	 * @param payload - The JWT payload
+	 * @param header - Optional JWT header (defaults to using the signer's alg and W3ID's id as kid)
+	 * @returns The signed JWT
+	 */
+	public async signJWT(
+		payload: JWTPayload,
+		header?: JWTHeader,
+	): Promise<string> {
+		if (!this.logs?.signer) {
+			throw new Error("W3ID must have a signer to sign JWTs");
+		}
+		return signJWT(this.logs.signer, payload, `@${this.id}#0`, header);
+	}
 }
 
 export class W3IDBuilder {
@@ -119,3 +136,5 @@ export class W3IDBuilder {
 		return new W3ID(id, logs);
 	}
 }
+
+export * from "./utils/jwt";

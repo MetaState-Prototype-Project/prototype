@@ -27,6 +27,7 @@ export const verifierCallback: VerifierCallback = async (
 export function createSigner(keyPair: nacl.SignKeyPair): Signer {
     const publicKey = uint8ArrayToHex(keyPair.publicKey);
     const signer: Signer = {
+        alg: "ed25519",
         pubKey: publicKey,
         sign: (str: string) => {
             const buffer = stringToUint8Array(str);

@@ -8,6 +8,8 @@ import { IDLogManager } from "../src/logs/log-manager";
 import { hash } from "../src/utils/hash";
 import { uint8ArrayToHex } from "../src/utils/codec";
 import { LogEvent } from "../src/logs/log.types";
+import { getJWTHeader, getJWTPayload } from "../src/utils/jwt";
+import { JWTHeader } from "../src/logs/log.types";
 
 const keyPair = nacl.sign.keyPair();
 
@@ -77,5 +79,79 @@ describe("W3IDBuilder", () => {
             verifierCallback,
         );
         expect(result).toBe(true);
+    });
+});
+
+describe("W3ID JWT Signing", () => {
+    test("should sign JWT with W3ID's ID as kid", async () => {
+        const id = await new W3IDBuilder()
+            .withRepository(InMemoryStorage.build())
+            .withSigner(createSigner(keyPair))
+            .withNextKeyHash(falso.randText())
+            .build();
+
+        const payload = {
+            sub: "test-subject",
+            iat: Math.floor(Date.now() / 1000),
+        };
+
+        const signedJWT = await id.signJWT(payload);
+        const header = getJWTHeader(signedJWT);
+        const extractedPayload = getJWTPayload(signedJWT);
+
+        expect(header.kid).toBe(`@${id.id}#0`);
+        expect(header.alg).toBe("ed25519");
+        expect(header.typ).toBe("JWT");
+        expect(extractedPayload).toEqual(payload);
+        console.log(signedJWT);
+    });
+
+    test("should throw error when signing without a signer", async () => {
+        const id = await new W3IDBuilder().build();
+        const payload = { sub: "test-subject" };
+
+        await expect(id.signJWT(payload)).rejects.toThrow(
+            "W3ID must have a signer to sign JWTs",
+        );
+    });
+
+    test("should use custom header when provided", async () => {
+        const id = await new W3IDBuilder()
+            .withRepository(InMemoryStorage.build())
+            .withSigner(createSigner(keyPair))
+            .withNextKeyHash(falso.randText())
+            .build();
+
+        const payload = { sub: "test-subject" };
+        const customHeader: JWTHeader = {
+            alg: "ed25519",
+            typ: "JWT",
+            kid: "custom-key",
+        };
+
+        const signedJWT = await id.signJWT(payload, customHeader);
+        const header = getJWTHeader(signedJWT);
+
+        expect(header).toEqual(customHeader);
+    });
+
+    test("should include all payload fields in signed JWT", async () => {
+        const id = await new W3IDBuilder()
+            .withRepository(InMemoryStorage.build())
+            .withSigner(createSigner(keyPair))
+            .withNextKeyHash(falso.randText())
+            .build();
+
+        const payload = {
+            sub: "test-subject",
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 3600,
+            custom: "value",
+        };
+
+        const signedJWT = await id.signJWT(payload);
+        const extractedPayload = getJWTPayload(signedJWT);
+
+        expect(extractedPayload).toEqual(payload);
     });
 });
