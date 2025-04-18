@@ -4,6 +4,12 @@ import { it, describe, beforeAll, afterAll, expect } from "vitest";
 import { v4 as uuidv4 } from "uuid";
 import { Neo4jContainer, StartedNeo4jContainer } from "@testcontainers/neo4j";
 
+type Envelope = {
+    id: string;
+    ontology: string;
+    value: any;
+};
+
 describe("DbService (integration)", () => {
     let container: StartedNeo4jContainer;
     let service: DbService;
@@ -28,42 +34,48 @@ describe("DbService (integration)", () => {
     });
 
     it("should store and retrieve a meta-envelope", async () => {
-        const testId = uuidv4();
         const input = {
-            id: testId,
             ontology: "SocialMediaPost",
             payload: {
                 text: "hello world",
                 dateCreated: "2025-04-10",
                 likes: ["user1", "user2"],
             },
+            acl: ["@test-user"],
         };
 
-        const result = await service.storeMetaEnvelope(input, ["@test-user"]);
+        const result = await service.storeMetaEnvelope(input, input.acl);
         const id = result.metaEnvelope.id;
 
         const fetched = await service.findMetaEnvelopeById(id);
         expect(fetched).toBeDefined();
         expect(fetched.id).toBeDefined();
         expect(fetched.ontology).toBe("SocialMediaPost");
+        expect(fetched.acl).toEqual(["@test-user"]);
         expect(fetched.envelopes).toHaveLength(3);
+        expect(fetched.envelopes[0]).toEqual(
+            expect.objectContaining({
+                id: expect.any(String),
+                ontology: expect.any(String),
+                value: expect.any(String),
+            }),
+        );
+
+        console.log(fetched);
     });
 
     it("should find meta-envelopes containing the search term in any envelope value", async () => {
-        const metaId = uuidv4();
         const input = {
-            id: metaId,
             ontology: "SocialMediaPost",
             payload: {
                 text: "This is a searchable tweet",
                 image: "https://example.com/image.jpg",
                 likes: ["user1", "user2"],
             },
+            acl: ["@search-test-user"],
         };
 
-        const metaEnv = await service.storeMetaEnvelope(input, [
-            "@search-test-user",
-        ]);
+        const metaEnv = await service.storeMetaEnvelope(input, input.acl);
 
         const found = await service.findMetaEnvelopesBySearchTerm(
             "SocialMediaPost",
@@ -97,52 +109,49 @@ describe("DbService (integration)", () => {
     });
 
     it("should delete a meta-envelope and its envelopes", async () => {
-        const tempId = uuidv4();
         const meta = {
-            id: tempId,
             ontology: "TempPost",
             payload: {
                 value: "to be deleted",
             },
+            acl: ["@delete-user"],
         };
 
-        await service.storeMetaEnvelope(meta, ["@delete-user"]);
-        await service.deleteMetaEnvelope(tempId);
+        const stored = await service.storeMetaEnvelope(meta, meta.acl);
+        await service.deleteMetaEnvelope(stored.metaEnvelope.id);
 
-        const deleted = await service.findMetaEnvelopeById(tempId);
+        const deleted = await service.findMetaEnvelopeById(
+            stored.metaEnvelope.id,
+        );
         expect(deleted).toBeNull();
     });
 
     it("should update envelope value", async () => {
-        const testId = uuidv4();
         const meta = {
-            id: testId,
             ontology: "UpdateTest",
             payload: {
                 value: "original",
             },
+            acl: ["@updater"],
         };
 
-        const stored = await service.storeMetaEnvelope(meta, ["@updater"]);
+        const stored = await service.storeMetaEnvelope(meta, meta.acl);
 
         const result = await service.findMetaEnvelopeById(
             stored.metaEnvelope.id,
         );
         const targetEnvelope = result.envelopes.find(
-            (e: any) => e.properties.ontology === "value",
+            (e: Envelope) => e.ontology === "value",
         );
 
-        await service.updateEnvelopeValue(
-            targetEnvelope.properties.id,
-            "updated",
-        );
+        await service.updateEnvelopeValue(targetEnvelope.id, "updated");
 
         const updated = await service.findMetaEnvelopeById(
             stored.metaEnvelope.id,
         );
         const updatedValue = updated.envelopes.find(
-            (e: any) => e.properties.id === targetEnvelope.properties.id,
+            (e: Envelope) => e.id === targetEnvelope.id,
         );
-        expect(updatedValue.properties.value).toBe("updated");
+        expect(updatedValue.value).toBe("updated");
     });
 });

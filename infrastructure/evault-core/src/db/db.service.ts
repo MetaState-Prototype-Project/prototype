@@ -2,16 +2,15 @@ import neo4j, { Driver, Session } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 
 type MetaEnvelope = {
-    id: string;
     ontology: string;
     payload: Record<string, any>;
+    acl: string[];
 };
 
 type Envelope = {
     id: string;
     value: any;
     ontology: string;
-    acl: string[];
 };
 
 export class DbService {
@@ -30,17 +29,17 @@ export class DbService {
         }
     }
 
-    async storeMetaEnvelope(meta: MetaEnvelope, acl: string[]) {
+    async storeMetaEnvelope(meta: Omit<MetaEnvelope, "id">, acl: string[]) {
         const w3id = await new W3IDBuilder().build();
 
         const cypher: string[] = [
-            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology })`,
+            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl })`,
         ];
 
         const envelopeParams: Record<string, any> = {
             metaId: w3id.id,
             ontology: meta.ontology,
-            acl,
+            acl: acl,
         };
 
         const createdEnvelopes: Envelope[] = [];
@@ -58,8 +57,7 @@ export class DbService {
       CREATE (${alias}:Envelope {
         id: $${alias}_id,
         ontology: $${alias}_ontology,
-        value: $${alias}_value,
-        acl: $acl
+        value: $${alias}_value
       })
       WITH m, ${alias}
       MERGE (m)-[:LINKS_TO]->(${alias})
@@ -73,7 +71,6 @@ export class DbService {
                 id: envelopeId,
                 ontology: key,
                 value: value,
-                acl,
             });
 
             counter++;
@@ -85,6 +82,7 @@ export class DbService {
             metaEnvelope: {
                 id: w3id.id,
                 ontology: meta.ontology,
+                acl: acl,
             },
             envelopes: createdEnvelopes,
         };
@@ -105,7 +103,11 @@ export class DbService {
 
         return result.records.map((record) => ({
             id: record.get("id"),
-            envelopes: record.get("envelopes").map((e: any) => e.properties),
+            envelopes: record.get("envelopes").map((node: any) => ({
+                id: node.properties.id,
+                ontology: node.properties.ontology,
+                value: node.properties.value,
+            })),
         }));
     }
 
@@ -113,12 +115,24 @@ export class DbService {
         const result = await this.runQuery(
             `
       MATCH (m:MetaEnvelope { id: $id })-[:LINKS_TO]->(e:Envelope)
-      RETURN m.id AS id, m.ontology AS ontology, collect(e) AS envelopes
+      RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
       `,
             { id },
         );
 
-        return result.records[0]?.toObject() ?? null;
+        if (!result.records[0]) return null;
+
+        const record = result.records[0];
+        return {
+            id: record.get("id"),
+            ontology: record.get("ontology"),
+            acl: record.get("acl"),
+            envelopes: record.get("envelopes").map((node: any) => ({
+                id: node.properties.id,
+                ontology: node.properties.ontology,
+                value: node.properties.value,
+            })),
+        };
     }
 
     async findMetaEnvelopesByOntology(ontology: string): Promise<string[]> {
@@ -158,7 +172,14 @@ export class DbService {
 
     async getAllEnvelopes(): Promise<Envelope[]> {
         const result = await this.runQuery(`MATCH (e:Envelope) RETURN e`, {});
-        return result.records.map((r) => r.get("e").properties as Envelope);
+        return result.records.map((r) => {
+            const node = r.get("e");
+            return {
+                id: node.properties.id,
+                ontology: node.properties.ontology,
+                value: node.properties.value,
+            };
+        });
     }
 
     async close(): Promise<void> {
