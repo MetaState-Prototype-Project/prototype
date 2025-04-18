@@ -48,7 +48,12 @@
             }
         }
 
-        console.log(await globalState.securityController.biometricSupport && (await checkStatus()).isAvailable)
+        // for some reason it's important for this to be done before the biometric stuff
+        // otherwise pin doesn't work
+        $effect(() => {
+            handlePinInput(pin)
+        })
+
         if (await globalState.securityController.biometricSupport && (await checkStatus()).isAvailable) {
             try {
                 await authenticate('You must authenticate with PIN first', authOpts);
@@ -58,9 +63,6 @@
             }
         }
 
-        $effect(() => {
-            handlePinInput(pin)
-        })
     })
 
 </script>
@@ -72,7 +74,7 @@
         subtitle="Enter your 4-digit PIN code"
         class="mb-4"
         />
-        <InputPin variant="sm" bind:pin isError={isError} />
+        <InputPin variant="sm" bind:pin isError={isError} onchange={() => handlePinInput(pin)} />
         <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <Button.Action class={`w-full`} variant="danger" callback={clearPin}>
