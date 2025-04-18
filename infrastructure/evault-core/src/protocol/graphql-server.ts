@@ -1,14 +1,18 @@
-import { createSchema, createYoga } from "graphql-yoga";
+import { createSchema, createYoga, YogaInitialContext } from "graphql-yoga";
 import { createServer } from "http";
 import { typeDefs } from "./typedefs";
-import { DbService } from "../db/db.service";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
+import { getJWTHeader } from "w3id";
+import { DbService } from "../db/db.service";
+import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
 
 export class GraphQLServer {
     private db: DbService;
+    private accessGuard: VaultAccessGuard;
 
     constructor(db: DbService) {
         this.db = db;
+        this.accessGuard = new VaultAccessGuard(db);
         this.instantiateServer();
     }
 
@@ -17,60 +21,102 @@ export class GraphQLServer {
             JSON: require("graphql-type-json"),
 
             Query: {
-                getMetaEnvelopeById: (_: any, { id }: { id: string }) =>
-                    this.db.findMetaEnvelopeById(id),
-                findMetaEnvelopesByOntology: (
-                    _: any,
-                    { ontology }: { ontology: string },
-                ) => this.db.findMetaEnvelopesByOntology(ontology),
-                searchMetaEnvelopes: (
-                    _: any,
-                    { ontology, term }: { ontology: string; term: string },
-                ) => this.db.findMetaEnvelopesBySearchTerm(ontology, term),
-                getAllEnvelopes: () => this.db.getAllEnvelopes(),
+                getMetaEnvelopeById: this.accessGuard.middleware(
+                    (_: any, { id }: { id: string }) => {
+                        return this.db.findMetaEnvelopeById(id);
+                    },
+                ),
+                findMetaEnvelopesByOntology: this.accessGuard.middleware(
+                    (_: any, { ontology }: { ontology: string }) => {
+                        return this.db.findMetaEnvelopesByOntology(ontology);
+                    },
+                ),
+                searchMetaEnvelopes: this.accessGuard.middleware(
+                    (
+                        _: any,
+                        { ontology, term }: { ontology: string; term: string },
+                    ) => {
+                        return this.db.findMetaEnvelopesBySearchTerm(
+                            ontology,
+                            term,
+                        );
+                    },
+                ),
+                getAllEnvelopes: this.accessGuard.middleware(() => {
+                    return this.db.getAllEnvelopes();
+                }),
             },
 
             Mutation: {
-                storeMetaEnvelope: async (
-                    _: any,
-                    {
-                        input,
-                    }: {
-                        input: {
-                            ontology: string;
-                            payload: any;
-                            acl: string[];
-                        };
-                    },
-                ) => {
-                    return await this.db.storeMetaEnvelope(
+                storeMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
                         {
-                            ontology: input.ontology,
-                            payload: input.payload,
-                            acl: input.acl,
+                            input,
+                        }: {
+                            input: {
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            };
                         },
-                        input.acl,
-                    );
-                },
-                deleteMetaEnvelope: async (_: any, { id }: { id: string }) => {
-                    await this.db.deleteMetaEnvelope(id);
-                    return true;
-                },
-                updateEnvelopeValue: async (
-                    _: any,
-                    {
-                        envelopeId,
-                        newValue,
-                    }: { envelopeId: string; newValue: any },
-                ) => {
-                    await this.db.updateEnvelopeValue(envelopeId, newValue);
-                    return true;
-                },
+                    ) => {
+                        const result = await this.db.storeMetaEnvelope(
+                            {
+                                ontology: input.ontology,
+                                payload: input.payload,
+                                acl: input.acl,
+                            },
+                            input.acl,
+                        );
+                        return result;
+                    },
+                ),
+                deleteMetaEnvelope: this.accessGuard.middleware(
+                    async (_: any, { id }: { id: string }) => {
+                        await this.db.deleteMetaEnvelope(id);
+                        return true;
+                    },
+                ),
+                updateEnvelopeValue: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            envelopeId,
+                            newValue,
+                        }: { envelopeId: string; newValue: any },
+                    ) => {
+                        await this.db.updateEnvelopeValue(envelopeId, newValue);
+                        return true;
+                    },
+                ),
             },
         };
 
-        const schema = createSchema({ typeDefs, resolvers });
-        const yoga = createYoga({ schema });
+        const schema = createSchema<VaultContext>({
+            typeDefs,
+            resolvers,
+        });
+
+        const yoga = createYoga({
+            schema,
+            context: async ({ request }) => {
+                const authHeader = request.headers.get("authorization") ?? "";
+                const token = authHeader.replace("Bearer ", "");
+
+                if (token) {
+                    const id = getJWTHeader(token).kid?.split("#")[0];
+                    return {
+                        currentUser: id ?? null,
+                    };
+                }
+
+                return {
+                    currentUser: null,
+                };
+            },
+        });
+
         const server = createServer((req, res) => {
             if (req.url === "/voyager") {
                 res.writeHead(200, { "Content-Type": "text/html" });

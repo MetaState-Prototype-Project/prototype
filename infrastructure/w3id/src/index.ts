@@ -25,7 +25,7 @@ export class W3ID {
         if (!this.logs?.signer) {
             throw new Error("W3ID must have a signer to sign JWTs");
         }
-        return signJWT(this.logs.signer, payload, `${this.id}#0`, header);
+        return signJWT(this.logs.signer, payload, `@${this.id}#0`, header);
     }
 }
 
@@ -138,3 +138,5 @@ export class W3IDBuilder {
         return new W3ID(id, logs);
     }
 }
+
+export * from "./utils/jwt";

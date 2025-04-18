@@ -99,10 +99,11 @@ describe("W3ID JWT Signing", () => {
         const header = getJWTHeader(signedJWT);
         const extractedPayload = getJWTPayload(signedJWT);
 
-        expect(header.kid).toBe(id.id);
+        expect(header.kid).toBe(`@${id.id}#0`);
         expect(header.alg).toBe("ed25519");
         expect(header.typ).toBe("JWT");
         expect(extractedPayload).toEqual(payload);
+        console.log(signedJWT);
     });
 
     test("should throw error when signing without a signer", async () => {
@@ -129,7 +130,6 @@ describe("W3ID JWT Signing", () => {
         };
 
         const signedJWT = await id.signJWT(payload, customHeader);
-        console.log(signedJWT);
         const header = getJWTHeader(signedJWT);
 
         expect(header).toEqual(customHeader);
