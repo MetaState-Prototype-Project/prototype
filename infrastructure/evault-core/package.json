@@ -1,12 +1,25 @@
 {
-	"name": "evault-core",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC"
+    "name": "evault-core",
+    "version": "0.1.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "vitest --config vitest.config.ts"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/node": "^22.13.10",
+        "dotenv": "^16.5.0",
+        "testcontainers": "^10.24.2",
+        "typescript": "^5.8.3",
+        "uuid": "^11.1.0",
+        "vitest": "^3.0.9"
+    },
+    "dependencies": {
+        "@testcontainers/neo4j": "^10.24.2",
+        "neo4j-driver": "^5.28.1",
+        "w3id": "workspace:*"
+    }
 }

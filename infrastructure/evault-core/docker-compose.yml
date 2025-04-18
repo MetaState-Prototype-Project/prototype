@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.15
+    container_name: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j/testpass
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - graphnet
+
+volumes:
+  neo4j_data:
+
+networks:
+  graphnet:
+    driver: bridge
