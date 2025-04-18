@@ -16,7 +16,7 @@ describe("DbService (integration)", () => {
     let driver: Driver;
 
     beforeAll(async () => {
-        container = await new Neo4jContainer("neo4j:4.4.12").start();
+        container = await new Neo4jContainer("neo4j:5.15").start();
 
         const username = container.getUsername();
         const password = container.getPassword();
@@ -24,7 +24,7 @@ describe("DbService (integration)", () => {
         const uri = `bolt://localhost:${boltPort}`;
 
         driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
-        service = new DbService(uri, username, password);
+        service = new DbService(driver);
     });
 
     afterAll(async () => {
