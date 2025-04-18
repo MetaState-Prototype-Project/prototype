@@ -5,12 +5,14 @@ import type { GlobalState } from "$lib/global";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { getContext, onMount } from "svelte";
+import { getContext, onMount } from "svelte";
+import { checkStatus } from '@tauri-apps/plugin-biometric';
 
 let pin = $state("");
 let repeatPin = $state("");
 let firstStep = $state(true);
 let showDrawer = $state(false);
+let isBiometricsAvailable = $state(false)
 let isBiometricScreen = $state(false);
 let isBiometricsAdded = $state(false);
 let isError = $state(false);
@@ -30,16 +32,10 @@ const handleNext = async () => {
 
 const handleSkip = async () => {
     // handle skip biometics logic goes here
+    goto("/review")
 };
 
-const handleSetupBiometrics = async () => {
-    //handle setup biometrics logic goes here
-    isBiometricsAdded = true;
-};
-
-const handleEnableBiometrics = async () => {
-    //handle enable biometrics logic goes here
-};
+let handleSetupBiometrics = $state(async () => {})
 
 const handleBiometricsAdded = async () => {
     //handle logic when biometrics added successfully
@@ -54,6 +50,10 @@ $effect(() => {
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     if (!globalState) throw new Error("Global state is not defined");
+
+    isBiometricsAvailable = (await checkStatus()).isAvailable
+    console.log("isBiometricsAvailable", isBiometricsAvailable)
+
     handleConfirm = async () => {
         //confirm pin logic goes here
         if (repeatPin && repeatPin.length === 4 && pin !== repeatPin) {
@@ -66,6 +66,13 @@ onMount(async () => {
             return
         }
     };
+    handleSetupBiometrics = async () => {
+        if (!globalState) throw new Error("Cannot set biometric support, Global state is not defined");
+        if (isBiometricsAvailable) {
+            globalState.securityController.biometricSupport = true
+        }
+        isBiometricsAdded = true
+    }
 })
 </script>
 
@@ -122,7 +129,10 @@ onMount(async () => {
         {#if !isBiometricsAdded}
             <div class="flex justify-center items-center gap-[11px]">
                 <ButtonAction class="w-full bg-primary-100 text-primary" callback={handleSkip}>Skip</ButtonAction>
-                <ButtonAction class="w-full" callback={handleSetupBiometrics}>Set up</ButtonAction>
+                <div class="flex w-full flex-col gap-2">
+                    <ButtonAction disabled={!isBiometricsAvailable} class="w-full" callback={handleSetupBiometrics}>Set up</ButtonAction>
+                    <p class={`text-danger ${isBiometricsAvailable ? "hidden" : "block"}`}>Biometrics unavailable.</p>
+                </div>
             </div>
         {:else}
             <ButtonAction class="w-full" callback={handleBiometricsAdded}>Continue</ButtonAction>

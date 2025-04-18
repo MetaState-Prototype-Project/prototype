@@ -5,13 +5,27 @@
     import { InputPin } from "$lib/ui";
     import * as Button from "$lib/ui/Button"
     import { getContext, onMount } from "svelte";
+    import { authenticate, BiometryType, checkStatus, type AuthOptions } from '@tauri-apps/plugin-biometric';
 
     let pin = $state("");
     let isError = $state(false);
     let clearPin = $state(async() => {})
     let handlePinInput = $state((pin: string) => {})
     let globalState: GlobalState | undefined = $state(undefined);
-    let cleared = $state(false)
+
+    const authOpts: AuthOptions = {
+		allowDeviceCredential: false,
+
+		cancelTitle: 'Cancel',
+
+		// iOS
+		fallbackTitle: 'Please enter your PIN',
+
+		// Android
+		title: 'Login',
+		subtitle: 'Please authenticate to continue',
+		confirmationRequired: true
+	};
 
     onMount(async () => {
         globalState = getContext<() => GlobalState>("globalState")();
@@ -19,12 +33,10 @@
 
         clearPin = async () => {
             await globalState?.securityController.clearPin()
-            cleared = true
             goto("/")
         }
 
         handlePinInput = async (pin: string) => {
-            console.log("ran")
             if (pin.length === 4) {
                 isError = false;
                 const check = await globalState?.securityController.verifyPin(pin);
@@ -33,6 +45,16 @@
                     return
                 }
                 await goto("/main")
+            }
+        }
+
+        console.log(await globalState.securityController.biometricSupport && (await checkStatus()).isAvailable)
+        if (await globalState.securityController.biometricSupport && (await checkStatus()).isAvailable) {
+            try {
+                await authenticate('You must authenticate with PIN first', authOpts);
+                await goto("/main");
+            } catch (e) {
+                console.error("Biometric authentication failed", e);
             }
         }
 
