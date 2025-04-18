@@ -35,6 +35,25 @@ export class UserController {
         this.#store = store;
     }
 
+    /**
+     * @author SoSweetHam <soham@auvo.io>
+     * @description Sets the user state in the store
+     *
+     * @returns {void}
+     * @example
+     * ```ts
+     * import { GlobalState } from "./state";
+     * const globalState = await GlobalState.create();
+     * globalState.userController.user = {
+     *   name: "John Doe",
+     *   "Date of Birth": "01/01/2000",
+     *   "ID submitted": "American Passport",
+     *   "Passport Number": "1234567-US"
+     * };
+     * console.log(globalState.userController.user);
+     * ```
+     * @throws {Error} If the user state cannot be set in the store
+     */
     set user(
         user:
             | Promise<Record<string, string> | undefined>

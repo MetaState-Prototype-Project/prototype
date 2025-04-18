@@ -51,7 +51,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@kodski.com>
+     * @author SoSweetHam <soham@auvo.io>
      * @returns The pin hash if set, else undefined
      * @throws Error if the pin is not set
      * @description Get the pin hash for the app if set
@@ -63,6 +63,16 @@ export class SecurityController {
             }
             return pin;
         });
+    }
+
+    /**
+     * @author SoSweetHam <soham@auvo.io>
+     * @description Clear the pin for the app - For debug use only, ideally.
+     * @memberof SecurityController
+     * @returns void
+     */
+    async clearPin() {
+        await this.#store.delete("pin");
     }
 
     /**

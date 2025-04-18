@@ -12,7 +12,7 @@ const KEYBOARD = {
 let inputs = $state([0]);
 let pins: { [key: number]: string } = $state({});
 
-interface IInputPinProps extends HTMLAttributes<HTMLDivElement> {
+interface IInputPinProps extends HTMLAttributes<HTMLInputElement> {
     pin: string;
     variant?: "lg" | "sm";
     size?: number;
@@ -101,10 +101,9 @@ const uniqueId = `input${Math.random().toString().split(".")[1]}`;
 const cBase =
     "relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
 </script>
-  
+
 
 <div
-  {...restProps}
   class={cn(`${cBase} ${variant === 'sm' && 'sm'}`, restProps.class)}
 >
   {#if inputs.length}
@@ -130,11 +129,12 @@ const cBase =
             changeHandler(event, i)
           }}
           placeholder=""
+          {...restProps}
         />
         {#if pins[i] !== ''}
-          <div 
+          <div
             class="mask w-[9px] h-[9px] bg-black rounded-full"
-            class:hidden={!pins[i]} 
+            class:hidden={!pins[i]}
           ></div>
         {/if}
       </div>
