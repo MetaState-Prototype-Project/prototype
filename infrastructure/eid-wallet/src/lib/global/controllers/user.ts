@@ -54,12 +54,10 @@ export class UserController {
      * ```
      * @throws {Error} If the user state cannot be set in the store
      */
-    set user(
-        user:
-            | Promise<Record<string, string> | undefined>
-            | Record<string, string>
-            | undefined
-    ) {
+    set user(user:
+        | Promise<Record<string, string> | undefined>
+        | Record<string, string>
+        | undefined) {
         this.#store.set("user", user);
     }
 

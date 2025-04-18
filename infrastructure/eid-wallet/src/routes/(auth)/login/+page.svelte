@@ -1,70 +1,78 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { InputPin } from "$lib/ui";
-    import * as Button from "$lib/ui/Button"
-    import { getContext, onMount } from "svelte";
-    import { authenticate, BiometryType, checkStatus, type AuthOptions } from '@tauri-apps/plugin-biometric';
+import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { InputPin } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import {
+    type AuthOptions,
+    authenticate,
+    checkStatus,
+} from "@tauri-apps/plugin-biometric";
+import { getContext, onMount } from "svelte";
 
-    let pin = $state("");
-    let isError = $state(false);
-    let clearPin = $state(async() => {})
-    let handlePinInput = $state((pin: string) => {})
-    let globalState: GlobalState | undefined = $state(undefined);
+let pin = $state("");
+let isError = $state(false);
+let clearPin = $state(async () => {});
+let handlePinInput = $state((pin: string) => {});
+let globalState: GlobalState | undefined = $state(undefined);
 
-    const authOpts: AuthOptions = {
-		allowDeviceCredential: false,
+const authOpts: AuthOptions = {
+    allowDeviceCredential: false,
 
-		cancelTitle: 'Cancel',
+    cancelTitle: "Cancel",
 
-		// iOS
-		fallbackTitle: 'Please enter your PIN',
+    // iOS
+    fallbackTitle: "Please enter your PIN",
 
-		// Android
-		title: 'Login',
-		subtitle: 'Please authenticate to continue',
-		confirmationRequired: true
-	};
+    // Android
+    title: "Login",
+    subtitle: "Please authenticate to continue",
+    confirmationRequired: true,
+};
 
-    onMount(async () => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        if (!globalState) throw new Error("Global state is not defined");
+onMount(async () => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    if (!globalState) throw new Error("Global state is not defined");
 
-        clearPin = async () => {
-            await globalState?.securityController.clearPin()
-            goto("/")
-        }
+    clearPin = async () => {
+        await globalState?.securityController.clearPin();
+        goto("/");
+    };
 
-        handlePinInput = async (pin: string) => {
-            if (pin.length === 4) {
-                isError = false;
-                const check = await globalState?.securityController.verifyPin(pin);
-                if (!check) {
-                    isError = true;
-                    return
-                }
-                await goto("/main")
+    handlePinInput = async (pin: string) => {
+        if (pin.length === 4) {
+            isError = false;
+            const check = await globalState?.securityController.verifyPin(pin);
+            if (!check) {
+                isError = true;
+                return;
             }
+            await goto("/main");
         }
+    };
 
-        // for some reason it's important for this to be done before the biometric stuff
-        // otherwise pin doesn't work
-        $effect(() => {
-            handlePinInput(pin)
-        })
+    // for some reason it's important for this to be done before the biometric stuff
+    // otherwise pin doesn't work
+    $effect(() => {
+        handlePinInput(pin);
+    });
 
-        if (await globalState.securityController.biometricSupport && (await checkStatus()).isAvailable) {
-            try {
-                await authenticate('You must authenticate with PIN first', authOpts);
-                await goto("/main");
-            } catch (e) {
-                console.error("Biometric authentication failed", e);
-            }
+    if (
+        (await globalState.securityController.biometricSupport) &&
+        (await checkStatus()).isAvailable
+    ) {
+        try {
+            await authenticate(
+                "You must authenticate with PIN first",
+                authOpts,
+            );
+            await goto("/main");
+        } catch (e) {
+            console.error("Biometric authentication failed", e);
         }
-
-    })
-
+    }
+});
 </script>
 
 <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">

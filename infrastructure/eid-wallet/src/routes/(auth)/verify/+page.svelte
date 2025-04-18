@@ -7,7 +7,7 @@ import { getContext, onMount } from "svelte";
 
 let globalState: GlobalState | undefined = $state(undefined);
 
-let handleVerification: () => Promise<void>
+let handleVerification: () => Promise<void>;
 
 onMount(() => {
     globalState = getContext<() => GlobalState>("globalState")();
@@ -18,11 +18,11 @@ onMount(() => {
             name: "John Doe",
             "Date of Birth": "01/01/2000",
             "ID submitted": "American Passport",
-            "Passport Number": "1234567-US"
-        }
+            "Passport Number": "1234567-US",
+        };
         await goto("/register");
     };
-})
+});
 </script>
 
 <main class="h-screen pt-[3vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between items-center">

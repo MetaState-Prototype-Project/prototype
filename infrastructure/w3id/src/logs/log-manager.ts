@@ -9,13 +9,13 @@ import {
 import { isSubsetOf } from "../utils/array";
 import { hash } from "../utils/hash";
 import {
-    isGenesisOptions,
-    isRotationOptions,
     type CreateLogEventOptions,
     type GenesisLogOptions,
     type LogEvent,
     type RotationLogOptions,
     type VerifierCallback,
+    isGenesisOptions,
+    isRotationOptions,
 } from "./log.types";
 import type { StorageSpec } from "./storage/storage-spec";
 
