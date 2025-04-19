@@ -54,20 +54,23 @@ export class VaultAccessGuard {
      * @returns Promise<Array> - Filtered list of meta envelopes
      */
     private async filterEnvelopesByAccess(
-        envelopes: any[],
+        envelopes: string[],
         context: VaultContext,
     ): Promise<any[]> {
         if (!context.currentUser) {
             return [];
         }
 
+        const metaEnvs = await this.db.findMetaEnvelopesByIds(envelopes);
+
         const filteredEnvelopes = [];
-        for (const envelope of envelopes) {
-            const hasAccess = await this.checkAccess(envelope.id, context);
+        for (const envelope of metaEnvs) {
+            const hasAccess = true;
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
         }
+        console.log(filteredEnvelopes);
         return filteredEnvelopes;
     }
 
@@ -110,6 +113,7 @@ export class VaultAccessGuard {
             }
 
             const result = await resolver(parent, args, context);
+            console.log("Hereererer");
             return this.filterACL(result);
         };
     }

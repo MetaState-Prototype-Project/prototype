@@ -3,16 +3,16 @@ import dotenv from "dotenv";
 import { W3IDBuilder } from "w3id";
 import { serializeValue, deserializeValue } from "./schema";
 import {
-  MetaEnvelope,
-  Envelope,
-  MetaEnvelopeResult,
-  StoreMetaEnvelopeResult,
-  SearchMetaEnvelopesResult,
-  GetAllEnvelopesResult,
+    MetaEnvelope,
+    Envelope,
+    MetaEnvelopeResult,
+    StoreMetaEnvelopeResult,
+    SearchMetaEnvelopesResult,
+    GetAllEnvelopesResult,
 } from "./types";
 import path from "path";
 
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 /**
  * Service for managing meta-envelopes and their associated envelopes in Neo4j.
@@ -20,67 +20,70 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
  * with proper type handling and access control.
  */
 export class DbService {
-  private driver: Driver;
+    private driver: Driver;
 
-  /**
-   * Creates a new instance of the DbService.
-   */
-  constructor() {
-    const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
-    const user = process.env.NEO4J_USER || "neo4j";
-    const password = process.env.NEO4J_PASSWORD || "neo4j";
+    /**
+     * Creates a new instance of the DbService.
+     */
+    constructor() {
+        const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
+        const user = process.env.NEO4J_USER || "neo4j";
+        const password = process.env.NEO4J_PASSWORD || "neo4j";
 
-    this.driver = neo4jDriver(uri, auth.basic(user, password));
-  }
-
-  /**
-   * Executes a Cypher query with the given parameters.
-   * @param query - The Cypher query to execute
-   * @param params - The parameters for the query
-   * @returns The result of the query execution
-   */
-  private async runQuery(query: string, params: Record<string, any>) {
-    const session = this.driver.session();
-    try {
-      return await session.run(query, params);
-    } finally {
-      await session.close();
+        this.driver = neo4jDriver(uri, auth.basic(user, password));
     }
-  }
 
-  /**
-   * Stores a new meta-envelope and its associated envelopes.
-   * @param meta - The meta-envelope data (without ID)
-   * @param acl - The access control list for the meta-envelope
-   * @returns The created meta-envelope and its envelopes
-   */
-  async storeMetaEnvelope<T extends Record<string, any> = Record<string, any>>(
-    meta: Omit<MetaEnvelope<T>, "id">,
-    acl: string[]
-  ): Promise<StoreMetaEnvelopeResult<T>> {
-    const w3id = await new W3IDBuilder().build();
+    /**
+     * Executes a Cypher query with the given parameters.
+     * @param query - The Cypher query to execute
+     * @param params - The parameters for the query
+     * @returns The result of the query execution
+     */
+    private async runQuery(query: string, params: Record<string, any>) {
+        const session = this.driver.session();
+        try {
+            return await session.run(query, params);
+        } finally {
+            await session.close();
+        }
+    }
 
-    const cypher: string[] = [
-      `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl })`,
-    ];
+    /**
+     * Stores a new meta-envelope and its associated envelopes.
+     * @param meta - The meta-envelope data (without ID)
+     * @param acl - The access control list for the meta-envelope
+     * @returns The created meta-envelope and its envelopes
+     */
+    async storeMetaEnvelope<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        meta: Omit<MetaEnvelope<T>, "id">,
+        acl: string[],
+    ): Promise<StoreMetaEnvelopeResult<T>> {
+        const w3id = await new W3IDBuilder().build();
 
-    const envelopeParams: Record<string, any> = {
-      metaId: w3id.id,
-      ontology: meta.ontology,
-      acl: acl,
-    };
+        const cypher: string[] = [
+            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl })`,
+        ];
 
-    const createdEnvelopes: Envelope<T[keyof T]>[] = [];
-    let counter = 0;
+        const envelopeParams: Record<string, any> = {
+            metaId: w3id.id,
+            ontology: meta.ontology,
+            acl: acl,
+        };
 
-    for (const [key, value] of Object.entries(meta.payload)) {
-      const envW3id = await new W3IDBuilder().build();
-      const envelopeId = envW3id.id;
-      const alias = `e${counter}`;
+        const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+        let counter = 0;
 
-      const { value: storedValue, type: valueType } = serializeValue(value);
+        for (const [key, value] of Object.entries(meta.payload)) {
+            const envW3id = await new W3IDBuilder().build();
+            const envelopeId = envW3id.id;
+            const alias = `e${counter}`;
 
-      cypher.push(`
+            const { value: storedValue, type: valueType } =
+                serializeValue(value);
+
+            cypher.push(`
       CREATE (${alias}:Envelope {
         id: $${alias}_id,
         ontology: $${alias}_ontology,
@@ -91,48 +94,48 @@ export class DbService {
       MERGE (m)-[:LINKS_TO]->(${alias})
     `);
 
-      envelopeParams[`${alias}_id`] = envelopeId;
-      envelopeParams[`${alias}_ontology`] = key;
-      envelopeParams[`${alias}_value`] = storedValue;
-      envelopeParams[`${alias}_type`] = valueType;
+            envelopeParams[`${alias}_id`] = envelopeId;
+            envelopeParams[`${alias}_ontology`] = key;
+            envelopeParams[`${alias}_value`] = storedValue;
+            envelopeParams[`${alias}_type`] = valueType;
 
-      createdEnvelopes.push({
-        id: envelopeId,
-        ontology: key,
-        value: value as T[keyof T],
-        valueType,
-      });
+            createdEnvelopes.push({
+                id: envelopeId,
+                ontology: key,
+                value: value as T[keyof T],
+                valueType,
+            });
 
-      counter++;
+            counter++;
+        }
+
+        await this.runQuery(cypher.join("\n"), envelopeParams);
+
+        return {
+            metaEnvelope: {
+                id: w3id.id,
+                ontology: meta.ontology,
+                acl: acl,
+            },
+            envelopes: createdEnvelopes,
+        };
     }
 
-    await this.runQuery(cypher.join("\n"), envelopeParams);
-
-    return {
-      metaEnvelope: {
-        id: w3id.id,
-        ontology: meta.ontology,
-        acl: acl,
-      },
-      envelopes: createdEnvelopes,
-    };
-  }
-
-  /**
-   * Finds meta-envelopes containing the search term in any of their envelopes.
-   * Returns all envelopes from the matched meta-envelopes.
-   * @param ontology - The ontology to search within
-   * @param searchTerm - The term to search for
-   * @returns Array of matched meta-envelopes with their complete envelope sets
-   */
-  async findMetaEnvelopesBySearchTerm<
-    T extends Record<string, any> = Record<string, any>,
-  >(
-    ontology: string,
-    searchTerm: string
-  ): Promise<SearchMetaEnvelopesResult<T>> {
-    const result = await this.runQuery(
-      `
+    /**
+     * Finds meta-envelopes containing the search term in any of their envelopes.
+     * Returns all envelopes from the matched meta-envelopes.
+     * @param ontology - The ontology to search within
+     * @param searchTerm - The term to search for
+     * @returns Array of matched meta-envelopes with their complete envelope sets
+     */
+    async findMetaEnvelopesBySearchTerm<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        ontology: string,
+        searchTerm: string,
+    ): Promise<SearchMetaEnvelopesResult<T>> {
+        const result = await this.runQuery(
+            `
     MATCH (m:MetaEnvelope { ontology: $ontology })-[:LINKS_TO]->(e:Envelope)
     WHERE 
       CASE e.valueType
@@ -145,179 +148,236 @@ export class DbService {
     MATCH (m)-[:LINKS_TO]->(allEnvelopes:Envelope)
     RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(allEnvelopes) AS envelopes
     `,
-      { ontology, term: searchTerm }
-    );
+            { ontology, term: searchTerm },
+        );
 
-    return result.records.map((record): MetaEnvelopeResult<T> => {
-      const envelopes = record
-        .get("envelopes")
-        .map((node: any): Envelope<T[keyof T]> => {
-          const properties = node.properties;
-          return {
-            id: properties.id,
-            ontology: properties.ontology,
-            value: deserializeValue(
-              properties.value,
-              properties.valueType
-            ) as T[keyof T],
-            valueType: properties.valueType,
-          };
+        return result.records.map((record): MetaEnvelopeResult<T> => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const properties = node.properties;
+                    return {
+                        id: properties.id,
+                        ontology: properties.ontology,
+                        value: deserializeValue(
+                            properties.value,
+                            properties.valueType,
+                        ) as T[keyof T],
+                        valueType: properties.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, envelope: Envelope<T[keyof T]>) => {
+                    (acc as any)[envelope.ontology] = envelope.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            return {
+                id: record.get("id"),
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                envelopes,
+                parsed,
+            };
         });
+    }
 
-      const parsed = envelopes.reduce(
-        (acc: T, envelope: Envelope<T[keyof T]>) => {
-          (acc as any)[envelope.ontology] = envelope.value;
-          return acc;
-        },
-        {} as T
-      );
+    /**
+     * Finds multiple meta-envelopes by an array of IDs.
+     * @param ids - Array of MetaEnvelope IDs
+     * @returns Array of meta-envelopes with envelopes and parsed payload
+     */
+    async findMetaEnvelopesByIds<
+        T extends Record<string, any> = Record<string, any>,
+    >(ids: string[]): Promise<MetaEnvelopeResult<T>[]> {
+        if (!ids.length) return [];
 
-      return {
-        id: record.get("id"),
-        ontology: record.get("ontology"),
-        acl: record.get("acl"),
-        envelopes,
-        parsed,
-      };
-    });
-  }
+        const result = await this.runQuery(
+            `
+    MATCH (m:MetaEnvelope)-[:LINKS_TO]->(e:Envelope)
+    WHERE m.id IN $ids
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+    `,
+            { ids },
+        );
 
-  /**
-   * Finds a meta-envelope by its ID.
-   * @param id - The ID of the meta-envelope to find
-   * @returns The meta-envelope with all its envelopes and parsed payload, or null if not found
-   */
-  async findMetaEnvelopeById<
-    T extends Record<string, any> = Record<string, any>,
-  >(id: string): Promise<MetaEnvelopeResult<T> | null> {
-    const result = await this.runQuery(
-      `
+        return result.records.map((record): MetaEnvelopeResult<T> => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const props = node.properties;
+                    return {
+                        id: props.id,
+                        ontology: props.ontology,
+                        value: deserializeValue(
+                            props.value,
+                            props.valueType,
+                        ) as T[keyof T],
+                        valueType: props.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, env: Envelope<T[keyof T]>) => {
+                    (acc as any)[env.ontology] = env.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            return {
+                id: record.get("id"),
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                envelopes,
+                parsed,
+            };
+        });
+    }
+
+    /**
+     * Finds a meta-envelope by its ID.
+     * @param id - The ID of the meta-envelope to find
+     * @returns The meta-envelope with all its envelopes and parsed payload, or null if not found
+     */
+    async findMetaEnvelopeById<
+        T extends Record<string, any> = Record<string, any>,
+    >(id: string): Promise<MetaEnvelopeResult<T> | null> {
+        const result = await this.runQuery(
+            `
       MATCH (m:MetaEnvelope { id: $id })-[:LINKS_TO]->(e:Envelope)
       RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
       `,
-      { id }
-    );
+            { id },
+        );
 
-    if (!result.records[0]) return null;
+        if (!result.records[0]) return null;
 
-    const record = result.records[0];
-    const envelopes = record
-      .get("envelopes")
-      .map((node: any): Envelope<T[keyof T]> => {
-        const properties = node.properties;
+        const record = result.records[0];
+        const envelopes = record
+            .get("envelopes")
+            .map((node: any): Envelope<T[keyof T]> => {
+                const properties = node.properties;
+                return {
+                    id: properties.id,
+                    ontology: properties.ontology,
+                    value: deserializeValue(
+                        properties.value,
+                        properties.valueType,
+                    ) as T[keyof T],
+                    valueType: properties.valueType,
+                };
+            });
+
+        const parsed = envelopes.reduce(
+            (acc: T, envelope: Envelope<T[keyof T]>) => {
+                (acc as any)[envelope.ontology] = envelope.value;
+                return acc;
+            },
+            {} as T,
+        );
+
         return {
-          id: properties.id,
-          ontology: properties.ontology,
-          value: deserializeValue(
-            properties.value,
-            properties.valueType
-          ) as T[keyof T],
-          valueType: properties.valueType,
+            id: record.get("id"),
+            ontology: record.get("ontology"),
+            acl: record.get("acl"),
+            envelopes,
+            parsed,
         };
-      });
+    }
 
-    const parsed = envelopes.reduce(
-      (acc: T, envelope: Envelope<T[keyof T]>) => {
-        (acc as any)[envelope.ontology] = envelope.value;
-        return acc;
-      },
-      {} as T
-    );
-
-    return {
-      id: record.get("id"),
-      ontology: record.get("ontology"),
-      acl: record.get("acl"),
-      envelopes,
-      parsed,
-    };
-  }
-
-  /**
-   * Finds all meta-envelope IDs for a given ontology.
-   * @param ontology - The ontology to search for
-   * @returns Array of meta-envelope IDs
-   */
-  async findMetaEnvelopesByOntology(ontology: string): Promise<string[]> {
-    const result = await this.runQuery(
-      `
+    /**
+     * Finds all meta-envelope IDs for a given ontology.
+     * @param ontology - The ontology to search for
+     * @returns Array of meta-envelope IDs
+     */
+    async findMetaEnvelopesByOntology(ontology: string): Promise<string[]> {
+        const result = await this.runQuery(
+            `
       MATCH (m:MetaEnvelope { ontology: $ontology })
       RETURN m.id AS id
       `,
-      { ontology }
-    );
+            { ontology },
+        );
 
-    return result.records.map((r) => r.get("id"));
-  }
+        return result.records.map((r) => r.get("id"));
+    }
 
-  /**
-   * Deletes a meta-envelope and all its associated envelopes.
-   * @param id - The ID of the meta-envelope to delete
-   */
-  async deleteMetaEnvelope(id: string): Promise<void> {
-    await this.runQuery(
-      `
+    /**
+     * Deletes a meta-envelope and all its associated envelopes.
+     * @param id - The ID of the meta-envelope to delete
+     */
+    async deleteMetaEnvelope(id: string): Promise<void> {
+        await this.runQuery(
+            `
       MATCH (m:MetaEnvelope { id: $id })-[:LINKS_TO]->(e:Envelope)
       DETACH DELETE m, e
       `,
-      { id }
-    );
-  }
+            { id },
+        );
+    }
 
-  /**
-   * Updates the value of an envelope.
-   * @param envelopeId - The ID of the envelope to update
-   * @param newValue - The new value to set
-   */
-  async updateEnvelopeValue<T = any>(
-    envelopeId: string,
-    newValue: T
-  ): Promise<void> {
-    const { value: storedValue, type: valueType } = serializeValue(newValue);
+    /**
+     * Updates the value of an envelope.
+     * @param envelopeId - The ID of the envelope to update
+     * @param newValue - The new value to set
+     */
+    async updateEnvelopeValue<T = any>(
+        envelopeId: string,
+        newValue: T,
+    ): Promise<void> {
+        const { value: storedValue, type: valueType } =
+            serializeValue(newValue);
 
-    await this.runQuery(
-      `
+        await this.runQuery(
+            `
       MATCH (e:Envelope { id: $envelopeId })
       SET e.value = $newValue, e.valueType = $valueType
       `,
-      { envelopeId, newValue: storedValue, valueType }
-    );
-  }
+            { envelopeId, newValue: storedValue, valueType },
+        );
+    }
 
-  /**
-   * Retrieves all envelopes in the system.
-   * @returns Array of all envelopes
-   */
-  async getAllEnvelopes<T = any>(): Promise<GetAllEnvelopesResult<T>> {
-    const result = await this.runQuery(`MATCH (e:Envelope) RETURN e`, {});
-    return result.records.map((r): Envelope<T> => {
-      const node = r.get("e");
-      const properties = node.properties;
-      return {
-        id: properties.id,
-        ontology: properties.ontology,
-        value: deserializeValue(properties.value, properties.valueType) as T,
-        valueType: properties.valueType,
-      };
-    });
-  }
+    /**
+     * Retrieves all envelopes in the system.
+     * @returns Array of all envelopes
+     */
+    async getAllEnvelopes<T = any>(): Promise<GetAllEnvelopesResult<T>> {
+        const result = await this.runQuery(`MATCH (e:Envelope) RETURN e`, {});
+        return result.records.map((r): Envelope<T> => {
+            const node = r.get("e");
+            const properties = node.properties;
+            return {
+                id: properties.id,
+                ontology: properties.ontology,
+                value: deserializeValue(
+                    properties.value,
+                    properties.valueType,
+                ) as T,
+                valueType: properties.valueType,
+            };
+        });
+    }
 
-  /**
-   * Closes the database connection.
-   */
-  async close(): Promise<void> {
-    await this.driver.close();
-  }
+    /**
+     * Closes the database connection.
+     */
+    async close(): Promise<void> {
+        await this.driver.close();
+    }
 
-  private parseRecord(record: any): Envelope {
-    // ... existing code ...
-  }
+    private parseRecord(record: any): Envelope {
+        // ... existing code ...
+    }
 
-  private parseSearchResult(r: any): Envelope {
-    // ... existing code ...
-  }
+    private parseSearchResult(r: any): Envelope {
+        // ... existing code ...
+    }
 
-  private parseGetAllResult(r: any): Envelope {
-    // ... existing code ...
-  }
+    private parseGetAllResult(r: any): Envelope {
+        // ... existing code ...
+    }
 }

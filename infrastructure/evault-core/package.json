@@ -6,7 +6,7 @@
     "scripts": {
         "test": "vitest --config vitest.config.ts",
         "build": "tsc",
-        "dev": "tsx --watch  src/evault.ts"
+        "dev": "tsx watch ./src/evault.ts"
     },
     "packageManager": "pnpm@10.6.5",
     "keywords": [],

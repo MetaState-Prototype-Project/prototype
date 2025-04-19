@@ -119,7 +119,6 @@ export class GraphQLServer {
 
                 if (token) {
                     const id = getJWTHeader(token).kid?.split("#")[0];
-                    console.log(id);
                     return {
                         currentUser: id ?? null,
                     };
