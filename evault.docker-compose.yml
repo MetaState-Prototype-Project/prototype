@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  evault:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.evault
+    ports:
+      - "4000:4000"
+    environment:
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+    networks: 
+      - graphnet
+    depends_on:
+      - neo4j
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./infrastructure/evault-core/
+          target: /app/infrastructure/evault-core
+          ignore:
+            - node_modules
+        - action: rebuild
+          path: ./infrastructure/evault-core/package.json
+        - action: rebuild
+          path: ./.env
+
+  neo4j:
+    image: neo4j:5.15
+    container_name: evault-neo4j
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/log
+    networks:
+      - graphnet
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+
+networks:
+  graphnet:
+    driver: bridge

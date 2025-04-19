@@ -15,6 +15,16 @@ class EVault {
         const user = process.env.NEO4J_USER || "neo4j";
         const password = process.env.NEO4J_PASSWORD || "neo4j";
 
+        if (
+            !process.env.NEO4J_URI ||
+            !process.env.NEO4J_USER ||
+            !process.env.NEO4J_PASSWORD
+        ) {
+            console.warn(
+                "Using default Neo4j connection parameters. Set NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD environment variables for custom configuration.",
+            );
+        }
+
         const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
         const dbService = new DbService(driver);
         const gqlServer = new GraphQLServer(dbService);
