@@ -1,32 +1,35 @@
 {
-  "name": "evault-core",
-  "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "vitest --config vitest.config.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@types/json-schema": "^7.0.15",
-    "@types/node": "^22.13.10",
-    "dotenv": "^16.5.0",
-    "testcontainers": "^10.24.2",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.3",
-    "uuid": "^11.1.0",
-    "vitest": "^3.0.9"
-  },
-  "dependencies": {
-    "@testcontainers/neo4j": "^10.24.2",
-    "graphql": "^16.10.0",
-    "graphql-type-json": "^0.3.2",
-    "graphql-voyager": "^2.1.0",
-    "graphql-yoga": "^5.13.4",
-    "json-schema": "^0.4.0",
-    "neo4j-driver": "^5.28.1",
-    "w3id": "workspace:*"
-  }
+    "name": "evault-core",
+    "version": "0.1.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "vitest --config vitest.config.ts",
+        "build": "tsc",
+        "dev": "node --watch --import tsx src/evault.ts"
+    },
+    "packageManager": "pnpm@10.6.5",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@types/json-schema": "^7.0.15",
+        "@types/node": "^22.13.10",
+        "dotenv": "^16.5.0",
+        "testcontainers": "^10.24.2",
+        "tsx": "^4.19.3",
+        "typescript": "^5.8.3",
+        "uuid": "^11.1.0",
+        "vitest": "^3.0.9"
+    },
+    "dependencies": {
+        "@testcontainers/neo4j": "^10.24.2",
+        "graphql": "^16.10.0",
+        "graphql-type-json": "^0.3.2",
+        "graphql-voyager": "^2.1.0",
+        "graphql-yoga": "^5.13.4",
+        "json-schema": "^0.4.0",
+        "neo4j-driver": "^5.28.1",
+        "w3id": "workspace:*"
+    }
 }

@@ -1,4 +1,3 @@
-// ✅ Full aligned test suite for eVault
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createYoga } from "graphql-yoga";
 import { createServer } from "http";
@@ -32,6 +31,7 @@ describe("eVault E2E", () => {
     let driver;
     let w3id;
     let testEnvelopeId;
+    let port: number;
 
     const testOntology = "SocialMediaPost";
     const testPayload = {
@@ -68,7 +68,7 @@ describe("eVault E2E", () => {
         });
 
         const httpServer = createServer(yoga);
-        const port = await getFreePort();
+        port = await getFreePort();
         await new Promise((resolve) => httpServer.listen(port, resolve));
         server = httpServer;
     });
@@ -79,7 +79,7 @@ describe("eVault E2E", () => {
     });
 
     const executeGraphQL = async (query, variables = {}, token) => {
-        const res = await fetch("http://localhost:4000/graphql", {
+        const res = await fetch(`http://localhost:${port}/graphql`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -129,6 +129,27 @@ describe("eVault E2E", () => {
     });
 
     it("should reject unauthorized access", async () => {
+        const token = await w3id.signJWT({ sub: w3id.id });
+        const store = await executeGraphQL(
+            `mutation Store($input: MetaEnvelopeInput!) {
+        storeMetaEnvelope(input: $input) {
+          metaEnvelope { id ontology parsed }
+          envelopes { id ontology value valueType }
+        }
+      }`,
+            {
+                input: {
+                    ontology: testOntology,
+                    payload: testPayload,
+                    acl: ["@001231232"],
+                },
+            },
+            token,
+        );
+
+        expect(store.errors).toBeUndefined();
+        const unauthEnvId = store.data.storeMetaEnvelope.metaEnvelope.id;
+
         const otherSigner = createMockSigner();
         const otherRepo = new MockStorage();
         const other = await new W3IDBuilder()
@@ -142,7 +163,7 @@ describe("eVault E2E", () => {
             `query Read($id: String!) {
         getMetaEnvelopeById(id: $id) { id }
       }`,
-            { id: testEnvelopeId },
+            { id: unauthEnvId },
             otherToken,
         );
 

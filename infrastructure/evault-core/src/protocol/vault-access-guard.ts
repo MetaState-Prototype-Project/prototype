@@ -1,5 +1,6 @@
 import { YogaInitialContext } from "graphql-yoga";
 import { DbService } from "../db/db.service";
+import { MetaEnvelope } from "../db/types";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
@@ -54,16 +55,13 @@ export class VaultAccessGuard {
      * @returns Promise<Array> - Filtered list of meta envelopes
      */
     private async filterEnvelopesByAccess(
-        envelopes: any[],
+        envelopes: MetaEnvelope[],
         context: VaultContext,
     ): Promise<any[]> {
-        if (!context.currentUser) {
-            return [];
-        }
-
         const filteredEnvelopes = [];
         for (const envelope of envelopes) {
-            const hasAccess = await this.checkAccess(envelope.id, context);
+            const hasAccess = envelope.acl.includes("*") ||
+                envelope.acl.includes(context.currentUser ?? "");
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
@@ -109,6 +107,7 @@ export class VaultAccessGuard {
                 throw new Error("Access denied");
             }
 
+            // console.log
             const result = await resolver(parent, args, context);
             return this.filterACL(result);
         };

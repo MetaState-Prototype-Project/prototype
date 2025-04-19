@@ -1,0 +1,23 @@
+FROM node:22-slim AS deps
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY . /app
+WORKDIR /app
+RUN npm i -g corepack@latest
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm turbo prune evault-core --docker --use-gitignore=false
+RUN mkdir /out
+RUN cp -R ./out/full/* /out/
+RUN cp -R ./out/json/* /out/
+RUN cp ./out/pnpm-lock.yaml /out/pnpm-lock.yaml
+RUN cp -R node_modules/ /out/
+
+
+FROM node:22-slim AS core-api
+WORKDIR /app
+RUN npm i -g corepack@latest
+COPY --from=deps /out/ /app
+EXPOSE 4000
+workdir /app/infrastructure/evault-core
+CMD ["pnpm", "dev"]
