@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'infrastructure/w3id/**'
+      - 'infrastructure/evault-core/**'
 
 jobs:
   test:
