@@ -7,6 +7,7 @@ WORKDIR /app
 RUN npm i -g corepack@latest
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm turbo prune evault-core --docker --use-gitignore=false
+RUN pnpm -F=evault-core build
 RUN mkdir /out
 RUN cp -R ./out/full/* /out/
 RUN cp -R ./out/json/* /out/
@@ -19,5 +20,5 @@ WORKDIR /app
 RUN npm i -g corepack@latest
 COPY --from=deps /out/ /app
 EXPOSE 4000
-WORKDIR /app/infrastructure/evault-core
-CMD ["pnpm", "dev"]
+workdir /app/infrastructure/evault-core
+CMD ["pnpm", "start"]
