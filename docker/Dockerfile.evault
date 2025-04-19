@@ -18,6 +18,6 @@ FROM node:22-slim AS core-api
 WORKDIR /app
 RUN npm i -g corepack@latest
 COPY --from=deps /out/ /app
-EXPOSE 1209
+EXPOSE 4000
 workdir /app/infrastructure/evault-core
 CMD ["pnpm", "dev"]
