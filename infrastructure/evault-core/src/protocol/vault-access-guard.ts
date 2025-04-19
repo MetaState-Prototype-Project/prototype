@@ -1,7 +1,6 @@
 import { YogaInitialContext } from "graphql-yoga";
 import { DbService } from "../db/db.service";
 import { MetaEnvelope } from "../db/types";
-import { env } from "node:process";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
