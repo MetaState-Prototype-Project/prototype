@@ -1,5 +1,7 @@
 import { YogaInitialContext } from "graphql-yoga";
 import { DbService } from "../db/db.service";
+import { MetaEnvelope } from "../db/types";
+import { env } from "node:process";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
@@ -54,23 +56,19 @@ export class VaultAccessGuard {
      * @returns Promise<Array> - Filtered list of meta envelopes
      */
     private async filterEnvelopesByAccess(
-        envelopes: string[],
+        envelopes: MetaEnvelope[],
         context: VaultContext,
     ): Promise<any[]> {
-        if (!context.currentUser) {
-            return [];
-        }
-
-        const metaEnvs = await this.db.findMetaEnvelopesByIds(envelopes);
-
         const filteredEnvelopes = [];
-        for (const envelope of metaEnvs) {
-            const hasAccess = true;
+        for (const envelope of envelopes) {
+            const hasAccess =
+                envelope.acl[0] !== "*"
+                    ? envelope.acl.includes(context.currentUser ?? "")
+                    : [];
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
         }
-        console.log(filteredEnvelopes);
         return filteredEnvelopes;
     }
 
@@ -112,8 +110,8 @@ export class VaultAccessGuard {
                 throw new Error("Access denied");
             }
 
+            // console.log
             const result = await resolver(parent, args, context);
-            console.log("Hereererer");
             return this.filterACL(result);
         };
     }

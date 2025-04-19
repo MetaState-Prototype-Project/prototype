@@ -1,5 +1,4 @@
-import { Driver, driver as neo4jDriver, auth } from "neo4j-driver";
-import dotenv from "dotenv";
+import { Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { serializeValue, deserializeValue } from "./schema";
 import {
@@ -10,9 +9,6 @@ import {
     SearchMetaEnvelopesResult,
     GetAllEnvelopesResult,
 } from "./types";
-import path from "path";
-
-dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 /**
  * Service for managing meta-envelopes and their associated envelopes in Neo4j.
@@ -25,12 +21,8 @@ export class DbService {
     /**
      * Creates a new instance of the DbService.
      */
-    constructor() {
-        const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
-        const user = process.env.NEO4J_USER || "neo4j";
-        const password = process.env.NEO4J_PASSWORD || "neo4j";
-
-        this.driver = neo4jDriver(uri, auth.basic(user, password));
+    constructor(driver: Driver) {
+        this.driver = driver;
     }
 
     /**
@@ -290,20 +282,53 @@ export class DbService {
     }
 
     /**
-     * Finds all meta-envelope IDs for a given ontology.
+     * Finds all meta-envelopes by ontology with their envelopes and parsed payload.
      * @param ontology - The ontology to search for
-     * @returns Array of meta-envelope IDs
+     * @returns Array of meta-envelopes
      */
-    async findMetaEnvelopesByOntology(ontology: string): Promise<string[]> {
+    async findMetaEnvelopesByOntology<
+        T extends Record<string, any> = Record<string, any>,
+    >(ontology: string): Promise<MetaEnvelopeResult<T>[]> {
         const result = await this.runQuery(
             `
-      MATCH (m:MetaEnvelope { ontology: $ontology })
-      RETURN m.id AS id
-      `,
+    MATCH (m:MetaEnvelope { ontology: $ontology })-[:LINKS_TO]->(e:Envelope)
+    RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+    `,
             { ontology },
         );
 
-        return result.records.map((r) => r.get("id"));
+        return result.records.map((record) => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const properties = node.properties;
+                    return {
+                        id: properties.id,
+                        ontology: properties.ontology,
+                        value: deserializeValue(
+                            properties.value,
+                            properties.valueType,
+                        ) as T[keyof T],
+                        valueType: properties.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, envelope: Envelope<T[keyof T]>) => {
+                    (acc as any)[envelope.ontology] = envelope.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            return {
+                id: record.get("id"),
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                envelopes,
+                parsed,
+            };
+        });
     }
 
     /**
@@ -367,17 +392,5 @@ export class DbService {
      */
     async close(): Promise<void> {
         await this.driver.close();
-    }
-
-    private parseRecord(record: any): Envelope {
-        // ... existing code ...
-    }
-
-    private parseSearchResult(r: any): Envelope {
-        // ... existing code ...
-    }
-
-    private parseGetAllResult(r: any): Envelope {
-        // ... existing code ...
     }
 }

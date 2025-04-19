@@ -1,5 +1,5 @@
 import { createSchema, createYoga, YogaInitialContext } from "graphql-yoga";
-import { createServer } from "http";
+import { createServer, Server } from "http";
 import { typeDefs } from "./typedefs";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { getJWTHeader } from "w3id";
@@ -15,6 +15,7 @@ export class GraphQLServer {
         typeDefs,
         resolvers: {},
     });
+    server?: Server;
 
     constructor(db: DbService) {
         this.db = db;
@@ -130,7 +131,7 @@ export class GraphQLServer {
             },
         });
 
-        const server = createServer((req, res) => {
+        this.server = createServer((req, res) => {
             if (req.url === "/voyager") {
                 res.writeHead(200, { "Content-Type": "text/html" });
                 res.end(
@@ -141,11 +142,6 @@ export class GraphQLServer {
             } else {
                 yoga(req, res);
             }
-        });
-
-        server.listen(4000, () => {
-            console.log("🚀 GraphQL at http://localhost:4000/graphql");
-            console.log("🛰️ Voyager at http://localhost:4000/voyager");
         });
     }
 }
