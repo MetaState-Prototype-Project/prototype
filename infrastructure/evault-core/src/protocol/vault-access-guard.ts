@@ -61,10 +61,8 @@ export class VaultAccessGuard {
     ): Promise<any[]> {
         const filteredEnvelopes = [];
         for (const envelope of envelopes) {
-            const hasAccess =
-                envelope.acl[0] !== "*"
-                    ? envelope.acl.includes(context.currentUser ?? "")
-                    : [];
+            const hasAccess = envelope.acl.includes("*") ||
+                envelope.acl.includes(context.currentUser ?? "");
             if (hasAccess) {
                 filteredEnvelopes.push(this.filterACL(envelope));
             }
