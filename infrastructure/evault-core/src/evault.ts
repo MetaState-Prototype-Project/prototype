@@ -32,10 +32,10 @@ class EVault {
     }
 
     start() {
-        const port = process.env.PORT ?? 4000;
-        this.server.listen(port, () => {
-            console.log(`GraphQL Server started on http://localhost:${port}`);
-            console.log(`Voyager started on http://localhost:${port}`);
+        const port = process.env.NOMAD_PORT_http || process.env.PORT || 4000;
+        this.server.listen(Number(port), "0.0.0.0", () => {
+            console.log(`GraphQL Server started on http://0.0.0.0:${port}`);
+            console.log(`Voyager started on http://0.0.0.0:${port}`);
         });
     }
 }

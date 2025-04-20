@@ -1,18 +1,27 @@
 {
-	"compilerOptions": {
-		"target": "ES2017",
-		"module": "ESNext",
-		"lib": ["ESNext", "DOM"],
-		"declaration": true,
-		"declarationDir": "./dist/types",
-		"outDir": "./dist",
-		"rootDir": "./src",
-		"strict": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"moduleResolution": "Node",
-		"skipLibCheck": true
-	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+    "compilerOptions": {
+        "target": "ES2021",
+        "module": "CommonJS",
+        "lib": [
+            "ESNext",
+            "DOM"
+        ],
+        "declaration": true,
+        "declarationDir": "./dist/types",
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "strict": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "Node",
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "*/**/*.spec.ts"
+    ]
 }
