@@ -14,7 +14,7 @@ export function generateNomadJob(
                     Name: "evault",
                     Networks: [
                         {
-                            Mode: "host",
+                            Mode: "bridge",
                             DynamicPorts: [
                                 {
                                     Label: "http",
@@ -35,9 +35,12 @@ export function generateNomadJob(
                             Driver: "docker",
                             Config: {
                                 image: "neo4j:5.15",
+                                ports: [],
                             },
                             Env: {
                                 NEO4J_AUTH: `${neo4jUser}/${neo4jPassword}`,
+                                "dbms.connector.bolt.listen_address":
+                                    "0.0.0.0:7687",
                             },
                             Resources: {
                                 CPU: 300,
@@ -50,21 +53,18 @@ export function generateNomadJob(
                             Config: {
                                 image: "merulauvo/evault:latest",
                                 ports: ["http"],
-                                port_map: [
-                                    {
-                                        http: 4000,
-                                    },
-                                ],
                             },
                             Env: {
                                 NEO4J_URI: "bolt://localhost:7687",
                                 NEO4J_USER: neo4jUser,
                                 NEO4J_PASSWORD: neo4jPassword,
+                                PORT: "${NOMAD_PORT_http}",
                             },
                             Resources: {
                                 CPU: 300,
                                 MemoryMB: 512,
                             },
+                            DependsOn: ["neo4j"],
                         },
                     ],
                 },

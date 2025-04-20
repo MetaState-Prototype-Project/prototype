@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import axios, { AxiosError } from "axios";
 import { generateNomadJob } from "./templates/evault.nomad.js";
 import dotenv from "dotenv";
+import { subscribeToAlloc } from "./listeners/alloc.js";
 
 dotenv.config();
 
@@ -54,7 +55,19 @@ app.post(
             );
             const jobName = `evault-${tenantId}`;
 
-            await axios.post("http://localhost:4646/v1/jobs", jobJSON);
+            const { data } = await axios.post(
+                "http://localhost:4646/v1/jobs",
+                jobJSON,
+            );
+            const evalId = data.EvalID;
+
+            const sub = subscribeToAlloc(evalId);
+            sub.on("ready", async (allocId) => {
+                console.log("Alloc is ready:", allocId);
+            });
+            sub.on("error", (err) => {
+                console.error("Alloc wait failed:", err);
+            });
 
             res.json({
                 success: true,
