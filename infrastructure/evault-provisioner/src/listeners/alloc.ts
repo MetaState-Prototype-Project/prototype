@@ -1,33 +1,8 @@
 import EventEmitter from "events";
 import axios from "axios";
-import net from "net";
 
 export function subscribeToAlloc(evalId: string): EventEmitter {
     const emitter = new EventEmitter();
-
-    const waitForPort = async (host: string, port: number, timeout = 20000) => {
-        const start = Date.now();
-        return new Promise<void>((resolve, reject) => {
-            const tryConnect = () => {
-                const socket = net.createConnection(port, host);
-                socket.once("connect", () => {
-                    socket.destroy();
-                    resolve();
-                });
-                socket.once("error", () => {
-                    socket.destroy();
-                    if (Date.now() - start > timeout) {
-                        reject(
-                            new Error(`Timed out waiting for ${host}:${port}`),
-                        );
-                    } else {
-                        setTimeout(tryConnect, 1000);
-                    }
-                });
-            };
-            tryConnect();
-        });
-    };
 
     const poll = async () => {
         try {
@@ -84,9 +59,6 @@ export function subscribeToAlloc(evalId: string): EventEmitter {
             }
 
             const url = `http://${host}:${port}`;
-
-            // Step 4: Wait until reachable
-            await waitForPort(host, port);
 
             emitter.emit("ready", url);
         } catch (err) {

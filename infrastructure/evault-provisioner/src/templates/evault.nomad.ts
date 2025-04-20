@@ -1,12 +1,27 @@
-export function generateNomadJob(
-    tenantId: string,
-    neo4jUser: string,
-    neo4jPassword: string,
-) {
+export function generatePassword(length = 16): string {
+    const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    const charsLength = chars.length;
+    const randomValues = new Uint32Array(length);
+
+    crypto.getRandomValues(randomValues);
+
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(randomValues[i] % charsLength);
+    }
+
+    return result;
+}
+
+export function generateNomadJob(w3id: string, eVaultId: string) {
+    const neo4jUser = "neo4j";
+    const neo4jPassword = generatePassword(24);
+
     return {
         Job: {
-            ID: `evault-${tenantId}`,
-            Name: `evault-${tenantId}`,
+            ID: `evault-${w3id}`,
+            Name: `evault-${w3id}`,
             Type: "service",
             Datacenters: ["dc1"],
             TaskGroups: [
@@ -24,9 +39,13 @@ export function generateNomadJob(
                     ],
                     Services: [
                         {
-                            Name: `evault-${tenantId}`,
+                            Name: `evault`,
                             PortLabel: "http",
                             Tags: ["internal"],
+                            Meta: {
+                                whois: w3id,
+                                id: eVaultId,
+                            },
                         },
                     ],
                     Tasks: [
