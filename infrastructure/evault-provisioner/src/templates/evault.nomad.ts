@@ -78,6 +78,7 @@ export function generateNomadJob(w3id: string, eVaultId: string) {
                                 NEO4J_USER: neo4jUser,
                                 NEO4J_PASSWORD: neo4jPassword,
                                 PORT: "${NOMAD_PORT_http}",
+                                W3ID: w3id,
                             },
                             Resources: {
                                 CPU: 300,
