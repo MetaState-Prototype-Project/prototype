@@ -1,0 +1,39 @@
+
+# Node cruft
+node_modules
+.pnpm
+dist
+build
+.cache
+turbo
+out
+
+# Dependency locks from other ecosystems
+package-lock.json
+yarn.lock
+
+# Logs & temp
+*.log
+*.tsbuildinfo
+.vscode
+.idea
+.env
+.env.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local-only files
+coverage
+*.local.*
+*.swp
+*.swo
+
+# Git stuff
+.git
+.gitignore
+
+# Prevent docker context pollution from other packages in monorepo
+apps/*/node_modules
+packages/*/node_modules

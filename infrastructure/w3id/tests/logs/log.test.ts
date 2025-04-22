@@ -1,20 +1,10 @@
-import { StorageSpec } from "../../src/logs/storage/storage-spec.ts";
-import {
-    LogEvent,
-    Signer,
-    VerifierCallback,
-} from "../../src/logs/log.types.ts";
+import { LogEvent } from "../../src/logs/log.types.ts";
 import { IDLogManager } from "../../src/logs/log-manager";
 import { generateUuid } from "../../src/utils/uuid";
 import { describe, expect, test, expectTypeOf } from "vitest";
 import { hash } from "../../src/utils/hash";
 import nacl from "tweetnacl";
-import {
-    uint8ArrayToHex,
-    stringToUint8Array,
-    hexToUint8Array,
-} from "../../src/utils/codec";
-import { base58btc } from "multiformats/bases/base58";
+import { uint8ArrayToHex } from "../../src/utils/codec";
 import falso from "@ngneat/falso";
 import {
     BadNextKeySpecifiedError,
@@ -23,79 +13,16 @@ import {
     MalformedHashChainError,
     MalformedIndexChainError,
 } from "../../src/errors/errors.ts";
-
-class InMemoryStorage<T extends LogEvent, K extends LogEvent>
-    implements StorageSpec<T, K>
-{
-    private data: K[] = [];
-
-    public static build<T extends LogEvent, K extends LogEvent>(): StorageSpec<
-        T,
-        K
-    > {
-        return new InMemoryStorage<T, K>();
-    }
-
-    public async create(body: T): Promise<K> {
-        const entry = body as unknown as K;
-        this.data.push(entry);
-        return entry;
-    }
-
-    public async findOne(options: Partial<K>): Promise<K> {
-        const result = this.data.find((item) =>
-            Object.entries(options).every(
-                ([key, value]) => item[key as keyof K] === value,
-            ),
-        );
-
-        if (!result) throw new Error("Not found");
-        return result;
-    }
-
-    public async findMany(options: Partial<K>): Promise<K[]> {
-        return this.data.filter((item) =>
-            Object.entries(options).every(
-                ([key, value]) => item[key as keyof K] === value,
-            ),
-        );
-    }
-}
-const logManager = new IDLogManager(InMemoryStorage.build());
-const w3id = `@${generateUuid("asdfa")}`;
+import { InMemoryStorage } from "../utils/store.ts";
+import { createSigner, verifierCallback } from "../utils/crypto.ts";
 
 const keyPair = nacl.sign.keyPair();
 let currNextKey = nacl.sign.keyPair();
 
-const verifierCallback: VerifierCallback = async (
-    message: string,
-    signature: string,
-    pubKey: string,
-) => {
-    const signatureBuffer = base58btc.decode(signature);
-    const messageBuffer = stringToUint8Array(message);
-    const publicKey = hexToUint8Array(pubKey);
-    const isValid = nacl.sign.detached.verify(
-        messageBuffer,
-        signatureBuffer,
-        publicKey,
-    );
+const signer = createSigner(keyPair);
 
-    return isValid;
-};
-
-function createSigner(keyPair: nacl.SignKeyPair): Signer {
-    const publicKey = uint8ArrayToHex(keyPair.publicKey);
-    const signer: Signer = {
-        pubKey: publicKey,
-        sign: (str: string) => {
-            const buffer = stringToUint8Array(str);
-            const signature = nacl.sign.detached(buffer, keyPair.secretKey);
-            return base58btc.encode(signature);
-        },
-    };
-    return signer;
-}
+const logManager = new IDLogManager(InMemoryStorage.build(), signer);
+const w3id = `@${generateUuid("asdfa")}`;
 
 describe("LogManager", async () => {
     test("GenesisEvent: [Throw at Bad Options]", async () => {
@@ -104,18 +31,15 @@ describe("LogManager", async () => {
         const logEvent = logManager.createLogEvent({
             nextKeySigner: signer,
             nextKeyHashes: [nextKeyHash],
-            signer,
         });
         await expect(logEvent).rejects.toThrow(BadOptionsSpecifiedError);
     });
 
     test("GenesisEvent: [Creates Entry]", async () => {
         const nextKeyHash = await hash(uint8ArrayToHex(currNextKey.publicKey));
-        const signer = createSigner(keyPair);
         const logEvent = await logManager.createLogEvent({
             id: w3id,
             nextKeyHashes: [nextKeyHash],
-            signer,
         });
         expectTypeOf(logEvent).toMatchObjectType<LogEvent>();
     });
@@ -124,10 +48,8 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             id: `@{falso.randUuid()}`,
         });
 
@@ -138,11 +60,9 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(nextKeyPair);
         const nextKeySigner = createSigner(nextKeyPair);
         const logEvent = logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             nextKeySigner,
         });
 
@@ -153,11 +73,9 @@ describe("LogManager", async () => {
         const nextKeyPair = nacl.sign.keyPair();
         const nextKeyHash = await hash(uint8ArrayToHex(nextKeyPair.publicKey));
 
-        const signer = createSigner(keyPair);
         const nextKeySigner = createSigner(currNextKey);
         const logEvent = await logManager.createLogEvent({
             nextKeyHashes: [nextKeyHash],
-            signer,
             nextKeySigner,
         });
 

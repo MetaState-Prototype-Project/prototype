@@ -13,6 +13,7 @@ import {
     type GenesisLogOptions,
     type LogEvent,
     type RotationLogOptions,
+    type Signer,
     type VerifierCallback,
     isGenesisOptions,
     isRotationOptions,
@@ -28,15 +29,25 @@ import type { StorageSpec } from "./storage/storage-spec";
 
 export class IDLogManager {
     repository: StorageSpec<LogEvent, LogEvent>;
+    signer: Signer;
 
-    constructor(repository: StorageSpec<LogEvent, LogEvent>) {
+    constructor(repository: StorageSpec<LogEvent, LogEvent>, signer: Signer) {
         this.repository = repository;
+        this.signer = signer;
     }
+
+    /**
+     * Validate a chain of W3ID logs
+     *
+     * @param {LogEvent[]} log
+     * @param {VerifierCallback} verifyCallback
+     * @returns {Promise<true>}
+     */
 
     static async validateLogChain(
         log: LogEvent[],
-        verifyCallback: VerifierCallback,
-    ) {
+        verifyCallback: VerifierCallback
+    ): Promise<true> {
         let currIndex = 0;
         let currentNextKeyHashesSeen: string[] = [];
         let lastUpdateKeysSeen: string[] = [];
@@ -47,12 +58,12 @@ export class IDLogManager {
             const index = Number(_index);
             if (currIndex !== index) throw new MalformedIndexChainError();
             const hashedUpdateKeys = await Promise.all(
-                e.updateKeys.map(async (k) => await hash(k)),
+                e.updateKeys.map(async (k) => await hash(k))
             );
             if (index > 0) {
                 const updateKeysSeen = isSubsetOf(
                     hashedUpdateKeys,
-                    currentNextKeyHashesSeen,
+                    currentNextKeyHashesSeen
                 );
                 if (!updateKeysSeen || lastHash !== _hash)
                     throw new MalformedHashChainError();
@@ -64,7 +75,7 @@ export class IDLogManager {
                 lastUpdateKeysSeen.length > 0
                     ? lastUpdateKeysSeen
                     : e.updateKeys,
-                verifyCallback,
+                verifyCallback
             );
             lastUpdateKeysSeen = e.updateKeys;
             currIndex++;
@@ -73,11 +84,19 @@ export class IDLogManager {
         return true;
     }
 
+    /**
+     * Validate cryptographic signature on a single LogEvent
+     *
+     * @param {LogEvent} e
+     * @param {string[]} currentUpdateKeys
+     * @param {VerifierCallback} verifyCallback
+     * @returns {Promise<void>}
+     */
     private static async verifyLogEventProof(
         e: LogEvent,
         currentUpdateKeys: string[],
-        verifyCallback: VerifierCallback,
-    ) {
+        verifyCallback: VerifierCallback
+    ): Promise<void> {
         const proof = e.proof;
         const copy = JSON.parse(JSON.stringify(e));
         // biome-ignore lint/performance/noDelete: we need to delete proof completely
@@ -90,18 +109,25 @@ export class IDLogManager {
             const signValidates = await verifyCallback(
                 canonicalJson as string,
                 proof,
-                key,
+                key
             );
             if (signValidates) verified = true;
         }
         if (!verified) throw new BadSignatureError();
     }
 
+    /**
+     * Append a new log entry for a W3ID
+     *
+     * @param {LogEvent[]} entries
+     * @param {RotationLogOptions} options
+     * @returns Promise<LogEvent>
+     */
     private async appendEntry(
         entries: LogEvent[],
-        options: RotationLogOptions,
+        options: RotationLogOptions
     ) {
-        const { signer, nextKeyHashes, nextKeySigner } = options;
+        const { nextKeyHashes, nextKeySigner } = options;
         const latestEntry = entries[entries.length - 1];
         const logHash = await hash(latestEntry);
         const index = Number(latestEntry.versionId.split("-")[0]) + 1;
@@ -119,30 +145,44 @@ export class IDLogManager {
             method: "w3id:v0.0.0",
         };
 
-        const proof = await signer.sign(canonicalize(logEvent) as string);
+        const proof = await this.signer.sign(canonicalize(logEvent) as string);
         logEvent.proof = proof;
 
         await this.repository.create(logEvent);
+        this.signer = nextKeySigner;
         return logEvent;
     }
 
+    /**
+     * Create genesis entry for a W3ID log
+     *
+     * @param {GenesisLogOptions} options
+     * @returns Promise<LogEvent>
+     */
     private async createGenesisEntry(options: GenesisLogOptions) {
-        const { id, nextKeyHashes, signer } = options;
+        const { id, nextKeyHashes } = options;
+        const idTag = id.includes("@") ? id.split("@")[1] : id;
         const logEvent: LogEvent = {
             id,
-            versionId: `0-${id.split("@")[1]}`,
+            versionId: `0-${idTag}`,
             versionTime: new Date(Date.now()),
-            updateKeys: [signer.pubKey],
+            updateKeys: [this.signer.pubKey],
             nextKeyHashes: nextKeyHashes,
             method: "w3id:v0.0.0",
         };
-        const proof = await signer.sign(canonicalize(logEvent) as string);
+        const proof = await this.signer.sign(canonicalize(logEvent) as string);
         logEvent.proof = proof;
         await this.repository.create(logEvent);
         return logEvent;
     }
 
-    async createLogEvent(options: CreateLogEventOptions) {
+    /**
+     * Create a log event and save it to the repository
+     *
+     * @param {CreateLogEventOptions} options
+     * @returns Promise<LogEvent>
+     */
+    async createLogEvent(options: CreateLogEventOptions): Promise<LogEvent> {
         const entries = await this.repository.findMany({});
         if (entries.length > 0) {
             if (!isRotationOptions(options))
