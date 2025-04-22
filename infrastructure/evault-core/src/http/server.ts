@@ -1,7 +1,8 @@
 import fastify, { FastifyInstance } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import { W3ID } from "w3id";
+import { W3ID } from "../w3id/w3id";
+import { LogEvent } from "w3id";
 import {
   WatcherSignatureRequest,
   WatcherRequest,
@@ -45,10 +46,31 @@ export async function registerHttpRoutes(
           200: {
             type: "object",
             properties: {
-              w3id: { type: "object" },
+              w3id: { type: "string" },
               logs: {
                 type: "array",
-                items: { type: "object" },
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    versionId: { type: "string" },
+                    versionTime: { type: "string", format: "date-time" },
+                    updateKeys: { type: "array", items: { type: "string" } },
+                    nextKeyHashes: { type: "array", items: { type: "string" } },
+                    method: { type: "string" },
+                    proofs: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          signature: { type: "string" },
+                          alg: { type: "string" },
+                          kid: { type: "string" },
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -56,12 +78,14 @@ export async function registerHttpRoutes(
       },
     },
     async (request: TypedRequest<{}>, reply: TypedReply) => {
-      // TODO: Implement actual W3ID verification and log retrieval
-      const w3id = new W3ID({} as any); // TODO: Add proper W3ID initialization
-      return {
-        w3id: w3id,
-        logs: [], // TODO: Implement log retrieval
+      const w3id = await W3ID.get();
+      const logs = (await w3id.logs?.repository.findMany({})) as LogEvent[];
+      const result = {
+        w3id: w3id.id,
+        logs: logs,
       };
+      console.log(result);
+      return result;
     }
   );
 
