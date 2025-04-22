@@ -53,17 +53,15 @@ app.post(
             const jwksResponse = await axios.get(
                 `http://localhost:4321/.well-known/jwks.json`,
             );
-            console.log(jwksResponse.data);
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
 
             const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
 
-            console.log(payload);
-
             const evaultId = await new W3IDBuilder().withGlobal(true).build();
             const userId = await new W3IDBuilder()
                 .withNamespace(namespace)
+                .withEntropy(payload.entropy as string)
                 .withGlobal(true)
                 .build();
 

@@ -37,24 +37,25 @@ export function generateNomadJob(w3id: string, eVaultId: string) {
                             ],
                         },
                     ],
-                    Volumes: {
-                        "evault-store": {
-                            Type: "csi",
-                            Source: `evault-store-${w3id}`,
-                            ReadOnly: false,
-                            AccessMode: "single-node-writer",
-                            AttachmentMode: "file-system",
-                            Sticky: true,
-                        },
-                        "neo4j-data": {
-                            Type: "csi",
-                            Source: `neo4j-data-${w3id}`,
-                            ReadOnly: false,
-                            AccessMode: "single-node-writer",
-                            AttachmentMode: "file-system",
-                            Sticky: true,
-                        },
-                    },
+                   ,
+"Volumes": {
+  "evault-store": {
+    "Type": "csi",
+    "Source": "evault-store-abc123",
+    "ReadOnly": false,
+    "AccessMode": "single-node-writer",
+    "AttachmentMode": "file-system",
+    "Sticky": true
+  },
+  "neo4j-data": {
+    "Type": "csi",
+    "Source": "neo4j-data-abc123",
+    "ReadOnly": false,
+    "AccessMode": "single-node-writer",
+    "AttachmentMode": "file-system",
+    "Sticky": true
+  }
+}
                     Services: [
                         {
                             Name: `evault`,
