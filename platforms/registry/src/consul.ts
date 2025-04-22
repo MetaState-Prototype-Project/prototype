@@ -19,10 +19,9 @@ export async function resolveService(w3id: string) {
       const address = `http://${services[0].ServiceAddress}:${services[0].ServicePort}`;
       return {
         graphql: `${address}/graphql`,
-        voyager: `${address}/voyager`,
         whois: `${address}/whois`,
-        logs: `${address}/logs`,
-        requestWatcherSignature: `${address}/request-signature`,
+        requestWatcherSignature: `${address}/watchers/request`,
+        wathcerSignEndpoint: `${address}/watchers/request`,
       };
     }
     return null;

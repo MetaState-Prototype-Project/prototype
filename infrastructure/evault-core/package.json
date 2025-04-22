@@ -27,6 +27,7 @@
     "@fastify/swagger": "^8.14.0",
     "@fastify/swagger-ui": "^3.0.0",
     "@testcontainers/neo4j": "^10.24.2",
+    "axios": "^1.6.7",
     "fastify": "^4.26.2",
     "graphql": "^16.10.0",
     "graphql-type-json": "^0.3.2",
