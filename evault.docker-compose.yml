@@ -11,6 +11,11 @@ services:
       - NEO4J_URI=${NEO4J_URI}
       - NEO4J_USER=${NEO4J_USER}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - SECRETS_STORE_PATH=/app/secrets/secrets.json
+      - ENCRYPTION_PASSWORD=${ENCRYPTION_PASSWORD}
+      - W3ID=${W3ID}
+    volumes:
+      - secrets:/app/secrets
     networks: 
       - graphnet
     depends_on:
@@ -44,6 +49,7 @@ services:
 volumes:
   neo4j_data:
   neo4j_logs:
+  secrets:
 
 networks:
   graphnet:

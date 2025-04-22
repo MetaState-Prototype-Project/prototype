@@ -1,3 +1,9 @@
+export type Proof = {
+	kid: string;
+	signature: string;
+	alg: string;
+};
+
 export type LogEvent = {
 	id: string;
 	versionId: string;
@@ -5,12 +11,12 @@ export type LogEvent = {
 	updateKeys: string[];
 	nextKeyHashes: string[];
 	method: `w3id:v${string}`;
-	proof?: string;
+	proofs?: Proof[];
 };
 
 export type VerifierCallback = (
 	message: string,
-	signature: string,
+	proofs: Proof[],
 	pubKey: string,
 ) => Promise<boolean>;
 

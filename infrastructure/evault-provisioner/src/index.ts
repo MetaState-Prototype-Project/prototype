@@ -4,6 +4,7 @@ import { generateNomadJob } from "./templates/evault.nomad.js";
 import dotenv from "dotenv";
 import { subscribeToAlloc } from "./listeners/alloc.js";
 import { W3IDBuilder } from "w3id";
+import * as jose from "jose";
 
 dotenv.config();
 
@@ -13,7 +14,8 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 interface ProvisionRequest {
-    w3id: string;
+    registryEntropy: string;
+    namespace: string;
 }
 
 interface ProvisionResponse {
@@ -38,17 +40,32 @@ app.post(
         try {
             // TODO: change this to take namespace from the payload, and signed entropy
             // JWT so that we can verify both parts of the UUID come from know source
-            const { w3id } = req.body;
+            const { registryEntropy, namespace } = req.body;
 
-            if (!w3id) {
+            if (!registryEntropy || !namespace) {
                 return res.status(400).json({
                     success: false,
-                    error: "tenantId is required",
-                    message: "Missing required field: tenantId",
+                    error: "registryEntropy and namespace are required",
+                    message:
+                        "Missing required fields: registryEntropy, namespace",
                 });
             }
+            const jwksResponse = await axios.get(
+                `http://localhost:4321/.well-known/jwks.json`,
+            );
+
+            const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+
+            const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
 
             const evaultId = await new W3IDBuilder().withGlobal(true).build();
+            const userId = await new W3IDBuilder()
+                .withNamespace(namespace)
+                .withEntropy(payload.entropy as string)
+                .withGlobal(true)
+                .build();
+
+            const w3id = userId.id;
 
             const jobJSON = generateNomadJob(w3id, evaultId.id);
             const jobName = `evault-${w3id}`;

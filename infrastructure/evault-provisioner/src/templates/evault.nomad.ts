@@ -37,6 +37,24 @@ export function generateNomadJob(w3id: string, eVaultId: string) {
                             ],
                         },
                     ],
+                    Volumes: {
+                        "evault-store": {
+                            Type: "csi",
+                            Source: `evault-store-${w3id}`,
+                            ReadOnly: false,
+                            AccessMode: "single-node-writer",
+                            AttachmentMode: "file-system",
+                            Sticky: true,
+                        },
+                        "neo4j-data": {
+                            Type: "csi",
+                            Source: `neo4j-data-${w3id}`,
+                            ReadOnly: false,
+                            AccessMode: "single-node-writer",
+                            AttachmentMode: "file-system",
+                            Sticky: true,
+                        },
+                    },
                     Services: [
                         {
                             Name: `evault`,
@@ -55,6 +73,13 @@ export function generateNomadJob(w3id: string, eVaultId: string) {
                             Config: {
                                 image: "neo4j:5.15",
                                 ports: [],
+                                volume_mounts: [
+                                    {
+                                        Volume: "neo4j-data",
+                                        Destination: "/data",
+                                        ReadOnly: false,
+                                    },
+                                ],
                             },
                             Env: {
                                 NEO4J_AUTH: `${neo4jUser}/${neo4jPassword}`,
@@ -72,18 +97,31 @@ export function generateNomadJob(w3id: string, eVaultId: string) {
                             Config: {
                                 image: "merulauvo/evault:latest",
                                 ports: ["http"],
+                                volume_mounts: [
+                                    {
+                                        Volume: "evault-store",
+                                        Destination: "/evault/data",
+                                        ReadOnly: false,
+                                    },
+                                ],
                             },
                             Env: {
                                 NEO4J_URI: "bolt://localhost:7687",
                                 NEO4J_USER: neo4jUser,
                                 NEO4J_PASSWORD: neo4jPassword,
                                 PORT: "${NOMAD_PORT_http}",
+                                W3ID: w3id,
                             },
                             Resources: {
                                 CPU: 300,
                                 MemoryMB: 512,
                             },
-                            DependsOn: ["neo4j"],
+                            DependsOn: [
+                                {
+                                    Name: "neo4j",
+                                    Condition: "running",
+                                },
+                            ],
                         },
                     ],
                 },

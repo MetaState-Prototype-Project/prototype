@@ -95,17 +95,18 @@ export class IDLogManager {
 		currentUpdateKeys: string[],
 		verifyCallback: VerifierCallback,
 	): Promise<void> {
-		const proof = e.proof;
+		const proofs = e.proofs;
 		const copy = JSON.parse(JSON.stringify(e));
 		// biome-ignore lint/performance/noDelete: we need to delete proof completely
-		delete copy.proof;
+		delete copy.proofs;
 		const canonicalJson = canonicalize(copy);
 		let verified = false;
-		if (!proof) throw new BadSignatureError("No proof found in the log event.");
+		if (!proofs)
+			throw new BadSignatureError("No proof found in the log event.");
 		for (const key of currentUpdateKeys) {
 			const signValidates = await verifyCallback(
 				canonicalJson as string,
-				proof,
+				proofs,
 				key,
 			);
 			if (signValidates) verified = true;
@@ -139,8 +140,14 @@ export class IDLogManager {
 			method: "w3id:v0.0.0",
 		};
 
-		const proof = await this.signer.sign(canonicalize(logEvent) as string);
-		logEvent.proof = proof;
+		const signature = await this.signer.sign(canonicalize(logEvent) as string);
+		logEvent.proofs = [
+			{
+				kid: `${logEvent.id}#0`,
+				alg: this.signer.alg,
+				signature,
+			},
+		];
 
 		await this.repository.create(logEvent);
 		this.signer = nextKeySigner;
@@ -164,8 +171,15 @@ export class IDLogManager {
 			nextKeyHashes: nextKeyHashes,
 			method: "w3id:v0.0.0",
 		};
-		const proof = await this.signer.sign(canonicalize(logEvent) as string);
-		logEvent.proof = proof;
+		const signature = await this.signer.sign(canonicalize(logEvent) as string);
+		logEvent.proofs = [
+			{
+				kid: `${id}#0`,
+				alg: this.signer.alg,
+				signature,
+			},
+		];
+
 		await this.repository.create(logEvent);
 		return logEvent;
 	}
