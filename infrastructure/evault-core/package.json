@@ -24,6 +24,7 @@
     "vitest": "^3.0.9"
   },
   "dependencies": {
+    "@fastify/formbody": "^8.0.2",
     "@fastify/swagger": "^8.14.0",
     "@fastify/swagger-ui": "^3.0.0",
     "@testcontainers/neo4j": "^10.24.2",
