@@ -4,21 +4,21 @@ import type { JWTHeader, JWTPayload, Signer } from "../logs/log.types";
  * Encodes a string to base64url format
  */
 function base64urlEncode(str: string): string {
-	return Buffer.from(str)
-		.toString("base64")
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_")
-		.replace(/=/g, "");
+    return Buffer.from(str)
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=/g, "");
 }
 
 /**
  * Decodes a base64url string
  */
 function base64urlDecode(str: string): string {
-	return Buffer.from(
-		str.replace(/-/g, "+").replace(/_/g, "/"),
-		"base64",
-	).toString();
+    return Buffer.from(
+        str.replace(/-/g, "+").replace(/_/g, "/"),
+        "base64",
+    ).toString();
 }
 
 /**
@@ -28,9 +28,9 @@ function base64urlDecode(str: string): string {
  * @returns The unsigned JWT
  */
 export function createJWT(header: JWTHeader, payload: JWTPayload): string {
-	const encodedHeader = base64urlEncode(JSON.stringify(header));
-	const encodedPayload = base64urlEncode(JSON.stringify(payload));
-	return `${encodedHeader}.${encodedPayload}`;
+    const encodedHeader = base64urlEncode(JSON.stringify(header));
+    const encodedPayload = base64urlEncode(JSON.stringify(payload));
+    return `${encodedHeader}.${encodedPayload}`;
 }
 
 /**
@@ -42,19 +42,19 @@ export function createJWT(header: JWTHeader, payload: JWTPayload): string {
  * @returns The signed JWT
  */
 export async function signJWT(
-	signer: Signer,
-	payload: JWTPayload,
-	kid: string,
-	header?: JWTHeader,
+    signer: Signer,
+    payload: JWTPayload,
+    kid: string,
+    header?: JWTHeader,
 ): Promise<string> {
-	const jwtHeader = header || {
-		alg: signer.alg,
-		typ: "JWT",
-		kid,
-	};
-	const jwt = createJWT(jwtHeader, payload);
-	const signature = await signer.sign(jwt);
-	return `${jwt}.${signature}`;
+    const jwtHeader = header || {
+        alg: signer.alg,
+        typ: "JWT",
+        kid,
+    };
+    const jwt = createJWT(jwtHeader, payload);
+    const signature = await signer.sign(jwt);
+    return `${jwt}.${signature}`;
 }
 
 /**
@@ -66,16 +66,16 @@ export async function signJWT(
  * @returns True if the signature is valid, false otherwise
  */
 export async function verifyJWT(
-	jwt: string,
-	signature: string,
-	verifier: (
-		message: string,
-		signature: string,
-		pubKey: string,
-	) => Promise<boolean>,
-	pubKey: string,
+    jwt: string,
+    signature: string,
+    verifier: (
+        message: string,
+        signature: string,
+        pubKey: string,
+    ) => Promise<boolean>,
+    pubKey: string,
 ): Promise<boolean> {
-	return verifier(jwt, signature, pubKey);
+    return verifier(jwt, signature, pubKey);
 }
 
 /**
@@ -84,8 +84,8 @@ export async function verifyJWT(
  * @returns The JWT header
  */
 export function getJWTHeader(jwt: string): JWTHeader {
-	const [header] = jwt.split(".");
-	return JSON.parse(base64urlDecode(header));
+    const [header] = jwt.split(".");
+    return JSON.parse(base64urlDecode(header));
 }
 
 /**
@@ -94,6 +94,6 @@ export function getJWTHeader(jwt: string): JWTHeader {
  * @returns The JWT payload
  */
 export function getJWTPayload(jwt: string): JWTPayload {
-	const [, payload] = jwt.split(".");
-	return JSON.parse(base64urlDecode(payload));
+    const [, payload] = jwt.split(".");
+    return JSON.parse(base64urlDecode(payload));
 }
