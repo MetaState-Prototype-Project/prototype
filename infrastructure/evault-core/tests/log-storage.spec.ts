@@ -16,7 +16,7 @@ describe("Neo4jLogStorage", () => {
       uri,
       neo4j.auth.basic(container.getUsername(), container.getPassword())
     );
-    storage = await Neo4jLogStorage.build(driver);
+    storage = new Neo4jLogStorage(driver);
   });
 
   afterAll(async () => {
@@ -79,7 +79,7 @@ describe("Neo4jLogStorage", () => {
 
   it("should throw error when log event not found", async () => {
     await expect(storage.findOne({ id: "non-existent-id" })).rejects.toThrow(
-      "Log event not found"
+      "No log event found with id non-existent-id"
     );
   });
 });
