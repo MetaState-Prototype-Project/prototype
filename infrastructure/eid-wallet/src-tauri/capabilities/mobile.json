@@ -2,12 +2,18 @@
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile-capability",
   "description": "Capability for the main window on mobile",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "opener:default",
     "store:default",
-    "biometric:default"
+    "biometric:default",
+    "barcode-scanner:default"
   ],
-  "platforms": ["iOS", "android"]
+  "platforms": [
+    "iOS",
+    "android"
+  ]
 }

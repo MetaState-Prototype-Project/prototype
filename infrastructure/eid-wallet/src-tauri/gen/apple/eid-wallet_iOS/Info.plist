@@ -42,5 +42,7 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Authenticate with biometric</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Read QR codes</string>
 </dict>
 </plist>
