@@ -57,30 +57,17 @@ class EVault {
       password: process.env.ENCRYPTION_PASSWORD,
     });
 
-    const yoga = createYoga({
-      schema: this.graphqlServer.getSchema(),
-      graphiql: true,
-    });
-    // change
+    const yoga = this.graphqlServer.init();
 
     this.server.route({
-      url: "/graphql",
+      // Bind to the Yoga's endpoint to avoid rendering on any path
+      url: yoga.graphqlEndpoint,
       method: ["GET", "POST", "OPTIONS"],
-      handler: async (req: FastifyRequest, reply: FastifyReply) => {
-        const response = await yoga.fetch(req.url, {
-          method: req.method,
-          headers: req.headers,
-          body: req.method === "POST" ? req.body : undefined,
-        });
-        reply.status(response.status);
-        const headers: Record<string, string> = {};
-        response.headers.forEach((value, key) => {
-          headers[key] = value;
-        });
-        reply.headers(headers);
-        reply.send(response.body);
-        return reply;
-      },
+      handler: (req, reply) =>
+        yoga.handleNodeRequestAndResponse(req, reply, {
+          req,
+          reply,
+        }),
     });
 
     // Mount Voyager endpoint
