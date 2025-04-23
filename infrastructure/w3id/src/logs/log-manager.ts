@@ -46,7 +46,7 @@ export class IDLogManager {
 
     static async validateLogChain(
         log: LogEvent[],
-        verifyCallback: VerifierCallback,
+        verifyCallback: VerifierCallback
     ): Promise<true> {
         let currIndex = 0;
         let currentNextKeyHashesSeen: string[] = [];
@@ -58,12 +58,12 @@ export class IDLogManager {
             const index = Number(_index);
             if (currIndex !== index) throw new MalformedIndexChainError();
             const hashedUpdateKeys = await Promise.all(
-                e.updateKeys.map(async (k) => await hash(k)),
+                e.updateKeys.map(async (k) => await hash(k))
             );
             if (index > 0) {
                 const updateKeysSeen = isSubsetOf(
                     hashedUpdateKeys,
-                    currentNextKeyHashesSeen,
+                    currentNextKeyHashesSeen
                 );
                 if (!updateKeysSeen || lastHash !== _hash)
                     throw new MalformedHashChainError();
@@ -75,7 +75,7 @@ export class IDLogManager {
                 lastUpdateKeysSeen.length > 0
                     ? lastUpdateKeysSeen
                     : e.updateKeys,
-                verifyCallback,
+                verifyCallback
             );
             lastUpdateKeysSeen = e.updateKeys;
             currIndex++;
@@ -95,21 +95,21 @@ export class IDLogManager {
     private static async verifyLogEventProof(
         e: LogEvent,
         currentUpdateKeys: string[],
-        verifyCallback: VerifierCallback,
+        verifyCallback: VerifierCallback
     ): Promise<void> {
-        const proof = e.proof;
+        const proofs = e.proofs;
         const copy = JSON.parse(JSON.stringify(e));
         // biome-ignore lint/performance/noDelete: we need to delete proof completely
-        delete copy.proof;
+        delete copy.proofs;
         const canonicalJson = canonicalize(copy);
         let verified = false;
-        if (!proof)
+        if (!proofs)
             throw new BadSignatureError("No proof found in the log event.");
         for (const key of currentUpdateKeys) {
             const signValidates = await verifyCallback(
                 canonicalJson as string,
-                proof,
-                key,
+                proofs,
+                key
             );
             if (signValidates) verified = true;
         }
@@ -125,7 +125,7 @@ export class IDLogManager {
      */
     private async appendEntry(
         entries: LogEvent[],
-        options: RotationLogOptions,
+        options: RotationLogOptions
     ) {
         const { nextKeyHashes, nextKeySigner } = options;
         const latestEntry = entries[entries.length - 1];
@@ -145,8 +145,16 @@ export class IDLogManager {
             method: "w3id:v0.0.0",
         };
 
-        const proof = await this.signer.sign(canonicalize(logEvent) as string);
-        logEvent.proof = proof;
+        const signature = await this.signer.sign(
+            canonicalize(logEvent) as string
+        );
+        logEvent.proofs = [
+            {
+                kid: `${logEvent.id}#0`,
+                alg: this.signer.alg,
+                signature,
+            },
+        ];
 
         await this.repository.create(logEvent);
         this.signer = nextKeySigner;
@@ -170,8 +178,17 @@ export class IDLogManager {
             nextKeyHashes: nextKeyHashes,
             method: "w3id:v0.0.0",
         };
-        const proof = await this.signer.sign(canonicalize(logEvent) as string);
-        logEvent.proof = proof;
+        const signature = await this.signer.sign(
+            canonicalize(logEvent) as string
+        );
+        logEvent.proofs = [
+            {
+                kid: `${id}#0`,
+                alg: this.signer.alg,
+                signature,
+            },
+        ];
+
         await this.repository.create(logEvent);
         return logEvent;
     }

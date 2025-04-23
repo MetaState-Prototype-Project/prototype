@@ -1,3 +1,9 @@
+export type Proof = {
+    kid: string;
+    signature: string;
+    alg: string;
+};
+
 export type LogEvent = {
     id: string;
     versionId: string;
@@ -5,13 +11,13 @@ export type LogEvent = {
     updateKeys: string[];
     nextKeyHashes: string[];
     method: `w3id:v${string}`;
-    proof?: string;
+    proofs?: Proof[];
 };
 
 export type VerifierCallback = (
     message: string,
-    signature: string,
-    pubKey: string,
+    proofs: Proof[],
+    pubKey: string
 ) => Promise<boolean>;
 
 export type JWTHeader = {
@@ -48,12 +54,12 @@ export type GenesisLogOptions = {
 };
 
 export function isGenesisOptions(
-    options: CreateLogEventOptions,
+    options: CreateLogEventOptions
 ): options is GenesisLogOptions {
     return "id" in options;
 }
 export function isRotationOptions(
-    options: CreateLogEventOptions,
+    options: CreateLogEventOptions
 ): options is RotationLogOptions {
     return "nextKeySigner" in options;
 }
