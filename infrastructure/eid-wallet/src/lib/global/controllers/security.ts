@@ -130,6 +130,7 @@ export class SecurityController {
                 throw new Error("Invalid pin");
             }
             await this.#setPin(newPin);
+            return;
         }
         throw new Error("Old pin not provided!");
     }
@@ -189,7 +190,10 @@ export class SecurityController {
      * ```
      */
     set biometricSupport(value: boolean | Promise<boolean>) {
-        this.#setBiometric(value);
+        this.#setBiometric(value).catch((error) => {
+            console.error("Failed to set biometric support:", error);
+            // Consider how to handle errors in a setter - possibly notify via an event
+        });
     }
 
     /**

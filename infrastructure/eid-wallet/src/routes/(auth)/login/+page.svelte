@@ -33,7 +33,11 @@ const authOpts: AuthOptions = {
 
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
+    if (!globalState) {
+        console.error("Global state is not defined");
+        await goto("/"); // Redirect to home or error page
+        return;
+    }
 
     clearPin = async () => {
         await globalState?.securityController.clearPin();
@@ -43,7 +47,7 @@ onMount(async () => {
     handlePinInput = async (pin: string) => {
         if (pin.length === 4) {
             isError = false;
-            const check = await globalState?.securityController.verifyPin(pin);
+            const check = globalState ? await globalState.securityController.verifyPin(pin) : false;
             if (!check) {
                 isError = true;
                 return;

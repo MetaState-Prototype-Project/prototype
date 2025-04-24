@@ -64,6 +64,7 @@ const changeHandler = (e: KeyboardEvent, i: number) => {
     const regx = /^\d+$/;
 
     if (isKeyDelete(e.key)) {
+        e.preventDefault()
         if (pins[i] !== "") {
             pins[i] = "";
             return;
@@ -75,12 +76,24 @@ const changeHandler = (e: KeyboardEvent, i: number) => {
     }
 
     if (regx.test(e.key)) {
+        e.preventDefault()
         pins[i] = e.key;
         if (currentIndex < items.length - 1) {
             newIndex = currentIndex + 1;
             (items[newIndex] as HTMLInputElement)?.focus();
         }
     }
+
+       // Allow arrow keys for navigation
+   if (e.key === 'ArrowLeft' && currentIndex > 0) {
+       newIndex = currentIndex - 1;
+       (items[newIndex] as HTMLInputElement)?.focus();
+   }
+
+   if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
+       newIndex = currentIndex + 1;
+       (items[newIndex] as HTMLInputElement)?.focus();
+   }
 };
 
 const createArray = (size: number) => {
@@ -125,7 +138,6 @@ const cBase =
           }}
           maxlength="1"
           onkeydown={(event) => {
-            event.preventDefault()
             changeHandler(event, i)
           }}
           placeholder=""

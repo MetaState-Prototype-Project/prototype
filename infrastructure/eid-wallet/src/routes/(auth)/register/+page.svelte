@@ -72,7 +72,13 @@ onMount(async () => {
                 "Cannot set biometric support, Global state is not defined",
             );
         if (isBiometricsAvailable) {
-            globalState.securityController.biometricSupport = true;
+            try {
+                globalState.securityController.biometricSupport = true;
+            } catch (error) {
+                console.error("Failed to enable biometric support:", error);
+                // Consider showing an error message to the user
+                return;
+            }
         }
         isBiometricsAdded = true;
     };

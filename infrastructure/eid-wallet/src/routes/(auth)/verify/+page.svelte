@@ -33,5 +33,12 @@ onMount(() => {
         />
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport">
     </section>
-    <ButtonAction class="w-full" callback={async() => handleVerification()}>I'm ready</ButtonAction>
+    <ButtonAction class="w-full" callback={async() => {
+            try {
+                await handleVerification();
+            } catch (error) {
+                console.error("Verification failed:", error);
+                // Consider adding user-facing error handling here
+            }
+        }}>I'm ready</ButtonAction>
 </main>

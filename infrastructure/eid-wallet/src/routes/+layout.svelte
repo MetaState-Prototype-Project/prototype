@@ -38,7 +38,12 @@ onMount(async () => {
         };
     }
     runtime.biometry = status.biometryType;
-    globalState = await GlobalState.create();
+    try {
+        globalState = await GlobalState.create();
+    } catch (error) {
+        console.error("Failed to initialize global state:", error);
+        // Consider adding fallback behavior or user notification
+    }
 
     showSplashScreen = true; // Can't set up the original state to true or animation won't start
     navigationStack.push(window.location.pathname);

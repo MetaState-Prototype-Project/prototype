@@ -54,19 +54,35 @@ export class UserController {
      * ```
      * @throws {Error} If the user state cannot be set in the store
      */
-    set user(user:
-        | Promise<Record<string, string> | undefined>
-        | Record<string, string>
-        | undefined) {
-        this.#store.set("user", user);
+    set user(
+        user:
+            | Promise<Record<string, string> | undefined>
+            | Record<string, string>
+            | undefined
+    ) {
+        if (user instanceof Promise) {
+            user.then((resolvedUser) => {
+                this.#store.set("user", resolvedUser);
+            }).catch((error) => {
+                console.error("Failed to set user:", error);
+            });
+        } else {
+            this.#store.set("user", user);
+        }
     }
 
     get user() {
-        return this.#store.get<Record<string, string>>("user").then((user) => {
-            if (!user) {
+        return this.#store
+            .get<Record<string, string>>("user")
+            .then((user) => {
+                if (!user) {
+                    return undefined;
+                }
+                return user;
+            })
+            .catch((error) => {
+                console.error("Failed to get user:", error);
                 return undefined;
-            }
-            return user;
-        });
+            });
     }
 }

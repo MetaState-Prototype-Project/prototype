@@ -59,6 +59,7 @@ async function startScan() {
         const formats = [Format.QRCode];
         const windowed = true;
 
+        if (scanning) return;
         scanning = true;
         scan({ formats, windowed })
             .then((res) => {
@@ -74,6 +75,9 @@ async function startScan() {
                 scanning = false;
             });
     }
+
+    console.error("Permission denied or not granted");
+    // TODO: consider handling GUI for permission denied
 }
 
 async function cancelScan() {

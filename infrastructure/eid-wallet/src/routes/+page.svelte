@@ -13,8 +13,13 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     if (!globalState) throw new Error("Global state is not defined");
     clearPin = async () => {
-        await globalState?.securityController.clearPin();
-        cleared = true;
+        try {
+            await globalState?.securityController.clearPin();
+            cleared = true;
+        } catch (error) {
+            console.error("Failed to clear PIN:", error);
+            // Consider adding user-facing error feedback
+        }
     };
     if (!(await globalState.userController.user)) {
         await goto("/onboarding");
