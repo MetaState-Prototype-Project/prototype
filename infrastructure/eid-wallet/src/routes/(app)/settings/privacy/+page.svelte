@@ -2,7 +2,7 @@
 import { runtime } from "$lib/global/runtime.svelte";
 
 $effect(() => {
-	runtime.header.title = "Privacy";
+    runtime.header.title = "Privacy";
 });
 </script>
 

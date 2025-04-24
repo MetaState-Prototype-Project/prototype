@@ -3,15 +3,15 @@ import { runtime } from "$lib/global/runtime.svelte";
 import { Selector } from "$lib/ui";
 
 let languages: { name: string; country: string }[] = [
-	{ name: "English", country: "gb" },
-	{ name: "Spanish", country: "es" },
-	{ name: "German", country: "de" },
-	{ name: "French", country: "fr" },
+    { name: "English", country: "gb" },
+    { name: "Spanish", country: "es" },
+    { name: "German", country: "de" },
+    { name: "French", country: "fr" },
 ];
 let selected = $state("");
 
 $effect(() => {
-	runtime.header.title = "Language";
+    runtime.header.title = "Language";
 });
 </script>
 

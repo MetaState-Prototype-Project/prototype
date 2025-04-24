@@ -4,7 +4,10 @@ packages:
   - platforms/*
   - infrastructure/*
 onlyBuiltDependencies:
-  - "@biomejs/biome"
+  - '@biomejs/biome'
+  - cpu-features
   - esbuild
   - msw
+  - protobufjs
+  - ssh2
   - svelte-preprocess

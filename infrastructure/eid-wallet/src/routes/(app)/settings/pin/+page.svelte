@@ -11,18 +11,18 @@ let isError = $state(false);
 let showDrawer = $state(false);
 
 const handleClose = async () => {
-	// close functionality goes here.
-	showDrawer = false;
+    // close functionality goes here.
+    showDrawer = false;
 };
 
 const handleChangePIN = async () => {
-	if (repeatPin.length === 4 && newPin !== repeatPin) isError = true;
-	if (!isError) showDrawer = true;
+    if (repeatPin.length === 4 && newPin !== repeatPin) isError = true;
+    if (!isError) showDrawer = true;
 };
 
 $effect(() => {
-	runtime.header.title = "Change PIN";
-	if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
+    runtime.header.title = "Change PIN";
+    if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
 });
 </script>
 

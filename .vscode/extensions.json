@@ -1,0 +1,27 @@
+{
+    "recommendations": [
+        "biomejs.biome",
+        "svelte.svelte-vscode",
+        "naumovs.color-highlight",
+        "fill-labs.dependi",
+        "ms-azuretools.vscode-docker",
+        "docker.docker",
+        "EditorConfig.EditorConfig",
+        "tamasfe.even-better-toml",
+        "ctcuff.font-preview",
+        "github.vscode-github-actions",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "kisstkondoros.vscode-gutter-preview",
+        "oderwat.indent-rainbow",
+        "inlang.vs-code-extension",
+        "Vercel.turbo-vsc",
+        "vitest.explorer",
+        "ms-playwright.playwright",
+        "tomoki1207.pdf",
+        "streetsidesoftware.code-spell-checker",
+        "1YiB.rust-bundle",
+        "bradlc.vscode-tailwindcss",
+        "tauri-apps.tauri-vscode"
+    ]
+}
