@@ -47,7 +47,9 @@ onMount(async () => {
     handlePinInput = async (pin: string) => {
         if (pin.length === 4) {
             isError = false;
-            const check = globalState ? await globalState.securityController.verifyPin(pin) : false;
+            const check = globalState
+                ? await globalState.securityController.verifyPin(pin)
+                : false;
             if (!check) {
                 isError = true;
                 return;

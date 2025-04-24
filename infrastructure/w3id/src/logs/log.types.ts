@@ -17,7 +17,7 @@ export type LogEvent = {
 export type VerifierCallback = (
     message: string,
     proofs: Proof[],
-    pubKey: string
+    pubKey: string,
 ) => Promise<boolean>;
 
 export type JWTHeader = {
@@ -54,12 +54,12 @@ export type GenesisLogOptions = {
 };
 
 export function isGenesisOptions(
-    options: CreateLogEventOptions
+    options: CreateLogEventOptions,
 ): options is GenesisLogOptions {
     return "id" in options;
 }
 export function isRotationOptions(
-    options: CreateLogEventOptions
+    options: CreateLogEventOptions,
 ): options is RotationLogOptions {
     return "nextKeySigner" in options;
 }
