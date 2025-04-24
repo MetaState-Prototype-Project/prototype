@@ -158,7 +158,7 @@ onDestroy(async () => {
         <Button.Action
             variant="danger-soft"
             class="w-full"
-            callback={() => { codeScannedDrawerOpen = false; }}
+            callback={() => { codeScannedDrawerOpen = false; startScan(); }}
         >
             Decline
         </Button.Action>
@@ -168,6 +168,7 @@ onDestroy(async () => {
             callback={() => {
                 codeScannedDrawerOpen = false
                 loggedInDrawerOpen = true
+                startScan();
             }}
         >
             Confirm
