@@ -16,11 +16,11 @@ const handleNext = async () => {
 };
 </script>
 
-<main class="h-[100dvh] pt-[3dvh] px-[5vw] pb-[4.5dvh]">
-    <article class="flex justify-center mb-[4dvh]">
+<main class="h-[100vh] pt-[3vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+    <article class="flex justify-center">
         <img class="w-[88vw] h-[39vh]" src="/images/Onboarding.svg" alt="Infographic card">
     </article>
-    <section class="mb-[9.3dvh]">
+    <section>
         <Hero
         subtitle="Store your IDs, verify instantly with QR codes, and manage your digital identity with ease."
         class="mb-4"
@@ -33,7 +33,7 @@ const handleNext = async () => {
     </section>
     <section>
         <p class="max-w-[300px] mx-[auto] text-center small text-black-500">By continuing you agree to our <a href="/" class="text-primary underline underline-offset-5">Terms & Conditions </a> and <a href="/" class="text-primary underline underline-offset-5">privacy policy.</a></p>
-        <div class="flex justify-center whitespace-nowrap mt-[2dvh]">
+        <div class="flex justify-center whitespace-nowrap mt-[2vh]">
             <ButtonAction class="w-full" callback={handleGetStarted}>Get Started</ButtonAction>
         </div>
     </section>
@@ -41,9 +41,9 @@ const handleNext = async () => {
 
 <Drawer bind:isPaneOpen>
     <img src="/images/GetStarted.svg" alt="get-started">
-    <h4 class="mt-[2.3dvh] mb-[0.5dvh]">Welcome to Web 3 Data Spaces</h4>
+    <h4 class="mt-[2.3vh] mb-[0.5vh]">Welcome to Web 3 Data Spaces</h4>
     <p class="text-black-700">Your eName is more than a name—it's your unique digital passport. One constant identifier that travels with you across the internet, connecting your real-world self to the digital universe.</p>
-    <div class="flex justify-center whitespace-nowrap my-[2.3dvh]">
+    <div class="flex justify-center whitespace-nowrap my-[2.3vh]">
         <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
     </div>
 </Drawer>
