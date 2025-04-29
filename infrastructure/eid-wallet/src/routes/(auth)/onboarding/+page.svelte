@@ -16,9 +16,9 @@ const handleNext = async () => {
 };
 </script>
 
-<main class="h-[100dvh] pt-[3dvh] px-[5vw] pb-[4.5dvh] bg-red-300">
+<main class="h-[100dvh] pt-[3dvh] px-[5vw] pb-[4.5dvh]">
     <article class="flex justify-center mb-[4dvh]">
-        <img class="w-[88vw] h-[39vh] rounded-2xl aspect-square object-cover" src="/images/Onboarding.svg" alt="Infographic card">
+        <img class="w-[88vw] h-[39vh]" src="/images/Onboarding.svg" alt="Infographic card">
     </article>
     <section class="mb-[9.3dvh]">
         <Hero
