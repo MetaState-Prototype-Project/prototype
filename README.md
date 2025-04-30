@@ -94,6 +94,17 @@ Learn more about the power of Turborepo:
 | EVault Core                                | Planned     |
 | Web3 Adapter                               | Planned     |
 
+## Documentation Links
+
+| Documentation                | Description                                 | Link                                                                       |
+| ---------------------------- | ------------------------------------------- | -------------------------------------------------------------------------- |
+| MetaState Prototype          | Main project README                         | [README.md](./README.md)                                                   |
+| W3ID                         | Web 3 Identity System documentation         | [W3ID README](./infrastructure/w3id/README.md)                             |
+| eVault Core                  | Core eVault system documentation            | [eVault Core README](./infrastructure/evault-core/README.md)               |
+| eVault Core W3ID Integration | W3ID integration details for eVault Core    | [W3ID Integration](./infrastructure/evault-core/docs/w3id-integration.md)  |
+| eVault Provisioner           | Provisioning eVault instances documentation | [eVault Provisioner README](./infrastructure/evault-provisioner/README.md) |
+| Bug Report Template          | GitHub issue template for bug reports       | [Bug Report Template](./.github/ISSUE_TEMPLATE/bug-report.md)              |
+
 ## Project Structure
 
 ```
