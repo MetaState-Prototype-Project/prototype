@@ -91,5 +91,7 @@ onNavigate((navigation) => {
 {#if showSplashScreen}
     <SplashScreen />
 {:else}
-    {@render children?.()}
+    <div class="bg-white h-[100dvh] overflow-scroll">
+        {@render children?.()}
+    </div>
 {/if}
