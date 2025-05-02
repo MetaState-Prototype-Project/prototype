@@ -86,25 +86,25 @@ onMount(async () => {
 </script>
 
 {#if firstStep}
-    <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+    <main class="h-screen pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between">
         <section>
             <Hero
             title="Create a pin"
             subtitle="Enter a 4-digit PIN code"
-            class="mb-[14vh]"
+            class="mb-[14svh]"
             />
             <InputPin bind:pin isError={isError && pin.length === 0}/>
-            <p class={`text-danger mt-[3.4vh] ${isError && pin.length === 0 ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
+            <p class={`text-danger mt-[3.4svh] ${isError && pin.length === 0 ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
         </section>
         <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>Confirm</ButtonAction>
     </main>
 {:else}
-    <main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+    <main class="h-screen pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between">
         <section>
             <Hero
             title="Re-enter your pin"
                 subtitle="Confirm by entering pin again"
-            class="mb-[14vh]"
+            class="mb-[14svh]"
             />
             <InputPin bind:pin={repeatPin}/>
         </section>
@@ -115,7 +115,7 @@ onMount(async () => {
 
 <Drawer bind:isPaneOpen={showDrawer}>
     {#if !isBiometricScreen}
-        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
+        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]">
             <span class="relative z-[1]">
                 <HugeiconsIcon icon={CircleLock01Icon} color="var(--color-primary)"/>
             </span>
@@ -123,10 +123,10 @@ onMount(async () => {
             <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
         </div>
         <h4>Pin code set!</h4>
-        <p class="text-black-700 mt-[0.5vh] mb-[2.3vh]">Your PIN has been created. You’ll use it to access your digital entity securely.</p>
+        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">Your PIN has been created. You’ll use it to access your digital entity securely.</p>
         <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
     {:else}
-        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
+        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]">
             <span class="relative z-[1]">
                 <HugeiconsIcon icon={FaceIdIcon} color="var(--color-primary)" />
             </span>
@@ -134,7 +134,7 @@ onMount(async () => {
             <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
         </div>
         <h4>{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h4>
-        <p class="text-black-700 mt-[0.5vh] mb-[2.3vh]">{ isBiometricsAdded ? "Your biometrics have been successfully added." : "Use your fingerprint or face recognition for faster, more secure logins."}</p>
+        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">{ isBiometricsAdded ? "Your biometrics have been successfully added." : "Use your fingerprint or face recognition for faster, more secure logins."}</p>
         {#if !isBiometricsAdded}
             <div class="flex justify-center items-center gap-[11px]">
                 <ButtonAction class="w-full bg-primary-100 text-primary" callback={handleSkip}>Skip</ButtonAction>

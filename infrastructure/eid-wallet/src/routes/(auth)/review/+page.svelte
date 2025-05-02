@@ -8,7 +8,7 @@ const handleNext = async () => {
 };
 </script>
 
-<main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+<main class="h-screen pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between">
     <section>
         <Hero
             title="Here’s your eName"

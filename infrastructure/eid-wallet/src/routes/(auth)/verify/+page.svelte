@@ -25,7 +25,7 @@ onMount(() => {
 });
 </script>
 
-<main class="h-screen pt-[3vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between items-center">
+<main class="h-screen pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between items-center">
     <section>
         <Hero
             title="Verify your account"

@@ -26,27 +26,27 @@ $effect(() => {
 });
 </script>
 
-<main class="h-[calc(100vh-14vh)] flex flex-col justify-between pt-[3vh]">
+<main class="h-[calc(100svh-14svh)] flex flex-col justify-between pt-[3svh]">
     <section>
         <div>
-            <p class="mb-[1vh]">Enter you current PIN</p>
+            <p class="mb-[1svh]">Enter you current PIN</p>
             <InputPin bind:pin={currentPin} variant="sm"/>
         </div>
         <div>
-            <p class="mb-[1vh]">Enter your new PIN</p>
+            <p class="mb-[1svh]">Enter your new PIN</p>
             <InputPin bind:pin={newPin} {isError} variant="sm"/>
         </div>
         <div>
-            <p class="mb-[1vh]">Confirm new PIN</p>
+            <p class="mb-[1svh]">Confirm new PIN</p>
             <InputPin bind:pin={repeatPin} {isError} variant="sm"/>
         </div>
-        <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
+        <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <ButtonAction class="w-full" callback={handleChangePIN}>Change PIN</ButtonAction>
 </main>
 
 <Drawer bind:isPaneOpen={showDrawer}>
-        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3vh]">
+        <div class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]">
             <span class="relative z-[1]">
                 <HugeiconsIcon icon={CircleLock01Icon} color="var(--color-primary)"/>
             </span>
@@ -54,6 +54,6 @@ $effect(() => {
             <img class="absolute top-0 start-0" src="/images/Line2.svg" alt="line">
         </div>
         <h4>Pin code changed!</h4>
-        <p class="text-black-700 mt-[0.5vh] mb-[2.3vh]">Your PIN has been changed.</p>
+        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">Your PIN has been changed.</p>
         <ButtonAction class="w-full" callback={handleClose}>Close</ButtonAction>
 </Drawer>
