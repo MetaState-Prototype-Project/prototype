@@ -92,6 +92,7 @@ function shareQR() {
 <Button.Nav href="/scan-qr">
     <Button.Action
         variant="solid"
+        size="sm"
         onclick={() => alert("Action button clicked!")}
         class="mx-auto text-nowrap flex gap-8 fixed bottom-5 left-1/2 -translate-x-1/2 z-10"
     >

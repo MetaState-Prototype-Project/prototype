@@ -81,7 +81,7 @@ onMount(async () => {
 });
 </script>
 
-<main class="h-screen pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+<main class="h-screen pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between">
     <section>
         <Hero
         title="Log in to your account"
@@ -89,7 +89,7 @@ onMount(async () => {
         class="mb-4"
         />
         <InputPin variant="sm" bind:pin isError={isError} onchange={() => handlePinInput(pin)} />
-        <p class={`text-danger mt-[3.4vh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
+        <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>Your PIN does not match, try again.</p>
     </section>
     <Button.Action class={`w-full`} variant="danger" callback={clearPin}>
         Clear Pin

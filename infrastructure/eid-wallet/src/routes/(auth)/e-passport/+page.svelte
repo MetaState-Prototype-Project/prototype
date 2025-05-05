@@ -10,7 +10,7 @@ const handleFinish = async () => {
 </script>
 
 
-<main class="h-[max-content] pt-[5.2vh] px-[5vw] pb-[4.5vh] flex flex-col justify-between">
+<main class="h-[max-content] pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between">
     <section>
         <Hero
         title="Your ePassport and eVault are ready"
@@ -25,9 +25,9 @@ const handleFinish = async () => {
 			Passport: "234dfvgsdfg",
 		}}/>
     </section>
-    <section class="mt-[4vh] mb-[9vh]">
+    <section class="mt-[4svh] mb-[9svh]">
         <h4>Your eVault</h4>
-        <p class="text-black-700 mb-[1vh]">We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control.</p>
+        <p class="text-black-700 mb-[1svh]">We’ve also created your eVault—secure cloud storage for your personal data. W3DS platforms access it directly, keeping you in control.</p>
         <IdentityCard variant= "eVault"
 		usedStorage= {15}
 		totalStorage= {80}/>
