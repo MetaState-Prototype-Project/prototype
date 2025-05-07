@@ -1,35 +1,35 @@
 @import 'tailwindcss';
 
 @font-face {
-    font-family: "Geist", sans-serif;
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src: url("/fonts/Geist-VariableFont_wght.ttf") format("truetype");
+	font-family: 'Geist', sans-serif;
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/Geist-VariableFont_wght.ttf') format('truetype');
 }
 
 @layer base {
-    h1 {
-        @apply font-geist text-xl/[1] font-semibold;
-    }
-    h2 {
-        @apply font-geist text-lg/[1] font-medium;
-    }
-    h3 {
-        @apply font-geist text-base/[1] font-normal;
-    }
-    p {
-        @apply font-geist text-[15px]/[1] font-normal;
-    }
-    .small {
-        @apply font-geist text-sm/[1] font-normal;
-    }
-    .subtext {
-        @apply font-geist text-xs/[1] font-normal;
-    }
+	h1 {
+		@apply font-geist text-xl/[1] font-semibold;
+	}
+	h2 {
+		@apply font-geist text-lg/[1] font-medium;
+	}
+	h3 {
+		@apply font-geist text-base/[1] font-normal;
+	}
+	p {
+		@apply font-geist text-[15px]/[1] font-normal;
+	}
+	.small {
+		@apply font-geist text-sm/[1] font-normal;
+	}
+	.subtext {
+		@apply font-geist text-xs/[1] font-normal;
+	}
 }
 
 @theme {
-    /* fonts */
-    --font-geist: "Geist", sans-serif;
+	/* fonts */
+	--font-geist: 'Geist', sans-serif;
 }
