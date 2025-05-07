@@ -5,7 +5,7 @@ export default {
 	component: Icons,
 	tags: ['autodocs'],
 	decorators: [() => null],
-	render: (args: any) => ({
+	render: (args: Record<string, unknown>) => ({
 		Component: Icons,
 		props: args
 	})
