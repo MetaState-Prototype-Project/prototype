@@ -1,1 +1,20 @@
 @import 'tailwindcss';
+
+@font-face {
+    font-family: "Geist", sans-serif;
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("/fonts/Geist-VariableFont_wght.ttf") format("truetype");
+}
+
+@layer base {
+    h1 {
+        @apply font-geist text-[90px]/[1.5] font-bold;
+    }
+}
+
+@theme {
+    /* fonts */
+    --font-geist: "Geist", sans-serif;
+}
