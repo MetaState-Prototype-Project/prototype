@@ -32,4 +32,21 @@
 @theme {
 	/* fonts */
 	--font-geist: 'Geist', sans-serif;
+
+	/* colors */
+	--color-black: #1f1f1f;
+	--color-black-800: #4c4c4c;
+	--color-black-600: #797979;
+	--color-black-400: #a9a9a9;
+	--color-black-200: #d2d2d2;
+
+	--color-grey: #f5f5f5;
+
+	--color-brand-burnt-orange: #da4a11;
+	--color-brand-gradient: linear-gradient(
+		91.82deg,
+		#4d44ef -36.17%,
+		#f35b5b 57.95%,
+		#f7a428 152.07%
+	);
 }
