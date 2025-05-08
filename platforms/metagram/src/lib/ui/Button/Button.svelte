@@ -40,12 +40,12 @@
 
 	const variantClasses = {
 		primary: { background: 'bg-grey', text: 'text-black-800' },
-		danger: { background: 'bg-red-500', text: 'text-white' },
+		danger: { background: 'bg-red-500', text: 'text-white' }
 	};
 
 	const disabledVariantClasses = {
 		primary: { background: 'bg-grey-300', text: 'text-black-800' },
-		danger: { background: 'bg-red-400', text: 'text-white' },
+		danger: { background: 'bg-red-400', text: 'text-white' }
 	};
 
 	const sizeVariant = {
@@ -91,7 +91,9 @@
 			{@render children?.()}
 		</div>
 		{#if isLoading || isSubmitting}
-			<div class="loading loading-spinner loading-xl absolute text-white"></div>
+			<div
+				class="border-black-800 absolute h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
+			></div>
 		{/if}
 	</div>
 </button>
