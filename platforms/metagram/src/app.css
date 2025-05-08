@@ -1,0 +1,52 @@
+@import 'tailwindcss';
+
+@font-face {
+	font-family: 'Geist', sans-serif;
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/Geist-VariableFont_wght.ttf') format('truetype');
+}
+
+@layer base {
+	h1 {
+		@apply font-geist text-xl/[1] font-semibold;
+	}
+	h2 {
+		@apply font-geist text-lg/[1] font-medium;
+	}
+	h3 {
+		@apply font-geist text-base/[1] font-normal;
+	}
+	p {
+		@apply font-geist text-[15px]/[1] font-normal;
+	}
+	.small {
+		@apply font-geist text-sm/[1] font-normal;
+	}
+	.subtext {
+		@apply font-geist text-xs/[1] font-normal;
+	}
+}
+
+@theme {
+	/* fonts */
+	--font-geist: 'Geist', sans-serif;
+
+	/* colors */
+	--color-black: #1f1f1f;
+	--color-black-800: #4c4c4c;
+	--color-black-600: #797979;
+	--color-black-400: #a9a9a9;
+	--color-black-200: #d2d2d2;
+
+	--color-grey: #f5f5f5;
+
+	--color-brand-burnt-orange: #da4a11;
+	--color-brand-gradient: linear-gradient(
+		91.82deg,
+		#4d44ef -36.17%,
+		#f35b5b 57.95%,
+		#f7a428 152.07%
+	);
+}
