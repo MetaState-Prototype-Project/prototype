@@ -44,8 +44,8 @@
 	};
 
 	const disabledVariantClasses = {
-		primary: { background: 'bg-grey-300', text: 'text-black-800' },
-		danger: { background: 'bg-red-400', text: 'text-white' }
+		primary: { background: 'bg-grey/50', text: 'text-black-800/50' },
+		danger: { background: 'bg-red-500/50', text: 'text-white/50' }
 	};
 
 	const sizeVariant = {
@@ -105,7 +105,7 @@
     This component is a button with a loading spinner that can be used to indicate that an action is being performed.
     
     @props
-    - variant: The variant of the button. Default is `solid`.
+    - variant: The variant of the button. Default is `primary`.
     - size: The size of the button. Default is `md`.
     - isLoading: A boolean to indicate if the button is in a loading state.
     - callback: A callback function that will be called when the button is clicked.
@@ -119,7 +119,7 @@
         import * as Button from '$lib/ui/Button'
     </script>
     
-    <Button.Action variant="solid" callback={() => console.log('clicked')}>
+    <Button.Action variant="primary" callback={() => console.log('clicked')}>
       Click me
     </Button.Action>
     ```
