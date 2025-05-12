@@ -22,11 +22,11 @@ export default ts.config(
 		},
 		rules: {},
 		overrides: [
-			    {
-			     files: ["*.svelte"],
-			     rules: { "no-undef": "off" }
-			    }
-			   ]
+			{
+				files: ['*.svelte'],
+				rules: { 'no-undef': 'off' }
+			}
+		]
 	},
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
