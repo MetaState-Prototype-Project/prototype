@@ -37,12 +37,22 @@
 	--color-black: #1f1f1f;
 	--color-black-800: #4c4c4c;
 	--color-black-600: #797979;
-	--color-black-400: #a9a9a9;
+	--color-black-400: #a5a5a5;
 	--color-black-200: #d2d2d2;
 
 	--color-grey: #f5f5f5;
 
 	--color-brand-burnt-orange: #da4a11;
+	--color-brand-burnt-orange-100: #f8dbcf;
+	--color-brand-burnt-orange-200: #f3c3b0;
+	--color-brand-burnt-orange-300: #eca488;
+	--color-brand-burnt-orange-400: #e68660;
+	--color-brand-burnt-orange-500: #e06839;
+	--color-brand-burnt-orange-600: #91310b;
+	--color-brand-burnt-orange-700: #6d2509;
+	--color-brand-burnt-orange-800: #491906;
+	--color-brand-burnt-orange-900: #2c0f03;
+
 	--color-brand-gradient: linear-gradient(
 		91.82deg,
 		#4d44ef -36.17%,
