@@ -27,10 +27,6 @@ export const Secondary = {
 	}
 };
 
-export const Danger = {
-	args: { variant: 'danger', children: ButtonText }
-};
-
 export const Loading = {
 	args: { isLoading: true, children: ButtonText }
 };

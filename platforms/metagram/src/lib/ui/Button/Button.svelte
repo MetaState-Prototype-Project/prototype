@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
 	interface IButtonProps extends HTMLButtonAttributes {
-		variant?: 'primary' |'secondary' | 'danger';
+		variant?: 'primary' | 'secondary';
 		isLoading?: boolean;
 		callback?: () => Promise<void> | void;
 		blockingClick?: boolean;
@@ -39,15 +39,29 @@
 	};
 
 	const variantClasses = {
-		primary: { background: 'bg-grey', text: 'text-black-800', border: "border border-grey-500" },
-		secondary: { background: 'bg-brand-burnt-orange', text: 'text-white'},
-		danger: { background: 'bg-red-500', text: 'text-white' }
+		primary: {
+			background: 'bg-grey',
+			text: 'text-black-800',
+			border: 'border border-black-400'
+		},
+		secondary: {
+			background: 'bg-brand-burnt-orange',
+			text: 'text-white',
+			border: 'border border-brand-burnt-orange-600'
+		}
 	};
 
 	const disabledVariantClasses = {
-		primary: { background: 'bg-grey/50', text: 'text-black-800/50' },
-		secondary: { background: 'bg-brand-burnt-orange/50', text: 'text-white/50'},
-		danger: { background: 'bg-red-500/50', text: 'text-white/50' }
+		primary: {
+			background: 'bg-grey/50',
+			text: 'text-black-800/50',
+			border: 'border border-black-400/50'
+		},
+		secondary: {
+			background: 'bg-brand-burnt-orange/50',
+			text: 'text-white/50',
+			border: 'border border-brand-burnt-orange-600/50'
+		}
 	};
 
 	const sizeVariant = {
