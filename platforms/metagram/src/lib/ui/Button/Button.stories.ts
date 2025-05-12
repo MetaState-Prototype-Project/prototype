@@ -16,6 +16,17 @@ export const Primary = {
 	args: { variant: 'primary', children: ButtonText }
 };
 
+export const Secondary = {
+	args: {
+		variant: 'secondary',
+		blockingClick: true,
+		children: ButtonText,
+		callback: async () => {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
+};
+
 export const Danger = {
 	args: { variant: 'danger', children: ButtonText }
 };
