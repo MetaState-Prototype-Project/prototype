@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
 	interface IButtonProps extends HTMLButtonAttributes {
-		variant?: 'primary' | 'secondary';
+		variant?: 'primary' | 'danger';
 		isLoading?: boolean;
 		callback?: () => Promise<void> | void;
 		blockingClick?: boolean;
@@ -39,29 +39,13 @@
 	};
 
 	const variantClasses = {
-		primary: {
-			background: 'bg-grey',
-			text: 'text-black-800',
-			border: 'border border-black-400'
-		},
-		secondary: {
-			background: 'bg-brand-burnt-orange',
-			text: 'text-white',
-			border: 'border border-brand-burnt-orange-600'
-		}
+		primary: { background: 'bg-grey', text: 'text-black-800' },
+		danger: { background: 'bg-red-500', text: 'text-white' }
 	};
 
 	const disabledVariantClasses = {
-		primary: {
-			background: 'bg-grey/50',
-			text: 'text-black-800/50',
-			border: 'border border-black-400/50'
-		},
-		secondary: {
-			background: 'bg-brand-burnt-orange/50',
-			text: 'text-white/50',
-			border: 'border border-brand-burnt-orange-600/50'
-		}
+		primary: { background: 'bg-grey/50', text: 'text-black-800/50' },
+		danger: { background: 'bg-red-500/50', text: 'text-white/50' }
 	};
 
 	const sizeVariant = {
@@ -80,9 +64,6 @@
 		text: disabled
 			? disabledVariantClasses[variant].text || variantClasses[variant].text
 			: variantClasses[variant].text,
-		border: disabled
-			? disabledVariantClasses[variant].border || variantClasses[variant].border
-			: variantClasses[variant].border,
 		disabled: 'cursor-not-allowed'
 	});
 </script>
@@ -94,7 +75,6 @@
 			classes.common,
 			classes.background,
 			classes.text,
-			classes.border,
 			disabled && classes.disabled,
 			restProps.class
 		].join(' ')
@@ -118,12 +98,12 @@
 	</div>
 </button>
 
-<!-- 
+<!--
     @component
     export default Button
     @description
     This component is a button with a loading spinner that can be used to indicate that an action is being performed.
-    
+
     @props
     - variant: The variant of the button. Default is `primary`.
     - size: The size of the button. Default is `md`.
@@ -132,13 +112,13 @@
     - blockingClick: A boolean to indicate if the button should block the click event while the callback function is being executed.
     - icon: A slot for an icon to be displayed inside the button.
     - ...restProps: Any other props that can be passed to a button element.
-    
+
     @usage
     ```html
     <script lang="ts">
         import * as Button from '$lib/ui/Button'
     </script>
-    
+
     <Button.Action variant="primary" callback={() => console.log('clicked')}>
       Click me
     </Button.Action>
