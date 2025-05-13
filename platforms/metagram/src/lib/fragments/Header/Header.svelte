@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import { ArrowLeft01Icon, MoreVerticalIcon, ZapIcon } from '@hugeicons/core-free-icons';
+	import {
+		ArrowLeft01Icon,
+		ArrowLeft02Icon,
+		MoreVerticalIcon,
+		ZapIcon
+	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
-		variant: 'primary' | 'secondary';
-		heading: string;
+		variant: 'primary' | 'secondary' | 'tertiary';
+		heading?: string;
 		callback?: () => void;
 	}
 
@@ -14,16 +19,34 @@
 
 	const variantClasses = {
 		primary: {
-			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]'
+			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]',
+			background: ''
 		},
 		secondary: {
-			text: ''
+			text: '',
+			background: ''
+		},
+		tertiary: {
+			text: '',
+			background: 'bg-white/60'
 		}
+	};
+
+	const backButton = {
+		secondary: ArrowLeft01Icon,
+		tertiary: ArrowLeft02Icon
+	};
+
+	const menuButton = {
+		primary: ZapIcon,
+		secondary: MoreVerticalIcon,
+		tertiary: MoreVerticalIcon
 	};
 
 	const classes = $derived({
 		common: cn('flex items-center justify-between p-4'),
-		text: cn([variantClasses[variant].text, ''])
+		text: variantClasses[variant].text,
+		background: variantClasses[variant].background
 	});
 
 	const backButtonCallback = () => {
@@ -33,25 +56,33 @@
 
 <header {...restProps} class={cn([classes.common, restProps.class])}>
 	<span class="flex items-center gap-2">
-		{#if variant === 'secondary'}
+		{#if variant !== 'primary'}
 			<button
-				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
+				class={cn([
+					'cursor-pointer rounded-full p-2 hover:bg-gray-100',
+					classes.background
+				])}
 				onclick={backButtonCallback}
 			>
-				<HugeiconsIcon icon={ArrowLeft01Icon} size={24} color="var(--color-black-500)" />
+				<HugeiconsIcon
+					icon={backButton[variant]}
+					size={24}
+					color="var(--color-black-500)"
+				/>
 			</button>
 		{/if}
-		<h1 class={cn([classes.text])}>
-			{heading}
-		</h1>
+		{#if variant !== 'tertiary'}
+			<h1 class={cn([classes.text])}>
+				{heading}
+			</h1>
+		{/if}
 	</span>
 	{#if callback}
-		<button class="cursor-pointer rounded-full p-2 hover:bg-gray-100" onclick={callback}>
-			<HugeiconsIcon
-				icon={variant === 'primary' ? ZapIcon : MoreVerticalIcon}
-				size={24}
-				color="var(--color-black-500)"
-			/>
+		<button
+			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
+			onclick={callback}
+		>
+			<HugeiconsIcon icon={menuButton[variant]} size={24} color="var(--color-black-500)" />
 		</button>
 	{/if}
 </header>

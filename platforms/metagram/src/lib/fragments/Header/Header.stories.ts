@@ -43,3 +43,10 @@ export const SecondaryWithMenu = {
         callback: () => alert("menu clicked"),
     },
 };
+
+export const Tertiary = {
+    args: {
+        variant: "tertiary",
+        callback: () => alert("clicked"),
+    },
+};
