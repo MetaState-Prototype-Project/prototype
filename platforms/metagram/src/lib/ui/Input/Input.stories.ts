@@ -14,9 +14,8 @@ export const Text = {
 	args: {
 		type: 'text',
 		placeholder: 'Joe Biden',
-		required: true,
-		disabled: false,
-		name: 'email'
+		isRequired: true,
+		isDisabled: true
 	}
 };
 
@@ -24,8 +23,7 @@ export const Tel = {
 	args: {
 		type: 'tel',
 		placeholder: '987654321',
-		required: true,
-		name: 'phone'
+		isRequired: true
 	}
 };
 
@@ -33,30 +31,26 @@ export const isError = {
 	args: {
 		type: 'text',
 		placeholder: 'Enter something',
-		error: true,
-		name: 'email'
+		isError: true
 	}
 };
 
 export const Textarea = {
 	args: {
 		type: 'textarea',
-		placeholder: 'no :)',
-		name: 'text'
+		placeholder: 'no :)'
 	}
 };
 
 export const Email = {
 	args: {
 		type: 'email',
-		placeholder: 'example@email.com',
-		name: 'email'
+		placeholder: 'example@email.com'
 	}
 };
 
 export const Password = {
 	args: {
-		type: 'password',
-		name: 'password'
+		type: 'password'
 	}
 };
