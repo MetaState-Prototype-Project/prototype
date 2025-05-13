@@ -100,5 +100,9 @@
         import { Header } from "$lib/fragments";
     </script>
 
-    <Header variant="primary" heading="metagram" callback={() => console.log('Header clicked')} />
+    <Header variant="primary" heading="metagram" callback={() => alert("clicked")} />
+    <Header variant="primary" heading="messages" />
+    <Header variant="secondary" heading="Account"  />
+    <Header variant="secondary" heading="Account" callback={() => alert("clicked")} />
+    <Header variant="tertiary" callback={() => alert("clicked")}  />
 -->
