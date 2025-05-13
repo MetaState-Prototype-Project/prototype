@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import { ArrowLeft01Icon, ZapIcon } from '@hugeicons/core-free-icons';
+	import { ArrowLeft01Icon, MoreVerticalIcon, ZapIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -25,12 +25,19 @@
 		common: cn('flex items-center justify-between p-4'),
 		text: cn([variantClasses[variant].text, ''])
 	});
+
+	const backButtonCallback = () => {
+		window.history.back();
+	};
 </script>
 
 <header {...restProps} class={cn([classes.common, restProps.class])}>
 	<span class="flex items-center gap-2">
 		{#if variant === 'secondary'}
-			<button class="cursor-pointer rounded-full p-2 hover:bg-gray-100" onclick={callback}>
+			<button
+				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
+				onclick={backButtonCallback}
+			>
 				<HugeiconsIcon icon={ArrowLeft01Icon} size={24} color="var(--color-black-500)" />
 			</button>
 		{/if}
@@ -38,9 +45,13 @@
 			{heading}
 		</h1>
 	</span>
-	{#if callback && variant === 'primary'}
+	{#if callback}
 		<button class="cursor-pointer rounded-full p-2 hover:bg-gray-100" onclick={callback}>
-			<HugeiconsIcon icon={ZapIcon} size={24} color="var(--color-black-500)" />
+			<HugeiconsIcon
+				icon={variant === 'primary' ? ZapIcon : MoreVerticalIcon}
+				size={24}
+				color="var(--color-black-500)"
+			/>
 		</button>
 	{/if}
 </header>

@@ -35,3 +35,11 @@ export const Secondary = {
         heading: "Account",
     },
 };
+
+export const SecondaryWithMenu = {
+    args: {
+        variant: "secondary",
+        heading: "Account",
+        callback: () => alert("menu clicked"),
+    },
+};
