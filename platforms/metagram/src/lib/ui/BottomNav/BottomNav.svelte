@@ -3,16 +3,14 @@
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
-		activeTab: string | number;
+		activeTab: string;
+		profileSrc: string;
 	}
-	let { activeTab = $bindable() }: IBottomNavProps = $props();
-
-	// $effect(() => {
-	//     alert(activeTab)
-	// })
+	let { activeTab = $bindable(), profileSrc = 'https://picsum.photos/200' }: IBottomNavProps =
+		$props();
 </script>
 
-<div class="border-grey flex w-full items-center justify-between border px-7 py-2">
+<div class="flex w-full items-center justify-between px-7 py-2">
 	<label for="home">
 		<Home
 			size="24px"
@@ -85,7 +83,19 @@
 		class="hidden"
 	/>
 
-	<label for="profile"> profile </label>
+	<label for="profile">
+		<span
+			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
+		>
+			<img
+				width="24px"
+				height="24px"
+				class="aspect-square rounded-full"
+				src={profileSrc}
+				alt="profile"
+			/>
+		</span>
+	</label>
 	<input
 		id="profile"
 		type="radio"
