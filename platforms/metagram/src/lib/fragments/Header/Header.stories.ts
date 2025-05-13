@@ -28,3 +28,10 @@ export const PrimaryWithNoFlash = {
         heading: "messages",
     },
 };
+
+export const Secondary = {
+    args: {
+        variant: "secondary",
+        heading: "Account",
+    },
+};
