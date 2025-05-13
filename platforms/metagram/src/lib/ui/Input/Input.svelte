@@ -2,8 +2,8 @@
 	import { cn } from '$lib/utils';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 
-	interface IInputProps extends HTMLInputAttributes {
-		type: 'text' | 'number' | 'email' | 'tel' | 'textarea' | 'password';
+	interface IInputProps extends  HTMLInputAttributes{
+		type: 'text' | 'number' | 'email' | 'tel' | 'password';
 		value: string | number;
 		placeholder: string;
 		isRequired: boolean;
@@ -33,4 +33,5 @@
 	required={isRequired}
 	disabled={isDisabled}
 	class={cn([cbase, restProps.class].join(' '))}
+    tabindex="0"
 />
