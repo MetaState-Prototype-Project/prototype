@@ -7,7 +7,7 @@
 		activeTab: string;
 		profileSrc: string;
 	}
-	let { activeTab = $bindable(), profileSrc = 'https://picsum.photos/200' }: IBottomNavProps =
+	let { activeTab = $bindable("home"), profileSrc = 'https://picsum.photos/200' }: IBottomNavProps =
 		$props();
 
 	const handleClick = () => {
@@ -16,14 +16,15 @@
 </script>
 
 <div class="flex w-full items-center justify-between px-7 py-2">
-	<label for="home">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<label for="home" onclick={handleClick}>
 		<Home
 			size="24px"
 			color={activeTab === 'home'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
-			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -35,14 +36,15 @@
 		class="hidden"
 	/>
 
-	<label for="search">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<label for="search" onclick={handleClick}>
 		<Search
 			size="24px"
 			color={activeTab === 'search'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'search' ? 'var(--color-brand-burnt-orange)' : 'white'}
-			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -54,14 +56,15 @@
 		class="hidden"
 	/>
 
-	<label for="camera">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<label for="camera" onclick={handleClick}>
 		<Camera
 			size="24px"
 			color={activeTab === 'camera'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'camera' ? 'var(--color-brand-burnt-orange)' : 'white'}
-			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -73,14 +76,15 @@
 		class="hidden"
 	/>
 
-	<label for="messages">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<label for="messages" onclick={handleClick}>
 		<CommentsTwo
 			size="24px"
 			color={activeTab === 'messages'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
-			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -92,11 +96,10 @@
 		class="hidden"
 	/>
 
-	<label for="profile">
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<label for="profile" onclick={handleClick}>
 		<span
-			onclick={handleClick}
 			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>
 			<img
