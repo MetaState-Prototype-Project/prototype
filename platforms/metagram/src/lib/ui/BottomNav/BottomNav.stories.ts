@@ -1,7 +1,6 @@
 import type { ComponentProps } from 'svelte';
 import { BottomNav } from '..';
 
-
 export default {
 	title: 'UI/BottomNav',
 	component: BottomNav,
@@ -13,5 +12,5 @@ export default {
 };
 
 export const Primary = {
-	args: { }
+	args: {}
 };
