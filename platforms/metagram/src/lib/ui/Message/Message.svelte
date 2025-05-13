@@ -42,3 +42,27 @@
 		<p class="text-black/60">{messageText}</p>
 	</span>
 </button>
+
+<!--
+@component
+@name Message
+@description A message component that displays a user's avatar, username, and message text. It also includes an optional unread indicator.
+@props
+    - avatar: string - The URL of the user's avatar image.
+    - username: string - The name of the user.
+    - text: string - The message text.
+    - unread: boolean - Optional. Indicates if the message is unread. Defaults to false.
+    - callback: () => void - Function to call when the message is clicked.
+@usage
+    <script>
+        import { Message } from '$lib/ui';
+    </script>
+
+    <Message
+        avatar="https://example.com/avatar.jpg"
+        username="John Doe"
+        text="Hello, how are you?"
+        unread={true}
+        callback={() => console.log('Message clicked')}
+    />
+-->
