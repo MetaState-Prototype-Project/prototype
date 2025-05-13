@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
+	import { goto } from '$app/navigation';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
 		activeTab: string;
@@ -8,6 +9,10 @@
 	}
 	let { activeTab = $bindable(), profileSrc = 'https://picsum.photos/200' }: IBottomNavProps =
 		$props();
+
+	const handleClick = () => {
+		goto(`/${activeTab}`);
+	};
 </script>
 
 <div class="flex w-full items-center justify-between px-7 py-2">
@@ -18,6 +23,7 @@
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -36,6 +42,7 @@
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'search' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -54,6 +61,7 @@
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'camera' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -72,6 +80,7 @@
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			onclick={handleClick}
 		/>
 	</label>
 	<input
@@ -84,7 +93,10 @@
 	/>
 
 	<label for="profile">
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<span
+			onclick={handleClick}
 			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>
 			<img
