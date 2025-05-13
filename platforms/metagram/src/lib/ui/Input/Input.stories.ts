@@ -14,7 +14,7 @@ export const Text = {
 	args: {
 		type: 'text',
 		placeholder: 'Joe Biden',
-		isRequired: true,
+		isRequired: true
 	}
 };
 
@@ -44,8 +44,8 @@ export const Email = {
 export const Password = {
 	args: {
 		type: 'password',
-        placeholder: 'Please enter password',
-        isRequired: true
+		placeholder: 'Please enter password',
+		isRequired: true
 	}
 };
 
