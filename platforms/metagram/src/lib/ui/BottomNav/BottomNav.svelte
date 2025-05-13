@@ -7,15 +7,22 @@
 		activeTab: string;
 		profileSrc: string;
 	}
-	let { activeTab = $bindable("home"), profileSrc = 'https://picsum.photos/200' }: IBottomNavProps =
-		$props();
+	let {
+		activeTab = $bindable('home'),
+		profileSrc = 'https://picsum.photos/200'
+	}: IBottomNavProps = $props();
 
 	const handleClick = () => {
 		goto(`/${activeTab}`);
 	};
 </script>
 
-<div class="flex w-full items-center justify-between px-7 py-2">
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<nav
+	aria-label="Main navigation"
+	class="flex w-full items-center justify-between px-7 py-2"
+	role="tablist"
+>
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<label for="home" onclick={handleClick}>
@@ -96,7 +103,7 @@
 		class="hidden"
 	/>
 
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<label for="profile" onclick={handleClick}>
 		<span
@@ -119,4 +126,4 @@
 		name={'navTabs'}
 		class="hidden"
 	/>
-</div>
+</nav>
