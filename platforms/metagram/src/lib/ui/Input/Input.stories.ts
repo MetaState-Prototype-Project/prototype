@@ -15,7 +15,6 @@ export const Text = {
 		type: 'text',
 		placeholder: 'Joe Biden',
 		isRequired: true,
-		isDisabled: true
 	}
 };
 
@@ -35,13 +34,6 @@ export const isError = {
 	}
 };
 
-export const Textarea = {
-	args: {
-		type: 'textarea',
-		placeholder: 'no :)'
-	}
-};
-
 export const Email = {
 	args: {
 		type: 'email',
@@ -51,6 +43,17 @@ export const Email = {
 
 export const Password = {
 	args: {
-		type: 'password'
+		type: 'password',
+        placeholder: 'Please enter password',
+        isRequired: true
+	}
+};
+
+export const Disabled = {
+	args: {
+		type: 'text',
+		placeholder: 'Joe Biden',
+		isRequired: true,
+		isDisabled: true
 	}
 };
