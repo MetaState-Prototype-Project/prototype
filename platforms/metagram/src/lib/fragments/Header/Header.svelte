@@ -1,44 +1,41 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import type { HTMLAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import { ZapIcon } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-interface IHeaderProps extends HTMLAttributes<HTMLElement> {
-    variant: "primary" | "secondary";
-    heading: string;
-    callback?: () => void;
-}
+	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
+		variant: 'primary' | 'secondary';
+		heading: string;
+		callback?: () => void;
+	}
 
-const { variant, callback, heading, ...restProps }: IHeaderProps = $props();
+	const { variant, callback, heading, ...restProps }: IHeaderProps = $props();
 
-const variantClasses = {
-    primary: {
-        text: "text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]",
-    },
-    secondary: {
-        text: "",
-    },
-};
+	const variantClasses = {
+		primary: {
+			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]'
+		},
+		secondary: {
+			text: ''
+		}
+	};
 
-const classes = $derived({
-    common: cn("flex items-center justify-between p-4"),
-    text: variantClasses[variant].text,
-});
+	const classes = $derived({
+		common: cn('flex items-center justify-between p-4'),
+		text: cn([variantClasses[variant].text, ''])
+	});
 </script>
 
 <header {...restProps} class={cn([classes.common, restProps.class])}>
-    <h1 class={cn([
-        classes.text
-    ])}>
-        {heading}
-    </h1>
-    {#if callback}
-        <button
-            class="p-2 rounded-full hover:bg-gray-200"
-            onclick={callback}
-        >
-        Something
-        </button>
-    {/if}
+	<h1 class={cn([classes.text])}>
+		{heading}
+	</h1>
+	{#if callback}
+		<button class="cursor-pointer rounded-full p-2 hover:bg-gray-100" onclick={callback}>
+			<HugeiconsIcon icon={ZapIcon} size={18} color="var(--color-black-500)" />
+		</button>
+	{/if}
 </header>
 
 <!--
