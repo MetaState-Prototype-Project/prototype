@@ -123,3 +123,9 @@
 		class="hidden"
 	/>
 </nav>
+
+<style>
+	nav {
+		view-transition-name: bottomNav;
+	}
+</style>
