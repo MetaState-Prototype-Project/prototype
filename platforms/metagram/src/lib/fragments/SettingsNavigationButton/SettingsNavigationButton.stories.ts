@@ -16,5 +16,5 @@ export default {
 };
 
 export const Primary = {
-	args: { children: ButtonText, leadingIcon: ButtonIcon }
+	args: { children: ButtonText, leadingIcon: ButtonIcon, handleClick: () => alert('clicked') }
 };
