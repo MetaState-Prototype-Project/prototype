@@ -11,10 +11,6 @@
 		activeTab = $bindable('home'),
 		profileSrc = 'https://picsum.photos/200'
 	}: IBottomNavProps = $props();
-
-	const handleClick = () => {
-		goto(`/${activeTab}`);
-	};
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -25,7 +21,7 @@
 >
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="home" onclick={handleClick}>
+	<label for="home" onclick={() => goto('/home')}>
 		<Home
 			size="24px"
 			color={activeTab === 'home'
@@ -45,7 +41,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="search" onclick={handleClick}>
+	<label for="search" onclick={() => goto('/search')}>
 		<Search
 			size="24px"
 			color={activeTab === 'search'
@@ -65,7 +61,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="camera" onclick={handleClick}>
+	<label for="camera" onclick={() => goto('/camera')}>
 		<Camera
 			size="24px"
 			color={activeTab === 'camera'
@@ -85,7 +81,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="messages" onclick={handleClick}>
+	<label for="messages" onclick={() => goto('/messages')}>
 		<CommentsTwo
 			size="24px"
 			color={activeTab === 'messages'
@@ -105,7 +101,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="profile" onclick={handleClick}>
+	<label for="profile" onclick={() => goto('/profile')}>
 		<span
 			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>
