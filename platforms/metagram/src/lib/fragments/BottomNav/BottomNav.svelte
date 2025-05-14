@@ -20,7 +20,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	aria-label="Main navigation"
-	class="flex w-full items-center justify-between px-7 py-2"
+	class="fixed start-0 bottom-0 flex w-full items-center justify-between px-7 py-2 sm:hidden"
 	role="tablist"
 >
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
