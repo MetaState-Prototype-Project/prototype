@@ -8,17 +8,22 @@
 	interface ISettingsNaviationButtonProps extends HTMLButtonAttributes {
 		leadingIcon?: Snippet;
 		children: Snippet;
-		handleClick: () => void;
-        isTrailingIcon: boolean;
+		onclick: () => void;
+		hasTrailingIcon: boolean;
 	}
 
-	let { leadingIcon, children, handleClick,isTrailingIcon = true, ...restProps }: ISettingsNaviationButtonProps =
-		$props();
+	let {
+		leadingIcon,
+		children,
+		onclick,
+		hasTrailingIcon = true,
+		...restProps
+	}: ISettingsNaviationButtonProps = $props();
 
 	const cBase = 'flex w-full items-center justify-between';
 </script>
 
-<button {...restProps} class={cn([cBase, restProps.class].join(' '))} onclick={handleClick}>
+<button {...restProps} class={cn([cBase, restProps.class].join(' '))} {onclick}>
 	<div class="flex items-center gap-2">
 		{#if leadingIcon}
 			<div
@@ -31,7 +36,7 @@
 			{@render children?.()}
 		</h3>
 	</div>
-    {#if isTrailingIcon}
-	<HugeiconsIcon icon={ArrowRight01Icon} color="var(--color-black-400)" />
-    {/if}
+	{#if hasTrailingIcon}
+		<HugeiconsIcon icon={ArrowRight01Icon} color="var(--color-black-400)" />
+	{/if}
 </button>
