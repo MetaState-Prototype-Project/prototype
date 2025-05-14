@@ -22,7 +22,7 @@
 	}: IInputProps = $props();
 
 	const cbase = $derived(
-		`w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent focus:border-black-800 ${isError && 'border border-red-500 text-red-500 focus:text-black-800'} ${isDisabled && 'cursor-not-allowed'}`
+		`w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent ${isError && 'border border-red text-red focus:text-black-800 focus:border-transparent'} ${isDisabled && 'cursor-not-allowed'}`
 	);
 </script>
 
@@ -30,6 +30,7 @@
 	{...restProps}
 	{type}
 	{placeholder}
+	bind:value
 	required={isRequired}
 	disabled={isDisabled}
 	class={cn([cbase, restProps.class].join(' '))}
