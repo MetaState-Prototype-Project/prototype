@@ -16,5 +16,9 @@ export default {
 };
 
 export const Primary = {
-	args: { children: ButtonText, leadingIcon: ButtonIcon, handleClick: () => alert('clicked') }
+	args: { children: ButtonText, leadingIcon: ButtonIcon, handleClick: () => alert('clicked'), isTrailingIcon: true }
+};
+
+export const Secondary = {
+	args: { children: ButtonText, leadingIcon: ButtonIcon, handleClick: () => alert('clicked'), isTrailingIcon: false }
 };

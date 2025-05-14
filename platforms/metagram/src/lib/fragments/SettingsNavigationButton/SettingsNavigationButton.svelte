@@ -9,9 +9,10 @@
 		leadingIcon?: Snippet;
 		children: Snippet;
 		handleClick: () => void;
+        isTrailingIcon: boolean;
 	}
 
-	let { leadingIcon, children, handleClick, ...restProps }: ISettingsNaviationButtonProps =
+	let { leadingIcon, children, handleClick,isTrailingIcon = true, ...restProps }: ISettingsNaviationButtonProps =
 		$props();
 
 	const cBase = 'flex w-full items-center justify-between';
@@ -30,5 +31,7 @@
 			{@render children?.()}
 		</h3>
 	</div>
-	<HugeiconsIcon icon={ArrowRight01Icon} />
+    {#if isTrailingIcon}
+	<HugeiconsIcon icon={ArrowRight01Icon} color="var(--color-black-400)" />
+    {/if}
 </button>
