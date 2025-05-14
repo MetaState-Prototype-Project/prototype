@@ -41,19 +41,19 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="search" onclick={() => goto('/search')}>
+	<label for="discover" onclick={() => goto('/discover')}>
 		<Search
 			size="24px"
-			color={activeTab === 'search'
+			color={activeTab === 'discover'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
-			fill={activeTab === 'search' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
 	</label>
 	<input
-		id="search"
+		id="discover"
 		type="radio"
-		value="search"
+		value="discover"
 		bind:group={activeTab}
 		name={'navTabs'}
 		class="hidden"
@@ -61,19 +61,19 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="camera" onclick={() => goto('/camera')}>
+	<label for="post" onclick={() => goto('/post')}>
 		<Camera
 			size="24px"
-			color={activeTab === 'camera'
+			color={activeTab === 'post'
 				? 'var(--color-brand-burnt-orange)'
 				: 'var(--color-black-400)'}
-			fill={activeTab === 'camera' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			fill={activeTab === 'post' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
 	</label>
 	<input
-		id="camera"
+		id="post"
 		type="radio"
-		value="camera"
+		value="post"
 		bind:group={activeTab}
 		name={'navTabs'}
 		class="hidden"
