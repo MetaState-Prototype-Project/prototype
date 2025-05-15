@@ -11,8 +11,19 @@ export default {
 	})
 };
 
-export const Primary = {
+export const Comment = {
 	args: {
-		placeholder: 'Write your message'
+		variant: 'comment',
+		placeholder: 'Write your comment',
+		handleSend: () => alert('sent')
+	}
+};
+
+export const Dm = {
+	args: {
+		variant: 'dm',
+		placeholder: 'Write your message',
+		handleAdd: () => alert('add'),
+		handleSend: () => alert('sent')
 	}
 };
