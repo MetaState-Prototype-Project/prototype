@@ -12,5 +12,7 @@ export default {
 };
 
 export const Primary = {
-	args: {}
+	args: {
+		placeholder: 'Write your message'
+	}
 };
