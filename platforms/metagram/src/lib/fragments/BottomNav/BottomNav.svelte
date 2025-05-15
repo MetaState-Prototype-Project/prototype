@@ -2,6 +2,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 	import { goto } from '$app/navigation';
+	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
 		activeTab: string;
@@ -11,6 +12,22 @@
 		activeTab = $bindable('home'),
 		profileSrc = 'https://picsum.photos/200'
 	}: IBottomNavProps = $props();
+
+	const tabs = ['home', 'discover', 'post', 'messages', 'profile'];
+	let previousTab = $state('home');
+
+	const handleNavClick = (newTab: string) => {
+		isNavigatingThroughNav.value = true;
+
+		const fromIndex = tabs.indexOf(previousTab);
+		const toIndex = tabs.indexOf(newTab);
+
+		const direction = toIndex > fromIndex ? 'right' : 'left';
+		document.documentElement.setAttribute('data-transition', direction);
+
+		previousTab = newTab;
+		goto(`/${newTab}`);
+	};
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -21,7 +38,7 @@
 >
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="home" onclick={() => goto('/home')}>
+	<label for="home" onclick={() => handleNavClick('home')}>
 		<Home
 			size="24px"
 			color={activeTab === 'home'
@@ -41,7 +58,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="discover" onclick={() => goto('/discover')}>
+	<label for="discover" onclick={() => handleNavClick('discover')}>
 		<Search
 			size="24px"
 			color={activeTab === 'discover'
@@ -61,7 +78,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="post" onclick={() => goto('/post')}>
+	<label for="post" onclick={() => handleNavClick('post')}>
 		<Camera
 			size="24px"
 			color={activeTab === 'post'
@@ -81,7 +98,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="messages" onclick={() => goto('/messages')}>
+	<label for="messages" onclick={() => handleNavClick('messages')}>
 		<CommentsTwo
 			size="24px"
 			color={activeTab === 'messages'
@@ -101,7 +118,7 @@
 
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="profile" onclick={() => goto('/profile')}>
+	<label for="profile" onclick={() => handleNavClick('profile')}>
 		<span
 			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>

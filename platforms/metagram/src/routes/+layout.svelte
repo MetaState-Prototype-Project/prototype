@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
+	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -15,14 +16,13 @@
 		if (currentRoute === targetRoute) {
 			return;
 		}
-		const currentDirection = 'right';
-		document.documentElement.setAttribute('data-transition', currentDirection);
-		// if (!runtime.isNavigatingThroughNav) {
-		// 	const currentDirection = 'right';
 
-		// 	document.documentElement.setAttribute('data-transition', currentDirection);
-		// 	previousRoute = targetRoute;
-		// }
+		if (!isNavigatingThroughNav.value) {
+			const currentDirection = 'right';
+
+			document.documentElement.setAttribute('data-transition', currentDirection);
+			previousRoute = targetRoute;
+		}
 
 		return new Promise((resolve) => {
 			document.startViewTransition(async () => {
