@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IToggleProps extends HTMLAttributes<HTMLElement> {
@@ -13,7 +14,7 @@
 <label
 	{...restProps}
 	for={uniqueId}
-	class="relative"
+	class={cn(["relative",restProps.class].join(" "))}
 	aria-label={restProps['aria-label'] || 'Toggle'}
 	role="switch"
 	aria-checked={checked}
