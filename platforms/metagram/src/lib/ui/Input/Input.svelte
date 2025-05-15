@@ -5,10 +5,10 @@
 	interface IInputProps extends HTMLInputAttributes {
 		type: 'text' | 'number' | 'email' | 'tel' | 'password';
 		value: string | number;
-		placeholder: string;
-		isRequired: boolean;
-		isDisabled: boolean;
-		isError: boolean;
+		placeholder?: string;
+		isRequired?: boolean;
+		isDisabled?: boolean;
+		isError?: boolean;
 	}
 
 	let {
