@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { ISvgProps } from './../types';
 
-	let { size = '20px', color = '#A5A5A5', ...restProps }: ISvgProps = $props();
+	let { size = '20px', color = '#A5A5A5', fill = 'white', ...restProps }: ISvgProps = $props();
 </script>
 
 <svg
 	width={size}
 	height={size}
 	viewBox="0 0 24 24"
-	fill="none"
+	{fill}
 	xmlns="http://www.w3.org/2000/svg"
 	{...restProps}
 >

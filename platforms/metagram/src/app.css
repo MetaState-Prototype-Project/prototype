@@ -61,3 +61,90 @@
 		#f7a428 152.07%
 	);
 }
+
+/* Ensure background remains correct during transitions */
+:root[data-transition]::view-transition-group(root),
+:root[data-transition]::view-transition-old(root),
+:root[data-transition]::view-transition-new(root) {
+	background-color: white !important; /* Default to white */
+}
+
+/* Prevent flickering */
+:root[data-transition]::view-transition-old(root),
+:root[data-transition]::view-transition-new(root) {
+	contain: paint;
+	will-change: transform, opacity;
+}
+
+/* Slide-in from the right without fade */
+@keyframes slide-from-right {
+	from {
+		transform: translateX(100%); /* Start from the right */
+		opacity: 1; /* Ensure fully visible */
+	}
+	to {
+		transform: translateX(0); /* Move to original position */
+		opacity: 1;
+	}
+}
+
+/* Slide-out to the right without fade */
+@keyframes slide-to-right {
+	from {
+		transform: translateX(0); /* Start at original position */
+		opacity: 1;
+	}
+	to {
+		transform: translateX(100%); /* Move to the right */
+		opacity: 1;
+	}
+}
+
+/* Slide-in from the left without fade */
+@keyframes slide-from-left {
+	from {
+		transform: translateX(-100%); /* Start from the left */
+		opacity: 1;
+	}
+	to {
+		transform: translateX(0); /* Move to original position */
+		opacity: 1;
+	}
+}
+
+/* Slide-out to the left without fade */
+@keyframes slide-to-left {
+	from {
+		transform: translateX(0); /* Start at original position */
+		opacity: 1;
+	}
+	to {
+		transform: translateX(-100%); /* Move to the left */
+		opacity: 1;
+	}
+}
+
+@keyframes fade-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+:root[data-transition]::view-transition-old(root) {
+	animation: 400ms ease-out both fade-out;
+}
+
+:root[data-transition='right']::view-transition-new(root) {
+	animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right;
+	position: relative;
+	z-index: 1;
+}
+
+:root[data-transition='left']::view-transition-new(root) {
+	animation: 200ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-left;
+	position: relative;
+	z-index: 1;
+}
