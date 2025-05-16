@@ -1,4 +1,7 @@
 <script lang="ts">
+	import {  Album01Icon } from "@hugeicons/core-free-icons";
+	import { HugeiconsIcon } from "@hugeicons/svelte";
+
 	interface IInputFileProps {
 		files: FileList | undefined;
 		placeholder: string;
@@ -22,6 +25,9 @@
 	{#if files}
 		<h3 class="text-black-800">{files[0].name.slice(0, 5) + '...'}</h3>
 	{:else}
-		Click to upload a photo
+        <div class="flex flex-col gap-2 items-center">
+            <HugeiconsIcon size="24px" icon={Album01Icon} color="var(--color-black-600)"/>
+            Click to upload a photo
+        </div>
 	{/if}
 </label>
