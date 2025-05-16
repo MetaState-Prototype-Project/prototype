@@ -35,12 +35,14 @@
 	{:else}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full"
+		<button
+			type="button"
+			class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 p-0"
 			onclick={handleAdd}
+			aria-label="Add attachment"
 		>
 			<HugeiconsIcon size="24px" icon={PlusSignIcon} color="var(--color-black-400)" />
-		</div>
+		</button>
 	{/if}
 	<Input type="text" bind:value {placeholder} />
 	{#if value || variant === 'dm'}
@@ -55,9 +57,14 @@
 	{:else}
 		<div class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full">
 			<input id="add-image" type="file" class="hidden" accept="image/*" bind:files />
-			<label for="add-image">
-				<HugeiconsIcon size="24px" icon={ImageCompositionOvalIcon} color="var(--color-black-400)" />
-			</label>
+			<button
+				type="button"
+				class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 p-0"
+				onclick={handleSend}
+				aria-label="Send message"
+			>
+				<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />
+			</button>
 		</div>
 	{/if}
 </div>
