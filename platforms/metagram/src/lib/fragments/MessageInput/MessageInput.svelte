@@ -63,7 +63,7 @@
 				onclick={handleSend}
 				aria-label="Send message"
 			>
-				<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />
+				<HugeiconsIcon size="24px" icon={ImageCompositionOvalIcon} color="var(--color-black-400)" />
 			</button>
 		</div>
 	{/if}
