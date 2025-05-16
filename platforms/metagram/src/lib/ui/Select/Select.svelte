@@ -25,10 +25,10 @@
 </script>
 
 <div {...restProps} class={cn([cBase, restProps.class].join(' '))}>
-	<div class="rounded-full text-xl">{options.find((c) => c.code === selectedCode)?.flag}</div>
+	<div class="rounded-full text-2xl">{options.find((c) => c.code === selectedCode)?.flag}</div>
 	<select
 		bind:value={selectedCode}
-		class="text-md focus:ring-2 focus:ring-transparent focus:outline-none"
+		class="text-base focus:ring-2 focus:ring-transparent focus:outline-none"
 	>
 		{#each options as country}
 			<option value={country.code} class="text-md text-black-600">
