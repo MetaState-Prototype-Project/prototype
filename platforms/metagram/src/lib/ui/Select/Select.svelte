@@ -9,15 +9,15 @@
 	let selectedCode = countries[0].code;
 </script>
 
-<div class="flex items-center space-x-2">
-	<div class="text-xl">{countries.find((c) => c.code === selectedCode)?.flag}</div>
+<div class="bg-grey flex w-[max-content] items-center space-x-2 rounded-full p-1.5">
+	<div class="rounded-full text-xl">{countries.find((c) => c.code === selectedCode)?.flag}</div>
 	<select
 		bind:value={selectedCode}
-		class="rounded-full bg-gray-100 px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+		class="text-md focus:ring-2 focus:ring-transparent focus:outline-none"
 	>
 		{#each countries as country}
-			<option value={country.code}>
-				{country.code} ({country.name})
+			<option value={country.code} class="text-md text-black-600">
+				{country.code}
 			</option>
 		{/each}
 	</select>
