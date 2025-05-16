@@ -26,6 +26,8 @@
 		...restProps
 	}: IMessageInputProps = $props();
 
+	let fileInput: HTMLInputElement | undefined = $state();
+
 	const cBase = 'flex items-center justify-between gap-2';
 </script>
 
@@ -56,14 +58,25 @@
 		</div>
 	{:else}
 		<div class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full">
-			<input id="add-image" type="file" class="hidden" accept="image/*" bind:files />
+			<input
+				id="add-image"
+				type="file"
+				class="hidden"
+				accept="image/*"
+				bind:files
+				bind:this={fileInput}
+			/>
 			<button
 				type="button"
 				class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 p-0"
-				onclick={handleSend}
-				aria-label="Send message"
+				aria-label="add-image"
+				onclick={() => fileInput?.click()}
 			>
-				<HugeiconsIcon size="24px" icon={ImageCompositionOvalIcon} color="var(--color-black-400)" />
+				<HugeiconsIcon
+					size="24px"
+					icon={ImageCompositionOvalIcon}
+					color="var(--color-black-400)"
+				/>
 			</button>
 		</div>
 	{/if}
