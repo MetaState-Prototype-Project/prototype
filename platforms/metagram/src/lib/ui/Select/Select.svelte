@@ -31,7 +31,7 @@
 		class="text-base focus:ring-2 focus:ring-transparent focus:outline-none"
 	>
 		{#each options as country}
-			<option value={country.code} class="text-md text-black-600">
+			<option value={country.code} class="text-base text-black-600">
 				{country.code}
 			</option>
 		{/each}
