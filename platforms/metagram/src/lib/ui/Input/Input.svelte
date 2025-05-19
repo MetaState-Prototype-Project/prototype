@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import type { HTMLInputAttributes } from 'svelte/elements';
+	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from 'svelte/elements';
 
 	interface IInputProps extends HTMLInputAttributes {
-		type: 'text' | 'number' | 'email' | 'tel' | 'password';
-		value: string | number;
-		placeholder?: string;
+		type: HTMLInputTypeAttribute;
 	}
 
 	let {
@@ -16,7 +14,7 @@
 	}: IInputProps = $props();
 
 	const cbase = $derived(
-		`w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent`
+		'w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent focus:text-black-800 focus:border-transparent border invalid:border-red invalid:text-red'
 	);
 </script>
 
