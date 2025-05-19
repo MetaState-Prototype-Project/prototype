@@ -28,6 +28,7 @@ export const Tel = {
     },
 };
 
+<<<<<<< HEAD
 export const number = {
     args: {
         type: "number",
@@ -35,11 +36,21 @@ export const number = {
     },
 };
 
+=======
+>>>>>>> a741e7819d230dbf0f597842938d0eb5b7db018f
 export const Email = {
     args: {
         type: "email",
         placeholder: "example@email.com",
     },
+};
+
+export const Invalid = {
+	args: {
+		type: 'email',
+		placeholder: 'Invalid email',
+		value: 'not-an-email'
+	}
 };
 
 export const Password = {
