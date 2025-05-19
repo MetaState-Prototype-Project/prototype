@@ -5,16 +5,16 @@
 	interface ISelectProps extends HTMLAttributes<HTMLElement> {
 		options: Array<{
 			code: string;
-			flag: string;
+			icon: string;
 			name: string;
 		}>;
 	}
 
 	let {
 		options = [
-			{ code: '+41', flag: '🇬🇧', name: 'United Kingdom' },
-			{ code: '+49', flag: '🇩🇪', name: 'Germany' },
-			{ code: '+33', flag: '🇫🇷', name: 'France' }
+			{ code: '+41', icon: '🇬🇧', name: 'United Kingdom' },
+			{ code: '+49', icon: '🇩🇪', name: 'Germany' },
+			{ code: '+33', icon: '🇫🇷', name: 'France' }
 		],
 		...restProps
 	}: ISelectProps = $props();
@@ -25,13 +25,13 @@
 </script>
 
 <div {...restProps} class={cn([cBase, restProps.class].join(' '))}>
-	<div class="rounded-full text-2xl">{options.find((c) => c.code === selectedCode)?.flag}</div>
+	<div class="rounded-full text-2xl">{options.find((c) => c.code === selectedCode)?.icon}</div>
 	<select
 		bind:value={selectedCode}
 		class="text-base focus:ring-2 focus:ring-transparent focus:outline-none"
 	>
 		{#each options as country}
-			<option value={country.code} class="text-base text-black-600">
+			<option value={country.code} class="text-black-600 text-base">
 				{country.code}
 			</option>
 		{/each}
