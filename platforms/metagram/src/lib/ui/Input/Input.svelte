@@ -7,20 +7,20 @@
 		value: string | number;
 		placeholder?: string;
 		disabledClass?: string;
-		error?: string;
+		errorClass?: string;
 	}
 
 	let {
 		type = 'text',
 		value = $bindable(),
 		placeholder = '',
-		disabledClass = 'cursor-not-allowed',
-		error = 'border border-red text-red focus:text-black-800 focus:border-transparent',
+		disabledClass = '',
+		errorClass = '',
 		...restProps
 	}: IInputProps = $props();
 
 	const cbase = $derived(
-		`w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent ${error} ${disabled}`
+		`w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent ${errorClass} ${disabledClass}`
 	);
 </script>
 

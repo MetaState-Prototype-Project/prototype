@@ -13,16 +13,14 @@ export default {
 export const Text = {
 	args: {
 		type: 'text',
-		placeholder: 'Joe Biden',
-		isRequired: true
+		placeholder: 'Joe Biden'
 	}
 };
 
 export const Tel = {
 	args: {
 		type: 'tel',
-		placeholder: '987654321',
-		isRequired: true
+		placeholder: '987654321'
 	}
 };
 
@@ -30,7 +28,7 @@ export const isError = {
 	args: {
 		type: 'text',
 		placeholder: 'Enter something',
-		isError: true
+		errorClass: 'border border-red text-red focus:text-black-800 focus:border-transparent'
 	}
 };
 
@@ -44,16 +42,6 @@ export const Email = {
 export const Password = {
 	args: {
 		type: 'password',
-		placeholder: 'Please enter password',
-		isRequired: true
-	}
-};
-
-export const Disabled = {
-	args: {
-		type: 'text',
-		placeholder: 'Joe Biden',
-		isRequired: true,
-		isDisabled: true
+		placeholder: 'Please enter password'
 	}
 };
