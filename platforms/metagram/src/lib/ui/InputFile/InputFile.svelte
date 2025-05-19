@@ -4,22 +4,25 @@
 
 	interface IInputFileProps {
 		files: FileList | undefined;
-		placeholder: string;
+		accept: string;
+		label: string;
+		cancelLabel: string;
+		oncancel: () => void;
 	}
 
-	let { files = $bindable() }: IInputFileProps = $props();
+	let {
+		files = $bindable(),
+		accept = 'image/*',
+		label = 'Click to upload a photo',
+		cancelLabel = 'Delete upload',
+		oncancel
+	}: IInputFileProps = $props();
 
 	const uniqueId = Math.random().toString().split('.')[1];
 	let inputFile: HTMLInputElement | undefined = $state();
-
-	function cancelUpload(e: MouseEvent) {
-		e.preventDefault();
-		if (inputFile) inputFile.value = '';
-		files = undefined;
-	}
 </script>
 
-<input id={uniqueId} type="file" bind:files class="hidden" accept="image/*" bind:this={inputFile} />
+<input id={uniqueId} type="file" bind:files class="hidden" {accept} bind:this={inputFile} />
 
 <label
 	for={uniqueId}
@@ -31,16 +34,51 @@
 			<h3 class="text-black-800">{files[0].name.slice(0, 10) + '...'}</h3>
 			<button
 				type="button"
-				onclick={(e) => cancelUpload(e)}
+				{oncancel}
 				class="text-brand-burnt-orange underline decoration-solid"
 			>
-				Delete Upload
+				{cancelLabel}
 			</button>
 		</div>
 	{:else}
 		<div class="flex flex-col items-center gap-2">
 			<HugeiconsIcon size="24px" icon={Album01Icon} color="var(--color-black-600)" />
-			Click to upload a photo
+			{label}
 		</div>
 	{/if}
 </label>
+
+<!--
+	@component
+	export default InputFile;
+	@description
+	A styled file input component with a custom label, file preview, and a cancel button. 
+	Supports binding file selection and a cancel handler.
+
+	@props
+	- files: The bound FileList or undefined.
+	- accept: The accepted file types (default: "image/*").
+	- label: Label text shown when no file is selected (default: "Click to upload a photo").
+	- cancelLabel: Text for the cancel button (default: "Delete upload").
+	- oncancel: Function called when user clicks the cancel button.
+
+	@usage
+	```html
+	<script lang="ts">
+		import InputFile from './InputFile.svelte';
+		let files: FileList | undefined;
+
+		function handleCancel() {
+			files = undefined;
+		}
+	</script>
+
+	<InputFile
+		bind:files
+		accept="image/png, image/jpeg"
+		label="Upload your profile photo"
+		cancelLabel="Remove"
+		oncancel={handleCancel}
+	/>
+	```
+-->
