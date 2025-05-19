@@ -24,18 +24,18 @@ export const Tel = {
 	}
 };
 
-export const isError = {
-	args: {
-		type: 'text',
-		placeholder: 'Enter something',
-		errorClass: 'border border-red text-red focus:text-black-800 focus:border-transparent'
-	}
-};
-
 export const Email = {
 	args: {
 		type: 'email',
 		placeholder: 'example@email.com'
+	}
+};
+
+export const Invalid = {
+	args: {
+		type: 'email',
+		placeholder: 'Invalid email',
+		value: 'not-an-email'
 	}
 };
 
