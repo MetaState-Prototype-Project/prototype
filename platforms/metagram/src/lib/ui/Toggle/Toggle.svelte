@@ -14,7 +14,7 @@
 <label
 	{...restProps}
 	for={uniqueId}
-	class={cn(["relative",restProps.class].join(" "))}
+	class={cn(['relative', restProps.class].join(' '))}
 	aria-label={restProps['aria-label'] || 'Toggle'}
 	role="switch"
 	aria-checked={checked}
