@@ -17,10 +17,6 @@
 		if (inputFile) inputFile.value = '';
 		files = undefined;
 	}
-
-	$effect(() => {
-		console.log(files);
-	});
 </script>
 
 <input id={uniqueId} type="file" bind:files class="hidden" accept="image/*" bind:this={inputFile} />
