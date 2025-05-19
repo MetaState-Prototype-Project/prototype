@@ -3,9 +3,10 @@
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 	import { goto } from '$app/navigation';
 	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
+	import { page } from '$app/state';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
-		activeTab: string;
+		activeTab?: string;
 		profileSrc: string;
 	}
 	let {
@@ -15,8 +16,10 @@
 
 	const tabs = ['home', 'discover', 'post', 'messages', 'profile'];
 	let previousTab = $state('home');
+	let _activeTab = $derived(page.url.pathname);
 
 	const handleNavClick = (newTab: string) => {
+		// activeTab = newTab;
 		isNavigatingThroughNav.value = true;
 
 		const fromIndex = tabs.indexOf(previousTab);
@@ -28,6 +31,10 @@
 		previousTab = newTab;
 		goto(`/${newTab}`);
 	};
+
+	$effect(() => {
+		activeTab = _activeTab.split('/').pop() ?? '';
+	});
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -36,9 +43,12 @@
 	class="fixed start-0 bottom-0 flex w-full items-center justify-between px-7 py-2 sm:hidden"
 	role="tablist"
 >
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="home" onclick={() => handleNavClick('home')}>
+	<button
+		type="button"
+		class="flex flex-col items-center"
+		aria-current={activeTab === 'home' ? 'page' : undefined}
+		onclick={() => handleNavClick('home')}
+	>
 		<Home
 			size="24px"
 			color={activeTab === 'home'
@@ -46,19 +56,14 @@
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
-	</label>
-	<input
-		id="home"
-		type="radio"
-		value="home"
-		bind:group={activeTab}
-		name={'navTabs'}
-		class="hidden"
-	/>
+	</button>
 
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="discover" onclick={() => handleNavClick('discover')}>
+	<button
+		type="button"
+		class="flex flex-col items-center"
+		aria-current={activeTab === 'discover' ? 'page' : undefined}
+		onclick={() => handleNavClick('discover')}
+	>
 		<Search
 			size="24px"
 			color={activeTab === 'discover'
@@ -66,19 +71,14 @@
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
-	</label>
-	<input
-		id="discover"
-		type="radio"
-		value="discover"
-		bind:group={activeTab}
-		name={'navTabs'}
-		class="hidden"
-	/>
+	</button>
 
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="post" onclick={() => handleNavClick('post')}>
+	<button
+		type="button"
+		class="flex flex-col items-center"
+		aria-current={activeTab === 'post' ? 'page' : undefined}
+		onclick={() => handleNavClick('post')}
+	>
 		<Camera
 			size="24px"
 			color={activeTab === 'post'
@@ -86,19 +86,14 @@
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'post' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
-	</label>
-	<input
-		id="post"
-		type="radio"
-		value="post"
-		bind:group={activeTab}
-		name={'navTabs'}
-		class="hidden"
-	/>
+	</button>
 
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="messages" onclick={() => handleNavClick('messages')}>
+	<button
+		type="button"
+		class="flex flex-col items-center"
+		aria-current={activeTab === 'messages' ? 'page' : undefined}
+		onclick={() => handleNavClick('messages')}
+	>
 		<CommentsTwo
 			size="24px"
 			color={activeTab === 'messages'
@@ -106,19 +101,14 @@
 				: 'var(--color-black-400)'}
 			fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
 		/>
-	</label>
-	<input
-		id="messages"
-		type="radio"
-		value="messages"
-		bind:group={activeTab}
-		name={'navTabs'}
-		class="hidden"
-	/>
+	</button>
 
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<label for="profile" onclick={() => handleNavClick('profile')}>
+	<button
+		type="button"
+		class="flex flex-col items-center"
+		aria-current={activeTab === 'profile' ? 'page' : undefined}
+		onclick={() => handleNavClick('profile')}
+	>
 		<span
 			class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 		>
@@ -130,15 +120,7 @@
 				alt="profile"
 			/>
 		</span>
-	</label>
-	<input
-		id="profile"
-		type="radio"
-		value="profile"
-		bind:group={activeTab}
-		name={'navTabs'}
-		class="hidden"
-	/>
+	</button>
 </nav>
 
 <style>
