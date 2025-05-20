@@ -38,6 +38,7 @@
 					bottom: { enabled: true, height: 250 }
 				},
 				initialBreak: 'bottom',
+                cssClass: "modal",
 				events: {
 					onBackdropTap: () => dismiss()
 				}
@@ -58,7 +59,7 @@
 </div>
 
 <style>
-	:global(.pane) {
+	:global(.modal .pane) {
 		width: 95% !important;
 		max-height: 300px !important;
 		min-height: 100px !important;
