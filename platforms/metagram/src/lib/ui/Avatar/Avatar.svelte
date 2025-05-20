@@ -1,31 +1,26 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import type { HTMLImgAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import type { HTMLImgAttributes } from 'svelte/elements';
 
-interface IAvatarProps extends HTMLImgAttributes {
-    src: string;
-    alt?: string;
-    size?: "xs" | "sm" | "md" | "lg";
-}
+	interface IAvatarProps extends HTMLImgAttributes {
+		src: string;
+		alt?: string;
+		size?: 'xs' | 'sm' | 'md' | 'lg';
+	}
 
-const {
-    src,
-    alt = "User Avatar",
-    size = "md",
-    ...restProps
-}: IAvatarProps = $props();
+	const { src, alt = 'User Avatar', size = 'md', ...restProps }: IAvatarProps = $props();
 
-const sizeVariant = {
-    xs: "w-6 h-6",
-    sm: "w-10 h-10",
-    md: "w-12 h-12",
-    lg: "w-30 h-30",
-};
+	const sizeVariant = {
+		xs: 'w-6 h-6',
+		sm: 'w-10 h-10',
+		md: 'w-12 h-12',
+		lg: 'w-30 h-30'
+	};
 
-const classes = $derived({
-    common: cn("rounded-full"),
-    size: sizeVariant[size] || sizeVariant.md,
-});
+	const classes = $derived({
+		common: cn('rounded-full'),
+		size: sizeVariant[size] || sizeVariant.md
+	});
 </script>
 
 <img
