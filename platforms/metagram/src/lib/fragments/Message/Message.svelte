@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Avatar } from '$lib/ui';
-	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import Avatar from '../../ui/Avatar/Avatar.svelte';
+	import { cn } from '../../utils';
 
 	interface IMessageProps extends HTMLAttributes<HTMLButtonElement> {
 		avatar: string;
