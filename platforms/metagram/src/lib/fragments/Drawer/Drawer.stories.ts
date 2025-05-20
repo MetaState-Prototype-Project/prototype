@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'svelte';
 import { Drawer } from '..';
+import { DrawerContent } from './Drawer.stories.snippet.svelte';
 
 export default {
 	title: 'UI/Drawer',
@@ -12,5 +13,7 @@ export default {
 };
 
 export const Main = {
-	args: {}
+	args: {
+        children: DrawerContent
+    }
 };
