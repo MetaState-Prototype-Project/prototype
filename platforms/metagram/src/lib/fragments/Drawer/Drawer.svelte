@@ -73,8 +73,10 @@
 	{@render children?.()}
 </div>
 
-<!-- <style>
+<style>
 	:global(.pane) {
-		border-radius: 32px !important;
+		border-top-left-radius: 32px !important;
+		border-top-right-radius: 32px !important;
+		padding: 20px !important;
 	}
-</style> -->
+</style>
