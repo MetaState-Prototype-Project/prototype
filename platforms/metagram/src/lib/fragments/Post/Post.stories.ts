@@ -2,7 +2,7 @@ import type { ComponentProps } from 'svelte';
 import Post from './Post.svelte';
 
 export default {
-	title: 'Fragments/Post',
+	title: 'ui/Post',
 	component: Post,
 	tags: ['autodocs'],
 	render: (args: { Component: Post; props: ComponentProps<typeof Post> }) => ({
