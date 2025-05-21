@@ -1,12 +1,12 @@
 import type { ComponentProps } from 'svelte';
-import { ContextMenu } from '..';
+import { ActionMenu } from '..';
 
 export default {
-	title: 'UI/ContextMenu',
-	component: ContextMenu,
+	title: 'UI/ActionMenu',
+	component: ActionMenu,
 	tags: ['autodocs'],
-	render: (args: { Component: ContextMenu; props: ComponentProps<typeof ContextMenu> }) => ({
-		Component: ContextMenu,
+	render: (args: { Component: ActionMenu; props: ComponentProps<typeof ActionMenu> }) => ({
+		Component: ActionMenu,
 		props: args
 	})
 };
