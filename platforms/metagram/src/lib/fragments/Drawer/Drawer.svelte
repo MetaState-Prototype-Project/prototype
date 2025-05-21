@@ -78,5 +78,10 @@
 		border-top-left-radius: 32px !important;
 		border-top-right-radius: 32px !important;
 		padding: 20px !important;
+		scrollbar-width: none !important;
+		-ms-overflow-style: none !important;
+		::-webkit-scrollbar {
+			display: none !important;
+		}
 	}
 </style>

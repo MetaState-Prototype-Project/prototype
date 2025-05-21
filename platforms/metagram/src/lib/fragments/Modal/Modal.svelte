@@ -38,7 +38,7 @@
 					bottom: { enabled: true, height: 250 }
 				},
 				initialBreak: 'bottom',
-                cssClass: "modal",
+				cssClass: 'modal',
 				events: {
 					onBackdropTap: () => dismiss()
 				}
