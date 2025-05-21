@@ -2,7 +2,7 @@ import type { ComponentProps } from 'svelte';
 import Header from './Header.svelte';
 
 export default {
-	title: 'Fragments/Header',
+	title: 'UI/Header',
 	component: Header,
 	tags: ['autodocs'],
 	render: (args: { Component: Header; props: ComponentProps<typeof Header> }) => ({
