@@ -4,7 +4,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { clickOutside, cn } from '$lib/utils';
 	import { swipe } from 'svelte-gestures';
-    import type { SwipeCustomEvent } from 'svelte-gestures';
+	import type { SwipeCustomEvent } from 'svelte-gestures';
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		isPaneOpen?: boolean;
@@ -27,13 +27,13 @@
 		isPaneOpen = false;
 	};
 
-    const handleDrawerSwipe = (event: SwipeCustomEvent) => {
-    if (event.detail.direction === 'down' as string) {
-        handleSwipe?.(false);
-        drawer?.destroy({ animate: true });
-        isPaneOpen = false;
-    }
-};
+	const handleDrawerSwipe = (event: SwipeCustomEvent) => {
+		if (event.detail.direction === ('down' as string)) {
+			handleSwipe?.(false);
+			drawer?.destroy({ animate: true });
+			isPaneOpen = false;
+		}
+	};
 
 	onMount(() => {
 		if (!drawerElement) return;
@@ -70,5 +70,5 @@
 	use:clickOutside={handleClickOutside}
 	class={cn(restProps.class)}
 >
-{@render children?.()}
+	{@render children?.()}
 </div>
