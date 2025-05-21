@@ -52,7 +52,7 @@
 	});
 </script>
 
-<div bind:this={modalEl} {...restProps} class={cn('p-5', restProps.class)}>
+<div bind:this={modalEl} {...restProps} class={cn(restProps.class)}>
 	{#if children}
 		{@render children?.()}
 	{/if}
@@ -69,8 +69,7 @@
 		left: 50% !important;
 		transform: translateX(-50%) !important;
 		border-radius: 32px !important;
-		padding-block-start: 20px !important;
-		padding-block-end: 20px !important;
+		padding: 20px !important;
 		background-color: var(--color-white) !important;
 		overflow: scroll !important;
 		scrollbar-width: none !important;
