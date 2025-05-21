@@ -27,6 +27,14 @@
 	.subtext {
 		@apply font-geist text-xs/[1] font-normal;
 	}
+	.hide-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.hide-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
 }
 
 @theme {

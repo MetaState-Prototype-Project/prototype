@@ -2,9 +2,9 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { CupertinoPane } from 'cupertino-pane';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { clickOutside, cn } from '$lib/utils';
+	import { cn } from '$lib/utils';
 	import { swipe } from 'svelte-gestures';
-    import type { SwipeCustomEvent } from 'svelte-gestures';
+	import type { SwipeCustomEvent } from 'svelte-gestures';
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		isPaneOpen?: boolean;
@@ -22,18 +22,17 @@
 	let drawerElement: HTMLElement;
 	let drawer: CupertinoPane;
 
-	const handleClickOutside = () => {
-		drawer?.destroy({ animate: true });
-		isPaneOpen = false;
-	};
+	function dismiss() {
+		if (drawer) drawer.destroy({ animate: true });
+	}
 
-    const handleDrawerSwipe = (event: SwipeCustomEvent) => {
-    if (event.detail.direction === 'down' as string) {
-        handleSwipe?.(false);
-        drawer?.destroy({ animate: true });
-        isPaneOpen = false;
-    }
-};
+	const handleDrawerSwipe = (event: SwipeCustomEvent) => {
+		if (event.detail.direction === ('down' as string)) {
+			handleSwipe?.(false);
+			drawer?.destroy({ animate: true });
+			isPaneOpen = false;
+		}
+	};
 
 	onMount(() => {
 		if (!drawerElement) return;
@@ -47,7 +46,10 @@
 			bottomClose: true,
 			buttonDestroy: false,
 			cssClass: '',
-			initialBreak: 'middle'
+			initialBreak: 'middle',
+			events: {
+					onBackdropTap: () => dismiss()
+				}
 		});
 		if (isPaneOpen) {
 			drawer.present({ animate: true });
@@ -67,8 +69,20 @@
 		minSwipeDistance: 60
 	})}
 	onswipe={handleDrawerSwipe}
-	use:clickOutside={handleClickOutside}
 	class={cn(restProps.class)}
 >
-{@render children?.()}
+	{@render children?.()}
 </div>
+
+<style>
+	:global(.pane) {
+		border-top-left-radius: 32px !important;
+		border-top-right-radius: 32px !important;
+		padding: 20px !important;
+		scrollbar-width: none !important;
+		-ms-overflow-style: none !important;
+		::-webkit-scrollbar {
+			display: none !important;
+		}
+	}
+</style>
