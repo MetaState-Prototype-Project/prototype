@@ -8,6 +8,15 @@
 	src: url('/fonts/Geist-VariableFont_wght.ttf') format('truetype');
 }
 
+body {
+	font-family: 'Geist', sans-serif;
+	padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+	background-color: white;
+}
+
 @layer base {
 	h1 {
 		@apply font-geist text-xl/[1] font-semibold;
