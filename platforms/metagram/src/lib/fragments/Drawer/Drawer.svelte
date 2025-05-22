@@ -48,8 +48,8 @@
 			cssClass: '',
 			initialBreak: 'middle',
 			events: {
-					onBackdropTap: () => dismiss()
-				}
+				onBackdropTap: () => dismiss()
+			}
 		});
 		if (isPaneOpen) {
 			drawer.present({ animate: true });
