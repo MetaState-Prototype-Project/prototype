@@ -47,7 +47,7 @@
 		showActionMenu = false;
 	}
 
-	const cBase = 'w-[max-content] py-2 px-5 rounded-2xl bg-white shadow-lg';
+	const cBase = 'fixed z-50 w-[max-content] py-2 px-5 rounded-2xl bg-white shadow-lg';
 </script>
 
 <div class="relative inline-block">
@@ -63,10 +63,10 @@
 
 {#if showActionMenu}
 	<ul
+		{...restProps}
 		use:clickOutside={() => closeMenu()}
 		bind:this={menuEl}
-		class={cn([cBase, 'fixed z-50'].join(' '))}
-		style="position: fixed;"
+		class={cn([cBase, restProps.class].join(' '))}
 	>
 		{#each options as option}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
