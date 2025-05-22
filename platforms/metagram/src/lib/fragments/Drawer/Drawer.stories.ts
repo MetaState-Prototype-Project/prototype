@@ -14,6 +14,6 @@ export default {
 
 export const Main = {
 	args: {
-        children: DrawerContent
-    }
+		children: DrawerContent
+	}
 };
