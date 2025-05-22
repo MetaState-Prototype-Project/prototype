@@ -5,4 +5,5 @@ export { default as MessageInput } from './MessageInput/MessageInput.svelte';
 export { default as InputFile } from './InputFile/InputFile.svelte';
 export { default as Drawer } from './Drawer/Drawer.svelte';
 export { default as Message } from './Message/Message.svelte';
+export { default as ActionMenu } from './ActionMenu/ActionMenu.svelte';
 export { default as Modal } from './Modal/Modal.svelte';
