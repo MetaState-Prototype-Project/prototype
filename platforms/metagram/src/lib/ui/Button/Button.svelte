@@ -3,7 +3,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
 	interface IButtonProps extends HTMLButtonAttributes {
-		variant?: 'primary' | 'danger';
+		variant?: 'primary' | 'secondary' | 'danger';
 		isLoading?: boolean;
 		callback?: () => Promise<void> | void;
 		blockingClick?: boolean;
@@ -39,13 +39,35 @@
 	};
 
 	const variantClasses = {
-		primary: { background: 'bg-grey', text: 'text-black-800' },
-		danger: { background: 'bg-red-500', text: 'text-white' }
+		primary: {
+			background: 'bg-grey',
+			text: 'text-black-800',
+			border: 'border border-black-400'
+		},
+		secondary: {
+			background: 'bg-brand-burnt-orange',
+			text: 'text-white',
+			border: 'border border-brand-burnt-orange-700'
+		},
+		danger: { background: 'bg-red-500', text: 'text-white', border: 'border border-red-700' }
 	};
 
 	const disabledVariantClasses = {
-		primary: { background: 'bg-grey/50', text: 'text-black-800/50' },
-		danger: { background: 'bg-red-500/50', text: 'text-white/50' }
+		primary: {
+			background: 'bg-grey/50',
+			text: 'text-black-800/50',
+			border: 'border border-black-400/50'
+		},
+		secondary: {
+			background: 'bg-brand-burnt-orange/50',
+			text: 'text-white/50',
+			border: 'border border-brand-burnt-orange-700/50'
+		},
+		danger: {
+			background: 'bg-red-500/50',
+			text: 'text-white/50',
+			border: 'border border-red-700/50'
+		}
 	};
 
 	const sizeVariant = {
@@ -55,7 +77,7 @@
 
 	const classes = $derived({
 		common: cn(
-			'cursor-pointer w-min flex items-center justify-center rounded-full font-semibold duration-100',
+			'cursor-pointer w-full flex items-center justify-center rounded-full font-semibold duration-100',
 			sizeVariant[size]
 		),
 		background: disabled
@@ -64,6 +86,9 @@
 		text: disabled
 			? disabledVariantClasses[variant].text || variantClasses[variant].text
 			: variantClasses[variant].text,
+		border: disabled
+			? disabledVariantClasses[variant].border || variantClasses[variant].border
+			: variantClasses[variant].border,
 		disabled: 'cursor-not-allowed'
 	});
 </script>
@@ -75,6 +100,7 @@
 			classes.common,
 			classes.background,
 			classes.text,
+			classes.border,
 			disabled && classes.disabled,
 			restProps.class
 		].join(' ')

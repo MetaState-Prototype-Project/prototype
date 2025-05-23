@@ -9,6 +9,9 @@
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
+		if (!window.matchMedia('(max-width: 768px)').matches) {
+			return;
+		}
 
 		const currentRoute = navigation.from?.url.pathname;
 		const targetRoute = navigation.to?.url.pathname;
@@ -33,6 +36,6 @@
 	});
 </script>
 
-<main>
+<main class="h-[100dvh] px-4 md:px-0">
 	{@render children()}
 </main>
