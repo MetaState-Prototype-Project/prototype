@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
+	import { Home, CommentsTwo, Search, Camera, Settings } from '$lib/icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Button from '$lib/ui/Button/Button.svelte';
@@ -121,6 +121,26 @@
 				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
 			>
 				Messages
+			</h3>
+		</button>
+
+        <button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'settings' ? 'page' : undefined}
+			onclick={() => handleNavClick('settings')}
+		>
+			<Settings
+				size="24px"
+				color={activeTab === 'settings'
+					? 'var(--color-brand-burnt-orange)'
+					: 'var(--color-black-400)'}
+				fill={activeTab === 'settings' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			/>
+			<h3
+				class={`${activeTab === 'settings' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+			>
+				Settings
 			</h3>
 		</button>
 

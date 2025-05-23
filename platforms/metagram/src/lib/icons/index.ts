@@ -8,3 +8,4 @@ export { default as Flash } from './Flash.svelte';
 export { default as CommentsTwo } from './CommentsTwo.svelte';
 export { default as Search } from './Search.svelte';
 export { default as Camera } from './Camera.svelte';
+export { default as Settings } from "./Settings.svelte";
