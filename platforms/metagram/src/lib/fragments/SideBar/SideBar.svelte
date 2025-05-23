@@ -6,7 +6,7 @@
 	import Button from '$lib/ui/Button/Button.svelte';
 	import { cn } from '$lib/utils';
 
-	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
+	interface ISideBarProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
 		profileSrc: string;
 		handlePost?: () => Promise<void>;
@@ -16,7 +16,7 @@
 		profileSrc = 'https://picsum.photos/200',
 		handlePost,
 		...restProps
-	}: IBottomNavProps = $props();
+	}: ISideBarProps = $props();
 
 	let _activeTab = $derived(page.url.pathname);
 
@@ -57,7 +57,9 @@
 					: 'var(--color-black-400)'}
 				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
 			/>
-			<h3 class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+			<h3
+				class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+			>
 				Feed
 			</h3>
 		</button>
@@ -76,7 +78,7 @@
 				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange)' : 'white'}
 			/>
 			<h3
-				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-800'}`}
+				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
 			>
 				Search
 			</h3>
@@ -95,7 +97,9 @@
 					: 'var(--color-black-400)'}
 				fill={activeTab === 'post' ? 'var(--color-brand-burnt-orange)' : 'white'}
 			/>
-			<h3 class={`${activeTab === 'post' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+			<h3
+				class={`${activeTab === 'post' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+			>
 				Upload a photo
 			</h3>
 		</button>
@@ -114,7 +118,7 @@
 				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
 			/>
 			<h3
-				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'}`}
+				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
 			>
 				Messages
 			</h3>
@@ -137,7 +141,9 @@
 					alt="profile"
 				/>
 			</span>
-			<h3 class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+			<h3
+				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+			>
 				Profile
 			</h3>
 		</button>

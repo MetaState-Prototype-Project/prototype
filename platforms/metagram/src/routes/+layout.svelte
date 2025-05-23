@@ -10,8 +10,8 @@
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 		if (!window.matchMedia('(max-width: 768px)').matches) {
-		return;
-	}
+			return;
+		}
 
 		const currentRoute = navigation.from?.url.pathname;
 		const targetRoute = navigation.to?.url.pathname;
