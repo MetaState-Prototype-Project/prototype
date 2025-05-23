@@ -124,7 +124,7 @@
 			</h3>
 		</button>
 
-        <button
+		<button
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'settings' ? 'page' : undefined}
