@@ -2,19 +2,22 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 	import { goto } from '$app/navigation';
-	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import { page } from '$app/state';
+	import Button from '$lib/ui/Button/Button.svelte';
+	import { cn } from '$lib/utils';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
 		profileSrc: string;
+		handlePost?: () => Promise<void>;
 	}
 	let {
 		activeTab = $bindable('home'),
-		profileSrc = 'https://picsum.photos/200'
+		profileSrc = 'https://picsum.photos/200',
+		handlePost,
+		...restProps
 	}: IBottomNavProps = $props();
 
-	const tabs = ['home', 'discover', 'post', 'messages', 'profile'];
 	let _activeTab = $derived(page.url.pathname);
 
 	const handleNavClick = (newTab: string) => {
@@ -25,16 +28,22 @@
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
 	});
+
+	const cBase =
+		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
+	{...restProps}
 	aria-label="Main navigation"
-	class="hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center"
+	class={cn([cBase, restProps.class].join(' '))}
 	role="tablist"
 >
 	<div class="flex flex-col items-start justify-start gap-12">
-        <h1 class="text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]">Pictique</h1>
+		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">
+			Pictique
+		</h1>
 		<button
 			type="button"
 			class="flex items-center gap-2"
@@ -132,5 +141,8 @@
 				Profile
 			</h3>
 		</button>
+		{#if handlePost}
+			<Button size="sm" variant="secondary" callback={handlePost}>Post a photo</Button>
+		{/if}
 	</div>
 </nav>

@@ -8,12 +8,14 @@
 </script>
 
 <main class="block h-[100dvh] grid-cols-[22vw_auto_31vw] md:grid">
-	<SideBar profileSrc="https://picsum.photos/200" />
-	<section>
+	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
+	<section class="md:pt-14">
 		{@render children()}
 	</section>
 	{#if !route.endsWith('/messages')}
-		<aside class="hidden border border-y-0 border-s-gray-200 md:block">Right Aside</aside>
+		<aside class="hidden border border-y-0 border-s-gray-200 md:block md:pt-14">
+			Right Aside
+		</aside>
 	{/if}
 	<BottomNav profileSrc="https://picsum.photos/200" />
 </main>
