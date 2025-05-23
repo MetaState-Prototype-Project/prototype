@@ -1,0 +1,136 @@
+<script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
+	import { goto } from '$app/navigation';
+	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
+	import { page } from '$app/state';
+
+	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
+		activeTab?: string;
+		profileSrc: string;
+	}
+	let {
+		activeTab = $bindable('home'),
+		profileSrc = 'https://picsum.photos/200'
+	}: IBottomNavProps = $props();
+
+	const tabs = ['home', 'discover', 'post', 'messages', 'profile'];
+	let _activeTab = $derived(page.url.pathname);
+
+	const handleNavClick = (newTab: string) => {
+		activeTab = newTab;
+		goto(`/${newTab}`);
+	};
+
+	$effect(() => {
+		activeTab = _activeTab.split('/').pop() ?? '';
+	});
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<nav
+	aria-label="Main navigation"
+	class="hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center"
+	role="tablist"
+>
+	<div class="flex flex-col items-start justify-start gap-12">
+        <h1 class="text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]">Pictique</h1>
+		<button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'home' ? 'page' : undefined}
+			onclick={() => handleNavClick('home')}
+		>
+			<Home
+				size="24px"
+				color={activeTab === 'home'
+					? 'var(--color-brand-burnt-orange)'
+					: 'var(--color-black-400)'}
+				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			/>
+			<h3 class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+				Feed
+			</h3>
+		</button>
+
+		<button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'discover' ? 'page' : undefined}
+			onclick={() => handleNavClick('discover')}
+		>
+			<Search
+				size="24px"
+				color={activeTab === 'discover'
+					? 'var(--color-brand-burnt-orange)'
+					: 'var(--color-black-400)'}
+				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			/>
+			<h3
+				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-800'}`}
+			>
+				Search
+			</h3>
+		</button>
+
+		<button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'post' ? 'page' : undefined}
+			onclick={() => handleNavClick('post')}
+		>
+			<Camera
+				size="24px"
+				color={activeTab === 'post'
+					? 'var(--color-brand-burnt-orange)'
+					: 'var(--color-black-400)'}
+				fill={activeTab === 'post' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			/>
+			<h3 class={`${activeTab === 'post' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+				Upload a photo
+			</h3>
+		</button>
+
+		<button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'messages' ? 'page' : undefined}
+			onclick={() => handleNavClick('messages')}
+		>
+			<CommentsTwo
+				size="24px"
+				color={activeTab === 'messages'
+					? 'var(--color-brand-burnt-orange)'
+					: 'var(--color-black-400)'}
+				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
+			/>
+			<h3
+				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'}`}
+			>
+				Messages
+			</h3>
+		</button>
+
+		<button
+			type="button"
+			class="flex items-center gap-2"
+			aria-current={activeTab === 'profile' ? 'page' : undefined}
+			onclick={() => handleNavClick('profile')}
+		>
+			<span
+				class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
+			>
+				<img
+					width="24px"
+					height="24px"
+					class="aspect-square rounded-full"
+					src={profileSrc}
+					alt="profile"
+				/>
+			</span>
+			<h3 class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'}`}>
+				Profile
+			</h3>
+		</button>
+	</div>
+</nav>
