@@ -24,12 +24,12 @@ export const Primary = {
 	}
 };
 export const ProfileSrc = {
-    args: {
-        children: ButtonText,
-        profileSrc: "https://picsum.photos/200/300",
-        onclick: () => alert('clicked'),
-        hasTrailingIcon: true
-    }
+	args: {
+		children: ButtonText,
+		profileSrc: 'https://picsum.photos/200/300',
+		onclick: () => alert('clicked'),
+		hasTrailingIcon: true
+	}
 };
 
 export const Secondary = {
@@ -40,5 +40,3 @@ export const Secondary = {
 		hasTrailingIcon: false
 	}
 };
-
-
