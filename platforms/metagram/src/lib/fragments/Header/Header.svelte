@@ -19,7 +19,7 @@
 
 	const variantClasses = {
 		primary: {
-			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)]',
+			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)] py-2',
 			background: ''
 		},
 		secondary: {
@@ -44,7 +44,9 @@
 	};
 
 	const classes = $derived({
-		common: cn('flex items-center justify-between p-4'),
+		common: cn(
+			'flex items-center justify-between my-4 pb-4 border-b-[1px] md:border-0 border-grey w-full px-4'
+		),
 		text: variantClasses[variant].text,
 		background: variantClasses[variant].background
 	});

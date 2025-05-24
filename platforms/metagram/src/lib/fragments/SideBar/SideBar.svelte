@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { Home, CommentsTwo, Search, Camera, Settings } from '$lib/icons';
+	import { Home, CommentsTwo, Search, Settings } from '$lib/icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Button from '$lib/ui/Button/Button.svelte';
@@ -18,19 +18,26 @@
 		...restProps
 	}: ISideBarProps = $props();
 
-	let _activeTab = $derived(page.url.pathname);
-
-	const handleNavClick = (newTab: string) => {
-		activeTab = newTab;
-		goto(`/${newTab}`);
-	};
-
 	$effect(() => {
-		activeTab = _activeTab.split('/').pop() ?? '';
+		const pathname = page.url.pathname;
+
+		if (pathname.includes('home')) {
+			activeTab = 'home';
+		} else if (pathname.includes('discover')) {
+			activeTab = 'discover';
+		} else if (pathname.includes('messages')) {
+			activeTab = 'messages';
+		} else if (pathname.includes('settings')) {
+			activeTab = 'settings';
+		} else if (pathname.includes('profile')) {
+			activeTab = 'profile';
+		} else {
+			activeTab = '';
+		}
 	});
 
 	const cBase =
-		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
+		'hidden h-screen border border-y-0 border-e-gray-200 py-12 md:flex md:justify-center';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -41,21 +48,24 @@
 	role="tablist"
 >
 	<div class="flex flex-col items-start justify-start gap-12">
-		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">
-			Pictique
+		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text py-2 text-transparent">
+			pictique
 		</h1>
 		<button
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'home' ? 'page' : undefined}
-			onclick={() => handleNavClick('home')}
+			onclick={() => {
+				activeTab = 'home';
+				goto('/home');
+			}}
 		>
 			<Home
 				size="24px"
 				color={activeTab === 'home'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange)' : 'white'}
+				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
 			/>
 			<h3
 				class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
@@ -68,14 +78,17 @@
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'discover' ? 'page' : undefined}
-			onclick={() => handleNavClick('discover')}
+			onclick={() => {
+				activeTab = 'discover';
+				goto('/discover');
+			}}
 		>
 			<Search
 				size="24px"
 				color={activeTab === 'discover'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange)' : 'white'}
+				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
 			/>
 			<h3
 				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
@@ -87,35 +100,18 @@
 		<button
 			type="button"
 			class="flex items-center gap-2"
-			aria-current={activeTab === 'post' ? 'page' : undefined}
-			onclick={() => handleNavClick('post')}
-		>
-			<Camera
-				size="24px"
-				color={activeTab === 'post'
-					? 'var(--color-brand-burnt-orange)'
-					: 'var(--color-black-400)'}
-				fill={activeTab === 'post' ? 'var(--color-brand-burnt-orange)' : 'white'}
-			/>
-			<h3
-				class={`${activeTab === 'post' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
-			>
-				Upload a photo
-			</h3>
-		</button>
-
-		<button
-			type="button"
-			class="flex items-center gap-2"
 			aria-current={activeTab === 'messages' ? 'page' : undefined}
-			onclick={() => handleNavClick('messages')}
+			onclick={() => {
+				activeTab = 'messages';
+				goto('/messages');
+			}}
 		>
 			<CommentsTwo
 				size="24px"
 				color={activeTab === 'messages'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange)' : 'white'}
+				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
 			/>
 			<h3
 				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
@@ -124,18 +120,21 @@
 			</h3>
 		</button>
 
-        <button
+		<button
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'settings' ? 'page' : undefined}
-			onclick={() => handleNavClick('settings')}
+			onclick={() => {
+				activeTab = 'settings';
+				goto('/settings/asdf');
+			}}
 		>
 			<Settings
 				size="24px"
 				color={activeTab === 'settings'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'settings' ? 'var(--color-brand-burnt-orange)' : 'white'}
+				fill={activeTab === 'settings' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
 			/>
 			<h3
 				class={`${activeTab === 'settings' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
@@ -148,10 +147,13 @@
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'profile' ? 'page' : undefined}
-			onclick={() => handleNavClick('profile')}
+			onclick={() => {
+				activeTab = 'profile';
+				goto('/profile');
+			}}
 		>
 			<span
-				class={`inline-block w-full rounded-full border p-1 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
+				class={`inline-block w-full rounded-full border ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 			>
 				<img
 					width="24px"
