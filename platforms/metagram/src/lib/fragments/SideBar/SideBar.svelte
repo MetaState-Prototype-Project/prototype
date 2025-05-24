@@ -21,15 +21,15 @@
 	$effect(() => {
 		const pathname = page.url.pathname;
 
-		if (pathname.includes('home')) {
+		if (pathname.includes('/home')) {
 			activeTab = 'home';
-		} else if (pathname.includes('discover')) {
+		} else if (pathname.includes('/discover')) {
 			activeTab = 'discover';
-		} else if (pathname.includes('messages')) {
+		} else if (pathname.includes('/messages')) {
 			activeTab = 'messages';
-		} else if (pathname.includes('settings')) {
+		} else if (pathname.includes('/settings')) {
 			activeTab = 'settings';
-		} else if (pathname.includes('profile')) {
+		} else if (pathname.includes('/profile')) {
 			activeTab = 'profile';
 		} else {
 			activeTab = '';
@@ -37,7 +37,7 @@
 	});
 
 	const cBase =
-		'hidden h-screen border border-y-0 border-e-gray-200 py-12 md:flex md:justify-center';
+		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -48,7 +48,7 @@
 	role="tablist"
 >
 	<div class="flex flex-col items-start justify-start gap-12">
-		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text py-2 text-transparent">
+		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">
 			pictique
 		</h1>
 		<button

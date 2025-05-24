@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { BottomNav, Header } from '$lib/fragments';
 	import RightAside from '$lib/fragments/RightAside/RightAside.svelte';
+	import Aside from '$lib/fragments/SettingsRightAside/Aside.svelte';
 	import SideBar from '$lib/fragments/SideBar/SideBar.svelte';
 	import { Settings } from '$lib/icons';
 	let { children } = $props();
@@ -32,10 +33,10 @@
 <main class="block h-[100dvh] grid-cols-[22vw_auto_31vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section class="md:pt-8">
-		<div class="flex w-full justify-between">
+		<div class="flex justify-between">
 			<Header variant="primary" {heading} />
 			{#if route === '/profile'}
-				<div class="mb-4 flex pe-4 md:hidden">
+				<div class="mb-4 flex pe-5 md:hidden">
 					<button
 						type="button"
 						class="flex items-center gap-2"
@@ -48,14 +49,11 @@
 		</div>
 		{@render children()}
 	</section>
-	{#if !route.endsWith('/messages')}
-		<aside class="hidden border border-y-0 border-s-gray-200 md:block md:pt-14">
-			<RightAside header="adcas">
-				{#snippet asideContent()}
-					sdfgdsf
-				{/snippet}
-			</RightAside>
-		</aside>
+	{#if route.includes('/settings')}
+		<Aside></Aside>
+	{:else}
+		<aside class="hidden border border-y-0 border-s-gray-200 md:block md:pt-14"></aside>
 	{/if}
+
 	<BottomNav profileSrc="https://picsum.photos/200" />
 </main>

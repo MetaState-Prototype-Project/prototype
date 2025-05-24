@@ -43,7 +43,7 @@
 				alt=""
 			/>
 		{/if}
-		<h3 class="text-black-800 text-base font-semibold">
+		<h3 class="text-black-800 text-base">
 			{@render children?.()}
 		</h3>
 	</div>

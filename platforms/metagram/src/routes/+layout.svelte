@@ -19,10 +19,8 @@
 		if (currentRoute === targetRoute) {
 			return;
 		}
-
 		if (!isNavigatingThroughNav.value) {
 			const currentDirection = 'right';
-
 			document.documentElement.setAttribute('data-transition', currentDirection);
 			previousRoute = targetRoute;
 		}
