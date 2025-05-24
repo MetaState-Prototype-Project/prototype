@@ -9,37 +9,34 @@
 	import Support from './Support.svelte';
 
 	let route = $derived(page.url.pathname);
+	let { id } = page.params;
+
+	function currentRoute() {
+		const path = route;
+		const config = {
+			[`/settings/${id}/account`]: { title: 'Account', component: Accounts },
+			[`/settings/${id}/notifications`]: { title: 'Notifications', component: Notifications },
+			[`/settings/${id}/direct-messages`]: {
+				title: 'Direct Messages',
+				component: DirectMessages
+			},
+			[`/settings/${id}/data-and-storage`]: {
+				title: 'Data & Storage',
+				component: DataStorage
+			},
+			[`/settings/${id}/support`]: { title: 'Support', component: Support },
+			[`/settings/${id}/logout`]: { title: 'Logout', component: Logout }
+		};
+
+		return config[path];
+	}
 </script>
 
 <RightAside>
 	{#snippet header()}
-		{#if route === '/settings/asdf/account'}
-			Account
-		{:else if route === '/settings/asdf/notifications'}
-			Notifications
-		{:else if route === '/settings/asdf/direct-messages'}
-			Direct Messages
-		{:else if route === '/settings/asdf/data-and-storage'}
-			Data & Storage
-		{:else if route === '/settings/asdf/support'}
-			Support
-		{:else if route === '/settings/asdf/logout'}
-			Logout
-		{/if}
+		{currentRoute().title}
 	{/snippet}
 	{#snippet asideContent()}
-		{#if route === '/settings/asdf/account'}
-			<Accounts></Accounts>
-		{:else if route === '/settings/asdf/notifications'}
-			<Notifications></Notifications>
-		{:else if route === '/settings/asdf/direct-messages'}
-			<DirectMessages></DirectMessages>
-		{:else if route === '/settings/asdf/data-and-storage'}
-			<DataStorage></DataStorage>
-		{:else if route === '/settings/asdf/support'}
-			<Support></Support>
-		{:else if route === '/settings/asdf/logout'}
-			<Logout></Logout>
-		{/if}
+		<svelte:component this={currentRoute().component} />
 	{/snippet}
 </RightAside>

@@ -12,7 +12,7 @@
 
 <aside {...restProps} class="hidden border border-y-0 border-s-gray-200 md:block md:pt-13">
 	<div class="mx-5">
-		<h2 class="mb-11 text-lg font-semibold">
+		<h2 class="mb-10 text-lg font-semibold">
 			{@render header?.()}
 		</h2>
 		<div>

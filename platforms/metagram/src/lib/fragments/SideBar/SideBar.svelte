@@ -20,7 +20,6 @@
 
 	$effect(() => {
 		const pathname = page.url.pathname;
-
 		if (pathname.includes('/home')) {
 			activeTab = 'home';
 		} else if (pathname.includes('/discover')) {

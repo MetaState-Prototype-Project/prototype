@@ -1,4 +1,5 @@
 <script>
+	import { page } from '$app/state';
 	import SettingsToggleButton from '../SettingsToggleButton/SettingsToggleButton.svelte';
 </script>
 

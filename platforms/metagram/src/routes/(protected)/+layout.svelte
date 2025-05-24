@@ -28,6 +28,8 @@
 			heading = '';
 		}
 	});
+
+	let { id } = page.params;
 </script>
 
 <main class="block h-[100dvh] grid-cols-[22vw_auto_31vw] md:grid">
@@ -40,7 +42,7 @@
 					<button
 						type="button"
 						class="flex items-center gap-2"
-						onclick={() => goto('settings/asdf')}
+						onclick={() => goto(`/settings/${id}`)}
 					>
 						<Settings size="24px" color="var(--color-brand-burnt-orange)" />
 					</button>

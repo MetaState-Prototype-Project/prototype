@@ -1,13 +1,16 @@
 <script>
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { Button } from '$lib/ui';
 	import { SettingsNavigationButton } from '..';
+
+	let { id } = page.params;
 </script>
 
 <div class="flex flex-col gap-3">
 	<SettingsNavigationButton
 		hasTrailingIcon={false}
-		onclick={() => goto('/settings/asdf/data-and-storage')}
+		onclick={() => goto(`/settings/${id}/data-and-storage`)}
 	>
 		{#snippet children()}
 			<div class="flex flex-col items-start">

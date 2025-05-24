@@ -12,12 +12,13 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	let route = $derived(page.url.pathname);
+	let { id } = page.params;
 </script>
 
 <div class="flex flex-col gap-5 px-5 py-2 md:gap-8">
 	<div class="bg-grey rounded-xl p-3 md:p-5">
 		<SettingsNavigationButton
-			onclick={() => goto('/settings/asdf/account')}
+			onclick={() => goto(`/settings/${id}/account`)}
 			profileSrc="https://picsum.photos/200/300"
 		>
 			{#snippet children()}
@@ -29,10 +30,10 @@
 		</SettingsNavigationButton>
 	</div>
 	<hr class="text-grey" />
-	<div class="flex flex-col gap-5">
+	<div class="flex flex-col gap-3">
 		<h3 class="text-brand-burnt-orange text-base font-semibold">Personalisation</h3>
-		<div class="{route === '/settings/asdf/notifications' ? 'bg-grey' : ''} rounded-xl p-2">
-			<SettingsNavigationButton onclick={() => goto('/settings/asdf/notifications')}>
+		<div class="{route === `/settings/${id}/notifications` ? 'bg-grey' : ''} rounded-xl p-2">
+			<SettingsNavigationButton onclick={() => goto(`/settings/${id}/notifications`)}>
 				{#snippet leadingIcon()}
 					<HugeiconsIcon
 						size="24px"
@@ -45,8 +46,8 @@
 				{/snippet}
 			</SettingsNavigationButton>
 		</div>
-		<div class="{route === '/settings/asdf/direct-messages' ? 'bg-grey' : ''} rounded-xl p-2">
-			<SettingsNavigationButton onclick={() => goto('/settings/asdf/direct-messages')}>
+		<div class="{route === `/settings/${id}/direct-messages` ? 'bg-grey' : ''} rounded-xl p-2">
+			<SettingsNavigationButton onclick={() => goto(`/settings/${id}/direct-messages`)}>
 				{#snippet leadingIcon()}
 					<HugeiconsIcon
 						size="24px"
@@ -61,10 +62,10 @@
 		</div>
 	</div>
 	<hr class="text-grey" />
-	<div class="flex flex-col gap-5">
+	<div class="flex flex-col gap-3">
 		<h3 class="text-brand-burnt-orange text-base font-semibold">System</h3>
-		<div class="{route === '/settings/asdf/data-and-storage' ? 'bg-grey' : ''} rounded-xl p-2">
-			<SettingsNavigationButton onclick={() => goto('/settings/asdf/data-and-storage')}>
+		<div class="{route === `/settings/${id}/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
+			<SettingsNavigationButton onclick={() => goto(`/settings/${id}/data-and-storage`)}>
 				{#snippet leadingIcon()}
 					<HugeiconsIcon
 						size="24px"
@@ -77,8 +78,8 @@
 				{/snippet}
 			</SettingsNavigationButton>
 		</div>
-		<div class="{route === '/settings/asdf/support' ? 'bg-grey' : ''} rounded-xl p-2">
-			<SettingsNavigationButton onclick={() => goto('/settings/asdf/support')}>
+		<div class="{route === `/settings/${id}/support` ? 'bg-grey' : ''} rounded-xl p-2">
+			<SettingsNavigationButton onclick={() => goto(`/settings/${id}/support`)}>
 				{#snippet leadingIcon()}
 					<HugeiconsIcon
 						size="24px"
@@ -93,9 +94,9 @@
 		</div>
 	</div>
 	<hr class="text-grey" />
-	<div class="flex flex-col gap-5">
-		<div class="{route === '/settings/asdf/logout' ? 'bg-grey' : ''} rounded-xl p-2">
-			<SettingsNavigationButton onclick={() => goto('/settings/asdf/logout')}>
+	<div class="flex flex-col gap-3">
+		<div class="{route === `/settings/${id}/logout` ? 'bg-grey' : ''} rounded-xl p-2">
+			<SettingsNavigationButton onclick={() => goto(`/settings/${id}/logout`)}>
 				{#snippet leadingIcon()}
 					<HugeiconsIcon
 						size="24px"
