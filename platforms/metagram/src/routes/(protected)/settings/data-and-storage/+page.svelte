@@ -1,6 +1,6 @@
 <script>
 	import { goto } from '$app/navigation';
-	import { SettingsNavigationButton } from '..';
+	import { SettingsNavigationButton } from '$lib/fragments';
 </script>
 
 <div class="flex flex-col gap-3">

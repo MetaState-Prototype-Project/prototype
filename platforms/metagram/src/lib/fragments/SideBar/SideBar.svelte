@@ -125,7 +125,7 @@
 			aria-current={activeTab === 'settings' ? 'page' : undefined}
 			onclick={() => {
 				activeTab = 'settings';
-				goto('/settings/asdf');
+				goto('/settings');
 			}}
 		>
 			<Settings

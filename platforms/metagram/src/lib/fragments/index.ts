@@ -9,3 +9,4 @@ export { default as ActionMenu } from './ActionMenu/ActionMenu.svelte';
 export { default as Modal } from './Modal/Modal.svelte';
 export { default as SideBar } from './SideBar/SideBar.svelte';
 export { default as RightAside } from './RightAside/RightAside.svelte';
+export { default as SettingsToggleButton } from './SettingsToggleButton/SettingsToggleButton.svelte';

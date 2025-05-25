@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { RightAside } from '..';
-	import Accounts from './Accounts.svelte';
+	import Account from './Account.svelte';
 	import DataStorage from './DataStorage.svelte';
 	import DirectMessages from './DirectMessages.svelte';
 	import Logout from './Logout.svelte';
@@ -9,11 +9,10 @@
 	import Support from './Support.svelte';
 
 	let route = $derived(page.url.pathname);
-	let { id } = page.params;
 
-	const basePath = `/settings/${id}`;
+	const basePath = `/settings`;
 	const routes = {
-		account: { title: 'Account', component: Accounts },
+		account: { title: 'Account', component: Account },
 		notifications: { title: 'Notifications', component: Notifications },
 		'direct-messages': { title: 'Direct Messages', component: DirectMessages },
 		'data-and-storage': { title: 'Data & Storage', component: DataStorage },
@@ -29,7 +28,6 @@
 	{#snippet header()}
 		{currentView?.[1].title}
 	{/snippet}
-
 	{#snippet asideContent()}
 		{#if currentView}
 			{@const Component = currentView[1].component}

@@ -1,5 +1,5 @@
 <script>
-	import SettingsToggleButton from '../SettingsToggleButton/SettingsToggleButton.svelte';
+	import { SettingsToggleButton } from '$lib/fragments';
 </script>
 
 <div class="flex flex-col gap-3">
