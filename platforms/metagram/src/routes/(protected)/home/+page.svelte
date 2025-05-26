@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Post } from '$lib/fragments';
 	import { dummyPosts } from '$lib/dummyData';
+	import { onMount } from 'svelte';
 
 	type PostData = {
 		id: number;
@@ -48,9 +49,12 @@
 	};
 
 	$effect(() => {
-		loadMore();
 		listElement.addEventListener('scroll', onScroll);
 		return () => listElement.removeEventListener('scroll', onScroll);
+	});
+
+	onMount(() => {
+		loadMore();
 	});
 </script>
 
