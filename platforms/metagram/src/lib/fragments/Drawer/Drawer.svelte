@@ -7,20 +7,19 @@
 	import type { SwipeCustomEvent } from 'svelte-gestures';
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
-		isPaneOpen?: boolean;
+		drawer?: CupertinoPane;
 		children?: Snippet;
 		handleSwipe?: (isOpen: boolean | undefined) => void;
 	}
 
 	let {
-		isPaneOpen = $bindable(),
+		drawer = $bindable(),
 		children = undefined,
 		handleSwipe,
 		...restProps
 	}: IDrawerProps = $props();
 
 	let drawerElement: HTMLElement;
-	let drawer: CupertinoPane;
 
 	function dismiss() {
 		if (drawer) drawer.destroy({ animate: true });
@@ -30,7 +29,6 @@
 		if (event.detail.direction === ('down' as string)) {
 			handleSwipe?.(false);
 			drawer?.destroy({ animate: true });
-			isPaneOpen = false;
 		}
 	};
 
@@ -51,13 +49,6 @@
 				onBackdropTap: () => dismiss()
 			}
 		});
-		if (isPaneOpen) {
-			drawer.present({ animate: true });
-		} else {
-			drawer.destroy({ animate: true });
-		}
-
-		drawer.present();
 	});
 </script>
 

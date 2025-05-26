@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Post } from '$lib/fragments';
+	import { Drawer, Post } from '$lib/fragments';
 	import { dummyPosts } from '$lib/dummyData';
 	import { onMount } from 'svelte';
+	import type { CupertinoPane } from 'cupertino-pane';
 
 	type PostData = {
 		id: number;
@@ -28,6 +29,7 @@
 	const batchSize = 10;
 	let currentIndex = $state(0);
 	let loading = $state(false);
+	let drawer: CupertinoPane | undefined = $state();
 
 	const loadMore = () => {
 		if (loading || currentIndex >= dummyPosts.length) return;
@@ -69,7 +71,11 @@
 				text={post.text}
 				time={post.time}
 				count={post.count}
-				callback={post.callback}
+				callback={{
+					like: () => alert('like'),
+					comment: () => drawer?.present({ animate: true }),
+					menu: () => alert('menu')
+				}}
 			/>
 		</li>
 	{/each}
@@ -78,3 +84,5 @@
 {#if loading}
 	<p class="my-4 text-center">Loading more posts…</p>
 {/if}
+
+<Drawer bind:drawer>comments</Drawer>
