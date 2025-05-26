@@ -7,27 +7,17 @@
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
 
+	const routeToHeading: Record<string, string> = {
+		'/home': 'Feed',
+		'/discover': 'Search',
+		'/post': 'Post',
+		'/messages': 'Messages',
+		'/settings': 'Settings',
+		'/profile': 'Profile'
+	};
+
 	$effect(() => {
-		switch (route) {
-			case '/home':
-				heading = 'Feed';
-				break;
-			case '/discover':
-				heading = 'Search';
-				break;
-			case '/post':
-				heading = 'Post';
-				break;
-			case '/messages':
-				heading = 'Messages';
-				break;
-			case '/settings':
-				heading = 'Settings';
-				break;
-			case '/profile':
-				heading = 'Profile';
-				break;
-		}
+		heading = routeToHeading[route] ?? heading;
 	});
 </script>
 
