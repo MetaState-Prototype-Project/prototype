@@ -40,7 +40,7 @@
 			}
 			currentIndex += batchSize;
 			loading = false;
-		}, 3000);
+		}, 500);
 	};
 
 	const onScroll = () => {

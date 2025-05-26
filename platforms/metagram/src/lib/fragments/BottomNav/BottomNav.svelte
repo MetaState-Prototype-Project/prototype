@@ -40,7 +40,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	aria-label="Main navigation"
-	class="fixed start-0 bottom-0 flex w-full items-center justify-between px-7 py-2 md:hidden"
+	class="fixed start-0 bottom-0 flex w-full items-center justify-between bg-white px-7 py-2 md:hidden"
 	role="tablist"
 >
 	<button
