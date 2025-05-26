@@ -5,36 +5,36 @@
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
-	let heading = $state("");
+	let heading = $state('');
 
 	$effect(() => {
 		switch (route) {
-			case "/home":
-				heading = "Feed";
+			case '/home':
+				heading = 'Feed';
 				break;
-			case "/discover":
-				heading = "Search";
+			case '/discover':
+				heading = 'Search';
 				break;
-			case "/post":
-				heading = "Post";
-				break;	
-			case "/messages":
-				heading = "Messages";
+			case '/post':
+				heading = 'Post';
 				break;
-			case "/settings":
-				heading = "Settings";
-				break;		
-			case "/profile":
-				heading = "Profile";
+			case '/messages':
+				heading = 'Messages';
+				break;
+			case '/settings':
+				heading = 'Settings';
+				break;
+			case '/profile':
+				heading = 'Profile';
 				break;
 		}
-	})
+	});
 </script>
 
 <main class="block h-[100dvh] grid-cols-[22vw_auto_31vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="md:pt-10">
-		<Header variant="primary" {heading}/>
+	<section class="mx-4 md:mx-8 md:pt-10">
+		<Header variant="primary" {heading} />
 		{@render children()}
 	</section>
 	{#if !route.endsWith('/messages')}
