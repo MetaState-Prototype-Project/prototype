@@ -9,23 +9,29 @@
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
 
-	const routeToHeading: Record<string, string> = {
-		'/home': 'Feed',
-		'/discover': 'Search',
-		'/post': 'Post',
-		'/messages': 'Messages',
-		'/settings': 'Settings',
-		'/profile': 'Profile'
-	};
-
 	$effect(() => {
-		heading = routeToHeading[route] ?? heading;
+		if (route.includes('home')) {
+			heading = 'Feed';
+		} else if (route.includes('discover')) {
+			heading = 'Search';
+		} else if (route.includes('post')) {
+			heading = 'Post';
+		} else if (route.includes('messages')) {
+			heading = 'Messages';
+		} else if (route.includes('settings')) {
+			heading = 'Settings';
+		} else if (route.includes('profile')) {
+			heading = 'Profile';
+		} else {
+			heading = '';
+		}
 	});
 </script>
 
 <main class="block h-[100dvh] grid-cols-[20vw_auto_30vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="mx-4 md:mx-8 md:pt-10">
+
+	<section class="mx-4 md:mx-8 md:pt-8">
 		<div class="flex justify-between">
 			<Header variant="primary" {heading} />
 			{#if route === '/profile'}

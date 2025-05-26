@@ -58,7 +58,7 @@
 	});
 </script>
 
-<ul bind:this={listElement} class="hide-scrollbar h-[600px] overflow-auto">
+<ul bind:this={listElement} class="hide-scrollbar overflow-auto">
 	{#each visiblePosts as post}
 		<li class="mb-6">
 			<Post

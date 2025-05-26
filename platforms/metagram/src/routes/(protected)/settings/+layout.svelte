@@ -2,6 +2,6 @@
 	let { children } = $props();
 </script>
 
-<div class="flex flex-col gap-5 px-5">
+<div class="flex flex-col gap-5">
 	{@render children()}
 </div>
