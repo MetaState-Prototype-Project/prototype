@@ -10,8 +10,15 @@
 		Notification02FreeIcons
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let route = $derived(page.url.pathname);
+
+	interface ISettingsPageProps extends HTMLAttributes<HTMLElement> {
+		username: string;
+		userEmail: string;
+	}
+	let { username, userEmail }: ISettingsPageProps = $props();
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
@@ -21,8 +28,8 @@
 	>
 		{#snippet children()}
 			<div class="flex flex-col items-start">
-				<h2 class="text-lg">_.ananyayaya._</h2>
-				<p class="text-sm">ananya@auvo.io</p>
+				<h2 class="text-lg">{username}</h2>
+				<p class="text-sm">{userEmail}</p>
 			</div>
 		{/snippet}
 	</SettingsNavigationButton>

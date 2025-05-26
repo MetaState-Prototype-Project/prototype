@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { SettingsToggleButton } from '$lib/fragments';
 </script>
 
