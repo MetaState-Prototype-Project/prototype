@@ -52,7 +52,13 @@
 			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 		</button>
 	</div>
-	<img src={imgUri} alt={postAlt ?? text} class="rounded-4xl" />
+	<div class="overflow-hidden rounded-4xl">
+		<img
+			src={imgUri}
+			alt={postAlt ?? text}
+			class="aspect-[4/5] h-full w-full object-cover md:aspect-[16/9]"
+		/>
+	</div>
 	<p class="text-black/80">{text}</p>
 	<p class="text-black/60">{time}</p>
 	<div class="flex w-full items-center justify-between">
