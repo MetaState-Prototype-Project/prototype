@@ -10,3 +10,4 @@ export { default as Modal } from './Modal/Modal.svelte';
 export { default as SideBar } from './SideBar/SideBar.svelte';
 export { default as RightAside } from './RightAside/RightAside.svelte';
 export { default as SettingsToggleButton } from './SettingsToggleButton/SettingsToggleButton.svelte';
+export { default as Post } from './Post/Post.svelte';
