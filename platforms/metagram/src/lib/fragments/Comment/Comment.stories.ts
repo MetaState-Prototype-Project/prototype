@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'svelte';
 import { Comment } from '..';
+import { comments } from '$lib/dummyData';
 
 export default {
 	title: 'UI/Comment',
@@ -13,13 +14,6 @@ export default {
 
 export const Main = {
 	args: {
-		name: 'LuffyTHeTHird',
-		comment:
-			'i was thinking of making it to the conference so we could take some more fire pictures like last time',
-		likeCount: 0,
-		handleReply: () => alert('reply'),
-		time: '3 minutes ago',
-		isLiked: false,
-		isDisliked: false
+		comment: comments[0]
 	}
 };

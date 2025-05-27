@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Drawer, Post } from '$lib/fragments';
-	import { dummyPosts } from '$lib/dummyData';
+	import { comments, dummyPosts } from '$lib/dummyData';
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
-
+	
 	type PostData = {
 		id: number;
 		avatar: string;
@@ -28,33 +28,6 @@
 	let drawer: CupertinoPane | undefined = $state();
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
-
-	const comments = Array.from({length: 50}, (_, i) => ({
-		userImgSrc: "https://picsum.photos/800",
-		name: "user" + (i + 1),
-		commentId: i + 1,
-		comment: "this is the dummy comment which is commented by user" + (i + 1),
-		replies: [
-			{
-				userImgSrc: "https://picsum.photos/800",
-				name: "user" + (i + 1) + "x",
-				commentId: (i + 1) + "x",
-				comment: "this is the dummy reply which is replied by another" + i + "x",
-			},
-			{
-				userImgSrc: "https://picsum.photos/800",
-				name: "user" + (i + 1) + "y",
-				commentId: i + 1 + "y",
-				comment: "this is the dummy reply which is replied by another" + i + "y",
-			}
-			,{
-				userImgSrc: "https://picsum.photos/800",
-				name: "user" + (i + 1) + "z",
-				commentId: i + 1 + "z",
-				comment: "this is the dummy reply which is replied by another" + i + "z",
-			}
-		]
-	}))
 
 	const loadMore = () => {
 		if (loading || currentIndex >= dummyPosts.length) return;
@@ -114,36 +87,9 @@
 	<ul class="pb-4">
 		<h3 class="text-black-600 mb-6 text-center">32 Comments</h3>
 		{#each comments as comment}
-		<li class="mb-4">
-			<Comment
-			isLiked={false}
-			isDisliked={false}
-			likeCount={0}
-			name={comment.name}
-			comment={comment.comment}
-			imgSrc={comment.userImgSrc}
-			handleReply={() => commentInput?.focus()}
-			time={'2 minutes ago'}
-			/>
-			{#if comment.replies}
-			<ul class="ms-12 mt-4">
-					{#each comment.replies as reply}
-					<li class="mb-4">
-						<Comment
-						isLiked={false}
-						isDisliked={false}
-						likeCount={0}
-						name={reply.name}
-						comment={reply.comment}
-						imgSrc={reply.userImgSrc}
-						handleReply={() => commentInput?.focus()}
-						time={'2 minutes ago'}
-						/>
-					</li>
-				{/each}
-				</ul>
-			{/if}
-		</li>
+			<li class="mb-4">
+				<Comment {comment} handleReply={() => commentInput?.focus()} />
+			</li>
 		{/each}
 		<MessageInput
 			class="mt-4"
