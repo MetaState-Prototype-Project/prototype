@@ -9,7 +9,6 @@
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		drawer?: CupertinoPane;
 		children?: Snippet;
-		handleSwipe?: (isOpen: boolean | undefined) => void;
 	}
 
 	let {
@@ -27,7 +26,6 @@
 
 	const handleDrawerSwipe = (event: SwipeCustomEvent) => {
 		if (event.detail.direction === ('down' as string)) {
-			handleSwipe?.(false);
 			drawer?.destroy({ animate: true });
 		}
 	};

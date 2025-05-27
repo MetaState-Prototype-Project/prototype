@@ -36,6 +36,6 @@
 	});
 </script>
 
-<main class="h-[100dvh] px-4 md:px-0">
+<main class="h-[100dvh] overflow-hidden px-4 md:px-0">
 	{@render children()}
 </main>
