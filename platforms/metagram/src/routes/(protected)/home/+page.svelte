@@ -29,6 +29,33 @@
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
 
+	const comments = Array.from({length: 50}, (_, i) => ({
+		userImgSrc: "https://picsum.photos/800",
+		name: "user" + (i + 1),
+		commentId: i + 1,
+		comment: "this is the dummy comment which is commented by user" + (i + 1),
+		replies: [
+			{
+				userImgSrc: "https://picsum.photos/800",
+				name: "user" + (i + 1) + "x",
+				commentId: (i + 1) + "x",
+				comment: "this is the dummy reply which is replied by another" + i + "x",
+			},
+			{
+				userImgSrc: "https://picsum.photos/800",
+				name: "user" + (i + 1) + "y",
+				commentId: i + 1 + "y",
+				comment: "this is the dummy reply which is replied by another" + i + "y",
+			}
+			,{
+				userImgSrc: "https://picsum.photos/800",
+				name: "user" + (i + 1) + "z",
+				commentId: i + 1 + "z",
+				comment: "this is the dummy reply which is replied by another" + i + "z",
+			}
+		]
+	}))
+
 	const loadMore = () => {
 		if (loading || currentIndex >= dummyPosts.length) return;
 		loading = true;
@@ -84,18 +111,40 @@
 {/if}
 
 <Drawer bind:drawer>
-	<div>
+	<ul class="pb-4">
 		<h3 class="text-black-600 mb-6 text-center">32 Comments</h3>
-		<Comment
+		{#each comments as comment}
+		<li class="mb-4">
+			<Comment
 			isLiked={false}
 			isDisliked={false}
 			likeCount={0}
-			name="Luka Garcia"
-			comment="i was thinking of making it to the conference so we could take some more fire pictures like last time"
-			imgSrc="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+			name={comment.name}
+			comment={comment.comment}
+			imgSrc={comment.userImgSrc}
 			handleReply={() => commentInput?.focus()}
 			time={'2 minutes ago'}
-		/>
+			/>
+			{#if comment.replies}
+			<ul class="ms-12 mt-4">
+					{#each comment.replies as reply}
+					<li class="mb-4">
+						<Comment
+						isLiked={false}
+						isDisliked={false}
+						likeCount={0}
+						name={reply.name}
+						comment={reply.comment}
+						imgSrc={reply.userImgSrc}
+						handleReply={() => commentInput?.focus()}
+						time={'2 minutes ago'}
+						/>
+					</li>
+				{/each}
+				</ul>
+			{/if}
+		</li>
+		{/each}
 		<MessageInput
 			class="mt-4"
 			variant="comment"
@@ -104,5 +153,5 @@
 			handleSend={async () => alert('sdfs')}
 			bind:input={commentInput}
 		/>
-	</div>
+	</ul>
 </Drawer>
