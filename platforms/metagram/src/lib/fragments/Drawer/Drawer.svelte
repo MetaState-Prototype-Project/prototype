@@ -11,12 +11,7 @@
 		children?: Snippet;
 	}
 
-	let {
-		drawer = $bindable(),
-		children = undefined,
-		handleSwipe,
-		...restProps
-	}: IDrawerProps = $props();
+	let { drawer = $bindable(), children = undefined, ...restProps }: IDrawerProps = $props();
 
 	let drawerElement: HTMLElement;
 

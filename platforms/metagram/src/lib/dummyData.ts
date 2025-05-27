@@ -9,10 +9,5 @@ export const dummyPosts = Array.from({ length: 100 }, (_, i) => ({
 	count: {
 		likes: Math.floor(Math.random() * 500),
 		comments: Math.floor(Math.random() * 200)
-	},
-	callback: {
-		like: () => alert(`Like clicked on post ${i + 1}`),
-		comment: () => alert(`Comment clicked on post ${i + 1}`),
-		menu: () => alert(`Menu clicked on post ${i + 1}`)
 	}
 }));

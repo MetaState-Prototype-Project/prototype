@@ -9,3 +9,4 @@ export { default as ActionMenu } from './ActionMenu/ActionMenu.svelte';
 export { default as Modal } from './Modal/Modal.svelte';
 export { default as SideBar } from './SideBar/SideBar.svelte';
 export { default as Post } from './Post/Post.svelte';
+export { default as Comment } from './Comment/Comment.svelte';

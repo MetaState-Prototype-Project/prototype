@@ -3,6 +3,7 @@
 	import { dummyPosts } from '$lib/dummyData';
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
+	import { Comment, MessageInput } from '$lib/fragments';
 
 	type PostData = {
 		id: number;
@@ -16,11 +17,6 @@
 			likes: number;
 			comments: number;
 		};
-		callback: {
-			like: () => void;
-			comment: () => void;
-			menu: () => void;
-		};
 	};
 
 	let listElement: HTMLElement;
@@ -30,6 +26,8 @@
 	let currentIndex = $state(0);
 	let loading = $state(false);
 	let drawer: CupertinoPane | undefined = $state();
+	let commentValue: string = $state('');
+	let commentInput: HTMLInputElement | undefined = $state();
 
 	const loadMore = () => {
 		if (loading || currentIndex >= dummyPosts.length) return;
@@ -85,4 +83,26 @@
 	<p class="my-4 text-center">Loading more posts…</p>
 {/if}
 
-<Drawer bind:drawer>comments</Drawer>
+<Drawer bind:drawer>
+	<div>
+		<h3 class="text-black-600 mb-6 text-center">32 Comments</h3>
+		<Comment
+			isLiked={false}
+			isDisliked={false}
+			likeCount={0}
+			name="Luka Garcia"
+			comment="i was thinking of making it to the conference so we could take some more fire pictures like last time"
+			imgSrc="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+			handleReply={() => commentInput?.focus()}
+			time={'2 minutes ago'}
+		/>
+		<MessageInput
+			class="mt-4"
+			variant="comment"
+			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+			bind:value={commentValue}
+			handleSend={async () => alert('sdfs')}
+			bind:input={commentInput}
+		/>
+	</div>
+</Drawer>
