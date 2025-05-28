@@ -10,9 +10,9 @@ export type CommentType = {
 	name: string;
 	userImgSrc: string;
 	comment: string;
-	isLiked: boolean;
-	isDisliked: boolean;
-	likeCount: number;
+	isUpVoted: boolean;
+	isDownVoted: boolean;
+	upVotes: number;
 	time: string;
 	replies: CommentType[];
 };

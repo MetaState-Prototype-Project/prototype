@@ -1,4 +1,4 @@
-import type { CommentType } from "./types";
+import type { CommentType } from './types';
 
 export const dummyPosts = Array.from({ length: 100 }, (_, i) => ({
 	id: i + 1,
@@ -17,11 +17,11 @@ export const dummyPosts = Array.from({ length: 100 }, (_, i) => ({
 export const comments: CommentType[] = Array.from({ length: 50 }, (_, i) => ({
 	userImgSrc: 'https://picsum.photos/800',
 	name: `user${i + 1}`,
-	commentId: `${i + 1}`,
+	commentId: `${i + 1}p`,
 	comment: `this is the dummy comment which is commented by user${i + 1}`,
-	isLiked: false,
-	isDisliked: false,
-	likeCount: 0,
+	isUpVoted: false,
+	isDownVoted: false,
+	upVotes: 0,
 	time: '2 minutes ago',
 	replies: [
 		{
@@ -29,9 +29,9 @@ export const comments: CommentType[] = Array.from({ length: 50 }, (_, i) => ({
 			name: `user${i + 1}x`,
 			commentId: `${i + 1}x`,
 			comment: `this is the dummy reply which is replied by another${i}x`,
-			isLiked: false,
-			isDisliked: false,
-			likeCount: 0,
+			isUpVoted: false,
+			isDownVoted: false,
+			upVotes: 0,
 			time: '1 minute ago',
 			replies: [
 				{
@@ -39,9 +39,9 @@ export const comments: CommentType[] = Array.from({ length: 50 }, (_, i) => ({
 					name: `user${i + 1}a`,
 					commentId: `${i + 1}a`,
 					comment: `this is the dummy reply which is replied by another${i}a`,
-					isLiked: false,
-					isDisliked: false,
-					likeCount: 0,
+					isUpVoted: false,
+					isDownVoted: false,
+					upVotes: 0,
 					time: '1 minute ago',
 					replies: []
 				}
@@ -52,9 +52,31 @@ export const comments: CommentType[] = Array.from({ length: 50 }, (_, i) => ({
 			name: `user${i + 1}y`,
 			commentId: `${i + 1}y`,
 			comment: `this is the dummy reply which is replied by another${i}y`,
-			isLiked: false,
-			isDisliked: false,
-			likeCount: 0,
+			isUpVoted: false,
+			isDownVoted: false,
+			upVotes: 0,
+			time: '1 minute ago',
+			replies: []
+		},
+		{
+			userImgSrc: 'https://picsum.photos/800',
+			name: `user${i + 1}y`,
+			commentId: `${i + 1}y`,
+			comment: `this is the dummy reply which is replied by another${i}y`,
+			isUpVoted: false,
+			isDownVoted: false,
+			upVotes: 0,
+			time: '1 minute ago',
+			replies: []
+		},
+		{
+			userImgSrc: 'https://picsum.photos/800',
+			name: `user${i + 1}y`,
+			commentId: `${i + 1}y`,
+			comment: `this is the dummy reply which is replied by another${i}y`,
+			isUpVoted: false,
+			isDownVoted: false,
+			upVotes: 0,
 			time: '1 minute ago',
 			replies: []
 		}

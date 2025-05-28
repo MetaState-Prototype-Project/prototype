@@ -55,7 +55,9 @@
 	onswipe={handleDrawerSwipe}
 	class={cn(restProps.class)}
 >
-	{@render children?.()}
+	<div class="h-[100%] overflow-y-scroll">
+		{@render children?.()}
+	</div>
 </div>
 
 <style>
