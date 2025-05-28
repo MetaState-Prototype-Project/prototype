@@ -16,3 +16,17 @@ export type CommentType = {
 	time: string;
 	replies: CommentType[];
 };
+
+export type PostData = {
+	id: number;
+	avatar: string;
+	username: string;
+	imgUri: string;
+	postAlt: string;
+	text: string;
+	time: string;
+	count: {
+		likes: number;
+		comments: number;
+	};
+};

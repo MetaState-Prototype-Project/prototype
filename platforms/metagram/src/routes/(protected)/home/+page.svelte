@@ -4,21 +4,8 @@
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType } from '$lib/types';
+	import type { CommentType, PostData } from '$lib/types';
 
-	type PostData = {
-		id: number;
-		avatar: string;
-		username: string;
-		imgUri: string;
-		postAlt: string;
-		text: string;
-		time: string;
-		count: {
-			likes: number;
-			comments: number;
-		};
-	};
 
 	let listElement: HTMLElement;
 	let visiblePosts: PostData[] = $state([]);
