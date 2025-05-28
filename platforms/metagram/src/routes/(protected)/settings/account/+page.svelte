@@ -3,38 +3,38 @@
 	import { SettingsNavigationButton } from '$lib/fragments';
 	import { Button, Helper, Input, Label } from '$lib/ui';
 
-	let accountPage: 'account' | 'username' | 'emailAdd' | 'changePass' | 'deactivate' = 'account';
+	let currentPage: 'home' | 'username' | 'emailAdd' | 'changePass' | 'deactivate' = 'home';
 	let userEmail: string = 'ananya@auvo.io';
 </script>
 
-{#if accountPage === 'account'}
+{#if currentPage === 'home'}
 	<div class="flex flex-col gap-3">
-		<SettingsNavigationButton onclick={() => (accountPage = 'username')}>
+		<SettingsNavigationButton onclick={() => (currentPage = 'username')}>
 			{#snippet children()}
 				Username
 			{/snippet}
 		</SettingsNavigationButton>
 		<hr class="text-grey" />
-		<SettingsNavigationButton onclick={() => (accountPage = 'emailAdd')}>
+		<SettingsNavigationButton onclick={() => (currentPage = 'emailAdd')}>
 			{#snippet children()}
 				Email Address
 			{/snippet}
 		</SettingsNavigationButton>
 		<hr class="text-grey" />
-		<SettingsNavigationButton onclick={() => (accountPage = 'changePass')}>
+		<SettingsNavigationButton onclick={() => (currentPage = 'changePass')}>
 			{#snippet children()}
 				Change Password
 			{/snippet}
 		</SettingsNavigationButton>
 		<hr class="text-grey" />
-		<SettingsNavigationButton onclick={() => (accountPage = 'deactivate')}>
+		<SettingsNavigationButton onclick={() => (currentPage = 'deactivate')}>
 			{#snippet children()}
 				Deactivate Account
 			{/snippet}
 		</SettingsNavigationButton>
 		<hr class="text-grey" />
 	</div>
-{:else if accountPage === 'username'}
+{:else if currentPage === 'username'}
 	<div>
 		<Label>Change your username</Label>
 		<Input type="text" placeholder="Edit Username" />
@@ -42,21 +42,22 @@
 	</div>
 	<hr class="text-grey" />
 	<Button size="sm" variant="secondary" callback={() => alert('saved')}>Save Changes</Button>
-{:else if accountPage === 'emailAdd'}
+{:else if currentPage === 'emailAdd'}
 	<div>
 		<Label>Your email address</Label>
 		<Input type="email" value={userEmail} disabled />
 	</div>
-{:else if accountPage === 'changePass'}
+{:else if currentPage === 'changePass'}
 	<div>
 		<Label>Enter Old Password</Label>
 		<Input type="password" placeholder="Old Password" />
 	</div>
+	<hr class="text-grey" />
 	<div>
 		<Label>Enter New Password</Label>
 		<Input type="password" placeholder="New Password" />
 	</div>
-{:else if accountPage === 'deactivate'}
+{:else if currentPage === 'deactivate'}
 	<div class="flex flex-col gap-3">
 		<SettingsNavigationButton
 			hasTrailingIcon={false}

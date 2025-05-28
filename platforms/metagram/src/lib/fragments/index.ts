@@ -11,3 +11,4 @@ export { default as SideBar } from './SideBar/SideBar.svelte';
 export { default as RightAside } from './RightAside/RightAside.svelte';
 export { default as SettingsToggleButton } from './SettingsToggleButton/SettingsToggleButton.svelte';
 export { default as Post } from './Post/Post.svelte';
+export { default as SettingsDeleteButton } from './SettingsDeleteButton/SettingsDeleteButton.svelte';

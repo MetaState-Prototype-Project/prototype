@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { Toggle } from '$lib/ui';
 	import { cn } from '$lib/utils';
-	import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { Snippet } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 

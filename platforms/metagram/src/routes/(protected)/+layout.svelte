@@ -30,12 +30,11 @@
 
 <main class="block h-[100dvh] grid-cols-[20vw_auto_30vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-
 	<section class="mx-4 md:mx-8 md:pt-8">
-		<div class="flex justify-between">
+		<div class="flex items-center justify-between">
 			<Header variant="primary" {heading} />
 			{#if route === '/profile'}
-				<div class="mb-4 flex pe-5 md:hidden">
+				<div class="mb-6 flex md:hidden">
 					<button
 						type="button"
 						class="flex items-center gap-2"
