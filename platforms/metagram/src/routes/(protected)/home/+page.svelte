@@ -130,14 +130,13 @@
 					{comment}
 					handleReply={(id) => {
 						activeReplyToId = id;
-						alert(id);
 						commentInput?.focus();
 					}}
 				/>
 			</li>
 		{/each}
 		<MessageInput
-			class="mt-4"
+			class="fixed start-0 bottom-4 mt-4 w-full px-5"
 			variant="comment"
 			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 			bind:value={commentValue}
