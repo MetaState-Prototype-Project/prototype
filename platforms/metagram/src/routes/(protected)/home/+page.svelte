@@ -115,8 +115,8 @@
 			<li class="mb-4">
 				<Comment
 					{comment}
-					handleReply={(id) => {
-						activeReplyToId = id;
+					handleReply={() => {
+						activeReplyToId = comment.commentId;
 						commentInput?.focus();
 					}}
 				/>

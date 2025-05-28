@@ -3,12 +3,11 @@
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import CommentComponent from './Comment.svelte';
 	import type { CommentType } from '$lib/types';
 
 	interface ICommentProps extends HTMLAttributes<HTMLElement> {
 		comment: CommentType;
-		handleReply: (id: string) => void;
+		handleReply: () => void;
 	}
 
 	let visibleReplies = $state(2);
@@ -70,7 +69,7 @@
 			/>
 		</button>
 		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
-		<button onclick={() => handleReply(comment.commentId)} class="text-black-600 font-semibold"
+		<button onclick={handleReply} class="text-black-600 font-semibold"
 			>Reply</button
 		>
 		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
@@ -80,7 +79,61 @@
 		<ul class="ms-12 mt-4 space-y-2">
 			{#each comment.replies.slice(0, visibleReplies) as reply}
 				<li>
-					<CommentComponent comment={reply} {handleReply} />
+					<div class="align-start flex gap-2">
+						<Avatar src={reply.userImgSrc} size="sm" />
+						<div>
+							<h3 class="font-semibold text-black">{reply.name}</h3>
+							<p class="text-black-600 mt-0.5">{reply.comment}</p>
+						</div>
+					</div>
+					<div class="ms-12 mt-2 flex items-center gap-2">
+						<button
+							onclick={() => {
+								if (!reply.isUpVoted) {
+									reply.upVotes++;
+									reply.isUpVoted = true;
+									reply.isDownVoted = false;
+								}
+							}}
+						>
+							<Like
+								size="18px"
+								color={reply.isUpVoted
+									? 'var(--color-brand-burnt-orange)'
+									: 'var(--color-black-600)'}
+								fill={reply.isUpVoted
+									? 'var(--color-brand-burnt-orange)'
+									: 'var(--color-black-600)'}
+							/>
+						</button>
+						<p class="text-black-600 font-semibold">{reply.upVotes}</p>
+						<button
+							onclick={() => {
+								if (!reply.isDownVoted) {
+									reply.upVotes--;
+									reply.isDownVoted = true;
+									reply.isUpVoted = false;
+								}
+							}}
+						>
+							<Like
+								size="18px"
+								color={reply.isDownVoted
+									? 'var(--color-brand-burnt-orange)'
+									: 'var(--color-black-600)'}
+								fill={reply.isDownVoted
+									? 'var(--color-brand-burnt-orange)'
+									: 'var(--color-black-600)'}
+								class="rotate-180"
+							/>
+						</button>
+						<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
+						<button onclick={handleReply} class="text-black-600 font-semibold"
+							>Reply</button
+						>
+						<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
+						<p class="text-black-600">{reply.time}</p>
+					</div>
 				</li>
 			{/each}
 			{#if comment.replies.length > visibleReplies}
