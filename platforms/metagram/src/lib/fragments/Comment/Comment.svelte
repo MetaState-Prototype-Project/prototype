@@ -69,9 +69,7 @@
 			/>
 		</button>
 		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
-		<button onclick={handleReply} class="text-black-600 font-semibold"
-			>Reply</button
-		>
+		<button onclick={handleReply} class="text-black-600 font-semibold">Reply</button>
 		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
 		<p class="text-black-600">{comment.time}</p>
 	</div>

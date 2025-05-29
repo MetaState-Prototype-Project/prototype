@@ -6,7 +6,6 @@
 	import { Comment, MessageInput } from '$lib/fragments';
 	import type { CommentType, PostData } from '$lib/types';
 
-
 	let listElement: HTMLElement;
 	let visiblePosts: PostData[] = $state([]);
 	let maxVisiblePosts = $state(20);
@@ -96,7 +95,13 @@
 				count={post.count}
 				callback={{
 					like: () => alert('like'),
-					comment: () => drawer?.present({ animate: true }),
+					comment: () => {
+						if (window.matchMedia('(max-width: 768px)').matches) {
+							drawer?.present({ animate: true });
+						} else {
+							// comments to be shown in right aside
+						}
+					},
 					menu: () => alert('menu')
 				}}
 			/>
