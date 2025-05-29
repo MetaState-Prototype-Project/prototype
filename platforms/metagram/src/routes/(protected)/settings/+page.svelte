@@ -10,16 +10,13 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	let route = $derived(page.url.pathname);
-
 	let username: string = $state('_.ananyayaya._');
 	let userEmail: string = $state('ananya@auvo.io');
+	let userImage: string = $state('https://picsum.photos/200/300');
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
-	<SettingsNavigationButton
-		onclick={() => goto(`/settings/account`)}
-		profileSrc="https://picsum.photos/200/300"
-	>
+	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={userImage}>
 		{#snippet children()}
 			<div class="flex flex-col items-start">
 				<h2 class="text-lg">{username}</h2>
