@@ -62,5 +62,6 @@ export const Radio = {
     args: {
         type: "radio",
         value: "option1",
+        name: "option-1",
     },
 };
