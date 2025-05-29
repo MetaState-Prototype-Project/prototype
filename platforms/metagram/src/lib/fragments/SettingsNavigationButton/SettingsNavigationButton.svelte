@@ -9,7 +9,7 @@
 		leadingIcon?: Snippet;
 		profileSrc?: string;
 		children: Snippet;
-		onclick: () => void;
+		onclick?: () => void;
 		hasTrailingIcon?: boolean;
 	}
 
