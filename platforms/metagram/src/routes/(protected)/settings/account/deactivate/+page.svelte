@@ -1,5 +1,4 @@
 <script>
-	import { goto } from '$app/navigation';
 	import { SettingsNavigationButton } from '$lib/fragments';
 	import { Button } from '$lib/ui';
 </script>
