@@ -3,10 +3,8 @@
 	import { page } from '$app/state';
 	import SettingsNavigationButton from '$lib/fragments/SettingsNavigationButton/SettingsNavigationButton.svelte';
 	import {
-		CustomerSupportIcon,
 		DatabaseIcon,
 		Logout01Icon,
-		Message01Icon,
 		Notification02FreeIcons
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
@@ -51,20 +49,6 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<div class="{route === `/settings/direct-messages` ? 'bg-grey' : ''} rounded-xl p-2">
-		<SettingsNavigationButton onclick={() => goto(`/settings/direct-messages`)}>
-			{#snippet leadingIcon()}
-				<HugeiconsIcon
-					size="24px"
-					icon={Message01Icon}
-					color="var(--color-brand-burnt-orange)"
-				/>
-			{/snippet}
-			{#snippet children()}
-				Direct Messages
-			{/snippet}
-		</SettingsNavigationButton>
-	</div>
 </div>
 <hr class="text-grey" />
 <div class="flex flex-col gap-3">
@@ -83,23 +67,6 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<div class="{route === `/settings/support` ? 'bg-grey' : ''} rounded-xl p-2">
-		<SettingsNavigationButton onclick={() => goto(`/settings/support`)}>
-			{#snippet leadingIcon()}
-				<HugeiconsIcon
-					size="24px"
-					icon={CustomerSupportIcon}
-					color="var(--color-brand-burnt-orange)"
-				/>
-			{/snippet}
-			{#snippet children()}
-				Support
-			{/snippet}
-		</SettingsNavigationButton>
-	</div>
-</div>
-<hr class="text-grey" />
-<div class="flex flex-col gap-3">
 	<div class="{route === `/settings/logout` ? 'bg-grey' : ''} rounded-xl p-2">
 		<SettingsNavigationButton onclick={() => goto(`/settings/logout`)}>
 			{#snippet leadingIcon()}

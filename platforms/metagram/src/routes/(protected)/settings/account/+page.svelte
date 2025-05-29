@@ -10,18 +10,6 @@
 		{/snippet}
 	</SettingsNavigationButton>
 	<hr class="text-grey" />
-	<SettingsNavigationButton onclick={() => goto('/settings/account/email-address')}>
-		{#snippet children()}
-			Email Address
-		{/snippet}
-	</SettingsNavigationButton>
-	<hr class="text-grey" />
-	<SettingsNavigationButton onclick={() => goto('/settings/account/change-password')}>
-		{#snippet children()}
-			Change Password
-		{/snippet}
-	</SettingsNavigationButton>
-	<hr class="text-grey" />
 	<SettingsNavigationButton onclick={() => goto('/settings/account/deactivate')}>
 		{#snippet children()}
 			Deactivate Account
