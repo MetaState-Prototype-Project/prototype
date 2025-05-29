@@ -8,4 +8,7 @@ export { default as Message } from './Message/Message.svelte';
 export { default as ActionMenu } from './ActionMenu/ActionMenu.svelte';
 export { default as Modal } from './Modal/Modal.svelte';
 export { default as SideBar } from './SideBar/SideBar.svelte';
+export { default as RightAside } from './RightAside/RightAside.svelte';
+export { default as SettingsToggleButton } from './SettingsToggleButton/SettingsToggleButton.svelte';
 export { default as Post } from './Post/Post.svelte';
+export { default as SettingsDeleteButton } from './SettingsDeleteButton/SettingsDeleteButton.svelte';

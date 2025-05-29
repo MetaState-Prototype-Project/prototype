@@ -19,10 +19,8 @@
 		if (currentRoute === targetRoute) {
 			return;
 		}
-
 		if (!isNavigatingThroughNav.value) {
 			const currentDirection = 'right';
-
 			document.documentElement.setAttribute('data-transition', currentDirection);
 			previousRoute = targetRoute;
 		}
@@ -36,6 +34,6 @@
 	});
 </script>
 
-<main class="h-[100dvh] px-4 md:px-0">
+<main class="h-[100dvh] md:px-0">
 	{@render children()}
 </main>
