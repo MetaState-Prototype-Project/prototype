@@ -83,9 +83,8 @@
 	});
 </script>
 
-
-	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
-		{#each visiblePosts as post}
+<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
+	{#each visiblePosts as post}
 		<li class="mb-6">
 			<Post
 				avatar={post.avatar}
@@ -101,19 +100,19 @@
 						if (window.matchMedia('(max-width: 768px)').matches) {
 							drawer?.present({ animate: true });
 						} else {
-							showComments.value = true
+							showComments.value = true;
 						}
 					},
 					menu: () => alert('menu')
 				}}
 			/>
 		</li>
-		{/each}
-	</ul>
+	{/each}
+</ul>
 
-	{#if loading}
+{#if loading}
 	<p class="my-4 text-center">Loading more posts…</p>
-	{/if}
+{/if}
 
 <Drawer bind:drawer>
 	<ul class="pb-4">

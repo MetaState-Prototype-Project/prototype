@@ -4,4 +4,4 @@ export const isNavigatingThroughNav = $state({
 
 export const showComments = $state({
 	value: false
-})
+});

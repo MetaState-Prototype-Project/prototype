@@ -70,7 +70,9 @@
 	});
 </script>
 
-<main class={`block h-[100dvh] ${route !== "/home"? "grid-cols-[20vw_auto]" : "grid-cols-[20vw_auto_30vw]"} md:grid`}>
+<main
+	class={`block h-[100dvh] ${route !== '/home' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+>
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section class="px-4 md:px-8 md:pt-8">
 		<div class="flex items-center justify-between">
@@ -89,33 +91,35 @@
 		</div>
 		{@render children()}
 	</section>
-	{#if route === "/home"}
-	<aside class="relative hidden md:block h-[100dvh] overflow-y-scroll hide-scrollbar px-8 pt-14 border border-s-gray-200 border-e-0 border-t-0 border-b-0">
-		{#if showComments.value}
-		<ul class="pb-4">
-			<h3 class="text-black-600 mb-6 text-center">{comments.length} Comments</h3>
-			{#each _comments as comment}
-				<li class="mb-4">
-					<Comment
-						{comment}
-						handleReply={() => {
-							activeReplyToId = comment.commentId;
-							commentInput?.focus();
-						}}
+	{#if route === '/home'}
+		<aside
+			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
+		>
+			{#if showComments.value}
+				<ul class="pb-4">
+					<h3 class="text-black-600 mb-6 text-center">{comments.length} Comments</h3>
+					{#each _comments as comment}
+						<li class="mb-4">
+							<Comment
+								{comment}
+								handleReply={() => {
+									activeReplyToId = comment.commentId;
+									commentInput?.focus();
+								}}
+							/>
+						</li>
+					{/each}
+					<MessageInput
+						class="sticky start-0 bottom-4 mt-4 w-full px-2"
+						variant="comment"
+						src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+						bind:value={commentValue}
+						{handleSend}
+						bind:input={commentInput}
 					/>
-				</li>
-			{/each}
-			<MessageInput
-				class="sticky start-0 bottom-4 mt-4 w-full px-2"
-				variant="comment"
-				src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-				bind:value={commentValue}
-				{handleSend}
-				bind:input={commentInput}
-			/>
-		</ul>
-		{/if}
-	</aside>
+				</ul>
+			{/if}
+		</aside>
 	{/if}
 	<BottomNav profileSrc="https://picsum.photos/200" />
 </main>
