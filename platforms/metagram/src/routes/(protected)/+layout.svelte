@@ -2,8 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
-	import { BottomNav, Header, Comment, MessageInput } from '$lib/fragments';
-	import SideBar from '$lib/fragments/SideBar/SideBar.svelte';
+	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
 	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
