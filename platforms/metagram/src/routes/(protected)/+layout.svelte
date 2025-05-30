@@ -23,7 +23,7 @@
 
 <main class="block h-[100dvh] grid-cols-[22vw_auto_31vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="mx-4 md:mx-8 md:pt-10 h-[100dvh] overflow-y-scroll hide-scrollbar">
+	<section class="hide-scrollbar mx-4 h-[100dvh] overflow-y-scroll md:mx-8 md:pt-10">
 		<Header variant="primary" {heading} />
 		{@render children()}
 	</section>

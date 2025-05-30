@@ -39,7 +39,7 @@
 				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 			{/if}
 		</span>
-		<p class="text-black/60">{messageText}</p>
+		<p class="text-start text-black/60">{messageText}</p>
 	</span>
 </button>
 
