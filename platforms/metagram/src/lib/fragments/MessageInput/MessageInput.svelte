@@ -7,6 +7,7 @@
 
 	interface IMessageInputProps extends HTMLAttributes<HTMLElement> {
 		variant: 'comment' | 'dm';
+		input?: HTMLInputElement;
 		src: string;
 		value: string;
 		placeholder?: string;
@@ -19,6 +20,7 @@
 		variant = 'comment',
 		src = 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
 		value = $bindable(),
+		input = $bindable(),
 		placeholder,
 		files = $bindable(),
 		handleAdd,
@@ -46,7 +48,7 @@
 			<HugeiconsIcon size="24px" icon={PlusSignIcon} color="var(--color-black-400)" />
 		</button>
 	{/if}
-	<Input type="text" bind:value {placeholder} />
+	<Input type="text" bind:input bind:value {placeholder} />
 	{#if value || variant === 'dm'}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
