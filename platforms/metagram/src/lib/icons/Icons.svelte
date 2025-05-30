@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Like, Refresh, Comment, Home, Flash, CommentsTwo, VerticalDots } from '.';
+	import { Like, Refresh, CommentIcon, Home, Flash, CommentsTwo, VerticalDots } from '.';
 </script>
 
 <div class="flex flex-wrap items-center gap-2">
 	<Like />
 	<Refresh />
-	<Comment />
+	<CommentIcon />
 	<VerticalDots />
 	<Home />
 	<Flash />
