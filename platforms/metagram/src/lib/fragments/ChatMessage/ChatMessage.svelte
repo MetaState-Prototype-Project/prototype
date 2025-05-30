@@ -44,7 +44,7 @@
 		>
 			{#if isHeadNeeded}
 				<svg
-					class={`absolute ${transactionType === 'outgoing' ? 'start-[-8px] top-[-2px]' : 'end-[-8px] top-[2px]'}`}
+					class={`absolute ${transactionType === 'outgoing' ? 'start-[-5px] top-[-2px]' : 'end-[-5px] top-[2px]'}`}
 					width="22"
 					height="17"
 					viewBox="0 0 22 17"
