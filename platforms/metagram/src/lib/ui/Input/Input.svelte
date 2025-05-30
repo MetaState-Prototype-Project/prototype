@@ -4,10 +4,14 @@
 
 	interface IInputProps extends HTMLInputAttributes {
 		type: HTMLInputTypeAttribute;
+		input?: HTMLInputElement;
+		value: string | number | any;
+		placeholder?: string;
 	}
 
 	let {
 		type = 'text',
+		input = $bindable(),
 		value = $bindable(),
 		placeholder = '',
 		...restProps
@@ -23,6 +27,7 @@
 	{type}
 	{placeholder}
 	bind:value
+	bind:this={input}
 	class={cn([cbase, restProps.class].join(' '))}
 	tabindex="0"
 />

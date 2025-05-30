@@ -82,7 +82,7 @@
 			</button>
 		</div>
 		<div class="flex items-center justify-between gap-3 text-lg text-black/40">
-			<p>{count.likes} likes</p>
+			<p class="subtext text-black-400">{count.likes} likes</p>
 			<HugeiconsIcon
 				icon={RecordIcon}
 				size={5}
@@ -90,7 +90,7 @@
 				color="var(--color-black-400)"
 				className="rounded-full"
 			/>
-			<p>{count.comments} comments</p>
+			<p class="subtext text-black-400">{count.comments} comments</p>
 		</div>
 	</div>
 </article>
