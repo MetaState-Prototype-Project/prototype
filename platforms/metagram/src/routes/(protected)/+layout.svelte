@@ -14,7 +14,7 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
-	let isChatPage = $state(false);
+	let chatFriendId = $state();
 
 	
 	const handleSend = async () => {
@@ -53,21 +53,23 @@
 	};
 
 	$effect(() => {
-		isChatPage = route.startsWith("/messages/");
+		chatFriendId = page.params.id;
+
 		if (route.includes('home')) {
 			heading = 'Feed';
 		} else if (route.includes('discover')) {
 			heading = 'Search';
 		} else if (route.includes('post')) {
 			heading = 'Post';
-		} else if (route.includes('messages')) {
+		} else if (route === `/messages/${chatFriendId}`){
+			heading = 'User Name';
+		} 
+		else if (route.includes('messages')) {
 			heading = 'Messages';
 		} else if (route.includes('settings')) {
 			heading = 'Settings';
 		} else if (route.includes('profile')) {
 			heading = 'Profile';
-		} else {
-			heading = '';
 		}
 	});
 </script>
@@ -78,7 +80,10 @@
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 md:px-8 md:pt-8 pb-8">
 		<div class="flex items-center justify-between">
-			<Header variant={"primary"} {heading}/>
+			<Header variant={route === `/messages/${chatFriendId}` ?  "secondary" : "primary"} {heading} options={[
+				{ name: 'Report', handler: () => alert('report') },
+				{ name: 'Clear chat', handler: () => alert('clear') }
+			]}/>
 			{#if route === '/profile'}
 				<div class="mb-6 flex md:hidden">
 					<button
@@ -124,7 +129,7 @@
 		</aside>
 	{/if}
 	
-	{#if !isChatPage}
+	{#if route !== `/messages/${chatFriendId}`}
 	<BottomNav class="btm-nav"  profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>
