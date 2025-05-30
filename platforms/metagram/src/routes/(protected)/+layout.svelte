@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { BottomNav, Header } from '$lib/fragments';
 	import SideBar from '$lib/fragments/SideBar/SideBar.svelte';
-	import { Settings } from '$lib/icons';
-	let { children } = $props();
 
+	let { children } = $props();
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
 
@@ -30,21 +28,10 @@
 
 <main class="block h-[100dvh] grid-cols-[20vw_auto_30vw] md:grid">
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="mx-4 md:mx-8 md:pt-8">
-		<div class="flex items-center justify-between">
+	<section class=" {route === '/profile' ? '' : 'mx-4 md:mx-8 md:pt-8'}">
+		{#if route !== '/profile'}
 			<Header variant="primary" {heading} />
-			{#if route === '/profile'}
-				<div class="mb-6 flex md:hidden">
-					<button
-						type="button"
-						class="flex items-center gap-2"
-						onclick={() => goto(`/settings`)}
-					>
-						<Settings size="24px" color="var(--color-brand-burnt-orange)" />
-					</button>
-				</div>
-			{/if}
-		</div>
+		{/if}
 		{@render children()}
 	</section>
 	<BottomNav profileSrc="https://picsum.photos/200" />
