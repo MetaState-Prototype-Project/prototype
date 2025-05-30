@@ -5,6 +5,7 @@
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
 	import type { CommentType, PostData } from '$lib/types';
+	import { showComments } from '$lib/store/store.svelte';
 
 	let listElement: HTMLElement;
 	let visiblePosts: PostData[] = $state([]);
@@ -82,8 +83,9 @@
 	});
 </script>
 
-<ul bind:this={listElement} class="hide-scrollbar h-[100dvh] overflow-auto">
-	{#each visiblePosts as post}
+
+	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
+		{#each visiblePosts as post}
 		<li class="mb-6">
 			<Post
 				avatar={post.avatar}
@@ -99,19 +101,19 @@
 						if (window.matchMedia('(max-width: 768px)').matches) {
 							drawer?.present({ animate: true });
 						} else {
-							// comments to be shown in right aside
+							showComments.value = true
 						}
 					},
 					menu: () => alert('menu')
 				}}
 			/>
 		</li>
-	{/each}
-</ul>
+		{/each}
+	</ul>
 
-{#if loading}
+	{#if loading}
 	<p class="my-4 text-center">Loading more posts…</p>
-{/if}
+	{/if}
 
 <Drawer bind:drawer>
 	<ul class="pb-4">
