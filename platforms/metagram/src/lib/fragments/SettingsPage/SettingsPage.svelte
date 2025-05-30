@@ -8,15 +8,22 @@
 		Notification02FreeIcons
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let route = $derived(page.url.pathname);
-	let username: string = $state('_.ananyayaya._');
-	let userEmail: string = $state('ananya@auvo.io');
-	let userImage: string = $state('https://picsum.photos/200/300');
+
+	interface ISettingsPageProps extends HTMLAttributes<HTMLElement> {
+		username: string;
+		userEmail: string;
+	}
+	let { username, userEmail }: ISettingsPageProps = $props();
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
-	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={userImage}>
+	<SettingsNavigationButton
+		onclick={() => goto(`/settings/account`)}
+		profileSrc="https://picsum.photos/200/300"
+	>
 		{#snippet children()}
 			<div class="flex flex-col items-start">
 				<h2 class="text-lg">{username}</h2>
