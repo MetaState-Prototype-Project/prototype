@@ -44,6 +44,20 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
     });
     await coreApi.createNamespacedPersistentVolumeClaim({ namespace: namespaceName, body: pvcSpec('neo4j-data') });
     await coreApi.createNamespacedPersistentVolumeClaim({ namespace: namespaceName, body: pvcSpec('evault-store') });
+    await coreApi.createNamespacedPersistentVolumeClaim({
+        namespace: namespaceName, body: {
+            metadata: { name: 'evault-secrets', namespace: namespaceName },
+            spec: {
+                accessModes: ['ReadWriteOnce'],
+                resources: {
+                    requests: {
+                        storage: '2Mi'
+                    }
+                }
+            }
+        }
+    });
+
 
     const deployment = {
         metadata: { name: 'evault', namespace: namespaceName },
@@ -73,14 +87,17 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
                                 { name: 'NEO4J_USER', value: 'neo4j' },
                                 { name: 'NEO4J_PASSWORD', value: neo4jPassword },
                                 { name: 'PORT', value: containerPort.toString() },
-                                { name: 'W3ID', value: w3id }
+                                { name: 'W3ID', value: w3id },
+                                { name: "ENCRYPTION_PASSWORD", value: neo4jPassword },
+                                { name: "SECRETS_STORE_PATH", value: "/secrets" }
                             ],
                             volumeMounts: [{ name: 'evault-store', mountPath: '/evault/data' }]
                         }
                     ],
                     volumes: [
                         { name: 'neo4j-data', persistentVolumeClaim: { claimName: 'neo4j-data' } },
-                        { name: 'evault-store', persistentVolumeClaim: { claimName: 'evault-store' } }
+                        { name: 'evault-store', persistentVolumeClaim: { claimName: 'evault-store' } },
+                        { name: 'evault-secrets', persistentVolumeClaim: { claimName: "evault-secrets" } }
                     ]
                 }
             }

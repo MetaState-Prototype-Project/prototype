@@ -1,12 +1,27 @@
 import fastify from "fastify";
 import { generateEntropy, getJWK } from "./jwt";
-import { resolveService } from "./consul";
 import dotenv from "dotenv";
 import path from "path";
+import { AppDataSource } from "./config/database";
+import { VaultService } from "./services/VaultService";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const server = fastify({ logger: true });
+
+// Initialize database connection
+const initializeDatabase = async () => {
+    try {
+        await AppDataSource.initialize();
+        server.log.info("Database connection initialized");
+    } catch (error) {
+        server.log.error("Error during database initialization:", error);
+        process.exit(1);
+    }
+};
+
+// Initialize VaultService
+const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
 
 // Generate and return a signed JWT with entropy
 server.get("/entropy", async (request, reply) => {
@@ -30,7 +45,7 @@ server.get("/.well-known/jwks.json", async (request, reply) => {
   }
 });
 
-// Resolve service from Consul based on w3id
+// Resolve service from database based on w3id
 server.get("/resolve", async (request, reply) => {
   try {
     const { w3id } = request.query as { w3id: string };
@@ -38,12 +53,17 @@ server.get("/resolve", async (request, reply) => {
       return reply.status(400).send({ error: "w3id parameter is required" });
     }
 
-    const service = await resolveService(w3id);
+    const service = await vaultService.findByEname(w3id);
+    
     if (!service) {
       return reply.status(404).send({ error: "Service not found" });
     }
 
-    return service;
+    return {
+      ename: service.ename,
+      uri: service.uri,
+      evault: service.evault
+    };
   } catch (error) {
     server.log.error(error);
     reply.status(500).send({ error: "Failed to resolve service" });
@@ -52,6 +72,7 @@ server.get("/resolve", async (request, reply) => {
 
 const start = async () => {
   try {
+    await initializeDatabase();
     await server.listen({ port: 4321, host: "0.0.0.0" });
   } catch (err) {
     server.log.error(err);

@@ -37,8 +37,6 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-            // TODO: change this to take namespace from the payload, and signed entropy
-            // JWT so that we can verify both parts of the UUID come from know source
             const { registryEntropy, namespace } = req.body;
 
             if (!registryEntropy || !namespace) {
