@@ -3,6 +3,12 @@ import * as k8s from '@kubernetes/client-node';
 import { execSync } from "child_process";
 import { json } from "express";
 
+/**
+ * Generates a cryptographically secure random alphanumeric password of the specified length.
+ *
+ * @param length - The desired length of the generated password. Defaults to 16.
+ * @returns A random password consisting of uppercase letters, lowercase letters, and digits.
+ */
 export function generatePassword(length = 16): string {
     const chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -19,6 +25,17 @@ export function generatePassword(length = 16): string {
     return result;
 }
 
+/**
+ * Provisions an eVault environment in a dedicated Kubernetes namespace and returns its accessible URL.
+ *
+ * Creates a namespace, persistent volume claims, a deployment with Neo4j and eVault containers, and a LoadBalancer service. The Neo4j password is derived by hashing the domain part of the provided {@link w3id}. The function determines the service endpoint using the LoadBalancer IP/hostname, node IP and NodePort, or Minikube IP as a fallback.
+ *
+ * @param w3id - The W3ID identifier, used to derive the namespace and database password.
+ * @param eVaultId - The unique identifier for the eVault instance.
+ * @returns The HTTP URL for accessing the provisioned eVault service.
+ *
+ * @throws {Error} If the service endpoint cannot be determined from the cluster.
+ */
 export async function provisionEVault(w3id: string, eVaultId: string) {
     const idParts = w3id.split('@');
     w3id = idParts[idParts.length - 1]
