@@ -1,12 +1,61 @@
 import fastify from "fastify";
 import { generateEntropy, getJWK } from "./jwt";
-import { resolveService } from "./consul";
 import dotenv from "dotenv";
 import path from "path";
+import { AppDataSource } from "./config/database";
+import { VaultService } from "./services/VaultService";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const server = fastify({ logger: true });
+
+// Initialize database connection
+const initializeDatabase = async () => {
+    try {
+        await AppDataSource.initialize();
+        server.log.info("Database connection initialized");
+    } catch (error) {
+        server.log.error("Error during database initialization:", error);
+        process.exit(1);
+    }
+};
+
+// Initialize VaultService
+const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
+
+// Middleware to check shared secret
+const checkSharedSecret = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({ error: 'Missing or invalid authorization header' });
+    }
+
+    const secret = authHeader.split(' ')[1];
+    if (secret !== process.env.REGISTRY_SHARED_SECRET) {
+        return reply.status(401).send({ error: 'Invalid shared secret' });
+    }
+};
+
+// Create a new vault entry
+server.post("/register", {
+    preHandler: checkSharedSecret
+}, async (request, reply) => {
+    try {
+        const { ename, uri, evault } = request.body as { ename: string; uri: string; evault: string };
+
+        if (!ename || !uri || !evault) {
+            return reply.status(400).send({ 
+                error: "Missing required fields. Please provide ename, uri, and evault" 
+            });
+        }
+
+        const vault = await vaultService.create(ename, uri, evault);
+        return reply.status(201).send(vault);
+    } catch (error) {
+        server.log.error(error);
+        reply.status(500).send({ error: "Failed to create vault entry" });
+    }
+});
 
 // Generate and return a signed JWT with entropy
 server.get("/entropy", async (request, reply) => {
@@ -30,7 +79,7 @@ server.get("/.well-known/jwks.json", async (request, reply) => {
   }
 });
 
-// Resolve service from Consul based on w3id
+// Resolve service from database based on w3id
 server.get("/resolve", async (request, reply) => {
   try {
     const { w3id } = request.query as { w3id: string };
@@ -38,12 +87,16 @@ server.get("/resolve", async (request, reply) => {
       return reply.status(400).send({ error: "w3id parameter is required" });
     }
 
-    const service = await resolveService(w3id);
-    if (!service) {
+    const vault = await vaultService.findByEname(w3id);
+    if (!vault) {
       return reply.status(404).send({ error: "Service not found" });
     }
 
-    return service;
+    return {
+      ename: vault.ename,
+      uri: vault.uri,
+      evault: vault.evault
+    };
   } catch (error) {
     server.log.error(error);
     reply.status(500).send({ error: "Failed to resolve service" });
@@ -52,6 +105,7 @@ server.get("/resolve", async (request, reply) => {
 
 const start = async () => {
   try {
+    await initializeDatabase();
     await server.listen({ port: 4321, host: "0.0.0.0" });
   } catch (err) {
     server.log.error(err);

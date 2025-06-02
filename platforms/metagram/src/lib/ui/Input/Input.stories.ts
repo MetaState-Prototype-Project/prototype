@@ -4,12 +4,7 @@ export default {
     title: "UI/Input",
     component: Input,
     tags: ["autodocs"],
-    render: (args: {
-        type: string;
-        placeholder: string;
-        group: string;
-        helperText: string;
-    }) => ({
+    render: (args: { type: string; placeholder: string }) => ({
         Component: Input,
         props: args,
     }),

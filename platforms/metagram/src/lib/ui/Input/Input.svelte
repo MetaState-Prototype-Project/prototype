@@ -6,10 +6,14 @@
 		type: HTMLInputTypeAttribute;
 		selected?: string;
 		name?: string;
+		input?: HTMLInputElement;
+		value: string | number | any;
+		placeholder?: string;
 	}
 
 	let {
 		type = 'text',
+		input = $bindable(),
 		value = $bindable(),
 		selected = $bindable(),
 		name = '',
@@ -65,6 +69,7 @@
 		{...restProps}
 		{type}
 		{placeholder}
+		bind:this={input}
 		bind:value
 		class={cn([cbase.common, cbase.type, restProps.class].join(' '))}
 		tabindex="0"

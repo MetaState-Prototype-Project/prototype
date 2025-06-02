@@ -26,7 +26,7 @@
 <button
 	{...restProps}
 	class={cn([
-		'relative flex w-full cursor-pointer items-center gap-2 rounded-lg py-4 hover:bg-gray-100',
+		'relative flex w-full cursor-pointer items-center gap-2 rounded-lg py-4',
 		restProps.class
 	])}
 	onclick={callback}
@@ -39,7 +39,7 @@
 				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 			{/if}
 		</span>
-		<p class="text-black/60">{messageText}</p>
+		<p class="text-start text-black/60">{messageText}</p>
 	</span>
 </button>
 
