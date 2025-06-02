@@ -53,10 +53,16 @@ onMount(async () => {
     showSplashScreen = false;
 });
 
-const safeAreaTop = $derived.by(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0);
+const safeAreaTop = $derived.by(
+    () =>
+        Number.parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+                "--safe-top",
+            ),
+        ) || 0,
+);
 
-
-$effect(() => console.log("top",  safeAreaTop))
+$effect(() => console.log("top", safeAreaTop));
 
 onNavigate((navigation) => {
     if (!document.startViewTransition) return;
