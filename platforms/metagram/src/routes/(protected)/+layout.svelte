@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
 	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
+	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
@@ -73,7 +74,7 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== "/messages" ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
@@ -100,10 +101,11 @@
 		</div>
 		{@render children()}
 	</section>
-	{#if route === '/home'}
+	{#if route === '/home'  || route === "/messages"}
 		<aside
 			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
 		>
+		{#if route === "/home"}
 			{#if showComments.value}
 				<ul class="pb-4">
 					<h3 class="text-black-600 mb-6 text-center">{comments.length} Comments</h3>
@@ -128,6 +130,16 @@
 					/>
 				</ul>
 			{/if}
+		{:else if route === "/messages"}
+			<ul class="pb-4">
+				<h2 class="text-black-600 mb-6 text-center">Other people you may know</h2>
+				{#each {length: 5} as _}
+				<li class="mb-4">
+					<UserRequest/>
+				</li>
+				{/each}
+			</ul>
+		{/if}
 		</aside>
 	{/if}
 
