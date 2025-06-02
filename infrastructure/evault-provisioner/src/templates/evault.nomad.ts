@@ -1,5 +1,7 @@
 import sha256 from "sha256";
 import * as k8s from '@kubernetes/client-node';
+import { execSync } from "child_process";
+import { json } from "express";
 
 export function generatePassword(length = 16): string {
     const chars =
@@ -87,24 +89,57 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
 
     await appsApi.createNamespacedDeployment({ body: deployment, namespace: namespaceName });
 
-    const serviceSpec = {
-        metadata: { name: 'evault-service', namespace: namespaceName },
-        spec: {
-            type: 'NodePort',
-            selector: { app: 'evault' },
-            ports: [
-                {
-                    port: 80,
-                    targetPort: containerPort,
-                    protocol: 'TCP'
-                    // No nodePort → let Kubernetes assign one dynamically
-                }
-            ]
+    await coreApi.createNamespacedService({
+        namespace: namespaceName,
+        body: {
+            apiVersion: 'v1',
+            kind: 'Service',
+            metadata: { name: 'evault-service' },
+            spec: {
+                type: 'LoadBalancer',
+                selector: { app: 'evault' },
+                ports: [
+                    {
+                        port: 4000,
+                        targetPort: 4000
+                    }
+                ]
+            }
         }
-    };
+    });
 
-    await coreApi.createNamespacedService({ body: serviceSpec, namespace: namespaceName });
+    const svc = await coreApi.readNamespacedService({ name: 'evault-service', namespace: namespaceName });
+    const spec = svc.spec;
+    const status = svc.status;
 
-    const res = await coreApi.readNamespacedService({ name: 'evault-service', namespace: namespaceName });
-    console.log(JSON.stringify(res))
+    // Check LoadBalancer first (cloud clusters)
+    const ingress = status?.loadBalancer?.ingress?.[0];
+    if (ingress?.ip || ingress?.hostname) {
+        const host = ingress.ip || ingress.hostname;
+        const port = spec?.ports?.[0]?.port;
+        return `http://${host}:${port}`;
+    }
+
+    // Fallback: NodePort + Node IP (local clusters or bare-metal)
+    const nodePort = spec?.ports?.[0]?.nodePort;
+    if (!nodePort) throw new Error('No LoadBalancer or NodePort found.');
+
+    // Try getting an external IP from the cluster nodes
+    const nodes = await coreApi.listNode();
+    console.log(JSON.stringify(nodes))
+    const address = nodes?.items[0].status.addresses.find(
+        (a) => a.type === 'ExternalIP' || a.type === 'InternalIP'
+    )?.address;
+
+    if (address) {
+        return `http://${address}:${nodePort}`;
+    }
+
+    // Local fallback: use minikube IP if available
+    try {
+        const minikubeIP = execSync('minikube ip').toString().trim();
+        return `http://${minikubeIP}:${nodePort}`
+    } catch (e) {
+        throw new Error('Unable to determine service IP (no LoadBalancer, Node IP, or Minikube IP)');
+    }
 }

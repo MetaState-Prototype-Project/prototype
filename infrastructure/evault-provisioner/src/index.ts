@@ -19,8 +19,8 @@ interface ProvisionRequest {
 
 interface ProvisionResponse {
     success: boolean;
-    message: string;
-    jobName?: string;
+    uri?: string;
+    message?: string;
     error?: string | unknown;
 }
 
@@ -66,14 +66,12 @@ app.post(
 
             const w3id = userId.id;
 
-            await provisionEVault(w3id, evaultId.id);
-            const jobName = `evault-${w3id}`;
+            const uri = await provisionEVault(w3id, evaultId.id);
 
 
             res.json({
                 success: true,
-                message: `Successfully provisioned evault for tenant ${w3id}`,
-                jobName,
+                uri,
             });
         } catch (error) {
             const axiosError = error as AxiosError;
