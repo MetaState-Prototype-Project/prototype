@@ -28,16 +28,21 @@
 
 <article class="max-w-screen flex flex-row items-center gap-4 scroll-auto">
 	{#each images as image, i}
-		<div class={cn(['relative shrink-0'])}>
+		<div class={cn(['group relative shrink-0'])}>
 			<Cross
-				class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 cursor-pointer"
+				class="absolute right-0 top-0 hidden -translate-y-1/2 translate-x-1/2 cursor-pointer group-hover:block"
 				onclick={() => crossHandler(i)}
 			/>
 			<img
 				{...restProps}
 				src={image.url}
 				alt={image.alt}
-				class={cn(['rounded-lg', width, height, restProps.class])}
+				class={cn([
+					'rounded-lg outline-[#DA4A11] group-hover:outline-2',
+					width,
+					height,
+					restProps.class
+				])}
 			/>
 		</div>
 	{/each}
