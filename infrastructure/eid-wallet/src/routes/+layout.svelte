@@ -53,6 +53,17 @@ onMount(async () => {
     showSplashScreen = false;
 });
 
+const safeAreaTop = $derived.by(
+    () =>
+        Number.parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue(
+                "--safe-top",
+            ),
+        ) || 0,
+);
+
+$effect(() => console.log("top", safeAreaTop));
+
 onNavigate((navigation) => {
     if (!document.startViewTransition) return;
 
@@ -88,10 +99,31 @@ onNavigate((navigation) => {
 });
 </script>
 
-{#if showSplashScreen}
-    <SplashScreen />
-{:else}
-    <div class="bg-white h-[100dvh] overflow-scroll">
-        {@render children?.()}
-    </div>
-{/if}
+<main class={`h-[calc(100dvh-${safeAreaTop}px)] overflow-hidden`}>
+    {#if showSplashScreen}
+        <SplashScreen />
+    {:else}
+        <div class={`bg-white h-[calc(100dvh-${safeAreaTop}px)] overflow-auto`}>
+            {@render children?.()}
+        </div>
+    {/if}
+</main>
+
+<style>
+    :root {
+        --safe-bottom: env(safe-area-inset-bottom);
+        --safe-top: env(safe-area-inset-top);
+    }
+
+     :global(body), * {
+         -webkit-overflow-scrolling: touch; /* keeps momentum scrolling on iOS */
+         scrollbar-width: none;             /* Firefox */
+         -ms-overflow-style: none;          /* IE 10+ */
+     }
+
+     /* Hide scrollbar for WebKit (Chrome, Safari) */
+     :global(body::-webkit-scrollbar),
+     *::-webkit-scrollbar {
+         display: none;
+     }
+</style>

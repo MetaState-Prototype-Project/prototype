@@ -4,3 +4,4 @@ export { default as Input } from './Input/Input.svelte';
 export { default as Select } from './Select/Select.svelte';
 export { default as Label } from './Label/Label.svelte';
 export { default as Toggle } from './Toggle/Toggle.svelte';
+export { default as Helper } from './Helper/Helper.svelte';
