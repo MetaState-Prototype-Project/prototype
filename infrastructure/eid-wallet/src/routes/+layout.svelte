@@ -109,15 +109,15 @@ onNavigate((navigation) => {
         --safe-top: env(safe-area-inset-top);
     }
 
-    body, * {
-        -webkit-overflow-scrolling: touch; /* keeps momentum scrolling on iOS */
-        scrollbar-width: none;             /* Firefox */
-        -ms-overflow-style: none;          /* IE 10+ */
-    }
+     :global(body), * {
+         -webkit-overflow-scrolling: touch; /* keeps momentum scrolling on iOS */
+         scrollbar-width: none;             /* Firefox */
+         -ms-overflow-style: none;          /* IE 10+ */
+     }
 
-    /* Hide scrollbar for WebKit (Chrome, Safari) */
-    body::-webkit-scrollbar,
-    *::-webkit-scrollbar {
-        display: none;
-    }
+     /* Hide scrollbar for WebKit (Chrome, Safari) */
+     :global(body::-webkit-scrollbar),
+     *::-webkit-scrollbar {
+         display: none;
+     }
 </style>
