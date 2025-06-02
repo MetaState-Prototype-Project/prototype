@@ -1,15 +1,18 @@
 import express, { Request, Response } from "express";
 import axios, { AxiosError } from "axios";
-import { generateNomadJob } from "./templates/evault.nomad.js";
+import { provisionEVault } from "./templates/evault.nomad.js";
 import dotenv from "dotenv";
-import { subscribeToAlloc } from "./listeners/alloc.js";
 import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
@@ -20,8 +23,8 @@ interface ProvisionRequest {
 
 interface ProvisionResponse {
     success: boolean;
-    message: string;
-    jobName?: string;
+    uri?: string;
+    message?: string;
     error?: string | unknown;
 }
 
@@ -38,8 +41,8 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-            // TODO: change this to take namespace from the payload, and signed entropy
-            // JWT so that we can verify both parts of the UUID come from know source
+
+            if (!process.env.REGISTRY_URI) throw new Error("REGISTRY_URI is not set");
             const { registryEntropy, namespace } = req.body;
 
             if (!registryEntropy || !namespace) {
@@ -67,28 +70,25 @@ app.post(
 
             const w3id = userId.id;
 
-            const jobJSON = generateNomadJob(w3id, evaultId.id);
-            const jobName = `evault-${w3id}`;
+            const uri = await provisionEVault(w3id, evaultId.id);
 
-            const { data } = await axios.post(
-                "http://localhost:4646/v1/jobs",
-                jobJSON,
-            );
-            const evalId = data.EvalID;
 
-            const sub = subscribeToAlloc(evalId);
-            sub.on("ready", async (allocId) => {
-                console.log("Alloc is ready:", allocId);
-            });
-            sub.on("error", (err) => {
-                console.error("Alloc wait failed:", err);
+            await axios.post(new URL("/register", process.env.REGISTRY_URI).toString(), {
+                ename: w3id,
+                uri,
+                evault: evaultId.id,
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${process.env.REGISTRY_SHARED_SECRET}`
+                }
             });
 
             res.json({
                 success: true,
-                message: `Successfully provisioned evault for tenant ${w3id}`,
-                jobName,
+                uri,
             });
+
+
         } catch (error) {
             const axiosError = error as AxiosError;
             res.status(500).json({
