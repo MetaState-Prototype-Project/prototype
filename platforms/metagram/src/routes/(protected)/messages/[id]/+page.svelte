@@ -4,7 +4,7 @@
 	let messageValue = $state('');
 </script>
 
-<section class="chat relative">
+<section class="chat relative px-0">
 	{#each { length: 12 } as _}
 		<ChatMessage
 			isOwn={true}
@@ -30,22 +30,22 @@
 		/>
 
 		<ChatMessage
+			isOwn={false}
+			userImgSrc="https://picsum.photos/id/237/500"
+			time="12:55 AM"
+			message="Lorem ipsum dolor sit amet consectetur adipisicing"
+		/>
+
+		<ChatMessage
+			isOwn={false}
+			userImgSrc="https://picsum.photos/id/237/500"
+			time="12:55 AM"
+			isHeadNeeded={true}
+			message="Lorem ipsum dolor sit amet consectetur adipisicing"
+		/>
+
+		<ChatMessage
 			isOwn={true}
-			userImgSrc="https://picsum.photos/id/237/500"
-			time="12:55 AM"
-			message="Lorem ipsum dolor sit amet consectetur adipisicing"
-		/>
-
-		<ChatMessage
-			isOwn={false}
-			userImgSrc="https://picsum.photos/id/237/500"
-			time="12:55 AM"
-			isHeadNeeded={false}
-			message="Lorem ipsum dolor sit amet consectetur adipisicing"
-		/>
-
-		<ChatMessage
-			isOwn={false}
 			userImgSrc="https://picsum.photos/id/237/500"
 			time="12:55 AM"
 			isHeadNeeded={false}
