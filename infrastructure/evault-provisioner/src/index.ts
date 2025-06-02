@@ -1,8 +1,7 @@
 import express, { Request, Response } from "express";
 import axios, { AxiosError } from "axios";
-import { generateNomadJob } from "./templates/evault.nomad.js";
+import { provisionEVault } from "./templates/evault.nomad.js";
 import dotenv from "dotenv";
-import { subscribeToAlloc } from "./listeners/alloc.js";
 import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
 
@@ -67,22 +66,9 @@ app.post(
 
             const w3id = userId.id;
 
-            const jobJSON = generateNomadJob(w3id, evaultId.id);
+            await provisionEVault(w3id, evaultId.id);
             const jobName = `evault-${w3id}`;
 
-            const { data } = await axios.post(
-                "http://localhost:4646/v1/jobs",
-                jobJSON,
-            );
-            const evalId = data.EvalID;
-
-            const sub = subscribeToAlloc(evalId);
-            sub.on("ready", async (allocId) => {
-                console.log("Alloc is ready:", allocId);
-            });
-            sub.on("error", (err) => {
-                console.error("Alloc wait failed:", err);
-            });
 
             res.json({
                 success: true,
