@@ -40,29 +40,29 @@
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<input
-		id="add-image"
-		type="file"
-		class="hidden"
-		accept="image/*"
-		bind:files
-		bind:this={fileInput}
-	/>
+			id="add-image"
+			type="file"
+			class="hidden"
+			accept="image/*"
+			bind:files
+			bind:this={fileInput}
+		/>
 		<button
-				type="button"
-				class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 p-0"
-				aria-label="add-image"
-				onclick={() => fileInput?.click()}
+			type="button"
+			class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 p-0"
+			aria-label="add-image"
+			onclick={() => fileInput?.click()}
 		>
 			<HugeiconsIcon size="24px" icon={PlusSignIcon} color="var(--color-black-400)" />
 		</button>
 	{/if}
 	<Input type="text" bind:input bind:value {placeholder} />
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full"
-			onclick={handleSend}
-		>
-			<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />
-		</div>
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full"
+		onclick={handleSend}
+	>
+		<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />
+	</div>
 </div>

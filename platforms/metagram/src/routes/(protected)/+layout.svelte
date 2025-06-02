@@ -16,7 +16,6 @@
 	let activeReplyToId: string | null = $state(null);
 	let chatFriendId = $state();
 
-	
 	const handleSend = async () => {
 		const newComment = {
 			userImgSrc: 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
@@ -29,7 +28,7 @@
 			time: 'Just now',
 			replies: []
 		};
-		
+
 		if (activeReplyToId) {
 			// Find the parent comment by id and push reply
 			const addReplyToComment = (commentsArray: CommentType[]) => {
@@ -61,10 +60,9 @@
 			heading = 'Search';
 		} else if (route.includes('post')) {
 			heading = 'Post';
-		} else if (route === `/messages/${chatFriendId}`){
+		} else if (route === `/messages/${chatFriendId}`) {
 			heading = 'User Name';
-		} 
-		else if (route.includes('messages')) {
+		} else if (route.includes('messages')) {
 			heading = 'Messages';
 		} else if (route.includes('settings')) {
 			heading = 'Settings';
@@ -78,12 +76,16 @@
 	class={`block h-[100dvh] ${route !== '/home' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 md:px-8 md:pt-8 pb-8">
+	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
 		<div class="flex items-center justify-between">
-			<Header variant={route === `/messages/${chatFriendId}` ?  "secondary" : "primary"} {heading} options={[
-				{ name: 'Report', handler: () => alert('report') },
-				{ name: 'Clear chat', handler: () => alert('clear') }
-			]}/>
+			<Header
+				variant={route === `/messages/${chatFriendId}` ? 'secondary' : 'primary'}
+				{heading}
+				options={[
+					{ name: 'Report', handler: () => alert('report') },
+					{ name: 'Clear chat', handler: () => alert('clear') }
+				]}
+			/>
 			{#if route === '/profile'}
 				<div class="mb-6 flex md:hidden">
 					<button
@@ -128,8 +130,8 @@
 			{/if}
 		</aside>
 	{/if}
-	
+
 	{#if route !== `/messages/${chatFriendId}`}
-	<BottomNav class="btm-nav"  profileSrc="https://picsum.photos/200" />
+		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>

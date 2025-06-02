@@ -4,25 +4,17 @@
 	let messageValue = $state('');
 </script>
 
-<section class="relative chat">
+<section class="chat relative">
 	{#each { length: 12 } as _}
 		<ChatMessage
-			transactionType="outgoing"
+			isOwn={true}
 			userImgSrc="https://picsum.photos/id/237/200/300"
 			time="12:55 AM"
 			message="Lorem ipsum dolor sit amet consectetur adipisicing"
 		/>
 
 		<ChatMessage
-			transactionType="outgoing"
-			userImgSrc="https://picsum.photos/id/237/200/300"
-			time="12:55 AM"
-			isHeadNeeded={false}
-			message="Lorem ipsum dolor sit amet consectetur adipisicing"
-		/>
-
-		<ChatMessage
-			transactionType="outgoing"
+			isOwn={true}
 			userImgSrc="https://picsum.photos/id/237/200/300"
 			time="12:55 AM"
 			isHeadNeeded={false}
@@ -30,14 +22,22 @@
 		/>
 
 		<ChatMessage
-			transactionType="incoming"
+			isOwn={true}
+			userImgSrc="https://picsum.photos/id/237/200/300"
+			time="12:55 AM"
+			isHeadNeeded={false}
+			message="Lorem ipsum dolor sit amet consectetur adipisicing"
+		/>
+
+		<ChatMessage
+			isOwn={true}
 			userImgSrc="https://picsum.photos/id/237/500"
 			time="12:55 AM"
 			message="Lorem ipsum dolor sit amet consectetur adipisicing"
 		/>
 
 		<ChatMessage
-			transactionType="incoming"
+			isOwn={false}
 			userImgSrc="https://picsum.photos/id/237/500"
 			time="12:55 AM"
 			isHeadNeeded={false}
@@ -45,7 +45,7 @@
 		/>
 
 		<ChatMessage
-			transactionType="incoming"
+			isOwn={false}
 			userImgSrc="https://picsum.photos/id/237/500"
 			time="12:55 AM"
 			isHeadNeeded={false}
@@ -53,11 +53,11 @@
 		/>
 	{/each}
 
-    <MessageInput
-        class="sticky start-0 bottom-[-15px] w-full"
-        variant="dm"
-        src="https://picsum.photos/id/237/200/300"
-        bind:value={messageValue}
-        handleSend={async () => alert('sent')}
-    />
+	<MessageInput
+		class="sticky start-0 bottom-[-15px] w-full"
+		variant="dm"
+		src="https://picsum.photos/id/237/200/300"
+		bind:value={messageValue}
+		handleSend={async () => alert('sent')}
+	/>
 </section>

@@ -18,12 +18,12 @@
 			callback={() => goto(`/messages/${i}`)}
 		/>
 		<Message
-		class="mb-6"
-		avatar="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-		username="donaldthefirstt"
-		text="i was thinking of making it to the conference so we could take some more fire pictures like last time"
-		unread={true}
-		callback={() => goto(`/messages/${i}`)}
+			class="mb-6"
+			avatar="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+			username="donaldthefirstt"
+			text="i was thinking of making it to the conference so we could take some more fire pictures like last time"
+			unread={true}
+			callback={() => goto(`/messages/${i}`)}
 		/>
-		{/each}
+	{/each}
 </section>

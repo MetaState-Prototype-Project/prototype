@@ -13,13 +13,13 @@ export default {
 
 export const Outgoing = {
 	args: {
-		transactionType: 'outgoing'
+		isOwn: true
 	}
 };
 
 export const Incoming = {
 	args: {
-		transactionType: 'incoming',
+		isOwn: false,
 		message:
 			'Lorem ipsum dolor sit amet consectetur adipisicing elit. Sed voluptatem accusantium voluptas vel, libero minus veniam at! Doloribus autem, id, ipsum laudantium dolor blanditiis nulla eum eveniet illo perspiciatis iusto.Voluptas ea pariatur eveniet quidem incidunt vitae sunt, hic labore nisi officiis consectetur autem odio repellendus nesciunt quisquam alias consequatur corrupti quaerat, minus qui. Obcaecati deleniti optio quod quibusdam placeat.'
 	}
@@ -27,14 +27,14 @@ export const Incoming = {
 
 export const OutgoingWithoutHead = {
 	args: {
-		transactionType: 'outgoing',
+		isOwn: true,
 		isHeadNeeded: false
 	}
 };
 
 export const WithoutHead = {
 	args: {
-		transactionType: 'incoming',
+		isOwn: false,
 		isHeadNeeded: false,
 		message:
 			'Lorem ipsum dolor sit amet consectetur adipisicing elit. Sed voluptatem accusantium voluptas vel, libero minus veniam at! Doloribus autem, id, ipsum laudantium dolor blanditiis nulla eum eveniet illo perspiciatis iusto.Voluptas ea pariatur eveniet quidem incidunt vitae sunt, hic labore nisi officiis consectetur autem odio repellendus nesciunt quisquam alias consequatur corrupti quaerat, minus qui. Obcaecati deleniti optio quod quibusdam placeat.'
