@@ -2,8 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
-	import { BottomNav, Header, Comment, MessageInput } from '$lib/fragments';
-	import SideBar from '$lib/fragments/SideBar/SideBar.svelte';
+	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
 	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
@@ -15,6 +14,7 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
+	let chatFriendId = $state();
 
 	const handleSend = async () => {
 		const newComment = {
@@ -52,20 +52,22 @@
 	};
 
 	$effect(() => {
+		chatFriendId = page.params.id;
+
 		if (route.includes('home')) {
 			heading = 'Feed';
 		} else if (route.includes('discover')) {
 			heading = 'Search';
 		} else if (route.includes('post')) {
 			heading = 'Post';
+		} else if (route === `/messages/${chatFriendId}`) {
+			heading = 'User Name';
 		} else if (route.includes('messages')) {
 			heading = 'Messages';
 		} else if (route.includes('settings')) {
 			heading = 'Settings';
 		} else if (route.includes('profile')) {
 			heading = 'Profile';
-		} else {
-			heading = '';
 		}
 	});
 </script>
@@ -74,9 +76,16 @@
 	class={`block h-[100dvh] ${route !== '/home' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="px-4 md:px-8 md:pt-8">
+	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
 		<div class="flex items-center justify-between">
-			<Header variant="primary" {heading} />
+			<Header
+				variant={route === `/messages/${chatFriendId}` ? 'secondary' : 'primary'}
+				{heading}
+				options={[
+					{ name: 'Report', handler: () => alert('report') },
+					{ name: 'Clear chat', handler: () => alert('clear') }
+				]}
+			/>
 			{#if route === '/profile'}
 				<div class="mb-6 flex md:hidden">
 					<button
@@ -121,5 +130,8 @@
 			{/if}
 		</aside>
 	{/if}
-	<BottomNav profileSrc="https://picsum.photos/200" />
+
+	{#if route !== `/messages/${chatFriendId}`}
+		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
+	{/if}
 </main>
