@@ -4,11 +4,15 @@ import { provisionEVault } from "./templates/evault.nomad.js";
 import dotenv from "dotenv";
 import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
@@ -37,6 +41,8 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
+
+            if (!process.env.REGISTRY_URI) throw new Error("REGISTRY_URI is not set");
             const { registryEntropy, namespace } = req.body;
 
             if (!registryEntropy || !namespace) {
@@ -67,10 +73,22 @@ app.post(
             const uri = await provisionEVault(w3id, evaultId.id);
 
 
+            await axios.post(new URL("/register", process.env.REGISTRY_URI).toString(), {
+                ename: w3id,
+                uri,
+                evault: evaultId.id,
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${process.env.REGISTRY_SHARED_SECRET}`
+                }
+            });
+
             res.json({
                 success: true,
                 uri,
             });
+
+
         } catch (error) {
             const axiosError = error as AxiosError;
             res.status(500).json({

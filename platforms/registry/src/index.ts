@@ -23,6 +23,40 @@ const initializeDatabase = async () => {
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
 
+// Middleware to check shared secret
+const checkSharedSecret = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({ error: 'Missing or invalid authorization header' });
+    }
+
+    const secret = authHeader.split(' ')[1];
+    if (secret !== process.env.REGISTRY_SHARED_SECRET) {
+        return reply.status(401).send({ error: 'Invalid shared secret' });
+    }
+};
+
+// Create a new vault entry
+server.post("/register", {
+    preHandler: checkSharedSecret
+}, async (request, reply) => {
+    try {
+        const { ename, uri, evault } = request.body as { ename: string; uri: string; evault: string };
+
+        if (!ename || !uri || !evault) {
+            return reply.status(400).send({ 
+                error: "Missing required fields. Please provide ename, uri, and evault" 
+            });
+        }
+
+        const vault = await vaultService.create(ename, uri, evault);
+        return reply.status(201).send(vault);
+    } catch (error) {
+        server.log.error(error);
+        reply.status(500).send({ error: "Failed to create vault entry" });
+    }
+});
+
 // Generate and return a signed JWT with entropy
 server.get("/entropy", async (request, reply) => {
   try {
@@ -53,16 +87,15 @@ server.get("/resolve", async (request, reply) => {
       return reply.status(400).send({ error: "w3id parameter is required" });
     }
 
-    const service = await vaultService.findByEname(w3id);
-    
-    if (!service) {
+    const vault = await vaultService.findByEname(w3id);
+    if (!vault) {
       return reply.status(404).send({ error: "Service not found" });
     }
 
     return {
-      ename: service.ename,
-      uri: service.uri,
-      evault: service.evault
+      ename: vault.ename,
+      uri: vault.uri,
+      evault: vault.evault
     };
   } catch (error) {
     server.log.error(error);
