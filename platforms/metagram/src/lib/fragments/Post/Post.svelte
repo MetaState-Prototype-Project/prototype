@@ -44,7 +44,7 @@
 	<div class="overflow-hidden rounded-4xl">
 		<img
 			src={imgUri}
-			alt={caption}
+			alt={'post by ' + { username }}
 			class="aspect-[4/5] h-full w-full object-cover md:aspect-[16/9]"
 		/>
 	</div>
