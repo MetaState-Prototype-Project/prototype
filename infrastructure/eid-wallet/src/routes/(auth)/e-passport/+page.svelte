@@ -1,12 +1,17 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero } from "$lib/fragments";
-import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
-import { ButtonAction } from "$lib/ui";
+    import { goto } from "$app/navigation";
+    import { Hero } from "$lib/fragments";
+    import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
+    import type { GlobalState } from "$lib/global";
+    import { ButtonAction } from "$lib/ui";
+    import { getContext } from "svelte";
 
-const handleFinish = async () => {
-    await goto("/main");
-};
+    let globalState: GlobalState =
+        getContext<() => GlobalState>("globalState")();
+
+    const handleFinish = async () => {
+        await goto("/main");
+    };
 </script>
 
 <main
@@ -20,12 +25,7 @@ const handleFinish = async () => {
         />
         <IdentityCard
             variant="ePassport"
-            userData={{
-                Name: "Ananya",
-                Dob: "29 Nov 2003",
-                Nationality: "Indian",
-                Passport: "234dfvgsdfg",
-            }}
+            userData={globalState.userController.user}
         />
     </section>
     <section class="mt-[4svh] mb-[9svh]">

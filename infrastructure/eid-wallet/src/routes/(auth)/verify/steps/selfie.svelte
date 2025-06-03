@@ -1,10 +1,16 @@
 <script lang="ts">
     import { writable } from "svelte/store";
     import { ButtonAction } from "$lib/ui";
-    import { Selfie, permissionGranted, verifStep } from "../store";
+    import {
+        Selfie,
+        permissionGranted,
+        verifStep,
+        verificaitonId,
+    } from "../store";
     import { onMount } from "svelte";
-    import { page } from "$app/stores";
     import { Shadow } from "svelte-loading-spinners";
+    import axios from "axios";
+    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 
     let video: HTMLVideoElement;
     let canvas: HTMLCanvasElement;
@@ -31,7 +37,6 @@
 
     async function captureImage() {
         if (image === 1) {
-            const id = $page.params.verificationId;
             const context = canvas.getContext("2d");
             if (context) {
                 context.drawImage(video, 0, 0, 1920, 1080);
@@ -41,11 +46,22 @@
                 const dataUrl = canvas.toDataURL("image/png");
                 Selfie.set(dataUrl);
                 load = true;
-                // await embedClient.post(`/verification/${id}/media`, {
-                //     img: dataUrl,
-                //     type: "face",
-                // });
-                // await embedClient.patch(`/verification/${id}`);
+                await axios.post(
+                    new URL(
+                        `/verification/${$verificaitonId}/media`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        img: dataUrl,
+                        type: "face",
+                    },
+                );
+                await axios.patch(
+                    new URL(
+                        `/verification/${$verificaitonId}`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                );
             }
         } else if (image === 2 && $imageCaptured) {
             verifStep.update((n) => n + 1);

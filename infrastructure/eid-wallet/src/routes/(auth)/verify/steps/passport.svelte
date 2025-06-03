@@ -1,8 +1,15 @@
 <script lang="ts">
     import { ButtonAction } from "$lib/ui";
     import { writable } from "svelte/store";
-    import { permissionGranted, verifStep, DocFront } from "../store";
+    import {
+        permissionGranted,
+        verifStep,
+        DocFront,
+        verificaitonId,
+    } from "../store";
     import { onMount } from "svelte";
+    import axios from "axios";
+    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 
     let error: string;
 
@@ -52,10 +59,17 @@
                 const dataUrl = canvas1.toDataURL("image/png");
                 DocFront.set(dataUrl);
                 loading = true;
-                // await embedClient.post(`/verification/${id}/media`, {
-                //     img: dataUrl,
-                //     type: "document-front",
-                // });
+                await axios.post(
+                    new URL(
+                        `/verification/${$verificaitonId}/media`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        img: dataUrl,
+                        type: "document-front",
+                    },
+                );
+                console.log("here???");
                 loading = false;
                 image1Captured.set(true);
                 verifStep.set(1);

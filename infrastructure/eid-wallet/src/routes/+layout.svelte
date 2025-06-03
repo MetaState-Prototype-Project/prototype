@@ -102,7 +102,7 @@
 {#if showSplashScreen}
     <SplashScreen />
 {:else}
-    <div class={`bg-white h-[calc(100vh-${safeAreaTop}px)] overflow-scroll`}>
+    <div class={`bg-white h-[100dvh] overflow-scroll`}>
         {@render children?.()}
     </div>
 {/if}

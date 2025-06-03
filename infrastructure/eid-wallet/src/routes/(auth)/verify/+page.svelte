@@ -4,38 +4,90 @@
     import { GlobalState } from "$lib/global";
     import { ButtonAction } from "$lib/ui";
     import { getContext, onMount } from "svelte";
+    import { capitalize } from "$lib/utils";
     import Drawer from "$lib/ui/Drawer/Drawer.svelte";
     import axios from "axios";
     import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-    import { verifStep } from "./store";
+    import {
+        DocFront,
+        verificaitonId,
+        verifStep,
+        status,
+        reason,
+    } from "./store";
     import Passport from "./steps/passport.svelte";
     import Selfie from "./steps/selfie.svelte";
 
     let globalState: GlobalState | undefined = $state(undefined);
     let showVeriffModal = $state(false);
+    let person: Record<string, unknown>;
+    let document: Record<string, unknown>;
 
     async function handleVerification() {
         const { data } = await axios.post(
-            new URL("/idv", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
         );
-        console.log(data);
+        verificaitonId.set(data.id);
         showVeriffModal = true;
+        watchEventStream(data.id);
     }
+
+    function watchEventStream(id: string) {
+        const sseUrl = new URL(
+            `/verification/sessions/${id}`,
+            PUBLIC_PROVISIONER_URL,
+        ).toString();
+        const eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = function (e) {
+            console.log("Successfully connected.");
+        };
+
+        eventSource.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            if (!data.status) console.log(data);
+            console.log("STATUS", data.status);
+            status.set(data.status);
+            reason.set(data.reason);
+            person = data.person;
+            document = data.document;
+            if (data.status === "resubmission_requested") {
+                DocFront.set(null);
+                Selfie.set(null);
+            }
+            verifStep.set(2);
+        };
+    }
+
+    let handleContinue: () => Promise<void>;
 
     onMount(() => {
         globalState = getContext<() => GlobalState>("globalState")();
-        // handle verification logic + set user data in the store
+        // handle verification logic + sec user data in the store
 
-        // handleVerification = async () => {
-        //     if (!globalState) throw new Error("Global state is not defined");
-        //     globalState.userController.user = {
-        //         name: "John Doe",
-        //         "Date of Birth": "01/01/2000",
-        //         "ID submitted": "American Passport",
-        //         "Passport Number": "1234567-US",
-        //     };
-        //     await goto("/register");
-        // };
+        handleContinue = async () => {
+            if ($status !== "approved") return verifStep.set(0);
+            if (!globalState) throw new Error("Global state is not defined");
+            globalState.userController.user = {
+                name: capitalize(
+                    person.firstName.value + " " + person.lastName.value,
+                ),
+                "Date of Birth": new Date(
+                    person.dateOfBirth.value,
+                ).toDateString(),
+                "ID submitted": "Passport - " + person.nationality.value,
+                "Passport Number": document.number.value,
+            };
+            globalState.userController.document = {
+                "Valid From": new Date(document.validFrom.value).toDateString(),
+                "Valid Until": new Date(
+                    document.validUntil.value,
+                ).toDateString(),
+                "Verified On": new Date().toDateString(),
+            };
+            console.log(globalState.userController.user);
+            await goto("/register");
+        };
     });
 </script>
 
@@ -57,6 +109,32 @@
             <Passport></Passport>
         {:else if $verifStep === 1}
             <Selfie></Selfie>
+        {:else}
+            <div class="flex flex-col gap-6">
+                {#if $status === "approved"}
+                    <div>
+                        <h3>Your verification was a success</h3>
+                        <p>You can now continue on to create your eName</p>
+                    </div>
+                {:else if $status === "resubmission_requested"}
+                    <h3>Your verification failed due to the reason</h3>
+                    <p>{$reason}</p>
+                {:else}
+                    <h3>Your verification failed</h3>
+                {/if}
+            </div>
+            <div class="flex w-full flex-col pt-4">
+                {#if $status !== "declined"}
+                    <ButtonAction
+                        class="w-[100%]"
+                        callback={handleContinue}
+                        color="primary"
+                        >{$status === "approved"
+                            ? "Continue"
+                            : "Retry"}</ButtonAction
+                    >
+                {/if}
+            </div>
         {/if}
     </Drawer>
 </main>

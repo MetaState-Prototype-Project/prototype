@@ -85,4 +85,38 @@ export class UserController {
                 return undefined;
             });
     }
+
+    set document(
+        document:
+            | Promise<Record<string, string> | undefined>
+            | Record<string, string>
+            | undefined,
+    ) {
+        if (document instanceof Promise) {
+            document
+                .then((resolvedDoc) => {
+                    this.#store.set("doc", resolvedDoc);
+                })
+                .catch((error) => {
+                    console.error("Failed to set doc:", error);
+                });
+        } else {
+            this.#store.set("doc", document);
+        }
+    }
+
+    get document() {
+        return this.#store
+            .get<Record<string, string>>("doc")
+            .then((user) => {
+                if (!user) {
+                    return undefined;
+                }
+                return user;
+            })
+            .catch((error) => {
+                console.error("Failed to get doc:", error);
+                return undefined;
+            });
+    }
 }
