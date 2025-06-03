@@ -7,16 +7,14 @@
 	interface ISettingsTile extends HTMLButtonAttributes {
 		title: string;
 		currentStatus: 'string';
-		onclick: () => void;
 	}
 
-	const { title, currentStatus, onclick, ...restProps }: ISettingsTile = $props();
+	const { title, currentStatus, ...restProps }: ISettingsTile = $props();
 </script>
 
 <button
 	{...restProps}
 	class={cn(['flex w-full cursor-pointer items-center justify-between', restProps.class].join())}
-	{onclick}
 >
 	<div class="flex flex-col items-start gap-1">
 		<span class="font-semibold">{title}</span>
