@@ -106,7 +106,7 @@ const classes = $derived({
     </div>
 </button>
 
-<!-- 
+<!--
 @component
 export default ButtonAction
 @description

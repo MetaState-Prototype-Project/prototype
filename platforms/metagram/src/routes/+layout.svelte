@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
 	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
+	import { onMount } from 'svelte';
 	import '../app.css';
 
 	let { children } = $props();
 
 	let previousRoute = null;
+	let showSplashScreen = $state(true);
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
@@ -32,8 +34,20 @@
 			});
 		});
 	});
+
+	onMount(() => {
+		setTimeout(() => {
+			showSplashScreen = false;
+		}, 2500);
+	});
 </script>
 
-<main class="h-[100dvh] overflow-hidden md:px-0">
-	{@render children()}
-</main>
+{#if showSplashScreen}
+	<main class="grid h-[100dvh] w-full items-center justify-center">
+		<img src="/images/Logo.svg" alt="logo" />
+	</main>
+{:else}
+	<main class="h-[100dvh] overflow-hidden px-4 md:px-0">
+		{@render children()}
+	</main>
+{/if}

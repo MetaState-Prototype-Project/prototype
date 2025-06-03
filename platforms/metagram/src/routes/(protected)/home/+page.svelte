@@ -89,8 +89,8 @@
 			<Post
 				avatar={post.avatar}
 				username={post.username}
-				imgUri={post.imgUri}
 				caption={post.caption}
+				imgUris={[post.imgUri]}
 				time={post.time}
 				count={post.count}
 				callback={{

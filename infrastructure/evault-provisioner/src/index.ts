@@ -1,27 +1,65 @@
+import "reflect-metadata";
 import express, { Request, Response } from "express";
 import axios, { AxiosError } from "axios";
-import { generateNomadJob } from "./templates/evault.nomad.js";
+import { provisionEVault } from "./templates/evault.nomad";
 import dotenv from "dotenv";
-import { subscribeToAlloc } from "./listeners/alloc.js";
 import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
+import path from "path";
+import { createHmacSignature } from "./utils/hmac";
+import cors from "cors";
+import { AppDataSource } from "./config/database";
+import { VerificationService } from "./services/VerificationService";
+import { VerificationController } from "./controllers/VerificationController";
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
-app.use(express.json());
+// Configure CORS for SSE
+app.use(
+    cors({
+        origin: "*",
+        methods: ["GET", "POST", "OPTIONS", "PATCH"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        credentials: true,
+    }),
+);
+
+// Increase JSON payload limit to 50MB
+app.use(express.json({ limit: "50mb" }));
+// Increase URL-encoded payload limit to 50MB
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Initialize database connection
+const initializeDatabase = async () => {
+    try {
+        await AppDataSource.initialize();
+        console.log("Database connection initialized");
+    } catch (error) {
+        console.error("Error during database initialization:", error);
+        process.exit(1);
+    }
+};
+
+// Initialize services and controllers
+const verificationService = new VerificationService(
+    AppDataSource.getRepository("Verification"),
+);
+const verificationController = new VerificationController(verificationService);
 
 interface ProvisionRequest {
     registryEntropy: string;
     namespace: string;
+    verificationId: string;
 }
 
 interface ProvisionResponse {
     success: boolean;
-    message: string;
-    jobName?: string;
+    uri?: string;
+    w3id?: string;
+    message?: string;
     error?: string | unknown;
 }
 
@@ -38,20 +76,30 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-            // TODO: change this to take namespace from the payload, and signed entropy
-            // JWT so that we can verify both parts of the UUID come from know source
-            const { registryEntropy, namespace } = req.body;
-
-            if (!registryEntropy || !namespace) {
+            if (!process.env.PUBLIC_REGISTRY_URL)
+                throw new Error("PUBLIC_REGISTRY_URL is not set");
+            const { registryEntropy, namespace, verificationId } = req.body;
+            if (!registryEntropy || !namespace || !verificationId) {
                 return res.status(400).json({
                     success: false,
                     error: "registryEntropy and namespace are required",
                     message:
-                        "Missing required fields: registryEntropy, namespace",
+                        "Missing required fields: registryEntropy, namespace, verifficationId",
                 });
             }
+            const verification =
+                await verificationService.findById(verificationId);
+            if (!verification) throw new Error("verification doesn't exist");
+            if (!verification.approved)
+                throw new Error("verification not approved");
+            if (verification.consumed)
+                throw new Error("This verification ID has already been used");
+
             const jwksResponse = await axios.get(
-                `http://localhost:4321/.well-known/jwks.json`,
+                new URL(
+                    `/.well-known/jwks.json`,
+                    process.env.PUBLIC_REGISTRY_URL,
+                ).toString(),
             );
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
@@ -67,27 +115,29 @@ app.post(
 
             const w3id = userId.id;
 
-            const jobJSON = generateNomadJob(w3id, evaultId.id);
-            const jobName = `evault-${w3id}`;
+            const uri = await provisionEVault(w3id, evaultId.id);
 
-            const { data } = await axios.post(
-                "http://localhost:4646/v1/jobs",
-                jobJSON,
+            await axios.post(
+                new URL(
+                    "/register",
+                    process.env.PUBLIC_REGISTRY_URL,
+                ).toString(),
+                {
+                    ename: w3id,
+                    uri,
+                    evault: evaultId.id,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
+                    },
+                },
             );
-            const evalId = data.EvalID;
-
-            const sub = subscribeToAlloc(evalId);
-            sub.on("ready", async (allocId) => {
-                console.log("Alloc is ready:", allocId);
-            });
-            sub.on("error", (err) => {
-                console.error("Alloc wait failed:", err);
-            });
 
             res.json({
                 success: true,
-                message: `Successfully provisioned evault for tenant ${w3id}`,
-                jobName,
+                w3id,
+                uri,
             });
         } catch (error) {
             const axiosError = error as AxiosError;
@@ -100,6 +150,20 @@ app.post(
     },
 );
 
-app.listen(port, () => {
-    console.log(`Evault Provisioner API running on port ${port}`);
-});
+// Register verification routes
+verificationController.registerRoutes(app);
+
+// Start the server
+const start = async () => {
+    try {
+        await initializeDatabase();
+        app.listen(port, () => {
+            console.log(`Evault Provisioner API running on port ${port}`);
+        });
+    } catch (err) {
+        console.error(err);
+        process.exit(1);
+    }
+};
+
+start();

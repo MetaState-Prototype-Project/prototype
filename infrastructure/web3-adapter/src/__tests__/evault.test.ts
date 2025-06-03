@@ -5,7 +5,7 @@ const EVaultEndpoint = "http://localhost:4000/graphql";
 
 async function queryGraphQL(
     query: string,
-    variables: Record<string, any> = {},
+    variables: Record<string, unknown> = {},
 ) {
     const response = await fetch(EVaultEndpoint, {
         method: "POST",

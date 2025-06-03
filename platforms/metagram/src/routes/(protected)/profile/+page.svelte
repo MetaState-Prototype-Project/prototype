@@ -3,7 +3,6 @@
 	import type { userProfile, PostData } from '$lib/types';
 
 	let selectedPost: PostData | null = null;
-
 	const profile: userProfile = {
 		userId: '_.ananyayaya._',
 		username: 'Ananya Rana',
@@ -57,7 +56,7 @@
 		<Post
 			avatar={selectedPost.avatar}
 			username={selectedPost.username}
-			imgUri={selectedPost.imgUri}
+			imgUris={[selectedPost.imgUri]}
 			caption={selectedPost.caption}
 			time={selectedPost.time}
 			count={selectedPost.count}

@@ -8,14 +8,16 @@
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import ActionMenu from '../ActionMenu/ActionMenu.svelte';
 
 	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
 		variant: 'primary' | 'secondary' | 'tertiary';
 		heading?: string;
 		callback?: () => void;
+		options?: { name: string; handler: () => void }[];
 	}
 
-	const { variant, callback, heading, ...restProps }: IHeaderProps = $props();
+	const { variant, callback, heading, options, ...restProps }: IHeaderProps = $props();
 
 	const variantClasses = {
 		primary: {
@@ -86,6 +88,8 @@
 		>
 			<HugeiconsIcon icon={menuButton[variant]} size={24} color="var(--color-black-500)" />
 		</button>
+	{:else if variant === 'secondary' && options}
+		<ActionMenu {options} />
 	{/if}
 </header>
 

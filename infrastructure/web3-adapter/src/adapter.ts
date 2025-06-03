@@ -1,7 +1,7 @@
 export type FieldMapping = {
     sourceField: string;
     targetField: string;
-    transform?: (value: any) => any;
+    transform?: (value: unknown) => unknown;
 };
 
 export class Web3Adapter {
@@ -17,14 +17,14 @@ export class Web3Adapter {
 
     public toUniversal(
         platform: string,
-        data: Record<string, any>,
-    ): Record<string, any> {
+        data: Record<string, unknown>,
+    ): Record<string, unknown> {
         const mappings = this.mappings.get(platform);
         if (!mappings) {
             throw new Error(`No mappings found for platform: ${platform}`);
         }
 
-        const result: Record<string, any> = {};
+        const result: Record<string, unknown> = {};
         for (const mapping of mappings) {
             if (data[mapping.sourceField] !== undefined) {
                 const value = mapping.transform
@@ -38,14 +38,14 @@ export class Web3Adapter {
 
     public fromUniversal(
         platform: string,
-        data: Record<string, any>,
-    ): Record<string, any> {
+        data: Record<string, unknown>,
+    ): Record<string, unknown> {
         const mappings = this.mappings.get(platform);
         if (!mappings) {
             throw new Error(`No mappings found for platform: ${platform}`);
         }
 
-        const result: Record<string, any> = {};
+        const result: Record<string, unknown> = {};
         for (const mapping of mappings) {
             if (data[mapping.targetField] !== undefined) {
                 const value = mapping.transform
