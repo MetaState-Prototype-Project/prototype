@@ -18,6 +18,6 @@ export const Primary = {
     args: {
         title: "Who can see your posts?",
         currentStatus: "Only followers",
-        callback: () => alert("clicked"),
+        onclick: () => alert("clicked"),
     },
 };

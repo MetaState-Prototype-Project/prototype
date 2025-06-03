@@ -6,17 +6,13 @@
 	interface ISettingsTile extends HTMLButtonAttributes {
 		title: string;
 		currentStatus: 'string';
-		callback: () => void;
+		onclick: () => void;
 	}
 
-	const { title, currentStatus, callback, ...restProps }: ISettingsTile = $props();
+	const { title, currentStatus, onclick, ...restProps }: ISettingsTile = $props();
 </script>
 
-<button
-	class="flex w-full cursor-pointer items-center justify-between"
-	onclick={callback}
-	{...restProps}
->
+<button {...restProps} class="flex w-full cursor-pointer items-center justify-between" {onclick}>
 	<div class="flex flex-col items-start gap-1">
 		<span class="font-semibold">{title}</span>
 		<span class="text-black/60">{currentStatus}</span>
