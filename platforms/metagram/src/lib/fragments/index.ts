@@ -14,3 +14,4 @@ export { default as Post } from './Post/Post.svelte';
 export { default as ChatMessage } from './ChatMessage/ChatMessage.svelte';
 export { default as Comment } from './Comment/Comment.svelte';
 export { default as SettingsDeleteButton } from './SettingsDeleteButton/SettingsDeleteButton.svelte';
+export { default as UserRequest } from './UserRequest/UserRequest.svelte';
