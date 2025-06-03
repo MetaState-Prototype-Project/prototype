@@ -3,13 +3,13 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 
-	interface IAvatarProps extends HTMLButtonAttributes {
+	interface ISettingsTile extends HTMLButtonAttributes {
 		title: string;
 		currentStatus: 'string';
 		callback: () => void;
 	}
 
-	const { title, currentStatus, callback, ...restProps }: IAvatarProps = $props();
+	const { title, currentStatus, callback, ...restProps }: ISettingsTile = $props();
 </script>
 
 <button
