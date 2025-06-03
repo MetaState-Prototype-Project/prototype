@@ -6,9 +6,9 @@ export const dummyPosts = Array.from({ length: 100 }, (_, i) => ({
 	username: `user${i + 1}`,
 	imgUri: [
 		'https://picsum.photos/800',
-		'https://picsum.photos/200',
+		'https://picsum.photos/600',
 		'https://picsum.photos/800',
-		'https://picsum.photos/200'
+		'https://picsum.photos/600'
 	],
 	postAlt: 'Sample',
 	text: `This is post number ${i + 1}. Loving how these shots came out! 📸`,
