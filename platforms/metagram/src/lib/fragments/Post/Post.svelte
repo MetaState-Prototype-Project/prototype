@@ -43,13 +43,24 @@
 	}: IPostProps = $props();
 
 	let galleryRef: HTMLDivElement;
+	let currentIndex = $state(0);
 
 	function scrollLeft() {
+		if (!galleryRef) return;
 		galleryRef.scrollBy({ left: -galleryRef.clientWidth, behavior: 'smooth' });
 	}
 
 	function scrollRight() {
+		if (!galleryRef) return;
 		galleryRef.scrollBy({ left: galleryRef.clientWidth, behavior: 'smooth' });
+	}
+
+	function handleScroll() {
+		if (!galleryRef) return;
+		const scrollLeft = galleryRef.scrollLeft;
+		const galleryWidth = galleryRef.clientWidth;
+		const newIndex = Math.round(scrollLeft / galleryWidth);
+		currentIndex = newIndex;
 	}
 </script>
 
@@ -65,7 +76,7 @@
 		</button>
 	</div>
 	<div class="relative">
-		{#if imgUri.length !== 1}
+		{#if imgUri.length > 1}
 			<button
 				onclick={scrollLeft}
 				class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
@@ -75,6 +86,7 @@
 		{/if}
 		<div
 			bind:this={galleryRef}
+			onscroll={handleScroll}
 			class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 		>
 			{#each imgUri as img}
@@ -87,7 +99,22 @@
 				</div>
 			{/each}
 		</div>
-		{#if imgUri.length !== 1}
+		{#if imgUri.length > 1}
+			<div
+				class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+			>
+				{#if imgUri.length > 1}
+					<div class="mt-2 flex items-center justify-center gap-1">
+						{#each imgUri as _, i}
+							<div
+								class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
+							></div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+		{#if imgUri.length > 1}
 			<button
 				onclick={scrollRight}
 				class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
