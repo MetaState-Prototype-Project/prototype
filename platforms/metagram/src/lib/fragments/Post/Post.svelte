@@ -66,12 +66,12 @@
 	</div>
 	<div class="relative">
 		{#if imgUri.length !== 1}
-		<button
-			onclick={scrollLeft}
-			class="absolute hidden md:inline-block start-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200"
-		>
-			<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
-		</button>
+			<button
+				onclick={scrollLeft}
+				class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+			>
+				<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+			</button>
 		{/if}
 		<div
 			bind:this={galleryRef}
@@ -88,12 +88,12 @@
 			{/each}
 		</div>
 		{#if imgUri.length !== 1}
-		<button
-			onclick={scrollRight}
-			class="absolute hidden md:inline-block end-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200"
-		>
-			<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
-		</button>
+			<button
+				onclick={scrollRight}
+				class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+			>
+				<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
+			</button>
 		{/if}
 	</div>
 	<p class="text-black/80">{text}</p>
