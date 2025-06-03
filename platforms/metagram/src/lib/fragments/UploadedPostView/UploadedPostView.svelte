@@ -24,7 +24,12 @@
 	}: IUploadedPostViewProps = $props();
 </script>
 
-<article class="max-w-screen flex flex-row items-center gap-4 scroll-auto" {...restProps}>
+<article
+	{...restProps}
+	class={cn(
+		['max-w-screen flex flex-row items-center gap-4 scroll-auto', restProps.class].join(' ')
+	)}
+>
 	{#each images as image, i}
 		<div class={cn(['group relative shrink-0'])}>
 			<Cross
@@ -32,15 +37,9 @@
 				onclick={() => callback(i)}
 			/>
 			<img
-				{...restProps}
 				src={image.url}
 				alt={image.alt}
-				class={cn([
-					'rounded-lg outline-[#DA4A11] group-hover:outline-2',
-					width,
-					height,
-					restProps.class
-				])}
+				class={cn(['rounded-lg outline-[#DA4A11] group-hover:outline-2', width, height])}
 			/>
 		</div>
 	{/each}
