@@ -15,7 +15,7 @@
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
-		imgUri: string[];
+		imgUris: string[];
 		postAlt?: string;
 		text: string;
 		count: {

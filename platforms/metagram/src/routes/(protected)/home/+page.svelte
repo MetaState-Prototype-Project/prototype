@@ -89,7 +89,7 @@
 			<Post
 				avatar={post.avatar}
 				username={post.username}
-				imgUri={post.imgUri}
+				imgUris={post.imgUri}
 				postAlt={post.postAlt}
 				text={post.text}
 				time={post.time}
