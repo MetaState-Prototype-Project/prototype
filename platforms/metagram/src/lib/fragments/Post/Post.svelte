@@ -2,6 +2,8 @@
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
 	import {
+		ArrowLeftIcon,
+		ArrowRightIcon,
 		Message02Icon,
 		MoreVerticalIcon,
 		RecordIcon,
@@ -13,7 +15,7 @@
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
-		imgUri: string;
+		imgUri: string[];
 		postAlt?: string;
 		text: string;
 		count: {
@@ -39,6 +41,16 @@
 		time,
 		...restProps
 	}: IPostProps = $props();
+
+	let galleryRef: HTMLDivElement;
+
+	function scrollLeft() {
+		galleryRef.scrollBy({ left: -galleryRef.clientWidth, behavior: 'smooth' });
+	}
+
+	function scrollRight() {
+		galleryRef.scrollBy({ left: galleryRef.clientWidth, behavior: 'smooth' });
+	}
 </script>
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
@@ -52,12 +64,37 @@
 			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 		</button>
 	</div>
-	<div class="overflow-hidden rounded-4xl">
-		<img
-			src={imgUri}
-			alt={postAlt ?? text}
-			class="aspect-[4/5] h-full w-full object-cover md:aspect-[16/9]"
-		/>
+	<div class="relative">
+		{#if imgUri.length !== 1}
+		<button
+			onclick={scrollLeft}
+			class="absolute hidden md:inline-block start-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200"
+		>
+			<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+		</button>
+		{/if}
+		<div
+			bind:this={galleryRef}
+			class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
+		>
+			{#each imgUri as img}
+				<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
+					<img
+						src={img}
+						alt={postAlt ?? text}
+						class=" h-full w-full rounded-4xl object-cover"
+					/>
+				</div>
+			{/each}
+		</div>
+		{#if imgUri.length !== 1}
+		<button
+			onclick={scrollRight}
+			class="absolute hidden md:inline-block end-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200"
+		>
+			<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
+		</button>
+		{/if}
 	</div>
 	<p class="text-black/80">{text}</p>
 	<p class="text-black/60">{time}</p>
