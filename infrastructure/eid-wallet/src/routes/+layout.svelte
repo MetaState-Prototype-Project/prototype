@@ -102,11 +102,11 @@
 {#if showSplashScreen}
     <SplashScreen />
 {:else}
-    <div class={`bg-white`}>
+    <div class={`bg-white h-[100dvh] overflow-scroll`}>
         {@render children?.()}
     </div>
 {/if}
-<!--
+
 <style>
     :root {
         --safe-bottom: env(safe-area-inset-bottom);
@@ -125,4 +125,4 @@
     *::-webkit-scrollbar {
         display: none;
     }
-</style> -->
+</style>

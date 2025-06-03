@@ -1,6 +1,7 @@
 import { Store } from "@tauri-apps/plugin-store";
 import { SecurityController } from "./controllers/security";
 import { UserController } from "./controllers/user";
+import { VaultController } from "./controllers/evault";
 /**
  * @author SoSweetHam <soham@auvo.io>
  * @description A centralized state that can be used to control the global state of the application, meant to be used as a singleton through the main layout component.
@@ -23,10 +24,13 @@ export class GlobalState {
     #store: Store;
     securityController: SecurityController;
     userController: UserController;
+    vaultController: VaultController;
+
     private constructor(store: Store) {
         this.#store = store;
         this.securityController = new SecurityController(store);
         this.userController = new UserController(store);
+        this.vaultController = new VaultController(store);
     }
 
     /**

@@ -27,9 +27,16 @@
         "@tauri-apps/plugin-biometric": "^2.2.0",
         "@tauri-apps/plugin-opener": "^2",
         "@tauri-apps/plugin-store": "^2.2.0",
+        "@veriff/incontext-sdk": "^2.4.0",
+        "@veriff/js-sdk": "^1.5.1",
+        "axios": "^1.6.7",
         "clsx": "^2.1.1",
+        "dotenv": "^16.5.0",
         "flag-icons": "^7.3.2",
-        "tailwind-merge": "^3.0.2"
+        "import": "^0.0.6",
+        "svelte-loading-spinners": "^0.3.6",
+        "tailwind-merge": "^3.0.2",
+        "uuid": "^11.1.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
