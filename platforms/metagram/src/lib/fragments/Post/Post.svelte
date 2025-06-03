@@ -33,7 +33,7 @@
 	const {
 		avatar,
 		username,
-		imgUri,
+		imgUris,
 		text,
 		postAlt,
 		count,
