@@ -25,3 +25,30 @@
     </div>
 	<Button class="max-w-[100px]" variant="secondary" size="sm" callback={handleFollow}>Follow</Button>
 </article>
+
+<!--
+@component
+@name UserRequest
+@description A user request card component displaying avatar, name, description, and a follow button.
+@props
+  - userImgSrc: URL string for the user's avatar image.
+  - userName: Display name of the user.
+  - description: A short description or context for the request.
+  - handleFollow: Async function to execute when the "Follow" button is clicked.
+  - (spread) HTMLAttributes<HTMLElement>: Additional HTML attributes passed to the root <article> element.
+@usage
+<script>
+    import UserRequest from '$lib/fragments/UserRequest.svelte';
+
+    async function followUser() {
+      console.log("User followed!");
+    }
+  </script>
+
+  <UserRequest
+    userImgSrc="https://picsum.photos/id/237/200"
+    userName="John Doe"
+    description="Wants to connect with you"
+    handleFollow={followUser}
+  />
+-->
