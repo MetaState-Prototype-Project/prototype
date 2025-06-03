@@ -21,7 +21,7 @@ export type PostData = {
 	id: number;
 	avatar: string;
 	username: string;
-	imgUri: string;
+	imgUri: string[];
 	postAlt: string;
 	text: string;
 	time: string;
