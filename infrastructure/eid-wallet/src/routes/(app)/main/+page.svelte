@@ -9,6 +9,8 @@
     import { getContext, onMount, type Snippet } from "svelte";
 
     let userData: Record<string, unknown> = $state();
+    let greeting = $state();
+    let ename = $state();
 
     let shareQRdrawerOpen = $state(false);
 
@@ -21,12 +23,22 @@
 
     onMount(async () => {
         userData = await globalState.userController.user;
+        const vaultData = await globalState.vaultController.vault;
+        ename = vaultData.ename;
+
+        const currentHour = new Date().getHours();
+        greeting =
+            currentHour > 17
+                ? "Good Evening"
+                : currentHour > 12
+                  ? "Good Afternoon"
+                  : "Good Morning";
     });
 </script>
 
 <Hero
-    title="Good morning!"
-    subtitle="Don't forget to drink water."
+    title={greeting ?? "Hi!"}
+    subtitle="Welcome back to your eID Wallet"
     showSettings
 />
 
@@ -40,7 +52,7 @@
 {#snippet eName()}
     <IdentityCard
         variant="eName"
-        userId="caa0f630-2413-5aceaa2c-4628ce93e497"
+        userId={ename ?? "Loading..."}
         viewBtn={() => alert("View button clicked!")}
         shareBtn={() => (shareQRdrawerOpen = true)}
     />

@@ -4,14 +4,19 @@
     import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
     import type { GlobalState } from "$lib/global";
     import { ButtonAction } from "$lib/ui";
-    import { getContext } from "svelte";
+    import { getContext, onMount } from "svelte";
 
+    let userData = $state();
     let globalState: GlobalState =
         getContext<() => GlobalState>("globalState")();
 
     const handleFinish = async () => {
         await goto("/main");
     };
+
+    onMount(async () => {
+        userData = await globalState.userController.user;
+    });
 </script>
 
 <main
@@ -23,10 +28,7 @@
             subtitle="Log into any W3DS platform without passwords. It’s tied to this phone; if lost, you’ll need to revoke and reissue it on a new device."
             class="mb-2"
         />
-        <IdentityCard
-            variant="ePassport"
-            userData={globalState.userController.user}
-        />
+        <IdentityCard variant="ePassport" {userData} />
     </section>
     <section class="mt-[4svh] mb-[9svh]">
         <h4>Your eVault</h4>
@@ -35,7 +37,7 @@
             personal data. W3DS platforms access it directly, keeping you in
             control.
         </p>
-        <IdentityCard variant="eVault" usedStorage={15} totalStorage={80} />
+        <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
     </section>
     <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
 </main>

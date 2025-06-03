@@ -35,7 +35,8 @@
         "flag-icons": "^7.3.2",
         "import": "^0.0.6",
         "svelte-loading-spinners": "^0.3.6",
-        "tailwind-merge": "^3.0.2"
+        "tailwind-merge": "^3.0.2",
+        "uuid": "^11.1.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",

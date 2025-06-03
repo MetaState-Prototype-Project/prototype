@@ -58,6 +58,7 @@ interface ProvisionRequest {
 interface ProvisionResponse {
     success: boolean;
     uri?: string;
+    w3id?: string;
     message?: string;
     error?: string | unknown;
 }
@@ -75,8 +76,8 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-            if (!process.env.PUBLIC_REGISTRY_URI)
-                throw new Error("PUBLIC_REGISTRY_URI is not set");
+            if (!process.env.PUBLIC_REGISTRY_URL)
+                throw new Error("PUBLIC_REGISTRY_URL is not set");
             const { registryEntropy, namespace, verificationId } = req.body;
             if (!registryEntropy || !namespace || !verificationId) {
                 return res.status(400).json({
@@ -97,7 +98,7 @@ app.post(
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,
-                    process.env.PUBLIC_REGISTRY_URI,
+                    process.env.PUBLIC_REGISTRY_URL,
                 ).toString(),
             );
 
@@ -119,7 +120,7 @@ app.post(
             await axios.post(
                 new URL(
                     "/register",
-                    process.env.PUBLIC_REGISTRY_URI,
+                    process.env.PUBLIC_REGISTRY_URL,
                 ).toString(),
                 {
                     ename: w3id,
@@ -135,6 +136,7 @@ app.post(
 
             res.json({
                 success: true,
+                w3id,
                 uri,
             });
         } catch (error) {

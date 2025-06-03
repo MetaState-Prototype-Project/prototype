@@ -110,7 +110,7 @@
             {#if variant === "eName"}
                 <p class="text-gray font-normal">Your eName</p>
                 <div class="flex items-center justify-between w-full">
-                    <p class="text-white w-full font-medium">@{userId}</p>
+                    <p class="text-white w-full font-medium">{userId}</p>
                 </div>
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">

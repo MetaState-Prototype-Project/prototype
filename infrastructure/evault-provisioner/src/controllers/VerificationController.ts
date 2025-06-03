@@ -208,18 +208,19 @@ export class VerificationController {
                 ];
                 if (
                     affirmativeStatusTypes.includes(
-                        body.data.verification.status,
+                        body.data.verification.decision,
                     )
                 ) {
                     const approved =
-                        body.data.verification.status === "approved";
+                        body.data.verification.decision === "approved";
                     await this.verificationService.findByIdAndUpdate(id, {
                         approved,
                         data: {
-                            status: body.data.verification.status,
                             person: body.data.verification.person,
+                            document: body.data.verification.document,
                         },
-                        documentId: body.data.verification.document.id
+                        documentId:
+                            body.data.verification.document.number.value,
                     });
                 }
 

@@ -7,7 +7,11 @@
     import { capitalize } from "$lib/utils";
     import Drawer from "$lib/ui/Drawer/Drawer.svelte";
     import axios from "axios";
-    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+    import { v4 as uuidv4 } from "uuid";
+    import {
+        PUBLIC_PROVISIONER_URL,
+        PUBLIC_REGISTRY_URL,
+    } from "$env/static/public";
     import {
         DocFront,
         verificaitonId,
@@ -17,11 +21,14 @@
     } from "./store";
     import Passport from "./steps/passport.svelte";
     import Selfie from "./steps/selfie.svelte";
+    import { load } from "@tauri-apps/plugin-store";
+    import { Shadow } from "svelte-loading-spinners";
 
     let globalState: GlobalState | undefined = $state(undefined);
     let showVeriffModal = $state(false);
     let person: Record<string, unknown>;
     let document: Record<string, unknown>;
+    let loading = $state(false);
 
     async function handleVerification() {
         const { data } = await axios.post(
@@ -68,6 +75,8 @@
         handleContinue = async () => {
             if ($status !== "approved") return verifStep.set(0);
             if (!globalState) throw new Error("Global state is not defined");
+
+            loading = true;
             globalState.userController.user = {
                 name: capitalize(
                     person.firstName.value + " " + person.lastName.value,
@@ -85,8 +94,28 @@
                 ).toDateString(),
                 "Verified On": new Date().toDateString(),
             };
-            console.log(globalState.userController.user);
-            await goto("/register");
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+            const { data } = await axios.post(
+                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                {
+                    registryEntropy,
+                    namespace: uuidv4(),
+                    verificationId: $verificaitonId,
+                },
+            );
+            if (data.success === true) {
+                globalState.vaultController.vault = {
+                    uri: data.uri,
+                    ename: data.w3id,
+                };
+            }
+            setTimeout(() => {
+                goto("/register");
+            }, 10_000);
         };
     });
 </script>
@@ -97,7 +126,8 @@
     <section>
         <Hero
             title="Verify your account"
-            subtitle="Get your passport ready. You’ll be directed to a site where you can verify your account in a swift and secure process"
+            subtitle="Get your passport ready. You’ll be directed to present
+            your passport and take a quick selfie."
         />
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
     </section>
@@ -109,6 +139,15 @@
             <Passport></Passport>
         {:else if $verifStep === 1}
             <Selfie></Selfie>
+        {:else if loading}
+            <div class="my-20">
+                <div
+                    class="align-center flex w-full flex-col items-center justify-center gap-6"
+                >
+                    <Shadow size={40} color="rgb(142, 82, 255);" />
+                    <h3>Generating your eName</h3>
+                </div>
+            </div>
         {:else}
             <div class="flex flex-col gap-6">
                 {#if $status === "approved"}
