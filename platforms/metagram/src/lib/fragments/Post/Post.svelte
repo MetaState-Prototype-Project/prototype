@@ -76,7 +76,7 @@
 		</button>
 	</div>
 	<div class="relative">
-		{#if imgUri.length > 1}
+		{#if imgUris.length > 1}
 			<button
 				onclick={scrollLeft}
 				class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
@@ -89,7 +89,7 @@
 			onscroll={handleScroll}
 			class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 		>
-			{#each imgUri as img}
+			{#each imgUris as img}
 				<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 					<img
 						src={img}
@@ -99,13 +99,13 @@
 				</div>
 			{/each}
 		</div>
-		{#if imgUri.length > 1}
+		{#if imgUris.length > 1}
 			<div
 				class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
 			>
-				{#if imgUri.length > 1}
+				{#if imgUris.length > 1}
 					<div class="mt-2 flex items-center justify-center gap-1">
-						{#each imgUri as _, i}
+						{#each imgUris as _, i}
 							<div
 								class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
 							></div>
@@ -114,7 +114,7 @@
 				{/if}
 			</div>
 		{/if}
-		{#if imgUri.length > 1}
+		{#if imgUris.length > 1}
 			<button
 				onclick={scrollRight}
 				class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
