@@ -14,7 +14,9 @@
 
 <button
 	{...restProps}
-	class={cn(['flex w-full cursor-pointer items-center justify-between', restProps.class].join())}
+	class={cn(
+		['flex w-full cursor-pointer items-center justify-between', restProps.class].join(' ')
+	)}
 >
 	<div class="flex flex-col items-start gap-1">
 		<span class="font-semibold">{title}</span>
