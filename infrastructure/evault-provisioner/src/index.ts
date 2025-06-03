@@ -6,6 +6,8 @@ import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createHmacSignature } from "./utils/hmac.js";
+import cors from "cors";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +15,11 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3001;
+app.use(
+    cors({
+        origin: "*",
+    }),
+);
 
 app.use(express.json());
 
@@ -41,8 +48,8 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-
-            if (!process.env.REGISTRY_URI) throw new Error("REGISTRY_URI is not set");
+            if (!process.env.REGISTRY_URI)
+                throw new Error("REGISTRY_URI is not set");
             const { registryEntropy, namespace } = req.body;
 
             if (!registryEntropy || !namespace) {
@@ -72,23 +79,24 @@ app.post(
 
             const uri = await provisionEVault(w3id, evaultId.id);
 
-
-            await axios.post(new URL("/register", process.env.REGISTRY_URI).toString(), {
-                ename: w3id,
-                uri,
-                evault: evaultId.id,
-            }, {
-                headers: {
-                    "Authorization": `Bearer ${process.env.REGISTRY_SHARED_SECRET}`
-                }
-            });
+            await axios.post(
+                new URL("/register", process.env.REGISTRY_URI).toString(),
+                {
+                    ename: w3id,
+                    uri,
+                    evault: evaultId.id,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
+                    },
+                },
+            );
 
             res.json({
                 success: true,
                 uri,
             });
-
-
         } catch (error) {
             const axiosError = error as AxiosError;
             res.status(500).json({
@@ -99,6 +107,30 @@ app.post(
         }
     },
 );
+
+app.post("/idv", async (req: Request, res: Response) => {
+    let vendorData: string = (await new W3IDBuilder().build()).id;
+    const veriffBody = {
+        verification: {
+            vendorData,
+        },
+    };
+    const signature = createHmacSignature(
+        veriffBody,
+        process.env.VERIFF_HMAC_KEY as string,
+    );
+    const { data: veriffSession } = await axios.post(
+        "https://stationapi.veriff.com/v1/sessions",
+        veriffBody,
+        {
+            headers: {
+                "X-HMAC-SIGNATURE": signature,
+                "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
+            },
+        },
+    );
+    res.json(veriffSession);
+});
 
 app.listen(port, () => {
     console.log(`Evault Provisioner API running on port ${port}`);
