@@ -45,7 +45,7 @@
 
 	const classes = $derived({
 		common: cn(
-			'flex items-center justify-between my-4 pb-6 border-b-[1px] md:border-0 border-grey'
+			'flex items-center justify-between my-4 pb-2 border-b-[1px] md:border-0 border-grey'
 		),
 		text: variantClasses[variant].text,
 		background: variantClasses[variant].background

@@ -15,5 +15,3 @@ export default {
 export const Primary = {
 	args: { children: HelperText }
 };
-
-

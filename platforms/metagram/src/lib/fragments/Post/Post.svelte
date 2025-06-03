@@ -14,8 +14,7 @@
 		avatar: string;
 		username: string;
 		imgUri: string;
-		postAlt?: string;
-		text: string;
+		caption: string;
 		count: {
 			likes: number;
 			comments: number;
@@ -28,17 +27,8 @@
 		time: string;
 	}
 
-	const {
-		avatar,
-		username,
-		imgUri,
-		text,
-		postAlt,
-		count,
-		callback,
-		time,
-		...restProps
-	}: IPostProps = $props();
+	const { avatar, username, imgUri, caption, count, callback, time, ...restProps }: IPostProps =
+		$props();
 </script>
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
@@ -47,7 +37,6 @@
 			<Avatar src={avatar} alt={username} size="sm"></Avatar>
 			<h2>{username}</h2>
 		</div>
-
 		<button onclick={callback.menu} class="cursor-pointer rounded-full p-2 hover:bg-gray-100">
 			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 		</button>
@@ -55,11 +44,11 @@
 	<div class="overflow-hidden rounded-4xl">
 		<img
 			src={imgUri}
-			alt={postAlt ?? text}
+			alt={caption}
 			class="aspect-[4/5] h-full w-full object-cover md:aspect-[16/9]"
 		/>
 	</div>
-	<p class="text-black/80">{text}</p>
+	<p class="text-black/80">{caption}</p>
 	<p class="text-black/60">{time}</p>
 	<div class="flex w-full items-center justify-between">
 		<div class="flex gap-4">
@@ -82,7 +71,7 @@
 			</button>
 		</div>
 		<div class="flex items-center justify-between gap-3 text-lg text-black/40">
-			<p>{count.likes} likes</p>
+			<p class="subtext text-black-400">{count.likes} likes</p>
 			<HugeiconsIcon
 				icon={RecordIcon}
 				size={5}
@@ -90,7 +79,7 @@
 				color="var(--color-black-400)"
 				className="rounded-full"
 			/>
-			<p>{count.comments} comments</p>
+			<p class="subtext text-black-400">{count.comments} comments</p>
 		</div>
 	</div>
 </article>
