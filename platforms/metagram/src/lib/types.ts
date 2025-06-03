@@ -31,12 +31,12 @@ export type PostData = {
 };
 
 export type userProfile = {
-    userId: string;
-    username: string;
-    avatar: string;
-    totalPosts: number;
-    followers: number;
-    following: number;
-    userBio: string;
-    posts: PostData[];
-}
+	userId: string;
+	username: string;
+	avatar: string;
+	totalPosts: number;
+	followers: number;
+	following: number;
+	userBio: string;
+	posts: PostData[];
+};

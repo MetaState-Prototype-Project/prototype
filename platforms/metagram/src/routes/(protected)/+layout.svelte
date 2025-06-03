@@ -92,17 +92,6 @@
 					]}
 				/>
 			{/if}
-			{#if route === '/profile'}
-				<div class="mb-6 flex md:hidden">
-					<button
-						type="button"
-						class="flex items-center gap-2"
-						onclick={() => goto(`/settings`)}
-					>
-						<Settings size="24px" color="var(--color-brand-burnt-orange)" />
-					</button>
-				</div>
-			{/if}
 		</div>
 		{@render children()}
 	</section>

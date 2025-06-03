@@ -27,13 +27,13 @@
 <article
 	{...restProps}
 	class={cn(
-		['max-w-screen flex flex-row items-center gap-4 scroll-auto', restProps.class].join(' ')
+		['flex max-w-screen flex-row items-center gap-4 scroll-auto', restProps.class].join(' ')
 	)}
 >
 	{#each images as image, i}
 		<div class={cn(['group relative shrink-0'])}>
 			<Cross
-				class="absolute right-0 top-0 hidden -translate-y-1/2 translate-x-1/2 cursor-pointer group-hover:block"
+				class="absolute top-0 right-0 hidden translate-x-1/2 -translate-y-1/2 cursor-pointer group-hover:block"
 				onclick={() => callback(i)}
 			/>
 			<img

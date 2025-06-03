@@ -1,97 +1,97 @@
 <script lang="ts">
-    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import {
-        FlashlightIcon,
-        Image02Icon,
-        QrCodeIcon,
-    } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import {
-        Format,
-        type PermissionState,
-        type Scanned,
-        cancel,
-        checkPermissions,
-        requestPermissions,
-        scan,
-    } from "@tauri-apps/plugin-barcode-scanner";
-    import { onDestroy, onMount } from "svelte";
-    import type { SVGAttributes } from "svelte/elements";
+import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import {
+    FlashlightIcon,
+    Image02Icon,
+    QrCodeIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import {
+    Format,
+    type PermissionState,
+    type Scanned,
+    cancel,
+    checkPermissions,
+    requestPermissions,
+    scan,
+} from "@tauri-apps/plugin-barcode-scanner";
+import { onDestroy, onMount } from "svelte";
+import type { SVGAttributes } from "svelte/elements";
 
-    const pathProps: SVGAttributes<SVGPathElement> = {
-        stroke: "white",
-        "stroke-width": 7,
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round",
-    };
+const pathProps: SVGAttributes<SVGPathElement> = {
+    stroke: "white",
+    "stroke-width": 7,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+};
 
-    let codeScannedDrawerOpen = $state(false);
-    let loggedInDrawerOpen = $state(false);
-    let flashlightOn = $state(false);
+let codeScannedDrawerOpen = $state(false);
+let loggedInDrawerOpen = $state(false);
+let flashlightOn = $state(false);
 
-    let scannedData: Scanned | undefined = $state(undefined);
+let scannedData: Scanned | undefined = $state(undefined);
 
-    let scanning = false;
-    let loading = false;
+let scanning = false;
+let loading = false;
 
-    let permissions_nullable: PermissionState | null;
+let permissions_nullable: PermissionState | null;
 
-    async function startScan() {
-        let permissions = await checkPermissions()
-            .then((permissions) => {
-                return permissions;
+async function startScan() {
+    let permissions = await checkPermissions()
+        .then((permissions) => {
+            return permissions;
+        })
+        .catch(() => {
+            return null; // possibly return "denied"? or does that imply that the check has been successful, but was actively denied?
+        });
+
+    // TODO: handle receiving "prompt-with-rationale" (issue: https://github.com/tauri-apps/plugins-workspace/issues/979)
+    if (permissions === "prompt") {
+        permissions = await requestPermissions(); // handle in more detail?
+    }
+
+    permissions_nullable = permissions;
+
+    if (permissions === "granted") {
+        // Scanning parameters
+        const formats = [Format.QRCode];
+        const windowed = true;
+
+        if (scanning) return;
+        scanning = true;
+        scan({ formats, windowed })
+            .then((res) => {
+                console.log("Scan result:", res);
+                scannedData = res;
+                codeScannedDrawerOpen = true;
             })
-            .catch(() => {
-                return null; // possibly return "denied"? or does that imply that the check has been successful, but was actively denied?
+            .catch((error) => {
+                // TODO: display error to user
+                console.error("Scan error:", error);
+            })
+            .finally(() => {
+                scanning = false;
             });
-
-        // TODO: handle receiving "prompt-with-rationale" (issue: https://github.com/tauri-apps/plugins-workspace/issues/979)
-        if (permissions === "prompt") {
-            permissions = await requestPermissions(); // handle in more detail?
-        }
-
-        permissions_nullable = permissions;
-
-        if (permissions === "granted") {
-            // Scanning parameters
-            const formats = [Format.QRCode];
-            const windowed = true;
-
-            if (scanning) return;
-            scanning = true;
-            scan({ formats, windowed })
-                .then((res) => {
-                    console.log("Scan result:", res);
-                    scannedData = res;
-                    codeScannedDrawerOpen = true;
-                })
-                .catch((error) => {
-                    // TODO: display error to user
-                    console.error("Scan error:", error);
-                })
-                .finally(() => {
-                    scanning = false;
-                });
-        }
-
-        console.error("Permission denied or not granted");
-        // TODO: consider handling GUI for permission denied
     }
 
-    async function cancelScan() {
-        await cancel();
-        scanning = false;
-    }
+    console.error("Permission denied or not granted");
+    // TODO: consider handling GUI for permission denied
+}
 
-    onMount(async () => {
-        startScan();
-    });
+async function cancelScan() {
+    await cancel();
+    scanning = false;
+}
 
-    onDestroy(async () => {
-        await cancelScan();
-    });
+onMount(async () => {
+    startScan();
+});
+
+onDestroy(async () => {
+    await cancelScan();
+});
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
