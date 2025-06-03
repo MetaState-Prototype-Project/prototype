@@ -34,19 +34,9 @@
         href="/settings/language"
     />
     <SettingsNavigationBtn
-        icon={Link02Icon}
-        label="History"
-        href="/settings/history"
-    />
-    <SettingsNavigationBtn
         icon={PinCodeIcon}
         label="Pin"
         href="/settings/pin"
-    />
-    <SettingsNavigationBtn
-        icon={Key01Icon}
-        label="Keys"
-        href="/settings/keys"
     />
     <SettingsNavigationBtn
         icon={Shield01Icon}
@@ -54,5 +44,7 @@
         href="/settings/privacy"
     />
 
-    <ButtonAction callback={nukeWallet}>asdfasdf</ButtonAction>
+    <ButtonAction class="mt-5 w-full" callback={nukeWallet}
+        >Delete Account</ButtonAction
+    >
 </main>

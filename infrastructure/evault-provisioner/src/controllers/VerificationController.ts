@@ -200,6 +200,9 @@ export class VerificationController {
                         .json({ error: "Verification not found" });
                 }
 
+                let status = body.data.verification.decision;
+                let reason = body.data.verification.decision;
+
                 const affirmativeStatusTypes = [
                     "approved",
                     "declined",
@@ -211,8 +214,22 @@ export class VerificationController {
                         body.data.verification.decision,
                     )
                 ) {
-                    const approved =
+                    let approved =
                         body.data.verification.decision === "approved";
+                    if (process.env.DUPLICATES_POLICY !== "allow") {
+                        const verificationMatch =
+                            await this.verificationService.findOne({
+                                documentId:
+                                body.data.verification.document.number.value
+                            });
+                        console.log("matched", verificationMatch)
+                        if (verificationMatch) {
+                            approved = false;
+                            status = "declined";
+                            reason =
+                                "Document already used to create an eVault";
+                        }
+                    }
                     await this.verificationService.findByIdAndUpdate(id, {
                         approved,
                         data: {
@@ -225,8 +242,8 @@ export class VerificationController {
                 }
 
                 eventEmitter.emit(id, {
-                    reason: body.data.verification.reason,
-                    status: body.data.verification.decision,
+                    reason,
+                    status,
                     person: body.data.verification.person ?? null,
                     document: body.data.verification.document,
                 });

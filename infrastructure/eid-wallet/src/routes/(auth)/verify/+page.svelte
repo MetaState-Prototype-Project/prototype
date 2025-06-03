@@ -53,7 +53,7 @@
         eventSource.onmessage = function (e) {
             const data = JSON.parse(e.data);
             if (!data.status) console.log(data);
-            console.log("STATUS", data.status);
+            console.log("STATUS", data);
             status.set(data.status);
             reason.set(data.reason);
             person = data.person;
@@ -160,6 +160,8 @@
                     <p>{$reason}</p>
                 {:else}
                     <h3>Your verification failed</h3>
+
+                    <p>{$reason}</p>
                 {/if}
             </div>
             <div class="flex w-full flex-col pt-4">
