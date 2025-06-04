@@ -15,6 +15,7 @@ export const Primary = {
 	args: {
 		variant: 'primary',
 		heading: 'metagram',
+		isCallBackNeeded: true,
 		callback: () => alert('clicked')
 	}
 };
@@ -37,6 +38,7 @@ export const SecondaryWithMenu = {
 	args: {
 		variant: 'secondary',
 		heading: 'Account',
+		isCallBackNeeded: true,
 		callback: () => alert('menu clicked')
 	}
 };
@@ -44,6 +46,7 @@ export const SecondaryWithMenu = {
 export const Tertiary = {
 	args: {
 		variant: 'tertiary',
+		isCallBackNeeded: true,
 		callback: () => alert('clicked')
 	}
 };

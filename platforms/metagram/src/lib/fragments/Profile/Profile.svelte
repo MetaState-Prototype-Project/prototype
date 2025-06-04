@@ -24,7 +24,7 @@
 	}: IProfileProps = $props();
 </script>
 
-<div {...restProps} class="bg-grey flex h-screen w-full flex-col items-center gap-4 px-3 pt-[10%]">
+<div {...restProps} class="flex h-screen w-full flex-col items-center gap-4">
 	<div class="flex flex-col items-center gap-4 p-4">
 		<img class="size-28 rounded-full" src={profileData.avatar} alt="" />
 		<div class="flex flex-col items-center gap-2">
@@ -43,7 +43,7 @@
 			{#if variant === 'user'}
 				<div class="flex w-full justify-around">
 					<Button size="sm" class="w-full md:w-[50%]" callback={handleEdit}>
-						Edit Profile 
+						Edit Profile
 					</Button>
 				</div>
 				<div class="w-full md:hidden">
@@ -61,11 +61,15 @@
 			{/if}
 		</div>
 	</div>
-	<div class="grid grid-cols-3 gap-[2px]">
+	<div class="grid grid-cols-3 gap-[2px] pb-16">
 		{#each profileData.posts as post}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div  onclick={() => {handleSinglePost &&  handleSinglePost(post)}}>
+			<div
+				onclick={() => {
+					handleSinglePost && handleSinglePost(post);
+				}}
+			>
 				<img
 					class="aspect-square w-48 rounded-md object-cover md:max-w-56"
 					src={post.imgUris[0]}

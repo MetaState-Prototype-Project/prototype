@@ -13,11 +13,13 @@
 	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
 		variant: 'primary' | 'secondary' | 'tertiary';
 		heading?: string;
+		isCallBackNeeded?: boolean;
 		callback?: () => void;
 		options?: { name: string; handler: () => void }[];
 	}
 
-	const { variant, callback, heading, options, ...restProps }: IHeaderProps = $props();
+	const { variant, isCallBackNeeded, callback, heading, options, ...restProps }: IHeaderProps =
+		$props();
 
 	const variantClasses = {
 		primary: {
@@ -81,7 +83,7 @@
 			</h1>
 		{/if}
 	</span>
-	{#if callback}
+	{#if isCallBackNeeded}
 		<button
 			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
 			onclick={callback}
