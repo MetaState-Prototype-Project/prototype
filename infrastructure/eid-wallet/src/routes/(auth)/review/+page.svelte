@@ -1,22 +1,22 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { ButtonAction } from "$lib/ui";
-    import axios from "axios";
-    import { getContext, onMount } from "svelte";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { ButtonAction } from "$lib/ui";
+import axios from "axios";
+import { getContext, onMount } from "svelte";
 
-    let globalState = getContext<() => GlobalState>("globalState")();
-    let ename = $state();
+let globalState = getContext<() => GlobalState>("globalState")();
+let ename = $state();
 
-    const handleNext = async () => {
-        await goto("/e-passport");
-    };
+const handleNext = async () => {
+    await goto("/e-passport");
+};
 
-    onMount(async () => {
-        const vault = await globalState.vaultController.vault;
-        ename = vault.ename;
-    });
+onMount(async () => {
+    const vault = await globalState.vaultController.vault;
+    ename = vault.ename;
+});
 </script>
 
 <main

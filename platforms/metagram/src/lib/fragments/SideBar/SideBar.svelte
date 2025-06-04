@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import Button from '$lib/ui/Button/Button.svelte';
 	import { cn } from '$lib/utils';
+	import { ownerId } from '$lib/store/store.svelte';
 
 	interface ISideBarProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
@@ -148,7 +149,7 @@
 			aria-current={activeTab === 'profile' ? 'page' : undefined}
 			onclick={() => {
 				activeTab = 'profile';
-				goto('/profile');
+				goto(`/profile/${ownerId.value}`);
 			}}
 		>
 			<span
