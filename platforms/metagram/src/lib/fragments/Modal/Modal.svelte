@@ -72,6 +72,7 @@
 		border-radius: 32px !important;
 		padding: 20px !important;
 		background-color: var(--color-white) !important;
+		cursor: default !important;
 		overflow: scroll !important;
 		scrollbar-width: none !important;
 		-ms-overflow-style: none !important;

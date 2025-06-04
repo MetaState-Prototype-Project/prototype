@@ -3,7 +3,6 @@
 	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
 	import { onMount } from 'svelte';
 	import '../app.css';
-	import { page } from '$app/state';
 
 	let { children } = $props();
 
