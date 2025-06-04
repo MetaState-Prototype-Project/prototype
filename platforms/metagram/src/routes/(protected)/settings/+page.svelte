@@ -42,10 +42,6 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-</div>
-<hr class="text-grey" />
-<div class="flex flex-col gap-3">
-	<h3 class="text-brand-burnt-orange text-base font-semibold">System</h3>
 	<div class="{route === `/settings/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
 		<SettingsNavigationButton onclick={() => goto(`/settings/data-and-storage`)}>
 			{#snippet leadingIcon()}
@@ -60,6 +56,7 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
+	<hr class="text-grey" />
 	<div class="{route === `/settings/logout` ? 'bg-grey' : ''} rounded-xl p-2">
 		<SettingsNavigationButton onclick={() => goto(`/settings/logout`)}>
 			{#snippet leadingIcon()}

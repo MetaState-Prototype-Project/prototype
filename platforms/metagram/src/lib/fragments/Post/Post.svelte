@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
 	import {
@@ -15,9 +16,9 @@
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
+		userId: string;
 		imgUris: string[];
-		postAlt?: string;
-		text: string;
+		caption: string;
 		count: {
 			likes: number;
 			comments: number;
@@ -33,9 +34,9 @@
 	const {
 		avatar,
 		username,
+		userId,
 		imgUris,
-		text,
-		postAlt,
+		caption,
 		count,
 		callback,
 		time,
@@ -66,11 +67,15 @@
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
 	<div class="flex w-full items-center justify-between">
-		<div class="flex items-center justify-between gap-2">
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="flex items-center justify-between gap-2"
+			onclick={() => goto(`/profile/${userId}`)}
+		>
 			<Avatar src={avatar} alt={username} size="sm"></Avatar>
 			<h2>{username}</h2>
 		</div>
-
 		<button onclick={callback.menu} class="cursor-pointer rounded-full p-2 hover:bg-gray-100">
 			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 		</button>
@@ -93,7 +98,7 @@
 				<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 					<img
 						src={img}
-						alt={postAlt ?? text}
+						alt={'post by ' + username}
 						class=" h-full w-full rounded-4xl object-cover"
 					/>
 				</div>
@@ -123,7 +128,7 @@
 			</button>
 		{/if}
 	</div>
-	<p class="text-black/80">{text}</p>
+	<p class="text-black/80">{caption}</p>
 	<p class="text-black/60">{time}</p>
 	<div class="flex w-full items-center justify-between">
 		<div class="flex gap-4">

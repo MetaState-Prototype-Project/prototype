@@ -1,16 +1,14 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
 	import { BottomNav, Header, Comment, MessageInput, SideBar, Modal } from '$lib/fragments';
 	import InputFile from '$lib/fragments/InputFile/InputFile.svelte';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
-	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
-	import Button from '$lib/ui/Button/Button.svelte';
-	import Label from '$lib/ui/Label/Label.svelte';
-	import Textarea from '$lib/ui/Textarea/Textarea.svelte';
+	import { Button, Label, Textarea } from '$lib/ui';
+	import { ArrowLeft02Icon } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	let { children } = $props();
 
@@ -20,12 +18,12 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
-	let chatFriendId = $state();
 	let paneModal: CupertinoPane | undefined = $state();
 	let files: FileList | undefined = $state();
 	let imagePreviews: string[] = $state([]);
 	let isAddCaption: boolean = $state(false);
 	let caption: string = $state('');
+	let idFromParams = $state();
 
 	const handleSend = async () => {
 		const newComment = {
@@ -39,7 +37,6 @@
 			time: 'Just now',
 			replies: []
 		};
-
 		if (activeReplyToId) {
 			// Find the parent comment by id and push reply
 			const addReplyToComment = (commentsArray: CommentType[]) => {
@@ -63,7 +60,7 @@
 	};
 
 	$effect(() => {
-		chatFriendId = page.params.id;
+		idFromParams = page.params.id;
 
 		if (route.includes('home')) {
 			heading = 'Feed';
@@ -71,7 +68,7 @@
 			heading = 'Search';
 		} else if (route.includes('post')) {
 			heading = 'Post';
-		} else if (route === `/messages/${chatFriendId}`) {
+		} else if (route === `/messages/${idFromParams}`) {
 			heading = 'User Name';
 		} else if (route.includes('messages')) {
 			heading = 'Messages';
@@ -102,7 +99,7 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
 		profileSrc="https://picsum.photos/200"
@@ -110,28 +107,30 @@
 			if (paneModal) paneModal.present({ animate: true });
 		}}
 	/>
-	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
-		<div class="flex items-center justify-between">
+	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-16 md:px-8 md:pt-8">
+		{#if route === '/profile/post'}
+			<button
+				class="my-4 cursor-pointer rounded-full bg-white/60 p-2 hover:bg-gray-100"
+				onclick={() => window.history.back()}
+			>
+				<HugeiconsIcon icon={ArrowLeft02Icon} size={24} color="var(--color-black)" />
+			</button>
+		{:else}
 			<Header
-				variant={route === `/messages/${chatFriendId}` ? 'secondary' : 'primary'}
+				variant={route === `/messages/${idFromParams}`
+					? 'secondary'
+					: route.includes('profile')
+						? 'tertiary'
+						: 'primary'}
 				{heading}
+				isCallBackNeeded={route.includes('profile')}
+				callback={() => alert('Ads')}
 				options={[
 					{ name: 'Report', handler: () => alert('report') },
 					{ name: 'Clear chat', handler: () => alert('clear') }
 				]}
 			/>
-			{#if route === '/profile'}
-				<div class="mb-6 flex md:hidden">
-					<button
-						type="button"
-						class="flex items-center gap-2"
-						onclick={() => goto(`/settings`)}
-					>
-						<Settings size="24px" color="var(--color-brand-burnt-orange)" />
-					</button>
-				</div>
-			{/if}
-		</div>
+		{/if}
 		{@render children()}
 	</section>
 	{#if route === '/home' || route === '/messages'}
@@ -181,7 +180,7 @@
 		</aside>
 	{/if}
 
-	{#if route !== `/messages/${chatFriendId}`}
+	{#if route !== `/messages/${idFromParams}`}
 		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>
@@ -204,7 +203,7 @@
 	{:else}
 		<Label>Add a Caption</Label>
 		<Textarea class="mb-4" bind:value={caption} placeholder="enter caption" />
-		<div class="mb-4 grid grid-cols-3 gap-2">
+		<div class="mb-4 flex items-center gap-2">
 			{#each imagePreviews as src}
 				<div class="h-[100px] w-[80px] overflow-hidden rounded-lg border">
 					<!-- svelte-ignore a11y_img_redundant_alt -->
