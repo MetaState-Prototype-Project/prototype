@@ -5,9 +5,9 @@
 	import { ownerId, selectedPost } from '$lib/store/store.svelte';
 	import type { userProfile, PostData } from '$lib/types';
 	
-	let profileId = $state('');
+	let profileId = $derived(page.params.id);
 
-	const profile: userProfile = {
+	const profile: userProfile = $state({
 		userId: page.params.id,
 		username: 'Ananya Rana',
 		avatar: 'https://picsum.photos/200/300',
@@ -53,7 +53,7 @@
 				count: { likes: 200, comments: 45 }
 			}
 		]
-	};
+	});
 
 	function handlePostClick(post: PostData) {
 		selectedPost.value = post;
