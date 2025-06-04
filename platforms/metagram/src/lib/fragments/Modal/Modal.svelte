@@ -36,8 +36,8 @@
 				animationType: 'ease',
 				animationDuration: 300,
 				fitHeight: true,
-				bottomClose: true,
-				showDraggable: true,
+				bottomClose: false,
+				showDraggable: false,
 				buttonDestroy: false,
 				initialBreak: initialBreak,
 				breaks: {

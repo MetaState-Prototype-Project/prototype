@@ -7,6 +7,7 @@
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
 	import { Button, Label, Textarea } from '$lib/ui';
+	import InputRadio from '$lib/ui/InputRadio/InputRadio.svelte';
 	import { ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
@@ -24,6 +25,9 @@
 	let isAddCaption: boolean = $state(false);
 	let caption: string = $state('');
 	let idFromParams = $state();
+	let postVisibility = $state('');
+
+	let postVisibilityOptions = ["only followers", "close-friends", "anyone"]
 
 	const handleSend = async () => {
 		const newComment = {
@@ -211,7 +215,13 @@
 				</div>
 			{/each}
 		</div>
-		<h3 class="text-black-800 mt-25">Who can see the post?</h3>
+		<h3 class="text-black-800 mt-20 mb-2">Who can see the post?</h3>
+		{#each postVisibilityOptions as option,i}
+		<div class="flex items-center justify-between w-[50%] mb-2">
+			<Label for={option + i}>{option}</Label>
+			<InputRadio name="post-visibility" id={option + i} value={option} bind:selected={postVisibility}/>
+		</div>
+		{/each}
 	{/if}
 	{#if files}
 		<div class="grid grid-cols-2 gap-2">
