@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../database/data-source";
-import { Comment } from "../database/entities/Comment";
-import { Post } from "../database/entities/Post";
+import { CommentService } from "../services/CommentService";
 
 export class CommentController {
-    private commentRepository = AppDataSource.getRepository(Comment);
-    private postRepository = AppDataSource.getRepository(Post);
+    private commentService: CommentService;
+
+    constructor() {
+        this.commentService = new CommentService();
+    }
 
     createComment = async (req: Request, res: Response) => {
         try {
@@ -16,19 +17,8 @@ export class CommentController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const post = await this.postRepository.findOneBy({ id: postId });
-            if (!post) {
-                return res.status(404).json({ error: "Post not found" });
-            }
-
-            const comment = this.commentRepository.create({
-                text,
-                author: { id: userId },
-                post: { id: postId }
-            });
-
-            const savedComment = await this.commentRepository.save(comment);
-            res.status(201).json(savedComment);
+            const comment = await this.commentService.createComment(postId, userId, text);
+            res.status(201).json(comment);
         } catch (error) {
             console.error("Error creating comment:", error);
             res.status(500).json({ error: "Internal server error" });
@@ -38,23 +28,8 @@ export class CommentController {
     getPostComments = async (req: Request, res: Response) => {
         try {
             const { postId } = req.params;
-            const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 10;
-
-            const [comments, total] = await this.commentRepository.findAndCount({
-                where: { post: { id: postId } },
-                relations: ["author"],
-                order: { createdAt: "DESC" },
-                skip: (page - 1) * limit,
-                take: limit
-            });
-
-            res.json({
-                comments,
-                total,
-                page,
-                totalPages: Math.ceil(total / limit)
-            });
+            const comments = await this.commentService.getPostComments(postId);
+            res.json(comments);
         } catch (error) {
             console.error("Error fetching comments:", error);
             res.status(500).json({ error: "Internal server error" });
@@ -71,10 +46,7 @@ export class CommentController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const comment = await this.commentRepository.findOne({
-                where: { id },
-                relations: ["author"]
-            });
+            const comment = await this.commentService.getCommentById(id);
 
             if (!comment) {
                 return res.status(404).json({ error: "Comment not found" });
@@ -84,8 +56,7 @@ export class CommentController {
                 return res.status(403).json({ error: "Forbidden" });
             }
 
-            comment.text = text;
-            const updatedComment = await this.commentRepository.save(comment);
+            const updatedComment = await this.commentService.updateComment(id, text);
             res.json(updatedComment);
         } catch (error) {
             console.error("Error updating comment:", error);
@@ -102,10 +73,7 @@ export class CommentController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const comment = await this.commentRepository.findOne({
-                where: { id },
-                relations: ["author"]
-            });
+            const comment = await this.commentService.getCommentById(id);
 
             if (!comment) {
                 return res.status(404).json({ error: "Comment not found" });
@@ -115,7 +83,7 @@ export class CommentController {
                 return res.status(403).json({ error: "Forbidden" });
             }
 
-            await this.commentRepository.softDelete(id);
+            await this.commentService.deleteComment(id);
             res.status(204).send();
         } catch (error) {
             console.error("Error deleting comment:", error);

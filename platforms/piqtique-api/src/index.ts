@@ -25,8 +25,8 @@ app.use(
         credentials: true,
     }),
 );
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -47,6 +47,7 @@ const userController = new UserController();
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
+app.get("/api/auth/offerb", authController.getOfferBlab);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 
@@ -56,21 +57,31 @@ app.use(authMiddleware); // Apply auth middleware to all routes below
 // Post routes
 app.get("/api/posts/feed", authGuard, postController.getFeed);
 app.post("/api/posts", authGuard, postController.createPost);
+app.post("/api/posts/:id/like", authGuard, postController.toggleLike);
 
 // Comment routes
 app.post("/api/comments", authGuard, commentController.createComment);
-app.get("/api/posts/:postId/comments", authGuard, commentController.getPostComments);
+app.get(
+    "/api/posts/:postId/comments",
+    authGuard,
+    commentController.getPostComments,
+);
 app.put("/api/comments/:id", authGuard, commentController.updateComment);
 app.delete("/api/comments/:id", authGuard, commentController.deleteComment);
 
 // Message routes
 app.post("/api/messages", authGuard, messageController.sendMessage);
 app.get("/api/conversations", authGuard, messageController.getConversations);
-app.get("/api/conversations/:userId", authGuard, messageController.getConversation);
+app.get(
+    "/api/conversations/:userId",
+    authGuard,
+    messageController.getConversation,
+);
 app.delete("/api/messages/:id", authGuard, messageController.deleteMessage);
 
 // User routes
 app.get("/api/users/search", userController.search);
+app.post("/api/users/follow", authGuard, userController.follow);
 
 // Start server
 app.listen(port, () => {

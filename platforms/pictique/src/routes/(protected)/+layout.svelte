@@ -1,59 +1,36 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { comments } from '$lib/dummyData';
 	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { showComments } from '$lib/store/store.svelte';
-	import type { CommentType } from '$lib/types';
-<<<<<<< HEAD:platforms/pictique/src/routes/(protected)/+layout.svelte
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
+	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
-=======
 	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
->>>>>>> 52fa5ad87a98c94d6e905e00b2137487c0b16609:platforms/metagram/src/routes/(protected)/+layout.svelte
+
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
-	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
 	let idFromParams = $state();
+	let isCommentsLoading = $state(false);
+	let commentsError = $state<string | null>(null);
 
 	const handleSend = async () => {
-		const newComment = {
-			userImgSrc: 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
-			name: 'You',
-			commentId: Date.now().toString(),
-			comment: commentValue,
-			isUpVoted: false,
-			isDownVoted: false,
-			upVotes: 0,
-			time: 'Just now',
-			replies: []
-		};
-		if (activeReplyToId) {
-			// Find the parent comment by id and push reply
-			const addReplyToComment = (commentsArray: CommentType[]) => {
-				for (const c of commentsArray) {
-					if (c.commentId === activeReplyToId) {
-						c.replies.push(newComment);
-						return true;
-					} else if (c.replies.length) {
-						if (addReplyToComment(c.replies)) return true;
-					}
-				}
-				return false;
-			};
-			addReplyToComment(_comments);
-		} else {
-			// If no activeReplyToId, add as a new parent comment
-			_comments = [newComment, ..._comments];
+		console.log($activePostId, commentValue);
+		if (!$activePostId || !commentValue.trim()) return;
+
+		try {
+			await createComment($activePostId, commentValue);
+			commentValue = '';
+			activeReplyToId = null;
+		} catch (err) {
+			console.error('Failed to create comment:', err);
 		}
-		commentValue = '';
-		activeReplyToId = null;
 	};
 
 	$effect(() => {
@@ -75,6 +52,21 @@
 			heading = 'Profile';
 		}
 	});
+
+	// Watch for changes in showComments to fetch comments when opened
+	$effect(() => {
+		if (showComments.value && activePostId) {
+			isCommentsLoading = true;
+			commentsError = null;
+			fetchComments($activePostId)
+				.catch((err) => {
+					commentsError = err.message;
+				})
+				.finally(() => {
+					isCommentsLoading = false;
+				});
+		}
+	});
 </script>
 
 <main
@@ -87,7 +79,7 @@
 		}}
 	/>
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col">
 			<Header
 				variant={route === `/messages/${idFromParams}`
 					? 'secondary'
@@ -112,42 +104,46 @@
 			{#if route === '/home'}
 				{#if showComments.value}
 					<ul class="pb-4">
-						<h3 class="text-black-600 mb-6 text-center">{comments.length} Comments</h3>
-						{#each _comments as comment}
-							<li class="mb-4">
-								<Comment
-									{comment}
-									handleReply={() => {
-										activeReplyToId = comment.commentId;
-										commentInput?.focus();
-									}}
-								/>
-							</li>
-						{/each}
+						<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
+						{#if isCommentsLoading}
+							<li class="text-center text-gray-500">Loading comments...</li>
+						{:else if commentsError}
+							<li class="text-center text-red-500">{commentsError}</li>
+						{:else}
+							{#each $comments as comment}
+								<li class="mb-4">
+									<Comment
+										comment={{
+											userImgSrc:
+												comment.author.avatarUrl ||
+												'https://picsum.photos/200/200',
+											name: comment.author.name || comment.author.handle,
+											commentId: comment.id,
+											comment: comment.text,
+											isUpVoted: false,
+											isDownVoted: false,
+											upVotes: 0,
+											time: new Date(comment.createdAt).toLocaleDateString(),
+											replies: []
+										}}
+										handleReply={() => {
+											activeReplyToId = comment.id;
+											commentInput?.focus();
+										}}
+									/>
+								</li>
+							{/each}
+						{/if}
 						<MessageInput
 							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
-							src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+							src="https://picsum.photos/200/200"
 							bind:value={commentValue}
 							{handleSend}
 							bind:input={commentInput}
 						/>
 					</ul>
 				{/if}
-			{:else if route === '/messages'}
-				<ul class="pb-4">
-					<h2 class="text-black-600 mb-6 text-center">Other people you may know</h2>
-					{#each { length: 5 } as _}
-						<li class="mb-4">
-							<UserRequest
-								userImgSrc="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-								userName="luffythethird"
-								description="I've always wished life came at me fast. Funny how that wish never came through"
-								handleFollow={async () => alert('Adsad')}
-							/>
-						</li>
-					{/each}
-				</ul>
 			{/if}
 		</aside>
 	{/if}

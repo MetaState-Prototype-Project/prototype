@@ -96,68 +96,66 @@
 			class="flex items-center justify-between gap-2"
 			onclick={() => goto(`/profile/${userId}`)}
 		>
-			<Avatar src={avatar} alt={username} size="sm"></Avatar>
+			<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
+			></Avatar>
 			<h2>{username}</h2>
 		</div>
 		<button onclick={callback.menu} class="cursor-pointer rounded-full p-2 hover:bg-gray-100">
 			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 		</button>
 	</div>
-	<div class="relative">
-		{#if imgUris.length > 1}
-			<button
-				onclick={scrollLeft}
-				class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
-			>
-				<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
-			</button>
-		{/if}
-		<div
-			bind:this={galleryRef}
-			onscroll={handleScroll}
-			class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
-		>
-			{#each imgUris as img}
-				<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
-					<img
-						src={img}
-<<<<<<< HEAD:platforms/pictique/src/lib/fragments/Post/Post.svelte
-						alt={postAlt ?? text}
-						class="h-full w-full rounded-4xl object-cover"
-						onerror={handleImageError}
-=======
-						alt={'post by ' + username}
-						class=" h-full w-full rounded-4xl object-cover"
->>>>>>> 52fa5ad87a98c94d6e905e00b2137487c0b16609:platforms/metagram/src/lib/fragments/Post/Post.svelte
-					/>
-				</div>
-			{/each}
-		</div>
-		{#if imgUris.length > 1}
+	{#if imgUris.length > 0}
+		<div class="relative">
+			{#if imgUris.length > 1}
+				<button
+					onclick={scrollLeft}
+					class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+				>
+					<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+				</button>
+			{/if}
 			<div
-				class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+				bind:this={galleryRef}
+				onscroll={handleScroll}
+				class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 			>
-				{#if imgUris.length > 1}
-					<div class="mt-2 flex items-center justify-center gap-1">
-						{#each imgUris as _, i}
-							<div
-								class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
-							></div>
-						{/each}
+				{#each imgUris as img}
+					<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
+						<img
+							src={img}
+							alt={text}
+							class="h-full w-full rounded-4xl object-cover"
+							onerror={handleImageError}
+						/>
 					</div>
-				{/if}
+				{/each}
 			</div>
-		{/if}
-		{#if imgUris.length > 1}
-			<button
-				onclick={scrollRight}
-				class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
-			>
-				<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
-			</button>
-		{/if}
-	</div>
-	<p class="text-black/80">{caption}</p>
+			{#if imgUris.length > 1}
+				<div
+					class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+				>
+					{#if imgUris.length > 1}
+						<div class="mt-2 flex items-center justify-center gap-1">
+							{#each imgUris as _, i}
+								<div
+									class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
+								></div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+			{#if imgUris.length > 1}
+				<button
+					onclick={scrollRight}
+					class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+				>
+					<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
+				</button>
+			{/if}
+		</div>
+	{/if}
+	<p class="text-black/80">{text}</p>
 	<p class="text-black/60">{time}</p>
 	<div class="flex w-full items-center justify-between">
 		<div class="flex gap-4">

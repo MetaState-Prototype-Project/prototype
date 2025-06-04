@@ -53,4 +53,31 @@ export class UserService {
             take: 10
         });
     };
+
+    followUser = async (followerId: string, followingId: string) => {
+        const follower = await this.userRepository.findOne({
+            where: { id: followerId },
+            relations: ['following']
+        });
+
+        const following = await this.userRepository.findOne({
+            where: { id: followingId }
+        });
+
+        if (!follower || !following) {
+            throw new Error('User not found');
+        }
+
+        if (!follower.following) {
+            follower.following = [];
+        }
+
+        // Check if already following
+        if (follower.following.some(user => user.id === followingId)) {
+            return follower;
+        }
+
+        follower.following.push(following);
+        return await this.userRepository.save(follower);
+    };
 } 

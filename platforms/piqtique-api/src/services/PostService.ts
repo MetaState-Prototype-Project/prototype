@@ -63,5 +63,30 @@ export class PostService {
 
         return await this.postRepository.save(post);
     }
-}
 
+    async toggleLike(postId: string, userId: string): Promise<Post> {
+        const post = await this.postRepository.findOne({
+            where: { id: postId },
+            relations: ["likedBy"],
+        });
+
+        if (!post) {
+            throw new Error("Post not found");
+        }
+
+        const user = await this.userRepository.findOneBy({ id: userId });
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        const isLiked = post.likedBy.some((u) => u.id === userId);
+
+        if (isLiked) {
+            post.likedBy = post.likedBy.filter((u) => u.id !== userId);
+        } else {
+            post.likedBy.push(user);
+        }
+
+        return await this.postRepository.save(post);
+    }
+}

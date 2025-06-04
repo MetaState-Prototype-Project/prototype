@@ -51,6 +51,16 @@ export class AuthController {
         res.json({ uri: offer });
     };
 
+    getOfferBlab = async (req: Request, res: Response) => {
+        const url = new URL(
+            "/api/auth",
+            process.env.PUBLIC_PICTIQUE_BASE_URL,
+        ).toString();
+        const session = uuidv4();
+        const offer = `w3ds://auth?redirect=${url}&session=${session}&platform=blabsy`;
+        res.json({ uri: offer });
+    };
+
     login = async (req: Request, res: Response) => {
         try {
             const { ename, session } = req.body;

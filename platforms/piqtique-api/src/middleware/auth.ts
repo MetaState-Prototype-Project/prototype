@@ -3,7 +3,11 @@ import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
 import { verifyToken } from "../utils/jwt";
 
-export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader?.startsWith("Bearer ")) {
@@ -25,6 +29,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         }
 
         req.user = user;
+        console.log("user", user.ename);
         next();
     } catch (error) {
         console.error("Auth middleware error:", error);
@@ -37,4 +42,5 @@ export const authGuard = (req: Request, res: Response, next: NextFunction) => {
         return res.status(401).json({ error: "Authentication required" });
     }
     next();
-}; 
+};
+
