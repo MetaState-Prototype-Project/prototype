@@ -73,16 +73,16 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section
-		class="hide-scrollbar h-[100dvh] overflow-y-auto ${route !== '/profile'
+		class="hide-scrollbar h-[100dvh] overflow-y-auto {!route.includes('/profile')
 			? 'px-4 pb-8 md:px-8 md:pt-8'
 			: ''}"
 	>
 		<div class="flex items-center justify-between">
-			{#if route !== '/profile'}
+			{#if !route.includes('/profile')}
 				<Header
 					variant={route === `/messages/${chatFriendId}` ? 'secondary' : 'primary'}
 					{heading}

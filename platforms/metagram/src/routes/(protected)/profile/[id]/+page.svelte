@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { Profile } from '$lib/fragments';
-	import type { userProfile } from '$lib/types';
+	import { page } from '$app/state';
+	import { Post, Profile } from '$lib/fragments';
+	import type { userProfile, PostData } from '$lib/types';
 
+	let selectedPost: PostData | null = null;
 	const profile: userProfile = {
-		userId: '_.ananyayaya._',
+		userId: page.params.id,
 		username: 'Ananya Rana',
 		avatar: 'https://picsum.photos/200/300',
 		totalPosts: 1,
@@ -49,6 +51,38 @@
 			}
 		]
 	};
+
+	function handlePostClick(postId: string) {
+		const found = profile.posts.find((p) => p.id === postId);
+		if (found) {
+			selectedPost = found;
+		}
+	}
 </script>
 
-<Profile variant="user" profileData={profile} />
+{#if selectedPost}
+	<div class="px-5 pt-12">
+		<Post
+			avatar={selectedPost.avatar}
+			username={selectedPost.username}
+			userId={selectedPost.userId}
+			imgUris={selectedPost.imgUris}
+			caption={selectedPost.caption}
+			time={selectedPost.time}
+			count={selectedPost.count}
+			callback={{
+				like: () => alert('like'),
+				comment: () => {
+					if (window.matchMedia('(max-width: 768px)').matches) {
+						alert('Show comment drawer');
+					} else {
+						alert('Show comment modal');
+					}
+				},
+				menu: () => alert('menu')
+			}}
+		/>
+	</div>
+{:else}
+	<Profile variant="user" profileData={profile} onPostClick={handlePostClick} />
+{/if}

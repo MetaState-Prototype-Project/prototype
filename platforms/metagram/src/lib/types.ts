@@ -20,8 +20,9 @@ export type CommentType = {
 export type PostData = {
 	id: string;
 	avatar: string;
+    userId: string;
 	username: string;
-	imgUri: string;
+	imgUris: string[];
 	caption: string;
 	time: string;
 	count: {

@@ -7,7 +7,6 @@
 	interface IProfileProps extends HTMLAttributes<HTMLElement> {
 		variant: 'user' | 'other';
 		profileData: userProfile;
-		onPostClick: (id: string) => void;
 		onEditClick?: () => void;
 		onFollowClick?: () => void;
 		onMessageClick?: () => void;
@@ -16,7 +15,6 @@
 	const {
 		variant = 'user',
 		profileData,
-		onPostClick,
 		onEditClick,
 		onFollowClick,
 		onMessageClick,
@@ -63,13 +61,13 @@
 	</div>
 	<div class="grid grid-cols-3 gap-[2px]">
 		{#each profileData.posts as post}
-			<button onclick={() => onPostClick(post.id)}>
+			<a href={`/profile/post/${post.id}`} target="_blank">
 				<img
-					class="aspect-square rounded-md object-cover"
-					src={post.imgUri}
+					class="aspect-square w-48 rounded-md object-cover md:max-w-56"
+					src={post.imgUris[0]}
 					alt="user post"
 				/>
-			</button>
+			</a>
 		{/each}
 	</div>
 </div>

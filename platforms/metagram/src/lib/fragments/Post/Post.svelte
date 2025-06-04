@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
 	import {
@@ -15,6 +16,7 @@
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
+		userId: string;
 		imgUris: string[];
 		caption: string;
 		count: {
@@ -29,8 +31,17 @@
 		time: string;
 	}
 
-	const { avatar, username, imgUris, caption, count, callback, time, ...restProps }: IPostProps =
-		$props();
+	const {
+		avatar,
+		username,
+		userId,
+		imgUris,
+		caption,
+		count,
+		callback,
+		time,
+		...restProps
+	}: IPostProps = $props();
 
 	let galleryRef: HTMLDivElement;
 	let currentIndex = $state(0);
@@ -56,7 +67,12 @@
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
 	<div class="flex w-full items-center justify-between">
-		<div class="flex items-center justify-between gap-2">
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="flex items-center justify-between gap-2"
+			onclick={() => goto(`/profile/${userId}`)}
+		>
 			<Avatar src={avatar} alt={username} size="sm"></Avatar>
 			<h2>{username}</h2>
 		</div>
