@@ -1,3 +1,4 @@
+export { default as Profile } from "./Profile/Profile.svelte";
 export { default as Header } from "./Header/Header.svelte";
 export { default as BottomNav } from "./BottomNav/BottomNav.svelte";
 export { default as SettingsNavigationButton } from "./SettingsNavigationButton/SettingsNavigationButton.svelte";
@@ -16,3 +17,4 @@ export { default as Comment } from "./Comment/Comment.svelte";
 export { default as SettingsDeleteButton } from "./SettingsDeleteButton/SettingsDeleteButton.svelte";
 export { default as SettingsTile } from "./SettingsTile/SettingsTile.svelte";
 export { default as UserRequest } from "./UserRequest/UserRequest.svelte";
+export { default as UploadedPostView } from "./UploadedPostView/UploadedPostView.svelte";
