@@ -39,6 +39,12 @@
 	tabindex="0"
 	aria-checked={selected === value}
 	onclick={() => radioElement?.click()}
+	onkeydown={(e) => {
+		if (e.key === ' ' || e.key === 'Enter') {
+			e.preventDefault();
+			radioElement?.click();
+		}
+	}}
 >
 	{#if selected === value}
 		<span class="bg-brand-burnt-orange bottom-0.75 left-0.25 absolute h-2.5 w-2.5 rounded-full"
