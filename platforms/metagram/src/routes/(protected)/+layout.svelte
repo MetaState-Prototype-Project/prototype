@@ -2,11 +2,16 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
-	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
+	import { BottomNav, Header, Comment, MessageInput, SideBar, Modal } from '$lib/fragments';
+	import InputFile from '$lib/fragments/InputFile/InputFile.svelte';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
+	import Button from '$lib/ui/Button/Button.svelte';
+	import Label from '$lib/ui/Label/Label.svelte';
+	import Textarea from '$lib/ui/Textarea/Textarea.svelte';
+	import type { CupertinoPane } from 'cupertino-pane';
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
@@ -16,6 +21,11 @@
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
 	let chatFriendId = $state();
+	let paneModal: CupertinoPane | undefined = $state();
+	let files: FileList | undefined = $state();
+	let imagePreviews: string[] = $state([]);
+	let isAddCaption: boolean = $state(false);
+	let caption: string = $state('');
 
 	const handleSend = async () => {
 		const newComment = {
@@ -71,12 +81,35 @@
 			heading = 'Profile';
 		}
 	});
+
+	$effect(() => {
+		if (files) {
+			const readers = Array.from(files).map((file) => {
+				return new Promise<string>((resolve) => {
+					const reader = new FileReader();
+					reader.onload = (e) => resolve(e.target?.result as string);
+					reader.readAsDataURL(file);
+				});
+			});
+
+			Promise.all(readers).then((previews) => {
+				imagePreviews = previews;
+			});
+		} else {
+			imagePreviews = [];
+		}
+	});
 </script>
 
 <main
 	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
-	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
+	<SideBar
+		profileSrc="https://picsum.photos/200"
+		handlePost={async () => {
+			if (paneModal) paneModal.present({ animate: true });
+		}}
+	/>
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
 		<div class="flex items-center justify-between">
 			<Header
@@ -152,3 +185,50 @@
 		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>
+
+<Modal bind:paneModal initialBreak="middle" handleDismiss={() => (files = undefined)}>
+	<h1 class="mb-6 font-semibold text-black">Upload a Photo</h1>
+	{#if !isAddCaption}
+		{#if !files}
+			<InputFile class="mb-4 h-[40vh]" bind:files accept="images/*" multiple={true} />
+		{:else}
+			<div class="mb-4 grid grid-cols-3 gap-2">
+				{#each imagePreviews as src}
+					<div class="aspect-[4/5] overflow-hidden rounded-lg border">
+						<!-- svelte-ignore a11y_img_redundant_alt -->
+						<img {src} alt="Selected image" class="h-full w-full object-cover" />
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{:else}
+		<Label>Add a Caption</Label>
+		<Textarea class="mb-4" bind:value={caption} placeholder="enter caption" />
+		<div class="mb-4 grid grid-cols-3 gap-2">
+			{#each imagePreviews as src}
+				<div class="h-[100px] w-[80px] overflow-hidden rounded-lg border">
+					<!-- svelte-ignore a11y_img_redundant_alt -->
+					<img {src} alt="Selected image" class="h-[100px] w-[80px] object-cover" />
+				</div>
+			{/each}
+		</div>
+	{/if}
+	{#if files}
+		<div class="grid grid-cols-2 gap-2">
+			<Button
+				variant="secondary"
+				size="sm"
+				callback={async () => {
+					files = undefined;
+				}}>Cancel</Button
+			>
+			<Button
+				variant="secondary"
+				size="sm"
+				callback={async () => {
+					isAddCaption = true;
+				}}>Next</Button
+			>
+		</div>
+	{/if}
+</Modal>

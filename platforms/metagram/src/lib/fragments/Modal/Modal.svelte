@@ -7,6 +7,8 @@
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
 		modalEl?: HTMLDivElement;
 		paneModal?: CupertinoPane;
+		initialBreak?: 'bottom' | 'top' | 'middle';
+		handleDismiss?: () => void;
 		children?: Snippet;
 	}
 
@@ -14,14 +16,13 @@
 		modalEl = $bindable(),
 		paneModal = $bindable(),
 		children = undefined,
+		initialBreak,
+		handleDismiss,
 		...restProps
 	}: IDrawerProps = $props();
 
-	function present() {
-		if (paneModal) paneModal.present({ animate: true });
-	}
-
 	function dismiss() {
+		handleDismiss && handleDismiss();
 		if (paneModal) paneModal.destroy({ animate: true });
 	}
 
@@ -30,25 +31,25 @@
 			paneModal = new CupertinoPane(modalEl, {
 				modal: true,
 				backdrop: true,
+				backdropBlur: true,
 				backdropOpacity: 0.4,
+				animationType: 'ease',
+				animationDuration: 300,
 				fitHeight: true,
+				bottomClose: true,
 				showDraggable: true,
 				buttonDestroy: false,
+				initialBreak: initialBreak,
 				breaks: {
-					bottom: { enabled: true, height: 250 }
+					top: { enabled: true, height: 600 },
+					middle: { enabled: true, height: 400 },
+					bottom: { enabled: true, height: 200 }
 				},
-				initialBreak: 'bottom',
 				cssClass: 'modal',
 				events: {
 					onBackdropTap: () => dismiss()
 				}
 			});
-
-		present();
-
-		return () => {
-			if (paneModal) paneModal.destroy({ animate: false });
-		};
 	});
 </script>
 
@@ -60,13 +61,13 @@
 
 <style>
 	:global(.modal .pane) {
-		width: 95% !important;
-		max-height: 300px !important;
+		width: 100% !important;
+		max-height: 600px !important;
 		min-height: 100px !important;
 		height: auto !important;
 		position: fixed !important;
 		bottom: 30px !important;
-		left: 50% !important;
+		left: 40% !important;
 		transform: translateX(-50%) !important;
 		border-radius: 32px !important;
 		padding: 20px !important;

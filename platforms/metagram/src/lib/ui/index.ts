@@ -5,3 +5,4 @@ export { default as Select } from './Select/Select.svelte';
 export { default as Label } from './Label/Label.svelte';
 export { default as Toggle } from './Toggle/Toggle.svelte';
 export { default as Helper } from './Helper/Helper.svelte';
+export { default as Textarea } from './Textarea/Textarea.svelte';
