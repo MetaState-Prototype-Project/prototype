@@ -9,6 +9,7 @@ import { AuthController } from "./controllers/AuthController";
 import { CommentController } from "./controllers/CommentController";
 import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
+import { UserController } from "./controllers/UserController";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -42,6 +43,7 @@ const postController = new PostController();
 const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
+const userController = new UserController();
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
@@ -66,6 +68,9 @@ app.post("/api/messages", authGuard, messageController.sendMessage);
 app.get("/api/conversations", authGuard, messageController.getConversations);
 app.get("/api/conversations/:userId", authGuard, messageController.getConversation);
 app.delete("/api/messages/:id", authGuard, messageController.deleteMessage);
+
+// User routes
+app.get("/api/users/search", userController.search);
 
 // Start server
 app.listen(port, () => {

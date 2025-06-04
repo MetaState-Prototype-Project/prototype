@@ -1,24 +1,62 @@
 <script lang="ts">
 	import { UserRequest } from '$lib/fragments';
 	import { Input } from '$lib/ui';
+	import { searchResults, isSearching, searchError, searchUsers } from '$lib/stores/users';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
-	let searchValue = $state();
+	let searchValue = $state('');
+	let debounceTimer: NodeJS.Timeout;
+
+	function handleSearch(value: string) {
+		searchValue = value;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			searchUsers(value);
+		}, 300);
+	}
+
+	function handleProfileClick(userId: string) {
+		goto(`/profile/${userId}`);
+	}
+
+	onMount(() => {
+		return () => {
+			clearTimeout(debounceTimer);
+		};
+	});
 </script>
 
 <section>
-	<Input type="text" bind:value={searchValue} placeholder="Search user, post and more." />
-    {#if searchValue}
-    <ul class="pb-4 mt-6">
-        {#each { length: 5 } as _}
-            <li class="mb-4">
-                <UserRequest
-                    userImgSrc="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-                    userName="luffythethird"
-                    description="I’ve always wished life came at me fast. Funny how that wish never came through"
-                    handleFollow={async () => alert('Adsad')}
-                />
-            </li>
-        {/each}
-    </ul>
-    {/if}
+	<Input
+		type="text"
+		bind:value={searchValue}
+		placeholder="Search users..."
+		oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
+	/>
+
+	{#if $isSearching}
+		<div class="mt-6 text-center text-gray-500">Searching...</div>
+	{:else if $searchError}
+		<div class="mt-6 text-center text-red-500">{$searchError}</div>
+	{:else if searchValue && $searchResults.length === 0}
+		<div class="mt-6 text-center text-gray-500">No users found</div>
+	{:else if searchValue}
+		<ul class="mt-6 space-y-4 pb-4">
+			{#each $searchResults as user}
+				<li>
+					<UserRequest
+						userImgSrc={user.avatarUrl || 'https://picsum.photos/200'}
+						userName={user.name || user.handle}
+						description={user.description || ''}
+						handleFollow={async () => {
+							// TODO: Implement follow functionality
+							alert('Follow functionality coming soon');
+						}}
+						onclick={() => handleProfileClick(user.id)}
+					/>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 </section>
