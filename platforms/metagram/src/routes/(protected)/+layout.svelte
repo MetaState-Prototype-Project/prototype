@@ -211,6 +211,7 @@
 				</div>
 			{/each}
 		</div>
+		<h3 class="text-black-800 mt-25">Who can see the post?</h3>
 	{/if}
 	{#if files}
 		<div class="grid grid-cols-2 gap-2">
@@ -219,6 +220,7 @@
 				size="sm"
 				callback={async () => {
 					files = undefined;
+					paneModal?.destroy({animate: true})
 				}}>Cancel</Button
 			>
 			<Button
