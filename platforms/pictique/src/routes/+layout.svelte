@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
-	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
+	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
 	import { onMount } from 'svelte';
 	import '../app.css';
+	import { page } from '$app/state';
 
 	let { children } = $props();
 
@@ -34,20 +35,25 @@
 			});
 		});
 	});
-	
+
 	onMount(() => {
+		ownerId.value = '1';
 		setTimeout(() => {
 			showSplashScreen = false;
-		}, 2500)
-	})
+		}, 2500);
+	});
 </script>
 
 {#if showSplashScreen}
-<main class="h-[100dvh] w-full grid items-center justify-center">
-	<img src="/images/Logo.svg" alt="logo">
-</main>
+	<main class="grid h-[100dvh] w-full items-center justify-center">
+		<img src="/images/Logo.svg" alt="logo" />
+	</main>
 {:else}
-<main class="h-[100dvh] overflow-hidden px-4 md:px-0">
-	{@render children()}
-</main>
+	<main
+		class="h-[100dvh] overflow-hidden {page.url.pathname.includes('/profile')
+			? 'px-0'
+			: 'px-4'}  md:px-0"
+	>
+		{@render children()}
+	</main>
 {/if}

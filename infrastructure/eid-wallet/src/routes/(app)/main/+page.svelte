@@ -1,39 +1,39 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { getContext, onMount, type Snippet } from "svelte";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { getContext, onMount, type Snippet } from "svelte";
 
-    let userData: Record<string, unknown> = $state();
-    let greeting = $state();
-    let ename = $state();
+let userData: Record<string, unknown> = $state();
+let greeting = $state();
+let ename = $state();
 
-    let shareQRdrawerOpen = $state(false);
+let shareQRdrawerOpen = $state(false);
 
-    function shareQR() {
-        alert("QR Code shared!");
-        shareQRdrawerOpen = false;
-    }
+function shareQR() {
+    alert("QR Code shared!");
+    shareQRdrawerOpen = false;
+}
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    onMount(async () => {
-        userData = await globalState.userController.user;
-        const vaultData = await globalState.vaultController.vault;
-        ename = vaultData.ename;
+onMount(async () => {
+    userData = await globalState.userController.user;
+    const vaultData = await globalState.vaultController.vault;
+    ename = vaultData.ename;
 
-        const currentHour = new Date().getHours();
-        greeting =
-            currentHour > 17
-                ? "Good Evening"
-                : currentHour > 12
-                  ? "Good Afternoon"
-                  : "Good Morning";
-    });
+    const currentHour = new Date().getHours();
+    greeting =
+        currentHour > 17
+            ? "Good Evening"
+            : currentHour > 12
+              ? "Good Afternoon"
+              : "Good Morning";
+});
 </script>
 
 <Hero

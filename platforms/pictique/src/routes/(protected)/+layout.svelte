@@ -1,14 +1,17 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
 	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
-	import { Settings } from '$lib/icons';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
+<<<<<<< HEAD:platforms/pictique/src/routes/(protected)/+layout.svelte
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
+=======
+	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+>>>>>>> 52fa5ad87a98c94d6e905e00b2137487c0b16609:platforms/metagram/src/routes/(protected)/+layout.svelte
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
@@ -17,7 +20,7 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
-	let chatFriendId = $state();
+	let idFromParams = $state();
 
 	const handleSend = async () => {
 		const newComment = {
@@ -31,7 +34,6 @@
 			time: 'Just now',
 			replies: []
 		};
-
 		if (activeReplyToId) {
 			// Find the parent comment by id and push reply
 			const addReplyToComment = (commentsArray: CommentType[]) => {
@@ -55,7 +57,7 @@
 	};
 
 	$effect(() => {
-		chatFriendId = page.params.id;
+		idFromParams = page.params.id;
 
 		if (route.includes('home')) {
 			heading = 'Feed';
@@ -63,7 +65,7 @@
 			heading = 'Search';
 		} else if (route.includes('post')) {
 			heading = 'Post';
-		} else if (route === `/messages/${chatFriendId}`) {
+		} else if (route === `/messages/${idFromParams}`) {
 			heading = 'User Name';
 		} else if (route.includes('messages')) {
 			heading = 'Messages';
@@ -76,7 +78,7 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
 		profileSrc="https://picsum.photos/200"
@@ -87,30 +89,25 @@
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
 		<div class="flex items-center justify-between">
 			<Header
-				variant={route === `/messages/${chatFriendId}` ? 'secondary' : 'primary'}
+				variant={route === `/messages/${idFromParams}`
+					? 'secondary'
+					: route.includes('profile')
+						? 'tertiary'
+						: 'primary'}
 				{heading}
+				isCallBackNeeded={route.includes('profile')}
+				callback={() => alert('Ads')}
 				options={[
 					{ name: 'Report', handler: () => alert('report') },
 					{ name: 'Clear chat', handler: () => alert('clear') }
 				]}
 			/>
-			{#if route === '/profile'}
-				<div class="mb-6 flex md:hidden">
-					<button
-						type="button"
-						class="flex items-center gap-2"
-						onclick={() => goto(`/settings`)}
-					>
-						<Settings size="24px" color="var(--color-brand-burnt-orange)" />
-					</button>
-				</div>
-			{/if}
+			{@render children()}
 		</div>
-		{@render children()}
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
-			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-b-0 border-e-0 border-t-0 border-s-gray-200 px-8 pt-14 md:block"
+			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
 		>
 			{#if route === '/home'}
 				{#if showComments.value}
@@ -128,7 +125,7 @@
 							</li>
 						{/each}
 						<MessageInput
-							class="sticky bottom-4 start-0 mt-4 w-full px-2"
+							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
 							src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 							bind:value={commentValue}
@@ -155,7 +152,7 @@
 		</aside>
 	{/if}
 
-	{#if route !== `/messages/${chatFriendId}`}
+	{#if route !== `/messages/${idFromParams}`}
 		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>

@@ -2,7 +2,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 	import { goto } from '$app/navigation';
-	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
+	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
 	import { page } from '$app/state';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
@@ -27,7 +27,11 @@
 		const direction = toIndex > fromIndex ? 'right' : 'left';
 		document.documentElement.setAttribute('data-transition', direction);
 		previousTab = newTab;
-		goto(`/${newTab}`);
+		if (newTab === 'profile') {
+			goto(`/profile/${ownerId}`);
+		} else {
+			goto(`/${newTab}`);
+		}
 	};
 
 	$effect(() => {

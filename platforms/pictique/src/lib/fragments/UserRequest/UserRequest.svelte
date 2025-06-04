@@ -15,15 +15,20 @@
 		$props();
 </script>
 
-<article {...restProps} class={cn(['flex justify-between items-center', restProps.class].join(' '))}>
-    <div class="me-4.5 flex items-start">
-        <Avatar size="sm" src={userImgSrc} />
-        <div class="ms-2">
-            <h3 class="font-semibold text-black">{userName}</h3>
-            <p class="text-black-600">{description}</p>
-        </div>
-    </div>
-	<Button class="max-w-[100px]" variant="secondary" size="sm" callback={handleFollow}>Follow</Button>
+<article
+	{...restProps}
+	class={cn(['flex items-center justify-between', restProps.class].join(' '))}
+>
+	<div class="me-4.5 flex items-start">
+		<Avatar size="sm" src={userImgSrc} />
+		<div class="ms-2">
+			<h3 class="font-semibold text-black">{userName}</h3>
+			<p class="text-black-600">{description}</p>
+		</div>
+	</div>
+	<Button class="max-w-[100px]" variant="secondary" size="sm" callback={handleFollow}
+		>Follow</Button
+	>
 </article>
 
 <!--

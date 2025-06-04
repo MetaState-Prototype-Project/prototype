@@ -1,4 +1,4 @@
-import { type SVGAttributes } from 'svelte/elements';
+import type { SVGAttributes } from 'svelte/elements';
 
 export interface ISvgProps extends SVGAttributes<SVGElement> {
 	size?: number | string;
@@ -18,15 +18,26 @@ export type CommentType = {
 };
 
 export type PostData = {
-	id: number;
+	id: string;
 	avatar: string;
+	userId: string;
 	username: string;
-	imgUri: string[];
-	postAlt: string;
-	text: string;
+	imgUris: string[];
+	caption: string;
 	time: string;
 	count: {
 		likes: number;
 		comments: number;
 	};
+};
+
+export type userProfile = {
+	userId: string;
+	username: string;
+	avatar: string;
+	totalPosts: number;
+	followers: number;
+	following: number;
+	userBio: string;
+	posts: PostData[];
 };
