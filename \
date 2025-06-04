@@ -1,0 +1,8 @@
+<div
+	class="align-center flex h-full w-full flex-col content-center items-center
+    justify-center"
+>
+	<div class="h-max-[600px] bg-grey w-[100px] py-10">
+		<h1>asdf</h1>
+	</div>
+</div>
