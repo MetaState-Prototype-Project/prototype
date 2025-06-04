@@ -4,7 +4,7 @@
 	import { Profile } from '$lib/fragments';
 	import { ownerId, selectedPost } from '$lib/store/store.svelte';
 	import type { userProfile, PostData } from '$lib/types';
-	
+
 	let profileId = $derived(page.params.id);
 
 	const profile: userProfile = $state({
@@ -57,16 +57,16 @@
 
 	function handlePostClick(post: PostData) {
 		selectedPost.value = post;
-		goto("/profile/post")
+		goto('/profile/post');
 	}
 </script>
 
 <section class="pb-8">
-		<Profile
-			variant={ownerId.value === profileId ? 'user' : 'other'}
-			profileData={profile}
-			handleSinglePost={(post) => handlePostClick(post)}
-			handleFollow={async () => alert('followed')}
-			handleMessage={async () => goto('/messages')}
-		/>
+	<Profile
+		variant={ownerId.value === profileId ? 'user' : 'other'}
+		profileData={profile}
+		handleSinglePost={(post) => handlePostClick(post)}
+		handleFollow={async () => alert('followed')}
+		handleMessage={async () => goto('/messages')}
+	/>
 </section>

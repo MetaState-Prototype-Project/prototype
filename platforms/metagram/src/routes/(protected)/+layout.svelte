@@ -78,24 +78,27 @@
 	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-16 md:px-8 md:pt-8">
 		{#if route === '/profile/post'}
-		<button class="cursor-pointer rounded-full p-2 hover:bg-gray-100 my-4 bg-white/60" onclick={() => window.history.back()}>
-			<HugeiconsIcon icon={ArrowLeft02Icon} size={24} color="var(--color-black)" />
-		</button>
+			<button
+				class="my-4 cursor-pointer rounded-full bg-white/60 p-2 hover:bg-gray-100"
+				onclick={() => window.history.back()}
+			>
+				<HugeiconsIcon icon={ArrowLeft02Icon} size={24} color="var(--color-black)" />
+			</button>
 		{:else}
-		<Header
-			variant={route === `/messages/${idFromParams}`
-				? 'secondary'
-				: route.includes('profile')
-					? 'tertiary'
-					: 'primary'}
-			{heading}
-			isCallBackNeeded={route.includes('profile')}
-			callback={() => alert('Ads')}
-			options={[
-				{ name: 'Report', handler: () => alert('report') },
-				{ name: 'Clear chat', handler: () => alert('clear') }
-			]}
-		/>
+			<Header
+				variant={route === `/messages/${idFromParams}`
+					? 'secondary'
+					: route.includes('profile')
+						? 'tertiary'
+						: 'primary'}
+				{heading}
+				isCallBackNeeded={route.includes('profile')}
+				callback={() => alert('Ads')}
+				options={[
+					{ name: 'Report', handler: () => alert('report') },
+					{ name: 'Clear chat', handler: () => alert('clear') }
+				]}
+			/>
 		{/if}
 		{@render children()}
 	</section>
