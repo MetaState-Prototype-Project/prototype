@@ -1,23 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { userProfile } from '$lib/types';
+	import type { PostData, userProfile } from '$lib/types';
 	import { Button } from '$lib/ui';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IProfileProps extends HTMLAttributes<HTMLElement> {
 		variant: 'user' | 'other';
 		profileData: userProfile;
-		onEditClick?: () => void;
-		onFollowClick?: () => void;
-		onMessageClick?: () => void;
+		handleEdit?: () => Promise<void>;
+		handleFollow?: () => Promise<void>;
+		handleMessage?: () => Promise<void>;
+		handleSinglePost?: (post: PostData) => void;
 	}
 
 	const {
 		variant = 'user',
 		profileData,
-		onEditClick,
-		onFollowClick,
-		onMessageClick,
+		handleEdit,
+		handleFollow,
+		handleMessage,
+		handleSinglePost,
 		...restProps
 	}: IProfileProps = $props();
 </script>
@@ -40,8 +42,8 @@
 		<div class="flex w-full gap-3">
 			{#if variant === 'user'}
 				<div class="flex w-full justify-around">
-					<Button size="sm" class="w-full md:w-[50%]" onclick={() => onEditClick()}>
-						Edit Profile
+					<Button size="sm" class="w-full md:w-[50%]" callback={handleEdit}>
+						Edit Profile 
 					</Button>
 				</div>
 				<div class="w-full md:hidden">
@@ -49,25 +51,27 @@
 				</div>
 			{:else if variant === 'other'}
 				<div class="flex w-full justify-around">
-					<Button size="sm" class="w-full md:w-[50%]" onclick={() => onFollowClick()}>
+					<Button size="sm" class="w-full md:w-[50%]" callback={handleFollow}>
 						Follow
 					</Button>
 				</div>
 				<div class="w-full md:hidden">
-					<Button size="sm" callback={() => onMessageClick()}>Message</Button>
+					<Button size="sm" callback={handleMessage}>Message</Button>
 				</div>
 			{/if}
 		</div>
 	</div>
 	<div class="grid grid-cols-3 gap-[2px]">
 		{#each profileData.posts as post}
-			<a href={`/profile/post/${post.id}`} target="_blank">
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div  onclick={() => {handleSinglePost &&  handleSinglePost(post)}}>
 				<img
 					class="aspect-square w-48 rounded-md object-cover md:max-w-56"
 					src={post.imgUris[0]}
 					alt="user post"
 				/>
-			</a>
+			</div>
 		{/each}
 	</div>
 </div>

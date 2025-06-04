@@ -5,7 +5,7 @@
 	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { Settings } from '$lib/icons';
-	import { showComments } from '$lib/store/store.svelte';
+	import { ownerId, showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
 	let { children } = $props();
 

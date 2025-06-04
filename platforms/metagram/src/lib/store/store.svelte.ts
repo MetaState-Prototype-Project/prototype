@@ -5,3 +5,7 @@ export const isNavigatingThroughNav = $state({
 export const showComments = $state({
 	value: false
 });
+
+export const ownerId = $state({
+	value: "1"
+})

@@ -1,9 +1,9 @@
 import type { CommentType } from './types';
 export const dummyPosts = Array.from({ length: 100 }, (_, i) => ({
-    id: i + 1,
+    id: (i + 1).toString(),
     avatar: 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
+    userId: (i + 1).toString(),
     username: `user${i + 1}`,
-    userId: i + 1,
     imgUris: [
         'https://picsum.photos/800',
         'https://picsum.photos/600',
