@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
-	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
+	import { BottomNav, Comment, Header, MessageInput, SideBar } from '$lib/fragments';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
@@ -86,7 +86,7 @@
 			</button>
 		{:else}
 			<Header
-				variant={route === `/messages/${idFromParams}`
+				variant={route === `/messages/${idFromParams}` || route === "/post"
 					? 'secondary'
 					: route.includes('profile')
 						? 'tertiary'
