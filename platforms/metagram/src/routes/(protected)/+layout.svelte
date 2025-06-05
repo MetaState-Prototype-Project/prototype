@@ -27,7 +27,7 @@
 	let idFromParams = $state();
 	let postVisibility = $state('');
 
-	let postVisibilityOptions = ['only followers', 'close-friends', 'anyone'];
+	let postVisibilityOptions = ['Only followers', 'Close friends', 'Anyone'];
 
 	const handleSend = async () => {
 		const newComment = {
