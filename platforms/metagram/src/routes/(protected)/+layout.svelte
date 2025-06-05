@@ -59,7 +59,7 @@
 		} else if (route.includes('discover')) {
 			heading = 'Search';
 		} else if (route.includes('post')) {
-			heading = 'Post';
+			heading = 'Upload photo';
 		} else if (route === `/messages/${idFromParams}`) {
 			heading = 'User Name';
 		} else if (route.includes('messages')) {
