@@ -27,7 +27,7 @@
 	let idFromParams = $state();
 	let postVisibility = $state('');
 
-	let postVisibilityOptions = ["only followers", "close-friends", "anyone"]
+	let postVisibilityOptions = ['only followers', 'close-friends', 'anyone'];
 
 	const handleSend = async () => {
 		const newComment = {
@@ -189,7 +189,13 @@
 	{/if}
 </main>
 
-<Modal bind:paneModal initialBreak="middle" handleDismiss={() => (files = undefined)}>
+<Modal
+	bind:paneModal
+	initialBreak="middle"
+	handleDismiss={() => {
+		(files = undefined), (isAddCaption = false);
+	}}
+>
 	<h1 class="mb-6 font-semibold text-black">Upload a Photo</h1>
 	{#if !isAddCaption}
 		{#if !files}
@@ -204,7 +210,7 @@
 				{/each}
 			</div>
 		{/if}
-	{:else}
+	{:else if isAddCaption}
 		<Label>Add a Caption</Label>
 		<Textarea class="mb-4" bind:value={caption} placeholder="enter caption" />
 		<div class="mb-4 flex items-center gap-2">
@@ -216,11 +222,16 @@
 			{/each}
 		</div>
 		<h3 class="text-black-800 mt-20 mb-2">Who can see the post?</h3>
-		{#each postVisibilityOptions as option,i}
-		<div class="flex items-center justify-between w-[50%] mb-2">
-			<Label for={option + i}>{option}</Label>
-			<InputRadio name="post-visibility" id={option + i} value={option} bind:selected={postVisibility}/>
-		</div>
+		{#each postVisibilityOptions as option, i}
+			<div class="mb-2 flex w-[50%] items-center justify-between">
+				<Label for={option + i}>{option}</Label>
+				<InputRadio
+					name="post-visibility"
+					id={option + i}
+					value={option}
+					bind:selected={postVisibility}
+				/>
+			</div>
 		{/each}
 	{/if}
 	{#if files}
@@ -230,7 +241,8 @@
 				size="sm"
 				callback={async () => {
 					files = undefined;
-					paneModal?.destroy({animate: true})
+					isAddCaption = false;
+					paneModal?.destroy({ animate: true });
 				}}>Cancel</Button
 			>
 			<Button
