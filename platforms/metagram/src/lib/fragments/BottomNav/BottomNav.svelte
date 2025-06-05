@@ -33,10 +33,8 @@
 		if (newTab === 'profile') {
 			goto(`/profile/${ownerId}`);
 		} else if (newTab === "post") {
+            imageInput.value = "";
 			imageInput.click();
-			if (images && images.length > 0) {
-				goto(`/${newTab}`);
-			}
 		} else {
 			goto(`/${newTab}`);
 		}
@@ -44,6 +42,10 @@
 
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
+		console.log(activeTab, _activeTab, previousTab);
+		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post') {
+			goto("/post");
+		}
 	});
 </script>
 
