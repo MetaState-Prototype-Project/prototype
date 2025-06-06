@@ -15,3 +15,7 @@ export const ownerId = $state({
 export const selectedPost: { value: PostData | null } = $state({
     value: null,
 });
+
+export const uploadedImages: { value: FileList | null } = $state({
+    value: null,
+});

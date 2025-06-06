@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
 	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
+    import { uploadedImages } from '$lib/store/store.svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
@@ -19,7 +20,6 @@
 	let _activeTab = $derived(page.url.pathname);
 	let fullPath = $derived(page.url.pathname);
 
-	let images: FileList | null = $state(null);
 	let imageInput: HTMLInputElement;
 
 	const handleNavClick = (newTab: string) => {
@@ -33,6 +33,7 @@
 		if (newTab === 'profile') {
 			goto(`/profile/${ownerId}`);
 		} else if (newTab === "post") {
+            uploadedImages.value = null;
             imageInput.value = "";
 			imageInput.click();
 		} else {
@@ -42,14 +43,13 @@
 
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
-		console.log(activeTab, _activeTab, previousTab);
-		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post') {
+		if (uploadedImages.value && uploadedImages.value.length > 0 && activeTab !== 'post' && previousTab === 'post') {
 			goto("/post");
 		}
 	});
 </script>
 
-<input type="file" accept="image/*" multiple bind:files={images} bind:this={imageInput} class="hidden" />
+<input type="file" accept="image/*" multiple bind:files={uploadedImages.value} bind:this={imageInput} class="hidden" />
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	aria-label="Main navigation"
