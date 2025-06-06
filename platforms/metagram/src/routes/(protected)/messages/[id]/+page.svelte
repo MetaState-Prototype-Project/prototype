@@ -4,7 +4,7 @@
 	let messageValue = $state('');
 </script>
 
-<section class="chat relative px-0">
+<section class="relative px-0">
 	{#each { length: 12 } as _}
 		<ChatMessage
 			isOwn={true}
@@ -54,7 +54,7 @@
 	{/each}
 
 	<MessageInput
-		class="sticky start-0 bottom-[-15px] w-full"
+		class="sticky start-0 bottom-[-30px] w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}

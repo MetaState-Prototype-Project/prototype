@@ -87,7 +87,7 @@
 			if (paneModal) paneModal.present({ animate: true });
 		}}
 	/>
-	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-16 md:px-8 md:pt-8">
+	<section class="h-[100dvh] md:px-8 md:pt-8">
 		{#if route === '/profile/post'}
 			<button
 				class="my-4 cursor-pointer rounded-full bg-white/60 p-2 hover:bg-gray-100"
@@ -111,7 +111,9 @@
 				]}
 			/>
 		{/if}
-		{@render children()}
+		<section class="hide-scrollbar h-[100%] overflow-y-auto pb-35">
+			{@render children()}
+		</section>
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
