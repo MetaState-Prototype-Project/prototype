@@ -79,7 +79,7 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') && !route.includes('/settings') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
 		profileSrc="https://picsum.photos/200"
