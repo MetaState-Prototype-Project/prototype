@@ -20,3 +20,7 @@ export const uploadedImages: { value: { url: string; alt: string }[] | null } =
     $state({
         value: null,
     });
+
+export const audience: { value: string } = $state({
+    value: "Everyone",
+});

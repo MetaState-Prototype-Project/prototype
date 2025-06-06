@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { SettingsTile, UploadedPostView } from '$lib/fragments';
-    import { uploadedImages } from '$lib/store/store.svelte';
+    import { audience, uploadedImages } from '$lib/store/store.svelte';
 </script>
 
 <UploadedPostView
@@ -16,6 +16,6 @@
 
 <SettingsTile
     title="Who can see your posts?"
-    currentStatus="Everyone"
+    currentStatus={audience.value}
     onclick={() => goto("/post/audience")}
 />
