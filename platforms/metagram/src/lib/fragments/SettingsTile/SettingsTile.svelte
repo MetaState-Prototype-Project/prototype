@@ -6,7 +6,7 @@
 
 	interface ISettingsTile extends HTMLButtonAttributes {
 		title: string;
-		currentStatus: 'string';
+		currentStatus: string;
 	}
 
 	const { title, currentStatus, ...restProps }: ISettingsTile = $props();

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { UploadedPostView } from '$lib/fragments';
+	import { goto } from '$app/navigation';
+	import { SettingsTile, UploadedPostView } from '$lib/fragments';
     import { uploadedImages } from '$lib/store/store.svelte';
 </script>
 
@@ -11,4 +12,10 @@
         if (uploadedImages.value)
         uploadedImages.value = uploadedImages.value.filter((_, index) => index !== i);
     }}
+/>
+
+<SettingsTile
+    title="Who can see your posts?"
+    currentStatus="Everyone"
+    onclick={() => goto("/post/audience")}
 />
