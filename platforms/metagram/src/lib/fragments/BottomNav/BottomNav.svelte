@@ -44,7 +44,8 @@
 
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
-		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post') {
+        console.log(activeTab, previousTab, _activeTab);
+		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post' && !_activeTab.includes('post/audience')) {
             uploadedImages.value = Array.from(images).map(file => ({
                 url: URL.createObjectURL(file),
                 alt: file.name
