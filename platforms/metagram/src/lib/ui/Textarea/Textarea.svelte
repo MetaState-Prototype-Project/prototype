@@ -12,7 +12,7 @@
 	let {
         name = '',
         placeholder = '',
-        value = $bindable(''),
+        value = $bindable(),
         rows,
 		...restProps
 	}: ITextareaProps = $props();
