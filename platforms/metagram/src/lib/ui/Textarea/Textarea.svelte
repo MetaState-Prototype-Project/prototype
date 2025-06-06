@@ -20,4 +20,4 @@
 	const cBase = 'rounded-xl bg-grey/80 resize-none w-full p-5';
 </script>
 
-<textarea {...restProps} {rows} name={name} id={name} bind:value {placeholder} class={cn([cBase, restProps.class].join(' '))} tabindex="0"></textarea>
+<textarea {...restProps} {rows} name={name} id={name} bind:value {placeholder} class={cn([cBase, restProps.class].join(' '))}></textarea>
