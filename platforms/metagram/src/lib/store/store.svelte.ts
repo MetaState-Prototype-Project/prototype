@@ -16,6 +16,7 @@ export const selectedPost: { value: PostData | null } = $state({
     value: null,
 });
 
-export const uploadedImages: { value: FileList | null } = $state({
-    value: null,
-});
+export const uploadedImages: { value: { url: string; alt: string }[] | null } =
+    $state({
+        value: null,
+    });

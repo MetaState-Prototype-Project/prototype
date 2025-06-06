@@ -21,6 +21,7 @@
 	let fullPath = $derived(page.url.pathname);
 
 	let imageInput: HTMLInputElement;
+    let images: FileList | null = $state(null);
 
 	const handleNavClick = (newTab: string) => {
 		// activeTab = newTab;
@@ -43,13 +44,17 @@
 
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
-		if (uploadedImages.value && uploadedImages.value.length > 0 && activeTab !== 'post' && previousTab === 'post') {
+		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post') {
+            uploadedImages.value = Array.from(images).map(file => ({
+                url: URL.createObjectURL(file),
+                alt: file.name
+            }));
 			goto("/post");
 		}
 	});
 </script>
 
-<input type="file" accept="image/*" multiple bind:files={uploadedImages.value} bind:this={imageInput} class="hidden" />
+<input type="file" accept="image/*" multiple bind:files={images} bind:this={imageInput} class="hidden" />
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	aria-label="Main navigation"
