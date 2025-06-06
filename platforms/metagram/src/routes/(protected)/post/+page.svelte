@@ -5,6 +5,8 @@
 
 <UploadedPostView
     images={uploadedImages.value ?? []}
+    width="w-auto"
+    height="h-60"
     callback={(i: number) => {
         if (uploadedImages.value)
         uploadedImages.value = uploadedImages.value.filter((_, index) => index !== i);
