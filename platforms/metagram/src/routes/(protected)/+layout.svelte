@@ -2,11 +2,13 @@
 	import { page } from '$app/state';
 	import { comments } from '$lib/dummyData';
 	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
+	import AddPostModal from '$lib/fragments/AddPostModal/AddPostModal.svelte';
 	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
 	import { showComments } from '$lib/store/store.svelte';
 	import type { CommentType } from '$lib/types';
-	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
+	import { ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { CupertinoPane } from 'cupertino-pane';
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
@@ -15,7 +17,11 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state(comments);
 	let activeReplyToId: string | null = $state(null);
+	let paneModal: CupertinoPane | undefined = $state();
+	let files: FileList | undefined = $state();
+	let caption: string = $state('');
 	let idFromParams = $state();
+	let postVisibility = $state('');
 
 	const handleSend = async () => {
 		const newComment = {
@@ -73,10 +79,15 @@
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') && !route.includes('/settings') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
-	<SideBar profileSrc="https://picsum.photos/200" handlePost={async () => alert('adas')} />
-	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-16 md:px-8 md:pt-8">
+	<SideBar
+		profileSrc="https://picsum.photos/200"
+		handlePost={async () => {
+			if (paneModal) paneModal.present({ animate: true });
+		}}
+	/>
+	<section class="h-[100dvh] md:px-8 md:pt-8">
 		{#if route === '/profile/post'}
 			<button
 				class="my-4 cursor-pointer rounded-full bg-white/60 p-2 hover:bg-gray-100"
@@ -100,7 +111,9 @@
 				]}
 			/>
 		{/if}
-		{@render children()}
+		<section class="hide-scrollbar h-[100%] overflow-y-auto pb-35">
+			{@render children()}
+		</section>
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
@@ -153,3 +166,5 @@
 		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
 	{/if}
 </main>
+
+<AddPostModal bind:files bind:postVisibility bind:caption bind:paneModal />

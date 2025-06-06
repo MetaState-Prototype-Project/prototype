@@ -1,33 +1,46 @@
 <script lang="ts">
+	import { cn } from '$lib/utils';
 	import { Album01Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { HTMLLabelAttributes } from 'svelte/elements';
 
-	interface IInputFileProps {
+	interface IInputFileProps extends HTMLLabelAttributes {
 		files: FileList | undefined;
 		accept: string;
-		label: string;
-		cancelLabel: string;
-		oncancel: () => void;
+		label?: string;
+		multiple?: boolean;
+		cancelLabel?: string;
+		oncancel?: () => void;
 	}
 
 	let {
 		files = $bindable(),
 		accept = 'image/*',
 		label = 'Click to upload a photo',
+		multiple = false,
 		cancelLabel = 'Delete upload',
-		oncancel
+		oncancel,
+		...restProps
 	}: IInputFileProps = $props();
 
 	const uniqueId = Math.random().toString().split('.')[1];
 	let inputFile: HTMLInputElement | undefined = $state();
+
+	let cBase =
+		'bg-grey text-black-400 font-geist flex min-h-[158px] w-full items-center justify-center rounded-4xl text-base font-normal';
 </script>
 
-<input id={uniqueId} type="file" bind:files class="hidden" {accept} bind:this={inputFile} />
+<input
+	id={uniqueId}
+	type="file"
+	bind:files
+	class="hidden"
+	{multiple}
+	{accept}
+	bind:this={inputFile}
+/>
 
-<label
-	for={uniqueId}
-	class="bg-grey text-black-400 font-geist flex h-[158px] w-full items-center justify-center rounded-4xl text-base font-normal"
->
+<label {...restProps} for={uniqueId} class={cn([cBase, restProps.class].join(' '))}>
 	{#if files}
 		<div class="flex flex-col items-center gap-2">
 			<HugeiconsIcon size="24px" icon={Album01Icon} color="var(--color-black-600)" />

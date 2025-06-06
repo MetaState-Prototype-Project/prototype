@@ -6,12 +6,14 @@
 		selected?: string;
 		name?: string;
 		value: string;
+		id?: string;
 	}
 
 	let {
 		value = '',
 		selected = $bindable(''),
 		name = '',
+		id,
 		...restProps
 	}: IInputRadioProps = $props();
 
@@ -23,6 +25,7 @@
 
 <input
 	{...restProps}
+	{id}
 	type="radio"
 	{value}
 	bind:group={selected}
@@ -47,7 +50,7 @@
 	}}
 >
 	{#if selected === value}
-		<span class="bg-brand-burnt-orange bottom-0.75 left-0.25 absolute h-2.5 w-2.5 rounded-full"
+		<span class="bg-brand-burnt-orange absolute bottom-0.75 left-0.25 h-2.5 w-2.5 rounded-full"
 		></span>
 	{/if}
 </span>
