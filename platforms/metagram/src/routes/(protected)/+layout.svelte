@@ -58,6 +58,8 @@
 			heading = 'Feed';
 		} else if (route.includes('discover')) {
 			heading = 'Search';
+		} else if (route.includes('/post/audience')) {
+			heading = 'Audience';
 		} else if (route.includes('post')) {
 			heading = 'Upload photo';
 		} else if (route === `/messages/${idFromParams}`) {
@@ -86,7 +88,7 @@
 			</button>
 		{:else}
 			<Header
-				variant={route === `/messages/${idFromParams}` || route === "/post"
+				variant={route === `/messages/${idFromParams}` || route.includes("/post")
 					? 'secondary'
 					: route.includes('profile')
 						? 'tertiary'
