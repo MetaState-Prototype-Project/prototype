@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { SettingsTile, UploadedPostView } from '$lib/fragments';
     import { audience, uploadedImages } from '$lib/store/store.svelte';
+    import { Button } from '$lib/ui';
 </script>
 
 <UploadedPostView
@@ -19,3 +20,10 @@
     currentStatus={audience.value}
     onclick={() => goto("/post/audience")}
 />
+
+<Button
+    variant="secondary"
+    callback={() => alert("TODO: Post created!")}
+>
+Post
+</Button>
