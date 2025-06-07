@@ -1,15 +1,12 @@
 <script lang="ts">
 	import { Cross } from '$lib/icons';
+    import type { Image } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
-	interface IImage {
-		url: string;
-		alt: string;
-	}
 
 	interface IUploadedPostViewProps extends HTMLAttributes<HTMLElement> {
-		images: IImage[];
+		images: Image[];
 		width?: string;
 		height?: string;
 		callback: (i: number) => void;
