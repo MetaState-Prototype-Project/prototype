@@ -73,15 +73,15 @@
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
 		{:else}
-			{#each $posts.posts as post (post.id)}
+			{#each $posts.blabs as post (post.id)}
 				<li class="mb-6">
 					<Post
-						avatar={post.author.avatarUrl}
-						username={post.author.handle}
+						avatar={post.author.profilePictureUrl}
+						username={post.author.displayName ?? post.author.username}
 						imgUris={post.images}
-						text={post.text}
+						text={post.content}
 						time={new Date(post.createdAt).toLocaleDateString()}
-						count={{ likes: post.likedBy.length, comments: post.comments.length }}
+						count={{ likes: post.likedBy.length, comments: post.replies.length }}
 						callback={{
 							like: async () => {
 								try {

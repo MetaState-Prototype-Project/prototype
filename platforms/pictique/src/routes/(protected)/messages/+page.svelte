@@ -1,30 +1,39 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Message } from '$lib/fragments';
-	import { Input } from '$lib/ui';
+	import { onMount } from 'svelte';
+	import { apiClient } from '$lib/utils/axios';
 
-	let searchValue = $state('');
+	let messages = $state([]);
+
+	onMount(async () => {
+		const { data } = await apiClient.get('/api/chats');
+		const { data: userData } = await apiClient.get('/api/users');
+		messages = data.chats.map((c) => {
+			const members = c.participants.filter((u) => u.id !== userData.id);
+			console.log(members);
+			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+			const avatar = members.length > 1 ? '/images/group.png' : members[0].avatarUrl;
+			return {
+				id: c.id,
+				avatar,
+				username: memberNames.join(', '),
+				unread: c.latestMessage.isRead,
+				text: c.latestMessage.text
+			};
+		});
+	});
 </script>
 
 <section>
-	{#if true}
-		<h2>It's lonely in here, please start a chat with someone first</h2>{:else}
-		<Input type="text" bind:value={searchValue} placeholder="Search Messages" class="my-6" />
+	{#each messages as message}
 		<Message
 			class="mb-6"
-			avatar="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-			username="donaldthefirstt"
-			text="i was thinking of making it to the conference so we could take some more fire pictures like last time"
-			unread={false}
-			callback={() => goto(`/messages/`)}
+			avatar={message.avatar}
+			username={message.username}
+			text={message.text}
+			unread={!message.unread}
+			callback={() => goto(`/messages/${message.id}`)}
 		/>
-		<Message
-			class="mb-6"
-			avatar="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
-			username="donaldthefirstt"
-			text="i was thinking of making it to the conference so we could take some more fire pictures like last time"
-			unread={true}
-			callback={() => goto(`/messages/`)}
-		/>
-	{/if}
+	{/each}
 </section>

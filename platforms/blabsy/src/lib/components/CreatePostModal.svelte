@@ -46,8 +46,8 @@
 	};
 </script>
 
-<div class="bg-black-200 fixed inset-0 z-50 flex items-center justify-center">
-	<div class="w-full max-w-2xl rounded-lg bg-black p-6">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="w-full max-w-2xl rounded-lg bg-white p-6">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">Create Post</h2>
 			<button

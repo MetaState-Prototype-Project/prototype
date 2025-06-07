@@ -3,24 +3,24 @@ import { apiClient } from '$lib/utils/axios';
 
 export interface Post {
     id: string;
-    text: string;
+    content: string;
     images: string[];
     author: {
         id: string;
-        handle: string;
-        name: string;
-        avatarUrl: string;
+        username: string;
+        displayName: string;
+        profilePictureUrl: string;
     };
     createdAt: string;
     likedBy: string[];
-    comments: {
+    replies: {
         id: string;
         text: string;
-        author: {
+        creator: {
             id: string;
-            handle: string;
-            name: string;
-            avatarUrl: string;
+            username: string;
+            displayName: string;
+            profilePictureUrl: string;
         };
         createdAt: string;
     }[];
@@ -38,7 +38,7 @@ export const fetchFeed = async (page = 1, limit = 10) => {
     try {
         isLoading.set(true);
         error.set(null);
-        const response = await apiClient.get(`/api/posts/feed?page=${page}&limit=${limit}`);
+        const response = await apiClient.get(`/api/blabs/feed?page=${page}&limit=${limit}`);
         posts.set(response.data);
     } catch (err) {
         error.set(err instanceof Error ? err.message : 'Failed to fetch feed');
@@ -47,27 +47,27 @@ export const fetchFeed = async (page = 1, limit = 10) => {
     }
 };
 
-export const createPost = async (text: string, images: string[]) => {
+export const createPost = async (content: string, images: string[]) => {
     try {
         isLoading.set(true);
         error.set(null);
-        const response = await apiClient.post('/api/posts', {
-            text,
+        const response = await apiClient.post('/api/blabs', {
+            content,
             images: images.map((img) => img)
         });
         await fetchFeed(1);
         return response.data;
     } catch (err) {
-        error.set(err instanceof Error ? err.message : 'Failed to create post');
+        error.set(err instanceof Error ? err.message : 'Failed to create blab');
         throw err;
     } finally {
         isLoading.set(false);
     }
 };
 
-export const toggleLike = async (postId: string) => {
+export const toggleLike = async (blabId: string) => {
     try {
-        const response = await apiClient.post(`/api/posts/${postId}/like`);
+        const response = await apiClient.post(`/api/blabs/${blabId}/like`);
         return response.data;
     } catch (err) {
         throw new Error(err instanceof Error ? err.message : 'Failed to toggle like');

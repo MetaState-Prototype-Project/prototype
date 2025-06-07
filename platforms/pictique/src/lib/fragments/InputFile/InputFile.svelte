@@ -26,7 +26,7 @@
 
 <label
 	for={uniqueId}
-	class="bg-grey text-black-400 font-geist flex h-[158px] w-full items-center justify-center rounded-4xl text-base font-normal"
+	class="bg-grey text-black-400 font-geist rounded-4xl flex h-[158px] w-full items-center justify-center text-base font-normal"
 >
 	{#if files}
 		<div class="flex flex-col items-center gap-2">
@@ -52,7 +52,7 @@
 	@component
 	export default InputFile;
 	@description
-	A styled file input component with a custom label, file preview, and a cancel button. 
+	A styled file input component with a custom label, file preview, and a cancel button.
 	Supports binding file selection and a cancel handler.
 
 	@props

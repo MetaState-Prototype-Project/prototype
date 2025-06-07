@@ -2,17 +2,17 @@
 	import { Qr } from '$lib/ui';
 	import { onMount } from 'svelte';
 	import { apiClient, setAuthToken } from '$lib/utils';
-	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+	import { PUBLIC_BLABSY_BASE_URL } from '$env/static/public';
 	import { goto } from '$app/navigation';
 
 	let qrData: string;
 
 	onMount(async () => {
-		const { data } = await apiClient.get('/api/auth/offerb');
+		const { data } = await apiClient.get('/api/auth/offer');
 		qrData = data.uri;
 
 		function watchEventStream(id: string) {
-			const sseUrl = new URL(`/api/auth/sessions/${id}`, PUBLIC_PICTIQUE_BASE_URL).toString();
+			const sseUrl = new URL(`/api/auth/sessions/${id}`, PUBLIC_BLABSY_BASE_URL).toString();
 			const eventSource = new EventSource(sseUrl);
 
 			eventSource.onopen = function (e) {
@@ -36,12 +36,12 @@
     justify-center"
 >
 	<div
-		class="h-max-[600px] flex w-[300px] flex-col items-center gap-5 rounded-md
-        bg-[#1d1d1d] p-5"
+		class="h-max-[600px] bg-grey flex w-[300px] flex-col items-center gap-5
+        rounded-md p-5"
 	>
 		<img src="/images/Logo.svg" alt="logo" />
 
-		<Qr data={qrData} background="#1d1d1d" color="#ffffff"></Qr>
+		<Qr data={qrData}></Qr>
 
 		<h1>Scan the QR to Login</h1>
 	</div>

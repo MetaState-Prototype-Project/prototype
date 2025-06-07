@@ -37,7 +37,7 @@
 	});
 
 	const cBase =
-		'hidden h-screen border border-y-0 border-e-black py-14 md:flex md:justify-center';
+		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -48,7 +48,9 @@
 	role="tablist"
 >
 	<div class="flex flex-col items-start justify-start gap-12">
-		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">Blabsy</h1>
+		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">
+			pictique
+		</h1>
 		<button
 			type="button"
 			class="flex items-center gap-2"
@@ -168,7 +170,7 @@
 			</h3>
 		</button>
 		{#if handlePost}
-			<Button size="sm" variant="secondary" callback={handlePost}>Post your thoughts</Button>
+			<Button size="sm" variant="secondary" callback={handlePost}>Post a photo</Button>
 		{/if}
 	</div>
 </nav>

@@ -21,11 +21,10 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <div
-	class="w-60vw fixed inset-0 z-50 flex items-center justify-center
-    bg-black/50"
+	class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
 	on:click={handleBackdropClick}
 >
-	<div class="relative w-[60vw]">
+	<div class="relative">
 		<slot />
 	</div>
 </div>

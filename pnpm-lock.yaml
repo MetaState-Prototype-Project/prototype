@@ -538,6 +538,9 @@ importers:
       axios:
         specifier: ^1.6.7
         version: 1.9.0
+      moment:
+        specifier: ^2.30.1
+        version: 2.30.1
       svelte-qrcode:
         specifier: ^1.0.1
         version: 1.0.1
@@ -653,6 +656,9 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.5.0
+      eventsource-polyfill:
+        specifier: ^0.9.6
+        version: 0.9.6
       express:
         specifier: ^4.18.2
         version: 4.21.2
@@ -3947,6 +3953,9 @@ packages:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
 
+  eventsource-polyfill@0.9.6:
+    resolution: {integrity: sha512-LyMFp2oPDGhum2lMvkjqKZEwWd2/AoXyt8aoyftTBMWwPHNgU+2tdxhTHPluDxoz+z4gNj0uHAPR9nqevATMbg==}
+
   execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
@@ -5125,6 +5134,9 @@ packages:
 
   mnemonist@0.39.8:
     resolution: {integrity: sha512-vyWo2K3fjrUw8YeeZ1zF0fy6Mu59RHokURlld8ymdUPjMlD9EC9ov1/YPqTgqRvUN9nTr3Gqfz29LYAmu0PHPQ==}
+
+  moment@2.30.1:
+    resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
@@ -10785,6 +10797,8 @@ snapshots:
 
   events@3.3.0: {}
 
+  eventsource-polyfill@0.9.6: {}
+
   execa@5.1.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -12246,6 +12260,8 @@ snapshots:
   mnemonist@0.39.8:
     dependencies:
       obliterator: 2.0.5
+
+  moment@2.30.1: {}
 
   mri@1.2.0: {}
 

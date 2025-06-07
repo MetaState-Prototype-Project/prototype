@@ -44,8 +44,8 @@
 	};
 </script>
 
-<Modal on:close={closeCreatePostModal} class="w-full">
-	<div class="w-full max-w-2xl rounded-lg bg-black p-6">
+<Modal on:close={closeCreatePostModal}>
+	<div class="w-full max-w-2xl rounded-lg bg-white p-6">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">Create Post</h2>
 			<button
@@ -88,7 +88,7 @@
 		{/if}
 
 		<div class="flex items-center justify-between">
-			<label class="bg-black-800 cursor-pointer rounded-lg px-4 py-2 hover:bg-gray-200">
+			<label class="cursor-pointer rounded-lg bg-gray-100 px-4 py-2 hover:bg-gray-200">
 				<input type="file" accept="image/*" class="hidden" on:change={handleImageUpload} />
 				Add Photo
 			</label>

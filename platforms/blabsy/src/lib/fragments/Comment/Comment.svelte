@@ -23,8 +23,8 @@
 	<div class="align-start flex gap-2">
 		<Avatar src={comment.userImgSrc} size="sm" />
 		<div>
-			<h3 class="font-semibold text-white/60">{comment.name}</h3>
-			<p class="text-white-600 mt-0.5">{comment.comment}</p>
+			<h3 class="font-semibold text-black">{comment.name}</h3>
+			<p class="text-black-600 mt-0.5">{comment.comment}</p>
 		</div>
 	</div>
 	<div class="ms-12 mt-2 flex items-center gap-2">

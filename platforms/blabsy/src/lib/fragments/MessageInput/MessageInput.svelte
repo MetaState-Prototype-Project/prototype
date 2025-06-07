@@ -39,28 +39,20 @@
 	{:else}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<input
-			id="add-image"
-			type="file"
-			class="hidden"
-			accept="image/*"
-			bind:files
-			bind:this={fileInput}
-		/>
-		<button
-			type="button"
-			class="flex aspect-square h-13 w-13 items-center justify-center rounded-full border-0 bg-black p-0"
-			aria-label="add-image"
-			onclick={() => fileInput?.click()}
-		>
-			<HugeiconsIcon size="24px" icon={PlusSignIcon} color="var(--color-black-400)" />
-		</button>
 	{/if}
-	<Input type="text" bind:input bind:value class="bg-[#2d2d2d] text-white" {placeholder} />
+	<Input
+		type="text"
+		bind:input
+		bind:value
+		{placeholder}
+		onkeydown={(e) => {
+			if (e.key === 'Enter') handleSend();
+		}}
+	/>
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="flex aspect-square h-13 w-13 items-center justify-center rounded-full bg-[#2d2d2d]"
+		class="bg-grey h-13 w-13 flex aspect-square items-center justify-center rounded-full"
 		onclick={handleSend}
 	>
 		<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />

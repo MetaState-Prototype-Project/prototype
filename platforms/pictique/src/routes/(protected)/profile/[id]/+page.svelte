@@ -35,6 +35,19 @@
 		}
 	}
 
+	async function handleMessage() {
+		try {
+			await apiClient.post(`/api/chats/`, {
+				name: profile.username,
+				participantIds: [profileId]
+			});
+			goto('/messages');
+			await fetchProfile(); // Refresh profile to update follower count
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to follow user';
+		}
+	}
+
 	function handlePostClick(post: PostData) {
 		selectedPost.value = post;
 		goto('/profile/post');
@@ -58,7 +71,7 @@
 			profileData={profile}
 			handleSinglePost={(post) => handlePostClick(post)}
 			{handleFollow}
-			handleMessage={async () => goto('/messages')}
+			{handleMessage}
 		/>
 
 		{#if profile}

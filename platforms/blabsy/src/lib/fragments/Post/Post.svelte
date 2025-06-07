@@ -8,7 +8,7 @@
 		Message02Icon,
 		MoreVerticalIcon,
 		RecordIcon,
-		FavouriteIcon
+		ThumbsUpIcon
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -89,98 +89,115 @@
 </script>
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
-	<div class="flex w-full items-center justify-between">
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="flex items-center justify-between gap-2"
-			onclick={() => goto(`/profile/${userId}`)}
-		>
-			<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
-			></Avatar>
-			<h2>{username}</h2>
-		</div>
-		<button onclick={callback.menu} class="cursor-pointer rounded-full p-2 hover:bg-gray-100">
-			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-		</button>
-	</div>
-	<div class="relative">
-		{#if imgUris.length > 1}
-			<button
-				onclick={scrollLeft}
-				class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+	{#if count}
+		<div class="flex w-full items-center justify-between">
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="flex items-center justify-between gap-2"
+				onclick={() => goto(`/profile/${userId}`)}
 			>
-				<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+				<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
+				></Avatar>
+				<h2>{username}</h2>
+			</div>
+			<button
+				onclick={callback.menu}
+				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
+			>
+				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
 			</button>
-		{/if}
-		<div class="mb-8">
-			<p class="text-2xl text-white">{text}</p>
-			<p class="text-white/60">{time}</p>
 		</div>
-		{#if imgUris.length > 0}
+	{/if}
+	{#if imgUris.length > 0}
+		<div class="relative">
+			{#if imgUris.length > 1}
+				<button
+					onclick={scrollLeft}
+					class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+				>
+					<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+				</button>
+			{/if}
 			<div
 				bind:this={galleryRef}
 				onscroll={handleScroll}
-				class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll md:aspect-[16/9]"
+				class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 			>
 				{#each imgUris as img}
 					<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 						<img
 							src={img}
 							alt={text}
-							class="h-full w-full object-cover"
+							class="h-full w-full rounded-4xl object-cover"
 							onerror={handleImageError}
 						/>
 					</div>
 				{/each}
 			</div>
-		{/if}
-		{#if imgUris.length > 1}
-			<div
-				class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
-			>
-				{#if imgUris.length > 1}
-					<div class="mt-2 flex items-center justify-center gap-1">
-						{#each imgUris as _, i}
-							<div
-								class={`h-1.5 w-1.5  ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
-							></div>
-						{/each}
-					</div>
-				{/if}
+			{#if imgUris.length > 1}
+				<div
+					class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+				>
+					{#if imgUris.length > 1}
+						<div class="mt-2 flex items-center justify-center gap-1">
+							{#each imgUris as _, i}
+								<div
+									class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
+								></div>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			{/if}
+			{#if imgUris.length > 1}
+				<button
+					onclick={scrollRight}
+					class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+				>
+					<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
+				</button>
+			{/if}
+		</div>
+	{/if}
+	{#if count}
+		<p class="text-black/80">{text}</p>
+		<p class="text-black/60">{time}</p>
+	{/if}
+	<div class="flex w-full items-center justify-between">
+		{#if count}
+			<div class="flex gap-4">
+				<button
+					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					onclick={callback.like}
+				>
+					<HugeiconsIcon
+						icon={ThumbsUpIcon}
+						size={24}
+						color="var(--color-red-500)"
+						strokeWidth={3}
+					/>
+				</button>
+				<button
+					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					onclick={callback.comment}
+				>
+					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
+				</button>
 			</div>
 		{/if}
-		{#if imgUris.length > 1}
-			<button
-				onclick={scrollRight}
-				class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
-			>
-				<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
-			</button>
+		{#if count}
+			<div class="flex items-center justify-between gap-3 text-lg text-black/40">
+				<p class="subtext text-black-400">{count?.likes} likes</p>
+				<HugeiconsIcon
+					icon={RecordIcon}
+					size={5}
+					strokeWidth={30}
+					color="var(--color-black-400)"
+					className="rounded-full"
+				/>
+				<p class="subtext text-black-400">{count?.comments} comments</p>
+			</div>
 		{/if}
-	</div>
-
-	<div
-		class="border-bottom-2 border-grey-100 flex w-full items-center
-        justify-between"
-	>
-		<div class="flex gap-4">
-			<button
-				class="100 cursor-pointer rounded-2xl bg-[#2d2d2d] px-4 py-3"
-				onclick={callback.like}
-			>
-				<HugeiconsIcon icon={FavouriteIcon} size={24} strokeWidth={3} />
-			</button>
-			<button
-				class="cursor-pointer rounded-2xl bg-[#2d2d2d] px-4 py-3"
-				onclick={callback.comment}
-			>
-				<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
-			</button>
-		</div>
-	</div>
-	<div class="flex gap-3 border-b-1 border-b-black pb-10 text-lg text-black/40">
-		<p class="subtext text-black-400">{count.likes} likes</p>
-		<p class="subtext text-black-400">{count.comments} comments</p>
 	</div>
 </article>

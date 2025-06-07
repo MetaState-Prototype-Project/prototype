@@ -14,8 +14,7 @@ body {
 	padding-bottom: env(safe-area-inset-bottom);
 	padding-left: env(safe-area-inset-left);
 	padding-right: env(safe-area-inset-right);
-	background-color: black;
-    color: white
+	background-color: white;
 }
 
 @layer base {
@@ -59,11 +58,11 @@ body {
 	--color-black-200: #d2d2d2;
 
 	--color-grey: #f5f5f5;
-	--color-red: #8E52FF;
+	--color-red: #ff5255;
 
 	--color-gray-200: #eaecf0;
 
-	--color-brand-burnt-orange: #8E52FF;
+	--color-brand-burnt-orange: #da4a11;
 	--color-brand-burnt-orange-100: #f8dbcf;
 	--color-brand-burnt-orange-200: #f3c3b0;
 	--color-brand-burnt-orange-300: #eca488;
@@ -76,9 +75,9 @@ body {
 
 	--color-brand-gradient: linear-gradient(
 		91.82deg,
-		#4D44EF 0%,
-		#EB5BF3 50%,
-		#F7A428 100%
+		#4d44ef -36.17%,
+		#f35b5b 57.95%,
+		#f7a428 152.07%
 	);
 }
 

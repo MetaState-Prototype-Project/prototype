@@ -1,67 +1,72 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import type { PostData, userProfile } from '$lib/types';
 	import { Button } from '$lib/ui';
-	import type { HTMLAttributes } from 'svelte/elements';
+	import type { userProfile, PostData } from '$lib/types';
+	import Post from '../Post/Post.svelte';
 
-	interface IProfileProps extends HTMLAttributes<HTMLElement> {
-		variant: 'user' | 'other';
-		profileData: userProfile;
-		handleEdit?: () => Promise<void>;
-		handleFollow?: () => Promise<void>;
-		handleMessage?: () => Promise<void>;
-		handleSinglePost?: (post: PostData) => void;
-	}
-
-	const {
-		variant = 'user',
-		profileData,
-		handleEdit,
-		handleFollow,
-		handleMessage,
-		handleSinglePost,
-		...restProps
-	}: IProfileProps = $props();
+	export let variant: 'user' | 'other' = 'user';
+	export let profileData: userProfile;
+	export let handleSinglePost: (post: PostData) => void;
+	export let handleFollow: () => Promise<void>;
+	export let handleMessage: () => Promise<void>;
 </script>
 
-<div {...restProps} class="flex h-screen w-full flex-col items-center gap-4">
-	<div class="flex flex-col items-center gap-4 p-4">
-		<img class="size-28 rounded-full" src={profileData.avatar} alt="" />
-		<div class="flex flex-col items-center gap-2">
-			<p class="font-semibold">{profileData.userId}</p>
-			<p class="text-black-600">{profileData.username}</p>
+<div class="flex flex-col gap-4 p-4">
+	<div class="flex items-center gap-4">
+		<img
+			src={profileData.avatar ?? 'https://picsum.photos/200/200'}
+			alt={profileData.username}
+			class="h-20 w-20 rounded-full object-cover"
+		/>
+		<div class="flex-1">
+			<h2 class="text-xl font-semibold">{profileData.username}</h2>
+			<p class="text-gray-600">{profileData.userBio}</p>
 		</div>
-		<div class="text-black-600 flex gap-4">
-			<p><span class="font-semibold text-black">{profileData.followers}</span> followers</p>
-			<p><span class="font-semibold text-black">{profileData.following}</span> following</p>
-			<p><span class="font-semibold text-black">{profileData.totalPosts}</span> posts</p>
+		{#if variant === 'other'}
+			<div class="flex gap-2">
+				<Button variant="primary" callback={handleFollow}>Follow</Button>
+				<Button variant="primary" callback={handleMessage}>Message</Button>
+			</div>
+		{/if}
+	</div>
+
+	<div class="flex gap-8 text-center">
+		<div>
+			<p class="font-semibold">{profileData.totalPosts}</p>
+			<p class="text-gray-600">Posts</p>
 		</div>
-		<div class="text-black-600 text-center text-sm md:px-12">
-			{profileData.userBio}
+		<div>
+			<p class="font-semibold">{0}</p>
+			<p class="text-gray-600">Followers</p>
 		</div>
-		<div class="flex w-full gap-3">
-			{#if variant === 'user'}
-				<div class="flex w-full justify-around">
-					<Button size="sm" class="w-full md:w-[50%]" callback={handleEdit}>
-						Edit Profile
-					</Button>
-				</div>
-				<div class="w-full md:hidden">
-					<Button size="sm" callback={() => goto(`/settings`)}>Settings</Button>
-				</div>
-			{:else if variant === 'other'}
-				<div class="flex w-full justify-around">
-					<Button size="sm" class="w-full md:w-[50%]" callback={handleFollow}>
-						Follow
-					</Button>
-				</div>
-				<div class="w-full md:hidden">
-					<Button size="sm" callback={handleMessage}>Message</Button>
-				</div>
-			{/if}
+		<div>
+			<p class="font-semibold">{0}</p>
+			<p class="text-gray-600">Following</p>
 		</div>
 	</div>
-	<div class="grid grid-cols-3 gap-[2px] pb-16">
-		{#each profileData.posts as post}{/each}
+
+	<div class="grid grid-cols-3 gap-1">
+		<!-- {#each profileData.blabs.filter((e) => e.imgUris && e.imgUris.length > 0) as post} -->
+		<!-- 	<li class="mb-6"> -->
+		<!-- 		<Post -->
+		<!-- 			avatar={'https://picsum.photos/200/200'} -->
+		<!-- 			username={profileData?.username} -->
+		<!-- 			imgUris={post.imgUris ?? []} -->
+		<!-- 			text={post.text} -->
+		<!-- 			time={new Date(post.createdAt).toLocaleDateString()} -->
+		<!-- 			callback={{ -->
+		<!-- 				like: async () => { -->
+		<!-- 					try { -->
+		<!-- 					} catch (err) {} -->
+		<!-- 				}, -->
+		<!-- 				comment: () => { -->
+		<!-- 					if (window.matchMedia('(max-width: 768px)').matches) { -->
+		<!-- 					} else { -->
+		<!-- 					} -->
+		<!-- 				}, -->
+		<!-- 				menu: () => alert('menu') -->
+		<!-- 			}} -->
+		<!-- 		/> -->
+		<!-- 	</li> -->
+		<!-- {/each} -->
 	</div>
 </div>
