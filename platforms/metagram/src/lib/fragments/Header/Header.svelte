@@ -90,7 +90,7 @@
 		>
 			<HugeiconsIcon icon={menuButton[variant]} size={24} color="var(--color-black-500)" />
 		</button>
-	{:else if variant === 'secondary' && options}
+	{:else if variant === 'secondary' && options && isCallBackNeeded}
 		<ActionMenu {options} />
 	{/if}
 </header>

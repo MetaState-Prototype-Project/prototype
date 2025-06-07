@@ -27,6 +27,7 @@
 	{value}
 	bind:group={selected}
 	bind:this={radioElement}
+    id={value}
 	{name}
 	checked={selected === value}
 	class={cn(['hidden', restProps.class].join(' '))}
