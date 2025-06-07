@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { BottomNav, Header, Comment, MessageInput, SideBar } from '$lib/fragments';
-	import UserRequest from '$lib/fragments/UserRequest/UserRequest.svelte';
+	import { BottomNav, Comment, Header, MessageInput, SideBar } from '$lib/fragments';
 	import { showComments } from '$lib/store/store.svelte';
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
 	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
-	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	let { children } = $props();
 
@@ -40,8 +37,10 @@
 			heading = 'Feed';
 		} else if (route.includes('discover')) {
 			heading = 'Search';
+		} else if (route.includes('/post/audience')) {
+			heading = 'Audience';
 		} else if (route.includes('post')) {
-			heading = 'Post';
+			heading = 'Upload photo';
 		} else if (route === `/messages/${idFromParams}`) {
 			heading = 'User Name';
 		} else if (route.includes('messages')) {
@@ -81,7 +80,7 @@
 	<section class="hide-scrollbar h-[100dvh] overflow-y-auto px-4 pb-8 md:px-8 md:pt-8">
 		<div class="flex flex-col">
 			<Header
-				variant={route === `/messages/${idFromParams}`
+				variant={route === `/messages/${idFromParams}` || route.includes('/post')
 					? 'secondary'
 					: route.includes('profile')
 						? 'tertiary'

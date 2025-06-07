@@ -1,9 +1,11 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { Home, CommentsTwo, Search, Camera } from '$lib/icons';
 	import { goto } from '$app/navigation';
-	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
 	import { page } from '$app/state';
+	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
+	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
+    import { uploadedImages } from '$lib/store/store.svelte';
+	import { revokeImageUrls } from '$lib/utils';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
@@ -19,6 +21,9 @@
 	let _activeTab = $derived(page.url.pathname);
 	let fullPath = $derived(page.url.pathname);
 
+	let imageInput: HTMLInputElement;
+    let images: FileList | null = $state(null);
+
 	const handleNavClick = (newTab: string) => {
 		// activeTab = newTab;
 		isNavigatingThroughNav.value = true;
@@ -29,6 +34,10 @@
 		previousTab = newTab;
 		if (newTab === 'profile') {
 			goto(`/profile/${ownerId}`);
+		} else if (newTab === "post") {
+            uploadedImages.value = null;
+            imageInput.value = "";
+			imageInput.click();
 		} else {
 			goto(`/${newTab}`);
 		}
@@ -36,9 +45,22 @@
 
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
+		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post' && !_activeTab.includes('post/audience')) {
+            if (uploadedImages.value)
+			revokeImageUrls(uploadedImages.value);
+            uploadedImages.value = Array.from(images).map(file => ({
+                url: URL.createObjectURL(file),
+                alt: file.name
+            }));
+			images = null; // To prevent re-triggering the effect and thus making an infinite loop with /post route's effect when the length of uploadedImages goes to 0
+            if (uploadedImages.value.length > 0) {
+                goto("/post");
+            }
+		}
 	});
 </script>
 
+<input type="file" accept="image/*" multiple bind:files={images} bind:this={imageInput} class="hidden" />
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	aria-label="Main navigation"

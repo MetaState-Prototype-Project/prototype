@@ -53,10 +53,11 @@
 	}
 
 	function addMessages(arr: Record<string, unknown>[]) {
+		console.log(arr);
 		const newMessages = arr.map((m) => ({
 			id: m.id,
 			isOwn: m.sender.id !== userId,
-			userImgSrc: m.sender.avatar,
+			userImgSrc: m.sender.avatarUrl,
 			time: moment(m.createdAt).fromNow(),
 			message: m.text
 		}));
@@ -84,7 +85,7 @@
 		{/each}
 	</div>
 	<MessageInput
-		class="sticky bottom-[-15px] start-0 w-full"
+		class="sticky start-0 bottom-[-15px] w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}
