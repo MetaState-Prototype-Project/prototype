@@ -49,7 +49,10 @@
                 url: URL.createObjectURL(file),
                 alt: file.name
             }));
-			goto("/post");
+			images = null; // To prevent re-triggering the effect and thus making an infinite loop with /post route's effect when the length of uploadedImages goes to 0
+            if (uploadedImages.value.length > 0) {
+                goto("/post");
+            }
 		}
 	});
 </script>

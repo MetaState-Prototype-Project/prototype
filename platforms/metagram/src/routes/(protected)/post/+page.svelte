@@ -5,6 +5,12 @@
 	import { Button, Textarea } from '$lib/ui';
 
 	let caption: string = $state('');
+
+    $effect(() => {
+		if (!uploadedImages.value || uploadedImages.value.length === 0) {
+			window.history.back();
+		}
+    })
 </script>
 
 <section class="h-fit w-full flex flex-col gap-3 justify-stretch">
