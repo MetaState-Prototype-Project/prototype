@@ -3,6 +3,7 @@
 	import { SettingsTile, UploadedPostView } from '$lib/fragments';
 	import { audience, uploadedImages } from '$lib/store/store.svelte';
 	import { Button, Textarea } from '$lib/ui';
+	import { revokeImageUrls } from '$lib/utils';
 
 	let caption: string = $state('');
 
@@ -20,7 +21,10 @@
 		height="h-40"
 		callback={(i: number) => {
 			if (uploadedImages.value)
-				uploadedImages.value = uploadedImages.value.filter((_, index) => index !== i);
+				uploadedImages.value = uploadedImages.value.filter((img, index) => {
+                    revokeImageUrls([img]);
+                    return index !== i
+                });
 		}}
 	/>
 

@@ -4,6 +4,7 @@
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
 	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
     import { uploadedImages } from '$lib/store/store.svelte';
+	import { revokeImageUrls } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
@@ -45,6 +46,8 @@
 	$effect(() => {
 		activeTab = _activeTab.split('/').pop() ?? '';
 		if (images && images.length > 0 && activeTab !== 'post' && previousTab === 'post' && !_activeTab.includes('post/audience')) {
+            if (uploadedImages.value)
+			revokeImageUrls(uploadedImages.value);
             uploadedImages.value = Array.from(images).map(file => ({
                 url: URL.createObjectURL(file),
                 alt: file.name
