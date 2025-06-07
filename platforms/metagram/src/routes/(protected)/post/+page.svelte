@@ -7,7 +7,7 @@
 	let caption: string = $state('');
 </script>
 
-<section class="h-[75svh] w-full relative flex flex-col gap-5 justify-stretch">
+<section class="h-fit w-full flex flex-col gap-3 justify-stretch">
 	<UploadedPostView
 		images={uploadedImages.value ?? []}
 		width="w-auto"
@@ -29,5 +29,5 @@
 		onclick={() => goto('/post/audience')}
 	/>
 
-	<Button variant="secondary" callback={() => alert('TODO: Post created!')} class="relative bottom-0">Post</Button>
+	<Button variant="secondary" callback={() => alert('TODO: Post created!')} class="mt-1">Post</Button>
 </section>
