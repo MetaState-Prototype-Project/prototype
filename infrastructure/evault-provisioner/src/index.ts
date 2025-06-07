@@ -76,6 +76,7 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
+            console.log("provisioning init");
             if (!process.env.PUBLIC_REGISTRY_URL)
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
             const { registryEntropy, namespace, verificationId } = req.body;
@@ -95,6 +96,7 @@ app.post(
             if (verification.consumed)
                 throw new Error("This verification ID has already been used");
 
+            console.log("jwk");
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,

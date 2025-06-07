@@ -1,11 +1,18 @@
 <script lang="ts">
-import { page } from "$app/state";
-import type { Snippet } from "svelte";
-import type { LayoutData } from "./$types";
+    import { page } from "$app/state";
+    import type { Snippet } from "svelte";
+    import type { LayoutData } from "./$types";
 
-let { data, children }: { data: LayoutData; children: Snippet } = $props();
+    let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
-let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
+    let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
+
+    $effect(() => {
+        const isScanPage = currentRoute === "scan-qr";
+        if (isScanPage)
+            return document.body.classList.add("custom-global-style");
+        return document.body.classList.remove("custom-global-style");
+    });
 </script>
 
 <!-- Dev only: remove this when deploying to production -->
@@ -18,3 +25,10 @@ let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
 <div class="p-6">
     {@render children()}
 </div>
+
+<style>
+    :global(body.custom-global-style, body.custom-global-style *:not(button)) {
+        background-color: #00000000;
+        overflow-y: hidden;
+    }
+</style>

@@ -1,97 +1,107 @@
 <script lang="ts">
-import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-import { Drawer } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import {
-    FlashlightIcon,
-    Image02Icon,
-    QrCodeIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import {
-    Format,
-    type PermissionState,
-    type Scanned,
-    cancel,
-    checkPermissions,
-    requestPermissions,
-    scan,
-} from "@tauri-apps/plugin-barcode-scanner";
-import { onDestroy, onMount } from "svelte";
-import type { SVGAttributes } from "svelte/elements";
+    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+    import { Drawer } from "$lib/ui";
+    import * as Button from "$lib/ui/Button";
+    import { QrCodeIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import {
+        Format,
+        type PermissionState,
+        type Scanned,
+        cancel,
+        checkPermissions,
+        requestPermissions,
+        scan,
+    } from "@tauri-apps/plugin-barcode-scanner";
+    import { getContext, onDestroy, onMount } from "svelte";
+    import type { SVGAttributes } from "svelte/elements";
+    import type { GlobalState } from "$lib/global";
+    import axios from "axios";
 
-const pathProps: SVGAttributes<SVGPathElement> = {
-    stroke: "white",
-    "stroke-width": 7,
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round",
-};
+    const globalState = getContext<() => GlobalState>("globalState")();
+    const pathProps: SVGAttributes<SVGPathElement> = {
+        stroke: "white",
+        "stroke-width": 7,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+    };
 
-let codeScannedDrawerOpen = $state(false);
-let loggedInDrawerOpen = $state(false);
-let flashlightOn = $state(false);
+    let platform = $state();
+    let hostname = $state();
+    let session = $state();
+    let codeScannedDrawerOpen = $state(false);
+    let loggedInDrawerOpen = $state(false);
+    let scannedData: Scanned | undefined = $state(undefined);
+    let scanning = false;
+    let loading = false;
+    let redirect = $state();
+    let permissions_nullable: PermissionState | null;
 
-let scannedData: Scanned | undefined = $state(undefined);
-
-let scanning = false;
-let loading = false;
-
-let permissions_nullable: PermissionState | null;
-
-async function startScan() {
-    let permissions = await checkPermissions()
-        .then((permissions) => {
-            return permissions;
-        })
-        .catch(() => {
-            return null; // possibly return "denied"? or does that imply that the check has been successful, but was actively denied?
-        });
-
-    // TODO: handle receiving "prompt-with-rationale" (issue: https://github.com/tauri-apps/plugins-workspace/issues/979)
-    if (permissions === "prompt") {
-        permissions = await requestPermissions(); // handle in more detail?
-    }
-
-    permissions_nullable = permissions;
-
-    if (permissions === "granted") {
-        // Scanning parameters
-        const formats = [Format.QRCode];
-        const windowed = true;
-
-        if (scanning) return;
-        scanning = true;
-        scan({ formats, windowed })
-            .then((res) => {
-                console.log("Scan result:", res);
-                scannedData = res;
-                codeScannedDrawerOpen = true;
+    async function startScan() {
+        let permissions = await checkPermissions()
+            .then((permissions) => {
+                return permissions;
             })
-            .catch((error) => {
-                // TODO: display error to user
-                console.error("Scan error:", error);
-            })
-            .finally(() => {
-                scanning = false;
+            .catch(() => {
+                return null;
             });
+
+        if (permissions === "prompt") {
+            permissions = await requestPermissions();
+        }
+
+        permissions_nullable = permissions;
+
+        if (permissions === "granted") {
+            const formats = [Format.QRCode];
+            const windowed = true;
+
+            if (scanning) return;
+            scanning = true;
+            scan({ formats, windowed })
+                .then((res) => {
+                    scannedData = res;
+                    const url = new URL(res.content);
+                    platform = url.searchParams.get("platform");
+                    const redirectUrl = new URL(
+                        url.searchParams.get("redirect") || "",
+                    );
+                    redirect = url.searchParams.get("redirect");
+                    session = url.searchParams.get("session");
+                    hostname = redirectUrl.hostname;
+                    codeScannedDrawerOpen = true;
+                })
+                .catch((error) => {
+                    console.error("Scan error:", error);
+                })
+                .finally(() => {
+                    scanning = false;
+                });
+        }
     }
 
-    console.error("Permission denied or not granted");
-    // TODO: consider handling GUI for permission denied
-}
+    async function handleAuth() {
+        const vault = await globalState.vaultController.vault;
+        if (!vault || !redirect) return;
+        await axios.post(redirect, { ename: vault.ename, session });
+        codeScannedDrawerOpen = false;
+        loggedInDrawerOpen = true;
+        startScan();
+    }
 
-async function cancelScan() {
-    await cancel();
-    scanning = false;
-}
+    async function cancelScan() {
+        await cancel();
+        scanning = false;
+    }
 
-onMount(async () => {
-    startScan();
-});
+    onMount(async () => {
+        startScan();
+    });
 
-onDestroy(async () => {
-    await cancelScan();
-});
+    onDestroy(async () => {
+        await cancelScan();
+    });
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
@@ -116,27 +126,7 @@ onDestroy(async () => {
 
 <div
     class="fixed bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-8 justify-center items-center"
->
-    <Button.Icon icon={Image02Icon} bgColor="white" bgSize="md" />
-    <Button.Icon
-        icon={QrCodeIcon}
-        bgColor="white"
-        bgSize="lg"
-        iconSize="lg"
-        callback={() => {
-            codeScannedDrawerOpen = true;
-        }}
-    />
-    <Button.Icon
-        icon={FlashlightIcon}
-        aria-label="Toggle flashlight"
-        bgSize="md"
-        iconSize={32}
-        bgColor={flashlightOn ? "white" : "secondary"}
-        iconColor="black"
-        onclick={() => (flashlightOn = !flashlightOn)}
-    />
-</div>
+></div>
 
 <!-- code scanned drawer -->
 <Drawer
@@ -166,9 +156,16 @@ onDestroy(async () => {
     <p class="text-black-700">You're trying to access the following site</p>
 
     <div class="bg-gray rounded-2xl w-full p-4 mt-4">
+        <h4 class="text-base text-black-700">Platform Name</h4>
+        <p class="text-black-700 font-normal capitalize">
+            {platform ?? "Unable to get name"}
+        </p>
+    </div>
+
+    <div class="bg-gray rounded-2xl w-full p-4">
         <h4 class="text-base text-black-700">Website URL</h4>
-        <p class="text-black-700 font-normal underline">
-            {scannedData?.content}
+        <p class="text-black-700 font-normal">
+            {hostname ?? scannedData?.content}
         </p>
     </div>
     <div class="flex justify-center gap-3 items-center mt-4">
@@ -182,15 +179,7 @@ onDestroy(async () => {
         >
             Decline
         </Button.Action>
-        <Button.Action
-            variant="solid"
-            class="w-full"
-            callback={() => {
-                codeScannedDrawerOpen = false;
-                loggedInDrawerOpen = true;
-                startScan();
-            }}
-        >
+        <Button.Action variant="solid" class="w-full" callback={handleAuth}>
             Confirm
         </Button.Action>
     </div>
@@ -221,7 +210,7 @@ onDestroy(async () => {
     </div>
 
     <h4>You're logged in!</h4>
-    <p class="text-black-700">You're now connected to this service'</p>
+    <p class="text-black-700">You're now connected to {platform}</p>
 
     <div class="flex justify-center items-center mt-4">
         <Button.Action
@@ -236,10 +225,3 @@ onDestroy(async () => {
         </Button.Action>
     </div>
 </Drawer>
-
-<style>
-    :global(body, *:not(button)) {
-        background-color: #00000000;
-        overflow-y: hidden;
-    }
-</style>
