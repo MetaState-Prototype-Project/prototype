@@ -15,17 +15,20 @@
 	let userImage: string = $state('https://picsum.photos/200/300');
 </script>
 
-<div class="bg-grey rounded-xl p-3 md:p-5">
-	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={userImage}>
+<div class="rounded-xl bg-black p-3 md:p-5">
+	<SettingsNavigationButton
+		onclick={() => goto(`/settings/account/username`)}
+		profileSrc={userImage}
+	>
 		{#snippet children()}
-			<div class="flex flex-col items-start">
+			<div class="text-black-200 flex flex-col items-start">
 				<h2 class="text-lg">{username}</h2>
 				<p class="text-sm">{userEmail}</p>
 			</div>
 		{/snippet}
 	</SettingsNavigationButton>
 </div>
-<hr class="text-grey" />
+<hr class="text-black" />
 <div class="flex flex-col gap-3">
 	<h3 class="text-brand-burnt-orange text-base font-semibold">Personalisation</h3>
 	<div class="{route === `/settings/notifications` ? 'bg-grey' : ''} rounded-xl p-2">
@@ -38,11 +41,11 @@
 				/>
 			{/snippet}
 			{#snippet children()}
-				Notifications
+				<p class="text-black-200">Notifications</p>
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<div class="{route === `/settings/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
+	<!-- <div class="{route === `/settings/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
 		<SettingsNavigationButton onclick={() => goto(`/settings/data-and-storage`)}>
 			{#snippet leadingIcon()}
 				<HugeiconsIcon
@@ -52,11 +55,11 @@
 				/>
 			{/snippet}
 			{#snippet children()}
-				Data & Storage
+				<p class="text-black-200">Data & Storage</p>
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<hr class="text-grey" />
+	<hr class="text-black" /> -->
 	<div class="{route === `/settings/logout` ? 'bg-grey' : ''} rounded-xl p-2">
 		<SettingsNavigationButton onclick={() => goto(`/settings/logout`)}>
 			{#snippet leadingIcon()}
@@ -67,7 +70,7 @@
 				/>
 			{/snippet}
 			{#snippet children()}
-				Logout
+				<p class="text-black-200">Logout</p>
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>

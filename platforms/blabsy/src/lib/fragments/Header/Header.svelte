@@ -27,12 +27,12 @@
 			background: ''
 		},
 		secondary: {
-			text: '',
+			text: 'text-black-200',
 			background: ''
 		},
 		tertiary: {
 			text: '',
-			background: 'bg-white/60'
+			background: ''
 		}
 	};
 
@@ -65,7 +65,7 @@
 		{#if variant !== 'primary'}
 			<button
 				class={cn([
-					'cursor-pointer rounded-full p-2 hover:bg-gray-100',
+					'hover:bg-brand-burnt-orange cursor-pointer rounded-full p-2',
 					classes.background
 				])}
 				onclick={backButtonCallback}
@@ -73,7 +73,7 @@
 				<HugeiconsIcon
 					icon={backButton[variant]}
 					size={24}
-					color="var(--color-black-500)"
+					color="var(--color-black-200)"
 				/>
 			</button>
 		{/if}
@@ -88,10 +88,10 @@
 			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
 			onclick={callback}
 		>
-			<HugeiconsIcon icon={menuButton[variant]} size={24} color="var(--color-black-500)" />
+			<HugeiconsIcon icon={menuButton[variant]} size={24} color="white" />
 		</button>
 	{:else if variant === 'secondary' && options}
-		<ActionMenu {options} />
+		<!-- <ActionMenu {options} /> -->
 	{/if}
 </header>
 

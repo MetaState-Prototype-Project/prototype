@@ -18,20 +18,20 @@
 			class="h-20 w-20 rounded-full object-cover"
 		/>
 		<div class="flex-1">
-			<h2 class="text-xl font-semibold">{profileData.username}</h2>
+			<h2 class="text-black-200 text-xl font-semibold">{profileData.username}</h2>
 			<p class="text-gray-600">{profileData.userBio}</p>
 		</div>
 		{#if variant === 'other'}
 			<div class="flex gap-2">
-				<Button variant="primary" callback={handleFollow}>Follow</Button>
-				<Button variant="primary" callback={handleMessage}>Message</Button>
+				<Button variant="primary" size="sm" callback={handleFollow}>Follow</Button>
+				<Button variant="primary" size="sm" callback={handleMessage}>Message</Button>
 			</div>
 		{/if}
 	</div>
 
-	<div class="flex gap-8 text-center">
+	<div class="flex gap-8 text-center text-white">
 		<div>
-			<p class="font-semibold">{profileData.totalPosts}</p>
+			<p class="font-semibold">{profileData.totalPosts ?? 0}</p>
 			<p class="text-gray-600">Posts</p>
 		</div>
 		<div>

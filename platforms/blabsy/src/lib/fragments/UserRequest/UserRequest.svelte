@@ -22,7 +22,7 @@
 	<div class="me-4.5 flex items-start">
 		<Avatar size="sm" src={userImgSrc} />
 		<div class="ms-2">
-			<h3 class="font-semibold text-black">{userName}</h3>
+			<h3 class="text-black-200 font-semibold">{userName}</h3>
 			<p class="text-black-600">{description}</p>
 		</div>
 	</div>

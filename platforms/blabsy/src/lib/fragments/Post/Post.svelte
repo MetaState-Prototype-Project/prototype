@@ -52,7 +52,7 @@
 		avatar,
 		username,
 		imgUris: uris,
-		text,
+		caption,
 		count,
 		callback,
 		time,
@@ -99,24 +99,24 @@
 			>
 				<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
 				></Avatar>
-				<h2>{username}</h2>
+				<h4 class="text-black-200 font-semibold">{username}</h4>
 			</div>
-			<button
-				onclick={callback.menu}
-				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
-			>
-				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-			</button>
+			<!-- <button onclick={callback.menu} class="cursor-pointer rounded-full p-2">
+				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-200)" />
+			</button> -->
 		</div>
+	{/if}
+	{#if count}
+		<p class="text-black-200 text-lg">{caption}</p>
 	{/if}
 	{#if imgUris.length > 0}
 		<div class="relative">
 			{#if imgUris.length > 1}
 				<button
 					onclick={scrollLeft}
-					class="absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+					class="bg-black-400 absolute start-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full p-2 shadow hover:bg-gray-200 md:inline-block"
 				>
-					<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="black" />
+					<HugeiconsIcon icon={ArrowLeftIcon} size={20} color="var(--color-black-500)" />
 				</button>
 			{/if}
 			<div
@@ -128,7 +128,7 @@
 					<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 						<img
 							src={img}
-							alt={text}
+							alt={'post by' + username}
 							class="h-full w-full rounded-4xl object-cover"
 							onerror={handleImageError}
 						/>
@@ -153,51 +153,34 @@
 			{#if imgUris.length > 1}
 				<button
 					onclick={scrollRight}
-					class="absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white p-2 shadow hover:bg-gray-200 md:inline-block"
+					class="bg-black-400 absolute end-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-full p-2 shadow hover:bg-gray-200 md:inline-block"
 				>
-					<HugeiconsIcon icon={ArrowRightIcon} size={20} color="black" />
+					<HugeiconsIcon icon={ArrowRightIcon} size={20} color="var(--color-black-500)" />
 				</button>
 			{/if}
 		</div>
 	{/if}
-	{#if count}
-		<p class="text-black/80">{text}</p>
-		<p class="text-black/60">{time}</p>
-	{/if}
+
 	<div class="flex w-full items-center justify-between">
 		{#if count}
 			<div class="flex gap-4">
 				<button
-					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					class="hover:bg-black-800 flex cursor-pointer items-center gap-2 rounded-2xl bg-black px-4 py-3"
 					onclick={callback.like}
 				>
-					<HugeiconsIcon
-						icon={ThumbsUpIcon}
-						size={24}
-						color="var(--color-red-500)"
-						strokeWidth={3}
-					/>
+					<HugeiconsIcon icon={ThumbsUpIcon} size={24} color="var(--color-black-400)" />
+					<p class="subtext text-black-400">{count?.likes}</p>
 				</button>
 				<button
-					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					class="hover:bg-black-800 flex cursor-pointer items-center gap-2 rounded-2xl bg-black px-4 py-3"
 					onclick={callback.comment}
 				>
-					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
+					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-400)" />
+					<p class="subtext text-black-400">{count?.comments}</p>
 				</button>
 			</div>
-		{/if}
-		{#if count}
-			<div class="flex items-center justify-between gap-3 text-lg text-black/40">
-				<p class="subtext text-black-400">{count?.likes} likes</p>
-				<HugeiconsIcon
-					icon={RecordIcon}
-					size={5}
-					strokeWidth={30}
-					color="var(--color-black-400)"
-					className="rounded-full"
-				/>
-				<p class="subtext text-black-400">{count?.comments} comments</p>
-			</div>
+			<p class="text-black-400">{time}</p>
 		{/if}
 	</div>
+	<hr class="text-black" />
 </article>

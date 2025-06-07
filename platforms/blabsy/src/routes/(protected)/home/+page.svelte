@@ -69,7 +69,7 @@
 <div class="flex flex-col">
 	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
 		{#if $isLoading}
-			<li class="my-4 text-center">Loading posts...</li>
+			<li class="my-4 text-center text-white">Loading posts...</li>
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
 		{:else}
@@ -79,7 +79,7 @@
 						avatar={post.author.profilePictureUrl}
 						username={post.author.displayName ?? post.author.username}
 						imgUris={post.images}
-						text={post.content}
+						caption={post.content}
 						time={new Date(post.createdAt).toLocaleDateString()}
 						count={{ likes: post.likedBy.length, comments: post.replies.length }}
 						callback={{
