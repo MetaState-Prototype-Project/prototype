@@ -51,7 +51,7 @@
 					avatar={'https://picsum.photos/200/200'}
 					username={profileData?.username}
 					imgUris={post.imgUris ?? []}
-					text={post.text}
+					caption={post.text}
 					time={new Date(post.createdAt).toLocaleDateString()}
 					callback={{
 						like: async () => {

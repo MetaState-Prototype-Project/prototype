@@ -69,5 +69,5 @@
 		<Input type="text" placeholder="Edit your public name" bind:value={name} />
 	</div>
 </div>
-<hr class="text-grey" />
+<hr class="text-black" />
 <Button size="sm" variant="secondary" callback={saveProfileData}>Save Changes</Button>

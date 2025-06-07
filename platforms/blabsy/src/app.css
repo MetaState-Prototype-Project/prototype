@@ -14,7 +14,7 @@ body {
 	padding-bottom: env(safe-area-inset-bottom);
 	padding-left: env(safe-area-inset-left);
 	padding-right: env(safe-area-inset-right);
-	background-color: white;
+	background-color: #161317;
 }
 
 @layer base {
@@ -62,21 +62,18 @@ body {
 
 	--color-gray-200: #eaecf0;
 
-	--color-brand-burnt-orange: #da4a11;
-	--color-brand-burnt-orange-100: #f8dbcf;
-	--color-brand-burnt-orange-200: #f3c3b0;
-	--color-brand-burnt-orange-300: #eca488;
-	--color-brand-burnt-orange-400: #e68660;
-	--color-brand-burnt-orange-500: #e06839;
-	--color-brand-burnt-orange-600: #91310b;
-	--color-brand-burnt-orange-700: #6d2509;
-	--color-brand-burnt-orange-800: #491906;
-	--color-brand-burnt-orange-900: #2c0f03;
+	--color-brand-burnt-orange: #8e52ff;
+	--color-brand-burnt-orange-100: #e8dcff;
+	--color-brand-burnt-orange-200: #d2baff;
+	--color-brand-burnt-orange-400: #bb97ff;
+	--color-brand-burnt-orange-600: #a575ff;
+	--color-brand-burnt-orange-800: #262230;
+	/* --color-brand-burnt-orange-900: #2c0f03; */
 
 	--color-brand-gradient: linear-gradient(
 		91.82deg,
 		#4d44ef -36.17%,
-		#f35b5b 57.95%,
+		#eb5bf3 57.95%,
 		#f7a428 152.07%
 	);
 }

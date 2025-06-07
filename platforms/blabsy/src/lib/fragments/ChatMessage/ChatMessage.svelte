@@ -36,7 +36,7 @@
 	<div class={cn(`max-w-[50%] ${isHeadNeeded ? 'mt-4' : 'mt-0'}`)}>
 		<div
 			class={cn(
-				`relative rounded-3xl px-4 py-2 ${isOwn ? 'bg-grey' : 'bg-brand-burnt-orange'}`
+				`relative rounded-3xl px-4 py-2 ${isOwn ? 'bg-black' : 'bg-brand-burnt-orange'}`
 			)}
 		>
 			{#if isHeadNeeded}
@@ -50,12 +50,12 @@
 				>
 					<path
 						d="M0 0C5.79116 4.95613 8.40437 9.60298 10 17L22 2C11 2.5 7.53377 0.634763 0 0Z"
-						fill={isOwn ? '#F5F5F5' : 'var(--color-brand-burnt-orange)'}
+						fill={isOwn ? '#1f1f1f' : 'var(--color-brand-burnt-orange)'}
 					/>
 				</svg>
 			{/if}
 
-			<p class={cn(`${!isOwn ? 'text-white' : 'text-black-600'}`)}>
+			<p class={cn(`${!isOwn ? 'text-white' : 'text-black-200'}`)}>
 				{message}
 			</p>
 		</div>
@@ -63,7 +63,7 @@
 		<p
 			class={cn(
 				`subtext text-black-400 mt-0.5 flex text-xs text-nowrap ${
-					isOwn ? 'justify-end' : 'justify-start'
+					isOwn ? 'justify-start' : 'justify-end'
 				}`
 			)}
 		>

@@ -79,7 +79,7 @@
 						avatar={post.author.avatarUrl}
 						username={post.author.handle}
 						imgUris={post.images}
-						text={post.text}
+						caption={post.text}
 						time={new Date(post.createdAt).toLocaleDateString()}
 						count={{ likes: post.likedBy.length, comments: post.comments.length }}
 						callback={{

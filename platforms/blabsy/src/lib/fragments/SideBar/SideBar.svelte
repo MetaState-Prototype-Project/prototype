@@ -37,7 +37,7 @@
 	});
 
 	const cBase =
-		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
+		'hidden h-screen border border-y-0 border-e-black py-14 md:flex md:justify-center';
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
@@ -48,9 +48,7 @@
 	role="tablist"
 >
 	<div class="flex flex-col items-start justify-start gap-12">
-		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">
-			pictique
-		</h1>
+		<h1 class="bg-[image:var(--color-brand-gradient)] bg-clip-text text-transparent">Blabsy</h1>
 		<button
 			type="button"
 			class="flex items-center gap-2"
@@ -65,10 +63,10 @@
 				color={activeTab === 'home'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
+				fill={activeTab === 'home' ? 'var(--color-brand-burnt-orange-300)' : 'black'}
 			/>
 			<h3
-				class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'home' ? 'text-brand-burnt-orange' : 'text-black-200'} mt-[4px]`}
 			>
 				Feed
 			</h3>
@@ -88,10 +86,10 @@
 				color={activeTab === 'discover'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
+				fill={activeTab === 'discover' ? 'var(--color-brand-burnt-orange-300)' : 'black'}
 			/>
 			<h3
-				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'discover' ? 'text-brand-burnt-orange' : 'text-black-200'} mt-[4px]`}
 			>
 				Search
 			</h3>
@@ -111,10 +109,10 @@
 				color={activeTab === 'messages'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
+				fill={activeTab === 'messages' ? 'var(--color-brand-burnt-orange-300)' : 'black'}
 			/>
 			<h3
-				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'messages' ? 'text-brand-burnt-orange' : 'text-black-200'} mt-[4px]`}
 			>
 				Messages
 			</h3>
@@ -134,10 +132,10 @@
 				color={activeTab === 'settings'
 					? 'var(--color-brand-burnt-orange)'
 					: 'var(--color-black-400)'}
-				fill={activeTab === 'settings' ? 'var(--color-brand-burnt-orange-300)' : 'white'}
+				fill={activeTab === 'settings' ? 'var(--color-brand-burnt-orange-300)' : 'black'}
 			/>
 			<h3
-				class={`${activeTab === 'settings' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'settings' ? 'text-brand-burnt-orange' : 'text-black-200'} mt-[4px]`}
 			>
 				Settings
 			</h3>
@@ -153,7 +151,7 @@
 			}}
 		>
 			<span
-				class={`inline-block w-full rounded-full border ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
+				class={`inline-block w-full rounded-full border border-4 ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
 			>
 				<img
 					width="24px"
@@ -164,13 +162,13 @@
 				/>
 			</span>
 			<h3
-				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-200'} mt-[4px]`}
 			>
 				Profile
 			</h3>
 		</button>
 		{#if handlePost}
-			<Button size="sm" variant="secondary" callback={handlePost}>Post a photo</Button>
+			<Button size="sm" variant="secondary" callback={handlePost}>Write your mind</Button>
 		{/if}
 	</div>
 </nav>

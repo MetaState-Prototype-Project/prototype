@@ -47,7 +47,7 @@
 		secondary: {
 			background: 'bg-brand-burnt-orange',
 			text: 'text-white',
-			border: 'border border-brand-burnt-orange-700'
+			border: 'border border-brand-burnt-orange-400'
 		},
 		danger: { background: 'bg-red-500', text: 'text-white', border: 'border border-red-700' }
 	};

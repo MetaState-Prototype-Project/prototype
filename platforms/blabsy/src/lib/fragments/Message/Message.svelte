@@ -32,14 +32,14 @@
 	onclick={callback}
 >
 	<Avatar src={avatar} alt="User Avatar" size="md" />
-	<span class="flex w-full flex-col items-start justify-end gap-1">
+	<span class="flex w-full flex-col items-start justify-end gap-2">
 		<span class="flex w-full items-center justify-between">
-			<h2>{username}</h2>
+			<h2 class="text-white">{username}</h2>
 			{#if unread}
 				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 			{/if}
 		</span>
-		<p class="text-start text-black/60">{messageText}</p>
+		<p class="text-black-200 text-start">{messageText}</p>
 	</span>
 </button>
 

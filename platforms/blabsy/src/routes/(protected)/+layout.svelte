@@ -99,7 +99,7 @@
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
-			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
+			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-black px-8 pt-14 md:block"
 		>
 			{#if route === '/home'}
 				{#if showComments.value}

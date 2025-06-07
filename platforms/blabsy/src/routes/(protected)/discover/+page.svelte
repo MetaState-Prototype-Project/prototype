@@ -60,9 +60,9 @@
 			{#each $searchResults as user}
 				<li>
 					<UserRequest
-						userImgSrc={user.avatarUrl || 'https://picsum.photos/200'}
-						userName={user.name || user.handle}
-						description={user.description || ''}
+						userImgSrc={user.profilePictureUrl || 'https://picsum.photos/200'}
+						userName={user.displayName || user.username}
+						description={user.bio || ''}
 						handleFollow={() => handleFollow(user.id)}
 						onclick={() => handleProfileClick(user.id)}
 					/>

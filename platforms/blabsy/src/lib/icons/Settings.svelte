@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ISvgProps } from './../types';
 
-	let { size = '20px', color = '#A5A5A5', fill = 'white', ...restProps }: ISvgProps = $props();
+	let { size = '20px', color = '#A5A5A5', fill = '#d2d2d2', ...restProps }: ISvgProps = $props();
 </script>
 
 <svg
@@ -19,7 +19,7 @@
 	<path
 		d="M15.5 12C15.5 13.933 13.933 15.5 12 15.5C10.067 15.5 8.5 13.933 8.5 12C8.5 10.067 10.067 8.5 12 8.5C13.933 8.5 15.5 10.067 15.5 12Z"
 		stroke={color}
-		fill="white"
+		fill="black"
 		stroke-width="1.5"
 	/>
 	<path
