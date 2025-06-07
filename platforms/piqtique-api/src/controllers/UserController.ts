@@ -8,6 +8,26 @@ export class UserController {
         this.userService = new UserService();
     }
 
+    getProfileById = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            
+            if (!id) {
+                return res.status(400).json({ error: "User ID is required" });
+            }
+
+            const profile = await this.userService.getProfileById(id);
+            if (!profile) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            res.json(profile);
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     search = async (req: Request, res: Response) => {
         try {
             const { q } = req.query;

@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToMany, JoinTable } from "typeorm";
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    OneToMany,
+    ManyToMany,
+    JoinTable,
+} from "typeorm";
 import { Post } from "./Post";
 import { Comment } from "./Comment";
 import { Message } from "./Message";
@@ -38,17 +47,11 @@ export class User {
     @OneToMany(() => Comment, (comment: Comment) => comment.author)
     comments!: Comment[];
 
-    @OneToMany(() => Message, (message: Message) => message.sender)
-    sentMessages!: Message[];
-
-    @OneToMany(() => Message, (message: Message) => message.recipient)
-    receivedMessages!: Message[];
-
     @ManyToMany(() => User)
     @JoinTable({
         name: "user_followers",
         joinColumn: { name: "user_id", referencedColumnName: "id" },
-        inverseJoinColumn: { name: "follower_id", referencedColumnName: "id" }
+        inverseJoinColumn: { name: "follower_id", referencedColumnName: "id" },
     })
     followers!: User[];
 
@@ -56,7 +59,7 @@ export class User {
     @JoinTable({
         name: "user_following",
         joinColumn: { name: "user_id", referencedColumnName: "id" },
-        inverseJoinColumn: { name: "following_id", referencedColumnName: "id" }
+        inverseJoinColumn: { name: "following_id", referencedColumnName: "id" },
     })
     following!: User[];
 
@@ -68,4 +71,4 @@ export class User {
 
     @Column({ default: false })
     isArchived!: boolean;
-} 
+}

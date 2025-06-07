@@ -62,20 +62,6 @@
 		</div>
 	</div>
 	<div class="grid grid-cols-3 gap-[2px] pb-16">
-		{#each profileData.posts as post}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div
-				onclick={() => {
-					handleSinglePost && handleSinglePost(post);
-				}}
-			>
-				<img
-					class="aspect-square w-48 rounded-md object-cover md:max-w-56"
-					src={post.imgUris[0]}
-					alt="user post"
-				/>
-			</div>
-		{/each}
+		{#each profileData.posts as post}{/each}
 	</div>
 </div>

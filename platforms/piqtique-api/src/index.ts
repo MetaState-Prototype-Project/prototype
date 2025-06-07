@@ -82,6 +82,7 @@ app.delete("/api/messages/:id", authGuard, messageController.deleteMessage);
 // User routes
 app.get("/api/users/search", userController.search);
 app.post("/api/users/follow", authGuard, userController.follow);
+app.get("/api/users/:id", authGuard, userController.getProfileById);
 
 // Start server
 app.listen(port, () => {

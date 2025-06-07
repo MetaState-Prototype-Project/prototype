@@ -4,69 +4,88 @@
 	import { Profile } from '$lib/fragments';
 	import { ownerId, selectedPost } from '$lib/store/store.svelte';
 	import type { userProfile, PostData } from '$lib/types';
+	import { apiClient } from '$lib/utils/axios';
+	import { onMount } from 'svelte';
+	import Post from '../../../../lib/fragments/Post/Post.svelte';
 
 	let profileId = $derived(page.params.id);
+	let profile = $state<userProfile | null>(null);
+	let error = $state<string | null>(null);
+	let loading = $state(true);
 
-	const profile: userProfile = $state({
-		userId: page.params.id,
-		username: 'Ananya Rana',
-		avatar: 'https://picsum.photos/200/300',
-		totalPosts: 1,
-		followers: 300,
-		following: 150,
-		userBio:
-			'Friendly nerd who likes to not meet people as much as possible. Leave the earth for me yall.',
-		posts: [
-			{
-				id: '1',
-				avatar: 'https://picsum.photos/200/300',
-				userId: 'asdf',
-				username: '_.ananyayaya._',
-				imgUris: [
-					'https://picsum.photos/800',
-					'https://picsum.photos/600',
-					'https://picsum.photos/800',
-					'https://picsum.photos/600'
-				],
-				caption: 'Loved this one!',
-				time: '2h ago',
-				count: { likes: 200, comments: 45 }
-			},
-			{
-				id: '2',
-				avatar: 'https://picsum.photos/200/300',
-				userId: 'asdf',
-				username: '_.ananyayaya._',
-				imgUris: ['https://picsum.photos/id/1012/200/200'],
-				caption: 'Loved this one!',
-				time: '2h ago',
-				count: { likes: 200, comments: 45 }
-			},
-			{
-				id: '3',
-				avatar: 'https://picsum.photos/200/300',
-				userId: 'asdf',
-				username: '_.ananyayaya._',
-				imgUris: ['https://picsum.photos/id/1013/200/200'],
-				caption: 'Loved this one!',
-				time: '2h ago',
-				count: { likes: 200, comments: 45 }
-			}
-		]
-	});
+	async function fetchProfile() {
+		try {
+			loading = true;
+			error = null;
+			const response = await apiClient.get(`/api/users/${profileId}`);
+			profile = response.data;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load profile';
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleFollow() {
+		try {
+			await apiClient.post(`/api/users/${profileId}/follow`);
+			await fetchProfile(); // Refresh profile to update follower count
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to follow user';
+		}
+	}
 
 	function handlePostClick(post: PostData) {
 		selectedPost.value = post;
 		goto('/profile/post');
 	}
+
+	onMount(fetchProfile);
 </script>
 
 <section class="pb-8">
-	<Profile
-		variant={ownerId.value === profileId ? 'user' : 'other'}
-		profileData={profile}
-		handleSinglePost={(post) => handlePostClick(post)}
-		handleFollow={async () => alert('followed')}
-		handleMessage={async () => goto('/messages')}
-	/>
+	{#if loading}
+		<div class="flex h-64 items-center justify-center">
+			<p class="text-gray-500">Loading profile...</p>
+		</div>
+	{:else if error}
+		<div class="flex h-64 items-center justify-center">
+			<p class="text-red-500">{error}</p>
+		</div>
+	{:else if profile}
+		<Profile
+			variant={ownerId.value === profileId ? 'user' : 'other'}
+			profileData={profile}
+			handleSinglePost={(post) => handlePostClick(post)}
+			{handleFollow}
+			handleMessage={async () => goto('/messages')}
+		/>
+
+		{#if profile}
+			<!-- {#each profile.posts as post (post.id)} -->
+			<!-- 	<li class="mb-6"> -->
+			<!-- 		<Post -->
+			<!-- 			avatar={post.author.avatarUrl} -->
+			<!-- 			username={post.author.handle} -->
+			<!-- 			imgUris={post.images} -->
+			<!-- 			text={post.text} -->
+			<!-- 			time={new Date(post.createdAt).toLocaleDateString()} -->
+			<!-- 			count={{ likes: post.likedBy.length, comments: post.comments.length }} -->
+			<!-- 			callback={{ -->
+			<!-- 				like: async () => { -->
+			<!-- 					try { -->
+			<!-- 					} catch (err) {} -->
+			<!-- 				}, -->
+			<!-- 				comment: () => { -->
+			<!-- 					if (window.matchMedia('(max-width: 768px)').matches) { -->
+			<!-- 					} else { -->
+			<!-- 					} -->
+			<!-- 				}, -->
+			<!-- 				menu: () => alert('menu') -->
+			<!-- 			}} -->
+			<!-- 		/> -->
+			<!-- 	</li> -->
+			<!-- {/each} -->
+		{/if}
+	{/if}
 </section>

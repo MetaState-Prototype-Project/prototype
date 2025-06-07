@@ -89,21 +89,26 @@
 </script>
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
-	<div class="flex w-full items-center justify-between">
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="flex items-center justify-between gap-2"
-			onclick={() => goto(`/profile/${userId}`)}
-		>
-			<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
-			></Avatar>
-			<h2>{username}</h2>
+	{#if count}
+		<div class="flex w-full items-center justify-between">
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="flex items-center justify-between gap-2"
+				onclick={() => goto(`/profile/${userId}`)}
+			>
+				<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
+				></Avatar>
+				<h2>{username}</h2>
+			</div>
+			<button
+				onclick={callback.menu}
+				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
+			>
+				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
+			</button>
 		</div>
-		<button onclick={callback.menu} class="cursor-pointer rounded-full p-2 hover:bg-gray-100">
-			<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-		</button>
-	</div>
+	{/if}
 	{#if imgUris.length > 0}
 		<div class="relative">
 			{#if imgUris.length > 1}
@@ -155,38 +160,44 @@
 			{/if}
 		</div>
 	{/if}
-	<p class="text-black/80">{text}</p>
-	<p class="text-black/60">{time}</p>
+	{#if count}
+		<p class="text-black/80">{text}</p>
+		<p class="text-black/60">{time}</p>
+	{/if}
 	<div class="flex w-full items-center justify-between">
-		<div class="flex gap-4">
-			<button
-				class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
-				onclick={callback.like}
-			>
+		{#if count}
+			<div class="flex gap-4">
+				<button
+					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					onclick={callback.like}
+				>
+					<HugeiconsIcon
+						icon={ThumbsUpIcon}
+						size={24}
+						color="var(--color-red-500)"
+						strokeWidth={3}
+					/>
+				</button>
+				<button
+					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					onclick={callback.comment}
+				>
+					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
+				</button>
+			</div>
+		{/if}
+		{#if count}
+			<div class="flex items-center justify-between gap-3 text-lg text-black/40">
+				<p class="subtext text-black-400">{count?.likes} likes</p>
 				<HugeiconsIcon
-					icon={ThumbsUpIcon}
-					size={24}
-					color="var(--color-red-500)"
-					strokeWidth={3}
+					icon={RecordIcon}
+					size={5}
+					strokeWidth={30}
+					color="var(--color-black-400)"
+					className="rounded-full"
 				/>
-			</button>
-			<button
-				class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
-				onclick={callback.comment}
-			>
-				<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
-			</button>
-		</div>
-		<div class="flex items-center justify-between gap-3 text-lg text-black/40">
-			<p class="subtext text-black-400">{count.likes} likes</p>
-			<HugeiconsIcon
-				icon={RecordIcon}
-				size={5}
-				strokeWidth={30}
-				color="var(--color-black-400)"
-				className="rounded-full"
-			/>
-			<p class="subtext text-black-400">{count.comments} comments</p>
-		</div>
+				<p class="subtext text-black-400">{count?.comments} comments</p>
+			</div>
+		{/if}
 	</div>
 </article>

@@ -1,22 +1,30 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from "typeorm";
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    ManyToOne,
+} from "typeorm";
 import { User } from "./User";
+import { Chat } from "./Chat";
 
 @Entity("messages")
 export class Message {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @ManyToOne(() => User, (user: User) => user.sentMessages)
+    @ManyToOne(() => User)
     sender!: User;
-
-    @ManyToOne(() => User, (user: User) => user.receivedMessages)
-    recipient!: User;
 
     @Column("text")
     text!: string;
 
     @Column({ default: false })
     isRead!: boolean;
+
+    @ManyToOne(() => Chat, (e) => e.messages)
+    chat!: Chat;
 
     @CreateDateColumn()
     createdAt!: Date;
@@ -26,4 +34,4 @@ export class Message {
 
     @Column({ default: false })
     isArchived!: boolean;
-} 
+}

@@ -1,25 +1,29 @@
 import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
+import { Post } from "../database/entities/Post";
 import { signToken } from "../utils/jwt";
 import { Like } from "typeorm";
 
 export class UserService {
     private userRepository = AppDataSource.getRepository(User);
+    private postRepository = AppDataSource.getRepository(Post);
 
     async createBlankUser(ename: string): Promise<User> {
         const user = this.userRepository.create({
             ename,
             isVerified: false,
             isPrivate: false,
-            isArchived: false
+            isArchived: false,
         });
 
         return await this.userRepository.save(user);
     }
 
-    async findOrCreateUser(ename: string): Promise<{ user: User; token: string }> {
+    async findOrCreateUser(
+        ename: string,
+    ): Promise<{ user: User; token: string }> {
         let user = await this.userRepository.findOne({
-            where: { ename }
+            where: { ename },
         });
 
         if (!user) {
@@ -36,11 +40,11 @@ export class UserService {
 
     searchUsers = async (query: string) => {
         const searchQuery = query.toLowerCase();
-        
+
         return this.userRepository.find({
             where: [
                 { handle: Like(`%${searchQuery}%`) },
-                { ename: Like(`%${searchQuery}%`) }
+                { ename: Like(`%${searchQuery}%`) },
             ],
             select: {
                 id: true,
@@ -48,24 +52,24 @@ export class UserService {
                 name: true,
                 description: true,
                 avatarUrl: true,
-                isVerified: true
+                isVerified: true,
             },
-            take: 10
+            take: 10,
         });
     };
 
     followUser = async (followerId: string, followingId: string) => {
         const follower = await this.userRepository.findOne({
             where: { id: followerId },
-            relations: ['following']
+            relations: ["following"],
         });
 
         const following = await this.userRepository.findOne({
-            where: { id: followingId }
+            where: { id: followingId },
         });
 
         if (!follower || !following) {
-            throw new Error('User not found');
+            throw new Error("User not found");
         }
 
         if (!follower.following) {
@@ -73,11 +77,53 @@ export class UserService {
         }
 
         // Check if already following
-        if (follower.following.some(user => user.id === followingId)) {
+        if (follower.following.some((user) => user.id === followingId)) {
             return follower;
         }
 
         follower.following.push(following);
         return await this.userRepository.save(follower);
     };
-} 
+
+    async getProfileById(userId: string) {
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+            select: {
+                id: true,
+                handle: true,
+                name: true,
+                avatarUrl: true,
+                followers: true,
+                following: true,
+                description: true,
+            },
+        });
+
+        if (!user) return null;
+
+        const posts = await this.postRepository.find({
+            where: { author: { id: userId } },
+            relations: ["author"],
+            order: { createdAt: "DESC" },
+        });
+
+        return {
+            ...user,
+            totalPosts: posts.length,
+            posts: posts.map((post) => ({
+                id: post.id,
+                avatar: post.author.avatarUrl,
+                userId: post.author.id,
+                username: post.author.handle,
+                imgUris: post.images,
+                caption: post.text,
+                time: post.createdAt,
+                count: {
+                    likes: post.likedBy,
+                    comments: post.comments,
+                },
+            })),
+        };
+    }
+}
+
