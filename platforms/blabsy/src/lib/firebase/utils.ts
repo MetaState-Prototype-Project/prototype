@@ -12,7 +12,8 @@ import {
   arrayUnion,
   arrayRemove,
   serverTimestamp,
-  getCountFromServer
+  getCountFromServer,
+  getDoc
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './app';
@@ -20,13 +21,16 @@ import {
   usersCollection,
   tweetsCollection,
   userStatsCollection,
-  userBookmarksCollection
+  userBookmarksCollection,
+  chatsCollection,
+  chatMessagesCollection
 } from './collections';
 import type { WithFieldValue, Query } from 'firebase/firestore';
 import type { EditableUserData } from '@lib/types/user';
 import type { FilesWithId, ImagesPreview } from '@lib/types/file';
 import type { Bookmark } from '@lib/types/bookmark';
 import type { Theme, Accent } from '@lib/types/theme';
+import type { Chat, Message } from '@lib/types/chat';
 
 export async function checkUsernameAvailability(
   username: string
@@ -280,4 +284,133 @@ export async function clearAllBookmarks(userId: string): Promise<void> {
   bookmarksSnapshot.forEach(({ ref }) => batch.delete(ref));
 
   await batch.commit();
+}
+
+export async function createChat(
+  type: 'direct' | 'group',
+  participants: string[],
+  name?: string
+): Promise<string> {
+  const chatRef = doc(chatsCollection);
+  const chatData: WithFieldValue<Chat> = {
+    id: chatRef.id,
+    type,
+    participants,
+    name,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(chatRef, chatData);
+  return chatRef.id;
+}
+
+export async function sendMessage(
+  chatId: string,
+  senderId: string,
+  text: string
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  const messageId = doc(chatsCollection).id; // Generate a new ID
+  const messageRef = doc(chatMessagesCollection(chatId), messageId);
+
+  console.log('error4', chatsCollection, chatId)
+  const chatRef = doc(chatsCollection, chatId);
+
+  const messageData: WithFieldValue<Message> = {
+    id: messageId,
+    chatId,
+    senderId,
+    text,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    readBy: [senderId]
+  };
+
+  batch.set(messageRef, messageData);
+  batch.update(chatRef, {
+    lastMessage: {
+      text,
+      senderId,
+      timestamp: serverTimestamp()
+    },
+    updatedAt: serverTimestamp()
+  });
+
+  await batch.commit();
+}
+
+export async function markMessageAsRead(
+  chatId: string,
+  messageId: string,
+  userId: string
+): Promise<void> {
+  const messageRef = doc(chatMessagesCollection(chatId), messageId);
+  await updateDoc(messageRef, {
+    readBy: arrayUnion(userId),
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function getChatParticipants(chatId: string): Promise<string[]> {
+  const chatDoc = await getDoc(doc(chatsCollection, chatId));
+  if (!chatDoc.exists()) throw new Error('Chat not found');
+  return chatDoc.data().participants;
+}
+
+export async function addParticipantToChat(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  const chatRef = doc(chatsCollection, chatId);
+  await updateDoc(chatRef, {
+    participants: arrayUnion(userId),
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function removeParticipantFromChat(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  const chatRef = doc(chatsCollection, chatId);
+  await updateDoc(chatRef, {
+    participants: arrayRemove(userId),
+    updatedAt: serverTimestamp()
+  });
+}
+
+export async function getOrCreateDirectChat(
+  userId: string,
+  targetUserId: string
+): Promise<string> {
+  // Check if a direct chat already exists between these users
+  const existingChatsQuery = query(
+    chatsCollection,
+    where('type', '==', 'direct'),
+    where('participants', 'array-contains', userId)
+  );
+
+  const existingChats = await getDocs(existingChatsQuery);
+  
+  for (const doc of existingChats.docs) {
+    const chat = doc.data();
+    if (chat.participants.includes(targetUserId)) {
+      return doc.id;
+    }
+  }
+
+  // If no existing chat, create a new one
+  const newChatRef = doc(chatsCollection);
+  const newChat: WithFieldValue<Chat> = {
+    id: newChatRef.id,
+    type: 'direct',
+    participants: [userId, targetUserId],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+
+  await setDoc(newChatRef, newChat);
+  return newChatRef.id;
 }
