@@ -1,47 +1,50 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 type WindowSize = {
   width: number;
   height: number;
 };
 
-type WindowContext = WindowSize & {
+type WindowContext = {
+  windowSize: WindowSize;
   isMobile: boolean;
 };
 
-export const WindowContext = createContext<WindowContext | null>(null);
+const WindowContext = createContext<WindowContext | null>(null);
 
 type WindowContextProviderProps = {
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
 export function WindowContextProvider({
   children
 }: WindowContextProviderProps): JSX.Element {
   const [windowSize, setWindowSize] = useState<WindowSize>({
-    width: window.innerWidth,
-    height: window.innerHeight
+    width: 0,
+    height: 0
   });
 
   useEffect(() => {
-    const handleResize = (): void =>
+    const handleResize = (): void => {
       setWindowSize({
         width: window.innerWidth,
         height: window.innerHeight
       });
+    };
+
+    // Set initial size
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const value: WindowContext = {
-    ...windowSize,
-    isMobile: windowSize.width < 500
-  };
+  const isMobile = windowSize.width < 768;
 
   return (
-    <WindowContext.Provider value={value}>{children}</WindowContext.Provider>
+    <WindowContext.Provider value={{ windowSize, isMobile }}>
+      {children}
+    </WindowContext.Provider>
   );
 }
 
@@ -49,7 +52,7 @@ export function useWindow(): WindowContext {
   const context = useContext(WindowContext);
 
   if (!context)
-    throw new Error('useWindow must be used within an WindowContextProvider');
+    throw new Error('useWindow must be used within a WindowContextProvider');
 
   return context;
 }

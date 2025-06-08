@@ -21,7 +21,8 @@ import {
 } from '@lib/firebase/utils';
 import { useAuth } from './auth-context';
 import type { ReactNode } from 'react';
-import type { Chat, Message } from '@lib/types/chat';
+import type { Chat } from '@lib/types/chat';
+import type { Message } from '@lib/types/message';
 
 type ChatContext = {
     chats: Chat[] | null;
@@ -56,38 +57,37 @@ export function ChatContextProvider({
     // Listen to user's chats
     useEffect(() => {
         if (!user) {
-            console.log('No user, clearing chats');
             setChats(null);
             setLoading(false);
             return;
         }
 
-        console.log('Setting up chat listener for user:', user.id);
         const chatsQuery = query(
             chatsCollection,
             where('participants', 'array-contains', user.id)
         );
 
+
         const unsubscribe = onSnapshot(
             chatsQuery,
             (snapshot) => {
-                console.log('Chats snapshot received:', snapshot.docs.length, 'chats');
                 const chatsData = snapshot.docs.map((doc) => ({
                     id: doc.id,
                     ...doc.data()
                 }));
-                console.log('Processed chats data:', chatsData);
                 setChats(chatsData);
                 setLoading(false);
             },
             (error) => {
-                console.error('Error in chat listener:', error);
+                console.error('[ChatContext] Error in chat listener:', error);
                 setError(error as Error);
                 setLoading(false);
             }
         );
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+        };
     }, [user]);
 
     // Listen to current chat messages
@@ -114,7 +114,9 @@ export function ChatContextProvider({
             }
         );
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+        };
     }, [currentChat]);
 
     const createNewChat = async (
@@ -123,7 +125,8 @@ export function ChatContextProvider({
         name?: string
     ): Promise<string> => {
         try {
-            return await createChat(type, participants, name);
+            const chatId = await createChat(type, participants, name);
+            return chatId;
         } catch (error) {
             setError(error as Error);
             throw error;
@@ -131,7 +134,9 @@ export function ChatContextProvider({
     };
 
     const sendNewMessage = async (text: string): Promise<void> => {
-        if (!user || !currentChat) return;
+        if (!user || !currentChat) {
+            return;
+        }
 
         try {
             await sendMessage(currentChat.id, user.id, text);
@@ -142,7 +147,9 @@ export function ChatContextProvider({
     };
 
     const markAsRead = async (messageId: string): Promise<void> => {
-        if (!user || !currentChat) return;
+        if (!user || !currentChat) {
+            return;
+        }
 
         try {
             await markMessageAsRead(currentChat.id, messageId, user.id);
@@ -153,7 +160,9 @@ export function ChatContextProvider({
     };
 
     const addParticipant = async (userId: string): Promise<void> => {
-        if (!currentChat) return;
+        if (!currentChat) {
+            return;
+        }
 
         try {
             await addParticipantToChat(currentChat.id, userId);
@@ -164,7 +173,9 @@ export function ChatContextProvider({
     };
 
     const removeParticipant = async (userId: string): Promise<void> => {
-        if (!currentChat) return;
+        if (!currentChat) {
+            return;
+        }
 
         try {
             await removeParticipantFromChat(currentChat.id, userId);

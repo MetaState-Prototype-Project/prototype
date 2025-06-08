@@ -13,12 +13,25 @@ import { UserName } from '@components/user/user-name';
 import { UserUsername } from '@components/user/user-username';
 import { variants } from './more-settings';
 import type { User } from '@lib/types/user';
+import { useEffect, useState } from 'react';
 
 export function SidebarProfile(): JSX.Element {
   const { user, signOut } = useAuth();
   const { open, openModal, closeModal } = useModal();
 
-  const { name, username, verified, photoURL } = user as User;
+  let [name, setName] = useState<string>();
+  let [username, setUsername] = useState<string>();
+  let [verified, setVerified] = useState<boolean>();
+  let [photoURL, setPhotoUrl] = useState<string>();
+
+  useEffect(() => {
+  if (user ) {
+    const { name, username, verified, photoURL } = user as User;
+    setName(name);
+    setUsername(username);
+    setVerified(verified);
+    setPhotoUrl(photoURL);
+  }}, [user]);
 
   return (
     <>

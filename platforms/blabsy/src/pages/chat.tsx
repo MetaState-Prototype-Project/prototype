@@ -8,6 +8,9 @@ import { ChatContextProvider } from '@lib/context/chat-context';
 import { useChat } from '@lib/context/chat-context';
 import { Loading } from '@components/ui/loading';
 import type { Chat as ChatType } from '@lib/types/chat';
+import { MainLayout } from '@components/layout/main-layout';
+import { ProtectedLayout } from '@components/layout/common-layout';
+import type { ReactElement, ReactNode } from 'react';
 
 function ChatPageContent(): JSX.Element {
   const { query, push } = useRouter();
@@ -47,8 +50,16 @@ function ChatPageContent(): JSX.Element {
 
 export default function ChatPage(): JSX.Element {
   return (
-    <ChatContextProvider>
-      <ChatPageContent />
-    </ChatContextProvider>
+      <ChatContextProvider>
+        <ChatPageContent />
+      </ChatContextProvider>
   );
-} 
+}
+
+ChatPage.getLayout = (page: ReactElement): ReactNode => (
+  <ProtectedLayout>
+    <MainLayout>
+      {page}
+    </MainLayout>
+  </ProtectedLayout>
+); 

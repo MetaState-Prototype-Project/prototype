@@ -44,12 +44,7 @@ export function ChatList(): JSX.Element {
         void fetchParticipantData();
     }, [chats, user, participantData]);
 
-    console.log('ChatList render:', { 
-        chatsCount: chats?.length, 
-        currentChatId: currentChat?.id,
-        loading,
-        hasUser: !!user
-    });
+   
 
     if (loading) {
         console.log('ChatList: Loading state');
@@ -67,7 +62,6 @@ export function ChatList(): JSX.Element {
         );
     }
 
-    console.log('ChatList: Rendering chat items');
     return (
         <div className='flex h-full flex-col gap-2 overflow-y-auto p-4'>
             {chats.map((chat) => {
@@ -76,12 +70,6 @@ export function ChatList(): JSX.Element {
                 );
                 const participant = otherParticipant ? participantData[otherParticipant] : null;
                 
-                console.log('Processing chat:', { 
-                    chatId: chat.id, 
-                    otherParticipant,
-                    participants: chat.participants,
-                    participantData: participant
-                });
 
                 return (
                     <button

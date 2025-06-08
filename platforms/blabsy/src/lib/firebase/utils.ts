@@ -346,11 +346,46 @@ export async function markMessageAsRead(
   messageId: string,
   userId: string
 ): Promise<void> {
-  const messageRef = doc(chatMessagesCollection(chatId), messageId);
-  await updateDoc(messageRef, {
-    readBy: arrayUnion(userId),
-    updatedAt: serverTimestamp()
+  console.log('[markMessageAsRead] Starting with:', { chatId, messageId, userId });
+
+  // First check if the user is a participant in the chat
+  const chatRef = doc(chatsCollection, chatId);
+  console.log('[markMessageAsRead] Chat ref path:', chatRef.path);
+  
+  const chatDoc = await getDoc(chatRef);
+  console.log('[markMessageAsRead] Chat doc exists:', chatDoc.exists());
+  
+  if (!chatDoc.exists()) {
+    console.error('[markMessageAsRead] Chat not found:', chatId);
+    throw new Error('Chat not found');
+  }
+  
+  const chatData = chatDoc.data();
+  console.log('[markMessageAsRead] Chat data:', {
+    participants: chatData.participants,
+    userId,
+    isParticipant: chatData.participants.includes(userId)
   });
+
+  if (!chatData.participants.includes(userId)) {
+    console.error('[markMessageAsRead] User not in participants:', { userId, participants: chatData.participants });
+    throw new Error('User is not a participant in this chat');
+  }
+
+  // Then update the message
+  const messageRef = doc(chatMessagesCollection(chatId), messageId);
+  console.log('[markMessageAsRead] Message ref path:', messageRef.path);
+  
+  try {
+    await updateDoc(messageRef, {
+      readBy: arrayUnion(userId),
+      updatedAt: serverTimestamp()
+    });
+    console.log('[markMessageAsRead] Successfully marked message as read');
+  } catch (error) {
+    console.error('[markMessageAsRead] Error updating message:', error);
+    throw error;
+  }
 }
 
 export async function getChatParticipants(chatId: string): Promise<string[]> {
