@@ -3,18 +3,18 @@ import { useTheme } from '@lib/context/theme-context';
 import { SEO } from '@components/common/seo';
 
 export default function NotFound(): JSX.Element {
-  const { theme } = useTheme();
+    const { theme } = useTheme();
 
-  const isDarkMode = ['dim', 'dark'].includes(theme);
+    const isDarkMode = ['dim', 'dark'].includes(theme);
 
-  return (
-    <>
-      <SEO
-        title='Page not found / Twitter'
-        description='Sorry we couldn’t find the page you were looking for.'
-        image='/404.png'
-      />
-      <Error statusCode={404} withDarkMode={isDarkMode} />
-    </>
-  );
+    return (
+        <>
+            <SEO
+                title='Page not found / Blabsy'
+                description='Sorry we couldn’t find the page you were looking for.'
+                image='/404.png'
+            />
+            <Error statusCode={404} withDarkMode={isDarkMode} />
+        </>
+    );
 }

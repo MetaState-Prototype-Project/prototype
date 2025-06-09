@@ -14,52 +14,52 @@ import { StatsEmpty } from '@components/tweet/stats-empty';
 import type { ReactElement, ReactNode } from 'react';
 
 export default function UserLikes(): JSX.Element {
-  const { user } = useUser();
+    const { user } = useUser();
 
-  const { id, name, username } = user ?? {};
+    const { id, name, username } = user ?? {};
 
-  const { data, loading } = useCollection(
-    query(
-      tweetsCollection,
-      where('userLikes', 'array-contains', id),
-      orderBy('createdAt', 'desc')
-    ),
-    { includeUser: true, allowNull: true }
-  );
+    const { data, loading } = useCollection(
+        query(
+            tweetsCollection,
+            where('userLikes', 'array-contains', id),
+            orderBy('createdAt', 'desc')
+        ),
+        { includeUser: true, allowNull: true }
+    );
 
-  return (
-    <section>
-      <SEO
-        title={`Tweets liked by ${name as string} (@${
-          username as string
-        }) / Twitter`}
-      />
-      {loading ? (
-        <Loading className='mt-5' />
-      ) : !data ? (
-        <StatsEmpty
-          title={`@${username as string} hasn't liked any Tweets`}
-          description='When they do, those Tweets will show up here.'
-        />
-      ) : (
-        <AnimatePresence mode='popLayout'>
-          {data.map((tweet) => (
-            <Tweet {...tweet} key={tweet.id} />
-          ))}
-        </AnimatePresence>
-      )}
-    </section>
-  );
+    return (
+        <section>
+            <SEO
+                title={`Blabs liked by ${name as string} (@${
+                    username as string
+                }) / Blabsy`}
+            />
+            {loading ? (
+                <Loading className='mt-5' />
+            ) : !data ? (
+                <StatsEmpty
+                    title={`@${username as string} hasn't liked any Blabs`}
+                    description='When they do, those Blabs will show up here.'
+                />
+            ) : (
+                <AnimatePresence mode='popLayout'>
+                    {data.map((tweet) => (
+                        <Tweet {...tweet} key={tweet.id} />
+                    ))}
+                </AnimatePresence>
+            )}
+        </section>
+    );
 }
 
 UserLikes.getLayout = (page: ReactElement): ReactNode => (
-  <ProtectedLayout>
-    <MainLayout>
-      <UserLayout>
-        <UserDataLayout>
-          <UserHomeLayout>{page}</UserHomeLayout>
-        </UserDataLayout>
-      </UserLayout>
-    </MainLayout>
-  </ProtectedLayout>
+    <ProtectedLayout>
+        <MainLayout>
+            <UserLayout>
+                <UserDataLayout>
+                    <UserHomeLayout>{page}</UserHomeLayout>
+                </UserDataLayout>
+            </UserLayout>
+        </MainLayout>
+    </ProtectedLayout>
 );

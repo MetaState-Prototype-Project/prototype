@@ -51,7 +51,7 @@ export function LoginMain(): JSX.Element {
                     imgClassName='object-cover'
                     blurClassName='bg-accent-blue'
                     src='/assets/twitter-banner.png'
-                    alt='Twitter banner'
+                    alt='Blabsy banner'
                     layout='fill'
                     useSkeleton
                 />

@@ -15,55 +15,55 @@ import { StatsEmpty } from '@components/tweet/stats-empty';
 import type { ReactElement, ReactNode } from 'react';
 
 export default function UserMedia(): JSX.Element {
-  const { user } = useUser();
+    const { user } = useUser();
 
-  const { id, name, username } = user ?? {};
+    const { id, name, username } = user ?? {};
 
-  const { data, loading } = useCollection(
-    query(
-      tweetsCollection,
-      where('createdBy', '==', id),
-      where('images', '!=', null)
-    ),
-    { includeUser: true, allowNull: true }
-  );
+    const { data, loading } = useCollection(
+        query(
+            tweetsCollection,
+            where('createdBy', '==', id),
+            where('images', '!=', null)
+        ),
+        { includeUser: true, allowNull: true }
+    );
 
-  const sortedTweets = mergeData(true, data);
+    const sortedTweets = mergeData(true, data);
 
-  return (
-    <section>
-      <SEO
-        title={`Media Tweets by ${name as string} (@${
-          username as string
-        }) / Twitter`}
-      />
-      {loading ? (
-        <Loading className='mt-5' />
-      ) : !sortedTweets ? (
-        <StatsEmpty
-          title={`@${username as string} hasn't Tweeted Media`}
-          description='Once they do, those Tweets will show up here.'
-          imageData={{ src: '/assets/no-media.png', alt: 'No media' }}
-        />
-      ) : (
-        <AnimatePresence mode='popLayout'>
-          {sortedTweets.map((tweet) => (
-            <Tweet {...tweet} key={tweet.id} />
-          ))}
-        </AnimatePresence>
-      )}
-    </section>
-  );
+    return (
+        <section>
+            <SEO
+                title={`Media Tweets by ${name as string} (@${
+                    username as string
+                }) / Blabsy`}
+            />
+            {loading ? (
+                <Loading className='mt-5' />
+            ) : !sortedTweets ? (
+                <StatsEmpty
+                    title={`@${username as string} hasn't Tweeted Media`}
+                    description='Once they do, those Tweets will show up here.'
+                    imageData={{ src: '/assets/no-media.png', alt: 'No media' }}
+                />
+            ) : (
+                <AnimatePresence mode='popLayout'>
+                    {sortedTweets.map((tweet) => (
+                        <Tweet {...tweet} key={tweet.id} />
+                    ))}
+                </AnimatePresence>
+            )}
+        </section>
+    );
 }
 
 UserMedia.getLayout = (page: ReactElement): ReactNode => (
-  <ProtectedLayout>
-    <MainLayout>
-      <UserLayout>
-        <UserDataLayout>
-          <UserHomeLayout>{page}</UserHomeLayout>
-        </UserDataLayout>
-      </UserLayout>
-    </MainLayout>
-  </ProtectedLayout>
+    <ProtectedLayout>
+        <MainLayout>
+            <UserLayout>
+                <UserDataLayout>
+                    <UserHomeLayout>{page}</UserHomeLayout>
+                </UserDataLayout>
+            </UserLayout>
+        </MainLayout>
+    </ProtectedLayout>
 );
