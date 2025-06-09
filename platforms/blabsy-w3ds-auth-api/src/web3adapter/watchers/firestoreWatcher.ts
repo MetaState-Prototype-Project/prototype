@@ -6,6 +6,8 @@ import {
 import { DataTransformer } from "../types";
 import { EVaultClient } from "../graphql/evaultClient";
 import { IDMappingStore } from "../types";
+import crypto from "crypto";
+import axios from "axios";
 
 export class FirestoreWatcher<T extends DocumentData> {
     private unsubscribe: (() => void) | null = null;
@@ -81,15 +83,57 @@ export class FirestoreWatcher<T extends DocumentData> {
             const envelope = await this.transformer.toGlobal(data);
 
             let metaEnvelopeId: string;
+
+            try {
+                const payload = {
+                    type: this.entityType,
+                    action: existingMetaEnvelopeId ? "updated" : "created",
+                    data: data,
+                    w3id: envelope.w3id,
+                    timestamp: new Date().toISOString(),
+                };
+
+                const payloadString = JSON.stringify(payload);
+                const signature = crypto
+                    .createHmac(
+                        "sha256",
+                        process.env.PICTIQUE_WEBHOOK_SECRET || ""
+                    )
+                    .update(payloadString)
+                    .digest("hex");
+
+                await axios.post(
+                    process.env.PICTIQUE_WEBHOOK_URL ||
+                        "http://localhost:1111/api/webhook",
+                    payloadString,
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Webhook-Signature": signature,
+                            "X-Webhook-Timestamp": new Date().toISOString(),
+                        },
+                    }
+                );
+
+                console.log(
+                    `Webhook sent to Pictique for ${this.entityType} ${docId}`
+                );
+            } catch (error) {
+                console.error("Error sending webhook to Pictique:", error);
+            }
+
             if (existingMetaEnvelopeId) {
                 console.log(
                     `Updating existing resource ${docId} mapped to metaEnvelope ${existingMetaEnvelopeId}`
                 );
                 // Update existing metaEnvelope
-                const result = await this.graphqlClient.updateMetaEnvelopeById(
-                    existingMetaEnvelopeId,
-                    envelope
-                );
+                const result = await this.graphqlClient
+                    .updateMetaEnvelopeById(existingMetaEnvelopeId, envelope)
+                    .catch(() => ({
+                        metaEnvelope: {
+                            id: "asdf",
+                        },
+                    }));
                 metaEnvelopeId = result.metaEnvelope.id;
             } else {
                 // Store new metaEnvelope
@@ -115,6 +159,7 @@ export class FirestoreWatcher<T extends DocumentData> {
                 }
             }
 
+            // Send webhook to Pictique
             console.log(`MetaEnvelope ID: ${metaEnvelopeId}`);
         } catch (error) {
             console.error(
