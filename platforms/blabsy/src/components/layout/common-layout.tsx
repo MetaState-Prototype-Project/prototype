@@ -6,59 +6,60 @@ import { Placeholder } from '@components/common/placeholder';
 import type { ReactNode } from 'react';
 
 export type LayoutProps = {
-  children: ReactNode;
+    children: ReactNode;
 };
 
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
-  const user = useRequireAuth();
+    const user = useRequireAuth();
 
-  if (!user) return <Placeholder />;
+    if (!user) return <Placeholder />;
 
-  return <>{children}</>;
+    return <>{children}</>;
 }
 
 export function HomeLayout({ children }: LayoutProps): JSX.Element {
-  return (
-    <>
-      {children}
-      <Aside>
-        <AsideTrends />
-        <Suggestions />
-      </Aside>
-    </>
-  );
+    return (
+        <>
+            {children}
+            <Aside>
+                {/* <AsideTrends /> */}
+                <Suggestions />
+            </Aside>
+        </>
+    );
 }
 
 export function UserLayout({ children }: LayoutProps): JSX.Element {
-  return (
-    <>
-      {children}
-      <Aside>
-        <Suggestions />
-        <AsideTrends />
-      </Aside>
-    </>
-  );
+    return (
+        <>
+            {children}
+            <Aside>
+                <Suggestions />
+                {/* <AsideTrends /> */}
+            </Aside>
+        </>
+    );
 }
 
 export function TrendsLayout({ children }: LayoutProps): JSX.Element {
-  return (
-    <>
-      {children}
-      <Aside>
-        <Suggestions />
-      </Aside>
-    </>
-  );
+    return (
+        <>
+            {children}
+            <Aside>
+                <Suggestions />
+            </Aside>
+        </>
+    );
 }
 
 export function PeopleLayout({ children }: LayoutProps): JSX.Element {
-  return (
-    <>
-      {children}
-      <Aside>
-        <AsideTrends />
-      </Aside>
-    </>
-  );
+    return (
+        <>
+            {children}
+            <Aside>
+                {/* <AsideTrends /> */}
+                <div />
+            </Aside>
+        </>
+    );
 }
