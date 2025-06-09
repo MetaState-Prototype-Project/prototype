@@ -1,6 +1,17 @@
-# Package Managers
-package-lock.json
-pnpm-lock.yaml
-yarn.lock
-bun.lock
-bun.lockb
+# testing
+/coverage
+
+# next.js
+/.next/
+/.vercel/
+/out/
+
+# production
+/build
+
+# compiled js functions
+/functions/lib/
+
+# python
+*.py
+.mypy_cache/

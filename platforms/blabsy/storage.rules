@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth.uid == 'Twt0A27bx9YcG4vu3RTsR7ifJzf2';
+    }
+    
+    function isAuthorized(userId) {
+      return request.auth != null && (userId == request.auth.uid || isAdmin());
+    }
+  
+    function isValidMedia() {
+      return request.resource.contentType.matches('image/.*|video/.*')
+             && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    match /images/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create: if isAuthorized(userId) && isValidMedia();
+      allow update, delete: if false;
+    }
+  }
+}
