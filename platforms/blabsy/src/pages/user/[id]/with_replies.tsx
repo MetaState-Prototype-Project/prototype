@@ -16,62 +16,66 @@ import { TweetWithParent } from '@components/tweet/tweet-with-parent';
 import type { ReactElement, ReactNode } from 'react';
 
 export default function UserWithReplies(): JSX.Element {
-  const { user } = useUser();
+    const { user } = useUser();
 
-  const { id, name, username, pinnedTweet } = user ?? {};
+    const { id, name, username, pinnedTweet } = user ?? {};
 
-  const { data: pinnedData } = useDocument(
-    doc(tweetsCollection, pinnedTweet ?? 'null'),
-    {
-      disabled: !pinnedTweet,
-      allowNull: true,
-      includeUser: true
-    }
-  );
+    const { data: pinnedData } = useDocument(
+        doc(tweetsCollection, pinnedTweet ?? 'null'),
+        {
+            disabled: !pinnedTweet,
+            allowNull: true,
+            includeUser: true
+        }
+    );
 
-  const { data, loading } = useCollection(
-    query(
-      tweetsCollection,
-      where('createdBy', '==', id),
-      orderBy('createdAt', 'desc')
-    ),
-    { includeUser: true, allowNull: true }
-  );
+    const { data, loading } = useCollection(
+        query(
+            tweetsCollection,
+            where('createdBy', '==', id),
+            orderBy('createdAt', 'desc')
+        ),
+        { includeUser: true, allowNull: true }
+    );
 
-  return (
-    <section>
-      <SEO
-        title={`Tweets with replies by ${name as string} (@${
-          username as string
-        }) / Twitter`}
-      />
-      {loading ? (
-        <Loading className='mt-5' />
-      ) : !data ? (
-        <StatsEmpty
-          title={`@${username as string} hasn't tweeted`}
-          description='When they do, their Tweets will show up here.'
-        />
-      ) : (
-        <AnimatePresence mode='popLayout'>
-          {pinnedData && (
-            <Tweet pinned {...pinnedData} key={`pinned-${pinnedData.id}`} />
-          )}
-          <TweetWithParent data={data} />
-        </AnimatePresence>
-      )}
-    </section>
-  );
+    return (
+        <section>
+            <SEO
+                title={`Blabs with replies by ${name as string} (@${
+                    username as string
+                }) / Blabsy`}
+            />
+            {loading ? (
+                <Loading className='mt-5' />
+            ) : !data ? (
+                <StatsEmpty
+                    title={`@${username as string} hasn't blabbed`}
+                    description='When they do, their Blabs will show up here.'
+                />
+            ) : (
+                <AnimatePresence mode='popLayout'>
+                    {pinnedData && (
+                        <Tweet
+                            pinned
+                            {...pinnedData}
+                            key={`pinned-${pinnedData.id}`}
+                        />
+                    )}
+                    <TweetWithParent data={data} />
+                </AnimatePresence>
+            )}
+        </section>
+    );
 }
 
 UserWithReplies.getLayout = (page: ReactElement): ReactNode => (
-  <ProtectedLayout>
-    <MainLayout>
-      <UserLayout>
-        <UserDataLayout>
-          <UserHomeLayout>{page}</UserHomeLayout>
-        </UserDataLayout>
-      </UserLayout>
-    </MainLayout>
-  </ProtectedLayout>
+    <ProtectedLayout>
+        <MainLayout>
+            <UserLayout>
+                <UserDataLayout>
+                    <UserHomeLayout>{page}</UserHomeLayout>
+                </UserDataLayout>
+            </UserLayout>
+        </MainLayout>
+    </ProtectedLayout>
 );

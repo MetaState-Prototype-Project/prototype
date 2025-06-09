@@ -10,27 +10,27 @@ import { UserHeader } from '@components/user/user-header';
 import type { LayoutProps } from './common-layout';
 
 export function UserDataLayout({ children }: LayoutProps): JSX.Element {
-  const {
-    query: { id },
-    back
-  } = useRouter();
+    const {
+        query: { id },
+        back
+    } = useRouter();
 
-  const { data, loading } = useCollection(
-    query(usersCollection, where('username', '==', id), limit(1)),
-    { allowNull: true }
-  );
+    const { data, loading } = useCollection(
+        query(usersCollection, where('username', '==', id), limit(1)),
+        { allowNull: true }
+    );
 
-  const user = data ? data[0] : null;
+    const user = data ? data[0] : null;
 
-  return (
-    <UserContextProvider value={{ user, loading }}>
-      {!user && !loading && <SEO title='User not found / Twitter' />}
-      <MainContainer>
-        <MainHeader useActionButton action={back}>
-          <UserHeader />
-        </MainHeader>
-        {children}
-      </MainContainer>
-    </UserContextProvider>
-  );
+    return (
+        <UserContextProvider value={{ user, loading }}>
+            {!user && !loading && <SEO title='User not found / Blabsy' />}
+            <MainContainer>
+                <MainHeader useActionButton action={back}>
+                    <UserHeader />
+                </MainHeader>
+                {children}
+            </MainContainer>
+        </UserContextProvider>
+    );
 }
