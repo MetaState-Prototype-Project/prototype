@@ -1,5 +1,4 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import { Web3AdapterConfig } from './types';
 import { EVaultClient } from './graphql/evaultClient';
 import { BlabsyToGlobalTransformer } from './transforms/toGlobal';
 import { FirestoreIDMappingStore } from './idMappingStore';
@@ -7,12 +6,20 @@ import { FirestoreWatcher } from './watchers/firestoreWatcher';
 import { WebhookHandler } from './webhookHandler';
 import { Request, Response } from 'express';
 
+export interface Web3AdapterConfig {
+  registryUrl: string;
+  webhookSecret: string;
+  webhookEndpoint: string;
+  pictiqueWebhookUrl: string;
+  pictiqueWebhookSecret: string;
+}
+
 export class Web3Adapter {
   private readonly db = getFirestore();
-  private readonly evaultClient: EVaultClient;
-  private readonly transformer: BlabsyToGlobalTransformer;
-  private readonly idMappingStore: FirestoreIDMappingStore;
-  private readonly webhookHandler: WebhookHandler;
+  private evaultClient: EVaultClient;
+  private transformer: BlabsyToGlobalTransformer;
+  private idMappingStore: FirestoreIDMappingStore;
+  private webhookHandler: WebhookHandler;
   private watchers: FirestoreWatcher<any>[] = [];
 
   constructor(private config: Web3AdapterConfig) {
@@ -23,7 +30,9 @@ export class Web3Adapter {
       this.evaultClient,
       this.transformer,
       this.idMappingStore,
-      config.webhookSecret
+      config.webhookSecret,
+      config.pictiqueWebhookUrl,
+      config.pictiqueWebhookSecret
     );
   }
 

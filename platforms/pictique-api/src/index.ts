@@ -10,18 +10,38 @@ import { CommentController } from "./controllers/CommentController";
 import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { UserController } from "./controllers/UserController";
+import { PictiqueAdapter } from "./web3adapter";
+import { WebhookController } from "./controllers/webhookController";
+import { UserService } from "./services/UserService";
+import { PostService } from "./services/PostService";
+import { CommentService } from "./services/CommentService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Initialize services
+const userService = new UserService();
+const postService = new PostService();
+const commentService = new CommentService();
+
+// Initialize Web3 adapter
+const adapter = new PictiqueAdapter(
+    {
+        webhookSecret: process.env.WEBHOOK_SECRET || "your-webhook-secret"
+    },
+    userService,
+    postService,
+    commentService
+);
+
 // Middleware
 app.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Webhook-Signature", "X-Webhook-Timestamp"],
         credentials: true,
     }),
 );
@@ -44,6 +64,10 @@ const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
 const userController = new UserController();
+const webhookController = new WebhookController(adapter);
+
+// Webhook route (no auth required)
+app.post("/api/webhook", webhookController.handleWebhook.bind(webhookController));
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);

@@ -28,7 +28,6 @@ export class PostService {
 
         const [posts, total] = await this.postRepository.findAndCount({
             where: {
-                author: { id: In(authorIds) },
                 isArchived: false,
             },
             relations: ["author", "likedBy", "comments", "comments.author"],
