@@ -57,9 +57,6 @@ export class AuthController {
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
             }
-            initializeApp({
-                credential: applicationDefault(),
-            });
             const token = await auth().createCustomToken(ename);
             console.log(token);
 

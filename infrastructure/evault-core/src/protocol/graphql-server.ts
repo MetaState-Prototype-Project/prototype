@@ -9,119 +9,162 @@ import { GraphQLSchema } from "graphql";
 import { exampleQueries } from "./examples/examples";
 
 export class GraphQLServer {
-  private db: DbService;
-  private accessGuard: VaultAccessGuard;
-  private schema: GraphQLSchema = createSchema<VaultContext>({
-    typeDefs,
-    resolvers: {},
-  });
-  server?: Server;
-
-  constructor(db: DbService) {
-    this.db = db;
-    this.accessGuard = new VaultAccessGuard(db);
-  }
-
-  public getSchema(): GraphQLSchema {
-    return this.schema;
-  }
-
-  init() {
-    const resolvers = {
-      JSON: require("graphql-type-json"),
-
-      Query: {
-        getMetaEnvelopeById: this.accessGuard.middleware(
-          (_: any, { id }: { id: string }) => {
-            return this.db.findMetaEnvelopeById(id);
-          }
-        ),
-        findMetaEnvelopesByOntology: this.accessGuard.middleware(
-          (_: any, { ontology }: { ontology: string }) => {
-            return this.db.findMetaEnvelopesByOntology(ontology);
-          }
-        ),
-        searchMetaEnvelopes: this.accessGuard.middleware(
-          (_: any, { ontology, term }: { ontology: string; term: string }) => {
-            return this.db.findMetaEnvelopesBySearchTerm(ontology, term);
-          }
-        ),
-        getAllEnvelopes: this.accessGuard.middleware(() => {
-          return this.db.getAllEnvelopes();
-        }),
-      },
-
-      Mutation: {
-        storeMetaEnvelope: this.accessGuard.middleware(
-          async (
-            _: any,
-            {
-              input,
-            }: {
-              input: {
-                ontology: string;
-                payload: any;
-                acl: string[];
-              };
-            }
-          ) => {
-            const result = await this.db.storeMetaEnvelope(
-              {
-                ontology: input.ontology,
-                payload: input.payload,
-                acl: input.acl,
-              },
-              input.acl
-            );
-            return result;
-          }
-        ),
-        deleteMetaEnvelope: this.accessGuard.middleware(
-          async (_: any, { id }: { id: string }) => {
-            await this.db.deleteMetaEnvelope(id);
-            return true;
-          }
-        ),
-        updateEnvelopeValue: this.accessGuard.middleware(
-          async (
-            _: any,
-            { envelopeId, newValue }: { envelopeId: string; newValue: any }
-          ) => {
-            await this.db.updateEnvelopeValue(envelopeId, newValue);
-            return true;
-          }
-        ),
-      },
-    };
-
-    this.schema = createSchema<VaultContext>({
-      typeDefs,
-      resolvers,
+    private db: DbService;
+    private accessGuard: VaultAccessGuard;
+    private schema: GraphQLSchema = createSchema<VaultContext>({
+        typeDefs,
+        resolvers: {},
     });
+    server?: Server;
+    constructor(db: DbService) {
+        this.db = db;
+        this.accessGuard = new VaultAccessGuard(db);
+    }
 
-    const yoga = createYoga({
-      schema: this.schema,
-      graphqlEndpoint: "/graphql",
-      graphiql: {
-        defaultQuery: exampleQueries,
-      },
-      context: async ({ request }) => {
-        const authHeader = request.headers.get("authorization") ?? "";
-        const token = authHeader.replace("Bearer ", "");
+    public getSchema(): GraphQLSchema {
+        return this.schema;
+    }
 
-        if (token) {
-          const id = getJWTHeader(token).kid?.split("#")[0];
-          return {
-            currentUser: id ?? null,
-          };
-        }
+    init() {
+        const resolvers = {
+            JSON: require("graphql-type-json"),
 
-        return {
-          currentUser: null,
+            Query: {
+                getMetaEnvelopeById: this.accessGuard.middleware(
+                    (_: any, { id }: { id: string }) => {
+                        return this.db.findMetaEnvelopeById(id);
+                    }
+                ),
+                findMetaEnvelopesByOntology: this.accessGuard.middleware(
+                    (_: any, { ontology }: { ontology: string }) => {
+                        return this.db.findMetaEnvelopesByOntology(ontology);
+                    }
+                ),
+                searchMetaEnvelopes: this.accessGuard.middleware(
+                    (
+                        _: any,
+                        { ontology, term }: { ontology: string; term: string }
+                    ) => {
+                        return this.db.findMetaEnvelopesBySearchTerm(
+                            ontology,
+                            term
+                        );
+                    }
+                ),
+                getAllEnvelopes: this.accessGuard.middleware(() => {
+                    return this.db.getAllEnvelopes();
+                }),
+            },
+
+            Mutation: {
+                storeMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            input,
+                        }: {
+                            input: {
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            };
+                        }
+                    ) => {
+                        const result = await this.db.storeMetaEnvelope(
+                            {
+                                ontology: input.ontology,
+                                payload: input.payload,
+                                acl: input.acl,
+                            },
+                            input.acl
+                        );
+                        return result;
+                    }
+                ),
+                updateMetaEnvelopeById: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            id,
+                            input,
+                        }: {
+                            id: string;
+                            input: {
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            };
+                        }
+                    ) => {
+                        try {
+                            const result = await this.db.updateMetaEnvelopeById(
+                                id,
+                                {
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                    acl: input.acl,
+                                },
+                                input.acl
+                            );
+                            return result;
+                        } catch (error) {
+                            console.error(
+                                "Error in updateMetaEnvelopeById:",
+                                error
+                            );
+                            throw error;
+                        }
+                    }
+                ),
+                deleteMetaEnvelope: this.accessGuard.middleware(
+                    async (_: any, { id }: { id: string }) => {
+                        await this.db.deleteMetaEnvelope(id);
+                        return true;
+                    }
+                ),
+                updateEnvelopeValue: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            envelopeId,
+                            newValue,
+                        }: { envelopeId: string; newValue: any }
+                    ) => {
+                        await this.db.updateEnvelopeValue(envelopeId, newValue);
+                        return true;
+                    }
+                ),
+            },
         };
-      },
-    });
 
-    return yoga;
-  }
+        this.schema = createSchema<VaultContext>({
+            typeDefs,
+            resolvers,
+        });
+
+        const yoga = createYoga({
+            schema: this.schema,
+            graphqlEndpoint: "/graphql",
+            graphiql: {
+                defaultQuery: exampleQueries,
+            },
+            context: async ({ request }) => {
+                const authHeader = request.headers.get("authorization") ?? "";
+                const token = authHeader.replace("Bearer ", "");
+
+                if (token) {
+                    const id = getJWTHeader(token).kid?.split("#")[0];
+                    return {
+                        currentUser: id ?? null,
+                    };
+                }
+
+                return {
+                    currentUser: null,
+                };
+            },
+        });
+
+        return yoga;
+    }
 }
