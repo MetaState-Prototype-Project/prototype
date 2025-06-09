@@ -171,7 +171,7 @@ export function ChatWindow(): JSX.Element {
                     </div>
                     <div className='flex-1 overflow-y-auto p-4'>
                         {isLoading ? (
-                            <div className='flex h-full items-center justify-center'>
+                            <div className='flex h-full w-full items-center justify-center'>
                                 <Loading className='h-8 w-8' />
                             </div>
                         ) : messages?.length ? (

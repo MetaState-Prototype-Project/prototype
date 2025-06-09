@@ -57,7 +57,6 @@ export class AuthController {
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
             }
-            const data = { hi: "dgoe" };
             initializeApp({
                 credential: applicationDefault(),
             });
