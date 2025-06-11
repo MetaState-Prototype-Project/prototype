@@ -68,11 +68,11 @@ export class BlabsyToGlobalTransformer
         }
 
         const acl = this.extractACL(transformedData);
-
+        const transformed = await this.transformData(entityType, transformedData)
         return {
             id: uuidv4(),
             schemaId,
-            data: transformedData,
+            data: transformed,
             acl,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -174,22 +174,15 @@ export class BlabsyToGlobalTransformer
         const parentId = await this.resolveParentId(data.parentId, 'socialMediaPost');
         
         return {
-            content: data.content,
+            content: data.text,
             authorId: data.createdBy,
             parentId,
             likes: data.likes || 0,
             retweets: data.userRetweets || 0,
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,
-            // Include any embedded comments
-            comments: data.comments ? await Promise.all(
-                data.comments.map(async (comment: any) => ({
-                    content: comment.content,
-                    authorId: comment.authorId,
-                    createdAt: comment.createdAt,
-                    updatedAt: comment.updatedAt
-                }))
-            ) : []
+            images: data.images ? data.images.map((i: any) => i.src) : [],
+            
         };
     }
 
@@ -243,7 +236,7 @@ export class BlabsyToGlobalTransformer
             id: data.id,
             authorId: data.authorId,
             content: data.content,
-            mediaUrls: data.mediaUrls,
+            mediaUrls: data.mediaUrls.map((i: any) => i.src),
             parentPostId: data.parentPostId,
             hashtags: data.hashtags,
             likeCount: data.likeCount,

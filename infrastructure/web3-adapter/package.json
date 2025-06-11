@@ -2,7 +2,6 @@
     "name": "web3-adapter",
     "version": "1.0.0",
     "description": "Web3 adapter for platform-specific data mapping to universal schema",
-    "type": "module",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {

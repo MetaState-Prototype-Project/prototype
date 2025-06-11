@@ -45,7 +45,7 @@ web3Adapter.initialize().catch((error) => {
 });
 
 // Register webhook endpoint
-app.post("/webhook", web3Adapter.getWebhookHandler());
+app.post("/api/webhook", web3Adapter.getWebhookHandler());
 
 app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
