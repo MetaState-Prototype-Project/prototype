@@ -79,16 +79,59 @@ export class FirestoreWatcher<T extends DocumentData> {
                     this.entityType
                 );
 
+            console.log('existingMetaEnvelopeId', existingMetaEnvelopeId);
+            console.log('transforming data', data);
             // Transform to global format
             const envelope = await this.transformer.toGlobal(data);
 
             let metaEnvelopeId: string;
 
+            
+
+            if (existingMetaEnvelopeId) {
+                console.log(
+                    `Updating existing resource ${docId} mapped to metaEnvelope ${existingMetaEnvelopeId}`
+                );
+                // Update existing metaEnvelope
+                const result = await this.graphqlClient
+                    .updateMetaEnvelopeById(existingMetaEnvelopeId, envelope)
+                    .catch(() => ({
+                        metaEnvelope: {
+                            id: "asdf",
+                        },
+                    }));
+                metaEnvelopeId = existingMetaEnvelopeId;
+            } else {
+                // Store new metaEnvelope
+                metaEnvelopeId = await this.graphqlClient.storeMetaEnvelope(
+                    envelope
+                );
+
+                // Store ID mapping
+                await this.idMappingStore.store(
+                    docId,
+                    metaEnvelopeId,
+                    this.entityType
+                );
+            }
+
+            // Handle references if needed
+            if (envelope.acl && envelope.acl.length > 0) {
+                for (const w3id of envelope.acl) {
+                    await this.graphqlClient.storeReference(
+                        metaEnvelopeId,
+                        w3id
+                    );
+                }
+            }
+
+            // Send webhook to Pictique
+            console.log(`MetaEnvelope ID: ${metaEnvelopeId}`);
             try {
                 const payload = {
                     type: this.entityType,
                     action: existingMetaEnvelopeId ? "updated" : "created",
-                    data: data,
+                    data: { ...envelope.data, id: metaEnvelopeId },
                     w3id: envelope.w3id,
                     timestamp: new Date().toISOString(),
                 };
@@ -122,45 +165,6 @@ export class FirestoreWatcher<T extends DocumentData> {
                 console.error("Error sending webhook to Pictique:", error);
             }
 
-            if (existingMetaEnvelopeId) {
-                console.log(
-                    `Updating existing resource ${docId} mapped to metaEnvelope ${existingMetaEnvelopeId}`
-                );
-                // Update existing metaEnvelope
-                const result = await this.graphqlClient
-                    .updateMetaEnvelopeById(existingMetaEnvelopeId, envelope)
-                    .catch(() => ({
-                        metaEnvelope: {
-                            id: "asdf",
-                        },
-                    }));
-                metaEnvelopeId = result.metaEnvelope.id;
-            } else {
-                // Store new metaEnvelope
-                metaEnvelopeId = await this.graphqlClient.storeMetaEnvelope(
-                    envelope
-                );
-
-                // Store ID mapping
-                await this.idMappingStore.store(
-                    docId,
-                    metaEnvelopeId,
-                    this.entityType
-                );
-            }
-
-            // Handle references if needed
-            if (envelope.acl && envelope.acl.length > 0) {
-                for (const w3id of envelope.acl) {
-                    await this.graphqlClient.storeReference(
-                        metaEnvelopeId,
-                        w3id
-                    );
-                }
-            }
-
-            // Send webhook to Pictique
-            console.log(`MetaEnvelope ID: ${metaEnvelopeId}`);
         } catch (error) {
             console.error(
                 `Error handling create/update for ${this.entityType}:`,

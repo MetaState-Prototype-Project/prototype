@@ -194,10 +194,6 @@ export class EVaultClient {
                 },
             };
 
-            console.log("Executing updateMetaEnvelopeById mutation with:");
-            console.log("Mutation:", UPDATE_META_ENVELOPE);
-            console.log("Variables:", JSON.stringify(variables, null, 2));
-
             const response = await client.request<StoreMetaEnvelopeResponse>(
                 UPDATE_META_ENVELOPE,
                 variables

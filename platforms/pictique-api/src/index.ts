@@ -11,10 +11,10 @@ import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { UserController } from "./controllers/UserController";
 import { PictiqueAdapter } from "./web3adapter";
-import { WebhookController } from "./controllers/webhookController";
 import { UserService } from "./services/UserService";
 import { PostService } from "./services/PostService";
 import { CommentService } from "./services/CommentService";
+import { ChatService } from "./services/ChatService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -25,16 +25,27 @@ const port = process.env.PORT || 3000;
 const userService = new UserService();
 const postService = new PostService();
 const commentService = new CommentService();
+const chatService = new ChatService();
 
 // Initialize Web3 adapter
 const adapter = new PictiqueAdapter(
-    {
-        webhookSecret: process.env.WEBHOOK_SECRET || "your-webhook-secret"
-    },
     userService,
     postService,
-    commentService
+    commentService,
+    chatService
 );
+
+// Initialize database connection and adapter
+AppDataSource.initialize()
+    .then(async () => {
+        console.log("Database connection established");
+        await adapter.initialize();
+        console.log("Web3 adapter initialized");
+    })
+    .catch((error) => {
+        console.error("Error during initialization:", error);
+        process.exit(1);
+    });
 
 // Middleware
 app.use(
@@ -48,26 +59,15 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Initialize database connection
-AppDataSource.initialize()
-    .then(() => {
-        console.log("Database connection established");
-    })
-    .catch((error) => {
-        console.error("Error connecting to database:", error);
-        process.exit(1);
-    });
-
 // Controllers
 const postController = new PostController();
 const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
 const userController = new UserController();
-const webhookController = new WebhookController(adapter);
 
 // Webhook route (no auth required)
-app.post("/api/webhook", webhookController.handleWebhook.bind(webhookController));
+app.post("/api/webhook", adapter.webhookHandler.handleWebhook);
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
