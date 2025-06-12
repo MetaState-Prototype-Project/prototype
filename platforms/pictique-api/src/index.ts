@@ -10,36 +10,17 @@ import { CommentController } from "./controllers/CommentController";
 import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { UserController } from "./controllers/UserController";
-import { PictiqueAdapter } from "./web3adapter";
-import { UserService } from "./services/UserService";
-import { PostService } from "./services/PostService";
-import { CommentService } from "./services/CommentService";
-import { ChatService } from "./services/ChatService";
+import { WebhookController } from "./controllers/WebhookController";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize services
-const userService = new UserService();
-const postService = new PostService();
-const commentService = new CommentService();
-const chatService = new ChatService();
-
-// Initialize Web3 adapter
-const adapter = new PictiqueAdapter(
-    userService,
-    postService,
-    commentService,
-    chatService
-);
-
 // Initialize database connection and adapter
 AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
-        await adapter.initialize();
         console.log("Web3 adapter initialized");
     })
     .catch((error) => {
@@ -52,9 +33,14 @@ app.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Webhook-Signature", "X-Webhook-Timestamp"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-Webhook-Signature",
+            "X-Webhook-Timestamp",
+        ],
         credentials: true,
-    }),
+    })
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -65,9 +51,10 @@ const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
 const userController = new UserController();
+const webhookController = new WebhookController();
 
 // Webhook route (no auth required)
-app.post("/api/webhook", adapter.webhookHandler.handleWebhook);
+// app.post("/api/webhook", adapter.webhookHandler.handleWebhook);
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
@@ -75,6 +62,7 @@ app.get("/api/auth/offerb", authController.getOfferBlab);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.get("/api/chats/:chatId/events", messageController.getChatEvents);
+app.post("/api/webhook", webhookController.handleWebhook);
 
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below
@@ -89,7 +77,7 @@ app.post("/api/comments", authGuard, commentController.createComment);
 app.get(
     "/api/posts/:postId/comments",
     authGuard,
-    commentController.getPostComments,
+    commentController.getPostComments
 );
 app.put("/api/comments/:id", authGuard, commentController.updateComment);
 app.delete("/api/comments/:id", authGuard, commentController.deleteComment);
@@ -103,38 +91,38 @@ app.get("/api/chats/:chatId", authGuard, messageController.getChat);
 app.post(
     "/api/chats/:chatId/participants",
     authGuard,
-    messageController.addParticipants,
+    messageController.addParticipants
 );
 app.delete(
     "/api/chats/:chatId/participants/:userId",
     authGuard,
-    messageController.removeParticipant,
+    messageController.removeParticipant
 );
 
 app.post(
     "/api/chats/:chatId/messages",
     authGuard,
-    messageController.createMessage,
+    messageController.createMessage
 );
 app.get(
     "/api/chats/:chatId/messages",
     authGuard,
-    messageController.getMessages,
+    messageController.getMessages
 );
 app.delete(
     "/api/chats/:chatId/messages/:messageId",
     authGuard,
-    messageController.deleteMessage,
+    messageController.deleteMessage
 );
 app.post(
     "/api/chats/:chatId/messages/read",
     authGuard,
-    messageController.markAsRead,
+    messageController.markAsRead
 );
 app.get(
     "/api/chats/:chatId/messages/unread",
     authGuard,
-    messageController.getUnreadCount,
+    messageController.getUnreadCount
 );
 
 // User routes

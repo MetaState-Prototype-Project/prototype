@@ -43,6 +43,13 @@
             "minimum": 0,
             "description": "Number of likes on the post"
         },
+        "likedBy": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Number of likes on the post"
+        },
         "replyCount": {
             "type": "integer",
             "minimum": 0,
@@ -69,10 +76,18 @@
         },
         "visibility": {
             "type": "string",
-            "enum": ["public", "private", "followers"],
+            "enum": [
+                "public",
+                "private",
+                "followers"
+            ],
             "description": "The visibility level of the post"
         }
     },
-    "required": ["id", "authorId", "createdAt"],
+    "required": [
+        "id",
+        "authorId",
+        "createdAt"
+    ],
     "additionalProperties": false
 }

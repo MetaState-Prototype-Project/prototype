@@ -34,8 +34,10 @@ const web3Adapter = new Web3Adapter({
     registryUrl: process.env.PUBLIC_REGISTRY_URL || "",
     webhookSecret: process.env.WEBHOOK_SECRET || "",
     webhookEndpoint: process.env.WEBHOOK_ENDPOINT || "/webhook/evault",
-    pictiqueWebhookUrl: process.env.PICTIQUE_WEBHOOK_URL || "http://localhost:1111/api/webhook",
-    pictiqueWebhookSecret: process.env.PICTIQUE_WEBHOOK_SECRET || "your-webhook-secret"
+    pictiqueWebhookUrl:
+        process.env.PICTIQUE_WEBHOOK_URL || "http://localhost:1111/api/webhook",
+    pictiqueWebhookSecret:
+        process.env.PICTIQUE_WEBHOOK_SECRET || "your-webhook-secret",
 });
 
 // Initialize adapter
@@ -45,7 +47,6 @@ web3Adapter.initialize().catch((error) => {
 });
 
 // Register webhook endpoint
-app.post("/api/webhook", web3Adapter.getWebhookHandler());
 
 app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
