@@ -8,20 +8,20 @@ import {
 import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
 import path from "path";
 import dotenv from "dotenv";
+
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
+export const adapter = new Web3Adapter({
+    schemasPath: path.resolve(__dirname, "../mappings/"),
+    dbPath: path.resolve(process.env.PICTIQUE_MAPPING_DB_PATH as string),
+    registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
+});
 
 @EventSubscriber()
 export class PostgresSubscriber implements EntitySubscriberInterface {
     private adapter: Web3Adapter;
 
     constructor() {
-        this.adapter = new Web3Adapter({
-            schemasPath: path.resolve(__dirname, "../mappings/"),
-            dbPath: path.resolve(
-                process.env.PICTIQUE_MAPPING_DB_PATH as string
-            ),
-            registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
-        });
+        this.adapter = adapter;
     }
 
     /**
@@ -80,12 +80,16 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         try {
             // Convert the entity to a plain object
             const data = this.entityToPlain(entity);
+            if (!entity.id) return;
 
             // Send to Web3Adapter
-            this.adapter.handleChange({
-                data,
-                tableName: tableName.toLowerCase(), // Ensure table name is lowercase to match mapping files
-            });
+
+            if (!this.adapter.lockedIds.includes(entity.id)) {
+                this.adapter.handleChange({
+                    data,
+                    tableName: tableName.toLowerCase(), // Ensure table name is lowercase to match mapping files
+                });
+            }
         } catch (error) {
             console.error(`Error processing change for ${tableName}:`, error);
         }

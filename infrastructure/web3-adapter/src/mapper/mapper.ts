@@ -47,9 +47,83 @@ export function fromGlobal({
     mapping,
     mappingStore,
 }: IMappingConversionOptions): IMapperResponse {
+    const result: Record<string, unknown> = {};
+
+    for (let [localKey, globalPathRaw] of Object.entries(
+        mapping.localToUniversalMap
+    )) {
+        let value: any;
+        let targetKey: string = localKey;
+        let tableRef: string | null = null;
+
+        const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
+        if (internalFnMatch) {
+            const [, outerFn, innerExpr] = internalFnMatch;
+
+            if (outerFn === "date") {
+                const calcMatch = innerExpr.match(/^calc\((.+)\)$/);
+                if (calcMatch) {
+                    const calcResult = evaluateCalcExpression(
+                        calcMatch[1],
+                        data
+                    );
+                    value =
+                        calcResult !== undefined
+                            ? new Date(calcResult).toISOString()
+                            : undefined;
+                } else {
+                    const rawVal = getValueByPath(data, innerExpr);
+                    if (typeof rawVal === "number") {
+                        value = new Date(rawVal).toISOString();
+                    } else if (rawVal?._seconds) {
+                        value = new Date(rawVal._seconds * 1000).toISOString();
+                    } else if (rawVal instanceof Date) {
+                        value = rawVal.toISOString();
+                    } else {
+                        value = undefined;
+                    }
+                }
+            } else if (outerFn === "calc") {
+                value = evaluateCalcExpression(innerExpr, data);
+            }
+
+            result[targetKey] = value;
+            continue;
+        }
+        let pathRef = globalPathRaw;
+        if (globalPathRaw.includes("(") && globalPathRaw.includes(")")) {
+            tableRef = globalPathRaw.split("(")[0];
+        }
+        if (pathRef.includes(",")) {
+            pathRef = pathRef.split(",")[1];
+        }
+        value = getValueByPath(data.data as Record<string, unknown>, pathRef);
+
+        if (tableRef) {
+            if (Array.isArray(value)) {
+                value = value.map((v) => {
+                    console.log(v, tableRef);
+                    const localId = mappingStore.getLocalId({
+                        globalId: v,
+                        tableName: tableRef,
+                    });
+                    return localId ? `${tableRef}(${localId})` : null;
+                });
+            } else {
+                value = mappingStore.getLocalId({
+                    globalId: value,
+                    tableName: tableRef,
+                });
+                value = value ? `${tableRef}(${value})` : null;
+            }
+        }
+
+        result[localKey] = value;
+    }
+
     return {
         ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),
-        data: {},
+        data: result,
     };
 }
 

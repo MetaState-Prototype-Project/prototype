@@ -1,0 +1,15 @@
+{
+    "tableName": "message",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440004",
+    "ownerEnamePath": "id",
+    "localToUniversalMap": {
+        "chat": "chat(chat),chatId",
+        "sender": "user(sender),senderId",
+        "content": "content",
+        "type": "type",
+        "mediaUrl": "mediaUrl",
+        "createdAt": "__date(calc(createdAt._seconds * 1000))",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000))",
+        "isArchived": "isArchived"
+    }
+}
