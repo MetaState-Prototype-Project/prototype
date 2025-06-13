@@ -11,6 +11,7 @@ import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { UserController } from "./controllers/UserController";
 import { WebhookController } from "./controllers/WebhookController";
+import { adapter } from "./web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -51,7 +52,7 @@ const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
 const userController = new UserController();
-const webhookController = new WebhookController();
+const webhookController = new WebhookController(adapter);
 
 // Webhook route (no auth required)
 // app.post("/api/webhook", adapter.webhookHandler.handleWebhook);

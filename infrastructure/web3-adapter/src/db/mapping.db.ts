@@ -20,10 +20,10 @@ export class MappingDatabase {
                 global_id TEXT NOT NULL,
                 table_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (local_id, table_name)
+                PRIMARY KEY (global_id, table_name)
             );
 
-            CREATE INDEX IF NOT EXISTS idx_global_id ON id_mappings(global_id);
+            CREATE INDEX IF NOT EXISTS idx_local_id ON id_mappings(local_id);
             CREATE INDEX IF NOT EXISTS idx_table_name ON id_mappings(table_name);
         `);
     }
@@ -36,12 +36,62 @@ export class MappingDatabase {
         globalId: string;
         tableName: string;
     }): void {
+        // Validate inputs
+        if (!params.localId || !params.globalId || !params.tableName) {
+            console.error("Invalid mapping parameters:", params);
+            throw new Error("Invalid mapping parameters: all fields are required");
+        }
+
+        // Check if mapping already exists
+        const existingMapping = this.getGlobalId({
+            localId: params.localId,
+            tableName: params.tableName,
+        });
+
+        if (existingMapping) {
+            console.log(
+                `Mapping already exists for local ID ${params.localId} in table ${params.tableName}. Existing global ID: ${existingMapping}`
+            );
+            return;
+        }
+
         const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO id_mappings (local_id, global_id, table_name)
+            INSERT INTO id_mappings (local_id, global_id, table_name)
             VALUES (@localId, @globalId, @tableName)
         `);
 
-        stmt.run(params);
+        try {
+            console.log(
+                "Storing mapping:",
+                JSON.stringify({
+                    localId: params.localId,
+                    globalId: params.globalId,
+                    tableName: params.tableName,
+                })
+            );
+            stmt.run(params);
+            
+            // Verify the mapping was stored
+            const storedMapping = this.getGlobalId({
+                localId: params.localId,
+                tableName: params.tableName,
+            });
+            
+            if (storedMapping !== params.globalId) {
+                console.error(
+                    "Failed to store mapping. Expected:",
+                    params.globalId,
+                    "Got:",
+                    storedMapping
+                );
+                throw new Error("Failed to store mapping");
+            }
+            
+            console.log("Successfully stored mapping");
+        } catch (error) {
+            console.error("Error storing mapping:", error);
+            throw error;
+        }
     }
 
     /**
@@ -51,14 +101,32 @@ export class MappingDatabase {
         localId: string;
         tableName: string;
     }): string | null {
+        if (!params.localId || !params.tableName) {
+            console.error("Invalid parameters for getGlobalId:", params);
+            return null;
+        }
+
         const stmt = this.db.prepare(`
             SELECT global_id
             FROM id_mappings
             WHERE local_id = @localId AND table_name = @tableName
         `);
 
-        const result = stmt.get(params) as { global_id: string } | undefined;
-        return result?.global_id ?? null;
+        try {
+            const result = stmt.get(params) as { global_id: string } | undefined;
+            console.log(
+                "Retrieved global ID for local ID",
+                params.localId,
+                "in table",
+                params.tableName,
+                "Result:",
+                result?.global_id ?? "null"
+            );
+            return result?.global_id ?? null;
+        } catch (error) {
+            console.error("Error getting global ID:", error);
+            return null;
+        }
     }
 
     /**
@@ -68,26 +136,61 @@ export class MappingDatabase {
         globalId: string;
         tableName: string;
     }): string | null {
+        if (!params.globalId || !params.tableName) {
+            console.error("Invalid parameters for getLocalId:", params);
+            return null;
+        }
+
         const stmt = this.db.prepare(`
             SELECT local_id
             FROM id_mappings
             WHERE global_id = @globalId AND table_name = @tableName
         `);
 
-        const result = stmt.get(params) as { local_id: string } | undefined;
-        return result?.local_id ?? null;
+        try {
+            const result = stmt.get(params) as { local_id: string } | undefined;
+            console.log(
+                "Retrieved local ID for global ID",
+                params.globalId,
+                "in table",
+                params.tableName,
+                "Result:",
+                result?.local_id ?? "null"
+            );
+            return result?.local_id ?? null;
+        } catch (error) {
+            console.error("Error getting local ID:", error);
+            return null;
+        }
     }
 
     /**
      * Delete a mapping
      */
     public deleteMapping(params: { localId: string; tableName: string }): void {
+        if (!params.localId || !params.tableName) {
+            console.error("Invalid parameters for deleteMapping:", params);
+            return;
+        }
+
         const stmt = this.db.prepare(`
             DELETE FROM id_mappings
             WHERE local_id = @localId AND table_name = @tableName
         `);
 
-        stmt.run(params);
+        try {
+            console.log(
+                "Deleting mapping for local ID",
+                params.localId,
+                "in table",
+                params.tableName
+            );
+            stmt.run(params);
+            console.log("Successfully deleted mapping");
+        } catch (error) {
+            console.error("Error deleting mapping:", error);
+            throw error;
+        }
     }
 
     /**
@@ -97,29 +200,48 @@ export class MappingDatabase {
         localId: string;
         globalId: string;
     }> {
+        if (!tableName) {
+            console.error("Invalid table name for getTableMappings:", tableName);
+            return [];
+        }
+
         const stmt = this.db.prepare(`
             SELECT local_id, global_id
             FROM id_mappings
             WHERE table_name = @tableName
         `);
 
-        const results = stmt.all({ tableName }) as Array<{
-            local_id: string;
-            global_id: string;
-        }>;
+        try {
+            const results = stmt.all({ tableName }) as Array<{
+                local_id: string;
+                global_id: string;
+            }>;
 
-        return results.map(({ local_id, global_id }) => ({
-            localId: local_id,
-            globalId: global_id,
-        }));
+            console.log(
+                "Retrieved",
+                results.length,
+                "mappings for table",
+                tableName
+            );
+            return results.map(({ local_id, global_id }) => ({
+                localId: local_id,
+                globalId: global_id,
+            }));
+        } catch (error) {
+            console.error("Error getting table mappings:", error);
+            return [];
+        }
     }
 
     /**
      * Close the database connection
      */
     public close(): void {
-        this.db.close();
+        try {
+            this.db.close();
+            console.log("Database connection closed");
+        } catch (error) {
+            console.error("Error closing database connection:", error);
+        }
     }
 }
-
- 

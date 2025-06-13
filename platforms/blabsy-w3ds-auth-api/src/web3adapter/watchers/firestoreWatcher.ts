@@ -7,6 +7,7 @@ import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/inde
 import path from "path";
 import dotenv from "dotenv";
 import axios from "axios";
+import { env } from "process";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 
@@ -85,6 +86,7 @@ export class FirestoreWatcher<T extends DocumentData> {
             data: { ...data, id: doc.id },
             tableName,
         });
+        console.log(envelope);
         axios.post(
             new URL(
                 "/api/webhook",
