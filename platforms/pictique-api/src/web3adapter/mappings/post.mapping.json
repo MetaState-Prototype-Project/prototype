@@ -1,0 +1,15 @@
+{
+    "tableName": "posts",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+    "ownerEnamePath": "users(author.ename)",
+    "localToUniversalMap": {
+        "text": "content",
+        "images": "mediaUrls",
+        "hashtags": "tags",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt",
+        "isArchived": "isArchived",
+        "likedBy": "user(likedBy[]),likedBy",
+        "author": "users(author.id),authorId"
+    }
+}

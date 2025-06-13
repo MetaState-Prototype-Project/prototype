@@ -149,9 +149,7 @@ export function toGlobal({
         const relationMatch = globalPathRaw.match(/^(\w+)\((.+?)\)(\[\])?$/);
         if (relationMatch) {
             const [, tableRef, pathInData, isArray] = relationMatch;
-            console.log(relationMatch, data, pathInData);
             const refValue = getValueByPath(data, pathInData);
-            console;
             if (isArray) {
                 value = Array.isArray(refValue)
                     ? refValue.map((v) => `@${v}`)
@@ -159,12 +157,13 @@ export function toGlobal({
             } else {
                 value = refValue ? `@${refValue}` : undefined;
             }
-            console.log(value);
             result[targetKey] = value;
             continue;
         }
 
-        let pathRef: string = localKey;
+        let pathRef: string = globalPathRaw.includes(",")
+            ? globalPathRaw
+            : localKey;
         let tableRef: string | null = null;
         if (globalPathRaw.includes("(") && globalPathRaw.includes(")")) {
             pathRef = globalPathRaw.split("(")[1].split(")")[0];
@@ -173,7 +172,6 @@ export function toGlobal({
         if (globalPathRaw.includes(",")) {
             pathRef = pathRef.split(",")[0];
         }
-        if (tableRef) console.log(tableRef, targetKey, pathRef);
         value = getValueByPath(data, pathRef);
         if (tableRef) {
             if (Array.isArray(value)) {
