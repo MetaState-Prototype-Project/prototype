@@ -1,0 +1,202 @@
+import { IMappingConversionOptions, IMapperResponse } from "./mapper.types";
+
+export function getValueByPath(obj: Record<string, any>, path: string): any {
+    // Handle array mapping case (e.g., "images[].src")
+    if (path.includes("[]")) {
+        const [arrayPath, fieldPath] = path.split("[]");
+        const array = getValueByPath(obj, arrayPath);
+
+        if (!Array.isArray(array)) {
+            return [];
+        }
+
+        // If there's a field path after [], map through the array
+        if (fieldPath) {
+            return array.map((item) =>
+                getValueByPath(item, fieldPath.slice(1))
+            ); // Remove the leading dot
+        }
+
+        return array;
+    }
+
+    // Handle regular path case
+    const parts = path.split(".");
+    return parts.reduce((acc: any, part: string) => {
+        if (acc === null || acc === undefined) return undefined;
+        return acc[part];
+    }, obj);
+}
+
+function extractOwnerEvault(
+    data: Record<string, unknown>,
+    ownerEnamePath: string
+): string | null {
+    if (!ownerEnamePath.includes("(")) {
+        return (data[ownerEnamePath] as string) || null;
+    }
+
+    const [_, fieldPathRaw] = ownerEnamePath.split("(");
+    const fieldPath = fieldPathRaw.replace(")", "");
+    const value = getValueByPath(data, fieldPath);
+    return (value as string) || null;
+}
+
+export function fromGlobal({
+    data,
+    mapping,
+    mappingStore,
+}: IMappingConversionOptions): IMapperResponse {
+    return {
+        ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),
+        data: {},
+    };
+}
+
+function evaluateCalcExpression(
+    expr: string,
+    context: Record<string, any>
+): number | undefined {
+    const tokens = expr
+        .split(/[^\w.]+/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+    let resolvedExpr = expr;
+    for (const token of tokens) {
+        const value = getValueByPath(context, token);
+        if (typeof value !== "undefined") {
+            resolvedExpr = resolvedExpr.replace(
+                new RegExp(`\\b${token.replace(".", "\\.")}\\b`, "g"),
+                value
+            );
+        }
+    }
+
+    try {
+        return Function('"use strict"; return (' + resolvedExpr + ")")();
+    } catch {
+        return undefined;
+    }
+}
+
+export function toGlobal({
+    data,
+    mapping,
+    mappingStore,
+}: IMappingConversionOptions): IMapperResponse {
+    const result: Record<string, unknown> = {};
+
+    for (let [localKey, globalPathRaw] of Object.entries(
+        mapping.localToUniversalMap
+    )) {
+        let value: any;
+        let targetKey: string = localKey;
+
+        if (globalPathRaw.includes(",")) {
+            const [_, alias] = globalPathRaw.split(",");
+            targetKey = alias;
+        }
+
+        if (localKey.includes("[]")) {
+            const [arrayPath, innerPathRaw] = localKey.split("[]");
+            const cleanInnerPath = innerPathRaw.startsWith(".")
+                ? innerPathRaw.slice(1)
+                : innerPathRaw;
+            const array = getValueByPath(data, arrayPath);
+            value = Array.isArray(array)
+                ? array.map((item) => getValueByPath(item, cleanInnerPath))
+                : undefined;
+            result[targetKey] = value;
+            continue;
+        }
+
+        const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
+        if (internalFnMatch) {
+            const [, outerFn, innerExpr] = internalFnMatch;
+
+            if (outerFn === "date") {
+                const calcMatch = innerExpr.match(/^calc\((.+)\)$/);
+                if (calcMatch) {
+                    const calcResult = evaluateCalcExpression(
+                        calcMatch[1],
+                        data
+                    );
+                    value =
+                        calcResult !== undefined
+                            ? new Date(calcResult).toISOString()
+                            : undefined;
+                } else {
+                    const rawVal = getValueByPath(data, innerExpr);
+                    if (typeof rawVal === "number") {
+                        value = new Date(rawVal).toISOString();
+                    } else if (rawVal?._seconds) {
+                        value = new Date(rawVal._seconds * 1000).toISOString();
+                    } else if (rawVal instanceof Date) {
+                        value = rawVal.toISOString();
+                    } else {
+                        value = undefined;
+                    }
+                }
+            } else if (outerFn === "calc") {
+                value = evaluateCalcExpression(innerExpr, data);
+            }
+
+            result[targetKey] = value;
+            continue;
+        }
+
+        const relationMatch = globalPathRaw.match(/^(\w+)\((.+?)\)(\[\])?$/);
+        if (relationMatch) {
+            const [, tableRef, pathInData, isArray] = relationMatch;
+            console.log(relationMatch, data, pathInData);
+            const refValue = getValueByPath(data, pathInData);
+            console;
+            if (isArray) {
+                value = Array.isArray(refValue)
+                    ? refValue.map((v) => `@${v}`)
+                    : [];
+            } else {
+                value = refValue ? `@${refValue}` : undefined;
+            }
+            console.log(value);
+            result[targetKey] = value;
+            continue;
+        }
+
+        let pathRef: string = localKey;
+        let tableRef: string | null = null;
+        if (globalPathRaw.includes("(") && globalPathRaw.includes(")")) {
+            pathRef = globalPathRaw.split("(")[1].split(")")[0];
+            tableRef = globalPathRaw.split("(")[0];
+        }
+        if (globalPathRaw.includes(",")) {
+            pathRef = pathRef.split(",")[0];
+        }
+        if (tableRef) console.log(tableRef, targetKey, pathRef);
+        value = getValueByPath(data, pathRef);
+        if (tableRef) {
+            if (Array.isArray(value)) {
+                value = value.map(
+                    (v) =>
+                        mappingStore.getGlobalId({
+                            localId: v,
+                            tableName: tableRef,
+                        }) ?? undefined
+                );
+            } else {
+                value =
+                    mappingStore.getGlobalId({
+                        localId: value,
+                        tableName: tableRef,
+                    }) ?? undefined;
+            }
+        }
+        result[targetKey] = value;
+    }
+
+    return {
+        ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),
+        data: result,
+    };
+}
