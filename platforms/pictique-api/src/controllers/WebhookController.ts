@@ -9,6 +9,7 @@ import { MappingDatabase } from "../../../../infrastructure/web3-adapter/src/db"
 import { User } from "database/entities/User";
 import { Chat } from "database/entities/Chat";
 import { MessageService } from "../services/MessageService";
+import { Post } from "database/entities/Post";
 
 export class WebhookController {
     userService: UserService;
@@ -37,24 +38,11 @@ export class WebhookController {
         if (!mapping) throw new Error();
         const local = this.adapter.fromGlobal({ data: req.body, mapping });
 
-        console.log("Webhook received:", {
-            schemaId,
-            globalId,
-            tableName: mapping.tableName,
-            localData: local.data,
-        });
-
-        const localId = this.adapter.mappingDb.getLocalId({
+        let localId = this.adapter.mappingDb.getLocalId({
             globalId,
             tableName: mapping.tableName,
         });
 
-        console.log(
-            "found match for mapping global id -> ",
-            globalId,
-            " local -> ",
-            localId
-        );
         if (mapping.tableName === "users") {
             const { user } = await this.userService.findOrCreateUser(
                 req.body.w3id
@@ -63,9 +51,7 @@ export class WebhookController {
                 // @ts-ignore
                 user[key] = local.data[key];
             }
-            const userUpdated = await this.userService.userRepository.save(
-                user
-            );
+            await this.userService.userRepository.save(user);
             this.adapter.mappingDb.storeMapping({
                 localId: user.id,
                 globalId: req.body.id,
@@ -79,9 +65,51 @@ export class WebhookController {
                 const authorId = local.data.author.split("(")[1].split(")")[0];
                 author = await this.userService.findById(authorId);
             }
+            let likedBy: User[] = [];
+            if (local.data.likedBy && Array.isArray(local.data.likedBy)) {
+                const likedByPromises = local.data.likedBy.map(
+                    async (ref: string) => {
+                        if (ref && typeof ref === "string") {
+                            const userId = ref.split("(")[1].split(")")[0];
+                            return await this.userService.findById(userId);
+                        }
+                        return null;
+                    }
+                );
+                likedBy = (await Promise.all(likedByPromises)).filter(
+                    (user): user is User => user !== null
+                );
+            }
 
             if (local.data.parentPostId) {
-                console.log("commentski");
+                const parentId = (local.data.parentPostId as string)
+                    .split("(")[1]
+                    .split(")")[0];
+                const parent = await this.postsService.findById(parentId);
+                if (localId) {
+                    const comment = await this.commentService.getCommentById(
+                        localId
+                    );
+                    if (!comment) return;
+                    comment.text = local.data.text as string;
+                    comment.likedBy = likedBy as User[];
+                    comment.author = author as User;
+                    comment.post = parent as Post;
+                    await this.commentService.commentRepository.save(comment);
+                } else {
+                    const comment = await this.commentService.createComment(
+                        parent?.id as string,
+                        author?.id as string,
+                        local.data.text as string
+                    );
+                    localId = comment.id;
+                    this.adapter.mappingDb.storeMapping({
+                        localId,
+                        globalId,
+                        tableName: mapping.tableName,
+                    });
+                }
+                this.adapter.addToLockedIds(localId);
             } else {
                 let likedBy: User[] = [];
                 if (local.data.likedBy && Array.isArray(local.data.likedBy)) {
@@ -100,7 +128,6 @@ export class WebhookController {
                 }
 
                 if (localId) {
-                    console.log("Updating existing post:", localId);
                     const post = await this.postsService.findById(localId);
                     if (!post) return res.status(500).send();
                     for (const key of Object.keys(local.data)) {
@@ -123,12 +150,6 @@ export class WebhookController {
                             likedBy,
                         }
                     );
-
-                    console.log("Storing mapping:", {
-                        localId: post.id,
-                        globalId,
-                        tableName: mapping.tableName,
-                    });
 
                     this.adapter.addToLockedIds(post.id);
                     this.adapter.mappingDb.storeMapping({

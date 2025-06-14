@@ -38,8 +38,9 @@ export class MappingDatabase {
     }): void {
         // Validate inputs
         if (!params.localId || !params.globalId || !params.tableName) {
-            console.error("Invalid mapping parameters:", params);
-            throw new Error("Invalid mapping parameters: all fields are required");
+            throw new Error(
+                "Invalid mapping parameters: all fields are required"
+            );
         }
 
         // Check if mapping already exists
@@ -49,9 +50,6 @@ export class MappingDatabase {
         });
 
         if (existingMapping) {
-            console.log(
-                `Mapping already exists for local ID ${params.localId} in table ${params.tableName}. Existing global ID: ${existingMapping}`
-            );
             return;
         }
 
@@ -61,35 +59,18 @@ export class MappingDatabase {
         `);
 
         try {
-            console.log(
-                "Storing mapping:",
-                JSON.stringify({
-                    localId: params.localId,
-                    globalId: params.globalId,
-                    tableName: params.tableName,
-                })
-            );
             stmt.run(params);
-            
+
             // Verify the mapping was stored
             const storedMapping = this.getGlobalId({
                 localId: params.localId,
                 tableName: params.tableName,
             });
-            
+
             if (storedMapping !== params.globalId) {
-                console.error(
-                    "Failed to store mapping. Expected:",
-                    params.globalId,
-                    "Got:",
-                    storedMapping
-                );
                 throw new Error("Failed to store mapping");
             }
-            
-            console.log("Successfully stored mapping");
         } catch (error) {
-            console.error("Error storing mapping:", error);
             throw error;
         }
     }
@@ -102,7 +83,6 @@ export class MappingDatabase {
         tableName: string;
     }): string | null {
         if (!params.localId || !params.tableName) {
-            console.error("Invalid parameters for getGlobalId:", params);
             return null;
         }
 
@@ -113,15 +93,9 @@ export class MappingDatabase {
         `);
 
         try {
-            const result = stmt.get(params) as { global_id: string } | undefined;
-            console.log(
-                "Retrieved global ID for local ID",
-                params.localId,
-                "in table",
-                params.tableName,
-                "Result:",
-                result?.global_id ?? "null"
-            );
+            const result = stmt.get(params) as
+                | { global_id: string }
+                | undefined;
             return result?.global_id ?? null;
         } catch (error) {
             console.error("Error getting global ID:", error);
@@ -137,7 +111,6 @@ export class MappingDatabase {
         tableName: string;
     }): string | null {
         if (!params.globalId || !params.tableName) {
-            console.error("Invalid parameters for getLocalId:", params);
             return null;
         }
 
@@ -149,17 +122,8 @@ export class MappingDatabase {
 
         try {
             const result = stmt.get(params) as { local_id: string } | undefined;
-            console.log(
-                "Retrieved local ID for global ID",
-                params.globalId,
-                "in table",
-                params.tableName,
-                "Result:",
-                result?.local_id ?? "null"
-            );
             return result?.local_id ?? null;
         } catch (error) {
-            console.error("Error getting local ID:", error);
             return null;
         }
     }
@@ -169,7 +133,6 @@ export class MappingDatabase {
      */
     public deleteMapping(params: { localId: string; tableName: string }): void {
         if (!params.localId || !params.tableName) {
-            console.error("Invalid parameters for deleteMapping:", params);
             return;
         }
 
@@ -179,16 +142,8 @@ export class MappingDatabase {
         `);
 
         try {
-            console.log(
-                "Deleting mapping for local ID",
-                params.localId,
-                "in table",
-                params.tableName
-            );
             stmt.run(params);
-            console.log("Successfully deleted mapping");
         } catch (error) {
-            console.error("Error deleting mapping:", error);
             throw error;
         }
     }
@@ -201,7 +156,6 @@ export class MappingDatabase {
         globalId: string;
     }> {
         if (!tableName) {
-            console.error("Invalid table name for getTableMappings:", tableName);
             return [];
         }
 
@@ -217,18 +171,11 @@ export class MappingDatabase {
                 global_id: string;
             }>;
 
-            console.log(
-                "Retrieved",
-                results.length,
-                "mappings for table",
-                tableName
-            );
             return results.map(({ local_id, global_id }) => ({
                 localId: local_id,
                 globalId: global_id,
             }));
         } catch (error) {
-            console.error("Error getting table mappings:", error);
             return [];
         }
     }
@@ -239,7 +186,6 @@ export class MappingDatabase {
     public close(): void {
         try {
             this.db.close();
-            console.log("Database connection closed");
         } catch (error) {
             console.error("Error closing database connection:", error);
         }
