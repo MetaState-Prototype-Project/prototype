@@ -77,22 +77,26 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Process the change and send it to the Web3Adapter
      */
     private handleChange(entity: any, tableName: string): void {
-        try {
-            // Convert the entity to a plain object
-            const data = this.entityToPlain(entity);
-            if (!entity.id) return;
-
-            // Send to Web3Adapter
-
-            if (!this.adapter.lockedIds.includes(entity.id)) {
-                this.adapter.handleChange({
-                    data,
-                    tableName: tableName.toLowerCase(), // Ensure table name is lowercase to match mapping files
-                });
+        console.log("HANDLING CHANGE");
+        // Convert the entity to a plain object
+        const data = this.entityToPlain(entity);
+        if (!data.id) return;
+        setTimeout(() => {
+            try {
+                if (!this.adapter.lockedIds.includes(entity.id)) {
+                    this.adapter.handleChange({
+                        data,
+                        tableName: tableName.toLowerCase(), // Ensure table name is lowercase to match mapping files
+                    });
+                }
+                if (!entity.id) return;
+            } catch (error) {
+                console.error(
+                    `Error processing change for ${tableName}:`,
+                    error
+                );
             }
-        } catch (error) {
-            console.error(`Error processing change for ${tableName}:`, error);
-        }
+        }, 2_000);
     }
 
     /**

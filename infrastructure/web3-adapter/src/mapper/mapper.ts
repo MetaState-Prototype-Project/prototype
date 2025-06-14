@@ -102,11 +102,13 @@ export function fromGlobal({
         if (tableRef) {
             if (Array.isArray(value)) {
                 value = value.map((v) => {
-                    console.log(v, tableRef);
+                    console.log("ref table", tableRef, v);
                     const localId = mappingStore.getLocalId({
                         globalId: v,
                         tableName: tableRef,
                     });
+
+                    console.log("value", localId, v);
                     return localId ? `${tableRef}(${localId})` : null;
                 });
             } else {
@@ -266,6 +268,7 @@ export function toGlobal({
         }
         result[targetKey] = value;
     }
+    console.log("mapped", result);
 
     return {
         ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),

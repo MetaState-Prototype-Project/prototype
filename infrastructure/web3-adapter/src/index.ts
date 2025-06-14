@@ -42,6 +42,7 @@ export class Web3Adapter {
 
     addToLockedIds(id: string) {
         this.lockedIds.push(id);
+        console.log("Added", this.lockedIds);
         setTimeout(() => {
             this.lockedIds = this.lockedIds.filter((f) => f !== id);
         }, 5_000);
@@ -67,12 +68,12 @@ export class Web3Adapter {
             });
 
             // Update the existing global entity
-            await this.evaultClient.updateMetaEnvelopeById(existingGlobalId, {
-                id: existingGlobalId,
-                w3id: global.ownerEvault as string,
-                data: global.data,
-                schemaId: this.mapping[tableName].schemaId,
-            });
+            // await this.evaultClient.updateMetaEnvelopeById(existingGlobalId, {
+            //     id: existingGlobalId,
+            //     w3id: global.ownerEvault as string,
+            //     data: global.data,
+            //     schemaId: this.mapping[tableName].schemaId,
+            // });
 
             return {
                 id: existingGlobalId,
