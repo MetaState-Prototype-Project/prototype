@@ -91,6 +91,7 @@ export class Web3Adapter {
             mapping: this.mapping[tableName],
             mappingStore: this.mappingDb,
         });
+        console.log(data, global, existingGlobalId);
 
         const globalId = await this.evaultClient.storeMetaEnvelope({
             id: null,

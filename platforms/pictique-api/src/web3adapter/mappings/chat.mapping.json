@@ -1,14 +1,14 @@
 {
-    "tableName": "chat",
+    "tableName": "chats",
     "schemaId": "550e8400-e29b-41d4-a716-446655440003",
-    "ownerEnamePath": "user(participants.ename)",
+    "ownerEnamePath": "users(participants.ename)",
     "ownedJunctionTables": [
         "chat_participants"
     ],
     "localToUniversalMap": {
         "name": "name",
         "type": "type",
-        "participants": "user(participants[]),participantIds",
+        "participants": "users(participants[]),participantIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }

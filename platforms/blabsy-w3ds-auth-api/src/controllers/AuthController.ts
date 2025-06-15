@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { EventEmitter } from "events";
-import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { auth } from "firebase-admin";
 export class AuthController {
     private eventEmitter: EventEmitter;

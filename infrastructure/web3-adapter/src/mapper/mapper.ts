@@ -38,7 +38,10 @@ function extractOwnerEvault(
 
     const [_, fieldPathRaw] = ownerEnamePath.split("(");
     const fieldPath = fieldPathRaw.replace(")", "");
-    const value = getValueByPath(data, fieldPath);
+    let value = getValueByPath(data, fieldPath);
+    if (value.includes("(") && value.includes(")")) {
+        value = value.split("(")[1].split(")")[0];
+    }
     return (value as string) || null;
 }
 
@@ -46,10 +49,8 @@ export function fromGlobal({
     data,
     mapping,
     mappingStore,
-}: IMappingConversionOptions): IMapperResponse {
+}: IMappingConversionOptions): Omit<IMapperResponse, "ownerEvault"> {
     const result: Record<string, unknown> = {};
-
-    console.log(data);
 
     for (let [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap
@@ -125,7 +126,6 @@ export function fromGlobal({
     }
 
     return {
-        ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),
         data: result,
     };
 }
@@ -191,8 +191,6 @@ export function toGlobal({
         const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
         if (internalFnMatch) {
             const [, outerFn, innerExpr] = internalFnMatch;
-
-            console.log(internalFnMatch);
 
             if (outerFn === "date") {
                 const calcMatch = innerExpr.match(/^calc\((.+)\)$/);
@@ -271,10 +269,10 @@ export function toGlobal({
         }
         result[targetKey] = value;
     }
-    console.log("mapped", result);
+    const ownerEvault = extractOwnerEvault(data, mapping.ownerEnamePath);
 
     return {
-        ownerEvault: extractOwnerEvault(data, mapping.ownerEnamePath),
+        ownerEvault,
         data: result,
     };
 }

@@ -117,7 +117,10 @@ export class FirestoreWatcher<T extends DocumentData> {
                 switch (change.type) {
                     case "added":
                     case "modified":
-                        await this.handleCreateOrUpdate(doc, data);
+                        setTimeout(() => {
+                            if (adapter.lockedIds.includes(doc.id)) return;
+                            this.handleCreateOrUpdate(doc, data);
+                        }, 2_000);
                         break;
                     case "removed":
                         console.log(`Document removed: ${doc.id}`);
@@ -141,8 +144,6 @@ export class FirestoreWatcher<T extends DocumentData> {
         >,
         data: T
     ): Promise<void> {
-        console.log(`Processing ${doc.id} in ${this.collection.path}`);
-
         const tableName = doc.ref.path.split("s/")[0];
         const envelope = await this.adapter.handleChange({
             data: { ...data, id: doc.id },
