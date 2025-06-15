@@ -14,10 +14,8 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
-        "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^24.0.0",
         "axios": "^1.6.7",
-        "better-sqlite3": "^11.10.0",
         "evault-core": "workspace:*",
         "graphql-request": "^6.1.0",
         "sqlite3": "^5.1.7",
