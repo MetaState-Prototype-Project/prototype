@@ -1,11 +1,11 @@
 {
-    "tableName": "message",
+    "tableName": "messages",
     "schemaId": "550e8400-e29b-41d4-a716-446655440004",
-    "ownerEnamePath": "user(participants.ename)",
+    "ownerEnamePath": "users(participants.ename)",
     "localToUniversalMap": {
-        "chat": "chat(chat.id),chatId",
+        "chat": "chats(chat.id),chatId",
         "text": "content",
-        "sender": "user(sender.id),senderId",
+        "sender": "users(sender.id),senderId",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }

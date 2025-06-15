@@ -11,6 +11,7 @@ import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
 import { MetaEnvelope } from "../../../../../infrastructure/web3-adapter/src/evault/evault";
 import axios from "axios";
+import { table } from "console";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
@@ -112,11 +113,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
+        console.log(data);
         if (!data.id) return;
 
         setTimeout(async () => {
             try {
                 if (!this.adapter.lockedIds.includes(entity.id)) {
+                    console.log("test?", tableName);
+                    console.log(this.adapter.mapping);
                     const envelope = await this.adapter.handleChange({
                         data,
                         tableName: tableName.toLowerCase(),
