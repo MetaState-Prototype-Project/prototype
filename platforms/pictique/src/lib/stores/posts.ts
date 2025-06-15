@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { apiClient } from '$lib/utils/axios';
+import { goto } from '$app/navigation';
 
 export interface Post {
     id: string;
@@ -41,6 +42,7 @@ export const fetchFeed = async (page = 1, limit = 10) => {
         const response = await apiClient.get(`/api/posts/feed?page=${page}&limit=${limit}`);
         posts.set(response.data);
     } catch (err) {
+        goto('/auth');
         error.set(err instanceof Error ? err.message : 'Failed to fetch feed');
     } finally {
         isLoading.set(false);
