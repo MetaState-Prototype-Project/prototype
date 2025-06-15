@@ -56,8 +56,6 @@ export class Web3Adapter {
     }) {
         const { data, tableName, participants } = props;
 
-        console.log("DAta", data, tableName);
-
         const existingGlobalId = this.mappingDb.getGlobalId({
             localId: data.id as string,
             tableName,

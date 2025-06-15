@@ -9,6 +9,8 @@ import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/inde
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
+import { MetaEnvelope } from "../../../../../infrastructure/web3-adapter/src/evault/evault";
+import axios from "axios";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
@@ -88,6 +90,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     afterRemove(event: RemoveEvent<any>) {
         // Handle any post-remove processing if needed
+        this.handleChange(
+            // @ts-ignore
+            event.entity ?? event.entityId,
+            event.metadata.tableName
+        );
     }
 
     /**
@@ -107,13 +114,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         const data = this.entityToPlain(entity);
         if (!data.id) return;
 
-        setTimeout(() => {
+        setTimeout(async () => {
             try {
                 if (!this.adapter.lockedIds.includes(entity.id)) {
-                    this.adapter.handleChange({
+                    const envelope = await this.adapter.handleChange({
                         data,
                         tableName: tableName.toLowerCase(),
                     });
+                    this.deliverWebhook(envelope);
                 }
             } catch (error) {
                 console.error(
@@ -122,6 +130,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 );
             }
         }, 2_000);
+    }
+
+    private async deliverWebhook(envelope: Record<string, unknown>) {
+        axios
+            .post(
+                new URL(
+                    "/api/webhook",
+                    process.env.PUBLIC_BLABSY_BASE_URL
+                ).toString(),
+                envelope
+            )
+            .catch((e) => console.error(e));
     }
 
     /**
@@ -153,17 +173,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             }
 
             // Process the parent entity change
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
-                    console.log(
-                        "table-name,",
-                        junctionInfo.entity.toLowerCase()
-                    );
                     if (!this.adapter.lockedIds.includes(parentId)) {
-                        this.adapter.handleChange({
+                        const envelope = await this.adapter.handleChange({
                             data: this.entityToPlain(parentEntity),
                             tableName: junctionInfo.entity.toLowerCase(),
                         });
+                        this.deliverWebhook(envelope);
                     }
                 } catch (error) {
                     console.error(

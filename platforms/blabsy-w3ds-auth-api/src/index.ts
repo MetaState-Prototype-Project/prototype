@@ -6,6 +6,8 @@ import path from "path";
 import { AuthController } from "./controllers/AuthController";
 import { initializeApp, cert, applicationDefault } from "firebase-admin/app";
 import { Web3Adapter } from "./web3adapter";
+import { WebhookController } from "./controllers/WebhookController";
+import { adapter } from "./web3adapter/watchers/firestoreWatcher";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -30,17 +32,8 @@ initializeApp({
 });
 
 // Initialize Web3Adapter
-const web3Adapter = new Web3Adapter({
-    registryUrl: process.env.PUBLIC_REGISTRY_URL || "",
-    webhookSecret: process.env.WEBHOOK_SECRET || "",
-    webhookEndpoint: process.env.WEBHOOK_ENDPOINT || "/webhook/evault",
-    pictiqueWebhookUrl:
-        process.env.PICTIQUE_WEBHOOK_URL || "http://localhost:1111/api/webhook",
-    pictiqueWebhookSecret:
-        process.env.PICTIQUE_WEBHOOK_SECRET || "your-webhook-secret",
-});
+const web3Adapter = new Web3Adapter();
 
-// Initialize adapter
 web3Adapter.initialize().catch((error) => {
     console.error("Failed to initialize Web3Adapter:", error);
     process.exit(1);
@@ -48,9 +41,12 @@ web3Adapter.initialize().catch((error) => {
 
 // Register webhook endpoint
 
+const webhookController = new WebhookController(adapter);
+
 app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
+app.post("/api/webhook", webhookController.handleWebhook);
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {

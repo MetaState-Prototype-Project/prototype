@@ -49,6 +49,8 @@ export function fromGlobal({
 }: IMappingConversionOptions): IMapperResponse {
     const result: Record<string, unknown> = {};
 
+    console.log(data);
+
     for (let [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap
     )) {
@@ -97,12 +99,11 @@ export function fromGlobal({
         if (pathRef.includes(",")) {
             pathRef = pathRef.split(",")[1];
         }
-        value = getValueByPath(data.data as Record<string, unknown>, pathRef);
+        value = getValueByPath(data, pathRef);
 
         if (tableRef) {
             if (Array.isArray(value)) {
                 value = value.map((v) => {
-                    console.log("ref table", tableRef, v);
                     const localId = mappingStore.getLocalId({
                         globalId: v,
                         tableName: tableRef,
@@ -167,7 +168,7 @@ export function toGlobal({
         mapping.localToUniversalMap
     )) {
         let value: any;
-        let targetKey: string = localKey;
+        let targetKey: string = globalPathRaw;
 
         if (globalPathRaw.includes(",")) {
             const [_, alias] = globalPathRaw.split(",");
@@ -190,6 +191,8 @@ export function toGlobal({
         const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
         if (internalFnMatch) {
             const [, outerFn, innerExpr] = internalFnMatch;
+
+            console.log(internalFnMatch);
 
             if (outerFn === "date") {
                 const calcMatch = innerExpr.match(/^calc\((.+)\)$/);

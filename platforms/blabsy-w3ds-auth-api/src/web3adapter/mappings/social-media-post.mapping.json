@@ -8,7 +8,7 @@
         "images": "images[].src,mediaUrls",
         "parent": "tweet(parent.id),parentPostId",
         "userLikes": "user(userLikes)[],likedBy",
-        "createdAt": "__date(calc(createdAt._seconds * 1000))",
-        "updatedAt": "__date(calc(updatedAt._seconds * 1000))"
+        "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt"
     }
 }
