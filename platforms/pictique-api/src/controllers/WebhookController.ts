@@ -43,7 +43,7 @@ export class WebhookController {
             tableName: mapping.tableName,
         });
 
-        if (mapping.tableName === "users") {
+        if (mapping.tableName === "user") {
             const { user } = await this.userService.findOrCreateUser(
                 req.body.w3id
             );
@@ -58,7 +58,7 @@ export class WebhookController {
                 tableName: mapping.tableName,
             });
             this.adapter.addToLockedIds(user.id);
-        } else if (mapping.tableName === "posts") {
+        } else if (mapping.tableName === "post") {
             let author: User | null = null;
             if (local.data.author) {
                 // @ts-ignore
@@ -211,7 +211,7 @@ export class WebhookController {
                     tableName: mapping.tableName,
                 });
             }
-        } else if (mapping.tableName === "messages") {
+        } else if (mapping.tableName === "message") {
             let sender: User | null = null;
             if (local.data.sender && typeof local.data.sender === "string") {
                 const senderId = local.data.sender.split("(")[1].split(")")[0];

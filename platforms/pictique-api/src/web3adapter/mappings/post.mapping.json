@@ -1,16 +1,19 @@
 {
-    "tableName": "posts",
+    "tableName": "post",
     "schemaId": "550e8400-e29b-41d4-a716-446655440001",
-    "ownerEnamePath": "users(author.ename)",
+    "ownerEnamePath": "user(author.ename)",
+    "ownedJunctionTables": [
+        "post_likes"
+    ],
     "localToUniversalMap": {
         "text": "text",
         "images": "mediaUrls",
         "hashtags": "tags",
         "createdAt": "createdAt",
-        "parentPostId": "posts(parentPostId),parentPostId",
+        "parentPostId": "post(parentPostId),parentPostId",
         "updatedAt": "updatedAt",
         "isArchived": "isArchived",
-        "likedBy": "users(likedBy[]),likedBy",
-        "author": "users(author.id),authorId"
+        "likedBy": "user(likedBy[].id),likedBy",
+        "author": "user(author.id),authorId"
     }
 }
