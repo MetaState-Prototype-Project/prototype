@@ -6,7 +6,7 @@ import { verifyToken } from "../utils/jwt";
 export const authMiddleware = async (
     req: Request,
     res: Response,
-    next: NextFunction,
+    next: NextFunction
 ) => {
     try {
         const authHeader = req.headers.authorization;
@@ -29,7 +29,6 @@ export const authMiddleware = async (
         }
 
         req.user = user;
-        console.log("user", user.ename);
         next();
     } catch (error) {
         console.error("Auth middleware error:", error);
@@ -43,4 +42,3 @@ export const authGuard = (req: Request, res: Response, next: NextFunction) => {
     }
     next();
 };
-

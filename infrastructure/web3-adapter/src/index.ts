@@ -4,6 +4,7 @@ import { IMapping } from "./mapper/mapper.types";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";
+import { table } from "console";
 
 export class Web3Adapter {
     mapping: Record<string, IMapping> = {};
@@ -54,6 +55,9 @@ export class Web3Adapter {
         participants?: string[];
     }) {
         const { data, tableName, participants } = props;
+
+        console.log("DAta", data, tableName);
+
         const existingGlobalId = this.mappingDb.getGlobalId({
             localId: data.id as string,
             tableName,
