@@ -1,50 +1,62 @@
-import Database from "better-sqlite3";
+import sqlite3 from "sqlite3";
 import { join } from "path";
+import { promisify } from "util";
 
 export class MappingDatabase {
-    private db: Database.Database;
+    private db: sqlite3.Database;
+    private runAsync: (sql: string, params?: any) => Promise<void>;
+    private getAsync: (sql: string, params?: any) => Promise<any>;
+    private allAsync: (sql: string, params?: any) => Promise<any[]>;
 
     constructor(dbPath: string) {
         // Ensure the directory exists
         const fullPath = join(dbPath, "mappings.db");
-        this.db = new Database(fullPath);
+        this.db = new sqlite3.Database(fullPath);
+
+        // Promisify database methods
+        this.runAsync = promisify(this.db.run.bind(this.db));
+        this.getAsync = promisify(this.db.get.bind(this.db));
+        this.allAsync = promisify(this.db.all.bind(this.db));
 
         // Initialize the database with the required tables
         this.initialize();
     }
 
-    private initialize() {
-        this.db.exec(`
+    private async initialize() {
+        await this.runAsync(`
             CREATE TABLE IF NOT EXISTS id_mappings (
                 local_id TEXT NOT NULL,
                 global_id TEXT NOT NULL,
                 table_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (global_id, table_name)
-            );
+            )
+        `);
 
-            CREATE INDEX IF NOT EXISTS idx_local_id ON id_mappings(local_id);
-            CREATE INDEX IF NOT EXISTS idx_table_name ON id_mappings(table_name);
+        await this.runAsync(`
+            CREATE INDEX IF NOT EXISTS idx_local_id ON id_mappings(local_id)
+        `);
+
+        await this.runAsync(`
+            CREATE INDEX IF NOT EXISTS idx_table_name ON id_mappings(table_name)
         `);
     }
 
     /**
      * Store a mapping between local and global IDs
      */
-    public storeMapping(params: {
+    public async storeMapping(params: {
         localId: string;
         globalId: string;
         tableName: string;
-    }): void {
+    }): Promise<void> {
         // Validate inputs
         if (!params.localId || !params.globalId || !params.tableName) {
-            throw new Error(
-                "Invalid mapping parameters: all fields are required"
-            );
+            throw new Error("Invalid mapping parameters: all fields are required");
         }
 
         // Check if mapping already exists
-        const existingMapping = this.getGlobalId({
+        const existingMapping = await this.getGlobalId({
             localId: params.localId,
             tableName: params.tableName,
         });
@@ -53,16 +65,15 @@ export class MappingDatabase {
             return;
         }
 
-        const stmt = this.db.prepare(`
-            INSERT INTO id_mappings (local_id, global_id, table_name)
-            VALUES (@localId, @globalId, @tableName)
-        `);
-
         try {
-            stmt.run(params);
+            await this.runAsync(
+                `INSERT INTO id_mappings (local_id, global_id, table_name)
+                VALUES (?, ?, ?)`,
+                [params.localId, params.globalId, params.tableName]
+            );
 
             // Verify the mapping was stored
-            const storedMapping = this.getGlobalId({
+            const storedMapping = await this.getGlobalId({
                 localId: params.localId,
                 tableName: params.tableName,
             });
@@ -78,24 +89,21 @@ export class MappingDatabase {
     /**
      * Get the global ID for a local ID
      */
-    public getGlobalId(params: {
+    public async getGlobalId(params: {
         localId: string;
         tableName: string;
-    }): string | null {
+    }): Promise<string | null> {
         if (!params.localId || !params.tableName) {
             return null;
         }
 
-        const stmt = this.db.prepare(`
-            SELECT global_id
-            FROM id_mappings
-            WHERE local_id = @localId AND table_name = @tableName
-        `);
-
         try {
-            const result = stmt.get(params) as
-                | { global_id: string }
-                | undefined;
+            const result = await this.getAsync(
+                `SELECT global_id
+                FROM id_mappings
+                WHERE local_id = ? AND table_name = ?`,
+                [params.localId, params.tableName]
+            );
             return result?.global_id ?? null;
         } catch (error) {
             console.error("Error getting global ID:", error);
@@ -106,22 +114,21 @@ export class MappingDatabase {
     /**
      * Get the local ID for a global ID
      */
-    public getLocalId(params: {
+    public async getLocalId(params: {
         globalId: string;
         tableName: string;
-    }): string | null {
+    }): Promise<string | null> {
         if (!params.globalId || !params.tableName) {
             return null;
         }
 
-        const stmt = this.db.prepare(`
-            SELECT local_id
-            FROM id_mappings
-            WHERE global_id = @globalId AND table_name = @tableName
-        `);
-
         try {
-            const result = stmt.get(params) as { local_id: string } | undefined;
+            const result = await this.getAsync(
+                `SELECT local_id
+                FROM id_mappings
+                WHERE global_id = ? AND table_name = ?`,
+                [params.globalId, params.tableName]
+            );
             return result?.local_id ?? null;
         } catch (error) {
             return null;
@@ -131,18 +138,20 @@ export class MappingDatabase {
     /**
      * Delete a mapping
      */
-    public deleteMapping(params: { localId: string; tableName: string }): void {
+    public async deleteMapping(params: {
+        localId: string;
+        tableName: string;
+    }): Promise<void> {
         if (!params.localId || !params.tableName) {
             return;
         }
 
-        const stmt = this.db.prepare(`
-            DELETE FROM id_mappings
-            WHERE local_id = @localId AND table_name = @tableName
-        `);
-
         try {
-            stmt.run(params);
+            await this.runAsync(
+                `DELETE FROM id_mappings
+                WHERE local_id = ? AND table_name = ?`,
+                [params.localId, params.tableName]
+            );
         } catch (error) {
             throw error;
         }
@@ -151,25 +160,21 @@ export class MappingDatabase {
     /**
      * Get all mappings for a table
      */
-    public getTableMappings(tableName: string): Array<{
+    public async getTableMappings(tableName: string): Promise<Array<{
         localId: string;
         globalId: string;
-    }> {
+    }>> {
         if (!tableName) {
             return [];
         }
 
-        const stmt = this.db.prepare(`
-            SELECT local_id, global_id
-            FROM id_mappings
-            WHERE table_name = @tableName
-        `);
-
         try {
-            const results = stmt.all({ tableName }) as Array<{
-                local_id: string;
-                global_id: string;
-            }>;
+            const results = await this.allAsync(
+                `SELECT local_id, global_id
+                FROM id_mappings
+                WHERE table_name = ?`,
+                [tableName]
+            );
 
             return results.map(({ local_id, global_id }) => ({
                 localId: local_id,

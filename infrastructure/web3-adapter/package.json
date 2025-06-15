@@ -20,6 +20,7 @@
         "better-sqlite3": "^11.10.0",
         "evault-core": "workspace:*",
         "graphql-request": "^6.1.0",
+        "sqlite3": "^5.1.7",
         "test": "^3.3.0",
         "vitest": "^3.1.2"
     },
