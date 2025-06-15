@@ -8,8 +8,8 @@
         "content": "content",
         "type": "type",
         "mediaUrl": "mediaUrl",
-        "createdAt": "__date(calc(createdAt._seconds * 1000))",
-        "updatedAt": "__date(calc(updatedAt._seconds * 1000))",
+        "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt",
         "isArchived": "isArchived"
     }
 }

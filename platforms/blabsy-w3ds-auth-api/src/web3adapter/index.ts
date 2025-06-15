@@ -17,11 +17,9 @@ export class Web3Adapter {
     private readonly db = getFirestore();
     private watchers: Map<string, FirestoreWatcher<any>> = new Map();
 
-    constructor(private config: Web3AdapterConfig) {}
-
     async initialize(): Promise<void> {
         console.log("Initializing Web3Adapter...");
-        
+
         // Initialize watchers for each collection
         const collections = [
             { name: "users", type: "user" },
@@ -44,8 +42,8 @@ export class Web3Adapter {
         }
 
         // Set up error handling for watchers
-        process.on('unhandledRejection', (error) => {
-            console.error('Unhandled promise rejection in watchers:', error);
+        process.on("unhandledRejection", (error) => {
+            console.error("Unhandled promise rejection in watchers:", error);
             // Attempt to restart watchers
             this.restartWatchers();
         });
@@ -53,29 +51,31 @@ export class Web3Adapter {
 
     private async restartWatchers(): Promise<void> {
         console.log("Attempting to restart watchers...");
-        
+
         // Stop all existing watchers
         await this.shutdown();
-        
+
         // Wait a bit before restarting
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         // Reinitialize watchers
         await this.initialize();
     }
 
     async shutdown(): Promise<void> {
         console.log("Shutting down Web3Adapter...");
-        
+
         // Stop all watchers
-        const stopPromises = Array.from(this.watchers.values()).map(async (watcher) => {
-            try {
-                await watcher.stop();
-            } catch (error) {
-                console.error("Error stopping watcher:", error);
+        const stopPromises = Array.from(this.watchers.values()).map(
+            async (watcher) => {
+                try {
+                    await watcher.stop();
+                } catch (error) {
+                    console.error("Error stopping watcher:", error);
+                }
             }
-        });
-        
+        );
+
         await Promise.all(stopPromises);
         this.watchers.clear();
         console.log("All watchers stopped");

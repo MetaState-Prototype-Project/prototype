@@ -10,6 +10,12 @@ import axios from "axios";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 
+export const adapter = new Web3Adapter({
+    schemasPath: path.resolve(__dirname, "../mappings/"),
+    dbPath: path.resolve(process.env.BLABSY_MAPPING_DB_PATH as string),
+    registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
+});
+
 export class FirestoreWatcher<T extends DocumentData> {
     private unsubscribe: (() => void) | null = null;
     private adapter: Web3Adapter;
@@ -21,16 +27,12 @@ export class FirestoreWatcher<T extends DocumentData> {
     constructor(
         private readonly collection: FirebaseFirestore.CollectionReference
     ) {
-        this.adapter = new Web3Adapter({
-            schemasPath: path.resolve(__dirname, "../mappings/"),
-            dbPath: path.resolve(process.env.BLABSY_MAPPING_DB_PATH as string),
-            registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
-        });
+        this.adapter = adapter;
     }
 
     async start(): Promise<void> {
         console.log(`Starting watcher for collection: ${this.collection.path}`);
-        
+
         try {
             // First, get all existing documents
             const snapshot = await this.collection.get();
@@ -40,7 +42,9 @@ export class FirestoreWatcher<T extends DocumentData> {
             this.unsubscribe = this.collection.onSnapshot(
                 async (snapshot) => {
                     if (this.isProcessing) {
-                        console.log("Still processing previous snapshot, skipping...");
+                        console.log(
+                            "Still processing previous snapshot, skipping..."
+                        );
                         return;
                     }
 
@@ -61,20 +65,27 @@ export class FirestoreWatcher<T extends DocumentData> {
                 }
             );
 
-            console.log(`Successfully started watcher for ${this.collection.path}`);
+            console.log(
+                `Successfully started watcher for ${this.collection.path}`
+            );
         } catch (error) {
-            console.error(`Failed to start watcher for ${this.collection.path}:`, error);
+            console.error(
+                `Failed to start watcher for ${this.collection.path}:`,
+                error
+            );
             throw error;
         }
     }
 
     async stop(): Promise<void> {
         console.log(`Stopping watcher for collection: ${this.collection.path}`);
-        
+
         if (this.unsubscribe) {
             this.unsubscribe();
             this.unsubscribe = null;
-            console.log(`Successfully stopped watcher for ${this.collection.path}`);
+            console.log(
+                `Successfully stopped watcher for ${this.collection.path}`
+            );
         }
     }
 
@@ -82,7 +93,9 @@ export class FirestoreWatcher<T extends DocumentData> {
         if (this.retryCount < this.maxRetries) {
             this.retryCount++;
             console.log(`Retrying (${this.retryCount}/${this.maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, this.retryDelay * this.retryCount));
+            await new Promise((resolve) =>
+                setTimeout(resolve, this.retryDelay * this.retryCount)
+            );
             await this.start();
         } else {
             console.error("Max retries reached, stopping watcher");
@@ -92,7 +105,9 @@ export class FirestoreWatcher<T extends DocumentData> {
 
     private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
         const changes = snapshot.docChanges();
-        console.log(`Processing ${changes.length} changes in ${this.collection.path}`);
+        console.log(
+            `Processing ${changes.length} changes in ${this.collection.path}`
+        );
 
         for (const change of changes) {
             const doc = change.doc;
@@ -120,11 +135,14 @@ export class FirestoreWatcher<T extends DocumentData> {
     }
 
     private async handleCreateOrUpdate(
-        doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData, DocumentData>,
+        doc: FirebaseFirestore.QueryDocumentSnapshot<
+            DocumentData,
+            DocumentData
+        >,
         data: T
     ): Promise<void> {
         console.log(`Processing ${doc.id} in ${this.collection.path}`);
-        
+
         const tableName = doc.ref.path.split("s/")[0];
         const envelope = await this.adapter.handleChange({
             data: { ...data, id: doc.id },
@@ -146,9 +164,15 @@ export class FirestoreWatcher<T extends DocumentData> {
                         },
                     }
                 );
-                console.log(`Successfully forwarded webhook for ${doc.id}:`, response.status);
+                console.log(
+                    `Successfully forwarded webhook for ${doc.id}:`,
+                    response.status
+                );
             } catch (error) {
-                console.error(`Failed to forward webhook for ${doc.id}:`, error);
+                console.error(
+                    `Failed to forward webhook for ${doc.id}:`,
+                    error
+                );
                 throw error; // Re-throw to trigger retry mechanism
             }
         }

@@ -11,7 +11,7 @@
         "website": "website",
         "location": "location",
         "verified": "isVerified",
-        "createdAt": "__date(calc(createdAt._seconds * 1000))",
-        "updatedAt": "__date(calc(updatedAt._seconds * 1000))"
+        "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt"
     }
 }

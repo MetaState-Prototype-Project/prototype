@@ -6,7 +6,7 @@
         "post_likes"
     ],
     "localToUniversalMap": {
-        "text": "text",
+        "text": "content",
         "images": "mediaUrls",
         "hashtags": "tags",
         "createdAt": "createdAt",
