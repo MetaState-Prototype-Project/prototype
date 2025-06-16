@@ -5,11 +5,12 @@
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
 	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
+	import { heading } from '../store';
 
 	let { children } = $props();
 
 	let route = $derived(page.url.pathname);
-	let heading = $state('');
+
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
 	let activeReplyToId: string | null = $state(null);
@@ -33,22 +34,22 @@
 	$effect(() => {
 		idFromParams = page.params.id;
 
+		console.log(route);
+
 		if (route.includes('home')) {
-			heading = 'Feed';
+			heading.set('Feed');
 		} else if (route.includes('discover')) {
-			heading = 'Search';
+			heading.set('Search');
 		} else if (route.includes('/post/audience')) {
-			heading = 'Audience';
+			heading.set('Audience');
 		} else if (route.includes('post')) {
-			heading = 'Upload photo';
-		} else if (route === `/messages/${idFromParams}`) {
-			heading = 'User Name';
-		} else if (route.includes('messages')) {
-			heading = 'Messages';
+			heading.set('Upload photo');
+		} else if (route === '/messages') {
+			heading.set('Messages');
 		} else if (route.includes('settings')) {
-			heading = 'Settings';
+			heading.set('Settings');
 		} else if (route.includes('profile')) {
-			heading = 'Profile';
+			heading.set('Profile');
 		}
 	});
 
@@ -85,7 +86,7 @@
 					: route.includes('profile')
 						? 'tertiary'
 						: 'primary'}
-				{heading}
+				heading={$heading}
 				isCallBackNeeded={route.includes('profile')}
 				callback={() => alert('Ads')}
 				options={[
