@@ -4,14 +4,13 @@ import {
     InsertEvent,
     UpdateEvent,
     RemoveEvent,
+    ObjectLiteral,
 } from "typeorm";
 import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
-import { MetaEnvelope } from "../../../../../infrastructure/web3-adapter/src/evault/evault";
 import axios from "axios";
-import { table } from "console";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
@@ -51,12 +50,40 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // Handle any pre-insert processing if needed
     }
 
+    async enrichEntity(entity: any, tableName: string, tableTarget: any) {
+        try {
+            const enrichedEntity = { ...entity };
+
+            if (entity.author) {
+                const author = await AppDataSource.getRepository(
+                    "User"
+                ).findOne({ where: { id: entity.author.id } });
+                enrichedEntity.author = author;
+            }
+
+            return this.entityToPlain(enrichedEntity);
+        } catch (error) {
+            console.error("Error loading relations:", error);
+            return this.entityToPlain(entity);
+        }
+    }
+
     /**
      * Called after entity insertion.
      */
-    afterInsert(event: InsertEvent<any>) {
+    async afterInsert(event: InsertEvent<any>) {
+        let entity = event.entity;
+        console.log("pre - ", entity);
+        if (entity) {
+            entity = (await this.enrichEntity(
+                entity,
+                event.metadata.tableName,
+                event.metadata.target
+            )) as ObjectLiteral;
+        }
         this.handleChange(
-            event.entity ?? event.entityId,
+            // @ts-ignore
+            entity ?? event.entityId,
             event.metadata.tableName
         );
     }
@@ -71,10 +98,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     /**
      * Called after entity update.
      */
-    afterUpdate(event: UpdateEvent<any>) {
+    async afterUpdate(event: UpdateEvent<any>) {
+        let entity = event.entity;
+        if (entity) {
+            entity = (await this.enrichEntity(
+                entity,
+                event.metadata.tableName,
+                event.metadata.target
+            )) as ObjectLiteral;
+        }
         this.handleChange(
             // @ts-ignore
-            event.entity ?? event.entityId,
+            entity ?? event.entityId,
             event.metadata.tableName
         );
     }
@@ -89,11 +124,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     /**
      * Called after entity removal.
      */
-    afterRemove(event: RemoveEvent<any>) {
-        // Handle any post-remove processing if needed
+    async afterRemove(event: RemoveEvent<any>) {
+        let entity = event.entity;
+        if (entity) {
+            entity = (await this.enrichEntity(
+                entity,
+                event.metadata.tableName,
+                event.metadata.target
+            )) as ObjectLiteral;
+        }
         this.handleChange(
             // @ts-ignore
-            event.entity ?? event.entityId,
+            entity ?? event.entityId,
             event.metadata.tableName
         );
     }
@@ -103,6 +145,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
         // Check if this is a junction table
+        if (tableName === "message_read_status") return;
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];
         if (junctionInfo) {
@@ -110,17 +153,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             await this.handleJunctionTableChange(entity, junctionInfo);
             return;
         }
-
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
-        console.log(data);
         if (!data.id) return;
 
         setTimeout(async () => {
             try {
                 if (!this.adapter.lockedIds.includes(entity.id)) {
-                    console.log("test?", tableName);
-                    console.log(this.adapter.mapping);
                     const envelope = await this.adapter.handleChange({
                         data,
                         tableName: tableName.toLowerCase(),
@@ -182,7 +221,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     if (!this.adapter.lockedIds.includes(parentId)) {
                         const envelope = await this.adapter.handleChange({
                             data: this.entityToPlain(parentEntity),
-                            tableName: junctionInfo.entity.toLowerCase(),
+                            tableName: junctionInfo.entity.toLowerCase() + "s",
                         });
                         this.deliverWebhook(envelope);
                     }

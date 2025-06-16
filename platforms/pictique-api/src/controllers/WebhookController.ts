@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { UserService } from "../services/UserService";
 import { ChatService } from "../services/ChatService";
 import { PostService } from "../services/PostService";
 import { CommentService } from "../services/CommentService";
 import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
-import { MappingDatabase } from "../../../../infrastructure/web3-adapter/src/db";
 import { User } from "database/entities/User";
 import { Chat } from "database/entities/Chat";
 import { MessageService } from "../services/MessageService";
@@ -37,12 +35,12 @@ export class WebhookController {
             );
 
             if (!mapping) throw new Error();
-            const local = this.adapter.fromGlobal({
+            const local = await this.adapter.fromGlobal({
                 data: req.body.data,
                 mapping,
             });
 
-            let localId = this.adapter.mappingDb.getLocalId({
+            let localId = await this.adapter.mappingDb.getLocalId({
                 globalId,
                 tableName: mapping.tableName,
             });
@@ -56,17 +54,15 @@ export class WebhookController {
                     user[key] = local.data[key];
                 }
                 await this.userService.userRepository.save(user);
-                this.adapter.mappingDb.storeMapping({
+                await this.adapter.mappingDb.storeMapping({
                     localId: user.id,
                     globalId: req.body.id,
                     tableName: mapping.tableName,
                 });
                 this.adapter.addToLockedIds(user.id);
             } else if (mapping.tableName === "posts") {
-                console.log("data", local.data);
                 let author: User | null = null;
                 if (local.data.author) {
-                    console.log("error here");
                     const authorId = local.data.author
                         // @ts-ignore
                         .split("(")[1]
@@ -113,7 +109,7 @@ export class WebhookController {
                             local.data.text as string
                         );
                         localId = comment.id;
-                        this.adapter.mappingDb.storeMapping({
+                        await this.adapter.mappingDb.storeMapping({
                             localId,
                             globalId,
                             tableName: mapping.tableName,
@@ -169,19 +165,18 @@ export class WebhookController {
                         );
 
                         this.adapter.addToLockedIds(post.id);
-                        this.adapter.mappingDb.storeMapping({
+                        await this.adapter.mappingDb.storeMapping({
                             localId: post.id,
                             globalId,
                             tableName: mapping.tableName,
                         });
 
                         // Verify the mapping was stored
-                        const verifyLocalId = this.adapter.mappingDb.getLocalId(
-                            {
+                        const verifyLocalId =
+                            await this.adapter.mappingDb.getLocalId({
                                 globalId,
                                 tableName: mapping.tableName,
-                            }
-                        );
+                            });
                         console.log("Verified mapping:", {
                             expected: post.id,
                             actual: verifyLocalId,
@@ -224,13 +219,15 @@ export class WebhookController {
                     );
 
                     this.adapter.addToLockedIds(chat.id);
-                    this.adapter.mappingDb.storeMapping({
+                    await this.adapter.mappingDb.storeMapping({
                         localId: chat.id,
                         globalId: req.body.id,
                         tableName: mapping.tableName,
                     });
                 }
             } else if (mapping.tableName === "messages") {
+                console.log("messages");
+                console.log(local.data);
                 let sender: User | null = null;
                 if (
                     local.data.sender &&
@@ -266,14 +263,14 @@ export class WebhookController {
                     await this.messageService.messageRepository.save(message);
                 } else {
                     console.log("Creating new message");
-                    const message = await this.messageService.createMessage(
-                        sender.id,
+                    const message = await this.chatService.sendMessage(
                         chat.id,
+                        sender.id,
                         local.data.text as string
                     );
 
                     this.adapter.addToLockedIds(message.id);
-                    this.adapter.mappingDb.storeMapping({
+                    await this.adapter.mappingDb.storeMapping({
                         localId: message.id,
                         globalId: req.body.id,
                         tableName: mapping.tableName,

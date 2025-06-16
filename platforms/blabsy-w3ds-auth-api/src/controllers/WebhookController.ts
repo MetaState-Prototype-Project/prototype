@@ -85,22 +85,25 @@ export class WebhookController {
         try {
             const { data, schemaId, id } = req.body;
 
+            console.log(data);
+
             const mapping = Object.values(adapter.mapping).find(
                 (m) => m.schemaId === schemaId
             );
+            console.log(mapping);
             if (!mapping) throw new Error();
             const tableName = mapping.tableName + "s";
 
-            const local = adapter.fromGlobal({ data, mapping });
+            const local = await adapter.fromGlobal({ data, mapping });
+            console.log("LOCAL, ", local);
 
             // Get the local ID from the mapping database
-            const localId = adapter.mappingDb.getLocalId({
+            const localId = await adapter.mappingDb.getLocalId({
                 globalId: id,
                 tableName,
             });
 
             if (localId) {
-                console.log("Updating existing record:", localId);
                 adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
@@ -119,13 +122,14 @@ export class WebhookController {
         const collection = this.db.collection(tableName);
         const docRef = collection.doc();
 
-        const mappedData = this.mapDataToFirebase(tableName, data);
+        const mappedData = await this.mapDataToFirebase(tableName, data);
+        console.log(mappedData);
         const doc = await docRef.set(mappedData);
 
         adapter.addToLockedIds(docRef.id);
         //
         // Store the mapping
-        adapter.mappingDb.storeMapping({
+        await adapter.mappingDb.storeMapping({
             globalId: globalId,
             localId: docRef.id,
             tableName,
@@ -211,18 +215,20 @@ export class WebhookController {
             }),
             createdBy,
             images:
-                data.images.map((i: string) => ({
+                (data.images ?? []).map((i: string) => ({
                     src: i,
                 })) || null,
             parent:
                 data.parent && user
-                    ? { id: data.parent, username: user.username }
+                    ? {
+                          id: data.parent.split("(")[1].split(")")[0],
+                          username: user.username,
+                      }
                     : null,
             createdAt: Timestamp.fromDate(new Date(Date.now())),
             userRetweets: [],
             userReplies: 0,
         };
-        console.log(tweetData);
         return tweetData;
     }
 

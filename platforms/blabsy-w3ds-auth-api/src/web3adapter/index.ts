@@ -15,7 +15,7 @@ export interface Web3AdapterConfig {
 
 export class Web3Adapter {
     private readonly db = getFirestore();
-    private watchers: Map<string, FirestoreWatcher<any>> = new Map();
+    private watchers: Map<string, FirestoreWatcher> = new Map();
 
     async initialize(): Promise<void> {
         console.log("Initializing Web3Adapter...");
@@ -24,7 +24,7 @@ export class Web3Adapter {
         const collections = [
             { name: "users", type: "user" },
             { name: "tweets", type: "socialMediaPost" },
-            { name: "messages", type: "message" },
+            { name: "chats", type: "message" },
             { name: "comments", type: "comment" },
         ];
 
@@ -36,6 +36,16 @@ export class Web3Adapter {
                 await watcher.start();
                 this.watchers.set(name, watcher);
                 console.log(`Successfully set up watcher for ${name}`);
+
+                // Special handling for messages using collection group
+                if (name === "chats") {
+                    const messagesWatcher = new FirestoreWatcher(
+                        this.db.collectionGroup("messages")
+                    );
+                    await messagesWatcher.start();
+                    this.watchers.set("messages", messagesWatcher);
+                    console.log("Successfully set up watcher for all messages");
+                }
             } catch (error) {
                 console.error(`Failed to set up watcher for ${name}:`, error);
             }

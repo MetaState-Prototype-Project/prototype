@@ -11,15 +11,14 @@
 		const { data: userData } = await apiClient.get('/api/users');
 		messages = data.chats.map((c) => {
 			const members = c.participants.filter((u) => u.id !== userData.id);
-			console.log(members);
 			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
 			const avatar = members.length > 1 ? '/images/group.png' : members[0].avatarUrl;
 			return {
 				id: c.id,
 				avatar,
 				username: memberNames.join(', '),
-				unread: c.latestMessage.isRead,
-				text: c.latestMessage.text
+				unread: c.latestMessage ? c.latestMessage.isRead : false,
+				text: c.latestMessage?.text ?? 'No message yet'
 			};
 		});
 	});

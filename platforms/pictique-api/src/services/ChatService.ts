@@ -5,6 +5,7 @@ import { User } from "../database/entities/User";
 import { MessageReadStatus } from "../database/entities/MessageReadStatus";
 import { In } from "typeorm";
 import { EventEmitter } from "events";
+import { emitter } from "./event-emitter";
 
 export class ChatService {
     public chatRepository = AppDataSource.getRepository(Chat);
@@ -12,7 +13,11 @@ export class ChatService {
     private userRepository = AppDataSource.getRepository(User);
     private messageReadStatusRepository =
         AppDataSource.getRepository(MessageReadStatus);
-    private eventEmitter = new EventEmitter();
+    private eventEmitter: EventEmitter;
+
+    constructor() {
+        this.eventEmitter = emitter;
+    }
 
     // Event emitter getter
     getEventEmitter(): EventEmitter {
@@ -126,8 +131,9 @@ export class ChatService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
+        console.log("Sent event", `chat:${chatId}`);
+        this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
 
-        // Create read status entries for all participants except sender
         const readStatuses = chat.participants
             .filter((p) => p.id !== senderId)
             .map((participant) =>
@@ -138,10 +144,9 @@ export class ChatService {
                 })
             );
 
-        await this.messageReadStatusRepository.save(readStatuses);
-
-        // Emit new message event
-        this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
+        await this.messageReadStatusRepository
+            .save(readStatuses)
+            .catch(() => null);
 
         return savedMessage;
     }

@@ -411,7 +411,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.eid-wallet.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eid-wallet.app-1;
 				PRODUCT_NAME = "eid-wallet";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -464,7 +464,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.eid-wallet.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eid-wallet.app-1;
 				PRODUCT_NAME = "eid-wallet";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

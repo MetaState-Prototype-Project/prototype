@@ -1,6 +1,6 @@
 {
     "tableName": "comments",
-    "schemaId": "550e8400-e29b-41d4-a716-446655440009",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
     "ownerEnamePath": "users(author.ename)",
     "ownedJunctionTables": [
         "comment_likes"
