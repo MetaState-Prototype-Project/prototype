@@ -183,7 +183,7 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
             kind: "Service",
             metadata: { name: "evault-service" },
             spec: {
-                type: "NodePort",
+                type: "LoadBalancer",
                 selector: { app: "evault" },
                 ports: [
                     {
@@ -195,24 +195,20 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
         },
     });
 
-    // Get the service to retrieve the assigned NodePort
-    const svc = await coreApi.readNamespacedService({
-        name: "evault-service",
-        namespace: namespaceName,
-    });
-    const nodePort = svc.spec?.ports?.[0]?.nodePort;
-    if (!nodePort) throw new Error("No NodePort assigned");
-
-    // Try getting minikube IP first
-    try {
-        const minikubeIP = execSync("minikube ip").toString().trim();
-        return `http://${minikubeIP}:${nodePort}`;
-    } catch (e) {
-        // Fallback to node IP
-        const nodes = await coreApi.listNode();
-        const nodeIP = nodes?.items?.[0]?.status?.addresses?.find(
-            (a) => a.type === "ExternalIP" || a.type === "InternalIP"
-        )?.address || "127.0.0.1";
-        return `http://${nodeIP}:${nodePort}`;
+    // Wait for LoadBalancer IP
+    let externalIP = null;
+    for (let i = 0; i < 30; i++) {
+        const svc = await coreApi.readNamespacedService({
+            name: "evault-service",
+            namespace: namespaceName,
+        });
+        const ingress = svc.status?.loadBalancer?.ingress?.[0];
+        if (ingress?.ip || ingress?.hostname) {
+            externalIP = ingress.ip || ingress.hostname;
+            const port = svc.spec?.ports?.[0]?.port;
+            return `http://${externalIP}:${port}`;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
     }
+    throw new Error("Failed to get LoadBalancer IP after 60 seconds");
 }
