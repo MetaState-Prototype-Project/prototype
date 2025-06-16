@@ -183,55 +183,36 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
             kind: "Service",
             metadata: { name: "evault-service" },
             spec: {
-                type: "LoadBalancer",
+                type: "NodePort",
                 selector: { app: "evault" },
                 ports: [
                     {
                         port: 4000,
-                        targetPort: 4000,
+                        targetPort: 4000
                     },
                 ],
             },
         },
     });
 
+    // Get the service to retrieve the assigned NodePort
     const svc = await coreApi.readNamespacedService({
         name: "evault-service",
         namespace: namespaceName,
     });
-    const spec = svc.spec;
-    const status = svc.status;
+    const nodePort = svc.spec?.ports?.[0]?.nodePort;
+    if (!nodePort) throw new Error("No NodePort assigned");
 
-    // Check LoadBalancer first (cloud clusters)
-    const ingress = status?.loadBalancer?.ingress?.[0];
-    if (ingress?.ip || ingress?.hostname) {
-        const host = ingress.ip || ingress.hostname;
-        const port = spec?.ports?.[0]?.port;
-        return `http://${host}:${port}`;
-    }
-
-    // Fallback: NodePort + Node IP (local clusters or bare-metal)
-    const nodePort = spec?.ports?.[0]?.nodePort;
-    if (!nodePort) throw new Error("No LoadBalancer or NodePort found.");
-
-    // Try getting an external IP from the cluster nodes
-    const nodes = await coreApi.listNode();
-    const address = nodes?.items[0].status.addresses.find(
-        (a) => a.type === "ExternalIP" || a.type === "InternalIP",
-    )?.address;
-
-    if (address) {
-        const isMinikubeIp = address === "192.168.49.2";
-        return `http://${isMinikubeIp ? address : process.env.IP_ADDR.split("http://")[1]}:${nodePort}`;
-    }
-
-    // Local fallback: use minikube IP if available
+    // Try getting minikube IP first
     try {
         const minikubeIP = execSync("minikube ip").toString().trim();
         return `http://${minikubeIP}:${nodePort}`;
     } catch (e) {
-        throw new Error(
-            "Unable to determine service IP (no LoadBalancer, Node IP, or Minikube IP)",
-        );
+        // Fallback to node IP
+        const nodes = await coreApi.listNode();
+        const nodeIP = nodes?.items?.[0]?.status?.addresses?.find(
+            (a) => a.type === "ExternalIP" || a.type === "InternalIP"
+        )?.address || "127.0.0.1";
+        return `http://${nodeIP}:${nodePort}`;
     }
 }
