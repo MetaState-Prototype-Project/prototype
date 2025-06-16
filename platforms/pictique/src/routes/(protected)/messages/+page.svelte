@@ -3,6 +3,7 @@
 	import { Message } from '$lib/fragments';
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/utils/axios';
+	import { heading } from '../../store';
 
 	let messages = $state([]);
 
@@ -32,7 +33,10 @@
 			username={message.username}
 			text={message.text}
 			unread={!message.unread}
-			callback={() => goto(`/messages/${message.id}`)}
+			callback={() => {
+				heading.set(message.username);
+				goto(`/messages/${message.id}`);
+			}}
 		/>
 	{/each}
 </section>

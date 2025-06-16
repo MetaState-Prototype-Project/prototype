@@ -5,22 +5,16 @@ import {
     CollectionReference,
     CollectionGroup,
 } from "firebase-admin/firestore";
-import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
 import path from "path";
 import dotenv from "dotenv";
 import axios from "axios";
+import { adapter } from "../../controllers/WebhookController";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 
-export const adapter = new Web3Adapter({
-    schemasPath: path.resolve(__dirname, "../mappings/"),
-    dbPath: path.resolve(process.env.BLABSY_MAPPING_DB_PATH as string),
-    registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
-});
-
 export class FirestoreWatcher {
     private unsubscribe: (() => void) | null = null;
-    private adapter: Web3Adapter;
+    private adapter = adapter;
     private isProcessing = false;
     private retryCount = 0;
     private readonly maxRetries: number = 3;
@@ -30,9 +24,7 @@ export class FirestoreWatcher {
         private readonly collection:
             | CollectionReference<DocumentData>
             | CollectionGroup<DocumentData>
-    ) {
-        this.adapter = adapter;
-    }
+    ) {}
 
     async start(): Promise<void> {
         const collectionPath =
@@ -161,9 +153,7 @@ export class FirestoreWatcher {
         const tableNameRaw = tableParts[tableParts.length - 2];
 
         const tableName = tableNameRaw.slice(0, tableNameRaw.length - 1);
-        if (tableName === "message") {
-            console.log("data ==> ", data);
-        }
+
         const envelope = await this.adapter.handleChange({
             data: { ...data, id: doc.id },
             tableName,
@@ -171,6 +161,11 @@ export class FirestoreWatcher {
 
         if (envelope) {
             try {
+                if (
+                    this.adapter.lockedIds.includes(envelope.id) ||
+                    this.adapter.lockedIds.includes(doc.id)
+                )
+                    return;
                 const response = await axios.post(
                     new URL(
                         "/api/webhook",
