@@ -6,12 +6,12 @@ import { verifyToken } from "../utils/jwt";
 export const authMiddleware = async (
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
 ) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader?.startsWith("Bearer ")) {
-            next()
+            return next();
         }
 
         const token = authHeader.split(" ")[1];
