@@ -41,7 +41,7 @@ app.use(
             "X-Webhook-Timestamp",
         ],
         credentials: true,
-    })
+    }),
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -59,7 +59,6 @@ const webhookController = new WebhookController(adapter);
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
-app.get("/api/auth/offerb", authController.getOfferBlab);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.get("/api/chats/:chatId/events", messageController.getChatEvents);
@@ -78,7 +77,7 @@ app.post("/api/comments", authGuard, commentController.createComment);
 app.get(
     "/api/posts/:postId/comments",
     authGuard,
-    commentController.getPostComments
+    commentController.getPostComments,
 );
 app.put("/api/comments/:id", authGuard, commentController.updateComment);
 app.delete("/api/comments/:id", authGuard, commentController.deleteComment);
@@ -92,38 +91,38 @@ app.get("/api/chats/:chatId", authGuard, messageController.getChat);
 app.post(
     "/api/chats/:chatId/participants",
     authGuard,
-    messageController.addParticipants
+    messageController.addParticipants,
 );
 app.delete(
     "/api/chats/:chatId/participants/:userId",
     authGuard,
-    messageController.removeParticipant
+    messageController.removeParticipant,
 );
 
 app.post(
     "/api/chats/:chatId/messages",
     authGuard,
-    messageController.createMessage
+    messageController.createMessage,
 );
 app.get(
     "/api/chats/:chatId/messages",
     authGuard,
-    messageController.getMessages
+    messageController.getMessages,
 );
 app.delete(
     "/api/chats/:chatId/messages/:messageId",
     authGuard,
-    messageController.deleteMessage
+    messageController.deleteMessage,
 );
 app.post(
     "/api/chats/:chatId/messages/read",
     authGuard,
-    messageController.markAsRead
+    messageController.markAsRead,
 );
 app.get(
     "/api/chats/:chatId/messages/unread",
     authGuard,
-    messageController.getUnreadCount
+    messageController.getUnreadCount,
 );
 
 // User routes
