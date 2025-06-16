@@ -15,6 +15,7 @@ export const apiClient: AxiosInstance = axios.create({
 // Utility function to store auth token
 export const setAuthToken = (token: string): void => {
     localStorage.setItem(TOKEN_KEY, token);
+    window.location.href = '/home';
 };
 
 export const getAuthToken = () => {
