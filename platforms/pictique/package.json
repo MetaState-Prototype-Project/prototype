@@ -51,6 +51,7 @@
 	},
 	"dependencies": {
 		"-": "^0.0.1",
+		"@sveltejs/adapter-node": "^5.2.12",
 		"D": "^1.0.0",
 		"axios": "^1.6.7",
 		"moment": "^2.30.1",
