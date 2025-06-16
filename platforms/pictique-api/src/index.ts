@@ -24,7 +24,7 @@ AppDataSource.initialize()
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
     })
-    .catch((error) => {
+    .catch((error: any) => {
         console.error("Error during initialization:", error);
         process.exit(1);
     });

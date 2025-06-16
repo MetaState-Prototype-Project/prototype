@@ -2,6 +2,8 @@ import {
     DocumentChange,
     DocumentData,
     QuerySnapshot,
+    CollectionReference,
+    CollectionGroup,
 } from "firebase-admin/firestore";
 import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
 import path from "path";
@@ -16,22 +18,27 @@ export const adapter = new Web3Adapter({
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
 });
 
-export class FirestoreWatcher<T extends DocumentData> {
+export class FirestoreWatcher {
     private unsubscribe: (() => void) | null = null;
     private adapter: Web3Adapter;
-    private isProcessing: boolean = false;
-    private retryCount: number = 0;
+    private isProcessing = false;
+    private retryCount = 0;
     private readonly maxRetries: number = 3;
     private readonly retryDelay: number = 1000; // 1 second
 
     constructor(
-        private readonly collection: FirebaseFirestore.CollectionReference
+        private readonly collection:
+            | CollectionReference<DocumentData>
+            | CollectionGroup<DocumentData>
     ) {
         this.adapter = adapter;
     }
 
     async start(): Promise<void> {
-        console.log(`Starting watcher for collection: ${this.collection.path}`);
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
 
         try {
             // First, get all existing documents
@@ -65,12 +72,10 @@ export class FirestoreWatcher<T extends DocumentData> {
                 }
             );
 
-            console.log(
-                `Successfully started watcher for ${this.collection.path}`
-            );
+            console.log(`Successfully started watcher for ${collectionPath}`);
         } catch (error) {
             console.error(
-                `Failed to start watcher for ${this.collection.path}:`,
+                `Failed to start watcher for ${collectionPath}:`,
                 error
             );
             throw error;
@@ -78,14 +83,16 @@ export class FirestoreWatcher<T extends DocumentData> {
     }
 
     async stop(): Promise<void> {
-        console.log(`Stopping watcher for collection: ${this.collection.path}`);
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
+        console.log(`Stopping watcher for collection: ${collectionPath}`);
 
         if (this.unsubscribe) {
             this.unsubscribe();
             this.unsubscribe = null;
-            console.log(
-                `Successfully stopped watcher for ${this.collection.path}`
-            );
+            console.log(`Successfully stopped watcher for ${collectionPath}`);
         }
     }
 
@@ -105,19 +112,26 @@ export class FirestoreWatcher<T extends DocumentData> {
 
     private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
         const changes = snapshot.docChanges();
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
         console.log(
-            `Processing ${changes.length} changes in ${this.collection.path}`
+            `Processing ${changes.length} changes in ${collectionPath}`
         );
 
         for (const change of changes) {
             const doc = change.doc;
-            const data = doc.data() as T;
+            const data = doc.data();
 
             try {
                 switch (change.type) {
                     case "added":
                     case "modified":
                         setTimeout(() => {
+                            console.log(
+                                `${collectionPath} - processing - ${doc.id}`
+                            );
                             if (adapter.lockedIds.includes(doc.id)) return;
                             this.handleCreateOrUpdate(doc, data);
                         }, 2_000);
@@ -138,13 +152,18 @@ export class FirestoreWatcher<T extends DocumentData> {
     }
 
     private async handleCreateOrUpdate(
-        doc: FirebaseFirestore.QueryDocumentSnapshot<
-            DocumentData,
-            DocumentData
-        >,
-        data: T
+        doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData>,
+        data: DocumentData
     ): Promise<void> {
-        const tableName = doc.ref.path.split("s/")[0];
+        const tableParts = doc.ref.path.split("/");
+        // -2 cuz -1 gives last entry and we need second last which would
+        // be the path specifier
+        const tableNameRaw = tableParts[tableParts.length - 2];
+
+        const tableName = tableNameRaw.slice(0, tableNameRaw.length - 1);
+        if (tableName === "message") {
+            console.log("data ==> ", data);
+        }
         const envelope = await this.adapter.handleChange({
             data: { ...data, id: doc.id },
             tableName,

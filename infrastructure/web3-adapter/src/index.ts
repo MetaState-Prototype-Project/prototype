@@ -4,7 +4,7 @@ import { IMapping } from "./mapper/mapper.types";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";
-import { table } from "console";
+import { v4 as uuidv4 } from "uuid";
 
 export class Web3Adapter {
     mapping: Record<string, IMapping> = {};
@@ -56,14 +56,14 @@ export class Web3Adapter {
     }) {
         const { data, tableName, participants } = props;
 
-        const existingGlobalId = this.mappingDb.getGlobalId({
+        const existingGlobalId = await this.mappingDb.getGlobalId({
             localId: data.id as string,
             tableName,
         });
 
         // If we already have a mapping, use that global ID
         if (existingGlobalId) {
-            const global = toGlobal({
+            const global = await toGlobal({
                 data,
                 mapping: this.mapping[tableName],
                 mappingStore: this.mappingDb,
@@ -86,22 +86,26 @@ export class Web3Adapter {
         }
 
         // For new entities, create a new global ID
-        const global = toGlobal({
+        const global = await toGlobal({
             data,
             mapping: this.mapping[tableName],
             mappingStore: this.mappingDb,
         });
-        console.log(data, global, existingGlobalId);
 
-        const globalId = await this.evaultClient.storeMetaEnvelope({
-            id: null,
-            w3id: global.ownerEvault as string,
-            data: global.data,
-            schemaId: this.mapping[tableName].schemaId,
-        });
+        let globalId: string;
+        if (global.ownerEvault) {
+            globalId = await this.evaultClient.storeMetaEnvelope({
+                id: null,
+                w3id: global.ownerEvault as string,
+                data: global.data,
+                schemaId: this.mapping[tableName].schemaId,
+            });
+        } else {
+            globalId = uuidv4();
+        }
 
         // Store the mapping
-        this.mappingDb.storeMapping({
+        await this.mappingDb.storeMapping({
             localId: data.id as string,
             globalId,
             tableName,
@@ -126,10 +130,13 @@ export class Web3Adapter {
         };
     }
 
-    fromGlobal(props: { data: Record<string, unknown>; mapping: IMapping }) {
+    async fromGlobal(props: {
+        data: Record<string, unknown>;
+        mapping: IMapping;
+    }) {
         const { data, mapping } = props;
 
-        const local = fromGlobal({
+        const local = await fromGlobal({
             data,
             mapping,
             mappingStore: this.mappingDb,

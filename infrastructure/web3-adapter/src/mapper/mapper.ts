@@ -28,10 +28,13 @@ export function getValueByPath(obj: Record<string, any>, path: string): any {
     }, obj);
 }
 
-function extractOwnerEvault(
+async function extractOwnerEvault(
     data: Record<string, unknown>,
     ownerEnamePath: string
-): string | null {
+): Promise<string | null> {
+    if (!ownerEnamePath) {
+        return null;
+    }
     if (!ownerEnamePath.includes("(")) {
         return (data[ownerEnamePath] as string) || null;
     }
@@ -45,11 +48,11 @@ function extractOwnerEvault(
     return (value as string) || null;
 }
 
-export function fromGlobal({
+export async function fromGlobal({
     data,
     mapping,
     mappingStore,
-}: IMappingConversionOptions): Omit<IMapperResponse, "ownerEvault"> {
+}: IMappingConversionOptions): Promise<Omit<IMapperResponse, "ownerEvault">> {
     const result: Record<string, unknown> = {};
 
     for (let [localKey, globalPathRaw] of Object.entries(
@@ -104,17 +107,18 @@ export function fromGlobal({
 
         if (tableRef) {
             if (Array.isArray(value)) {
-                value = value.map((v) => {
-                    const localId = mappingStore.getLocalId({
-                        globalId: v,
-                        tableName: tableRef,
-                    });
+                value = await Promise.all(
+                    value.map(async (v) => {
+                        const localId = await mappingStore.getLocalId({
+                            globalId: v,
+                            tableName: tableRef,
+                        });
 
-                    console.log("value", localId, v);
-                    return localId ? `${tableRef}(${localId})` : null;
-                });
+                        return localId ? `${tableRef}(${localId})` : null;
+                    })
+                );
             } else {
-                value = mappingStore.getLocalId({
+                value = await mappingStore.getLocalId({
                     globalId: value,
                     tableName: tableRef,
                 });
@@ -157,11 +161,11 @@ function evaluateCalcExpression(
     }
 }
 
-export function toGlobal({
+export async function toGlobal({
     data,
     mapping,
     mappingStore,
-}: IMappingConversionOptions): IMapperResponse {
+}: IMappingConversionOptions): Promise<IMapperResponse> {
     const result: Record<string, unknown> = {};
 
     for (let [localKey, globalPathRaw] of Object.entries(
@@ -252,24 +256,26 @@ export function toGlobal({
         value = getValueByPath(data, pathRef);
         if (tableRef) {
             if (Array.isArray(value)) {
-                value = value.map(
-                    (v) =>
-                        mappingStore.getGlobalId({
-                            localId: v,
-                            tableName: tableRef,
-                        }) ?? undefined
+                value = await Promise.all(
+                    value.map(
+                        async (v) =>
+                            (await mappingStore.getGlobalId({
+                                localId: v,
+                                tableName: tableRef,
+                            })) ?? undefined
+                    )
                 );
             } else {
                 value =
-                    mappingStore.getGlobalId({
+                    (await mappingStore.getGlobalId({
                         localId: value,
                         tableName: tableRef,
-                    }) ?? undefined;
+                    })) ?? undefined;
             }
         }
         result[targetKey] = value;
     }
-    const ownerEvault = extractOwnerEvault(data, mapping.ownerEnamePath);
+    const ownerEvault = await extractOwnerEvault(data, mapping.ownerEnamePath);
 
     return {
         ownerEvault,
