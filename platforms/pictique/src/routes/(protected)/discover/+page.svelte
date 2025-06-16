@@ -60,7 +60,7 @@
 			{#each $searchResults as user}
 				<li>
 					<UserRequest
-						userImgSrc={user.avatarUrl || 'https://picsum.photos/200'}
+						userImgSrc={user.avatarUrl}
 						userName={user.name || user.handle}
 						description={user.description || ''}
 						handleFollow={() => handleFollow(user.id)}

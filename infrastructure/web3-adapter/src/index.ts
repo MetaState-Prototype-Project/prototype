@@ -46,7 +46,7 @@ export class Web3Adapter {
         console.log("Added", this.lockedIds);
         setTimeout(() => {
             this.lockedIds = this.lockedIds.filter((f) => f !== id);
-        }, 5_000);
+        }, 20_000);
     }
 
     async handleChange(props: {

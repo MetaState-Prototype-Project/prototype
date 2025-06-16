@@ -32,7 +32,7 @@ async function extractOwnerEvault(
     data: Record<string, unknown>,
     ownerEnamePath: string
 ): Promise<string | null> {
-    if (!ownerEnamePath) {
+    if (!ownerEnamePath || ownerEnamePath === "null") {
         return null;
     }
     if (!ownerEnamePath.includes("(")) {

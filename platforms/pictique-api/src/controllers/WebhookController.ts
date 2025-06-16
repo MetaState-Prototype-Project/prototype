@@ -246,6 +246,7 @@ export class WebhookController {
                 }
 
                 if (!sender || !chat) {
+                    console.log(local.data);
                     console.log("Missing sender or chat for message");
                     return res.status(400).send();
                 }
@@ -262,7 +263,6 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.messageService.messageRepository.save(message);
                 } else {
-                    console.log("Creating new message");
                     const message = await this.chatService.sendMessage(
                         chat.id,
                         sender.id,

@@ -7,7 +7,6 @@ import { AuthController } from "./controllers/AuthController";
 import { initializeApp, cert, applicationDefault } from "firebase-admin/app";
 import { Web3Adapter } from "./web3adapter";
 import { WebhookController } from "./controllers/WebhookController";
-import { adapter } from "./web3adapter/watchers/firestoreWatcher";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
