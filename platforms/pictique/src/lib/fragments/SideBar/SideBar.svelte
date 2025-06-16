@@ -143,32 +143,32 @@
 			</h3>
 		</button>
 
-		<button
-			type="button"
-			class="flex items-center gap-2"
-			aria-current={activeTab === 'profile' ? 'page' : undefined}
-			onclick={() => {
-				activeTab = 'profile';
-				goto(`/profile/${ownerId.value}`);
-			}}
-		>
-			<span
-				class={`inline-block w-full rounded-full border ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`}
-			>
-				<img
-					width="24px"
-					height="24px"
-					class="aspect-square rounded-full"
-					src={'https://picsum.photos/200/200'}
-					alt="profile"
-				/>
-			</span>
-			<h3
-				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
-			>
-				Profile
-			</h3>
-		</button>
+		<!-- <button -->
+		<!-- 	type="button" -->
+		<!-- 	class="flex items-center gap-2" -->
+		<!-- 	aria-current={activeTab === 'profile' ? 'page' : undefined} -->
+		<!-- 	onclick={() => { -->
+		<!-- 		activeTab = 'profile'; -->
+		<!-- 		goto(`/profile/${ownerId.value}`); -->
+		<!-- 	}} -->
+		<!-- > -->
+		<!-- 	<span -->
+		<!-- 		class={`inline-block w-full rounded-full border ${activeTab === 'profile' ? 'border-brand-burnt-orange' : 'border-transparent'}`} -->
+		<!-- 	> -->
+		<!-- 		<img -->
+		<!-- 			width="24px" -->
+		<!-- 			height="24px" -->
+		<!-- 			class="aspect-square rounded-full" -->
+		<!-- 			src={'https://picsum.photos/200/200'} -->
+		<!-- 			alt="profile" -->
+		<!-- 		/> -->
+		<!-- 	</span> -->
+		<!-- 	<h3 -->
+		<!-- 		class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`} -->
+		<!-- 	> -->
+		<!-- 		Profile -->
+		<!-- 	</h3> -->
+		<!-- </button> -->
 		{#if handlePost}
 			<Button size="sm" variant="secondary" callback={handlePost}>Post a photo</Button>
 		{/if}

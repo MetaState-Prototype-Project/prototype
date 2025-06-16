@@ -2,17 +2,26 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import SettingsNavigationButton from '$lib/fragments/SettingsNavigationButton/SettingsNavigationButton.svelte';
+	import { apiClient } from '$lib/utils';
 	import {
 		DatabaseIcon,
 		Logout01Icon,
 		Notification02FreeIcons
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { onMount } from 'svelte';
 
 	let route = $derived(page.url.pathname);
-	let username: string = $state('_.ananyayaya._');
-	let userEmail: string = $state('ananya@auvo.io');
-	let userImage: string = $state('https://picsum.photos/200/300');
+	let username: string = $state('');
+	let userEmail: string = $state('');
+	let userImage: string = $state('');
+
+	onMount(async () => {
+		const { data } = await apiClient.get('/api/users');
+		username = data.displayName;
+		userEmail = data.handle;
+		userImage = data.avatarUrl;
+	});
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
@@ -42,8 +51,12 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<div class="{route === `/settings/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
-		<SettingsNavigationButton onclick={() => goto(`/settings/data-and-storage`)}>
+	<div
+		class="{route === `/settings/data-and-storage`
+			? 'bg-grey'
+			: ''} !cursor-not-allowed rounded-xl p-2 opacity-[50%]"
+	>
+		<SettingsNavigationButton>
 			{#snippet leadingIcon()}
 				<HugeiconsIcon
 					size="24px"

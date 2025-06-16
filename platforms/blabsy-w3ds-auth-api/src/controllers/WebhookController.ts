@@ -66,7 +66,7 @@ type Message = {
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
-const adapter = new Web3Adapter({
+export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../web3adapter/mappings/"),
     dbPath: path.resolve(process.env.BLABSY_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
@@ -85,17 +85,13 @@ export class WebhookController {
         try {
             const { data, schemaId, id } = req.body;
 
-            console.log(data);
-
             const mapping = Object.values(adapter.mapping).find(
                 (m) => m.schemaId === schemaId
             );
-            console.log(mapping);
             if (!mapping) throw new Error();
             const tableName = mapping.tableName + "s";
 
             const local = await adapter.fromGlobal({ data, mapping });
-            console.log("LOCAL, ", local);
 
             // Get the local ID from the mapping database
             const localId = await adapter.mappingDb.getLocalId({
@@ -118,21 +114,32 @@ export class WebhookController {
     }
 
     private async createRecord(tableName: string, data: any, globalId: string) {
-        console.log(tableName);
-        const collection = this.db.collection(tableName);
-        const docRef = collection.doc();
+        if (adapter.lockedIds.includes(globalId)) return;
+        adapter.addToLockedIds(globalId);
+        const chatId = data.chatId
+            ? data.chatId.split("(")[1].split(")")[0]
+            : null;
 
+        let collection;
+        if (tableName === "messages" && data.chatId) {
+            collection = this.db.collection(`chats/${chatId}/messages`);
+        } else {
+            collection = this.db.collection(tableName);
+        }
+
+        const docRef = collection.doc();
         const mappedData = await this.mapDataToFirebase(tableName, data);
-        console.log(mappedData);
-        const doc = await docRef.set(mappedData);
+        await docRef.set(mappedData);
 
         adapter.addToLockedIds(docRef.id);
-        //
-        // Store the mapping
+        adapter.addToLockedIds(globalId);
         await adapter.mappingDb.storeMapping({
             globalId: globalId,
             localId: docRef.id,
-            tableName,
+            tableName:
+                tableName === "messages"
+                    ? `chats/${data.chatId}/messages`
+                    : tableName,
         });
     }
 
@@ -140,7 +147,9 @@ export class WebhookController {
         const collection = this.db.collection(tableName);
         const docRef = collection.doc(localId);
 
+        adapter.addToLockedIds(docRef.id);
         const mappedData = this.mapDataToFirebase(tableName, data);
+        console.log(mappedData);
         await docRef.update(mappedData);
     }
 
@@ -234,10 +243,12 @@ export class WebhookController {
 
     private mapChatData(data: any, now: Timestamp): Partial<Chat> {
         return {
-            id: data.id,
             type: data.type || "direct",
             name: data.name,
-            participants: data.participants || [],
+            participants:
+                data.participants.map(
+                    (p: string) => p.split("(")[1].split(")")[0]
+                ) || [],
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
                 : now,
@@ -249,15 +260,14 @@ export class WebhookController {
                           new Date(data.lastMessage.timestamp)
                       ),
                   }
-                : undefined,
+                : null,
         };
     }
 
     private mapMessageData(data: any, now: Timestamp): Partial<Message> {
         return {
-            id: data.id,
-            chatId: data.chatId,
-            senderId: data.senderId,
+            chatId: data.chatId.split("(")[1].split(")")[0],
+            senderId: data.senderId.split("(")[1].split(")")[0],
             text: data.text,
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
