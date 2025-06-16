@@ -183,7 +183,7 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
             kind: "Service",
             metadata: { name: "evault-service" },
             spec: {
-                type: "LoadBalancer",
+                type: "NodePort",
                 selector: { app: "evault" },
                 ports: [
                     {
@@ -195,20 +195,23 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
         },
     });
 
-    // Wait for LoadBalancer IP
-    let externalIP = null;
-    for (let i = 0; i < 30; i++) {
-        const svc = await coreApi.readNamespacedService({
-            name: "evault-service",
-            namespace: namespaceName,
-        });
-        const ingress = svc.status?.loadBalancer?.ingress?.[0];
-        if (ingress?.ip || ingress?.hostname) {
-            externalIP = ingress.ip || ingress.hostname;
-            const port = svc.spec?.ports?.[0]?.port;
-            return `http://${externalIP}:${port}`;
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-    }
-    throw new Error("Failed to get LoadBalancer IP after 60 seconds");
+    // Get the service and node info
+    const svc = await coreApi.readNamespacedService({
+        name: "evault-service",
+        namespace: namespaceName,
+    });
+    const nodePort = svc.spec?.ports?.[0]?.nodePort;
+    if (!nodePort) throw new Error("No NodePort assigned");
+
+    // Get the node's external IP
+    const nodes = await coreApi.listNode();
+    const node = nodes.items[0];
+    if (!node) throw new Error("No nodes found in cluster");
+
+    const externalIP = node.status?.addresses?.find(
+        addr => addr.type === "ExternalIP"
+    )?.address;
+
+    if (!externalIP) throw new Error("No external IP found on node");
+    return `http://${externalIP}:${nodePort}`;
 }
