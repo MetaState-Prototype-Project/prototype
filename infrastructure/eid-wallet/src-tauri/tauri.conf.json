@@ -1,12 +1,12 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
-    "productName": "eid-wallet",
+    "productName": "eID Wallet",
     "version": "0.1.0",
-    "identifier": "com.eid-wallet.app-1",
+    "identifier": "io.tanglelabs.metastate.eid-wallet",
     "build": {
         "beforeDevCommand": "pnpm dev",
         "devUrl": "http://localhost:1420",
-        "beforeBuildCommand": "pnpm build",
+        "beforeBuildCommand": "npm run build",
         "frontendDist": "../build"
     },
     "app": {
@@ -33,6 +33,9 @@
             "icons/128x128@2x.png",
             "icons/icon.icns",
             "icons/icon.ico"
-        ]
+        ],
+        "iOS": {
+            "developmentTeam": "HZ7MLR7Q46"
+        }
     }
 }
