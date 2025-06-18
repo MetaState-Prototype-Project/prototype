@@ -16,7 +16,7 @@ veriffClient.interceptors.response.use(
     async function (error) {
         if (!error.response) return Promise.reject(error);
         return Promise.reject(error);
-    }
+    },
 );
 
 export class VerificationController {
@@ -42,7 +42,7 @@ export class VerificationController {
                 res.write(
                     `event: connected\ndata: ${JSON.stringify({
                         hi: "hi",
-                    })}\n\n`
+                    })}\n\n`,
                 );
 
                 const handler = (data: any) => {
@@ -63,7 +63,7 @@ export class VerificationController {
                     eventEmitter.off(id, handler);
                     res.end();
                 });
-            }
+            },
         );
 
         app.post(
@@ -73,10 +73,10 @@ export class VerificationController {
                 const types = ["document-front", "document-back", "face"];
                 if (!types.includes(type))
                     throw new Error(
-                        `Wrong type specified, accepted types are ${types}`
+                        `Wrong type specified, accepted types are ${types}`,
                     );
                 const verification = await this.verificationService.findById(
-                    req.params.id
+                    req.params.id,
                 );
                 if (!verification) throw new Error("Verification not found");
                 const veriffBody = {
@@ -88,7 +88,7 @@ export class VerificationController {
 
                 const signature = createHmacSignature(
                     veriffBody,
-                    process.env.VERIFF_HMAC_KEY as string
+                    process.env.VERIFF_HMAC_KEY as string,
                 );
                 await veriffClient.post(
                     `/v1/sessions/${verification.veriffId}/media`,
@@ -98,10 +98,10 @@ export class VerificationController {
                             "X-HMAC-SIGNATURE": signature,
                             "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
                         },
-                    }
+                    },
                 );
                 res.sendStatus(201);
-            }
+            },
         );
 
         // Get verification session
@@ -141,7 +141,7 @@ export class VerificationController {
             };
             const signature = createHmacSignature(
                 veriffBody,
-                process.env.VERIFF_HMAC_KEY as string
+                process.env.VERIFF_HMAC_KEY as string,
             );
             const { data: veriffSession } = await veriffClient.post(
                 "/v1/sessions",
@@ -151,7 +151,7 @@ export class VerificationController {
                         "X-HMAC-SIGNATURE": signature,
                         "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
                     },
-                }
+                },
             );
             await this.verificationService.findByIdAndUpdate(verification.id, {
                 veriffId: veriffSession.verification.id,
@@ -162,7 +162,7 @@ export class VerificationController {
 
         app.patch("/verification/:id", async (req: Request, res: Response) => {
             const verification = await this.verificationService.findById(
-                req.params.id
+                req.params.id,
             );
             const body = {
                 verification: {
@@ -171,7 +171,7 @@ export class VerificationController {
             };
             const signature = createHmacSignature(
                 body,
-                process.env.VERIFF_HMAC_KEY as string
+                process.env.VERIFF_HMAC_KEY as string,
             );
             await veriffClient.patch(
                 `/v1/sessions/${verification?.veriffId}`,
@@ -181,7 +181,7 @@ export class VerificationController {
                         "X-HMAC-SIGNATURE": signature,
                         "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
                     },
-                }
+                },
             );
             res.sendStatus(201);
         });
@@ -194,9 +194,8 @@ export class VerificationController {
                 console.log(body);
                 const id = body.vendorData;
 
-                const verification = await this.verificationService.findById(
-                    id
-                );
+                const verification =
+                    await this.verificationService.findById(id);
                 if (!verification) {
                     return res
                         .status(404)
@@ -214,7 +213,7 @@ export class VerificationController {
                 ];
                 if (
                     affirmativeStatusTypes.includes(
-                        body.data.verification.decision
+                        body.data.verification.decision,
                     )
                 ) {
                     let approved =
@@ -254,7 +253,7 @@ export class VerificationController {
                 });
 
                 return res.json({ success: true });
-            }
+            },
         );
     }
 }

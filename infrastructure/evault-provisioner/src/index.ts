@@ -68,6 +68,8 @@ app.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
 });
 
+export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
+
 // Provision evault endpoint
 app.post(
     "/provision",
@@ -76,7 +78,6 @@ app.post(
         res: Response<ProvisionResponse>,
     ) => {
         try {
-            console.log("provisioning init");
             if (!process.env.PUBLIC_REGISTRY_URL)
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
             const { registryEntropy, namespace, verificationId } = req.body;
@@ -88,15 +89,7 @@ app.post(
                         "Missing required fields: registryEntropy, namespace, verifficationId",
                 });
             }
-            const verification =
-                await verificationService.findById(verificationId);
-            if (!verification) throw new Error("verification doesn't exist");
-            if (!verification.approved)
-                throw new Error("verification not approved");
-            if (verification.consumed)
-                throw new Error("This verification ID has already been used");
 
-            console.log("jwk");
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,
@@ -105,7 +98,6 @@ app.post(
             );
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-
             const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
 
             const evaultId = await new W3IDBuilder().withGlobal(true).build();
@@ -117,8 +109,19 @@ app.post(
 
             const w3id = userId.id;
 
+            if (verificationId !== DEMO_CODE_W3DS) {
+                const verification =
+                    await verificationService.findById(verificationId);
+                if (!verification)
+                    throw new Error("verification doesn't exist");
+                if (!verification.approved)
+                    throw new Error("verification not approved");
+                if (verification.consumed)
+                    throw new Error(
+                        "This verification ID has already been used",
+                    );
+            }
             const uri = await provisionEVault(w3id, evaultId.id);
-
             await axios.post(
                 new URL(
                     "/register",
