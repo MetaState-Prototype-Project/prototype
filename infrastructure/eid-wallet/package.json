@@ -21,6 +21,7 @@
     "dependencies": {
         "@hugeicons/core-free-icons": "^1.0.13",
         "@hugeicons/svelte": "^1.0.2",
+        "@ngneat/falso": "^7.3.0",
         "@tailwindcss/container-queries": "^0.1.1",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-barcode-scanner": "^2.2.0",
