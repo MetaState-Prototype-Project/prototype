@@ -127,47 +127,34 @@ export class EVaultClient {
         });
         if (!client) return v4();
 
-        try {
-            const response = await client.request<StoreMetaEnvelopeResponse>(
-                STORE_META_ENVELOPE,
-                {
-                    input: {
-                        ontology: envelope.schemaId,
-                        payload: envelope.data,
-                        acl: ["*"],
-                    },
+        const response = await client
+            .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+                input: {
+                    ontology: envelope.schemaId,
+                    payload: envelope.data,
+                    acl: ["*"],
                 },
-            );
-            return response.storeMetaEnvelope.metaEnvelope.id;
-        } catch (error) {
-            console.error("Error storing meta envelope:", error);
-            throw error;
-        }
+            })
+            .catch(() => null);
+        if (!response) return v4();
+        return response.storeMetaEnvelope.metaEnvelope.id;
     }
 
     async storeReference(referenceId: string, w3id: string): Promise<void> {
         const client = await this.ensureClient(w3id);
 
-        try {
-            const response = await client.request<StoreMetaEnvelopeResponse>(
-                STORE_META_ENVELOPE,
-                {
-                    input: {
-                        ontology: "reference",
-                        payload: {
-                            _by_reference: referenceId,
-                        },
-                        acl: ["*"],
+        const response = await client
+            .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+                input: {
+                    ontology: "reference",
+                    payload: {
+                        _by_reference: referenceId,
                     },
+                    acl: ["*"],
                 },
-            );
-
-            response.storeMetaEnvelope.metaEnvelope.id;
-            return;
-        } catch (error) {
-            console.error("Error storing reference:", error);
-            throw error;
-        }
+            })
+            .catch(() => null);
+        if (!response) console.error("Failed to update");
     }
 
     async fetchMetaEnvelope(id: string, w3id: string): Promise<MetaEnvelope> {
