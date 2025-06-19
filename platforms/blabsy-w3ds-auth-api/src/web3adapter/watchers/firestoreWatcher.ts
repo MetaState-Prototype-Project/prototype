@@ -23,7 +23,7 @@ export class FirestoreWatcher {
     constructor(
         private readonly collection:
             | CollectionReference<DocumentData>
-            | CollectionGroup<DocumentData>
+            | CollectionGroup<DocumentData>,
     ) {}
 
     async start(): Promise<void> {
@@ -42,7 +42,7 @@ export class FirestoreWatcher {
                 async (snapshot) => {
                     if (this.isProcessing) {
                         console.log(
-                            "Still processing previous snapshot, skipping..."
+                            "Still processing previous snapshot, skipping...",
                         );
                         return;
                     }
@@ -61,14 +61,14 @@ export class FirestoreWatcher {
                 (error) => {
                     console.error("Error in Firestore listener:", error);
                     this.handleError(error);
-                }
+                },
             );
 
             console.log(`Successfully started watcher for ${collectionPath}`);
         } catch (error) {
             console.error(
                 `Failed to start watcher for ${collectionPath}:`,
-                error
+                error,
             );
             throw error;
         }
@@ -93,7 +93,7 @@ export class FirestoreWatcher {
             this.retryCount++;
             console.log(`Retrying (${this.retryCount}/${this.maxRetries})...`);
             await new Promise((resolve) =>
-                setTimeout(resolve, this.retryDelay * this.retryCount)
+                setTimeout(resolve, this.retryDelay * this.retryCount),
             );
             await this.start();
         } else {
@@ -109,7 +109,7 @@ export class FirestoreWatcher {
                 ? this.collection.path
                 : "collection group";
         console.log(
-            `Processing ${changes.length} changes in ${collectionPath}`
+            `Processing ${changes.length} changes in ${collectionPath}`,
         );
 
         for (const change of changes) {
@@ -122,7 +122,7 @@ export class FirestoreWatcher {
                     case "modified":
                         setTimeout(() => {
                             console.log(
-                                `${collectionPath} - processing - ${doc.id}`
+                                `${collectionPath} - processing - ${doc.id}`,
                             );
                             if (adapter.lockedIds.includes(doc.id)) return;
                             this.handleCreateOrUpdate(doc, data);
@@ -136,7 +136,7 @@ export class FirestoreWatcher {
             } catch (error) {
                 console.error(
                     `Error processing ${change.type} for document ${doc.id}:`,
-                    error
+                    error,
                 );
                 // Continue processing other changes even if one fails
             }
@@ -145,7 +145,7 @@ export class FirestoreWatcher {
 
     private async handleCreateOrUpdate(
         doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData>,
-        data: DocumentData
+        data: DocumentData,
     ): Promise<void> {
         const tableParts = doc.ref.path.split("/");
         // -2 cuz -1 gives last entry and we need second last which would
@@ -166,27 +166,31 @@ export class FirestoreWatcher {
                     this.adapter.lockedIds.includes(doc.id)
                 )
                     return;
-                const response = await axios.post(
-                    new URL(
-                        "/api/webhook",
-                        process.env.PUBLIC_PICTIQUE_BASE_URL
-                    ).toString(),
-                    envelope,
-                    {
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-Webhook-Source": "blabsy-w3ds-auth-api",
+                const response = await axios
+                    .post(
+                        new URL(
+                            "/api/webhook",
+                            process.env.PUBLIC_PICTIQUE_BASE_URL,
+                        ).toString(),
+                        envelope,
+                        {
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-Webhook-Source": "blabsy-w3ds-auth-api",
+                            },
                         },
-                    }
-                );
+                    )
+                    .catch(() => null);
+                if (!response)
+                    return console.error(`failed to sync ${envelope.id}`);
                 console.log(
                     `Successfully forwarded webhook for ${doc.id}:`,
-                    response.status
+                    response.status,
                 );
             } catch (error) {
                 console.error(
                     `Failed to forward webhook for ${doc.id}:`,
-                    error
+                    error,
                 );
                 throw error; // Re-throw to trigger retry mechanism
             }
