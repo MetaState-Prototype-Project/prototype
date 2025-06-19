@@ -52,6 +52,7 @@ describe("DbService (integration)", () => {
 
         const fetched = await service.findMetaEnvelopeById(id);
         expect(fetched).toBeDefined();
+        if (!fetched) return;
         expect(fetched.id).toBeDefined();
         expect(fetched.ontology).toBe("TestTypes");
         expect(fetched.acl).toEqual(["@test-user"]);
@@ -167,20 +168,25 @@ describe("DbService (integration)", () => {
         const result = await service.findMetaEnvelopeById(
             stored.metaEnvelope.id,
         );
+        if (!result) return;
         const targetEnvelope = result.envelopes.find(
             (e: Envelope) => e.ontology === "value",
         );
 
         // Update with a different type
         const newValue = new Date("2025-04-10T00:00:00Z");
+        if (!targetEnvelope) return;
         await service.updateEnvelopeValue(targetEnvelope.id, newValue);
 
         const updated = await service.findMetaEnvelopeById(
             stored.metaEnvelope.id,
         );
+        if (!updated) return;
         const updatedValue = updated.envelopes.find(
             (e: Envelope) => e.id === targetEnvelope.id,
         );
+
+        if (!updatedValue) return;
         expect(updatedValue.value).toBeInstanceOf(Date);
         expect(updatedValue.value.toISOString()).toBe(
             "2025-04-10T00:00:00.000Z",

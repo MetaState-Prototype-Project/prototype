@@ -1,4 +1,4 @@
-import neo4j, { Driver } from 'neo4j-driver';
+import neo4j, { Driver } from "neo4j-driver";
 
 /**
  * Attempts to connect to Neo4j with retry logic.
@@ -14,8 +14,8 @@ export async function connectWithRetry(
     uri: string,
     user: string,
     password: string,
-    maxRetries = 10,
-    delayMs = 3000
+    maxRetries = 30,
+    delayMs = 5000,
 ): Promise<Driver> {
     let attempt = 0;
     while (attempt < maxRetries) {
@@ -23,18 +23,18 @@ export async function connectWithRetry(
             const driver = neo4j.driver(
                 uri,
                 neo4j.auth.basic(user, password),
-                { encrypted: 'ENCRYPTION_OFF' } // or { encrypted: false }
+                { encrypted: "ENCRYPTION_OFF" }, // or { encrypted: false }
             );
             await driver.getServerInfo();
-            console.log('Connected to Neo4j!');
+            console.log("Connected to Neo4j!");
             return driver;
         } catch (err: any) {
             attempt++;
             console.warn(
-                `Neo4j connection attempt ${attempt} failed: ${err.message}. Retrying in ${delayMs}ms...`
+                `Neo4j connection attempt ${attempt} failed: ${err.message}. Retrying in ${delayMs}ms...`,
             );
             await new Promise((res) => setTimeout(res, delayMs));
         }
     }
-    throw new Error('Could not connect to Neo4j after multiple attempts');
-} 
+    throw new Error("Could not connect to Neo4j after multiple attempts");
+}
