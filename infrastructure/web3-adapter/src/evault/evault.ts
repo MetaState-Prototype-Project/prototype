@@ -1,5 +1,6 @@
 import { GraphQLClient } from "graphql-request";
 import axios from "axios";
+import { v4 } from "uuid";
 
 export interface MetaEnvelope {
     id?: string | null;
@@ -102,7 +103,7 @@ export class EVaultClient {
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
             const response = await axios.get(
-                new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString()
+                new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -113,14 +114,18 @@ export class EVaultClient {
 
     private async ensureClient(w3id: string): Promise<GraphQLClient> {
         if (!this.endpoint || !this.client) {
-            this.endpoint = await this.resolveEndpoint(w3id);
+            this.endpoint = await this.resolveEndpoint(w3id).catch(() => null);
+            if (!this.endpoint) throw new Error();
             this.client = new GraphQLClient(this.endpoint);
         }
         return this.client;
     }
 
     async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {
-        const client = await this.ensureClient(envelope.w3id);
+        const client = await this.ensureClient(envelope.w3id).catch(() => {
+            return null;
+        });
+        if (!client) return v4();
 
         try {
             const response = await client.request<StoreMetaEnvelopeResponse>(
@@ -131,7 +136,7 @@ export class EVaultClient {
                         payload: envelope.data,
                         acl: ["*"],
                     },
-                }
+                },
             );
             return response.storeMetaEnvelope.metaEnvelope.id;
         } catch (error) {
@@ -154,7 +159,7 @@ export class EVaultClient {
                         },
                         acl: ["*"],
                     },
-                }
+                },
             );
 
             response.storeMetaEnvelope.metaEnvelope.id;
@@ -174,7 +179,7 @@ export class EVaultClient {
                 {
                     id,
                     w3id,
-                }
+                },
             );
             return response.metaEnvelope;
         } catch (error) {
@@ -185,9 +190,10 @@ export class EVaultClient {
 
     async updateMetaEnvelopeById(
         id: string,
-        envelope: MetaEnvelope
+        envelope: MetaEnvelope,
     ): Promise<StoreMetaEnvelopeResponse["storeMetaEnvelope"]> {
-        const client = await this.ensureClient(envelope.w3id);
+        const client = await this.ensureClient(envelope.w3id).catch(() => null);
+        if (!client) throw new Error();
 
         try {
             const variables = {
@@ -201,7 +207,7 @@ export class EVaultClient {
 
             const response = await client.request<StoreMetaEnvelopeResponse>(
                 UPDATE_META_ENVELOPE,
-                variables
+                variables,
             );
             return response.updateMetaEnvelopeById;
         } catch (error) {

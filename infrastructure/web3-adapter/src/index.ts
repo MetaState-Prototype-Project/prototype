@@ -17,7 +17,7 @@ export class Web3Adapter {
             schemasPath: string;
             dbPath: string;
             registryUrl: string;
-        }
+        },
     ) {
         this.readPaths();
         this.mappingDb = new MappingDatabase(config.dbPath);
@@ -27,15 +27,15 @@ export class Web3Adapter {
     async readPaths() {
         const allRawFiles = await fs.readdir(this.config.schemasPath);
         const mappingFiles = allRawFiles.filter((p: string) =>
-            p.endsWith(".json")
+            p.endsWith(".json"),
         );
 
         for (const mappingFile of mappingFiles) {
             const mappingFileContent = await fs.readFile(
-                path.join(this.config.schemasPath, mappingFile)
+                path.join(this.config.schemasPath, mappingFile),
             );
             const mappingParsed = JSON.parse(
-                mappingFileContent.toString()
+                mappingFileContent.toString(),
             ) as IMapping;
             this.mapping[mappingParsed.tableName] = mappingParsed;
         }
@@ -69,13 +69,14 @@ export class Web3Adapter {
                 mappingStore: this.mappingDb,
             });
 
-            // Update the existing global entity
-            // await this.evaultClient.updateMetaEnvelopeById(existingGlobalId, {
-            //     id: existingGlobalId,
-            //     w3id: global.ownerEvault as string,
-            //     data: global.data,
-            //     schemaId: this.mapping[tableName].schemaId,
-            // });
+            this.evaultClient
+                .updateMetaEnvelopeById(existingGlobalId, {
+                    id: existingGlobalId,
+                    w3id: global.ownerEvault as string,
+                    data: global.data,
+                    schemaId: this.mapping[tableName].schemaId,
+                })
+                .catch(() => console.error("failed to sync update"));
 
             return {
                 id: existingGlobalId,
@@ -113,12 +114,12 @@ export class Web3Adapter {
 
         // Handle references for other participants
         const otherEvaults = (participants ?? []).filter(
-            (i: string) => i !== global.ownerEvault
+            (i: string) => i !== global.ownerEvault,
         );
         for (const evault of otherEvaults) {
             await this.evaultClient.storeReference(
                 `${global.ownerEvault}/${globalId}`,
-                evault
+                evault,
             );
         }
 
