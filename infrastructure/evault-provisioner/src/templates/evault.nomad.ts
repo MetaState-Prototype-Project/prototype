@@ -63,15 +63,15 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
         },
     });
     await coreApi.createNamespacedPersistentVolumeClaim({
-        namespace: namespaceName,
-        body: pvcSpec("neo4j-data"),
+            namespace: namespaceName,
+            body: pvcSpec("neo4j-data"),
     });
     await coreApi.createNamespacedPersistentVolumeClaim({
-        namespace: namespaceName,
-        body: pvcSpec("evault-store"),
+            namespace: namespaceName,
+            body: pvcSpec("evault-store"),
     });
     await coreApi.createNamespacedPersistentVolumeClaim({
-        namespace: namespaceName,
+            namespace: namespaceName,
         body: {
             metadata: { name: "evault-secrets", namespace: namespaceName },
             spec: {
@@ -196,7 +196,7 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
     });
 
     // Get the service and node info
-    const svc = await coreApi.readNamespacedService({
+        const svc = await coreApi.readNamespacedService({
         name: "evault-service",
         namespace: namespaceName,
     });
