@@ -19,6 +19,7 @@
 			error = null;
 			const response = await apiClient.get(`/api/users/${profileId}`);
 			profile = response.data;
+			console.log(JSON.stringify(profile));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load profile';
 		} finally {
