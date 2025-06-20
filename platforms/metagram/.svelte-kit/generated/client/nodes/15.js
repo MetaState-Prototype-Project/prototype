@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/(protected)/settings/account/deactivate/+page.svelte";

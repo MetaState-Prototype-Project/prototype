@@ -1,0 +1,1 @@
+export { default as component } from "../../../../src/routes/(protected)/post/audience/+page.svelte";
