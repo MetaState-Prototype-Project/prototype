@@ -2,7 +2,6 @@
 	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
-	import { ownerId } from '$lib/store/store.svelte';
 
 	let handle = $state();
 	let name = $state();

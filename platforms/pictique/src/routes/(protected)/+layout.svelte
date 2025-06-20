@@ -5,9 +5,12 @@
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
 	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
+	import { onMount } from 'svelte';
+	import { apiClient, getAuthId } from '$lib/utils';
+	import type { userProfile } from '$lib/types';
 
 	let { children } = $props();
-
+	let ownerId: string | null = $state(null);
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
 	let commentValue: string = $state('');
@@ -16,6 +19,7 @@
 	let idFromParams = $state();
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
+	let profile = $state<userProfile | null>(null);
 
 	const handleSend = async () => {
 		console.log($activePostId, commentValue);
@@ -54,6 +58,7 @@
 
 	// Watch for changes in showComments to fetch comments when opened
 	$effect(() => {
+		ownerId = getAuthId();
 		if (showComments.value && activePostId) {
 			isCommentsLoading = true;
 			commentsError = null;
@@ -66,13 +71,24 @@
 				});
 		}
 	});
+
+	async function fetchProfile() {
+		try {
+			const response = await apiClient.get(`/api/users/${ownerId}`);
+			profile = response.data;
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'Failed to load profile');
+		}
+	}
+
+	onMount(fetchProfile)
 </script>
 
 <main
 	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && !route.includes('settings') && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
-		profileSrc="https://picsum.photos/200"
+		profileSrc={profile?.avatarUrl}
 		handlePost={async () => {
 			openCreatePostModal();
 		}}

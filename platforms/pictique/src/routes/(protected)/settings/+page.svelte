@@ -2,28 +2,60 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import SettingsNavigationButton from '$lib/fragments/SettingsNavigationButton/SettingsNavigationButton.svelte';
+	import type { userProfile } from '$lib/types';
+	import { apiClient, getAuthId } from '$lib/utils';
 	import {
 		DatabaseIcon,
 		Logout01Icon,
 		Notification02FreeIcons
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { onMount } from 'svelte';
 
 	let route = $derived(page.url.pathname);
-	let username: string = $state('_.ananyayaya._');
-	let userEmail: string = $state('ananya@auvo.io');
-	let userImage: string = $state('https://picsum.photos/200/300');
+	let ownerId: string | null = $state(null);
+
+	let profile = $state<userProfile | null>(null);
+	let error = $state<string | null>(null);
+	let loading = $state(true);
+
+	async function fetchProfile() {
+		try {
+			loading = true;
+			error = null;
+			const response = await apiClient.get(`/api/users/${ownerId}`);
+			profile = response.data;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load profile';
+		} finally {
+			loading = false;
+		}
+	}
+	$effect(()=> { 
+		ownerId = getAuthId();
+	})
+	onMount(fetchProfile)
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
-	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={userImage}>
+	{#if loading}
+		<div class="flex h-64 items-center justify-center">
+			<p class="text-gray-500">Loading profile...</p>
+		</div>
+	{:else if error}
+		<div class="flex h-64 items-center justify-center">
+			<p class="text-red-500">{error}</p>
+		</div>
+	{:else if profile}
+	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={profile?.avatarUrl}>
 		{#snippet children()}
 			<div class="flex flex-col items-start">
-				<h2 class="text-lg">{username}</h2>
-				<p class="text-sm">{userEmail}</p>
+				<h2 class="text-lg">{profile?.handle}</h2>
+				<p class="text-sm">{profile?.description}</p>
 			</div>
 		{/snippet}
 	</SettingsNavigationButton>
+	{/if}
 </div>
 <hr class="text-grey" />
 <div class="flex flex-col gap-3">
