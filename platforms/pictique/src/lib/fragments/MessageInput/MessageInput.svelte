@@ -52,7 +52,7 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="bg-grey h-13 w-13 flex aspect-square items-center justify-center rounded-full"
+		class="bg-grey flex aspect-square h-13 w-13 items-center justify-center rounded-full"
 		onclick={handleSend}
 	>
 		<HugeiconsIcon size="24px" icon={SentIcon} color="var(--color-black-400)" />

@@ -90,7 +90,9 @@
 		{/if}
 
 		<div class="flex items-center justify-between gap-2">
-			<label class="w-full cursor-pointer text-center rounded-full bg-gray-100 px-4 py-3 hover:bg-gray-200">
+			<label
+				class="w-full cursor-pointer rounded-full bg-gray-100 px-4 py-3 text-center hover:bg-gray-200"
+			>
 				<input type="file" accept="image/*" class="hidden" onchange={handleImageUpload} />
 				Add Photo
 			</label>
