@@ -19,8 +19,8 @@
 		</div>
 		{#if variant === 'other'}
 			<div class="flex gap-2">
-				<Button variant="primary" callback={handleFollow}>Follow</Button>
-				<Button variant="primary" callback={handleMessage}>Message</Button>
+				<Button variant="primary" size="sm" callback={handleFollow}>Follow</Button>
+				<Button variant="primary" size="sm" callback={handleMessage}>Message</Button>
 			</div>
 		{/if}
 	</div>
