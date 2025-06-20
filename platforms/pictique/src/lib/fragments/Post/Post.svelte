@@ -19,8 +19,7 @@
 		userId?: string;
 		imgUris: string[];
 		text: string;
-		caption: string;
-		count: {
+		count?: {
 			likes: number;
 			comments: number;
 		};
@@ -61,8 +60,7 @@
 		...restProps
 	}: IPostProps = $props();
 
-	let imgUris = $derived.by(() => pairAndJoinChunks(uris));
-
+	let imgUris = $derived(uris);
 	let galleryRef: HTMLDivElement | undefined = $state();
 	let currentIndex = $state(0);
 

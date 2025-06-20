@@ -42,13 +42,13 @@
 
 	<div class="grid grid-cols-3 gap-1">
 		{#each profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0) as post}
-			<li class="mb-6">
+			<li class="mb-6 list-none">
 				<Post
-					avatar={'https://picsum.photos/200/200'}
+					avatar={ profileData.avatarUrl || 'https://picsum.photos/200/200'}
 					username={profileData?.username}
 					imgUris={post.imgUris ?? []}
 					text={post.caption}
-					time={new Date(post.createdAt).toLocaleDateString()}
+					time={post.time ? new Date(post.time).toLocaleDateString() : ''}
 					callback={{
 						like: async () => {
 							try {
