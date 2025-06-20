@@ -3,17 +3,13 @@
 	import type { userProfile, PostData } from '$lib/types';
 	import Post from '../Post/Post.svelte';
 
-	export let variant: 'user' | 'other' = 'user';
-	export let profileData: userProfile;
-	export let handleSinglePost: (post: PostData) => void;
-	export let handleFollow: () => Promise<void>;
-	export let handleMessage: () => Promise<void>;
+	let { variant = "user", profileData, handleSinglePost, handleFollow, handleMessage}: {variant: "user" | "other", profileData: userProfile,handleSinglePost: (post: PostData) => void, handleFollow: () => Promise<void>, handleMessage: () => Promise<void> } = $props();
 </script>
 
 <div class="flex flex-col gap-4 p-4">
 	<div class="flex items-center gap-4">
 		<img
-			src={profileData.avatar ?? 'https://picsum.photos/200/200'}
+			src={profileData.avatarUrl ?? 'https://picsum.photos/200/200'}
 			alt={profileData.username}
 			class="h-20 w-20 rounded-full object-cover"
 		/>
@@ -51,7 +47,7 @@
 					avatar={'https://picsum.photos/200/200'}
 					username={profileData?.username}
 					imgUris={post.imgUris ?? []}
-					text={post.text}
+					text={post.caption}
 					time={new Date(post.createdAt).toLocaleDateString()}
 					callback={{
 						like: async () => {

@@ -6,7 +6,6 @@
 	import type { userProfile, PostData } from '$lib/types';
 	import { apiClient } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
-	import Post from '../../../../lib/fragments/Post/Post.svelte';
 
 	let profileId = $derived(page.params.id);
 	let profile = $state<userProfile | null>(null);
@@ -38,7 +37,7 @@
 	async function handleMessage() {
 		try {
 			await apiClient.post(`/api/chats/`, {
-				name: profile.username,
+				name: profile?.username,
 				participantIds: [profileId]
 			});
 			goto('/messages');
