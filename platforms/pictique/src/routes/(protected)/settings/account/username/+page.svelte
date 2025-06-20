@@ -2,6 +2,7 @@
 	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
+	import { goto } from '$app/navigation';
 
 	let handle = $state();
 	let name = $state();
@@ -24,11 +25,16 @@
 	}
 
 	async function saveProfileData() {
-		await apiClient.patch(`/api/users/`, {
-			handle,
-			avatar: profileImageDataUrl,
-			name
-		});
+		try {
+			await apiClient.patch(`/api/users/`, {
+				handle,
+				avatar: profileImageDataUrl,
+				name
+			});
+			goto("/settings");
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'please check the info again');
+		}
 	}
 
 	$effect(() => {
