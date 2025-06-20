@@ -164,7 +164,7 @@
 	{/if}
 
 	{#if route !== `/messages/${idFromParams}`}
-		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
+		<BottomNav class="btm-nav" profileSrc={profile?.avatarUrl ?? ""} />
 	{/if}
 </main>
 
