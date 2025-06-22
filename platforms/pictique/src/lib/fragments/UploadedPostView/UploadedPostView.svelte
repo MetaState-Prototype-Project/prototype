@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { Cross } from '$lib/icons';
-    import type { Image } from '$lib/types';
+	import type { Image } from '$lib/types';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
-
 
 	interface IUploadedPostViewProps extends HTMLAttributes<HTMLElement> {
 		images: Image[];
@@ -23,12 +22,17 @@
 
 <article
 	{...restProps}
-	class={cn(['pl-0.5 pr-4 max-w-screen flex flex-row items-center gap-4 overflow-x-auto min-h-max', restProps.class].join(' '))}
+	class={cn(
+		[
+			'flex min-h-max max-w-screen flex-row items-center gap-4 overflow-x-auto pr-4 pl-0.5',
+			restProps.class
+		].join(' ')
+	)}
 >
 	{#each images as image, i}
-		<div class={cn(['group relative shrink-0 mt-3 mb-2'])}>
+		<div class={cn(['group relative mt-3 mb-2 shrink-0'])}>
 			<Cross
-				class="absolute right-0 top-0 hidden -translate-y-1/2 translate-x-1/2 cursor-pointer group-hover:block"
+				class="absolute top-0 right-0 hidden translate-x-1/2 -translate-y-1/2 cursor-pointer group-hover:block"
 				onclick={() => callback(i)}
 			/>
 			<img

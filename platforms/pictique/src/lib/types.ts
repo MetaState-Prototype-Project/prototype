@@ -18,6 +18,7 @@ export type CommentType = {
 };
 
 export type PostData = {
+	createdAt: string | number | Date;
     id: string;
     avatar: string;
     userId: string;

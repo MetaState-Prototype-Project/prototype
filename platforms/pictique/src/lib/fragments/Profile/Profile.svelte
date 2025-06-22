@@ -3,11 +3,19 @@
 	import type { userProfile, PostData } from '$lib/types';
 	import Post from '../Post/Post.svelte';
 
-	export let variant: 'user' | 'other' = 'user';
-	export let profileData: userProfile;
-	export let handleSinglePost: (post: PostData) => void;
-	export let handleFollow: () => Promise<void>;
-	export let handleMessage: () => Promise<void>;
+	let {
+		variant = 'user',
+		profileData,
+		handleSinglePost,
+		handleFollow,
+		handleMessage
+	}: {
+		variant: 'user' | 'other';
+		profileData: userProfile;
+		handleSinglePost: (post: PostData) => void;
+		handleFollow: () => Promise<void>;
+		handleMessage: () => Promise<void>;
+	} = $props();
 </script>
 
 <div class="flex flex-col gap-4 p-4">
@@ -23,8 +31,8 @@
 		</div>
 		{#if variant === 'other'}
 			<div class="flex gap-2">
-				<Button variant="primary" callback={handleFollow}>Follow</Button>
-				<Button variant="primary" callback={handleMessage}>Message</Button>
+				<Button variant="primary" size="sm" callback={handleFollow}>Follow</Button>
+				<Button variant="primary" size="sm" callback={handleMessage}>Message</Button>
 			</div>
 		{/if}
 	</div>
@@ -46,13 +54,13 @@
 
 	<div class="grid grid-cols-3 gap-1">
 		{#each profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0) as post}
-			<li class="mb-6">
+			<li class="mb-6 list-none">
 				<Post
-					avatar={'https://picsum.photos/200/200'}
+					avatar={profileData.avatarUrl || 'https://picsum.photos/200/200'}
 					username={profileData?.username}
 					imgUris={post.imgUris ?? []}
-					text={post.text}
-					time={new Date(post.createdAt).toLocaleDateString()}
+					text={post.caption}
+					time={post.time ? new Date(post.time).toLocaleDateString() : ''}
 					callback={{
 						like: async () => {
 							try {
