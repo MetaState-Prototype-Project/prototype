@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "schemaId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
     "title": "SocialMediaPost",
     "type": "object",
     "properties": {
@@ -12,12 +12,11 @@
         "authorId": {
             "type": "string",
             "format": "uuid",
-            "description": "Reference to the user who created the post"
+            "description": "The ID of the user who created the post"
         },
         "content": {
             "type": "string",
-            "maxLength": 500,
-            "description": "The main content of the post"
+            "description": "The main text content of the post"
         },
         "mediaUrls": {
             "type": "array",
@@ -27,28 +26,39 @@
             },
             "description": "Array of URLs to media attachments (images, videos, etc.)"
         },
-        "comments": {
+        "parentPostId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the parent post if this is a reply"
+        },
+        "hashtags": {
             "type": "array",
             "items": {
                 "type": "string"
             },
-            "description": "Array of comment IDs associated with this post"
+            "description": "Array of hashtags used in the post"
         },
-        "likes": {
+        "likeCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of likes on the post"
+        },
+        "likedBy": {
             "type": "array",
             "items": {
-                "type": "string",
-                "format": "uuid"
+                "type": "string"
             },
-            "description": "Array of user IDs who liked this post"
+            "description": "Number of likes on the post"
         },
-        "tags": {
-            "type": "array",
-            "items": {
-                "type": "string",
-                "pattern": "^#[a-zA-Z0-9_]+$"
-            },
-            "description": "Array of hashtags associated with the post"
+        "replyCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of replies to the post"
+        },
+        "repostCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of times the post has been reposted"
         },
         "createdAt": {
             "type": "string",
@@ -60,12 +70,24 @@
             "format": "date-time",
             "description": "When the post was last updated"
         },
-        "isDeleted": {
+        "isArchived": {
             "type": "boolean",
-            "default": false,
-            "description": "Whether the post has been deleted"
+            "description": "Whether the post is archived"
+        },
+        "visibility": {
+            "type": "string",
+            "enum": [
+                "public",
+                "private",
+                "followers"
+            ],
+            "description": "The visibility level of the post"
         }
     },
-    "required": ["id", "authorId", "content", "createdAt"],
+    "required": [
+        "id",
+        "authorId",
+        "createdAt"
+    ],
     "additionalProperties": false
 }

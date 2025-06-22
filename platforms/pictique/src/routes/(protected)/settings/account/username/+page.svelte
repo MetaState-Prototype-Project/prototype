@@ -3,6 +3,7 @@
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	let handle = $state();
 	let name = $state();
@@ -41,6 +42,12 @@
 		if (files) {
 			handleFileChange();
 		}
+	});
+
+	onMount(async () => {
+		const { data } = await apiClient.get('/api/users');
+		handle = data.handle;
+		name = data.displayName;
 	});
 </script>
 

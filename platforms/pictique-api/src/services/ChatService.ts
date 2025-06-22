@@ -5,14 +5,19 @@ import { User } from "../database/entities/User";
 import { MessageReadStatus } from "../database/entities/MessageReadStatus";
 import { In } from "typeorm";
 import { EventEmitter } from "events";
+import { emitter } from "./event-emitter";
 
 export class ChatService {
-    private chatRepository = AppDataSource.getRepository(Chat);
+    public chatRepository = AppDataSource.getRepository(Chat);
     private messageRepository = AppDataSource.getRepository(Message);
     private userRepository = AppDataSource.getRepository(User);
     private messageReadStatusRepository =
         AppDataSource.getRepository(MessageReadStatus);
-    private eventEmitter = new EventEmitter();
+    private eventEmitter: EventEmitter;
+
+    constructor() {
+        this.eventEmitter = emitter;
+    }
 
     // Event emitter getter
     getEventEmitter(): EventEmitter {
@@ -22,7 +27,7 @@ export class ChatService {
     // Chat CRUD Operations
     async createChat(
         name?: string,
-        participantIds: string[] = [],
+        participantIds: string[] = []
     ): Promise<Chat> {
         const participants = await this.userRepository.findBy({
             id: In(participantIds),
@@ -70,7 +75,7 @@ export class ChatService {
     // Participant Operations
     async addParticipants(
         chatId: string,
-        participantIds: string[],
+        participantIds: string[]
     ): Promise<Chat> {
         const chat = await this.getChatById(chatId);
         if (!chat) {
@@ -102,7 +107,7 @@ export class ChatService {
     async sendMessage(
         chatId: string,
         senderId: string,
-        text: string,
+        text: string
     ): Promise<Message> {
         const chat = await this.getChatById(chatId);
         if (!chat) {
@@ -126,8 +131,9 @@ export class ChatService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
+        console.log("Sent event", `chat:${chatId}`);
+        this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
 
-        // Create read status entries for all participants except sender
         const readStatuses = chat.participants
             .filter((p) => p.id !== senderId)
             .map((participant) =>
@@ -135,13 +141,12 @@ export class ChatService {
                     message: savedMessage,
                     user: participant,
                     isRead: false,
-                }),
+                })
             );
 
-        await this.messageReadStatusRepository.save(readStatuses);
-
-        // Emit new message event
-        this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
+        await this.messageReadStatusRepository
+            .save(readStatuses)
+            .catch(() => null);
 
         return savedMessage;
     }
@@ -150,7 +155,7 @@ export class ChatService {
         chatId: string,
         userId: string,
         page: number = 1,
-        limit: number = 20,
+        limit: number = 20
     ): Promise<{
         messages: Message[];
         total: number;
@@ -201,7 +206,9 @@ export class ChatService {
             .createQueryBuilder()
             .update(MessageReadStatus)
             .set({ isRead: true })
-            .where("message.id IN (:...messageIds)", { messageIds: messageIds.map(m => m.id) })
+            .where("message.id IN (:...messageIds)", {
+                messageIds: messageIds.map((m) => m.id),
+            })
             .andWhere("user.id = :userId", { userId })
             .andWhere("isRead = :isRead", { isRead: false })
             .execute();
@@ -228,7 +235,7 @@ export class ChatService {
     async getUserChats(
         userId: string,
         page: number = 1,
-        limit: number = 10,
+        limit: number = 10
     ): Promise<{
         chats: (Chat & { latestMessage?: { text: string; isRead: boolean } })[];
         total: number;
@@ -291,7 +298,7 @@ export class ChatService {
 
     async getUnreadMessageCount(
         chatId: string,
-        userId: string,
+        userId: string
     ): Promise<number> {
         return await this.messageReadStatusRepository.count({
             where: {
@@ -299,6 +306,13 @@ export class ChatService {
                 user: { id: userId },
                 isRead: false,
             },
+        });
+    }
+
+    async findById(id: string): Promise<Chat | null> {
+        return await this.chatRepository.findOne({
+            where: { id },
+            relations: ["participants"],
         });
     }
 }

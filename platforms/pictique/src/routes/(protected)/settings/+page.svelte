@@ -74,8 +74,12 @@
 			{/snippet}
 		</SettingsNavigationButton>
 	</div>
-	<div class="{route === `/settings/data-and-storage` ? 'bg-grey' : ''} rounded-xl p-2">
-		<SettingsNavigationButton onclick={() => goto(`/settings/data-and-storage`)}>
+	<div
+		class="{route === `/settings/data-and-storage`
+			? 'bg-grey'
+			: ''} !cursor-not-allowed rounded-xl p-2 opacity-[50%]"
+	>
+		<SettingsNavigationButton>
 			{#snippet leadingIcon()}
 				<HugeiconsIcon
 					size="24px"

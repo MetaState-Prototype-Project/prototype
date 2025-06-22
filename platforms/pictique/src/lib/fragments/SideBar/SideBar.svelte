@@ -144,7 +144,6 @@
 				Settings
 			</h3>
 		</button>
-
 		<button
 			type="button"
 			class="flex items-center gap-2"

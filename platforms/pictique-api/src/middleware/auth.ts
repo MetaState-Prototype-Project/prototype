@@ -11,7 +11,7 @@ export const authMiddleware = async (
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader?.startsWith("Bearer ")) {
-            return res.status(401).json({ error: "No token provided" });
+            return next();
         }
 
         const token = authHeader.split(" ")[1];
@@ -29,7 +29,6 @@ export const authMiddleware = async (
         }
 
         req.user = user;
-        console.log("user", user.ename);
         next();
     } catch (error) {
         console.error("Auth middleware error:", error);
@@ -43,4 +42,3 @@ export const authGuard = (req: Request, res: Response, next: NextFunction) => {
     }
     next();
 };
-
