@@ -23,3 +23,4 @@ export const uploadedImages: { value: Image[] | null } = $state({
 export const audience: { value: string } = $state({
 	value: 'Everyone'
 });
+

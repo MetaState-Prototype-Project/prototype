@@ -2,15 +2,16 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Profile } from '$lib/fragments';
-	import { ownerId, selectedPost } from '$lib/store/store.svelte';
+	import { selectedPost } from '$lib/store/store.svelte';
 	import type { userProfile, PostData } from '$lib/types';
-	import { apiClient } from '$lib/utils/axios';
+	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
 	let profileId = $derived(page.params.id);
 	let profile = $state<userProfile | null>(null);
 	let error = $state<string | null>(null);
 	let loading = $state(true);
+	let ownerId: string | null = $state(null);
 
 	async function fetchProfile() {
 		try {
@@ -18,6 +19,7 @@
 			error = null;
 			const response = await apiClient.get(`/api/users/${profileId}`);
 			profile = response.data;
+			console.log(JSON.stringify(profile));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load profile';
 		} finally {
@@ -51,6 +53,9 @@
 		selectedPost.value = post;
 		goto('/profile/post');
 	}
+	$effect(()=> {
+		ownerId = getAuthId();
+	})
 
 	onMount(fetchProfile);
 </script>
@@ -66,7 +71,7 @@
 		</div>
 	{:else if profile}
 		<Profile
-			variant={ownerId.value === profileId ? 'user' : 'other'}
+			variant={ownerId === profileId ? 'user' : 'other'}
 			profileData={profile}
 			handleSinglePost={(post) => handlePostClick(post)}
 			{handleFollow}

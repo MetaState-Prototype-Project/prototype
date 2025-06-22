@@ -4,8 +4,11 @@
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
 	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
 	import { uploadedImages } from '$lib/store/store.svelte';
-	import { revokeImageUrls } from '$lib/utils';
+	import { getAuthId, revokeImageUrls } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
+
+	let ownerId: string | null = $state(null);
+
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
@@ -44,6 +47,7 @@
 	};
 
 	$effect(() => {
+		ownerId = getAuthId()
 		activeTab = _activeTab.split('/').pop() ?? '';
 		if (
 			images &&

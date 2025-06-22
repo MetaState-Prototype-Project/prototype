@@ -1,0 +1,61 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440004",
+    "title": "Message",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the message"
+        },
+        "chatId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The ID of the chat this message belongs to"
+        },
+        "senderId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The ID of the user who sent the message"
+        },
+        "content": {
+            "type": "string",
+            "description": "The text content of the message"
+        },
+        "type": {
+            "type": "string",
+            "enum": ["text", "image", "file", "system"],
+            "description": "The type of message content"
+        },
+        "mediaUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to media attachment if message type is image or file"
+        },
+        "readBy": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "format": "uuid"
+            },
+            "description": "Array of user IDs who have read the message"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the message was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the message was last updated"
+        },
+        "isArchived": {
+            "type": "boolean",
+            "description": "Whether the message is archived"
+        }
+    },
+    "required": ["id", "chatId", "senderId", "content", "type", "createdAt"],
+    "additionalProperties": false
+}

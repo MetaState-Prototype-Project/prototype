@@ -3,6 +3,7 @@
 	import { Message } from '$lib/fragments';
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/utils/axios';
+	import { heading } from '../../store';
 
 	let messages = $state([]);
 
@@ -11,15 +12,14 @@
 		const { data: userData } = await apiClient.get('/api/users');
 		messages = data.chats.map((c) => {
 			const members = c.participants.filter((u) => u.id !== userData.id);
-			console.log(members);
 			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
 			const avatar = members.length > 1 ? '/images/group.png' : members[0].avatarUrl;
 			return {
 				id: c.id,
 				avatar,
 				username: memberNames.join(', '),
-				unread: c.latestMessage.isRead,
-				text: c.latestMessage.text
+				unread: c.latestMessage ? c.latestMessage.isRead : false,
+				text: c.latestMessage?.text ?? 'No message yet'
 			};
 		});
 	});
@@ -33,7 +33,10 @@
 			username={message.username}
 			text={message.text}
 			unread={!message.unread}
-			callback={() => goto(`/messages/${message.id}`)}
+			callback={() => {
+				heading.set(message.username);
+				goto(`/messages/${message.id}`);
+			}}
 		/>
 	{/each}
 </section>

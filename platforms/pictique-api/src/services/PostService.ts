@@ -7,11 +7,16 @@ interface CreatePostData {
     text: string;
     images?: string[];
     hashtags?: string[];
+    likedBy?: User[];
 }
 
 export class PostService {
-    private postRepository = AppDataSource.getRepository(Post);
+    postRepository = AppDataSource.getRepository(Post);
     private userRepository = AppDataSource.getRepository(User);
+
+    async findById(id: string) {
+        return await this.postRepository.findOneBy({ id });
+    }
 
     async getFollowingFeed(userId: string, page: number, limit: number) {
         const user = await this.userRepository.findOne({
@@ -28,7 +33,6 @@ export class PostService {
 
         const [posts, total] = await this.postRepository.findAndCount({
             where: {
-                author: { id: In(authorIds) },
                 isArchived: false,
             },
             relations: ["author", "likedBy", "comments", "comments.author"],
@@ -58,7 +62,7 @@ export class PostService {
             text: data.text,
             images: data.images || [],
             hashtags: data.hashtags || [],
-            likedBy: [],
+            likedBy: data.likedBy,
         });
 
         return await this.postRepository.save(post);

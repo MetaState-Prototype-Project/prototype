@@ -79,7 +79,7 @@ export const exampleQueries = `
 # }
 
 ################################################################################
-# ✏️ 5. Update a Single Envelope’s Value
+# ✏️ 5. Update a Single Envelope's Value
 ################################################################################
 
 # mutation {
@@ -98,7 +98,39 @@ export const exampleQueries = `
 # }
 
 ################################################################################
-# 📦 7. List All Envelopes in the System
+# 🔄 7. Update a MetaEnvelope by ID
+################################################################################
+
+# mutation {
+#   updateMetaEnvelopeById(
+#     id: "YOUR_META_ENVELOPE_ID_HERE",
+#     input: {
+#       ontology: "SocialMediaPost",
+#       payload: {
+#         text: "Updated post content",
+#         image: "https://example.com/new-pic.jpg",
+#         dateCreated: "2025-04-10T10:00:00Z",
+#         userLikes: ["@user1", "@user2", "@user3"]
+#       },
+#       acl: ["@d1fa5cb1-6178-534b-a096-59794d485f65"]
+#     }
+#   ) {
+#     metaEnvelope {
+#       id
+#       ontology
+#       parsed
+#     }
+#     envelopes {
+#       id
+#       ontology
+#       value
+#       valueType
+#     }
+#   }
+# }
+
+################################################################################
+# 📦 8. List All Envelopes in the System
 ################################################################################
 
 # query {

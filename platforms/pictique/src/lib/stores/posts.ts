@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { apiClient } from '$lib/utils/axios';
+import { goto } from '$app/navigation';
 
 export interface Post {
 	id: string;

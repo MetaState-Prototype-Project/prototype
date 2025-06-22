@@ -2,6 +2,8 @@
 	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	let handle = $state();
 	let name = $state();
@@ -24,17 +26,28 @@
 	}
 
 	async function saveProfileData() {
-		await apiClient.patch(`/api/users`, {
-			handle,
-			avatar: profileImageDataUrl,
-			name
-		});
+		try {
+			await apiClient.patch(`/api/users/`, {
+				handle,
+				avatar: profileImageDataUrl,
+				name
+			});
+			goto("/settings");
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'please check the info again');
+		}
 	}
 
 	$effect(() => {
 		if (files) {
 			handleFileChange();
 		}
+	});
+
+	onMount(async () => {
+		const { data } = await apiClient.get('/api/users');
+		handle = data.handle;
+		name = data.displayName;
 	});
 </script>
 
