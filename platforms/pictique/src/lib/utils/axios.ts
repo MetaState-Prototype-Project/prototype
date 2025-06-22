@@ -30,3 +30,17 @@ export function getAuthToken() {
 export const removeAuthToken = (): void => {
     localStorage.removeItem(TOKEN_KEY);
 };
+
+// Utility function to store auth id
+export const setAuthId = (id: string): void => {
+    localStorage.setItem("ownerId", id);
+};
+
+export const getAuthId = () => {
+    return localStorage.getItem("ownerId");
+};
+
+// Utility function to remove auth token
+export const removeAuthId = (): void => {
+    localStorage.removeItem("ownerId");
+};

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
-	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
+	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import { onMount } from 'svelte';
 	import '../app.css';
 	import { page } from '$app/state';
@@ -37,7 +37,6 @@
 	});
 
 	onMount(() => {
-		ownerId.value = '1';
 		setTimeout(() => {
 			showSplashScreen = false;
 		}, 2500);
