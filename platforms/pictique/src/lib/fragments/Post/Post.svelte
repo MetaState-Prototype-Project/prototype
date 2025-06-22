@@ -16,10 +16,10 @@
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
-		userId: string;
+		userId?: string;
 		imgUris: string[];
-		caption: string;
-		count: {
+		text: string;
+		count?: {
 			likes: number;
 			comments: number;
 		};
@@ -58,6 +58,7 @@
 
 	const {
 		avatar,
+		userId,
 		username,
 		imgUris: uris,
 		text,
@@ -67,9 +68,8 @@
 		...restProps
 	}: IPostProps = $props();
 
-	let imgUris = $derived.by(() => pairAndJoinChunks(uris));
-
-	let galleryRef: HTMLDivElement;
+	let imgUris = $derived(uris);
+	let galleryRef: HTMLDivElement | undefined = $state();
 	let currentIndex = $state(0);
 
 	function scrollLeft() {
