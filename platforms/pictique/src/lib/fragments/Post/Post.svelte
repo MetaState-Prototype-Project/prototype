@@ -112,12 +112,6 @@
 				></Avatar>
 				<h2>{username}</h2>
 			</div>
-			<!-- <button
-				onclick={callback.menu}
-				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
-			>
-				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-			</button> -->
 			<ActionMenu {options}/>
 		</div>
 	{/if}
