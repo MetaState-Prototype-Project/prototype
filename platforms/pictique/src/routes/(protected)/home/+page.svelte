@@ -78,6 +78,7 @@
 					<Post
 						avatar={post.author.avatarUrl}
 						username={post.author.handle}
+						userId = {post.author.id}
 						imgUris={post.images}
 						text={post.text}
 						time={new Date(post.createdAt).toLocaleDateString()}
