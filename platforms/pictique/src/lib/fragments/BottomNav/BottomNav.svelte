@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
-	import { isNavigatingThroughNav, ownerId } from '$lib/store/store.svelte';
+	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import { uploadedImages } from '$lib/store/store.svelte';
 	import { revokeImageUrls } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';

@@ -159,7 +159,7 @@
 				<img
 					width="24px"
 					height="24px"
-					class="aspect-square rounded-full"
+					class="aspect-square rounded-full object-cover"
 					src={profileSrc}
 					alt="profile"
 				/>
