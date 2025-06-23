@@ -26,8 +26,8 @@
 			class="h-20 w-20 rounded-full object-cover"
 		/>
 		<div class="flex-1">
-			<h2 class="text-xl font-semibold">{profileData.username}</h2>
-			<p class="text-gray-600">{profileData.userBio}</p>
+			<h2 class="text-xl font-semibold">{profileData?.handle}</h2>
+			<p class="text-gray-600">{profileData?.description}</p>
 		</div>
 		{#if variant === 'other'}
 			<div class="flex gap-2">

@@ -2,10 +2,11 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/ui';
 	import { SettingsNavigationButton } from '$lib/fragments';
-	import { removeAuthToken } from '$lib/utils';
+	import { removeAuthId, removeAuthToken } from '$lib/utils';
 
 	async function handleLogout() {
 		removeAuthToken();
+		removeAuthId();
 		window.location.href = '/auth';
 	}
 </script>
