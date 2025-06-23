@@ -71,7 +71,7 @@
 		...restProps
 	}: IPostProps = $props();
 
-	let imgUris = $derived(uris);
+	let imgUris = $derived(pairAndJoinChunks(uris));
 	let galleryRef: HTMLDivElement | undefined = $state();
 	let currentIndex = $state(0);
 
