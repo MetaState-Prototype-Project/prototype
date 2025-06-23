@@ -9,6 +9,7 @@
 	let name = $state();
 	let profileImageDataUrl = $state('');
 	let files = $state<FileList | undefined>();
+	let saved = $state(false);
 
 	function handleFileChange() {
 		if (files && files[0]) {
@@ -32,7 +33,8 @@
 				avatar: profileImageDataUrl,
 				name
 			});
-			goto("/settings");
+			saved = true;
+			setTimeout(() => (saved = false), 3_000);
 		} catch (err) {
 			console.log(err instanceof Error ? err.message : 'please check the info again');
 		}
@@ -47,11 +49,16 @@
 	onMount(async () => {
 		const { data } = await apiClient.get('/api/users');
 		handle = data.handle;
-		name = data.displayName;
+		name = data.name;
 	});
 </script>
 
 <div class="flex flex-col gap-6">
+	{#if saved}
+		<div class=" w-full rounded-md bg-[#33cc33] px-10 py-2 text-center text-white">
+			Changes Saved!
+		</div>
+	{/if}
 	<div>
 		<Label>Change your profile picture</Label>
 		<InputFile

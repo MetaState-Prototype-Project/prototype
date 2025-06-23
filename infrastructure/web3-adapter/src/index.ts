@@ -46,7 +46,7 @@ export class Web3Adapter {
         console.log("Added", this.lockedIds);
         setTimeout(() => {
             this.lockedIds = this.lockedIds.filter((f) => f !== id);
-        }, 60_000);
+        }, 10_000);
     }
 
     async handleChange(props: {
@@ -60,6 +60,7 @@ export class Web3Adapter {
             localId: data.id as string,
             tableName,
         });
+        console.log("localId", data.id, "globalId", existingGlobalId);
 
         // If we already have a mapping, use that global ID
         if (existingGlobalId) {
