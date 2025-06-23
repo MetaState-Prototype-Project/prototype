@@ -81,10 +81,12 @@ export class UserController {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
+            const user = await this.userService.findById(userId);
+
             const updatedUser = await this.userService.updateProfile(userId, {
-                handle,
-                avatarUrl: avatar,
-                name
+                handle: handle ?? user?.handle,
+                avatarUrl: avatar ?? user?.avatarUrl,
+                name: name ?? user?.name,
             });
 
             res.json(updatedUser);

@@ -100,6 +100,7 @@ export class WebhookController {
             });
 
             if (localId) {
+                console.log("");
                 adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
@@ -148,17 +149,19 @@ export class WebhookController {
         const docRef = collection.doc(localId);
 
         adapter.addToLockedIds(docRef.id);
-        const mappedData = this.mapDataToFirebase(tableName, data);
-        console.log(mappedData);
+        const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.update(mappedData);
     }
 
     private mapDataToFirebase(tableName: string, data: any): any {
         const now = Timestamp.now();
+        console.log("MAPPING DATA TO ", tableName);
 
         switch (tableName) {
             case "users":
-                return this.mapUserData(data, now);
+                const result = this.mapUserData(data, now);
+                console.log("mappppped", result);
+                return result;
             case "tweets":
                 return this.mapTweetData(data, now);
             case "chats":
@@ -172,13 +175,12 @@ export class WebhookController {
 
     private mapUserData(data: any, now: Timestamp): Partial<User> {
         return {
-            id: data.id,
             bio: data.bio || null,
             name: data.name,
             theme: data.theme || null,
             accent: data.accent || null,
-            website: data.website || null,
-            location: data.location || null,
+            website: null,
+            location: null,
             username: data.username,
             photoURL: data.photoURL,
             verified: data.verified || false,

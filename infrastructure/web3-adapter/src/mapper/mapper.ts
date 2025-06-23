@@ -55,6 +55,8 @@ export async function fromGlobal({
 }: IMappingConversionOptions): Promise<Omit<IMapperResponse, "ownerEvault">> {
     const result: Record<string, unknown> = {};
 
+    console.log("data to change", data);
+
     for (let [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap,
     )) {
@@ -129,6 +131,8 @@ export async function fromGlobal({
         result[localKey] = value;
     }
 
+    console.log("data changed to global", result);
+
     return {
         data: result,
     };
@@ -167,6 +171,8 @@ export async function toGlobal({
     mappingStore,
 }: IMappingConversionOptions): Promise<IMapperResponse> {
     const result: Record<string, unknown> = {};
+
+    console.log("data to change", data);
 
     for (let [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap,
@@ -276,6 +282,8 @@ export async function toGlobal({
         result[targetKey] = value;
     }
     const ownerEvault = await extractOwnerEvault(data, mapping.ownerEnamePath);
+
+    console.log("changed data to local", result);
 
     return {
         ownerEvault,
