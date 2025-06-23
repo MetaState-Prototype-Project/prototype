@@ -155,10 +155,13 @@ export class WebhookController {
 
     private mapDataToFirebase(tableName: string, data: any): any {
         const now = Timestamp.now();
+        console.log("MAPPING DATA TO ", tableName);
 
         switch (tableName) {
             case "users":
-                return this.mapUserData(data, now);
+                const result = this.mapUserData(data, now);
+                console.log("mappppped", result);
+                return result;
             case "tweets":
                 return this.mapTweetData(data, now);
             case "chats":
@@ -172,13 +175,12 @@ export class WebhookController {
 
     private mapUserData(data: any, now: Timestamp): Partial<User> {
         return {
-            id: data.id,
             bio: data.bio || null,
             name: data.name,
             theme: data.theme || null,
             accent: data.accent || null,
-            website: data.website || null,
-            location: data.location || null,
+            website: null,
+            location: null,
             username: data.username,
             photoURL: data.photoURL,
             verified: data.verified || false,
