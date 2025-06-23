@@ -101,6 +101,7 @@
 							},
 							menu: () => alert('menu')
 						}}
+						options = {[{name: "Report",handler: () => alert("asd")}]}
 					/>
 				</li>
 			{/each}

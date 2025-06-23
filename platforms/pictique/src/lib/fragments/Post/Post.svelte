@@ -12,6 +12,7 @@
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import ActionMenu from '../ActionMenu/ActionMenu.svelte';
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
@@ -29,6 +30,7 @@
 			comment: () => void;
 		};
 		time: string;
+		options?: Array<{ name: string; handler: () => void }>;
 	}
 
 	function pairAndJoinChunks(chunks: string[]): string[] {
@@ -65,6 +67,7 @@
 		count,
 		callback,
 		time,
+		options,
 		...restProps
 	}: IPostProps = $props();
 
@@ -109,12 +112,13 @@
 				></Avatar>
 				<h2>{username}</h2>
 			</div>
-			<button
+			<!-- <button
 				onclick={callback.menu}
 				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
 			>
 				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-			</button>
+			</button> -->
+			<ActionMenu {options}/>
 		</div>
 	{/if}
 	{#if imgUris.length > 0}
