@@ -6,9 +6,11 @@
 	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
 	import { onMount } from 'svelte';
-	import { apiClient, getAuthId } from '$lib/utils';
+	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
 	import type { userProfile } from '$lib/types';
 	import { heading } from '../store';
+	import { goto } from '$app/navigation';
+	import type { AxiosError } from 'axios';
 
 	let { children } = $props();
 	let ownerId: string | null = $state(null);
@@ -75,14 +77,22 @@
 
 	async function fetchProfile() {
 		try {
-			const response = await apiClient.get(`/api/users/${ownerId}`);
+			if (!getAuthToken()) {
+				goto('/auth');
+			}
+			const response = await apiClient.get(`/api/users/${ownerId}`).catch((e: AxiosError) => {
+				if (e.response?.status === 401) {
+					goto('/auth');
+				}
+			});
+			if (!response) return;
 			profile = response.data;
 		} catch (err) {
 			console.log(err instanceof Error ? err.message : 'Failed to load profile');
 		}
 	}
 
-	onMount(fetchProfile)
+	onMount(fetchProfile);
 </script>
 
 <main
@@ -165,7 +175,7 @@
 	{/if}
 
 	{#if route !== `/messages/${idFromParams}`}
-		<BottomNav class="btm-nav" profileSrc={profile?.avatarUrl ?? ""} />
+		<BottomNav class="btm-nav" profileSrc={profile?.avatarUrl ?? ''} />
 	{/if}
 </main>
 
