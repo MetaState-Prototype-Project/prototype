@@ -122,22 +122,23 @@ export class EVaultClient {
     }
 
     async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {
-        const client = await this.ensureClient(envelope.w3id).catch(() => {
-            return null;
-        });
-        if (!client) return v4();
-
-        const response = await client
-            .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
-                input: {
-                    ontology: envelope.schemaId,
-                    payload: envelope.data,
-                    acl: ["*"],
-                },
-            })
-            .catch(() => null);
-        if (!response) return v4();
-        return response.storeMetaEnvelope.metaEnvelope.id;
+        // const client = await this.ensureClient(envelope.w3id).catch(() => {
+        //     return null;
+        // });
+        // if (!client) return v4();
+        //
+        // const response = await client
+        //     .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+        //         input: {
+        //             ontology: envelope.schemaId,
+        //             payload: envelope.data,
+        //             acl: ["*"],
+        //         },
+        //     })
+        //     .catch(() => null);
+        // if (!response) return v4();
+        // return response.storeMetaEnvelope.metaEnvelope.id;
+        return v4();
     }
 
     async storeReference(referenceId: string, w3id: string): Promise<void> {
@@ -178,28 +179,29 @@ export class EVaultClient {
     async updateMetaEnvelopeById(
         id: string,
         envelope: MetaEnvelope,
-    ): Promise<StoreMetaEnvelopeResponse["storeMetaEnvelope"]> {
-        const client = await this.ensureClient(envelope.w3id).catch(() => null);
-        if (!client) throw new Error();
-
-        try {
-            const variables = {
-                id,
-                input: {
-                    ontology: envelope.schemaId,
-                    payload: envelope.data,
-                    acl: ["*"],
-                },
-            };
-
-            const response = await client.request<StoreMetaEnvelopeResponse>(
-                UPDATE_META_ENVELOPE,
-                variables,
-            );
-            return response.updateMetaEnvelopeById;
-        } catch (error) {
-            console.error("Error updating meta envelope:", error);
-            throw error;
-        }
+    ): Promise<void> {
+        // const client = await this.ensureClient(envelope.w3id).catch(() => null);
+        // if (!client) throw new Error();
+        //
+        // try {
+        //     const variables = {
+        //         id,
+        //         input: {
+        //             ontology: envelope.schemaId,
+        //             payload: envelope.data,
+        //             acl: ["*"],
+        //         },
+        //     };
+        //
+        //     const response = await client.request<StoreMetaEnvelopeResponse>(
+        //         UPDATE_META_ENVELOPE,
+        //         variables,
+        //     );
+        //     return response.updateMetaEnvelopeById;
+        // } catch (error) {
+        //     console.error("Error updating meta envelope:", error);
+        //     throw error;
+        // }
+        return;
     }
 }

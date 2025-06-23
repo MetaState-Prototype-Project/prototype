@@ -100,7 +100,6 @@ app.post(
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
             const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
 
-            const evaultId = await new W3IDBuilder().withGlobal(true).build();
             const userId = await new W3IDBuilder()
                 .withNamespace(namespace)
                 .withEntropy(payload.entropy as string)
@@ -121,7 +120,11 @@ app.post(
                         "This verification ID has already been used",
                     );
             }
-            const uri = await provisionEVault(w3id, evaultId.id);
+            const evaultId = await new W3IDBuilder().withGlobal(true).build();
+            const uri = await provisionEVault(
+                w3id,
+                process.env.PUBLIC_REGISTRY_URL,
+            );
             await axios.post(
                 new URL(
                     "/register",

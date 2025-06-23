@@ -100,6 +100,7 @@ export class WebhookController {
             });
 
             if (localId) {
+                console.log("");
                 adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
@@ -148,8 +149,7 @@ export class WebhookController {
         const docRef = collection.doc(localId);
 
         adapter.addToLockedIds(docRef.id);
-        const mappedData = this.mapDataToFirebase(tableName, data);
-        console.log(mappedData);
+        const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.update(mappedData);
     }
 

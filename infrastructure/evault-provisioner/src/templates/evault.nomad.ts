@@ -36,7 +36,7 @@ export function generatePassword(length = 16): string {
  *
  * @throws {Error} If the service endpoint cannot be determined from the cluster.
  */
-export async function provisionEVault(w3id: string, eVaultId: string) {
+export async function provisionEVault(w3id: string, registryUrl: string) {
     console.log("starting to provision");
     const idParts = w3id.split("@");
     w3id = idParts[idParts.length - 1];
@@ -106,6 +106,10 @@ export async function provisionEVault(w3id: string, eVaultId: string) {
                                 {
                                     name: "dbms.connector.bolt.listen_address",
                                     value: "0.0.0.0:7687",
+                                },
+                                {
+                                    name: "REGISTRY_URL",
+                                    value: registryUrl,
                                 },
                             ],
                             volumeMounts: [

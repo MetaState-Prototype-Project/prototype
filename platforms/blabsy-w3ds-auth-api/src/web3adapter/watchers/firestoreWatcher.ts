@@ -154,11 +154,14 @@ export class FirestoreWatcher {
 
         const tableName = tableNameRaw.slice(0, tableNameRaw.length - 1);
 
-        const envelope = await this.adapter.handleChange({
-            data: { ...data, id: doc.id },
-            tableName,
-        });
+        const envelope = await this.adapter
+            .handleChange({
+                data: { ...data, id: doc.id },
+                tableName,
+            })
+            .catch(() => null);
 
+        console.log("sending envelope", envelope);
         if (envelope) {
             try {
                 if (

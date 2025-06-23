@@ -56,7 +56,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
             if (entity.author) {
                 const author = await AppDataSource.getRepository(
-                    "User"
+                    "User",
                 ).findOne({ where: { id: entity.author.id } });
                 enrichedEntity.author = author;
             }
@@ -78,13 +78,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             entity = (await this.enrichEntity(
                 entity,
                 event.metadata.tableName,
-                event.metadata.target
+                event.metadata.target,
             )) as ObjectLiteral;
         }
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName
+            event.metadata.tableName,
         );
     }
 
@@ -104,13 +104,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             entity = (await this.enrichEntity(
                 entity,
                 event.metadata.tableName,
-                event.metadata.target
+                event.metadata.target,
             )) as ObjectLiteral;
         }
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName
+            event.metadata.tableName,
         );
     }
 
@@ -130,13 +130,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             entity = (await this.enrichEntity(
                 entity,
                 event.metadata.tableName,
-                event.metadata.target
+                event.metadata.target,
             )) as ObjectLiteral;
         }
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName
+            event.metadata.tableName,
         );
     }
 
@@ -169,20 +169,21 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             } catch (error) {
                 console.error(
                     `Error processing change for ${tableName}:`,
-                    error
+                    error,
                 );
             }
         }, 2_000);
     }
 
     private async deliverWebhook(envelope: Record<string, unknown>) {
+        console.log("sending envelope", envelope);
         axios
             .post(
                 new URL(
                     "/api/webhook",
-                    process.env.PUBLIC_BLABSY_BASE_URL
+                    process.env.PUBLIC_BLABSY_BASE_URL,
                 ).toString(),
-                envelope
+                envelope,
             )
             .catch((e) => console.error(e));
     }
@@ -192,7 +193,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async handleJunctionTableChange(
         entity: any,
-        junctionInfo: { entity: string; idField: string }
+        junctionInfo: { entity: string; idField: string },
     ): Promise<void> {
         try {
             const parentId = entity[junctionInfo.idField];
@@ -228,7 +229,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 } catch (error) {
                     console.error(
                         `Error processing junction table change for ${junctionInfo.entity}:`,
-                        error
+                        error,
                     );
                 }
             }, 2_000);
