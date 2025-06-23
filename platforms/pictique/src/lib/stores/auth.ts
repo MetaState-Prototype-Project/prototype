@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { apiClient, setAuthToken, removeAuthToken } from '$lib/utils/axios';
+import { apiClient, setAuthToken, removeAuthToken, removeAuthId } from '$lib/utils/axios';
 
 export const isAuthenticated = writable(false);
 
@@ -19,6 +19,7 @@ export const login = (token: string) => {
 
 export const logout = () => {
 	removeAuthToken();
+	removeAuthId();
 	delete apiClient.defaults.headers.common['Authorization'];
 	isAuthenticated.set(false);
 };

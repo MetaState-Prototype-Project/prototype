@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/ui';
 	import { SettingsNavigationButton } from '$lib/fragments';
+	import { logout } from '$lib/stores/auth';
 </script>
 
 <div class="flex flex-col gap-3">
@@ -17,5 +18,5 @@
 		{/snippet}
 	</SettingsNavigationButton>
 	<hr class="text-grey" />
-	<Button size="sm" variant="secondary" callback={() => alert('logout')}>Logout</Button>
+	<Button size="sm" variant="secondary" callback={() => logout()}>Logout</Button>
 </div>
