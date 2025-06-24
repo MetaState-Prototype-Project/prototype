@@ -21,7 +21,7 @@
 <div class="flex flex-col gap-4 p-4">
 	<div class="flex items-center gap-4">
 		<img
-			src={profileData.avatarUrl ?? 'https://picsum.photos/200/200'}
+			src={profileData.avatarUrl || 'https://picsum.photos/200/200'}
 			alt={profileData.username}
 			class="h-20 w-20 rounded-full object-cover"
 		/>

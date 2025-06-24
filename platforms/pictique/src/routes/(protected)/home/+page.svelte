@@ -7,6 +7,7 @@
 	import { showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
 	import { activePostId } from '$lib/stores/comments';
+	import { followUser } from '$lib/stores/users';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -102,7 +103,7 @@
 							},
 							menu: () => alert('menu')
 						}}
-						options = {[{name: "Report",handler: () => alert("asd")}]}
+						options = {[{name: "Follow",handler: () => followUser(post.author.id)}]}
 					/>
 				</li>
 			{/each}

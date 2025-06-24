@@ -47,11 +47,11 @@
 			<p class="text-red-500">{error}</p>
 		</div>
 	{:else if profile}
-	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={profile?.avatarUrl}>
+	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={profile?.avatarUrl || 'https://picsum.photos/200/200'}>
 		{#snippet children()}
 			<div class="flex flex-col items-start">
-				<h2 class="text-lg">{profile?.handle}</h2>
-				<p class="text-sm">{profile?.description}</p>
+				<h2 class="text-lg">{profile?.handle || "Please add a username"}</h2>
+				<p class="text-sm">{profile?.description || "please add a description"}</p>
 			</div>
 		{/snippet}
 	</SettingsNavigationButton>

@@ -40,8 +40,6 @@
 	$effect(() => {
 		idFromParams = page.params.id;
 
-		console.log(route);
-
 		if (route.includes('home')) {
 			heading.set('Feed');
 		} else if (route.includes('discover')) {
