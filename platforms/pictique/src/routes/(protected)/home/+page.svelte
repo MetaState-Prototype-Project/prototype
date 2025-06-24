@@ -120,45 +120,45 @@
 
 <Drawer bind:drawer>
 	{#if showComments.value}
-					<ul class="pb-4">
-						<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
-						{#if isCommentsLoading}
-							<li class="text-center text-gray-500">Loading comments...</li>
-						{:else if commentsError}
-							<li class="text-center text-red-500">{commentsError}</li>
-						{:else}
-							{#each $comments as comment}
-								<li class="mb-4">
-									<Comment
-										comment={{
-											userImgSrc:
-												comment.author.avatarUrl ||
-												'https://picsum.photos/200/200',
-											name: comment.author.name || comment.author.handle,
-											commentId: comment.id,
-											comment: comment.text,
-											isUpVoted: false,
-											isDownVoted: false,
-											upVotes: 0,
-											time: new Date(comment.createdAt).toLocaleDateString(),
-											replies: []
-										}}
-										handleReply={() => {
-											activeReplyToId = comment.id;
-											commentInput?.focus();
-										}}
-									/>
-								</li>
-							{/each}
-						{/if}
-						<MessageInput
-							class="sticky start-0 bottom-4 mt-4 w-full px-2"
-							variant="comment"
-							src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
-							bind:value={commentValue}
-							{handleSend}
-							bind:input={commentInput}
+		<ul class="pb-4">
+			<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
+			{#if isCommentsLoading}
+				<li class="text-center text-gray-500">Loading comments...</li>
+			{:else if commentsError}
+				<li class="text-center text-red-500">{commentsError}</li>
+			{:else}
+				{#each $comments as comment}
+					<li class="mb-4">
+						<Comment
+							comment={{
+								userImgSrc:
+									comment.author.avatarUrl ||
+									'https://picsum.photos/200/200',
+								name: comment.author.name || comment.author.handle,
+								commentId: comment.id,
+								comment: comment.text,
+								isUpVoted: false,
+								isDownVoted: false,
+								upVotes: 0,
+								time: new Date(comment.createdAt).toLocaleDateString(),
+								replies: []
+							}}
+							handleReply={() => {
+								activeReplyToId = comment.id;
+								commentInput?.focus();
+							}}
 						/>
-					</ul>
-				{/if}
+					</li>
+				{/each}
+			{/if}
+			<MessageInput
+				class="sticky start-0 bottom-4 mt-4 w-full px-2"
+				variant="comment"
+				src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
+				bind:value={commentValue}
+				{handleSend}
+				bind:input={commentInput}
+			/>
+		</ul>
+	{/if}
 </Drawer>
