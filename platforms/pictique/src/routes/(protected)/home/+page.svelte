@@ -3,11 +3,12 @@
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType } from '$lib/types';
+	import type { CommentType, userProfile } from '$lib/types';
 	import { showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
 	import { activePostId } from '$lib/stores/comments';
 	import { followUser } from '$lib/stores/users';
+	import { apiClient } from '$lib/utils';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -15,6 +16,7 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
+	let followError = $state<string | null>(null);
 
 	const onScroll = () => {
 		if (listElement.scrollTop + listElement.clientHeight >= listElement.scrollHeight) {
@@ -56,6 +58,15 @@
 		commentValue = '';
 		activeReplyToId = null;
 	};
+
+	async function handleFollow(profileId: string) {
+		try {
+			await apiClient.post(`/api/users/${profileId}/follow`);
+		} catch (err) {
+			followError = err instanceof Error ? err.message : 'Failed to follow user';
+			console.log(followError);
+		}
+	}
 
 	$effect(() => {
 		listElement.addEventListener('scroll', onScroll);
@@ -103,7 +114,7 @@
 							},
 							menu: () => alert('menu')
 						}}
-						options = {[{name: "Follow",handler: () => followUser(post.author.id)}]}
+						options = {[{name: "Follow",handler: () => handleFollow(post.author.id)}]}
 					/>
 				</li>
 			{/each}
