@@ -97,9 +97,9 @@
 </script>
 
 <main
-    class="h-[100dsvh] pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="h-[100dsvh] pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
 >
-    <article class="flex justify-center">
+    <article class="flex justify-center mb-4">
         <img
             class="w-[88vw] h-[39svh]"
             src="/images/Onboarding.svg"
@@ -107,47 +107,54 @@
         />
     </article>
     <section>
-        <Hero
-            subtitle="Store your IDs, verify instantly with QR codes, and manage your digital identity with ease."
-            class="mb-4"
-            titleClasses="text-[42px]/[1.1] font-medium"
-        >
-            Your <br />
-            Digital Identity, Secured
+        <Hero class="mb-4" titleClasses="text-[42px]/[1.1] font-medium">
+            {#snippet subtitle()}
+                Your Digital Self consists of three core elements: <br />
+                <strong>– eName</strong> – your digital identifier, a number
+                <br />
+                <strong>– ePassport</strong> – your cryptographic keys, enabling
+                your agency and control
+                <br />
+                <strong>– eVault</strong> – the secure repository of all your
+                personal data. You will decide who can access it, and how. You
+                are going to get them now.
+                <br />
+            {/snippet}
+            Your Digital Self<br />
+            <h4>in Web 3.0 Data Space</h4>
         </Hero>
     </section>
     <section>
-        <p class="max-w-[300px] mx-[auto] text-center small text-black-500">
-            By continuing you agree to our <a
-                href="/"
-                class="text-primary underline underline-offset-5"
+        <p class="text-center small text-black-500">
+            By continuing you agree to our <br />
+            <a href="/" class="text-primary underline underline-offset-4"
                 >Terms & Conditions
             </a>
             and
-            <a href="/" class="text-primary underline underline-offset-5"
-                >privacy policy.</a
+            <a href="/" class="text-primary underline underline-offset-4"
+                >Privacy Policy.</a
             >
         </p>
-        <div class="flex justify-center whitespace-nowrap mt-[2svh]">
+        <div class="flex justify-center whitespace-nowrap mt-1">
             <ButtonAction class="w-full" callback={handleGetStarted}
                 >Get Started</ButtonAction
             >
         </div>
 
-        <p class="mt-5">
+        <p class="mt-2 text-center">
             Already have a pre-verification code? <button
                 onclick={handlePreVerified}
-                class="text-primary-500">click here</button
+                class="text-primary-500">Click Here</button
             >
         </p>
     </section>
 </main>
 
 <Drawer bind:preVerified>
-    <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3 Data Spaces</h4>
+    <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
     <p class="text-black-700">
-        Your eName is more than a name—it's your unique digital passport. One
-        constant identifier that travels with you across the internet,
+        Your <strong>eName</strong> is more than a name—it's your unique digital
+        passport. One constant identifier that travels with you across the internet,
         connecting your real-world self to the digital universe.
     </p>
 </Drawer>
@@ -160,17 +167,16 @@
                 class="align-center flex w-full flex-col items-center justify-center gap-6"
             >
                 <Shadow size={40} color="rgb(142, 82, 255);" />
-                <h3>Generating your eName</h3>
+                <h4>Generating your eName</h4>
             </div>
         </div>
     {:else if preVerified}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3 Data Spaces</h4>
+        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
         <p class="text-black-700">Enter Verification Code</p>
         <input
             type="text"
             bind:value={verificationId}
-            class="border-1 border-gray-200 w-full rounded-md font-medium my-2 py-2
-            px-2"
+            class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
         />
         <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
             <ButtonAction class="w-full" callback={handleContinue}
@@ -178,10 +184,10 @@
             >
         </div>
     {:else}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3 Data Spaces</h4>
+        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
         <p class="text-black-700">
-            Your eName is more than a name—it's your unique digital passport.
-            One constant identifier that travels with you across the internet,
+            Your <strong>eName</strong> is more than a name—it's your unique digital
+            passport. One constant identifier that travels with you across the internet,
             connecting your real-world self to the digital universe.
         </p>
         <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
@@ -191,4 +197,3 @@
         </div>
     {/if}
 </Drawer>
-

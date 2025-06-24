@@ -124,11 +124,12 @@
     class="pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between items-center"
 >
     <section>
-        <Hero
-            title="Verify your account"
-            subtitle="Get your passport ready. You’ll be directed to present
-            your passport and take a quick selfie."
-        />
+        <Hero title="Verify your account">
+            {#snippet subtitle()}
+                Get your passport ready. You’ll be directed to present your
+                passport and take a quick selfie.
+            {/snippet}
+        </Hero>
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
     </section>
     <ButtonAction class="w-full mt-10" callback={handleVerification}
