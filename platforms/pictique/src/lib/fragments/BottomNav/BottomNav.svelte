@@ -4,7 +4,7 @@
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
 	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import { uploadedImages } from '$lib/store/store.svelte';
-	import { revokeImageUrls } from '$lib/utils';
+	import { getAuthId, revokeImageUrls } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
@@ -20,9 +20,9 @@
 	let previousTab = $state('home');
 	let _activeTab = $derived(page.url.pathname);
 	let fullPath = $derived(page.url.pathname);
-
 	let imageInput: HTMLInputElement;
 	let images: FileList | null = $state(null);
+	let ownerId: string | null = $state(null);
 
 	const handleNavClick = (newTab: string) => {
 		// activeTab = newTab;
@@ -44,6 +44,7 @@
 	};
 
 	$effect(() => {
+		ownerId = getAuthId();
 		activeTab = _activeTab.split('/').pop() ?? '';
 		if (
 			images &&

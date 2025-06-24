@@ -7,8 +7,7 @@
 	import { showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
 	import { activePostId } from '$lib/stores/comments';
-	import { followUser } from '$lib/stores/users';
-	import { apiClient } from '$lib/utils';
+	import { apiClient, getAuthId } from '$lib/utils';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -17,6 +16,9 @@
 	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
 	let followError = $state<string | null>(null);
+	let ownerId: string | null = $state(null);
+	let profile = $state<userProfile | null>(null);
+	let loading = $state(true);
 
 	const onScroll = () => {
 		if (listElement.scrollTop + listElement.clientHeight >= listElement.scrollHeight) {
@@ -68,13 +70,28 @@
 		}
 	}
 
+	async function fetchProfile() {
+		try {
+			loading = true;
+			const response = await apiClient.get(`/api/users/${ownerId}`);
+			profile = response.data;
+			console.log(JSON.stringify(profile));
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'Failed to load profile');
+		} finally {
+			loading = false;
+		}
+	}
+
 	$effect(() => {
 		listElement.addEventListener('scroll', onScroll);
 		return () => listElement.removeEventListener('scroll', onScroll);
 	});
 
 	onMount(() => {
+		ownerId = getAuthId();
 		fetchFeed();
+		fetchProfile();
 	});
 </script>
 
@@ -139,7 +156,7 @@
 		<MessageInput
 			class="fixed start-0 bottom-4 mt-4 w-full px-5"
 			variant="comment"
-			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
+			src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
 			bind:value={commentValue}
 			{handleSend}
 			bind:input={commentInput}
