@@ -160,7 +160,7 @@
 					width="24px"
 					height="24px"
 					class="aspect-square rounded-full object-cover"
-					src={profileSrc || "https://picsum.photos/200/200"}
+					src={profileSrc || 'https://picsum.photos/200/200'}
 					alt="profile"
 				/>
 			</span>

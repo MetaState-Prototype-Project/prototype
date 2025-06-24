@@ -112,7 +112,7 @@
 				></Avatar>
 				<h2>{username}</h2>
 			</div>
-			<ActionMenu {options}/>
+			<ActionMenu {options} />
 		</div>
 	{/if}
 	{#if imgUris.length > 0}
@@ -128,14 +128,14 @@
 			<div
 				bind:this={galleryRef}
 				onscroll={handleScroll}
-				class="hide-scrollbar rounded-4xl flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll md:aspect-[16/9]"
+				class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 			>
 				{#each imgUris as img}
 					<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 						<img
 							src={img}
 							alt={text}
-							class="rounded-4xl h-full w-full object-cover"
+							class="h-full w-full rounded-4xl object-cover"
 							onerror={handleImageError}
 						/>
 					</div>
@@ -143,7 +143,7 @@
 			</div>
 			{#if imgUris.length > 1}
 				<div
-					class="absolute bottom-4 start-[50%] mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+					class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
 				>
 					{#if imgUris.length > 1}
 						<div class="mt-2 flex items-center justify-center gap-1">

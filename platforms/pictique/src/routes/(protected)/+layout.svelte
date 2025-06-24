@@ -161,7 +161,7 @@
 						<MessageInput
 							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
-							src={profile?.avatarUrl}
+							src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
 							bind:value={commentValue}
 							{handleSend}
 							bind:input={commentInput}

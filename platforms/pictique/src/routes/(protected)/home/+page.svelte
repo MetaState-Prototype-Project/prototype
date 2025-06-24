@@ -3,22 +3,23 @@
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType, userProfile } from '$lib/types';
+	import type { userProfile } from '$lib/types';
 	import { showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
-	import { activePostId } from '$lib/stores/comments';
+	import { activePostId, comments, createComment } from '$lib/stores/comments';
 	import { apiClient, getAuthId } from '$lib/utils';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
-	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
 	let followError = $state<string | null>(null);
 	let ownerId: string | null = $state(null);
 	let profile = $state<userProfile | null>(null);
 	let loading = $state(true);
+	let isCommentsLoading = $state(false);
+	let commentsError = $state<string | null>(null);
 
 	const onScroll = () => {
 		if (listElement.scrollTop + listElement.clientHeight >= listElement.scrollHeight) {
@@ -27,38 +28,16 @@
 	};
 
 	const handleSend = async () => {
-		const newComment = {
-			userImgSrc: 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
-			name: 'You',
-			commentId: Date.now().toString(),
-			comment: commentValue,
-			isUpVoted: false,
-			isDownVoted: false,
-			upVotes: 0,
-			time: 'Just now',
-			replies: []
-		};
+		console.log($activePostId, commentValue);
+		if (!$activePostId || !commentValue.trim()) return;
 
-		if (activeReplyToId) {
-			// Find the parent comment by id and push reply
-			const addReplyToComment = (commentsArray: CommentType[]) => {
-				for (const c of commentsArray) {
-					if (c.commentId === activeReplyToId) {
-						c.replies.push(newComment);
-						return true;
-					} else if (c.replies.length) {
-						if (addReplyToComment(c.replies)) return true;
-					}
-				}
-				return false;
-			};
-			addReplyToComment(_comments);
-		} else {
-			// If no activeReplyToId, add as a new parent comment
-			_comments = [newComment, ..._comments];
+		try {
+			await createComment($activePostId, commentValue);
+			commentValue = '';
+			activeReplyToId = null;
+		} catch (err) {
+			console.error('Failed to create comment:', err);
 		}
-		commentValue = '';
-		activeReplyToId = null;
 	};
 
 	async function handleFollow(profileId: string) {
@@ -140,26 +119,46 @@
 </div>
 
 <Drawer bind:drawer>
-	<ul class="pb-4">
-		<h3 class="text-black-600 mb-6 text-center">{_comments.length} Comments</h3>
-		{#each _comments as comment}
-			<li class="mb-4">
-				<Comment
-					{comment}
-					handleReply={() => {
-						activeReplyToId = comment.commentId;
-						commentInput?.focus();
-					}}
-				/>
-			</li>
-		{/each}
-		<MessageInput
-			class="fixed start-0 bottom-4 mt-4 w-full px-5"
-			variant="comment"
-			src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
-			bind:value={commentValue}
-			{handleSend}
-			bind:input={commentInput}
-		/>
-	</ul>
+	{#if showComments.value}
+					<ul class="pb-4">
+						<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
+						{#if isCommentsLoading}
+							<li class="text-center text-gray-500">Loading comments...</li>
+						{:else if commentsError}
+							<li class="text-center text-red-500">{commentsError}</li>
+						{:else}
+							{#each $comments as comment}
+								<li class="mb-4">
+									<Comment
+										comment={{
+											userImgSrc:
+												comment.author.avatarUrl ||
+												'https://picsum.photos/200/200',
+											name: comment.author.name || comment.author.handle,
+											commentId: comment.id,
+											comment: comment.text,
+											isUpVoted: false,
+											isDownVoted: false,
+											upVotes: 0,
+											time: new Date(comment.createdAt).toLocaleDateString(),
+											replies: []
+										}}
+										handleReply={() => {
+											activeReplyToId = comment.id;
+											commentInput?.focus();
+										}}
+									/>
+								</li>
+							{/each}
+						{/if}
+						<MessageInput
+							class="sticky start-0 bottom-4 mt-4 w-full px-2"
+							variant="comment"
+							src={profile?.avatarUrl || 'https://picsum.photos/200/200'}
+							bind:value={commentValue}
+							{handleSend}
+							bind:input={commentInput}
+						/>
+					</ul>
+				{/if}
 </Drawer>
