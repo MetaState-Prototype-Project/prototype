@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/utils/axios';
 	import { heading } from '../../store';
+	import Button from '$lib/ui/Button/Button.svelte';
 
 	let messages = $state([]);
 
@@ -26,6 +27,7 @@
 </script>
 
 <section>
+	{#if messages}
 	{#each messages as message}
 		<Message
 			class="mb-6"
@@ -39,4 +41,10 @@
 			}}
 		/>
 	{/each}
+	{:else}
+		<div class="h-[100vh] flex flex-col justify-center items-center gap-4">
+			<h2 class="text-center">You have not started any conversations yet, find users and start a conversation with them.</h2>
+			<Button class="w-[max-content]" variant="primary" size="sm" callback={async() => await goto('/discover')}>Search User</Button>
+		</div>
+	{/if}
 </section>
