@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Qr } from '$lib/ui';
 	import { onMount } from 'svelte';
-	import { apiClient, setAuthToken } from '$lib/utils';
+	import { apiClient, setAuthId, setAuthToken } from '$lib/utils';
 	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
 	import { goto } from '$app/navigation';
 
@@ -21,6 +21,8 @@
 
 			eventSource.onmessage = function (e) {
 				const data = JSON.parse(e.data);
+				const {user} =  data
+				setAuthId(user.id);
 				const { token } = data;
 				setAuthToken(token);
 				goto('/home');

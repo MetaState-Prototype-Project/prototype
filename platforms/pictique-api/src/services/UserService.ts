@@ -5,7 +5,7 @@ import { signToken } from "../utils/jwt";
 import { Like } from "typeorm";
 
 export class UserService {
-    private userRepository = AppDataSource.getRepository(User);
+    userRepository = AppDataSource.getRepository(User);
     private postRepository = AppDataSource.getRepository(Post);
 
     async createBlankUser(ename: string): Promise<User> {

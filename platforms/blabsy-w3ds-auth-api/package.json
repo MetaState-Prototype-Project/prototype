@@ -1,8 +1,8 @@
 {
     "name": "blabsy-w3ds-auth-api",
     "version": "1.0.0",
-    "description": "Piqtique Social Media Platform API",
-    "main": "src/index.ts",
+    "description": "Web3 Data Sync Authentication API for Blabsy",
+    "main": "dist/index.js",
     "scripts": {
         "start": "ts-node src/index.ts",
         "dev": "nodemon --exec ts-node src/index.ts",
@@ -10,7 +10,8 @@
         "typeorm": "typeorm-ts-node-commonjs",
         "migration:generate": "npm run typeorm migration:generate -- -d src/database/data-source.ts",
         "migration:run": "npm run typeorm migration:run -- -d src/database/data-source.ts",
-        "migration:revert": "npm run typeorm migration:revert -- -d src/database/data-source.ts"
+        "migration:revert": "npm run typeorm migration:revert -- -d src/database/data-source.ts",
+        "test": "jest"
     },
     "dependencies": {
         "axios": "^1.6.7",
@@ -18,18 +19,20 @@
         "dotenv": "^16.4.5",
         "eventsource-polyfill": "^0.9.6",
         "express": "^4.18.2",
-        "firebase-admin": "^13.4.0",
+        "firebase-admin": "^12.0.0",
         "jsonwebtoken": "^9.0.2",
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.20",
-        "uuid": "^9.0.1"
+        "uuid": "^9.0.1",
+        "graphql": "^16.8.1",
+        "graphql-request": "^6.1.0"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",
         "@types/express": "^4.17.21",
         "@types/jsonwebtoken": "^9.0.5",
-        "@types/node": "^20.11.24",
+        "@types/node": "^20.11.19",
         "@types/pg": "^8.11.2",
         "@types/uuid": "^9.0.8",
         "@typescript-eslint/eslint-plugin": "^7.0.1",
@@ -37,6 +40,10 @@
         "eslint": "^8.56.0",
         "nodemon": "^3.0.3",
         "ts-node": "^10.9.2",
-        "typescript": "^5.3.3"
+        "typescript": "^5.3.3",
+        "@types/jest": "^29.5.12",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.2",
+        "ts-node-dev": "^2.0.0"
     }
 }

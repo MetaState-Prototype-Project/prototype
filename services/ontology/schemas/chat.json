@@ -1,0 +1,51 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440003",
+    "title": "Chat",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the chat"
+        },
+        "name": {
+            "type": "string",
+            "description": "The name of the chat (for group chats)"
+        },
+        "type": {
+            "type": "string",
+            "enum": ["direct", "group"],
+            "description": "The type of chat (direct message or group chat)"
+        },
+        "participantIds": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "format": "uuid"
+            },
+            "description": "Array of user IDs participating in the chat"
+        },
+        "lastMessageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the most recent message in the chat"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the chat was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the chat was last updated"
+        },
+        "isArchived": {
+            "type": "boolean",
+            "description": "Whether the chat is archived"
+        }
+    },
+    "required": ["id", "type", "participantIds", "createdAt"],
+    "additionalProperties": false
+}

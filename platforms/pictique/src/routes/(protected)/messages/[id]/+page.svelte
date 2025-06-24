@@ -39,6 +39,7 @@
 
 		eventSource.onmessage = function (e) {
 			const data = JSON.parse(e.data);
+			console.log('messages', data);
 			addMessages(data);
 			// Use setTimeout to ensure DOM has updated
 			setTimeout(scrollToBottom, 0);

@@ -1,0 +1,14 @@
+{
+    "tableName": "tweet",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+    "ownerEnamePath": "user(createdBy)",
+    "localToUniversalMap": {
+        "text": "content",
+        "createdBy": "user(createdBy),authorId",
+        "images": "images[].src,mediaUrls",
+        "parent": "tweet(parent.id),parentPostId",
+        "userLikes": "user(userLikes)[],likedBy",
+        "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt"
+    }
+}

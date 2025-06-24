@@ -10,33 +10,41 @@ import { CommentController } from "./controllers/CommentController";
 import { MessageController } from "./controllers/MessageController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { UserController } from "./controllers/UserController";
+import { WebhookController } from "./controllers/WebhookController";
+import { adapter } from "./web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Initialize database connection and adapter
+AppDataSource.initialize()
+    .then(async () => {
+        console.log("Database connection established");
+        console.log("Web3 adapter initialized");
+    })
+    .catch((error: any) => {
+        console.error("Error during initialization:", error);
+        process.exit(1);
+    });
+
 // Middleware
 app.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-Webhook-Signature",
+            "X-Webhook-Timestamp",
+        ],
         credentials: true,
     }),
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// Initialize database connection
-AppDataSource.initialize()
-    .then(() => {
-        console.log("Database connection established");
-    })
-    .catch((error) => {
-        console.error("Error connecting to database:", error);
-        process.exit(1);
-    });
 
 // Controllers
 const postController = new PostController();
@@ -44,13 +52,17 @@ const authController = new AuthController();
 const commentController = new CommentController();
 const messageController = new MessageController();
 const userController = new UserController();
+const webhookController = new WebhookController(adapter);
+
+// Webhook route (no auth required)
+// app.post("/api/webhook", adapter.webhookHandler.handleWebhook);
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
-app.get("/api/auth/offerb", authController.getOfferBlab);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.get("/api/chats/:chatId/events", messageController.getChatEvents);
+app.post("/api/webhook", webhookController.handleWebhook);
 
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below

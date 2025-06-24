@@ -1,5 +1,5 @@
 import fastify from "fastify";
-import { generateEntropy, getJWK } from "./jwt";
+import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
 import dotenv from "dotenv";
 import path from "path";
 import { AppDataSource } from "./config/database";
@@ -86,6 +86,23 @@ server.get("/entropy", async (request, reply) => {
         reply.status(500).send({ error: "Failed to generate entropy" });
     }
 });
+
+server.post("/platforms/certification", async (request, reply) => {
+    try {
+        const { platform } = request.body as { platform: string };
+        const token = await generatePlatformToken(platform);
+        return { token };
+    } catch (error) {
+        server.log.error(error);
+        reply.status(500).send({ error: "Failed to generate platform token" });
+    }
+});
+
+server.get("/platforms", async (request, reply) => {
+    return [ process.env.PUBLIC_PICTIQUE_BASE_URL, process.env.PUBLIC_BLABSY_BASE_URL ]
+});
+
+
 
 // Expose the JWK used for signing
 server.get("/.well-known/jwks.json", async (request, reply) => {

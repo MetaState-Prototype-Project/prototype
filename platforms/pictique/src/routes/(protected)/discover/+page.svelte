@@ -39,6 +39,10 @@
 			clearTimeout(debounceTimer);
 		};
 	});
+
+	$effect(() => {
+		console.log($searchResults);
+	})
 </script>
 
 <section class="w-full max-w-[500px]">
@@ -60,7 +64,7 @@
 			{#each $searchResults as user}
 				<li>
 					<UserRequest
-						userImgSrc={user.avatarUrl || 'https://picsum.photos/200'}
+						userImgSrc={user.avatarUrl}
 						userName={user.name || user.handle}
 						description={user.description || ''}
 						handleFollow={() => handleFollow(user.id)}

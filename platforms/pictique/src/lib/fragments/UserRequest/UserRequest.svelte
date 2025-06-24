@@ -26,9 +26,6 @@
 			<p class="text-black-600">{description}</p>
 		</div>
 	</div>
-	<Button class="max-w-[100px]" variant="secondary" size="sm" callback={handleFollow}
-		>Follow</Button
-	>
 </article>
 
 <!--

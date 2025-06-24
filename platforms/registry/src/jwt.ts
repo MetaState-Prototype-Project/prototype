@@ -56,6 +56,16 @@ export async function generateEntropy(): Promise<string> {
   return token;
 }
 
+export async function generatePlatformToken(platform: string): Promise<string> {
+  await initializeKeys();
+  const token = await new SignJWT({ platform })
+    .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+    .setIssuedAt()
+    .setExpirationTime("1y")
+    .sign(privateKey);
+  return token;
+}
+
 // Get the JWK for verification
 export async function getJWK(): Promise<any> {
   await initializeKeys();

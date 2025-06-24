@@ -28,49 +28,6 @@
 		</div>
 	</div>
 	<div class="ms-12 mt-2 flex items-center gap-2">
-		<button
-			onclick={() => {
-				if (!comment.isUpVoted) {
-					comment.upVotes++;
-					comment.isUpVoted = true;
-					comment.isDownVoted = false;
-				}
-			}}
-		>
-			<Like
-				size="18px"
-				color={comment.isUpVoted
-					? 'var(--color-brand-burnt-orange)'
-					: 'var(--color-black-600)'}
-				fill={comment.isUpVoted
-					? 'var(--color-brand-burnt-orange)'
-					: 'var(--color-black-600)'}
-			/>
-		</button>
-		<p class="text-black-600 font-semibold">{comment.upVotes}</p>
-		<button
-			onclick={() => {
-				if (!comment.isDownVoted) {
-					comment.upVotes--;
-					comment.isDownVoted = true;
-					comment.isUpVoted = false;
-				}
-			}}
-		>
-			<Like
-				size="18px"
-				color={comment.isDownVoted
-					? 'var(--color-brand-burnt-orange)'
-					: 'var(--color-black-600)'}
-				fill={comment.isDownVoted
-					? 'var(--color-brand-burnt-orange)'
-					: 'var(--color-black-600)'}
-				class="rotate-180"
-			/>
-		</button>
-		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
-		<button onclick={handleReply} class="text-black-600 font-semibold">Reply</button>
-		<span class="bg-black-600 inline-block h-1 w-1 rounded-full"></span>
 		<p class="text-black-600">{comment.time}</p>
 	</div>
 	{#if comment?.replies?.length}

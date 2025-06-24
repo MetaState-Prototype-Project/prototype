@@ -22,7 +22,7 @@ export class PostController {
             const feed = await this.postService.getFollowingFeed(
                 userId,
                 page,
-                limit,
+                limit
             );
             res.json(feed);
         } catch (error) {
@@ -63,7 +63,6 @@ export class PostController {
             }
 
             const post = await this.postService.toggleLike(postId, userId);
-            console.log(post);
             res.json(post);
         } catch (error) {
             console.error("Error toggling like:", error);

@@ -6,23 +6,78 @@
     "properties": {
         "id": {
             "type": "string",
+            "format": "uuid",
             "description": "The unique identifier for the user"
         },
-        "name": {
+        "username": {
             "type": "string",
-            "description": "The user's full name"
+            "description": "The user's unique username/handle across the platform"
         },
-        "email": {
+        "displayName": {
             "type": "string",
-            "format": "email",
-            "description": "The user's email address"
+            "description": "The user's display name or full name"
         },
-        "age": {
+        "bio": {
+            "type": "string",
+            "description": "The user's biography or description"
+        },
+        "avatarUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the user's profile picture"
+        },
+        "bannerUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the user's profile banner/cover photo"
+        },
+        "website": {
+            "type": "string",
+            "format": "uri",
+            "description": "The user's personal website URL"
+        },
+        "location": {
+            "type": "string",
+            "description": "The user's physical location"
+        },
+        "isVerified": {
+            "type": "boolean",
+            "description": "Whether the user's account is verified"
+        },
+        "isPrivate": {
+            "type": "boolean",
+            "description": "Whether the user's account is private"
+        },
+        "followerCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "The user's age"
+            "description": "Number of followers the user has"
+        },
+        "followingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of users this user follows"
+        },
+        "postCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of posts created by the user"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user account was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user profile was last updated"
+        },
+        "isArchived": {
+            "type": "boolean",
+            "description": "Whether the user account is archived"
         }
     },
-    "required": ["id", "name", "email"],
+    "required": ["id", "username", "displayName", "createdAt"],
     "additionalProperties": false
 }

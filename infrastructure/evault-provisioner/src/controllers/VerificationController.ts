@@ -40,7 +40,9 @@ export class VerificationController {
 
                 // Initial heartbeat to keep connection open
                 res.write(
-                    `event: connected\ndata: ${JSON.stringify({ hi: "hi" })}\n\n`,
+                    `event: connected\ndata: ${JSON.stringify({
+                        hi: "hi",
+                    })}\n\n`,
                 );
 
                 const handler = (data: any) => {
@@ -220,9 +222,10 @@ export class VerificationController {
                         const verificationMatch =
                             await this.verificationService.findOne({
                                 documentId:
-                                body.data.verification.document.number.value
+                                    body.data.verification.document.number
+                                        .value,
                             });
-                        console.log("matched", verificationMatch)
+                        console.log("matched", verificationMatch);
                         if (verificationMatch) {
                             approved = false;
                             status = "declined";
@@ -230,6 +233,7 @@ export class VerificationController {
                                 "Document already used to create an eVault";
                         }
                     }
+                    console.log(body.data.verification.document);
                     await this.verificationService.findByIdAndUpdate(id, {
                         approved,
                         data: {

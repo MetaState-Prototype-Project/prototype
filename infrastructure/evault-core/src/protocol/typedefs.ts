@@ -38,5 +38,6 @@ export const typeDefs = /* GraphQL */ `
         storeMetaEnvelope(input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!
         deleteMetaEnvelope(id: String!): Boolean!
         updateEnvelopeValue(envelopeId: String!, newValue: JSON!): Boolean!
+        updateMetaEnvelopeById(id: String!, input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!
     }
 `;

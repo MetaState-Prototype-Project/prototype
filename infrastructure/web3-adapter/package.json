@@ -2,7 +2,6 @@
     "name": "web3-adapter",
     "version": "1.0.0",
     "description": "Web3 adapter for platform-specific data mapping to universal schema",
-    "type": "module",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {
@@ -15,8 +14,13 @@
         "check-types": "tsc --noEmit"
     },
     "dependencies": {
+        "@types/node": "^24.0.0",
+        "axios": "^1.6.7",
         "evault-core": "workspace:*",
+        "graphql-request": "^6.1.0",
+        "sqlite3": "^5.1.7",
         "test": "^3.3.0",
+        "uuid": "^11.1.0",
         "vitest": "^3.1.2"
     },
     "devDependencies": {

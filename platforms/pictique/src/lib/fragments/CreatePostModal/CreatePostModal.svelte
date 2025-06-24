@@ -51,13 +51,14 @@
 			<button
 				type="button"
 				class="rounded-full p-2 hover:bg-gray-100"
-				on:click={closeCreatePostModal}
+				onclick={closeCreatePostModal}
 			>
 				✕
 			</button>
 		</div>
 
 		<div class="mb-4">
+			<!-- svelte-ignore element_invalid_self_closing_tag -->
 			<textarea
 				bind:value={text}
 				placeholder="What's on your mind?"
@@ -70,6 +71,7 @@
 			<div class="mb-4 grid grid-cols-2 gap-4">
 				{#each images as image, index}
 					<div class="relative">
+						<!-- svelte-ignore a11y_img_redundant_alt -->
 						<img
 							src={image}
 							alt="Post image"
@@ -78,7 +80,7 @@
 						<button
 							type="button"
 							class="absolute top-2 right-2 rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
-							on:click={() => removeImage(index)}
+							onclick={() => removeImage(index)}
 						>
 							✕
 						</button>
@@ -87,14 +89,17 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-between">
-			<label class="cursor-pointer rounded-lg bg-gray-100 px-4 py-2 hover:bg-gray-200">
-				<input type="file" accept="image/*" class="hidden" on:change={handleImageUpload} />
+		<div class="flex items-center justify-between gap-2">
+			<label
+				class="w-full cursor-pointer rounded-full bg-gray-100 px-4 py-3 text-center hover:bg-gray-200"
+			>
+				<input type="file" accept="image/*" class="hidden" onchange={handleImageUpload} />
 				Add Photo
 			</label>
 
 			<Button
 				variant="secondary"
+				size="sm"
 				callback={handleSubmit}
 				isLoading={isSubmitting}
 				disabled={!text.trim() && images.length === 0}

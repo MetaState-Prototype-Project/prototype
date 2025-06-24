@@ -2,6 +2,13 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/ui';
 	import { SettingsNavigationButton } from '$lib/fragments';
+	import { removeAuthId, removeAuthToken } from '$lib/utils';
+
+	async function handleLogout() {
+		removeAuthToken();
+		removeAuthId();
+		window.location.href = '/auth';
+	}
 </script>
 
 <div class="flex flex-col gap-3">
@@ -17,5 +24,5 @@
 		{/snippet}
 	</SettingsNavigationButton>
 	<hr class="text-grey" />
-	<Button size="sm" variant="secondary" callback={() => alert('logout')}>Logout</Button>
+	<Button size="sm" variant="secondary" callback={handleLogout}>Logout</Button>
 </div>

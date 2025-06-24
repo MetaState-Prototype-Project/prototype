@@ -18,7 +18,7 @@
 	};
 
 	const classes = $derived({
-		common: cn('rounded-full'),
+		common: cn('rounded-full object-cover aspect-[1]'),
 		size: sizeVariant[size] || sizeVariant.md
 	});
 </script>
