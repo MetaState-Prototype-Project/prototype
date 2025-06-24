@@ -6,7 +6,7 @@
 	import type { userProfile } from '$lib/types';
 	import { showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
-	import { activePostId, comments, createComment } from '$lib/stores/comments';
+	import { activePostId, comments, createComment, fetchComments } from '$lib/stores/comments';
 	import { apiClient, getAuthId } from '$lib/utils';
 
 	let listElement: HTMLElement;
@@ -28,7 +28,6 @@
 	};
 
 	const handleSend = async () => {
-		console.log($activePostId, commentValue);
 		if (!$activePostId || !commentValue.trim()) return;
 
 		try {
@@ -67,6 +66,20 @@
 		return () => listElement.removeEventListener('scroll', onScroll);
 	});
 
+	$effect(()=> {
+		if (showComments.value && activePostId) {
+			isCommentsLoading = true;
+			commentsError = null;
+			fetchComments($activePostId)
+				.catch((err) => {
+					commentsError = err.message;
+				})
+				.finally(() => {
+					isCommentsLoading = false;
+				});
+		}
+	})
+
 	onMount(() => {
 		ownerId = getAuthId();
 		fetchFeed();
@@ -103,6 +116,8 @@
 							comment: () => {
 								if (window.matchMedia('(max-width: 768px)').matches) {
 									drawer?.present({ animate: true });
+									showComments.value = true;
+									activePostId.set(post.id);
 								} else {
 									showComments.value = true;
 									activePostId.set(post.id);
