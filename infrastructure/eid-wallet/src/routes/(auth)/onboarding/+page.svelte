@@ -97,7 +97,7 @@
 </script>
 
 <main
-    class="h-[100dsvh] pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="h-full pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
 >
     <article class="flex justify-center mb-4">
         <img

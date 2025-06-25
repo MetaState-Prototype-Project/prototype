@@ -103,9 +103,9 @@
                 Your PIN does not match, try again.
             </p>
         </section>
-        <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}
-            >Confirm</ButtonAction
-        >
+        <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>
+            Confirm
+        </ButtonAction>
     </main>
 {:else}
     <main

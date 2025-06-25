@@ -35,7 +35,7 @@
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
     </section>
-    <section class="mt-[2svh] mb-[4svh]">
+    <section class="mt-[2svh] mb-[3svh]">
         <Hero title="Here’s your eVault" class="mb-2">
             {#snippet subtitle()}
                 The eVault is your secure cloud storage for your personal data.

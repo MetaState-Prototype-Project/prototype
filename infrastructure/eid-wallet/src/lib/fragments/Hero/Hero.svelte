@@ -25,8 +25,8 @@
 <header {...restProps} class={cn(baseClasses, restProps.class)}>
     <div class="flex flex-col items-start">
         <h3 class={cn(titleClasses)}>
-            {@render children?.()}
             {title}
+            {@render children?.()}
         </h3>
         {#if subtitle}
             <p class="text-black-700 mt-2">{@render subtitle()}</p>

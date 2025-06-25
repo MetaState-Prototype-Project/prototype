@@ -4,7 +4,7 @@
     import type { GlobalState } from "$lib/global";
     import { Drawer } from "$lib/ui";
     import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
+    import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
     import { HugeiconsIcon } from "@hugeicons/svelte";
     import { getContext, onMount, type Snippet } from "svelte";
 
@@ -36,11 +36,21 @@
     });
 </script>
 
-<Hero title={greeting ?? "Hi!"}>
-    {#snippet subtitle()}
-        Welcome back to your eID Wallet
-    {/snippet}
-</Hero>
+<div class="flex items-start">
+    <Hero title={greeting ?? "Hi!"}>
+        {#snippet subtitle()}
+            Welcome back to your eID Wallet
+        {/snippet}
+    </Hero>
+    <Button.Nav href="/settings">
+        <HugeiconsIcon
+            size={32}
+            strokeWidth={2}
+            className="mt-1.5"
+            icon={Settings02Icon}
+        />
+    </Button.Nav>
+</div>
 
 {#snippet Section(title: string, children: Snippet)}
     <section class="mt-5">
@@ -65,7 +75,7 @@
     />
 {/snippet}
 {#snippet eVault()}
-    <IdentityCard variant="eVault" usedStorage={15} totalStorage={100} />
+    <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
 {/snippet}
 
 <main class="pb-12">
