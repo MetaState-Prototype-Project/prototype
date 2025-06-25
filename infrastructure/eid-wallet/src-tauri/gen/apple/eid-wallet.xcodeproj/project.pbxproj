@@ -389,7 +389,7 @@
 				CODE_SIGN_ENTITLEMENTS = "eid-wallet_iOS/eid-wallet_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 0.1.0.0;
-				DEVELOPMENT_TEAM = "HZ7MLR7Q46";
+				DEVELOPMENT_TEAM = 3FS4B734X5;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -433,7 +433,7 @@
 				CODE_SIGN_ENTITLEMENTS = "eid-wallet_iOS/eid-wallet_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 0.1.0.0;
-				DEVELOPMENT_TEAM = "HZ7MLR7Q46";
+				DEVELOPMENT_TEAM = 3FS4B734X5;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (

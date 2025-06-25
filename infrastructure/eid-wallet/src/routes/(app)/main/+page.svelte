@@ -1,50 +1,60 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero, IdentityCard } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { Drawer } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import { getContext, onMount, type Snippet } from "svelte";
+    import { goto } from "$app/navigation";
+    import { Hero, IdentityCard } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { Drawer } from "$lib/ui";
+    import * as Button from "$lib/ui/Button";
+    import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import { getContext, onMount, type Snippet } from "svelte";
 
-let userData: Record<string, unknown> = $state();
-let greeting = $state();
-let ename = $state();
+    let userData: Record<string, unknown> = $state();
+    let greeting = $state();
+    let ename = $state();
 
-let shareQRdrawerOpen = $state(false);
+    let shareQRdrawerOpen = $state(false);
 
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
-}
+    function shareQR() {
+        alert("QR Code shared!");
+        shareQRdrawerOpen = false;
+    }
 
-const globalState = getContext<() => GlobalState>("globalState")();
+    const globalState = getContext<() => GlobalState>("globalState")();
 
-onMount(async () => {
-    userData = await globalState.userController.user;
-    const vaultData = await globalState.vaultController.vault;
-    ename = vaultData.ename;
+    onMount(async () => {
+        userData = await globalState.userController.user;
+        const vaultData = await globalState.vaultController.vault;
+        ename = vaultData.ename;
 
-    const currentHour = new Date().getHours();
-    greeting =
-        currentHour > 17
-            ? "Good Evening"
-            : currentHour > 12
-              ? "Good Afternoon"
-              : "Good Morning";
-});
+        const currentHour = new Date().getHours();
+        greeting =
+            currentHour > 17
+                ? "Good Evening"
+                : currentHour > 12
+                  ? "Good Afternoon"
+                  : "Good Morning";
+    });
 </script>
 
-<Hero
-    title={greeting ?? "Hi!"}
-    subtitle="Welcome back to your eID Wallet"
-    showSettings
-/>
+<div class="flex items-start">
+    <Hero title={greeting ?? "Hi!"}>
+        {#snippet subtitle()}
+            Welcome back to your eID Wallet
+        {/snippet}
+    </Hero>
+    <Button.Nav href="/settings">
+        <HugeiconsIcon
+            size={32}
+            strokeWidth={2}
+            className="mt-1.5"
+            icon={Settings02Icon}
+        />
+    </Button.Nav>
+</div>
 
 {#snippet Section(title: string, children: Snippet)}
-    <section class="mt-8">
-        <h4 class="mb-2">{title}</h4>
+    <section class="mt-5">
+        <h4>{title}</h4>
         {@render children()}
     </section>
 {/snippet}
@@ -65,10 +75,10 @@ onMount(async () => {
     />
 {/snippet}
 {#snippet eVault()}
-    <IdentityCard variant="eVault" usedStorage={15} totalStorage={100} />
+    <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
 {/snippet}
 
-<main class="pb-16">
+<main class="pb-12">
     {@render Section("eName", eName)}
     {@render Section("ePassport", ePassport)}
     {@render Section("eVault", eVault)}
@@ -91,7 +101,7 @@ onMount(async () => {
         <img class="z-10" src="/images/dummyQR.png" alt="QR Code" />
     </div>
 
-    <h4 class="text-center">Share your eName</h4>
+    <h4 class="text-center mt-2">Share your eName</h4>
     <p class="text-black-700 text-center">
         Anyone scanning this can see your eName
     </p>
@@ -118,4 +128,3 @@ onMount(async () => {
         Scan to Login
     </Button.Action>
 </Button.Nav>
-

@@ -18,9 +18,7 @@
             }
         ],
         "security": {
-            "capabilities": [
-                "mobile-capability"
-            ],
+            "capabilities": ["mobile-capability"],
             "csp": null
         }
     },
@@ -33,9 +31,6 @@
             "icons/128x128@2x.png",
             "icons/icon.icns",
             "icons/icon.ico"
-        ],
-        "iOS": {
-            "developmentTeam": "HZ7MLR7Q46"
-        }
+        ]
     }
 }
