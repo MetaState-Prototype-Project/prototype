@@ -6,7 +6,9 @@
     });
 </script>
 
-<main>
+<main
+    class="h-full pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+>
     <h4>Last modified 19th March 2025</h4>
     <p class="text-black-700">
         Welcome to eID Wallet! Your privacy is important to us. This Privacy

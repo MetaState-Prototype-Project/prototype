@@ -26,7 +26,9 @@
     });
 </script>
 
-<main class="h-[80vh] flex flex-col justify-between pt-[3svh]">
+<main
+    class="h-[85vh] pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+>
     <section>
         <div>
             <p class="mb-[1svh]">Enter you current PIN</p>
