@@ -70,6 +70,7 @@ export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../web3adapter/mappings/"),
     dbPath: path.resolve(process.env.BLABSY_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
+    platform: process.env.PUBLIC_BLABSY_BASE_URL as string,
 });
 
 export class WebhookController {

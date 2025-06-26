@@ -11,17 +11,20 @@ export class Web3Adapter {
     mappingDb: MappingDatabase;
     evaultClient: EVaultClient;
     lockedIds: string[] = [];
+    platform: string
 
     constructor(
         private readonly config: {
             schemasPath: string;
             dbPath: string;
             registryUrl: string;
+            platform: string;
         },
     ) {
         this.readPaths();
         this.mappingDb = new MappingDatabase(config.dbPath);
-        this.evaultClient = new EVaultClient(config.registryUrl);
+        this.evaultClient = new EVaultClient(config.registryUrl, config.platform);
+        this.platform = config.platform;
     }
 
     async readPaths() {

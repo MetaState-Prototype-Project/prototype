@@ -154,49 +154,49 @@ export class FirestoreWatcher {
 
         const tableName = tableNameRaw.slice(0, tableNameRaw.length - 1);
 
-        const envelope = await this.adapter
+        await this.adapter
             .handleChange({
                 data: { ...data, id: doc.id },
                 tableName,
             })
-            .catch(() => null);
+            .catch((e) => console.error(e));
 
-        console.log("sending envelope", envelope);
-        if (envelope) {
-            try {
-                if (
-                    this.adapter.lockedIds.includes(envelope.id) ||
-                    this.adapter.lockedIds.includes(doc.id)
-                )
-                    return;
-                const response = await axios
-                    .post(
-                        new URL(
-                            "/api/webhook",
-                            process.env.PUBLIC_PICTIQUE_BASE_URL,
-                        ).toString(),
-                        envelope,
-                        {
-                            headers: {
-                                "Content-Type": "application/json",
-                                "X-Webhook-Source": "blabsy-w3ds-auth-api",
-                            },
-                        },
-                    )
-                    .catch(() => null);
-                if (!response)
-                    return console.error(`failed to sync ${envelope.id}`);
-                console.log(
-                    `Successfully forwarded webhook for ${doc.id}:`,
-                    response.status,
-                );
-            } catch (error) {
-                console.error(
-                    `Failed to forward webhook for ${doc.id}:`,
-                    error,
-                );
-                throw error; // Re-throw to trigger retry mechanism
-            }
-        }
+        // console.log("sending envelope", envelope);
+        // if (envelope) {
+        //     try {
+        //         if (
+        //             this.adapter.lockedIds.includes(envelope.id) ||
+        //             this.adapter.lockedIds.includes(doc.id)
+        //         )
+        //             return;
+        //         const response = await axios
+        //             .post(
+        //                 new URL(
+        //                     "/api/webhook",
+        //                     process.env.PUBLIC_PICTIQUE_BASE_URL,
+        //                 ).toString(),
+        //                 envelope,
+        //                 {
+        //                     headers: {
+        //                         "Content-Type": "application/json",
+        //                         "X-Webhook-Source": "blabsy-w3ds-auth-api",
+        //                     },
+        //                 },
+        //             )
+        //             .catch(() => null);
+        //         if (!response)
+        //             return console.error(`failed to sync ${envelope.id}`);
+        //         console.log(
+        //             `Successfully forwarded webhook for ${doc.id}:`,
+        //             response.status,
+        //         );
+        //     } catch (error) {
+        //         console.error(
+        //             `Failed to forward webhook for ${doc.id}:`,
+        //             error,
+        //         );
+        //         throw error; // Re-throw to trigger retry mechanism
+        //     }
+        // }
     }
 }

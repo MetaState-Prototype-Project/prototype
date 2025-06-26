@@ -107,10 +107,7 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                                     name: "dbms.connector.bolt.listen_address",
                                     value: "0.0.0.0:7687",
                                 },
-                                {
-                                    name: "REGISTRY_URL",
-                                    value: registryUrl,
-                                },
+                                
                             ],
                             volumeMounts: [
                                 { name: "neo4j-data", mountPath: "/data" },
@@ -126,6 +123,10 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                                     value: "bolt://localhost:7687",
                                 },
                                 { name: "NEO4J_USER", value: "neo4j" },
+                                {
+                                    name: "REGISTRY_URL",
+                                    value: registryUrl,
+                                },
                                 {
                                     name: "NEO4J_PASSWORD",
                                     value: neo4jPassword,

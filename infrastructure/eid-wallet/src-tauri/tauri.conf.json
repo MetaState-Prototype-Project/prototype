@@ -1,6 +1,6 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
-    "productName": "eID Wallet",
+    "productName": "eID for W3DS",
     "version": "0.1.0",
     "identifier": "foundation.metastate.eid-wallet",
     "build": {
