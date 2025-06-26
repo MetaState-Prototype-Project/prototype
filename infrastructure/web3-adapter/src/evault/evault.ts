@@ -94,11 +94,49 @@ interface StoreMetaEnvelopeResponse {
     };
 }
 
+interface PlatformTokenResponse {
+    token: string;
+}
+
 export class EVaultClient {
     private client: GraphQLClient | null = null;
     private endpoint: string | null = null;
+    private platformToken: string | null = null;
 
-    constructor(private registryUrl: string) {}
+    constructor(private registryUrl: string, private platform: string) {}
+
+    /**
+     * Requests a platform token from the registry
+     * @returns Promise<string> - The platform token
+     */
+    private async requestPlatformToken(): Promise<string> {
+        try {
+            const response = await axios.post<PlatformTokenResponse>(
+                new URL("/platforms/certification", this.registryUrl).toString(),
+                { platform: this.platform },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            return response.data.token;
+        } catch (error) {
+            console.error("Error requesting platform token:", error);
+            throw new Error("Failed to request platform token");
+        }
+    }
+
+    /**
+     * Ensures we have a valid platform token, requesting one if needed
+     * @returns Promise<string> - The platform token
+     */
+    private async ensurePlatformToken(): Promise<string> {
+        if (!this.platformToken) {
+            this.platformToken = await this.requestPlatformToken();
+        }
+        return this.platformToken;
+    }
 
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
@@ -116,29 +154,35 @@ export class EVaultClient {
         if (!this.endpoint || !this.client) {
             this.endpoint = await this.resolveEndpoint(w3id).catch(() => null);
             if (!this.endpoint) throw new Error();
-            this.client = new GraphQLClient(this.endpoint);
+            
+            // Get platform token and create client with authorization header
+            const token = await this.ensurePlatformToken();
+            this.client = new GraphQLClient(this.endpoint, {
+                headers: {
+                    authorization: `Bearer ${token}`,
+                },
+            });
         }
         return this.client;
     }
 
     async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {
-        // const client = await this.ensureClient(envelope.w3id).catch(() => {
-        //     return null;
-        // });
-        // if (!client) return v4();
-        //
-        // const response = await client
-        //     .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
-        //         input: {
-        //             ontology: envelope.schemaId,
-        //             payload: envelope.data,
-        //             acl: ["*"],
-        //         },
-        //     })
-        //     .catch(() => null);
-        // if (!response) return v4();
-        // return response.storeMetaEnvelope.metaEnvelope.id;
-        return v4();
+        const client = await this.ensureClient(envelope.w3id).catch(() => {
+            return null;
+        });
+        if (!client) return v4();
+        
+        const response = await client
+            .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+                input: {
+                    ontology: envelope.schemaId,
+                    payload: envelope.data,
+                    acl: ["*"],
+                },
+            })
+            .catch(() => null);
+        if (!response) return v4();
+        return response.storeMetaEnvelope.metaEnvelope.id;
     }
 
     async storeReference(referenceId: string, w3id: string): Promise<void> {
@@ -180,28 +224,26 @@ export class EVaultClient {
         id: string,
         envelope: MetaEnvelope,
     ): Promise<void> {
-        // const client = await this.ensureClient(envelope.w3id).catch(() => null);
-        // if (!client) throw new Error();
-        //
-        // try {
-        //     const variables = {
-        //         id,
-        //         input: {
-        //             ontology: envelope.schemaId,
-        //             payload: envelope.data,
-        //             acl: ["*"],
-        //         },
-        //     };
-        //
-        //     const response = await client.request<StoreMetaEnvelopeResponse>(
-        //         UPDATE_META_ENVELOPE,
-        //         variables,
-        //     );
-        //     return response.updateMetaEnvelopeById;
-        // } catch (error) {
-        //     console.error("Error updating meta envelope:", error);
-        //     throw error;
-        // }
-        return;
+        const client = await this.ensureClient(envelope.w3id).catch(() => null);
+        if (!client) throw new Error();
+        
+        try {
+            const variables = {
+                id,
+                input: {
+                    ontology: envelope.schemaId,
+                    payload: envelope.data,
+                    acl: ["*"],
+                },
+            };
+        
+            const response = await client.request<StoreMetaEnvelopeResponse>(
+                UPDATE_META_ENVELOPE,
+                variables,
+            );
+        } catch (error) {
+            console.error("Error updating meta envelope:", error);
+            throw error;
+        }
     }
 }

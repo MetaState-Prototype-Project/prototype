@@ -17,6 +17,7 @@ export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
     dbPath: path.resolve(process.env.PICTIQUE_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
+    platform: process.env.PUBLIC_PICTIQUE_BASE_URL as string,
 });
 
 // Map of junction tables to their parent entities
@@ -164,7 +165,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                         data,
                         tableName: tableName.toLowerCase(),
                     });
-                    this.deliverWebhook(envelope);
                 }
             } catch (error) {
                 console.error(
@@ -173,19 +173,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 );
             }
         }, 2_000);
-    }
-
-    private async deliverWebhook(envelope: Record<string, unknown>) {
-        console.log("sending envelope", envelope);
-        axios
-            .post(
-                new URL(
-                    "/api/webhook",
-                    process.env.PUBLIC_BLABSY_BASE_URL,
-                ).toString(),
-                envelope,
-            )
-            .catch((e) => console.error(e));
     }
 
     /**
@@ -224,7 +211,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                             data: this.entityToPlain(parentEntity),
                             tableName: junctionInfo.entity.toLowerCase() + "s",
                         });
-                        this.deliverWebhook(envelope);
                     }
                 } catch (error) {
                     console.error(

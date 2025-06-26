@@ -1,13 +1,51 @@
 import { YogaInitialContext } from "graphql-yoga";
 import { DbService } from "../db/db.service";
 import { MetaEnvelope } from "../db/types";
+import * as jose from "jose";
+import axios from "axios";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
+    tokenPayload?: any;
 };
 
 export class VaultAccessGuard {
     constructor(private db: DbService) {}
+
+    /**
+     * Validates JWT token from Authorization header
+     * @param authHeader - The Authorization header value
+     * @returns Promise<any> - The validated token payload
+     */
+    private async validateToken(authHeader: string | null): Promise<any | null> {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return null;
+        }
+
+        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        
+        try {
+            if (!process.env.REGISTRY_URL) {
+                console.error("REGISTRY_URL is not set");
+                return null;
+            }
+
+            const jwksResponse = await axios.get(
+                new URL(
+                    `/.well-known/jwks.json`,
+                    process.env.PUBLIC_REGISTRY_URL,
+                ).toString(),
+            );
+
+            const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+            const { payload } = await jose.jwtVerify(token, JWKS);
+            
+            return payload;
+        } catch (error) {
+            console.error("Token validation failed:", error);
+            return null;
+        }
+    }
 
     /**
      * Checks if the current user has access to a meta envelope based on its ACL
@@ -19,27 +57,37 @@ export class VaultAccessGuard {
         metaEnvelopeId: string,
         context: VaultContext
     ): Promise<boolean> {
-        // if (!context.currentUser) {
-        //     const metaEnvelope = await this.db.findMetaEnvelopeById(
-        //         metaEnvelopeId
-        //     );
-        //     if (metaEnvelope && metaEnvelope.acl.includes("*")) return true;
-        //     return false;
-        // }
-        //
-        // const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId);
-        // if (!metaEnvelope) {
-        //     return false;
-        // }
-        //
-        // // If ACL contains "*", anyone can access
-        // if (metaEnvelope.acl.includes("*")) {
-        //     return true;
-        // }
-        //
-        // // Check if the current user's ID is in the ACL
-        // return metaEnvelope.acl.includes(context.currentUser);
-        return true;
+        // Validate token if present
+        const authHeader = context.request?.headers?.get("authorization");
+        const tokenPayload = await this.validateToken(authHeader);
+        
+        if (tokenPayload) {
+            // Token is valid, set platform context and allow access
+            context.tokenPayload = tokenPayload;
+            return true;
+        }
+
+        // Fallback to original ACL logic if no valid token
+        if (!context.currentUser) {
+            const metaEnvelope = await this.db.findMetaEnvelopeById(
+                metaEnvelopeId
+            );
+            if (metaEnvelope && metaEnvelope.acl.includes("*")) return true;
+            return false;
+        }
+
+        const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId);
+        if (!metaEnvelope) {
+            return false;
+        }
+
+        // If ACL contains "*", anyone can access
+        if (metaEnvelope.acl.includes("*")) {
+            return true;
+        }
+
+        // Check if the current user's ID is in the ACL
+        return metaEnvelope.acl.includes(context.currentUser);
     }
 
     /**

@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: eID Wallet
+      PRODUCT_NAME: eID for W3DS
       PRODUCT_BUNDLE_IDENTIFIER: foundation.metastate.eid-wallet
 targetTemplates:
   app:
