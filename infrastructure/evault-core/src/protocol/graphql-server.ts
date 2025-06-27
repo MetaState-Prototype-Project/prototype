@@ -32,16 +32,13 @@ export class GraphQLServer {
      */
     private async getActivePlatforms(): Promise<string[]> {
         try {
-            if (!process.env.PUBLIC_REGISTRY_URL) {
-                console.error("PUBLIC_REGISTRY_URL is not set");
+            if (!process.env.REGISTRY_URL) {
+                console.error("REGISTRY_URL is not set");
                 return [];
             }
 
             const response = await axios.get(
-                new URL(
-                    "/platforms",
-                    process.env.PUBLIC_REGISTRY_URL
-                ).toString()
+                new URL("/platforms", process.env.REGISTRY_URL).toString()
             );
             return response.data;
         } catch (error) {
@@ -62,8 +59,6 @@ export class GraphQLServer {
         try {
             const activePlatforms = await this.getActivePlatforms();
 
-            console.log("sending webhooks to ", activePlatforms);
-
             // Filter out the requesting platform
             const platformsToNotify = activePlatforms.filter((platformUrl) => {
                 if (!requestingPlatform) return true;
@@ -76,6 +71,7 @@ export class GraphQLServer {
 
                 return normalizedPlatformUrl !== normalizedRequestingPlatform;
             });
+            console.log("sending webhooks to ", platformsToNotify);
 
             // Send webhooks to all other platforms
             const webhookPromises = platformsToNotify.map(
@@ -169,7 +165,7 @@ export class GraphQLServer {
                             context.tokenPayload?.platform || null;
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
-                            w3id: process.env.W3ID,
+                            w3id: `@${process.env.W3ID}`,
                             data: input.payload,
                             schemaId: input.ontology,
                         };
@@ -215,7 +211,7 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
-                                w3id: process.env.W3ID,
+                                w3id: `@${process.env.W3ID}`,
                                 data: input.payload,
                                 schemaId: input.ontology,
                             };

@@ -28,10 +28,21 @@ export class WebhookController {
 
     handleWebhook = async (req: Request, res: Response) => {
         try {
+            console.log("raw hook", req.body);
             const schemaId = req.body.schemaId;
             const globalId = req.body.id;
+            
+            // Check if already locked before processing
+            if (this.adapter.lockedIds.includes(globalId)) {
+                console.log("Global ID already locked, skipping webhook:", globalId);
+                return res.status(200).send();
+            }
+            
+            // Lock immediately to prevent race conditions
+            this.adapter.addToLockedIds(globalId);
+            
             const mapping = Object.values(this.adapter.mapping).find(
-                (m) => m.schemaId === schemaId,
+                (m) => m.schemaId === schemaId
             );
 
             if (!mapping) throw new Error();
@@ -47,9 +58,11 @@ export class WebhookController {
                 tableName: mapping.tableName,
             });
 
+            console.log("Webhook mapping - globalId:", globalId, "localId:", localId, "tableName:", mapping.tableName);
+
             if (mapping.tableName === "users") {
                 const { user } = await this.userService.findOrCreateUser(
-                    req.body.w3id,
+                    req.body.w3id
                 );
                 for (const key of Object.keys(local.data)) {
                     // @ts-ignore
@@ -61,7 +74,9 @@ export class WebhookController {
                     globalId: req.body.id,
                     tableName: mapping.tableName,
                 });
+                // Lock both IDs
                 this.adapter.addToLockedIds(user.id);
+                console.log("Locked both IDs for user - global:", globalId, "local:", user.id);
             } else if (mapping.tableName === "posts") {
                 let author: User | null = null;
                 if (local.data.author) {
@@ -81,10 +96,10 @@ export class WebhookController {
                                 return await this.userService.findById(userId);
                             }
                             return null;
-                        },
+                        }
                     );
                     likedBy = (await Promise.all(likedByPromises)).filter(
-                        (user): user is User => user !== null,
+                        (user): user is User => user !== null
                     );
                 }
 
@@ -102,13 +117,13 @@ export class WebhookController {
                         comment.author = author as User;
                         comment.post = parent as Post;
                         await this.commentService.commentRepository.save(
-                            comment,
+                            comment
                         );
                     } else {
                         const comment = await this.commentService.createComment(
                             parent?.id as string,
                             author?.id as string,
-                            local.data.text as string,
+                            local.data.text as string
                         );
                         localId = comment.id;
                         await this.adapter.mappingDb.storeMapping({
@@ -117,7 +132,9 @@ export class WebhookController {
                             tableName: mapping.tableName,
                         });
                     }
+                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
+                    console.log("Locked both IDs for comment - global:", globalId, "local:", localId);
                 } else {
                     let likedBy: User[] = [];
                     if (
@@ -131,14 +148,14 @@ export class WebhookController {
                                         .split("(")[1]
                                         .split(")")[0];
                                     return await this.userService.findById(
-                                        userId,
+                                        userId
                                     );
                                 }
                                 return null;
-                            },
+                            }
                         );
                         likedBy = (await Promise.all(likedByPromises)).filter(
-                            (user): user is User => user !== null,
+                            (user): user is User => user !== null
                         );
                     }
 
@@ -153,7 +170,9 @@ export class WebhookController {
                         // @ts-ignore
                         post.author = author ?? undefined;
 
+                        // Lock both IDs
                         this.adapter.addToLockedIds(localId);
+                        console.log("Locked both IDs for post update - global:", globalId, "local:", localId);
                         await this.postsService.postRepository.save(post);
                     } else {
                         console.log("Creating new post");
@@ -163,10 +182,12 @@ export class WebhookController {
                             {
                                 ...local.data,
                                 likedBy,
-                            },
+                            }
                         );
 
+                        // Lock both IDs
                         this.adapter.addToLockedIds(post.id);
+                        console.log("Locked both IDs for new post - global:", globalId, "local:", post.id);
                         await this.adapter.mappingDb.storeMapping({
                             localId: post.id,
                             globalId,
@@ -198,7 +219,7 @@ export class WebhookController {
                                 return await this.userService.findById(userId);
                             }
                             return null;
-                        },
+                        }
                     );
                     participants = (
                         await Promise.all(participantPromises)
@@ -212,15 +233,19 @@ export class WebhookController {
                     chat.name = local.data.name as string;
                     chat.participants = participants;
 
+                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
+                    console.log("Locked both IDs for chat update - global:", globalId, "local:", localId);
                     await this.chatService.chatRepository.save(chat);
                 } else {
                     const chat = await this.chatService.createChat(
                         local.data.name as string,
-                        participants.map((p) => p.id),
+                        participants.map((p) => p.id)
                     );
 
+                    // Lock both IDs
                     this.adapter.addToLockedIds(chat.id);
+                    console.log("Locked both IDs for new chat - global:", globalId, "local:", chat.id);
                     await this.adapter.mappingDb.storeMapping({
                         localId: chat.id,
                         globalId: req.body.id,
@@ -262,16 +287,20 @@ export class WebhookController {
                     message.sender = sender;
                     message.chat = chat;
 
+                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
+                    console.log("Locked both IDs for message update - global:", globalId, "local:", localId);
                     await this.messageService.messageRepository.save(message);
                 } else {
                     const message = await this.chatService.sendMessage(
                         chat.id,
                         sender.id,
-                        local.data.text as string,
+                        local.data.text as string
                     );
 
+                    // Lock both IDs
                     this.adapter.addToLockedIds(message.id);
+                    console.log("Locked both IDs for new message - global:", globalId, "local:", message.id);
                     await this.adapter.mappingDb.storeMapping({
                         localId: message.id,
                         globalId: req.body.id,
@@ -282,6 +311,7 @@ export class WebhookController {
             res.status(200).send();
         } catch (e) {
             console.error(e);
+            res.status(500).send();
         }
     };
 }

@@ -120,11 +120,11 @@ export class FirestoreWatcher {
                 switch (change.type) {
                     case "added":
                     case "modified":
-                        setTimeout(() => {
+                        setTimeout(async () => {
                             console.log(
                                 `${collectionPath} - processing - ${doc.id}`,
                             );
-                            if (adapter.lockedIds.includes(doc.id)) return;
+                            
                             this.handleCreateOrUpdate(doc, data);
                         }, 2_000);
                         break;
@@ -141,6 +141,14 @@ export class FirestoreWatcher {
                 // Continue processing other changes even if one fails
             }
         }
+    }
+
+    private getTableNameFromPath(path: string): string {
+        const tableParts = path.split("/");
+        // -2 cuz -1 gives last entry and we need second last which would
+        // be the path specifier
+        const tableNameRaw = tableParts[tableParts.length - 2];
+        return tableNameRaw.slice(0, tableNameRaw.length - 1);
     }
 
     private async handleCreateOrUpdate(
@@ -160,43 +168,5 @@ export class FirestoreWatcher {
                 tableName,
             })
             .catch((e) => console.error(e));
-
-        // console.log("sending envelope", envelope);
-        // if (envelope) {
-        //     try {
-        //         if (
-        //             this.adapter.lockedIds.includes(envelope.id) ||
-        //             this.adapter.lockedIds.includes(doc.id)
-        //         )
-        //             return;
-        //         const response = await axios
-        //             .post(
-        //                 new URL(
-        //                     "/api/webhook",
-        //                     process.env.PUBLIC_PICTIQUE_BASE_URL,
-        //                 ).toString(),
-        //                 envelope,
-        //                 {
-        //                     headers: {
-        //                         "Content-Type": "application/json",
-        //                         "X-Webhook-Source": "blabsy-w3ds-auth-api",
-        //                     },
-        //                 },
-        //             )
-        //             .catch(() => null);
-        //         if (!response)
-        //             return console.error(`failed to sync ${envelope.id}`);
-        //         console.log(
-        //             `Successfully forwarded webhook for ${doc.id}:`,
-        //             response.status,
-        //         );
-        //     } catch (error) {
-        //         console.error(
-        //             `Failed to forward webhook for ${doc.id}:`,
-        //             error,
-        //         );
-        //         throw error; // Re-throw to trigger retry mechanism
-        //     }
-        // }
     }
 }

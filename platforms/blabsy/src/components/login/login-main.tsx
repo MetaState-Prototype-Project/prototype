@@ -65,7 +65,11 @@ export function LoginMain(): JSX.Element {
                     <h2 className='hidden text-xl lg:block lg:text-3xl'>
                         Join Blabsy today.
                     </h2>
-                    <div>{qr && <QRCode value={qr} />}</div>
+                    <div>
+                        <div className='p-2 rounded-md bg-white w-fit'>
+                            {qr && <QRCode value={qr} />}
+                        </div>
+                    </div>
                 </div>
                 <div className='flex max-w-xs flex-col gap-6 [&_button]:py-2'>
                     <div className='grid gap-3 font-bold'></div>

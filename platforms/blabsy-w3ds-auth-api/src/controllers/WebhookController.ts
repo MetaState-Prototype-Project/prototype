@@ -86,14 +86,18 @@ export class WebhookController {
         try {
             const { data, schemaId, id } = req.body;
 
+            console.log("received webhook????", req.body.id);
+
             const mapping = Object.values(adapter.mapping).find(
-                (m) => m.schemaId === schemaId,
+                (m) => m.schemaId === schemaId
             );
             if (!mapping) throw new Error();
             const tableName = mapping.tableName + "s";
 
             const local = await adapter.fromGlobal({ data, mapping });
 
+            console.log("Webhook local data:", local);
+            
             // Get the local ID from the mapping database
             const localId = await adapter.mappingDb.getLocalId({
                 globalId: id,
@@ -101,8 +105,6 @@ export class WebhookController {
             });
 
             if (localId) {
-                console.log("");
-                adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
                 await this.createRecord(tableName, local.data, req.body.id);
@@ -116,8 +118,6 @@ export class WebhookController {
     }
 
     private async createRecord(tableName: string, data: any, globalId: string) {
-        if (adapter.lockedIds.includes(globalId)) return;
-        adapter.addToLockedIds(globalId);
         const chatId = data.chatId
             ? data.chatId.split("(")[1].split(")")[0]
             : null;
@@ -133,8 +133,6 @@ export class WebhookController {
         const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.set(mappedData);
 
-        adapter.addToLockedIds(docRef.id);
-        adapter.addToLockedIds(globalId);
         await adapter.mappingDb.storeMapping({
             globalId: globalId,
             localId: docRef.id,
@@ -149,7 +147,6 @@ export class WebhookController {
         const collection = this.db.collection(tableName);
         const docRef = collection.doc(localId);
 
-        adapter.addToLockedIds(docRef.id);
         const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.update(mappedData);
     }
@@ -200,7 +197,7 @@ export class WebhookController {
 
     private async mapTweetData(
         data: any,
-        now: Timestamp,
+        now: Timestamp
     ): Promise<Partial<Tweet>> {
         let createdBy = data.createdBy;
         if (createdBy.includes("(") && createdBy.includes(")")) {
@@ -250,7 +247,7 @@ export class WebhookController {
             name: data.name,
             participants:
                 data.participants.map(
-                    (p: string) => p.split("(")[1].split(")")[0],
+                    (p: string) => p.split("(")[1].split(")")[0]
                 ) || [],
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
@@ -260,7 +257,7 @@ export class WebhookController {
                 ? {
                       ...data.lastMessage,
                       timestamp: Timestamp.fromDate(
-                          new Date(data.lastMessage.timestamp),
+                          new Date(data.lastMessage.timestamp)
                       ),
                   }
                 : null,
