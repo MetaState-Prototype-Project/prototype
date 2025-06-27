@@ -29,12 +29,14 @@ export class MappingDatabase {
                 global_id TEXT NOT NULL,
                 table_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (global_id, table_name)
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (local_id, table_name),
+                UNIQUE (global_id, table_name)
             )
         `);
 
         await this.runAsync(`
-            CREATE INDEX IF NOT EXISTS idx_local_id ON id_mappings(local_id)
+            CREATE INDEX IF NOT EXISTS idx_global_id ON id_mappings(global_id)
         `);
 
         await this.runAsync(`
@@ -43,7 +45,7 @@ export class MappingDatabase {
     }
 
     /**
-     * Store a mapping between local and global IDs
+     * Store a mapping between local and global IDs (UPSERT)
      */
     public async storeMapping(params: {
         localId: string;
@@ -57,32 +59,36 @@ export class MappingDatabase {
             );
         }
 
-        // Check if mapping already exists
-        const existingMapping = await this.getGlobalId({
-            localId: params.localId,
-            tableName: params.tableName,
-        });
-
-        if (existingMapping) {
-            return;
-        }
-
         try {
+            // Use UPSERT to handle both insert and update cases
             await this.runAsync(
-                `INSERT INTO id_mappings (local_id, global_id, table_name)
-                VALUES (?, ?, ?)`,
+                `INSERT OR REPLACE INTO id_mappings (local_id, global_id, table_name, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
                 [params.localId, params.globalId, params.tableName],
             );
 
+            // Verify the mapping was stored correctly
             const storedMapping = await this.getGlobalId({
                 localId: params.localId,
                 tableName: params.tableName,
             });
 
             if (storedMapping !== params.globalId) {
-                throw new Error("Failed to store mapping");
+                console.error("Mapping verification failed:", {
+                    expected: params.globalId,
+                    actual: storedMapping,
+                    params
+                });
+                throw new Error("Failed to store mapping - verification failed");
             }
+
+            console.log("Successfully stored mapping:", {
+                localId: params.localId,
+                globalId: params.globalId,
+                tableName: params.tableName
+            });
         } catch (error) {
+            console.error("Error storing mapping:", error, params);
             throw error;
         }
     }
@@ -185,6 +191,83 @@ export class MappingDatabase {
             }));
         } catch (error) {
             return [];
+        }
+    }
+
+    /**
+     * Debug method to get all mappings
+     */
+    public async getAllMappings(): Promise<Array<{
+        localId: string;
+        globalId: string;
+        tableName: string;
+        createdAt: string;
+        updatedAt: string;
+    }>> {
+        try {
+            const results = await this.allAsync(
+                `SELECT local_id, global_id, table_name, created_at, updated_at
+                FROM id_mappings
+                ORDER BY table_name, local_id`
+            );
+
+            return results.map(({ local_id, global_id, table_name, created_at, updated_at }) => ({
+                localId: local_id,
+                globalId: global_id,
+                tableName: table_name,
+                createdAt: created_at,
+                updatedAt: updated_at,
+            }));
+        } catch (error) {
+            console.error("Error getting all mappings:", error);
+            return [];
+        }
+    }
+
+    /**
+     * Debug method to check if a mapping exists
+     */
+    public async debugMapping(params: {
+        localId?: string;
+        globalId?: string;
+        tableName: string;
+    }): Promise<{
+        exists: boolean;
+        mapping?: any;
+        allMappingsForTable: Array<{ localId: string; globalId: string }>;
+    }> {
+        const { localId, globalId, tableName } = params;
+        
+        try {
+            let mapping = null;
+            
+            if (localId) {
+                const globalIdResult = await this.getGlobalId({ localId, tableName });
+                if (globalIdResult) {
+                    mapping = { localId, globalId: globalIdResult, tableName };
+                }
+            }
+            
+            if (globalId && !mapping) {
+                const localIdResult = await this.getLocalId({ globalId, tableName });
+                if (localIdResult) {
+                    mapping = { localId: localIdResult, globalId, tableName };
+                }
+            }
+            
+            const allMappingsForTable = await this.getTableMappings(tableName);
+            
+            return {
+                exists: !!mapping,
+                mapping,
+                allMappingsForTable,
+            };
+        } catch (error) {
+            console.error("Error debugging mapping:", error);
+            return {
+                exists: false,
+                allMappingsForTable: [],
+            };
         }
     }
 

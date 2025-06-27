@@ -17,13 +17,15 @@ export class VaultAccessGuard {
      * @param authHeader - The Authorization header value
      * @returns Promise<any> - The validated token payload
      */
-    private async validateToken(authHeader: string | null): Promise<any | null> {
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    private async validateToken(
+        authHeader: string | null
+    ): Promise<any | null> {
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
             return null;
         }
 
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        
+
         try {
             if (!process.env.REGISTRY_URL) {
                 console.error("REGISTRY_URL is not set");
@@ -33,13 +35,13 @@ export class VaultAccessGuard {
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,
-                    process.env.PUBLIC_REGISTRY_URL,
-                ).toString(),
+                    process.env.REGISTRY_URL
+                ).toString()
             );
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
             const { payload } = await jose.jwtVerify(token, JWKS);
-            
+
             return payload;
         } catch (error) {
             console.error("Token validation failed:", error);
@@ -60,7 +62,7 @@ export class VaultAccessGuard {
         // Validate token if present
         const authHeader = context.request?.headers?.get("authorization");
         const tokenPayload = await this.validateToken(authHeader);
-        
+
         if (tokenPayload) {
             // Token is valid, set platform context and allow access
             context.tokenPayload = tokenPayload;

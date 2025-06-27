@@ -114,9 +114,9 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                         },
                         {
                             name: "evault",
-                            // image: "merulauvo/evault:latest",
-                            image: "local-evault:latest",
-                            imagePullPolicy: "Never",
+                            image: "merulauvo/evault:latest",
+                            // image: "local-evault:latest",
+                            // imagePullPolicy: "Never",
                             ports: [{ containerPort }],
                             env: [
                                 {
