@@ -107,7 +107,6 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                                     name: "dbms.connector.bolt.listen_address",
                                     value: "0.0.0.0:7687",
                                 },
-                                
                             ],
                             volumeMounts: [
                                 { name: "neo4j-data", mountPath: "/data" },
@@ -115,7 +114,9 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                         },
                         {
                             name: "evault",
-                            image: "merulauvo/evault:latest",
+                            // image: "merulauvo/evault:latest",
+                            image: "local-evault:latest",
+                            imagePullPolicy: "Never",
                             ports: [{ containerPort }],
                             env: [
                                 {
@@ -213,10 +214,10 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
     const node = nodes.items[0];
     if (!node) throw new Error("No nodes found in cluster");
 
-    const externalIP = node.status?.addresses?.find(
-        (addr) => addr.type === "ExternalIP",
+    let externalIP = node.status?.addresses?.find(
+        (addr) => addr.type === "ExternalIP"
     )?.address;
 
-    if (!externalIP) throw new Error("No external IP found on node");
+    if (!externalIP) externalIP = process.env.IP_ADDR;
     return `http://${externalIP}:${nodePort}`;
 }
