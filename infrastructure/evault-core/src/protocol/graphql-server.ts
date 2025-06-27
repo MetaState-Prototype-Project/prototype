@@ -38,7 +38,10 @@ export class GraphQLServer {
             }
 
             const response = await axios.get(
-                new URL("/platforms", process.env.PUBLIC_REGISTRY_URL).toString()
+                new URL(
+                    "/platforms",
+                    process.env.PUBLIC_REGISTRY_URL
+                ).toString()
             );
             return response.data;
         } catch (error) {
@@ -52,36 +55,53 @@ export class GraphQLServer {
      * @param requestingPlatform - The platform that made the request (if any)
      * @param webhookPayload - The payload to send to webhooks
      */
-    private async deliverWebhooks(requestingPlatform: string | null, webhookPayload: any): Promise<void> {
+    private async deliverWebhooks(
+        requestingPlatform: string | null,
+        webhookPayload: any
+    ): Promise<void> {
         try {
             const activePlatforms = await this.getActivePlatforms();
-            
+
+            console.log("sending webhooks to ", activePlatforms);
+
             // Filter out the requesting platform
-            const platformsToNotify = activePlatforms.filter(platformUrl => {
+            const platformsToNotify = activePlatforms.filter((platformUrl) => {
                 if (!requestingPlatform) return true;
-                
+
                 // Normalize URLs for comparison
                 const normalizedPlatformUrl = new URL(platformUrl).toString();
-                const normalizedRequestingPlatform = new URL(requestingPlatform).toString();
-                
+                const normalizedRequestingPlatform = new URL(
+                    requestingPlatform
+                ).toString();
+
                 return normalizedPlatformUrl !== normalizedRequestingPlatform;
             });
 
             // Send webhooks to all other platforms
-            const webhookPromises = platformsToNotify.map(async (platformUrl) => {
-                try {
-                    const webhookUrl = new URL("/api/webhook", platformUrl).toString();
-                    await axios.post(webhookUrl, webhookPayload, {
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        timeout: 5000, // 5 second timeout
-                    });
-                    console.log(`Webhook delivered successfully to ${platformUrl}`);
-                } catch (error) {
-                    console.error(`Failed to deliver webhook to ${platformUrl}:`, error);
+            const webhookPromises = platformsToNotify.map(
+                async (platformUrl) => {
+                    try {
+                        const webhookUrl = new URL(
+                            "/api/webhook",
+                            platformUrl
+                        ).toString();
+                        await axios.post(webhookUrl, webhookPayload, {
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            timeout: 5000, // 5 second timeout
+                        });
+                        console.log(
+                            `Webhook delivered successfully to ${platformUrl}`
+                        );
+                    } catch (error) {
+                        console.error(
+                            `Failed to deliver webhook to ${platformUrl}:`,
+                            error
+                        );
+                    }
                 }
-            });
+            );
 
             await Promise.allSettled(webhookPromises);
         } catch (error) {
@@ -145,7 +165,8 @@ export class GraphQLServer {
                         );
 
                         // Deliver webhooks for create operation
-                        const requestingPlatform = context.tokenPayload?.platform || null;
+                        const requestingPlatform =
+                            context.tokenPayload?.platform || null;
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
                             w3id: process.env.W3ID,
@@ -154,7 +175,10 @@ export class GraphQLServer {
                         };
 
                         // Fire and forget webhook delivery
-                        this.deliverWebhooks(requestingPlatform, webhookPayload);
+                        this.deliverWebhooks(
+                            requestingPlatform,
+                            webhookPayload
+                        );
 
                         return result;
                     }
@@ -187,7 +211,8 @@ export class GraphQLServer {
                             );
 
                             // Deliver webhooks for update operation
-                            const requestingPlatform = context.tokenPayload?.platform || null;
+                            const requestingPlatform =
+                                context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
                                 w3id: process.env.W3ID,
@@ -196,7 +221,10 @@ export class GraphQLServer {
                             };
 
                             // Fire and forget webhook delivery
-                            this.deliverWebhooks(requestingPlatform, webhookPayload);
+                            this.deliverWebhooks(
+                                requestingPlatform,
+                                webhookPayload
+                            );
 
                             return result;
                         } catch (error) {
