@@ -21,6 +21,13 @@ export class MessageController {
             const allParticipants = [
                 ...new Set([userId, ...(participantIds || [])]),
             ];
+
+            // Check if a chat already exists with the same participants
+            const existingChat = await this.chatService.findChatByParticipants(allParticipants);
+            if (existingChat) {
+                return res.status(200).json(existingChat);
+            }
+
             const chat = await this.chatService.createChat(
                 name,
                 allParticipants
