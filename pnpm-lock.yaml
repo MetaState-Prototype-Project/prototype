@@ -65,6 +65,9 @@ importers:
       flag-icons:
         specifier: ^7.3.2
         version: 7.5.0
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.11.0)
       import:
         specifier: ^0.0.6
         version: 0.0.6

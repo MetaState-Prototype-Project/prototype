@@ -93,7 +93,7 @@ export class WebhookController {
             adapter.addToLockedIds(id);
 
             const mapping = Object.values(adapter.mapping).find(
-                (m) => m.schemaId === schemaId
+                (m) => m.schemaId === schemaId,
             );
             if (!mapping) throw new Error();
             const tableName = mapping.tableName + "s";
@@ -133,8 +133,15 @@ export class WebhookController {
             collection = this.db.collection(tableName);
         }
 
-        const docRef = collection.doc();
+        let docRef = collection.doc();
+
         const mappedData = await this.mapDataToFirebase(tableName, data);
+        if (tableName === "users") {
+            docRef = collection.doc(data.ename);
+        } else {
+            // Use auto-generated ID for other tables
+            docRef = collection.doc();
+        }
         await docRef.set(mappedData);
 
         adapter.addToLockedIds(docRef.id);
@@ -155,7 +162,7 @@ export class WebhookController {
 
         if (!docSnapshot.exists) {
             console.warn(
-                `Document with ID '${localId}' does not exist in '${tableName}'. Skipping update.`
+                `Document with ID '${localId}' does not exist in '${tableName}'. Skipping update.`,
             );
             return;
         }
@@ -211,7 +218,7 @@ export class WebhookController {
 
     private async mapTweetData(
         data: any,
-        now: Timestamp
+        now: Timestamp,
     ): Promise<Partial<Tweet>> {
         let createdBy = data.createdBy;
         if (createdBy.includes("(") && createdBy.includes(")")) {
@@ -264,7 +271,7 @@ export class WebhookController {
             name: data.name,
             participants:
                 data.participants.map(
-                    (p: string) => p.split("(")[1].split(")")[0]
+                    (p: string) => p.split("(")[1].split(")")[0],
                 ) || [],
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
@@ -274,7 +281,7 @@ export class WebhookController {
                 ? {
                       ...data.lastMessage,
                       timestamp: Timestamp.fromDate(
-                          new Date(data.lastMessage.timestamp)
+                          new Date(data.lastMessage.timestamp),
                       ),
                   }
                 : null,

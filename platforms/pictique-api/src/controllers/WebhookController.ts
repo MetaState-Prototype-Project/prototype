@@ -32,7 +32,7 @@ export class WebhookController {
             const schemaId = req.body.schemaId;
             const globalId = req.body.id;
             const mapping = Object.values(this.adapter.mapping).find(
-                (m) => m.schemaId === schemaId
+                (m) => m.schemaId === schemaId,
             );
             this.adapter.addToLockedIds(globalId);
 
@@ -48,12 +48,13 @@ export class WebhookController {
 
             if (mapping.tableName === "users") {
                 const { user } = await this.userService.findOrCreateUser(
-                    req.body.w3id
+                    req.body.w3id,
                 );
                 for (const key of Object.keys(local.data)) {
                     // @ts-ignore
                     user[key] = local.data[key];
                 }
+                user.name = req.body.data.displayName;
                 await this.userService.userRepository.save(user);
                 await this.adapter.mappingDb.storeMapping({
                     localId: user.id,
@@ -78,10 +79,10 @@ export class WebhookController {
                                 return await this.userService.findById(userId);
                             }
                             return null;
-                        }
+                        },
                     );
                     likedBy = (await Promise.all(likedByPromises)).filter(
-                        (user): user is User => user !== null
+                        (user): user is User => user !== null,
                     );
                 }
 
@@ -99,13 +100,13 @@ export class WebhookController {
                         comment.author = author as User;
                         comment.post = parent as Post;
                         await this.commentService.commentRepository.save(
-                            comment
+                            comment,
                         );
                     } else {
                         const comment = await this.commentService.createComment(
                             parent?.id as string,
                             author?.id as string,
-                            local.data.text as string
+                            local.data.text as string,
                         );
                         localId = comment.id;
                         await this.adapter.mappingDb.storeMapping({
@@ -127,14 +128,14 @@ export class WebhookController {
                                         .split("(")[1]
                                         .split(")")[0];
                                     return await this.userService.findById(
-                                        userId
+                                        userId,
                                     );
                                 }
                                 return null;
-                            }
+                            },
                         );
                         likedBy = (await Promise.all(likedByPromises)).filter(
-                            (user): user is User => user !== null
+                            (user): user is User => user !== null,
                         );
                     }
 
@@ -159,7 +160,7 @@ export class WebhookController {
                             {
                                 ...local.data,
                                 likedBy,
-                            }
+                            },
                         );
 
                         this.adapter.addToLockedIds(post.id);
@@ -191,7 +192,7 @@ export class WebhookController {
                                 return await this.userService.findById(userId);
                             }
                             return null;
-                        }
+                        },
                     );
                     participants = (
                         await Promise.all(participantPromises)
@@ -211,7 +212,7 @@ export class WebhookController {
                 } else {
                     const chat = await this.chatService.createChat(
                         local.data.name as string,
-                        participants.map((p) => p.id)
+                        participants.map((p) => p.id),
                     );
 
                     this.adapter.addToLockedIds(chat.id);
@@ -261,7 +262,7 @@ export class WebhookController {
                     const message = await this.chatService.sendMessage(
                         chat.id,
                         sender.id,
-                        local.data.text as string
+                        local.data.text as string,
                     );
 
                     this.adapter.addToLockedIds(message.id);
