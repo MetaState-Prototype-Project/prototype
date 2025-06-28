@@ -57,6 +57,7 @@ export function AuthContextProvider({
     useEffect(() => {
         const manageUser = async (authUser: AuthUser): Promise<void> => {
             const { uid, displayName, photoURL } = authUser;
+            console.log(uid);
 
             const userSnapshot = await getDoc(doc(usersCollection, uid));
 
@@ -88,7 +89,7 @@ export function AuthContextProvider({
                     website: null,
                     location: null,
                     photoURL: photoURL ?? '/assets/twitter-avatar.jpg',
-                    username: randomUsername,
+                    username: uid.split('@')[1],
                     verified: false,
                     following: [],
                     followers: [],

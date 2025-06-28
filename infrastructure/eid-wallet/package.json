@@ -34,6 +34,7 @@
         "clsx": "^2.1.1",
         "dotenv": "^16.5.0",
         "flag-icons": "^7.3.2",
+        "graphql-request": "^6.1.0",
         "import": "^0.0.6",
         "svelte-loading-spinners": "^0.3.6",
         "tailwind-merge": "^3.0.2",
