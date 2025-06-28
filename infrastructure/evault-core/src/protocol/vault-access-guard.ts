@@ -60,7 +60,9 @@ export class VaultAccessGuard {
         context: VaultContext
     ): Promise<boolean> {
         // Validate token if present
-        const authHeader = context.request?.headers?.get("authorization");
+        const authHeader =
+            context.request?.headers?.get("authorization") ??
+            context.request?.headers?.get("Authorization");
         const tokenPayload = await this.validateToken(authHeader);
 
         if (tokenPayload) {

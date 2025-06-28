@@ -86,7 +86,11 @@ export class WebhookController {
         try {
             const { data, schemaId, id } = req.body;
 
-            console.log("received webhook????", req.body.id);
+            console.log("received webhook????", req.body);
+
+            if (adapter.lockedIds.includes(id)) return;
+            console.log("processing -- not skipped");
+            adapter.addToLockedIds(id);
 
             const mapping = Object.values(adapter.mapping).find(
                 (m) => m.schemaId === schemaId
@@ -96,17 +100,17 @@ export class WebhookController {
 
             const local = await adapter.fromGlobal({ data, mapping });
 
-            console.log("Webhook local data:", local);
-            
+            console.log(local);
+            //
             // Get the local ID from the mapping database
-            const localId = await adapter.mappingDb.getLocalId({
-                globalId: id,
-                tableName,
-            });
+            const localId = await adapter.mappingDb.getLocalId(id);
 
             if (localId) {
+                console.log("LOCAL, updating");
+                adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
+                console.log("NOT LOCAL, creating");
                 await this.createRecord(tableName, local.data, req.body.id);
             }
 
@@ -133,13 +137,11 @@ export class WebhookController {
         const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.set(mappedData);
 
+        adapter.addToLockedIds(docRef.id);
+        adapter.addToLockedIds(globalId);
         await adapter.mappingDb.storeMapping({
             globalId: globalId,
             localId: docRef.id,
-            tableName:
-                tableName === "messages"
-                    ? `chats/${data.chatId}/messages`
-                    : tableName,
         });
     }
 
@@ -147,10 +149,20 @@ export class WebhookController {
         const collection = this.db.collection(tableName);
         const docRef = collection.doc(localId);
 
+        adapter.addToLockedIds(docRef.id);
+
+        const docSnapshot = await docRef.get();
+
+        if (!docSnapshot.exists) {
+            console.warn(
+                `Document with ID '${localId}' does not exist in '${tableName}'. Skipping update.`
+            );
+            return;
+        }
+
         const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.update(mappedData);
     }
-
     private mapDataToFirebase(tableName: string, data: any): any {
         const now = Timestamp.now();
         console.log("MAPPING DATA TO ", tableName);
@@ -172,15 +184,15 @@ export class WebhookController {
     }
 
     private mapUserData(data: any, now: Timestamp): Partial<User> {
-        return {
+        let userData: Record<string, any> = {
             bio: data.bio || null,
             name: data.name,
             theme: data.theme || null,
             accent: data.accent || null,
             website: null,
             location: null,
-            username: data.username,
-            photoURL: data.photoURL,
+            username: data.username || data.ename.split("@")[1],
+            photoURL: data.photoURL ?? "/assets/twitter-avatar.jpg",
             verified: data.verified || false,
             following: data.following || [],
             followers: data.followers || [],
@@ -193,6 +205,8 @@ export class WebhookController {
             pinnedTweet: data.pinnedTweet || null,
             coverPhotoURL: data.coverPhotoURL || null,
         };
+        if (data.ename) userData.id = data.ename;
+        return userData;
     }
 
     private async mapTweetData(
@@ -215,18 +229,21 @@ export class WebhookController {
 
         const tweetData = {
             ...filteredResult,
-            userLikes: data.userLikes.map((u: string) => {
-                if (u.includes("(") && u.includes(")")) {
-                    return u.split("(")[1].split(")")[0];
-                } else {
-                    return u;
-                }
-            }),
+            userLikes: data.userLikes
+                .filter((l: string) => !!l)
+                .map((u: string) => {
+                    if (u.includes("(") && u.includes(")")) {
+                        return u.split("(")[1].split(")")[0];
+                    } else {
+                        return u;
+                    }
+                }),
             createdBy,
-            images:
-                (data.images ?? []).map((i: string) => ({
-                    src: i,
-                })) || null,
+            images: data.images
+                ? data.images.map((i: string) => ({
+                      src: i,
+                  }))
+                : null,
             parent:
                 data.parent && user
                     ? {

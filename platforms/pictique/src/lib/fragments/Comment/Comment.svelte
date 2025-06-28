@@ -21,7 +21,7 @@
 
 <article {...restProps} class={cn([restProps.class].join(' '))}>
 	<div class="align-start flex gap-2">
-		<Avatar src={comment.userImgSrc} size="sm" />
+		<Avatar src={comment.userImgSrc ?? '/images/user.png'} size="sm" />
 		<div>
 			<h3 class="font-semibold text-black">{comment.name}</h3>
 			<p class="text-black-600 mt-0.5">{comment.comment}</p>
@@ -35,7 +35,7 @@
 			{#each comment.replies.slice(0, visibleReplies) as reply}
 				<li>
 					<div class="align-start flex gap-2">
-						<Avatar src={reply.userImgSrc} size="sm" />
+						<Avatar src={reply.userImgSrc ?? '/images/user.png'} size="sm" />
 						<div>
 							<h3 class="font-semibold text-black">{reply.name}</h3>
 							<p class="text-black-600 mt-0.5">{reply.comment}</p>
