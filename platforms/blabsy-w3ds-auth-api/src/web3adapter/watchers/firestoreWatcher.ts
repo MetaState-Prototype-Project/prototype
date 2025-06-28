@@ -7,9 +7,7 @@ import {
 } from "firebase-admin/firestore";
 import path from "path";
 import dotenv from "dotenv";
-import axios from "axios";
 import { adapter } from "../../controllers/WebhookController";
-
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 
 export class FirestoreWatcher {
@@ -23,7 +21,7 @@ export class FirestoreWatcher {
     constructor(
         private readonly collection:
             | CollectionReference<DocumentData>
-            | CollectionGroup<DocumentData>,
+            | CollectionGroup<DocumentData>
     ) {}
 
     async start(): Promise<void> {
@@ -42,7 +40,7 @@ export class FirestoreWatcher {
                 async (snapshot) => {
                     if (this.isProcessing) {
                         console.log(
-                            "Still processing previous snapshot, skipping...",
+                            "Still processing previous snapshot, skipping..."
                         );
                         return;
                     }
@@ -61,14 +59,14 @@ export class FirestoreWatcher {
                 (error) => {
                     console.error("Error in Firestore listener:", error);
                     this.handleError(error);
-                },
+                }
             );
 
             console.log(`Successfully started watcher for ${collectionPath}`);
         } catch (error) {
             console.error(
                 `Failed to start watcher for ${collectionPath}:`,
-                error,
+                error
             );
             throw error;
         }
@@ -93,7 +91,7 @@ export class FirestoreWatcher {
             this.retryCount++;
             console.log(`Retrying (${this.retryCount}/${this.maxRetries})...`);
             await new Promise((resolve) =>
-                setTimeout(resolve, this.retryDelay * this.retryCount),
+                setTimeout(resolve, this.retryDelay * this.retryCount)
             );
             await this.start();
         } else {
@@ -109,7 +107,7 @@ export class FirestoreWatcher {
                 ? this.collection.path
                 : "collection group";
         console.log(
-            `Processing ${changes.length} changes in ${collectionPath}`,
+            `Processing ${changes.length} changes in ${collectionPath}`
         );
 
         for (const change of changes) {
@@ -120,11 +118,11 @@ export class FirestoreWatcher {
                 switch (change.type) {
                     case "added":
                     case "modified":
-                        setTimeout(async () => {
+                        setTimeout(() => {
                             console.log(
-                                `${collectionPath} - processing - ${doc.id}`,
+                                `${collectionPath} - processing - ${doc.id}`
                             );
-                            
+                            if (adapter.lockedIds.includes(doc.id)) return;
                             this.handleCreateOrUpdate(doc, data);
                         }, 2_000);
                         break;
@@ -136,24 +134,16 @@ export class FirestoreWatcher {
             } catch (error) {
                 console.error(
                     `Error processing ${change.type} for document ${doc.id}:`,
-                    error,
+                    error
                 );
                 // Continue processing other changes even if one fails
             }
         }
     }
 
-    private getTableNameFromPath(path: string): string {
-        const tableParts = path.split("/");
-        // -2 cuz -1 gives last entry and we need second last which would
-        // be the path specifier
-        const tableNameRaw = tableParts[tableParts.length - 2];
-        return tableNameRaw.slice(0, tableNameRaw.length - 1);
-    }
-
     private async handleCreateOrUpdate(
         doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData>,
-        data: DocumentData,
+        data: DocumentData
     ): Promise<void> {
         const tableParts = doc.ref.path.split("/");
         // -2 cuz -1 gives last entry and we need second last which would

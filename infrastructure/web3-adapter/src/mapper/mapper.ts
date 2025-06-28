@@ -42,6 +42,8 @@ async function extractOwnerEvault(
     const [_, fieldPathRaw] = ownerEnamePath.split("(");
     const fieldPath = fieldPathRaw.replace(")", "");
     let value = getValueByPath(data, fieldPath);
+    if (Array.isArray(value)) return value[0];
+    console.log("OWNER PATH", value);
     if (value.includes("(") && value.includes(")")) {
         value = value.split("(")[1].split(")")[0];
     }
@@ -109,19 +111,13 @@ export async function fromGlobal({
             if (Array.isArray(value)) {
                 value = await Promise.all(
                     value.map(async (v) => {
-                        const localId = await mappingStore.getLocalId({
-                            globalId: v,
-                            tableName: tableRef,
-                        });
+                        const localId = await mappingStore.getLocalId(v);
 
                         return localId ? `${tableRef}(${localId})` : null;
                     })
                 );
             } else {
-                value = await mappingStore.getLocalId({
-                    globalId: value,
-                    tableName: tableRef,
-                });
+                value = await mappingStore.getLocalId(value);
                 value = value ? `${tableRef}(${value})` : null;
             }
         }
@@ -259,18 +255,11 @@ export async function toGlobal({
                 value = await Promise.all(
                     value.map(
                         async (v) =>
-                            (await mappingStore.getGlobalId({
-                                localId: v,
-                                tableName: tableRef,
-                            })) ?? undefined
+                            (await mappingStore.getGlobalId(v)) ?? undefined
                     )
                 );
             } else {
-                value =
-                    (await mappingStore.getGlobalId({
-                        localId: value,
-                        tableName: tableRef,
-                    })) ?? undefined;
+                value = (await mappingStore.getGlobalId(value)) ?? undefined;
             }
         }
         result[targetKey] = value;

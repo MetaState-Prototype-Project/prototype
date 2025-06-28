@@ -99,7 +99,7 @@
 	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && !route.includes('settings') && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
-		profileSrc={profile?.avatarUrl}
+		profileSrc={profile?.avatarUrl ?? '/images/user.png'}
 		handlePost={async () => {
 			openCreatePostModal();
 		}}
@@ -140,9 +140,7 @@
 								<li class="mb-4">
 									<Comment
 										comment={{
-											userImgSrc:
-												comment.author.avatarUrl ||
-												'https://picsum.photos/200/200',
+											userImgSrc: comment.author.avatarUrl,
 											name: comment.author.name || comment.author.handle,
 											commentId: comment.id,
 											comment: comment.text,
@@ -163,7 +161,7 @@
 						<MessageInput
 							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
-							src={profile?.avatarUrl}
+							src={profile?.avatarUrl ?? '/images/user.png'}
 							bind:value={commentValue}
 							{handleSend}
 							bind:input={commentInput}

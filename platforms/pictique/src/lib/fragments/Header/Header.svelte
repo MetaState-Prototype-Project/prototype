@@ -88,10 +88,9 @@
 			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
 			onclick={callback}
 		>
-			<HugeiconsIcon icon={menuButton[variant]} size={24} color="var(--color-black-500)" />
 		</button>
 	{:else if variant === 'secondary' && options && isCallBackNeeded}
-		<ActionMenu {options} />
+		<div></div>
 	{/if}
 </header>
 

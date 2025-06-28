@@ -26,17 +26,24 @@
 </script>
 
 <section>
-	{#each messages as message}
-		<Message
-			class="mb-6"
-			avatar={message.avatar}
-			username={message.username}
-			text={message.text}
-			unread={!message.unread}
-			callback={() => {
-				heading.set(message.username);
-				goto(`/messages/${message.id}`);
-			}}
-		/>
-	{/each}
+	{#if messages && messages.length > 0}
+		{#each messages as message}
+			<Message
+				class="mb-6"
+				avatar={message.avatar}
+				username={message.username}
+				text={message.text}
+				unread={!message.unread}
+				callback={() => {
+					heading.set(message.username);
+					goto(`/messages/${message.id}`);
+				}}
+			/>
+		{/each}
+	{:else}
+		<div class="w-full px-5 py-5 text-center">
+			You don't have any messages yet, please start a Direct Message with Someone by searching
+			their name
+		</div>
+	{/if}
 </section>

@@ -48,37 +48,11 @@ export class Web3Adapter {
     }
 
     addToLockedIds(id: string) {
-        if (this.lockedIds.includes(id)) {
-            return false; // Already locked
-        }
         this.lockedIds.push(id);
-        console.log("Added", id, "to lockedIds:", this.lockedIds);
+        console.log("Added", this.lockedIds);
         setTimeout(() => {
             this.lockedIds = this.lockedIds.filter((f) => f !== id);
-            console.log("Removed", id, "from lockedIds:", this.lockedIds);
         }, 15_000);
-        return true; // Successfully locked
-    }
-
-    /**
-     * Lock both local and global IDs to prevent duplicates
-     */
-    private lockBothIds(localId: string, globalId: string | null): boolean {
-        // Try to lock local ID first
-        if (!this.addToLockedIds(localId)) {
-            console.log(`Local ID ${localId} already locked, skipping operation`);
-            return false;
-        }
-
-        // Also lock global ID if it exists
-        if (globalId && globalId !== localId) {
-            this.addToLockedIds(globalId);
-            console.log(`Locked both IDs: local=${localId}, global=${globalId}`);
-        } else {
-            console.log(`Locked local ID: ${localId}`);
-        }
-
-        return true;
     }
 
     async handleChange(props: {
@@ -88,20 +62,15 @@ export class Web3Adapter {
     }) {
         const { data, tableName, participants } = props;
 
-        const existingGlobalId = await this.mappingDb.getGlobalId({
-            localId: data.id as string,
-            tableName,
-        });
-        console.log("handleChange - localId:", data.id, "globalId:", existingGlobalId, "tableName:", tableName);
+        const existingGlobalId = await this.mappingDb.getGlobalId(
+            data.id as string
+        );
+
+        console.log(this.mapping, tableName, this.mapping[tableName]);
 
         // If we already have a mapping, use that global ID
         if (existingGlobalId) {
-            // Try to lock both IDs atomically
-            if (!this.lockBothIds(data.id as string, existingGlobalId)) {
-                console.log("Failed to lock IDs, skipping update for:", data.id);
-                return null;
-            }
-
+            if (this.lockedIds.includes(existingGlobalId)) return;
             const global = await toGlobal({
                 data,
                 mapping: this.mapping[tableName],
@@ -115,11 +84,7 @@ export class Web3Adapter {
                     data: global.data,
                     schemaId: this.mapping[tableName].schemaId,
                 })
-                .catch((error) => {
-                    console.error("Failed to sync update:", error);
-                    // Remove locks on failure
-                    this.lockedIds = this.lockedIds.filter(id => id !== data.id && id !== existingGlobalId);
-                });
+                .catch(() => console.error("failed to sync update"));
 
             return {
                 id: existingGlobalId,
@@ -144,21 +109,16 @@ export class Web3Adapter {
                 data: global.data,
                 schemaId: this.mapping[tableName].schemaId,
             });
+            console.log("created new meta-env", globalId);
         } else {
-            globalId = uuidv4();
+            return;
         }
-
-        console.log("Created new global ID:", globalId, "for local ID:", data.id);
 
         // Store the mapping
         await this.mappingDb.storeMapping({
             localId: data.id as string,
             globalId,
-            tableName,
         });
-
-        // Lock both IDs after creation
-        this.lockBothIds(data.id as string, globalId);
 
         // Handle references for other participants
         const otherEvaults = (participants ?? []).filter(

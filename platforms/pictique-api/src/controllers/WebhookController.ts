@@ -31,19 +31,10 @@ export class WebhookController {
             console.log("raw hook", req.body);
             const schemaId = req.body.schemaId;
             const globalId = req.body.id;
-            
-            // Check if already locked before processing
-            if (this.adapter.lockedIds.includes(globalId)) {
-                console.log("Global ID already locked, skipping webhook:", globalId);
-                return res.status(200).send();
-            }
-            
-            // Lock immediately to prevent race conditions
-            this.adapter.addToLockedIds(globalId);
-            
             const mapping = Object.values(this.adapter.mapping).find(
                 (m) => m.schemaId === schemaId
             );
+            this.adapter.addToLockedIds(globalId);
 
             if (!mapping) throw new Error();
             const local = await this.adapter.fromGlobal({
@@ -53,12 +44,7 @@ export class WebhookController {
 
             mapping.tableName =
                 mapping.tableName === "comments" ? "posts" : mapping.tableName;
-            let localId = await this.adapter.mappingDb.getLocalId({
-                globalId,
-                tableName: mapping.tableName,
-            });
-
-            console.log("Webhook mapping - globalId:", globalId, "localId:", localId, "tableName:", mapping.tableName);
+            let localId = await this.adapter.mappingDb.getLocalId(globalId);
 
             if (mapping.tableName === "users") {
                 const { user } = await this.userService.findOrCreateUser(
@@ -72,11 +58,8 @@ export class WebhookController {
                 await this.adapter.mappingDb.storeMapping({
                     localId: user.id,
                     globalId: req.body.id,
-                    tableName: mapping.tableName,
                 });
-                // Lock both IDs
                 this.adapter.addToLockedIds(user.id);
-                console.log("Locked both IDs for user - global:", globalId, "local:", user.id);
             } else if (mapping.tableName === "posts") {
                 let author: User | null = null;
                 if (local.data.author) {
@@ -85,7 +68,6 @@ export class WebhookController {
                         .split("(")[1]
                         .split(")")[0];
                     author = await this.userService.findById(authorId);
-                    console.log("nuh uh not here", author);
                 }
                 let likedBy: User[] = [];
                 if (local.data.likedBy && Array.isArray(local.data.likedBy)) {
@@ -129,12 +111,9 @@ export class WebhookController {
                         await this.adapter.mappingDb.storeMapping({
                             localId,
                             globalId,
-                            tableName: mapping.tableName,
                         });
                     }
-                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
-                    console.log("Locked both IDs for comment - global:", globalId, "local:", localId);
                 } else {
                     let likedBy: User[] = [];
                     if (
@@ -170,9 +149,7 @@ export class WebhookController {
                         // @ts-ignore
                         post.author = author ?? undefined;
 
-                        // Lock both IDs
                         this.adapter.addToLockedIds(localId);
-                        console.log("Locked both IDs for post update - global:", globalId, "local:", localId);
                         await this.postsService.postRepository.save(post);
                     } else {
                         console.log("Creating new post");
@@ -185,21 +162,15 @@ export class WebhookController {
                             }
                         );
 
-                        // Lock both IDs
                         this.adapter.addToLockedIds(post.id);
-                        console.log("Locked both IDs for new post - global:", globalId, "local:", post.id);
                         await this.adapter.mappingDb.storeMapping({
                             localId: post.id,
                             globalId,
-                            tableName: mapping.tableName,
                         });
 
                         // Verify the mapping was stored
                         const verifyLocalId =
-                            await this.adapter.mappingDb.getLocalId({
-                                globalId,
-                                tableName: mapping.tableName,
-                            });
+                            await this.adapter.mappingDb.getLocalId(globalId);
                         console.log("Verified mapping:", {
                             expected: post.id,
                             actual: verifyLocalId,
@@ -212,6 +183,7 @@ export class WebhookController {
                     local.data.participants &&
                     Array.isArray(local.data.participants)
                 ) {
+                    console.log(local);
                     const participantPromises = local.data.participants.map(
                         async (ref: string) => {
                             if (ref && typeof ref === "string") {
@@ -224,6 +196,7 @@ export class WebhookController {
                     participants = (
                         await Promise.all(participantPromises)
                     ).filter((user): user is User => user !== null);
+                    console.log(participants);
                 }
 
                 if (localId) {
@@ -233,9 +206,7 @@ export class WebhookController {
                     chat.name = local.data.name as string;
                     chat.participants = participants;
 
-                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
-                    console.log("Locked both IDs for chat update - global:", globalId, "local:", localId);
                     await this.chatService.chatRepository.save(chat);
                 } else {
                     const chat = await this.chatService.createChat(
@@ -243,13 +214,10 @@ export class WebhookController {
                         participants.map((p) => p.id)
                     );
 
-                    // Lock both IDs
                     this.adapter.addToLockedIds(chat.id);
-                    console.log("Locked both IDs for new chat - global:", globalId, "local:", chat.id);
                     await this.adapter.mappingDb.storeMapping({
                         localId: chat.id,
                         globalId: req.body.id,
-                        tableName: mapping.tableName,
                     });
                 }
             } else if (mapping.tableName === "messages") {
@@ -287,9 +255,7 @@ export class WebhookController {
                     message.sender = sender;
                     message.chat = chat;
 
-                    // Lock both IDs
                     this.adapter.addToLockedIds(localId);
-                    console.log("Locked both IDs for message update - global:", globalId, "local:", localId);
                     await this.messageService.messageRepository.save(message);
                 } else {
                     const message = await this.chatService.sendMessage(
@@ -298,20 +264,16 @@ export class WebhookController {
                         local.data.text as string
                     );
 
-                    // Lock both IDs
                     this.adapter.addToLockedIds(message.id);
-                    console.log("Locked both IDs for new message - global:", globalId, "local:", message.id);
                     await this.adapter.mappingDb.storeMapping({
                         localId: message.id,
                         globalId: req.body.id,
-                        tableName: mapping.tableName,
                     });
                 }
             }
             res.status(200).send();
         } catch (e) {
             console.error(e);
-            res.status(500).send();
         }
     };
 }

@@ -112,7 +112,10 @@ export class EVaultClient {
     private async requestPlatformToken(): Promise<string> {
         try {
             const response = await axios.post<PlatformTokenResponse>(
-                new URL("/platforms/certification", this.registryUrl).toString(),
+                new URL(
+                    "/platforms/certification",
+                    this.registryUrl
+                ).toString(),
                 { platform: this.platform },
                 {
                     headers: {
@@ -141,7 +144,7 @@ export class EVaultClient {
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
             const response = await axios.get(
-                new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
+                new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString()
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -154,7 +157,7 @@ export class EVaultClient {
         if (!this.endpoint || !this.client) {
             this.endpoint = await this.resolveEndpoint(w3id).catch(() => null);
             if (!this.endpoint) throw new Error();
-            
+
             // Get platform token and create client with authorization header
             const token = await this.ensurePlatformToken();
             this.client = new GraphQLClient(this.endpoint, {
@@ -171,7 +174,8 @@ export class EVaultClient {
             return null;
         });
         if (!client) return v4();
-        
+        console.log("sending payload", envelope);
+
         const response = await client
             .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
                 input: {
@@ -211,7 +215,7 @@ export class EVaultClient {
                 {
                     id,
                     w3id,
-                },
+                }
             );
             return response.metaEnvelope;
         } catch (error) {
@@ -222,11 +226,12 @@ export class EVaultClient {
 
     async updateMetaEnvelopeById(
         id: string,
-        envelope: MetaEnvelope,
+        envelope: MetaEnvelope
     ): Promise<void> {
+        console.log("sending to eVault", envelope.w3id);
         const client = await this.ensureClient(envelope.w3id).catch(() => null);
         if (!client) throw new Error();
-        
+
         try {
             const variables = {
                 id,
@@ -236,10 +241,10 @@ export class EVaultClient {
                     acl: ["*"],
                 },
             };
-        
+
             const response = await client.request<StoreMetaEnvelopeResponse>(
                 UPDATE_META_ENVELOPE,
-                variables,
+                variables
             );
         } catch (error) {
             console.error("Error updating meta envelope:", error);

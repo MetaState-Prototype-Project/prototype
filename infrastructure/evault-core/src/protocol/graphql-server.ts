@@ -170,11 +170,22 @@ export class GraphQLServer {
                             schemaId: input.ontology,
                         };
 
-                        // Fire and forget webhook delivery
-                        this.deliverWebhooks(
-                            requestingPlatform,
-                            webhookPayload
-                        );
+                        /**
+                         * To whoever who reads this in the future please don't
+                         * remove this delay as this prevents a VERY horrible
+                         * disgusting edge case, where if a platform's URL is
+                         * not determinable the webhook to the same platform as
+                         * the one who sent off the request gets sent and that
+                         * is not an ideal case trust me I've suffered, it
+                         * causes an absolutely beautiful error where you get
+                         * stuck in what I like to call webhook ping-pong
+                         */
+                        setTimeout(() => {
+                            this.deliverWebhooks(
+                                requestingPlatform,
+                                webhookPayload
+                            );
+                        }, 3_000);
 
                         return result;
                     }

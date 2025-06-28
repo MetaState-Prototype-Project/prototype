@@ -11,6 +11,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
 import axios from "axios";
+import { table } from "console";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
@@ -84,7 +85,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName
+            event.metadata.tableName.endsWith("s")
+                ? event.metadata.tableName
+                : event.metadata.tableName + "s"
         );
     }
 
@@ -145,7 +148,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
         // Check if this is a junction table
-        if (tableName === "message_read_status") return;
+        if (
+            tableName === "message_read_status" ||
+            tableName === "chat_participants"
+        )
+            return;
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];
         if (junctionInfo) {
@@ -157,50 +164,28 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         const data = this.entityToPlain(entity);
         if (!data.id) return;
 
-        let globalId = await this.adapter.mappingDb.getGlobalId({
-            localId: entity.id,
-            tableName: tableName.toLowerCase(),
-        });
-        globalId = globalId ?? "";
-
-        // Use immediate locking instead of setTimeout to prevent race conditions
         try {
-            // Check if either local or global ID is already locked
-            if (this.adapter.lockedIds.includes(entity.id)) {
-                console.log(`Local ID ${entity.id} already locked, skipping`);
-                return;
-            }
-            
-            if (globalId && this.adapter.lockedIds.includes(globalId)) {
-                console.log(`Global ID ${globalId} already locked, skipping`);
-                return;
-            }
+            setTimeout(async () => {
+                let globalId = await this.adapter.mappingDb.getGlobalId(
+                    entity.id
+                );
+                globalId = globalId ?? "";
 
-            // Try to lock the local ID atomically
-            if (!this.adapter.addToLockedIds(entity.id)) {
-                console.log(`Failed to lock local ID ${entity.id}, skipping`);
-                return;
-            }
+                if (this.adapter.lockedIds.includes(globalId))
+                    return console.log("locked skipping ", globalId);
 
-            // Also lock the global ID if it exists
-            if (globalId) {
-                this.adapter.addToLockedIds(globalId);
-            }
-
-            console.log(
-                "sending packet for global Id",
-                globalId,
-                entity.id
-            );
-            const envelope = await this.adapter.handleChange({
-                data,
-                tableName: tableName.toLowerCase(),
-            });
+                console.log(
+                    "sending packet for global Id",
+                    globalId,
+                    entity.id
+                );
+                const envelope = await this.adapter.handleChange({
+                    data,
+                    tableName: tableName.toLowerCase(),
+                });
+            }, 3_000);
         } catch (error) {
-            console.error(
-                `Error processing change for ${tableName}:`,
-                error
-            );
+            console.error(`Error processing change for ${tableName}:`, error);
         }
     }
 
@@ -232,52 +217,34 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return;
             }
 
-            let globalId = await this.adapter.mappingDb.getGlobalId({
-                localId: entity.id,
-                tableName: junctionInfo.entity.toLowerCase() + "s",
-            });
+            let globalId = await this.adapter.mappingDb.getGlobalId(entity.id);
             globalId = globalId ?? "";
 
-            const tableName = junctionInfo.entity.toLowerCase() + "s";
-            
             // Use immediate locking instead of setTimeout to prevent race conditions
             try {
-                // Check if either local or global ID is already locked
-                if (this.adapter.lockedIds.includes(entity.id)) {
-                    console.log(`Local ID ${entity.id} already locked, skipping junction change`);
-                    return;
-                }
-                
-                if (globalId && this.adapter.lockedIds.includes(globalId)) {
-                    console.log(`Global ID ${globalId} already locked, skipping junction change`);
-                    return;
-                }
+                setTimeout(async () => {
+                    let globalId = await this.adapter.mappingDb.getGlobalId(
+                        entity.id
+                    );
+                    globalId = globalId ?? "";
 
-                // Try to lock the local ID atomically
-                if (!this.adapter.addToLockedIds(entity.id)) {
-                    console.log(`Failed to lock local ID ${entity.id}, skipping junction change`);
-                    return;
-                }
+                    if (this.adapter.lockedIds.includes(globalId))
+                        return console.log("locked skipping ", globalId);
 
-                // Also lock the global ID if it exists
-                if (globalId) {
-                    this.adapter.addToLockedIds(globalId);
-                }
+                    console.log(
+                        "sending packet for global Id",
+                        globalId,
+                        entity.id
+                    );
 
-                console.log(
-                    "sending packet for global Id",
-                    globalId,
-                    entity.id
-                );
-                const envelope = await this.adapter.handleChange({
-                    data: this.entityToPlain(parentEntity),
-                    tableName: junctionInfo.entity.toLowerCase() + "s",
-                });
+                    const tableName = `${junctionInfo.entity.toLowerCase()}s`;
+                    await this.adapter.handleChange({
+                        data: this.entityToPlain(parentEntity),
+                        tableName,
+                    });
+                }, 3_000);
             } catch (error) {
-                console.error(
-                    `Error processing change for ${tableName}:`,
-                    error
-                );
+                console.error(error);
             }
         } catch (error) {
             console.error("Error handling junction table change:", error);
