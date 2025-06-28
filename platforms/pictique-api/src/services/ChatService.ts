@@ -25,6 +25,32 @@ export class ChatService {
     }
 
     // Chat CRUD Operations
+    async findChatByParticipants(participantIds: string[]): Promise<Chat | null> {
+        if (participantIds.length === 0) {
+            return null;
+        }
+
+        // Find chats that have exactly the same participants
+        const chats = await this.chatRepository
+            .createQueryBuilder("chat")
+            .leftJoinAndSelect("chat.participants", "participants")
+            .getMany();
+
+        // Filter chats that have exactly the same participants (order doesn't matter)
+        const sortedParticipantIds = participantIds.sort();
+        
+        for (const chat of chats) {
+            const chatParticipantIds = chat.participants.map(p => p.id).sort();
+            
+            if (chatParticipantIds.length === sortedParticipantIds.length &&
+                chatParticipantIds.every((id, index) => id === sortedParticipantIds[index])) {
+                return chat;
+            }
+        }
+
+        return null;
+    }
+
     async createChat(
         name?: string,
         participantIds: string[] = []
