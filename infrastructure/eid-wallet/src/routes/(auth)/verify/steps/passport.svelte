@@ -20,11 +20,77 @@
     let image1Captured = writable(false);
     let loading = false;
     let stream: MediaStream;
+
+    async function ensureCameraPermission() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+            });
+            // Stop immediately after granting
+            stream.getTracks().forEach((track) => track.stop());
+        } catch (err) {
+            console.error("Camera permission denied:", err);
+            throw err;
+        }
+    }
+
+    async function hasTorch(track) {
+        try {
+            const capabilities = track.getCapabilities?.();
+            return capabilities && "torch" in capabilities;
+        } catch {
+            return false;
+        }
+    }
+
+    async function findMainCameraWithTorch() {
+        const devices = (
+            await navigator.mediaDevices.enumerateDevices()
+        ).filter((d) => d.kind === "videoinput");
+
+        for (const device of devices) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { deviceId: { exact: device.deviceId } },
+                });
+
+                const track = stream.getVideoTracks()[0];
+                const supportsTorch = await hasTorch(track);
+                track.stop();
+
+                if (supportsTorch) {
+                    return device.deviceId;
+                }
+            } catch (err) {
+                console.warn(`Could not test device ${device.deviceId}`, err);
+            }
+        }
+
+        // Fallback to first device if no torch found
+        return devices[0]?.deviceId;
+    }
+
+    async function getMainCameraStream() {
+        try {
+            const availableDevices = (
+                await navigator.mediaDevices.enumerateDevices()
+            )
+                .filter((d) => d.kind === "videoinput")
+                .map((d) => d.deviceId);
+
+            const mainCamId = await findMainCameraWithTorch();
+            return await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: mainCamId } },
+            });
+        } catch (err) {
+            console.error("Failed to get main camera stream:", err);
+            throw err;
+        }
+    }
     async function requestCameraPermission() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
-            });
+            await ensureCameraPermission();
+            stream = await getMainCameraStream();
             video.srcObject = stream;
             video.play();
             permissionGranted.set(true);

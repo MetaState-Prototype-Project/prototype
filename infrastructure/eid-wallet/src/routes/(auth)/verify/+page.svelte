@@ -136,47 +136,49 @@
         >I'm ready</ButtonAction
     >
     <Drawer bind:isPaneOpen={showVeriffModal}>
-        {#if $verifStep === 0}
-            <Passport></Passport>
-        {:else if $verifStep === 1}
-            <Selfie></Selfie>
-        {:else if loading}
-            <div class="my-20">
-                <div
-                    class="align-center flex w-full flex-col items-center justify-center gap-6"
-                >
-                    <Shadow size={40} color="rgb(142, 82, 255);" />
-                    <h3>Generating your eName</h3>
-                </div>
-            </div>
-        {:else}
-            <div class="flex flex-col gap-6">
-                {#if $status === "approved"}
-                    <div>
-                        <h3>Your verification was a success</h3>
-                        <p>You can now continue on to create your eName</p>
-                    </div>
-                {:else if $status === "resubmission_requested"}
-                    <h3>Your verification failed due to the reason</h3>
-                    <p>{$reason}</p>
-                {:else}
-                    <h3>Your verification failed</h3>
-
-                    <p>{$reason}</p>
-                {/if}
-            </div>
-            <div class="flex w-full flex-col pt-4">
-                {#if $status !== "declined"}
-                    <ButtonAction
-                        class="w-[100%]"
-                        callback={handleContinue}
-                        color="primary"
-                        >{$status === "approved"
-                            ? "Continue"
-                            : "Retry"}</ButtonAction
+        <div class="overflow-y-scroll">
+            {#if $verifStep === 0}
+                <Passport></Passport>
+            {:else if $verifStep === 1}
+                <Selfie></Selfie>
+            {:else if loading}
+                <div class="my-20">
+                    <div
+                        class="align-center flex w-full flex-col items-center justify-center gap-6"
                     >
-                {/if}
-            </div>
-        {/if}
+                        <Shadow size={40} color="rgb(142, 82, 255);" />
+                        <h3>Generating your eName</h3>
+                    </div>
+                </div>
+            {:else}
+                <div class="flex flex-col gap-6">
+                    {#if $status === "approved"}
+                        <div>
+                            <h3>Your verification was a success</h3>
+                            <p>You can now continue on to create your eName</p>
+                        </div>
+                    {:else if $status === "resubmission_requested"}
+                        <h3>Your verification failed due to the reason</h3>
+                        <p>{$reason}</p>
+                    {:else}
+                        <h3>Your verification failed</h3>
+
+                        <p>{$reason}</p>
+                    {/if}
+                </div>
+                <div class="flex w-full flex-col pt-4">
+                    {#if $status !== "declined"}
+                        <ButtonAction
+                            class="w-[100%]"
+                            callback={handleContinue}
+                            color="primary"
+                            >{$status === "approved"
+                                ? "Continue"
+                                : "Retry"}</ButtonAction
+                        >
+                    {/if}
+                </div>
+            {/if}
+        </div>
     </Drawer>
 </main>
