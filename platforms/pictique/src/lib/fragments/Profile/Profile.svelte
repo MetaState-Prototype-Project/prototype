@@ -62,7 +62,7 @@
 				<li class="mb-6 list-none">
 					<Post
 						avatar={profileData.avatarUrl || 'https://picsum.photos/200/200'}
-						username={profileData?.username}
+						username={profileData?.name ?? profileData?.username}
 						imgUris={post.imgUris ?? []}
 						text={post.caption}
 						time={post.time ? new Date(post.time).toLocaleDateString() : ''}
