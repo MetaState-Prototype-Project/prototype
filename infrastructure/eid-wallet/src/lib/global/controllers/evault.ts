@@ -45,10 +45,54 @@ export class VaultController {
     #client: GraphQLClient | null = null;
     #endpoint: string | null = null;
     #userController: UserController;
+    #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
 
     constructor(store: Store, userController: UserController) {
         this.#store = store;
         this.#userController = userController;
+    }
+
+    /**
+     * Get the current profile creation status
+     */
+    get profileCreationStatus() {
+        return this.#profileCreationStatus;
+    }
+
+    /**
+     * Set the profile creation status
+     */
+    set profileCreationStatus(status: "idle" | "loading" | "success" | "failed") {
+        this.#profileCreationStatus = status;
+    }
+
+    /**
+     * Retry profile creation
+     */
+    async retryProfileCreation(): Promise<void> {
+        const vault = await this.vault;
+        if (!vault?.ename) {
+            throw new Error("No vault data available for profile creation");
+        }
+
+        this.profileCreationStatus = "loading";
+        
+        try {
+            const userData = await this.#userController.user;
+            const displayName = userData?.name || vault.ename;
+            
+            await this.createUserProfileInEVault(
+                vault.ename,
+                displayName,
+                vault.ename
+            );
+            
+            this.profileCreationStatus = "success";
+        } catch (error) {
+            console.error("Failed to create UserProfile in eVault (retry):", error);
+            this.profileCreationStatus = "failed";
+            throw error;
+        }
     }
 
     /**
@@ -151,6 +195,9 @@ export class VaultController {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
                         
+                        // Set loading status
+                        this.profileCreationStatus = "loading";
+                        
                         // Get user data for display name
                         const userData = await this.#userController.user;
                         const displayName = userData?.name || resolvedUser.ename;
@@ -161,18 +208,24 @@ export class VaultController {
                                 displayName,
                                 resolvedUser.ename
                             );
+                            this.profileCreationStatus = "success";
                         } catch (error) {
                             console.error("Failed to create UserProfile in eVault:", error);
+                            this.profileCreationStatus = "failed";
                             // Don't throw here to avoid breaking the vault setting
                         }
                     }
                 })
                 .catch((error) => {
                     console.error("Failed to set vault:", error);
+                    this.profileCreationStatus = "failed";
                 });
         } else {
             if (vault?.ename) {
                 this.#store.set("vault", vault);
+                
+                // Set loading status
+                this.profileCreationStatus = "loading";
                 
                 // Get user data for display name and create UserProfile
                 (async () => {
@@ -185,6 +238,7 @@ export class VaultController {
                             displayName,
                             vault.ename
                         );
+                        this.profileCreationStatus = "success";
                     } catch (error) {
                         console.error("Failed to get user data or create UserProfile:", error);
                         // Fallback to using ename as display name
@@ -194,8 +248,10 @@ export class VaultController {
                                 vault.ename,
                                 vault.ename
                             );
+                            this.profileCreationStatus = "success";
                         } catch (fallbackError) {
                             console.error("Failed to create UserProfile in eVault (fallback):", fallbackError);
+                            this.profileCreationStatus = "failed";
                         }
                     }
                 })();
