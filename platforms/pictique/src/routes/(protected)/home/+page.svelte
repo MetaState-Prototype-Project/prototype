@@ -77,8 +77,8 @@
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
-						username={post.author.handle}
-						userId = {post.author.id}
+						username={post.author.name ?? post.author.handle}
+						userId={post.author.id}
 						imgUris={post.images}
 						text={post.text}
 						time={new Date(post.createdAt).toLocaleDateString()}
@@ -102,7 +102,7 @@
 							},
 							menu: () => alert('menu')
 						}}
-						options = {[{name: "Report",handler: () => alert("asd")}]}
+						options={[{ name: 'Report', handler: () => alert('asd') }]}
 					/>
 				</li>
 			{/each}
