@@ -49,12 +49,41 @@
     let globalState: GlobalState;
     let handleContinue: () => Promise<void> | void;
 
+    let error: string | null = $state();
+
     onMount(() => {
         globalState = getContext<() => GlobalState>("globalState")();
         // handle verification logic + sec user data in the store
 
         handleContinue = async () => {
             loading = true;
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+
+            const { data } = await axios
+                .post(
+                    new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                    {
+                        registryEntropy,
+                        namespace: uuidv4(),
+                        verificationId,
+                    },
+                )
+                .catch(() => {
+                    loading = false;
+                    console.log("caught");
+                    preVerified = false;
+                    verificationId = "";
+                    error = "Wrong pre-verificaiton code";
+                    setTimeout(() => {
+                        error = null;
+                    }, 6_000);
+                    return { data: null };
+                });
+            if (!data) return;
             const tenYearsLater = new Date();
             tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
             globalState.userController.user = {
@@ -65,24 +94,12 @@
                 "ID submitted": "Passport - " + falso.randCountryCode(),
                 "Passport Number": generatePassportNumber(),
             };
+            globalState.userController.isFake = true;
             globalState.userController.document = {
                 "Valid From": new Date(Date.now()).toDateString(),
                 "Valid Until": tenYearsLater.toDateString(),
                 "Verified On": new Date().toDateString(),
             };
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-            const { data } = await axios.post(
-                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                {
-                    registryEntropy,
-                    namespace: uuidv4(),
-                    verificationId,
-                },
-            );
             if (data.success === true) {
                 globalState.vaultController.vault = {
                     uri: data.uri,
@@ -150,17 +167,15 @@
     </section>
 </main>
 
-<Drawer bind:preVerified>
-    <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
-    <p class="text-black-700">
-        Your <strong>eName</strong> is more than a name—it's your unique digital
-        passport. One constant identifier that travels with you across the internet,
-        connecting your real-world self to the digital universe.
-    </p>
-</Drawer>
-
 <Drawer bind:isPaneOpen>
     <img src="/images/GetStarted.svg" alt="get-started" />
+    {#if error}
+        <div
+            class="bg-[#ff3300] rounded-md mt-4 p-2 w-full text-center text-white"
+        >
+            {error}
+        </div>
+    {/if}
     {#if loading}
         <div class="my-20">
             <div
@@ -184,11 +199,15 @@
             >
         </div>
     {:else}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
+        <h4 class="mt-[2.3svh] mb-[0.5svh]">
+            Your Digital Self begins with the Real You
+        </h4>
         <p class="text-black-700">
-            Your <strong>eName</strong> is more than a name—it's your unique digital
-            passport. One constant identifier that travels with you across the internet,
-            connecting your real-world self to the digital universe.
+            In the Web 3.0 Data Space, identity is linked to reality. We begin
+            by verifying your real-world passport, which serves as the
+            foundation for issuing your secure ePassport. At the same time, we
+            generate your eName – a unique digital identifier – and create your
+            eVault to store and protect your personal data.
         </p>
         <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
             <ButtonAction class="w-full" callback={handleNext}

@@ -15,7 +15,9 @@
     };
 
     onMount(async () => {
-        userData = await globalState.userController.user;
+        const userInfo = await globalState.userController.user;
+        const isFake = await globalState.userController.isFake;
+        userData = { ...userInfo, isFake };
     });
 </script>
 

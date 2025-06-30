@@ -94,6 +94,7 @@
                 ).toDateString(),
                 "Verified On": new Date().toDateString(),
             };
+            globalState.userController.isFake = false;
             const {
                 data: { token: registryEntropy },
             } = await axios.get(

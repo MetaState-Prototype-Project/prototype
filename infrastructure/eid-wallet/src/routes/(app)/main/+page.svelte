@@ -9,6 +9,7 @@
     import { getContext, onMount, type Snippet } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
     import { onDestroy } from "svelte";
+    import QrCode from "svelte-qrcode";
 
     let userData: Record<string, unknown> | undefined = $state(undefined);
     let greeting: string | undefined = $state(undefined);
@@ -37,7 +38,9 @@
     onMount(() => {
         // Load initial data
         (async () => {
-            userData = await globalState.userController.user;
+            const userInfo = await globalState.userController.user;
+            const isFake = await globalState.userController.isFake;
+            userData = { ...userInfo, isFake };
             const vaultData = await globalState.vaultController.vault;
             ename = vaultData?.ename;
         })();
@@ -156,15 +159,9 @@
         class="flex flex-col gap-4 items-center justify-center"
     >
         <div
-            class="flex justify-center relative items-center overflow-hidden h-full bg-gray rounded-3xl p-8"
+            class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
         >
-            <div
-                class="bg-white h-[72px] w-[1000px] -rotate-45 absolute top-4"
-            ></div>
-            <div
-                class="bg-white h-[72px] w-[1000px] -rotate-45 absolute bottom-4"
-            ></div>
-            <img class="z-10" src="/images/dummyQR.png" alt="QR Code" />
+            <QrCode size="320" value={ename} />
         </div>
 
         <h4 class="text-center mt-2">Share your eName</h4>

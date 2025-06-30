@@ -74,6 +74,9 @@ importers:
       svelte-loading-spinners:
         specifier: ^0.3.6
         version: 0.3.6
+      svelte-qrcode:
+        specifier: ^1.0.1
+        version: 1.0.1
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.3.1
