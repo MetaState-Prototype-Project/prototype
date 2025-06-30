@@ -141,6 +141,21 @@ server.get("/resolve", async (request, reply) => {
     }
 });
 
+// List all vault entries
+server.get("/list", async (request, reply) => {
+    try {
+        const vaults = await vaultService.findAll();
+        return vaults.map(vault => ({
+            ename: vault.ename,
+            uri: vault.uri,
+            evault: vault.evault,
+        }));
+    } catch (error) {
+        server.log.error(error);
+        reply.status(500).send({ error: "Failed to list vault entries" });
+    }
+});
+
 const start = async () => {
     try {
         await initializeDatabase();

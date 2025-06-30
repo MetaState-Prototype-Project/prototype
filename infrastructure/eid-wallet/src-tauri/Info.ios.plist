@@ -6,5 +6,11 @@
     <string>Authenticate with biometric</string>
     <key>NSCameraUsageDescription</key>
     <string>Read QR codes</string>
+
+    <key>NSAppTransportSecurity</key>
+    <dict>
+      <key>NSAllowsArbitraryLoads</key>
+      <true/>
+    </dict>
   </dict>
 </plist>
