@@ -20,6 +20,9 @@ importers:
 
   infrastructure/eid-wallet:
     dependencies:
+      '@auvo/tauri-plugin-crypto-hw-api':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@hugeicons/core-free-icons':
         specifier: ^1.0.13
         version: 1.0.14
@@ -912,6 +915,9 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@auvo/tauri-plugin-crypto-hw-api@0.1.0':
+    resolution: {integrity: sha512-ZvCc1QGaimaLv4p8suRT+inCJE12LCHkciw1cPiIISzdSLLIEg05MMZnanCoefwJL9795KXD64u0vkIZsa+czg==}
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -9245,6 +9251,10 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
+
+  '@auvo/tauri-plugin-crypto-hw-api@0.1.0':
+    dependencies:
+      '@tauri-apps/api': 2.5.0
 
   '@babel/code-frame@7.27.1':
     dependencies:
