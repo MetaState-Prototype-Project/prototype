@@ -18,6 +18,8 @@
     let preVerified = $state(false);
     let loading = $state(false);
     let verificationId = $state("");
+    let demoName = $state("");
+    let verificationSuccess = $state(false);
 
     const handleGetStarted = async () => {
         //get started functionality
@@ -48,8 +50,9 @@
 
     let globalState: GlobalState;
     let handleContinue: () => Promise<void> | void;
+    let handleFinalSubmit: () => Promise<void> | void;
 
-    let error: string | null = $state();
+    let error: string | null = $state(null);
 
     onMount(() => {
         globalState = getContext<() => GlobalState>("globalState")();
@@ -84,12 +87,41 @@
                     return { data: null };
                 });
             if (!data) return;
+
+            // If verification is successful, show demo name input
+            if (data.success === true) {
+                loading = false;
+                verificationSuccess = true;
+                return;
+            }
+        };
+
+        // New function to handle final submission with demo name
+        handleFinalSubmit = async () => {
+            loading = true;
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+
+            const { data } = await axios.post(
+                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                {
+                    registryEntropy,
+                    namespace: uuidv4(),
+                    verificationId,
+                },
+            );
+
             const tenYearsLater = new Date();
             tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
             globalState.userController.user = {
-                name: capitalize(
-                    `${falso.randFirstName()} ${falso.randLastName()}`,
-                ),
+                name:
+                    demoName ||
+                    capitalize(
+                        `${falso.randFirstName()} ${falso.randLastName()}`,
+                    ),
                 "Date of Birth": new Date().toDateString(),
                 "ID submitted": "Passport - " + falso.randCountryCode(),
                 "Passport Number": generatePassportNumber(),
@@ -186,18 +218,37 @@
             </div>
         </div>
     {:else if preVerified}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">Welcome to Web 3.0 Data Spaces</h4>
-        <p class="text-black-700">Enter Verification Code</p>
-        <input
-            type="text"
-            bind:value={verificationId}
-            class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
-        />
-        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-            <ButtonAction class="w-full" callback={handleContinue}
-                >Next</ButtonAction
-            >
-        </div>
+        {#if verificationSuccess}
+            <h4 class="mt-[2.3svh] mb-[0.5svh]">Verification Successful!</h4>
+            <p class="text-black-700">Enter Demo Name for your ePassport</p>
+            <input
+                type="text"
+                bind:value={demoName}
+                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
+                placeholder="Enter your demo name for ePassport"
+            />
+            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                <ButtonAction class="w-full" callback={handleFinalSubmit}
+                    >Continue</ButtonAction
+                >
+            </div>
+        {:else}
+            <h4 class="mt-[2.3svh] mb-[0.5svh]">
+                Welcome to Web 3.0 Data Spaces
+            </h4>
+            <p class="text-black-700">Enter Verification Code</p>
+            <input
+                type="text"
+                bind:value={verificationId}
+                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
+                placeholder="Enter verification code"
+            />
+            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                <ButtonAction class="w-full" callback={handleContinue}
+                    >Next</ButtonAction
+                >
+            </div>
+        {/if}
     {:else}
         <h4 class="mt-[2.3svh] mb-[0.5svh]">
             Your Digital Self begins with the Real You
