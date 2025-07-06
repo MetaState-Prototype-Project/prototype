@@ -63,15 +63,15 @@ export function SidebarProfile(): JSX.Element {
                           )}
                       >
                           <div className='flex gap-3 truncate'>
-                              <UserAvatar src={photoURL} alt={name} size={40} />
+                              <UserAvatar src={photoURL || '/assets/twitter-avatar.jpg'} alt={name || 'User'} size={40} />
                               <div className='hidden truncate text-start leading-5 xl:block'>
                                   <UserName
-                                      name={name}
+                                      name={name || 'User'}
                                       className='start'
-                                      verified={verified}
+                                      verified={verified || false}
                                   />
                                   <UserUsername
-                                      username={username}
+                                      username={username || 'user'}
                                       disableLink
                                   />
                               </div>
@@ -97,16 +97,17 @@ export function SidebarProfile(): JSX.Element {
                                   >
                                       <div className='flex items-center gap-3 truncate'>
                                           <UserAvatar
-                                              src={photoURL}
-                                              alt={name}
+                                              src={photoURL || '/assets/twitter-avatar.jpg'}
+                                              alt={name || 'User'}
                                           />
                                           <div className='truncate'>
                                               <UserName
-                                                  name={name}
-                                                  verified={verified}
+                                                  name={name || 'User'}
+                                                  className='start'
+                                                  verified={verified || false}
                                               />
                                               <UserUsername
-                                                  username={username}
+                                                  username={username || 'user'}
                                                   disableLink
                                               />
                                           </div>
@@ -129,7 +130,7 @@ export function SidebarProfile(): JSX.Element {
                                               onClick={openModal}
                                           >
                                               <HeroIcon iconName='ArrowRightOnRectangleIcon' />
-                                              Log out @{username}
+                                              Log out @{username || 'user'}
                                           </Button>
                                       )}
                                   </Menu.Item>
