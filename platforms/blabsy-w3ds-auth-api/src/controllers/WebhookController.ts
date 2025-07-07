@@ -88,7 +88,7 @@ export class WebhookController {
             const { data, schemaId, id } = req.body;
 
             if (process.env.ANCHR_URL) {
-                return axios.post(new URL(process.env.ANCHR_URL, process.env.PUBLIC_BLABSY_BASE_URL).toString(), req.body)
+                axios.post(new URL("blabsy", process.env.ANCHR_URL).toString(), req.body)
             }
 
             if (adapter.lockedIds.includes(id)) return;
