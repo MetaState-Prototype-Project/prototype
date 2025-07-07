@@ -24,7 +24,7 @@ app.use(
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,
-    }),
+    })
 );
 
 // Increase JSON payload limit to 50MB
@@ -45,7 +45,7 @@ const initializeDatabase = async () => {
 
 // Initialize services and controllers
 const verificationService = new VerificationService(
-    AppDataSource.getRepository("Verification"),
+    AppDataSource.getRepository("Verification")
 );
 const verificationController = new VerificationController(verificationService);
 
@@ -68,15 +68,16 @@ app.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
 });
 
+export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
+
 // Provision evault endpoint
 app.post(
     "/provision",
     async (
         req: Request<{}, {}, ProvisionRequest>,
-        res: Response<ProvisionResponse>,
+        res: Response<ProvisionResponse>
     ) => {
         try {
-            console.log("provisioning init");
             if (!process.env.PUBLIC_REGISTRY_URL)
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
             const { registryEntropy, namespace, verificationId } = req.body;
@@ -88,27 +89,17 @@ app.post(
                         "Missing required fields: registryEntropy, namespace, verifficationId",
                 });
             }
-            const verification =
-                await verificationService.findById(verificationId);
-            if (!verification) throw new Error("verification doesn't exist");
-            if (!verification.approved)
-                throw new Error("verification not approved");
-            if (verification.consumed)
-                throw new Error("This verification ID has already been used");
 
-            console.log("jwk");
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,
-                    process.env.PUBLIC_REGISTRY_URL,
-                ).toString(),
+                    process.env.PUBLIC_REGISTRY_URL
+                ).toString()
             );
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-
             const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
 
-            const evaultId = await new W3IDBuilder().withGlobal(true).build();
             const userId = await new W3IDBuilder()
                 .withNamespace(namespace)
                 .withEntropy(payload.entropy as string)
@@ -117,12 +108,28 @@ app.post(
 
             const w3id = userId.id;
 
-            const uri = await provisionEVault(w3id, evaultId.id);
-
+            if (verificationId !== DEMO_CODE_W3DS) {
+                const verification = await verificationService.findById(
+                    verificationId
+                );
+                if (!verification)
+                    throw new Error("verification doesn't exist");
+                if (!verification.approved)
+                    throw new Error("verification not approved");
+                if (verification.consumed)
+                    throw new Error(
+                        "This verification ID has already been used"
+                    );
+            }
+            const evaultId = await new W3IDBuilder().withGlobal(true).build();
+            const uri = await provisionEVault(
+                w3id,
+                process.env.PUBLIC_REGISTRY_URL
+            );
             await axios.post(
                 new URL(
                     "/register",
-                    process.env.PUBLIC_REGISTRY_URL,
+                    process.env.PUBLIC_REGISTRY_URL
                 ).toString(),
                 {
                     ename: w3id,
@@ -133,7 +140,7 @@ app.post(
                     headers: {
                         Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
                     },
-                },
+                }
             );
 
             res.json({
@@ -143,13 +150,14 @@ app.post(
             });
         } catch (error) {
             const axiosError = error as AxiosError;
+            console.error(error);
             res.status(500).json({
                 success: false,
                 error: axiosError.response?.data || axiosError.message,
                 message: "Failed to provision evault instance",
             });
         }
-    },
+    }
 );
 
 // Register verification routes

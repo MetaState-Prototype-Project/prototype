@@ -3,10 +3,13 @@
 	import { onMount } from 'svelte';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType } from '$lib/types';
-	import { showComments } from '$lib/store/store.svelte';
+	import type { CommentType, userProfile } from '$lib/types';
+	import { ownerId, showComments } from '$lib/store/store.svelte';
 	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
 	import { activePostId } from '$lib/stores/comments';
+	import { apiClient, getAuthToken } from '$lib/utils';
+	import { goto } from '$app/navigation';
+	import type { AxiosError } from 'axios';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -20,7 +23,7 @@
 			// TODO: Implement pagination
 		}
 	};
-
+	let profile = $state<userProfile | null>(null);
 	const handleSend = async () => {
 		const newComment = {
 			userImgSrc: 'https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250',
@@ -56,6 +59,25 @@
 		activeReplyToId = null;
 	};
 
+	async function fetchProfile() {
+		try {
+			if (!getAuthToken()) {
+				goto('/auth');
+				return;
+			}
+			const response = await apiClient.get(`/api/users`).catch((e: AxiosError) => {
+				if (e.response?.status === 401) {
+					goto('/auth');
+				}
+			});
+			if (!response) return;
+			profile = response.data;
+			console.log(profile);
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'Failed to load profile');
+		}
+	}
+
 	$effect(() => {
 		listElement.addEventListener('scroll', onScroll);
 		return () => listElement.removeEventListener('scroll', onScroll);
@@ -63,6 +85,7 @@
 
 	onMount(() => {
 		fetchFeed();
+		fetchProfile();
 	});
 </script>
 
@@ -77,8 +100,10 @@
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
-						username={post.author.handle}
+						username={post.author.name ?? post.author.handle}
+						userId={post.author.id}
 						imgUris={post.images}
+						isLiked={post.likedBy.find((p) => p.id === profile?.id)}
 						text={post.text}
 						time={new Date(post.createdAt).toLocaleDateString()}
 						count={{ likes: post.likedBy.length, comments: post.comments.length }}
@@ -101,6 +126,7 @@
 							},
 							menu: () => alert('menu')
 						}}
+						options={[{ name: 'Report', handler: () => alert('asd') }]}
 					/>
 				</li>
 			{/each}

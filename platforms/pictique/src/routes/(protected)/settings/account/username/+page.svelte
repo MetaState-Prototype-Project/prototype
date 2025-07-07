@@ -2,11 +2,13 @@
 	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
+	import { onMount } from 'svelte';
 
 	let handle = $state();
 	let name = $state();
 	let profileImageDataUrl = $state('');
 	let files = $state<FileList | undefined>();
+	let saved = $state(false);
 
 	function handleFileChange() {
 		if (files && files[0]) {
@@ -24,11 +26,17 @@
 	}
 
 	async function saveProfileData() {
-		await apiClient.patch(`/api/users`, {
-			handle,
-			avatar: profileImageDataUrl,
-			name
-		});
+		try {
+			await apiClient.patch(`/api/users/`, {
+				handle,
+				avatar: profileImageDataUrl,
+				name
+			});
+			saved = true;
+			setTimeout(() => (saved = false), 3_000);
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'please check the info again');
+		}
 	}
 
 	$effect(() => {
@@ -36,9 +44,20 @@
 			handleFileChange();
 		}
 	});
+
+	onMount(async () => {
+		const { data } = await apiClient.get('/api/users');
+		handle = data.handle;
+		name = data.name;
+	});
 </script>
 
 <div class="flex flex-col gap-6">
+	{#if saved}
+		<div class=" w-full rounded-md bg-[#33cc33] px-10 py-2 text-center text-white">
+			Changes Saved!
+		</div>
+	{/if}
 	<div>
 		<Label>Change your profile picture</Label>
 		<InputFile

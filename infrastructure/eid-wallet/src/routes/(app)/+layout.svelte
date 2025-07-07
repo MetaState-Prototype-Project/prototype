@@ -22,7 +22,7 @@
 </div>
 {/if} -->
 
-<div class="p-6">
+<div class="p-6 pt-10">
     {@render children()}
 </div>
 

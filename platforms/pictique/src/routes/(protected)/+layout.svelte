@@ -5,17 +5,24 @@
 	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
 	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
+	import { onMount } from 'svelte';
+	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
+	import type { userProfile } from '$lib/types';
+	import { heading } from '../store';
+	import { goto } from '$app/navigation';
+	import type { AxiosError } from 'axios';
 
 	let { children } = $props();
-
+	let ownerId: string | null = $state(null);
 	let route = $derived(page.url.pathname);
-	let heading = $state('');
+
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
 	let activeReplyToId: string | null = $state(null);
 	let idFromParams = $state();
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
+	let profile = $state<userProfile | null>(null);
 
 	const handleSend = async () => {
 		console.log($activePostId, commentValue);
@@ -33,27 +40,28 @@
 	$effect(() => {
 		idFromParams = page.params.id;
 
+		console.log(route);
+
 		if (route.includes('home')) {
-			heading = 'Feed';
+			heading.set('Feed');
 		} else if (route.includes('discover')) {
-			heading = 'Search';
+			heading.set('Search');
 		} else if (route.includes('/post/audience')) {
-			heading = 'Audience';
+			heading.set('Audience');
 		} else if (route.includes('post')) {
-			heading = 'Upload photo';
-		} else if (route === `/messages/${idFromParams}`) {
-			heading = 'User Name';
-		} else if (route.includes('messages')) {
-			heading = 'Messages';
+			heading.set('Upload photo');
+		} else if (route === '/messages') {
+			heading.set('Messages');
 		} else if (route.includes('settings')) {
-			heading = 'Settings';
+			heading.set('Settings');
 		} else if (route.includes('profile')) {
-			heading = 'Profile';
+			heading.set('Profile');
 		}
 	});
 
 	// Watch for changes in showComments to fetch comments when opened
 	$effect(() => {
+		ownerId = getAuthId();
 		if (showComments.value && activePostId) {
 			isCommentsLoading = true;
 			commentsError = null;
@@ -66,13 +74,32 @@
 				});
 		}
 	});
+
+	async function fetchProfile() {
+		try {
+			if (!getAuthToken()) {
+				goto('/auth');
+			}
+			const response = await apiClient.get(`/api/users/${ownerId}`).catch((e: AxiosError) => {
+				if (e.response?.status === 401) {
+					goto('/auth');
+				}
+			});
+			if (!response) return;
+			profile = response.data;
+		} catch (err) {
+			console.log(err instanceof Error ? err.message : 'Failed to load profile');
+		}
+	}
+
+	onMount(fetchProfile);
 </script>
 
 <main
-	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && route !== '/settings' && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
+	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && !route.includes('settings') && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
-		profileSrc="https://picsum.photos/200"
+		profileSrc={profile?.avatarUrl ?? '/images/user.png'}
 		handlePost={async () => {
 			openCreatePostModal();
 		}}
@@ -85,7 +112,7 @@
 					: route.includes('profile')
 						? 'tertiary'
 						: 'primary'}
-				{heading}
+				heading={$heading}
 				isCallBackNeeded={route.includes('profile')}
 				callback={() => alert('Ads')}
 				options={[
@@ -113,9 +140,7 @@
 								<li class="mb-4">
 									<Comment
 										comment={{
-											userImgSrc:
-												comment.author.avatarUrl ||
-												'https://picsum.photos/200/200',
+											userImgSrc: comment.author.avatarUrl,
 											name: comment.author.name || comment.author.handle,
 											commentId: comment.id,
 											comment: comment.text,
@@ -136,7 +161,7 @@
 						<MessageInput
 							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
-							src="https://picsum.photos/200/200"
+							src={profile?.avatarUrl ?? '/images/user.png'}
 							bind:value={commentValue}
 							{handleSend}
 							bind:input={commentInput}
@@ -148,7 +173,7 @@
 	{/if}
 
 	{#if route !== `/messages/${idFromParams}`}
-		<BottomNav class="btm-nav" profileSrc="https://picsum.photos/200" />
+		<BottomNav class="btm-nav" profileSrc={profile?.avatarUrl ?? ''} />
 	{/if}
 </main>
 

@@ -4,8 +4,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Button from '$lib/ui/Button/Button.svelte';
-	import { cn } from '$lib/utils';
-	import { ownerId } from '$lib/store/store.svelte';
+	import { cn, getAuthId } from '$lib/utils';
+
+	let ownerId: string | null = $state(null);
 
 	interface ISideBarProps extends HTMLAttributes<HTMLElement> {
 		activeTab?: string;
@@ -20,6 +21,7 @@
 	}: ISideBarProps = $props();
 
 	$effect(() => {
+		ownerId = getAuthId();
 		const pathname = page.url.pathname;
 		if (pathname.includes('/home')) {
 			activeTab = 'home';
@@ -142,14 +144,13 @@
 				Settings
 			</h3>
 		</button>
-
 		<button
 			type="button"
 			class="flex items-center gap-2"
 			aria-current={activeTab === 'profile' ? 'page' : undefined}
 			onclick={() => {
 				activeTab = 'profile';
-				goto(`/profile/${ownerId.value}`);
+				goto(`/profile/${ownerId}`);
 			}}
 		>
 			<span
@@ -158,8 +159,8 @@
 				<img
 					width="24px"
 					height="24px"
-					class="aspect-square rounded-full"
-					src={'https://picsum.photos/200/200'}
+					class="aspect-square rounded-full object-cover"
+					src={profileSrc}
 					alt="profile"
 				/>
 			</span>

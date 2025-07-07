@@ -30,7 +30,7 @@ export class GlobalState {
         this.#store = store;
         this.securityController = new SecurityController(store);
         this.userController = new UserController(store);
-        this.vaultController = new VaultController(store);
+        this.vaultController = new VaultController(store, this.userController);
     }
 
     /**

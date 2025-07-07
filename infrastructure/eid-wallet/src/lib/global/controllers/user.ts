@@ -54,6 +54,9 @@ export class UserController {
      * ```
      * @throws {Error} If the user state cannot be set in the store
      */
+
+
+
     set user(
         user:
             | Promise<Record<string, string> | undefined>
@@ -82,6 +85,39 @@ export class UserController {
             })
             .catch((error) => {
                 console.error("Failed to get user:", error);
+                return undefined;
+            });
+    }
+
+
+    set isFake(
+        f:
+            | Promise<boolean| undefined>
+            | boolean
+            | undefined,
+    ) {
+        if (f instanceof Promise) {
+            f.then((resolved) => {
+                this.#store.set("fake", resolved);
+            }).catch((error) => {
+                console.error("Failed to set fake:", error);
+            });
+        } else {
+            this.#store.set("fake", f);
+        }
+    }
+
+    get isFake() {
+        return this.#store
+            .get<boolean>("fake")
+            .then((f) => {
+                if (!f) {
+                    return undefined;
+                }
+                return f;
+            })
+            .catch((error) => {
+                console.error("Failed to get fake:", error);
                 return undefined;
             });
     }

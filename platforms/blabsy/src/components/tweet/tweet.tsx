@@ -201,7 +201,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                 </p>
                             )}
                             <div className='mt-1 flex flex-col gap-2'>
-                                {images && (
+                                {images && images.length > 0 && (
                                     <ImagePreview
                                         tweet
                                         imagesPreview={images}
@@ -215,7 +215,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                         isOwner={isOwner}
                                         tweetId={tweetId}
                                         userLikes={userLikes}
-                                        userReplies={userReplies}
+                                        userReplies={0}
                                         userRetweets={userRetweets}
                                         openModal={
                                             !parent ? openModal : undefined

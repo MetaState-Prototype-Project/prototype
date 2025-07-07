@@ -71,10 +71,7 @@ export function ChatContextProvider({
         const unsubscribe = onSnapshot(
             chatsQuery,
             (snapshot) => {
-                const chatsData = snapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
+                const chatsData = snapshot.docs.map((doc) => doc.data());
                 setChats(chatsData);
                 setLoading(false);
             },

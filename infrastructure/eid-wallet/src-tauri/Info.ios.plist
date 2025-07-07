@@ -5,6 +5,12 @@
     <key>NSFaceIDUsageDescription</key>
     <string>Authenticate with biometric</string>
     <key>NSCameraUsageDescription</key>
-    <string>Read QR codes</string>
+    <string>eID for W3DS wants to access your camera to scan W3DS QR Codes and Verify your identity</string>
+
+    <key>NSAppTransportSecurity</key>
+    <dict>
+      <key>NSAllowsArbitraryLoads</key>
+      <true/>
+    </dict>
   </dict>
 </plist>

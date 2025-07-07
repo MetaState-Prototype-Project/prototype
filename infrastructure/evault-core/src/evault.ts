@@ -13,6 +13,7 @@ import dotenv from "dotenv";
 import path from "path";
 import neo4j, { Driver } from "neo4j-driver";
 import { W3ID } from "./w3id/w3id";
+import { connectWithRetry } from "./db/retry-neo4j";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -22,7 +23,17 @@ class EVault {
     logService: LogService;
     driver: Driver;
 
-    constructor() {
+    private constructor(driver: Driver) {
+        this.driver = driver;
+        const dbService = new DbService(driver);
+        this.logService = new LogService(driver);
+        this.graphqlServer = new GraphQLServer(dbService);
+        this.server = fastify({
+            logger: true,
+        });
+    }
+
+    static async create(): Promise<EVault> {
         const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
         const user = process.env.NEO4J_USER || "neo4j";
         const password = process.env.NEO4J_PASSWORD || "neo4j";
@@ -37,15 +48,8 @@ class EVault {
             );
         }
 
-        this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
-
-        const dbService = new DbService(this.driver);
-        this.logService = new LogService(this.driver);
-        this.graphqlServer = new GraphQLServer(dbService);
-
-        this.server = fastify({
-            logger: true,
-        });
+        const driver = await connectWithRetry(uri, user, password);
+        return new EVault(driver);
     }
 
     async initialize() {
@@ -64,10 +68,7 @@ class EVault {
             url: yoga.graphqlEndpoint,
             method: ["GET", "POST", "OPTIONS"],
             handler: (req, reply) =>
-                yoga.handleNodeRequestAndResponse(req, reply, {
-                    req,
-                    reply,
-                }),
+                yoga.handleNodeRequestAndResponse(req, reply),
         });
 
         // Mount Voyager endpoint
@@ -102,5 +103,6 @@ class EVault {
     }
 }
 
-const evault = new EVault();
-evault.start().catch(console.error);
+EVault.create()
+    .then(evault => evault.start())
+    .catch(console.error);

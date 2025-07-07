@@ -1,25 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Like } from '$lib/icons';
+	import CommentIcon from '$lib/icons/CommentIcon.svelte';
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
-	import {
-		ArrowLeftIcon,
-		ArrowRightIcon,
-		Message02Icon,
-		MoreVerticalIcon,
-		RecordIcon,
-		ThumbsUpIcon
-	} from '@hugeicons/core-free-icons';
+	import { ArrowLeftIcon, ArrowRightIcon, RecordIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
 		username: string;
-		userId: string;
+		userId?: string;
 		imgUris: string[];
-		caption: string;
-		count: {
+		text: string;
+		isLiked: boolean;
+		count?: {
 			likes: number;
 			comments: number;
 		};
@@ -29,39 +25,50 @@
 			comment: () => void;
 		};
 		time: string;
+		options?: Array<{ name: string; handler: () => void }>;
 	}
 
 	function pairAndJoinChunks(chunks: string[]): string[] {
 		const result: string[] = [];
 
+		console.log('chunks', chunks);
 		for (let i = 0; i < chunks.length; i += 2) {
 			const dataPart = chunks[i];
 			const chunkPart = chunks[i + 1];
 
 			if (dataPart && chunkPart) {
-				result.push(dataPart + ',' + chunkPart);
+				if (dataPart.startsWith('data:')) {
+					result.push(dataPart + ',' + chunkPart);
+				} else {
+					result.push(dataPart);
+					result.push(chunkPart);
+				}
 			} else {
+				if (!dataPart.startsWith('data:')) result.push(dataPart);
 				console.warn(`Skipping incomplete pair at index ${i}`);
 			}
 		}
+		console.log('result', result);
 
 		return result;
 	}
 
 	const {
 		avatar,
+		userId,
 		username,
 		imgUris: uris,
 		text,
 		count,
 		callback,
 		time,
+		options,
+		isLiked,
 		...restProps
 	}: IPostProps = $props();
 
-	let imgUris = $derived.by(() => pairAndJoinChunks(uris));
-
-	let galleryRef: HTMLDivElement;
+	let imgUris = $derived(pairAndJoinChunks(uris));
+	let galleryRef: HTMLDivElement | undefined = $state();
 	let currentIndex = $state(0);
 
 	function scrollLeft() {
@@ -97,16 +104,9 @@
 				class="flex items-center justify-between gap-2"
 				onclick={() => goto(`/profile/${userId}`)}
 			>
-				<Avatar src={avatar ?? 'https://picsum.photos/200/200'} alt={username} size="sm"
-				></Avatar>
+				<Avatar src={avatar ?? '/images/user.png'} alt={username} size="sm"></Avatar>
 				<h2>{username}</h2>
 			</div>
-			<button
-				onclick={callback.menu}
-				class="cursor-pointer rounded-full p-2 hover:bg-gray-100"
-			>
-				<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="var(--color-black-500)" />
-			</button>
 		</div>
 	{/if}
 	{#if imgUris.length > 0}
@@ -171,18 +171,17 @@
 					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
 					onclick={callback.like}
 				>
-					<HugeiconsIcon
-						icon={ThumbsUpIcon}
-						size={24}
-						color="var(--color-red-500)"
-						strokeWidth={3}
+					<Like
+						size="24px"
+						color={'var(--color-red-500'}
+						fill={isLiked ? 'var(--color-red-500)' : 'white'}
 					/>
 				</button>
 				<button
 					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
 					onclick={callback.comment}
 				>
-					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
+					<CommentIcon size="24px" color="black" fill="transparent" />
 				</button>
 			</div>
 		{/if}

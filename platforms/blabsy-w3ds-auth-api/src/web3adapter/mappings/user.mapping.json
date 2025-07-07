@@ -1,0 +1,18 @@
+{
+    "tableName": "user",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440000",
+    "ownerEnamePath": "id",
+    "localToUniversalMap": {
+        "bio": "bio",
+        "username": "username",
+        "name": "displayName",
+        "photoURL": "avatarUrl",
+        "ename": "ename",
+        "coverPhotoURL": "bannerUrl",
+        "website": "website",
+        "location": "location",
+        "verified": "isVerified",
+        "createdAt": "__date(calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(calc(updatedAt._seconds * 1000)),updatedAt"
+    }
+}

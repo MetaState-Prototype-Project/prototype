@@ -18,6 +18,7 @@ export type CommentType = {
 };
 
 export type PostData = {
+	createdAt: string | number | Date;
     id: string;
     avatar: string;
     userId: string;
@@ -34,7 +35,7 @@ export type PostData = {
 export type userProfile = {
     userId: string;
     username: string;
-    avatar: string;
+    avatarUrl: string;
     totalPosts: number;
     followers: number;
     following: number;

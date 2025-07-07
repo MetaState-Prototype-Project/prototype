@@ -8,6 +8,7 @@ import { Message } from "./entities/Message";
 import path from "path";
 import { Chat } from "./entities/Chat";
 import { MessageReadStatus } from "./entities/MessageReadStatus";
+import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
@@ -18,5 +19,5 @@ export const AppDataSource = new DataSource({
     logging: process.env.NODE_ENV === "development",
     entities: [User, Post, Comment, Message, Chat, MessageReadStatus],
     migrations: ["src/database/migrations/*.ts"],
-    subscribers: [],
+    subscribers: [PostgresSubscriber],
 });

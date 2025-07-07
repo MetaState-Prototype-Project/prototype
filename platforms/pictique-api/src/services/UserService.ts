@@ -5,7 +5,7 @@ import { signToken } from "../utils/jwt";
 import { Like } from "typeorm";
 
 export class UserService {
-    private userRepository = AppDataSource.getRepository(User);
+    userRepository = AppDataSource.getRepository(User);
     private postRepository = AppDataSource.getRepository(Post);
 
     async createBlankUser(ename: string): Promise<User> {
@@ -20,7 +20,7 @@ export class UserService {
     }
 
     async findOrCreateUser(
-        ename: string,
+        ename: string
     ): Promise<{ user: User; token: string }> {
         let user = await this.userRepository.findOne({
             where: { ename },
@@ -39,11 +39,11 @@ export class UserService {
     }
 
     searchUsers = async (query: string) => {
-        const searchQuery = query.toLowerCase();
+        const searchQuery = query;
 
         return this.userRepository.find({
             where: [
-                { handle: Like(`%${searchQuery}%`) },
+                { name: Like(`%${searchQuery}%`) },
                 { ename: Like(`%${searchQuery}%`) },
             ],
             select: {
@@ -126,7 +126,10 @@ export class UserService {
         };
     }
 
-    async updateProfile(userId: string, data: { handle?: string; avatarUrl?: string; name?: string }): Promise<User> {
+    async updateProfile(
+        userId: string,
+        data: { handle?: string; avatarUrl?: string; name?: string }
+    ): Promise<User> {
         const user = await this.userRepository.findOneBy({ id: userId });
         if (!user) {
             throw new Error("User not found");
@@ -140,4 +143,3 @@ export class UserService {
         return await this.userRepository.save(user);
     }
 }
-

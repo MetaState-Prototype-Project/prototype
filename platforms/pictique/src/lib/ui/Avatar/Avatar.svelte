@@ -10,6 +10,8 @@
 
 	const { src, alt = 'User Avatar', size = 'md', ...restProps }: IAvatarProps = $props();
 
+	let img = $state(src);
+
 	const sizeVariant = {
 		xs: 'w-6 h-6',
 		sm: 'w-10 h-10',
@@ -25,7 +27,10 @@
 
 <img
 	{...restProps}
-	{src}
+	onerror={() => {
+		img = '/images/user.png';
+	}}
+	src={img}
 	{alt}
 	class={cn([classes.common, classes.size, restProps.class].join(' '))}
 />

@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { apiClient } from '$lib/utils/axios';
+import { goto } from '$app/navigation';
 
 export interface Post {
     id: string;
@@ -34,7 +35,7 @@ export const isCreatePostModalOpen = writable(false);
 export const openCreatePostModal = () => isCreatePostModalOpen.set(true);
 export const closeCreatePostModal = () => isCreatePostModalOpen.set(false);
 
-export const fetchFeed = async (page = 1, limit = 10) => {
+export const fetchFeed = async (page = 1, limit = 10_000) => {
     try {
         isLoading.set(true);
         error.set(null);

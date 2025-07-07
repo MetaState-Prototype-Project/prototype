@@ -1,0 +1,15 @@
+{
+    "tableName": "chat",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440003",
+    "participants": "user(participants[])",
+    "ownerEnamePath": "users(participants[])",
+    "localToUniversalMap": {
+        "name": "name",
+        "type": "type",
+        "participants": "user(participants[]),participantIds",
+        "lastMessage": "lastMessageId",
+        "createdAt": "__date(__calc(createdAt._seconds * 1000)),createdAt",
+        "updatedAt": "__date(__calc(updatedAt._seconds * 1000)),updatedAt",
+        "isArchived": "isArchived"
+    }
+}

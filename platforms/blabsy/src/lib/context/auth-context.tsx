@@ -9,24 +9,18 @@ import {
 import {
     doc,
     getDoc,
-    setDoc,
-    onSnapshot,
-    serverTimestamp
+    onSnapshot
 } from 'firebase/firestore';
 import { auth } from '@lib/firebase/app';
 import {
     usersCollection,
-    userStatsCollection,
     userBookmarksCollection
 } from '@lib/firebase/collections';
-import { getRandomId, getRandomInt } from '@lib/random';
-import { checkUsernameAvailability } from '@lib/firebase/utils';
+import { getRandomId } from '@lib/random';
 import type { ReactNode } from 'react';
 import type { User as AuthUser } from 'firebase/auth';
-import type { WithFieldValue } from 'firebase/firestore';
 import type { User } from '@lib/types/user';
 import type { Bookmark } from '@lib/types/bookmark';
-import type { Stats } from '@lib/types/stats';
 
 type AuthContext = {
     user: User | null;
@@ -57,71 +51,18 @@ export function AuthContextProvider({
     useEffect(() => {
         const manageUser = async (authUser: AuthUser): Promise<void> => {
             const { uid, displayName, photoURL } = authUser;
+            console.log(uid);
 
             const userSnapshot = await getDoc(doc(usersCollection, uid));
 
             if (!userSnapshot.exists()) {
-                let available = false;
-                let randomUsername = '';
-
-                while (!available) {
-                    const normalizeName = displayName
-                        ?.replace(/\s/g, '')
-                        .toLowerCase();
-                    const randomInt = getRandomInt(1, 10_000);
-
-                    randomUsername = `${normalizeName as string}${randomInt}`;
-
-                    const isUsernameAvailable = await checkUsernameAvailability(
-                        randomUsername
-                    );
-
-                    if (isUsernameAvailable) available = true;
-                }
-
-                const userData: WithFieldValue<User> = {
-                    id: uid,
-                    bio: null,
-                    name: displayName as string,
-                    theme: null,
-                    accent: null,
-                    website: null,
-                    location: null,
-                    photoURL: photoURL ?? '/assets/twitter-avatar.jpg',
-                    username: randomUsername,
-                    verified: false,
-                    following: [],
-                    followers: [],
-                    createdAt: serverTimestamp(),
-                    updatedAt: null,
-                    totalTweets: 0,
-                    totalPhotos: 0,
-                    pinnedTweet: null,
-                    coverPhotoURL: null
-                };
-
-                const userStatsData: WithFieldValue<Stats> = {
-                    likes: [],
-                    tweets: [],
-                    updatedAt: null
-                };
-
-                try {
-                    await Promise.all([
-                        setDoc(doc(usersCollection, uid), userData),
-                        setDoc(
-                            doc(userStatsCollection(uid), 'stats'),
-                            userStatsData
-                        )
-                    ]);
-
-                    const newUser = (
-                        await getDoc(doc(usersCollection, uid))
-                    ).data();
-                    setUser(newUser as User);
-                } catch (error) {
-                    setError(error as Error);
-                }
+                // User doesn't exist in database - don't create automatically
+                console.error(`User ${uid} not found in database. User must be pre-registered.`);
+                setError(new Error('User not found in database. Please contact support to register your account.'));
+                setLoading(false);
+                // Sign out the user since they shouldn't be authenticated
+                await signOutFirebase(auth);
+                return;
             } else {
                 const userData = userSnapshot.data();
                 setUser(userData);

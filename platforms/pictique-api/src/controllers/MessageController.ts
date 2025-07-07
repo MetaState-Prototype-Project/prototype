@@ -21,9 +21,16 @@ export class MessageController {
             const allParticipants = [
                 ...new Set([userId, ...(participantIds || [])]),
             ];
+
+            // Check if a chat already exists with the same participants
+            const existingChat = await this.chatService.findChatByParticipants(allParticipants);
+            if (existingChat) {
+                return res.status(200).json(existingChat);
+            }
+
             const chat = await this.chatService.createChat(
                 name,
-                allParticipants,
+                allParticipants
             );
             res.status(201).json(chat);
         } catch (error) {
@@ -60,7 +67,7 @@ export class MessageController {
                 chatId,
                 userId,
                 page,
-                limit,
+                limit
             );
 
             res.json({
@@ -89,7 +96,7 @@ export class MessageController {
             const result = await this.chatService.getUserChats(
                 userId,
                 page,
-                limit,
+                limit
             );
 
             // Transform the response to include only necessary data
@@ -129,7 +136,7 @@ export class MessageController {
 
             const chat = await this.chatService.addParticipants(
                 chatId,
-                participantIds,
+                participantIds
             );
             res.json(chat);
         } catch (error) {
@@ -149,7 +156,7 @@ export class MessageController {
 
             const chat = await this.chatService.removeParticipant(
                 chatId,
-                userId,
+                userId
             );
             res.json(chat);
         } catch (error) {
@@ -168,12 +175,11 @@ export class MessageController {
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
             }
-            console.log("asdfasd");
 
             const message = await this.chatService.sendMessage(
                 chatId,
                 userId,
-                text,
+                text
             );
             res.status(201).json(message);
         } catch (error) {
@@ -197,7 +203,7 @@ export class MessageController {
                 chatId,
                 userId,
                 page,
-                limit,
+                limit
             );
             res.json(result);
         } catch (error) {
@@ -251,7 +257,7 @@ export class MessageController {
 
             const count = await this.chatService.getUnreadMessageCount(
                 chatId,
-                userId,
+                userId
             );
             res.json({ count });
         } catch (error) {
@@ -310,7 +316,7 @@ export class MessageController {
                 chatId,
                 userId,
                 page,
-                limit,
+                limit
             );
 
             // Send initial connection message
@@ -319,8 +325,10 @@ export class MessageController {
             // Create event listener for this chat
             const eventEmitter = this.chatService.getEventEmitter();
             const eventName = `chat:${chatId}`;
+            console.log("listening for", eventName);
 
             const messageHandler = (data: any) => {
+                console.log("received event to send", data);
                 res.write(`data: ${JSON.stringify(data)}\n\n`);
             };
 

@@ -15,14 +15,14 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 34
-    namespace = "com.eid_wallet.app"
+    namespace = "foundation.metastate.eid_wallet"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.eid_wallet.app"
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
+        applicationId = "foundation.metastate.eid_wallet"
         minSdk = 24
         targetSdk = 34
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
-        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")    
+        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
     buildTypes {
         getByName("debug") {
