@@ -2,7 +2,6 @@
 	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
 	import { apiClient } from '$lib/utils/axios';
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	let handle = $state();

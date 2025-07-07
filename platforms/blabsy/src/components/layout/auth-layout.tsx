@@ -8,7 +8,7 @@ import type { LayoutProps } from './common-layout';
 export function AuthLayout({ children }: LayoutProps): JSX.Element {
   const [pending, setPending] = useState(true);
 
-  const { user, loading } = useAuth();
+  const { user, loading, error } = useAuth();
   const { replace } = useRouter();
 
   useEffect(() => {
@@ -27,6 +27,13 @@ export function AuthLayout({ children }: LayoutProps): JSX.Element {
     void checkLogin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
+
+  // If there's an auth error (user not found), redirect to login
+  useEffect(() => {
+    if (error) {
+      void replace('/');
+    }
+  }, [error, replace]);
 
   if (loading || pending) return <Placeholder />;
 

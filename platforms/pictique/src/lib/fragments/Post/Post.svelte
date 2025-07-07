@@ -1,18 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Like } from '$lib/icons';
+	import CommentIcon from '$lib/icons/CommentIcon.svelte';
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
-	import {
-		ArrowLeftIcon,
-		ArrowRightIcon,
-		Message02Icon,
-		MoreVerticalIcon,
-		RecordIcon,
-		ThumbsUpIcon
-	} from '@hugeicons/core-free-icons';
+	import { ArrowLeftIcon, ArrowRightIcon, RecordIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import ActionMenu from '../ActionMenu/ActionMenu.svelte';
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
@@ -20,6 +14,7 @@
 		userId?: string;
 		imgUris: string[];
 		text: string;
+		isLiked: boolean;
 		count?: {
 			likes: number;
 			comments: number;
@@ -68,6 +63,7 @@
 		callback,
 		time,
 		options,
+		isLiked,
 		...restProps
 	}: IPostProps = $props();
 
@@ -175,18 +171,17 @@
 					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
 					onclick={callback.like}
 				>
-					<HugeiconsIcon
-						icon={ThumbsUpIcon}
-						size={24}
-						color="var(--color-red-500)"
-						strokeWidth={3}
+					<Like
+						size="24px"
+						color={'var(--color-red-500'}
+						fill={isLiked ? 'var(--color-red-500)' : 'white'}
 					/>
 				</button>
 				<button
 					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
 					onclick={callback.comment}
 				>
-					<HugeiconsIcon icon={Message02Icon} size={24} color="var(--color-black-500)" />
+					<CommentIcon size="24px" color="black" fill="transparent" />
 				</button>
 			</div>
 		{/if}

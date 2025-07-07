@@ -1,18 +1,22 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import { ButtonAction, Drawer } from "$lib/ui";
-    import { getContext, onMount } from "svelte";
-    import { GlobalState } from "$lib/global";
-    import axios from "axios";
-    import { v4 as uuidv4 } from "uuid";
     import {
         PUBLIC_PROVISIONER_URL,
         PUBLIC_REGISTRY_URL,
     } from "$env/static/public";
+    import { Hero } from "$lib/fragments";
+    import { GlobalState } from "$lib/global";
+    import { ButtonAction, Drawer } from "$lib/ui";
     import { capitalize } from "$lib/utils";
+    import {
+        generate, getPublicKey,
+        // signPayload, verifySignature
+    } from "@auvo/tauri-plugin-crypto-hw-api"
     import * as falso from "@ngneat/falso";
+    import axios from "axios";
+    import { getContext, onMount } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
+    import { v4 as uuidv4 } from "uuid";
 
     let isPaneOpen = $state(false);
     let preVerified = $state(false);
@@ -41,6 +45,31 @@
             String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
 
         return randomLetters() + randomDigits();
+    }
+
+    // IMO, call this function early, check if hardware even supports the app
+    // docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
+    async function generateApplicationKeyPair() {
+        let res: string | undefined
+        try {
+            res = await generate("default")
+            console.log(res)
+        } catch (e) {
+            // Put hardware crypto missing error here
+            console.log(e)
+        }
+        return res
+    }
+
+    async function getApplicationPublicKey() {
+        let res: string | undefined
+        try {
+            res = await getPublicKey("default")
+            console.log(res)
+        } catch (e) {
+            console.log(e)
+        }
+        return res // check getPublicKey doc comments (multibase hex format)
     }
 
     const handleNext = async () => {
