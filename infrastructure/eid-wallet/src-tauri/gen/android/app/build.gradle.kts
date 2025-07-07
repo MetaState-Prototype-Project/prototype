@@ -17,7 +17,7 @@ android {
     compileSdk = 34
     namespace = "foundation.metastate.eid_wallet"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "true"
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "foundation.metastate.eid_wallet"
         minSdk = 24
         targetSdk = 34
