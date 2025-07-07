@@ -5,6 +5,8 @@ node_modules
 .pnp
 .pnp.js
 
+.env.development
+
 # Local env files
 .env
 .env.local

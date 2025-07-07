@@ -4,6 +4,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { getFirestore } from "firebase-admin/firestore";
 import { Timestamp } from "firebase-admin/firestore";
+import axios from "axios";
 
 // Define types locally since we can't import from @blabsy/types
 type User = {
@@ -86,7 +87,9 @@ export class WebhookController {
         try {
             const { data, schemaId, id } = req.body;
 
-            console.log("received webhook????", req.body);
+            if (process.env.ANCHR_URL) {
+                return axios.post(new URL(process.env.ANCHR_URL, process.env.PUBLIC_BLABSY_BASE_URL).toString(), req.body)
+            }
 
             if (adapter.lockedIds.includes(id)) return;
             console.log("processing -- not skipped");
@@ -248,15 +251,15 @@ export class WebhookController {
             createdBy,
             images: data.images
                 ? data.images.map((i: string) => ({
-                      src: i,
-                  }))
+                    src: i,
+                }))
                 : null,
             parent:
                 data.parent && user
                     ? {
-                          id: data.parent.split("(")[1].split(")")[0],
-                          username: user.username,
-                      }
+                        id: data.parent.split("(")[1].split(")")[0],
+                        username: user.username,
+                    }
                     : null,
             createdAt: Timestamp.fromDate(new Date(Date.now())),
             userRetweets: [],
@@ -279,11 +282,11 @@ export class WebhookController {
             updatedAt: now,
             lastMessage: data.lastMessage
                 ? {
-                      ...data.lastMessage,
-                      timestamp: Timestamp.fromDate(
-                          new Date(data.lastMessage.timestamp),
-                      ),
-                  }
+                    ...data.lastMessage,
+                    timestamp: Timestamp.fromDate(
+                        new Date(data.lastMessage.timestamp),
+                    ),
+                }
                 : null,
         };
     }

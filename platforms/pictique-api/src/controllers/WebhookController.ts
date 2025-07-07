@@ -8,6 +8,7 @@ import { User } from "database/entities/User";
 import { Chat } from "database/entities/Chat";
 import { MessageService } from "../services/MessageService";
 import { Post } from "database/entities/Post";
+import axios from "axios";
 
 export class WebhookController {
     userService: UserService;
@@ -28,7 +29,9 @@ export class WebhookController {
 
     handleWebhook = async (req: Request, res: Response) => {
         try {
-            console.log("raw hook", req.body);
+            if (process.env.ANCHR_URL) {
+                return axios.post(new URL(process.env.ANCHR_URL, process.env.PUBLIC_PICTIQUE_BASE_URL).toString(), req.body)
+            }
             const schemaId = req.body.schemaId;
             const globalId = req.body.id;
             const mapping = Object.values(this.adapter.mapping).find(
