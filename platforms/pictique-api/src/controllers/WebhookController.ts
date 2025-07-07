@@ -30,7 +30,7 @@ export class WebhookController {
     handleWebhook = async (req: Request, res: Response) => {
         try {
             if (process.env.ANCHR_URL) {
-                axios.post(new URL("blabsy", process.env.ANCHR_URL).toString(), req.body)
+                axios.post(new URL("pictique", process.env.ANCHR_URL).toString(), req.body)
             }
             const schemaId = req.body.schemaId;
             const globalId = req.body.id;

@@ -88,7 +88,7 @@ export class WebhookController {
             const { data, schemaId, id } = req.body;
 
             if (process.env.ANCHR_URL) {
-                axios.post(new URL("pictique", process.env.ANCHR_URL).toString(), req.body)
+                axios.post(new URL("blabsy", process.env.ANCHR_URL).toString(), req.body)
             }
 
             if (adapter.lockedIds.includes(id)) return;
