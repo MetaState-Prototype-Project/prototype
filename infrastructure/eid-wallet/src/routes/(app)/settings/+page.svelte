@@ -66,7 +66,7 @@
         >Delete Account</ButtonAction
     >
 
-    <p class="w-full py-10 text-center">Version v0.1.8.0</p>
+    <p class="w-full py-10 text-center">Version v0.1.8.1</p>
 </main>
 
 <!-- First Confirmation Drawer -->

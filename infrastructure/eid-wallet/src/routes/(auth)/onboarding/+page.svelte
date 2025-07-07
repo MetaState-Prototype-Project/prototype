@@ -51,6 +51,8 @@
     let globalState: GlobalState;
     let handleContinue: () => Promise<void> | void;
     let handleFinalSubmit: () => Promise<void> | void;
+    let ename: string;
+    let uri: string;
 
     let error: string | null = $state(null);
 
@@ -92,27 +94,14 @@
             if (data.success === true) {
                 loading = false;
                 verificationSuccess = true;
-                return;
+                uri = data.uri;
+                ename = data.w3id;
             }
         };
 
         // New function to handle final submission with demo name
         handleFinalSubmit = async () => {
             loading = true;
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-
-            const { data } = await axios.post(
-                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                {
-                    registryEntropy,
-                    namespace: uuidv4(),
-                    verificationId,
-                },
-            );
 
             const tenYearsLater = new Date();
             tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
@@ -132,12 +121,11 @@
                 "Valid Until": tenYearsLater.toDateString(),
                 "Verified On": new Date().toDateString(),
             };
-            if (data.success === true) {
-                globalState.vaultController.vault = {
-                    uri: data.uri,
-                    ename: data.w3id,
-                };
-            }
+            globalState.vaultController.vault = {
+                uri,
+                ename,
+            };
+
             setTimeout(() => {
                 goto("/register");
             }, 10_000);
