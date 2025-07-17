@@ -2,13 +2,14 @@
 	import { onMount } from 'svelte';
 	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { Avatar, Button } from '$lib/ui';
-	import { clickOutside } from '$lib/utils';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
-	let showMembers = $state(false);
 
 	let userId = 'user-1';
+	let id = page.params.id;
 
 	let group = {
 		id: 'group-123',
@@ -66,42 +67,6 @@
 		messageValue = '';
 		setTimeout(scrollToBottom, 0);
 	}
-
-	function currentUserRole() {
-		return group.members.find((m) => m.id === userId)?.role;
-	}
-
-	function canManage(member: { id?: string; name?: string; avatar?: string; role: any; }) {
-		const current = currentUserRole();
-		if (member.role === 'owner') return false;
-		if (current === 'owner') return true;
-		if (current === 'admin' && member.role === 'member') return true;
-		return false;
-	}
-
-	function promoteToAdmin(memberId: string) {
-		const m = group.members.find((m) => m.id === memberId);
-		if (m && m.role === 'member') m.role = 'admin';
-		openMenuId = null;
-	}
-
-	function removeMember(memberId: string) {
-		group.members = group.members.filter((m) => m.id !== memberId || m.role === 'owner');
-		openMenuId = null;
-	}
-
-	function addMember() {
-		const newId = `user-${Date.now()}`;
-		group.members = [
-			...group.members,
-			{
-				id: newId,
-				name: `New Member ${group.members.length + 1}`,
-				avatar: `https://i.pravatar.cc/150?u=${newId}`,
-				role: 'member'
-			}
-		];
-	}
 </script>
 
 <section class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200">
@@ -117,71 +82,12 @@
 		size="sm"
 		class="w-[max-content]"
 		callback={() => {
-			showMembers = !showMembers;
-			openMenuId = null;
+			goto(`/group/${id}/members`)
 		}}
 	>
-		{showMembers ? 'Hide Members' : 'View Members'}
+		View Members
 	</Button>
 </section>
-
-{#if showMembers}
-	<section class="px-4 py-3 border-b border-gray-200 space-y-4">
-		{#each group.members as member (member.id)}
-			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<Avatar src={member.avatar} size="sm" />
-					<div>
-						<span class="text-sm font-medium">{member.name}</span>
-						{#if member.role !== 'member'}
-							<span class="ml-2 text-xs text-gray-500">({member.role})</span>
-						{/if}
-					</div>
-				</div>
-
-				{#if canManage(member)}
-					<div class="relative" use:clickOutside={() => (openMenuId = null)}>
-						<button
-							onclick={() => {(openMenuId = openMenuId === member.id ? null : member.id)}}
-						>
-							⋮
-						</button>
-
-						{#if openMenuId === member.id}
-							<div class="absolute right-0 mt-2 w-40 rounded-md bg-white shadow-lg border z-10">
-								<ul class="text-sm">
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									{#if currentUserRole() === 'owner' && member.role === 'member'}
-										<!-- svelte-ignore a11y_click_events_have_key_events -->
-										<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-										<li
-											class="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-											onclick={() => promoteToAdmin(member.id)}
-										>
-											Make admin
-										</li>
-									{/if}
-									<!-- svelte-ignore a11y_click_events_have_key_events -->
-									<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-									<li
-										class="px-4 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
-										onclick={() => removeMember(member.id)}
-									>
-										Remove member
-									</li>
-								</ul>
-							</div>
-						{/if}
-					</div>
-				{/if}
-			</div>
-		{/each}
-
-		<Button size="sm" variant="primary" class="w-[max-content] mt-4" callback={addMember}>
-			Add Member
-		</Button>
-	</section>
-{/if}
 
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-300px)] mt-4 overflow-auto" bind:this={messagesContainer}>
