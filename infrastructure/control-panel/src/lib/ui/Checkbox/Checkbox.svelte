@@ -18,7 +18,7 @@
 
 	const cBase = $derived(`
 		h-4 w-4 rounded-[3px] border-2 transition-all flex items-center justify-center
-		${restProps.disabled ? 'border-gray-500' : checked ? 'border-primary-600' : 'border-gray-300'}
+		${restProps.disabled ? 'border-black-100' : checked ? 'border-primary' : 'border-black-100'}
 		dark:bg-transparent
 	`);
 </script>
@@ -46,6 +46,6 @@
 	onclick={() => inputElement?.click()}
 >
 	{#if checked}
-		<span class="bg-gradient-primary block h-2 w-2 rounded-[1px]"></span>
+		<span class="bg-primary block h-2 w-2 rounded-[1px]"></span>
 	{/if}
 </span>
