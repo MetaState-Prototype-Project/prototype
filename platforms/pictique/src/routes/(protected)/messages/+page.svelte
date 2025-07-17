@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/utils/axios';
 	import { heading } from '../../store';
+	import Group from '$lib/fragments/Group/Group.svelte';
 
 	let messages = $state([]);
 
@@ -45,5 +46,7 @@
 			You don't have any messages yet, please start a Direct Message with Someone by searching
 			their name
 		</div>
+		<!-- group id needs to be added -->
+		<Group name="Developers" avatar="https://picsum.photos/200/300" unread={true} callback={() => goto("/group/123")}/>
 	{/if}
 </section>
