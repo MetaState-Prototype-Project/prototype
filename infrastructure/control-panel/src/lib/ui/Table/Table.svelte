@@ -243,7 +243,7 @@
 						selectedRow = i;
 						handleSelectedRow && handleSelectedRow(i);
 					}}
-					class="w-full bg-white select-none hover:bg-black-300
+					class="w-full bg-white select-none hover:bg-gray
                         {selectedRow === i && 'bg-black-300!'}"
 				>
 					{#if withSelection}
