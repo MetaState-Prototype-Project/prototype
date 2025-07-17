@@ -57,7 +57,7 @@
 		selectedRow?: number;
 		withSelection?: boolean;
 		headerHeight?: number;
-		onMutate: () => Promise<void> | void;
+		onMutate?: () => Promise<void> | void;
 		currentPage?: number;
 		totalPages?: number;
 		totalItems?: number;
@@ -205,10 +205,10 @@
 
 <Table
 	class={cn(
-		['relative w-full table-fixed text-left text-sm text-gray-500', restProps.class].join(' ')
+		['relative w-full table-fixed text-left text-sm text-black-700', restProps.class].join(' ')
 	)}
 >
-	<TableHead class="sticky top-0 h-[var(--table-header-height)] bg-black">
+	<TableHead class="sticky top-0 h-[var(--table-header-height)] bg-white">
 		{#if withSelection}
 			<TableHeadCell class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
 				<Checkbox checked={checkAll} onchange={(e) => toggleCheckAll(e as boolean)} />
@@ -231,7 +231,7 @@
 	<Table
 		class={cn(
 			[
-				'relative w-full table-fixed border-separate border-spacing-y-2 text-left text-sm text-gray-500',
+				'relative w-full table-fixed border-separate border-spacing-y-2 text-left text-sm text-black-700',
 				restProps.class
 			].join(' ')
 		)}
@@ -243,8 +243,8 @@
 						selectedRow = i;
 						handleSelectedRow && handleSelectedRow(i);
 					}}
-					class="w-full bg-black/50 select-none hover:bg-white/3
-                        {selectedRow === i && 'bg-white/6!'}"
+					class="w-full bg-white select-none hover:bg-black-300
+                        {selectedRow === i && 'bg-black-300!'}"
 				>
 					{#if withSelection}
 						<th class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
@@ -267,7 +267,7 @@
 	{@const cellData = tableData[0]?.[heading]}
 	{@const isSortable = cellData && 'sortable' in cellData && cellData.sortable}
 	<TableHeadCell
-		class="wide:text-sm font-roboto p-0 text-xs font-semibold text-gray-200 normal-case
+		class="wide:text-base font-roboto p-0 text-xs font-bold text-black-700 normal-case
             {i === 0 && !withSelection && 'rounded-l-2xl'}
             {i === tableHeadings.length - 1 && !isScrollable && 'rounded-r-2xl'}
             "
@@ -309,7 +309,7 @@
 
 {#snippet BodyCell(data: Record<string, TableCell>, field: string, i: number)}
 	<TableBodyCell
-		class="wide:text-base font-roboto overflow-hidden p-2 text-xs font-normal text-ellipsis text-gray-200
+		class="wide:text-base font-roboto overflow-hidden p-2 text-xs font-normal text-ellipsis text-black-700
             {i === 0 && !withSelection && 'rounded-s-2xl pl-6'}
             {i === Object.keys(data).length - 1 && 'rounded-e-2xl'}
         "
@@ -343,9 +343,9 @@
 <!-- PAGINATION -->
 {#if withPagination}
 	<div
-		class="sticky bottom-0 z-10 flex h-[var(--pagination-height)] items-center justify-between rounded-2xl bg-black p-3"
+		class="sticky bottom-0 z-10 flex h-[var(--pagination-height)] items-center justify-between rounded-2xl bg-white p-3"
 	>
-		<p class="small text-gray-200">
+		<p class="small text-black-700">
 			Showing {(currentPage - 1) * pageSize + 1} - {Math.min(
 				currentPage * pageSize,
 				totalItems
@@ -353,10 +353,10 @@
 		</p>
 		<div class="flex items-center gap-2">
 			<!-- Custom Pagination -->
-			<div class="border-primary-900 flex items-center rounded-lg border bg-white/10">
+			<div class="border-primary-900 flex items-center rounded-lg border bg-white">
 				<!-- Previous Button -->
 				<button
-					class=" flex h-8 w-10 items-center justify-center text-gray-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+					class=" flex h-8 w-10 items-center justify-center text-black-700 transition-colors hover:bg-black-300 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={handlePreviousPage}
 					disabled={currentPage <= 1 || isLoading}
 				>
@@ -366,15 +366,15 @@
 				<!-- Page Numbers -->
 				{#each generatePageNumbers(currentPage, totalPages) as pageNum}
 					{#if pageNum === '...'}
-						<span class="flex h-8 w-10 items-center justify-center text-gray-400"
+						<span class="flex h-8 w-10 items-center justify-center text-black-700"
 							>...</span
 						>
 					{:else}
 						<button
 							class="outline-primary-900 flex h-8 w-10 items-center justify-center transition-colors
                                 {currentPage === pageNum
-								? ' bg-black text-white'
-								: '  text-gray-300 hover:bg-white/10'}"
+								? ' bg-white text-black-700'
+								: '  text-black-700 hover:bg-white'}"
 							onclick={() =>
 								typeof pageNum === 'number' ? goToPage?.(pageNum) : undefined}
 							disabled={isLoading}
@@ -386,7 +386,7 @@
 
 				<!-- Next Button -->
 				<button
-					class="flex h-8 w-10 items-center justify-center text-gray-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex h-8 w-10 items-center justify-center text-black-700 transition-colors hover:bg-black-300 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={handleNextPage}
 					disabled={currentPage >= totalPages || isLoading}
 				>
