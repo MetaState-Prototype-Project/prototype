@@ -1,18 +1,18 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import type { Snippet } from "svelte";
-import type { HTMLAnchorAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
+	import type { HTMLAnchorAttributes } from 'svelte/elements';
 
-interface IButtonNav extends HTMLAnchorAttributes {
-    href: string;
-    children: Snippet;
-}
+	interface IButtonNav extends HTMLAnchorAttributes {
+		href: string;
+		children: Snippet;
+	}
 
-const { href, children, ...restProps }: IButtonNav = $props();
+	const { href, children, ...restProps }: IButtonNav = $props();
 </script>
 
 <a {href} {...restProps} class={cn(restProps.class)}>
-    {@render children()}
+	{@render children()}
 </a>
 
 <!-- 

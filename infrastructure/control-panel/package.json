@@ -46,6 +46,9 @@
 		"@hugeicons/svelte": "^1.0.2",
 		"@inlang/paraglide-js": "^2.0.0",
 		"clsx": "^2.1.1",
+		"flowbite": "^3.1.2",
+		"flowbite-svelte": "^1.10.7",
+		"flowbite-svelte-icons": "^2.2.1",
 		"tailwind-merge": "^3.0.2"
 	}
 }
