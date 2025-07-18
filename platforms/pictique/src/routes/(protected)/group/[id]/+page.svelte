@@ -194,7 +194,7 @@
 			{#if canEdit}
 				<!-- svelte-ignore element_invalid_self_closing_tag -->
 				<textarea rows="2"
-				maxlength="60" placeholder="Edit group description" class="w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent invalid:border-red invalid:text-red focus:invalid:text-black-800 focus:invalid:border-transparent" bind:value={groupDescription} />
+				maxlength="260" placeholder="Edit group description" class="w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent invalid:border-red invalid:text-red focus:invalid:text-black-800 focus:invalid:border-transparent" bind:value={groupDescription} />
 			{:else}
 				<p class="text-gray-700">{group.description}</p>
 			{/if}
