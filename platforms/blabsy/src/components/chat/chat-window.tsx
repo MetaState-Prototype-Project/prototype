@@ -9,7 +9,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
-import { ParticipantList } from './participant-list';
+import { MemberList } from './member-list';
 
 function MessageItem({
     message,
@@ -58,7 +58,7 @@ export function ChatWindow(): JSX.Element {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [openParticipantList, setOpenParticipantList] = useState(false);
+    const [openMemberList, setOpenMemberList] = useState(false);
 
 
 
@@ -175,8 +175,8 @@ export function ChatWindow(): JSX.Element {
                         {
                             currentChat.type === 'group' &&
                         <div>
-                            <button type='button' onClick={() => setOpenParticipantList(true)} className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800">
-                                View Participants
+                            <button type='button' onClick={() => setOpenMemberList(true)} className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800">
+                                View Members
                             </button>
                         </div>
                         }
@@ -248,7 +248,7 @@ export function ChatWindow(): JSX.Element {
                     </p>
                 </div>
             )}
-            <ParticipantList open={openParticipantList} onClose={() => setOpenParticipantList(false)} />
+            <MemberList open={openMemberList} onClose={() => setOpenMemberList(false)} />
         </div>
     );
 }

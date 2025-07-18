@@ -9,7 +9,7 @@ import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
 import { Dialog } from '@headlessui/react';
 
-export function ParticipantList({
+export function MemberList({
     open,
     onClose,
 }: {
@@ -104,7 +104,7 @@ export function ParticipantList({
             <div className="fixed inset-0 flex items-center justify-center p-4">
                 <Dialog.Panel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900">
                     <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
-                        Participants
+                        Members
                     </Dialog.Title>
                     <div className="mt-4 flex flex-col gap-2">
                         {currentChat?.participants.map((participantId) => (
@@ -168,7 +168,7 @@ export function ParticipantList({
                                                 {currentChat.admins?.includes(participantId) ? 'Remove Admin' : 'Make Admin'}
                                             </button>
                                             <button type='button' onClick={() => {removeParticipant(participantId); setOpenMenuId(null)}} className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700">
-                                                Remove Participant
+                                                Remove Member
                                             </button>
                                         </div>
                                     )}
