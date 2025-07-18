@@ -16,7 +16,7 @@ export function ParticipantList({
     open: boolean;
     onClose: () => void;
 }): JSX.Element {
-    const { currentChat, messages, sendNewMessage, markAsRead, loading } =
+    const { currentChat, messages, sendNewMessage, markAsRead, removeParticipant, loading } =
         useChat();
     const { user } = useAuth();
     const [messageText, setMessageText] = useState('');
@@ -157,10 +157,17 @@ export function ParticipantList({
                                     </button>
                                     {openMenuId === participantId && (
                                         <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50">
-                                            <button type='button' className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                            <button type='button' onClick={() => {
+                                                if (currentChat.admins?.includes(participantId)) {
+                                                    alert("Remove admin");
+                                                } else {
+                                                    alert("Make admin");
+                                                }
+                                                setOpenMenuId(null);
+                                            }} className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
                                                 {currentChat.admins?.includes(participantId) ? 'Remove Admin' : 'Make Admin'}
                                             </button>
-                                            <button type='button' className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700">
+                                            <button type='button' onClick={() => {removeParticipant(participantId); setOpenMenuId(null)}} className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700">
                                                 Remove Participant
                                             </button>
                                         </div>
