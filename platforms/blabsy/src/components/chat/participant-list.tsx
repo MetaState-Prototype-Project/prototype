@@ -1,0 +1,148 @@
+import { useEffect, useRef, useState } from 'react';
+import { useChat } from '@lib/context/chat-context';
+import { useAuth } from '@lib/context/auth-context';
+import { UserIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@lib/firebase/app';
+import type { User } from '@lib/types/user';
+import { Loading } from '@components/ui/loading';
+import { Dialog } from '@headlessui/react';
+
+export function ParticipantList({
+    open,
+    onClose,
+}: {
+    open: boolean;
+    onClose: () => void;
+}): JSX.Element {
+    const { currentChat, messages, sendNewMessage, markAsRead, loading } =
+        useChat();
+    const { user } = useAuth();
+    const [messageText, setMessageText] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [otherUser, setOtherUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+
+
+    const otherParticipant = currentChat?.participants.find(
+        (p) => p !== user?.id
+    );
+
+    useEffect(() => {
+        if (!otherParticipant) {
+            return;
+        }
+
+        const fetchUserData = async (): Promise<void> => {
+            try {
+                const userDoc = await getDoc(
+                    doc(db, 'users', otherParticipant)
+                );
+                if (userDoc.exists()) {
+                    setOtherUser(userDoc.data() as User);
+                } else {
+                }
+            } catch (error) {
+            }
+        };
+
+        void fetchUserData();
+    }, [otherParticipant]);
+
+    useEffect(() => {
+        if (currentChat) {
+            setIsLoading(true);
+            // Simulate loading time for messages
+            const timer = setTimeout(() => {
+                setIsLoading(false);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [currentChat]);
+
+    useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages]);
+
+    useEffect(() => {
+        if (!currentChat || !user) {
+            return;
+        }
+
+        const unreadMessages = messages?.filter(
+            (message) =>
+                message.senderId !== user.id &&
+                !message.readBy.includes(user.id)
+        );
+
+
+        if (unreadMessages?.length) {
+            void Promise.all(
+                unreadMessages.map((message) => markAsRead(message.id))
+            );
+        }
+    }, [currentChat, messages, user, markAsRead]);
+
+    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+        e.preventDefault();
+        if (!messageText.trim()) return;
+
+        try {
+            await sendNewMessage(messageText);
+            setMessageText('');
+        } catch (error) {
+        }
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} className="relative z-50">
+            <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900">
+                    <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
+                        Participants
+                    </Dialog.Title>
+                    <div className="mt-4 flex flex-col gap-2">
+                        {currentChat?.participants.map((participantId) => (
+                            <div
+                                key={participantId}
+                                className="flex items-center gap-3 border-b border-gray-200 pb-2 mb-2 dark:border-gray-800"
+                            >
+                                <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                                    {otherUser?.photoURL && otherUser.id === participantId ? (
+                                        <Image
+                                            src={otherUser.photoURL}
+                                            alt={
+                                                otherUser.name ||
+                                                otherUser.username ||
+                                                'User'
+                                            }
+                                            width={40}
+                                            height={40}
+                                            className="object-cover"
+                                        />
+                                    ) : (
+                                        <UserIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-medium text-gray-900 dark:text-white">
+                                        {otherUser?.id === participantId
+                                            ? otherUser?.name ||
+                                              otherUser?.username ||
+                                              participantId
+                                            : participantId}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Dialog.Panel>
+            </div>
+        </Dialog>
+    );
+}

@@ -25,7 +25,7 @@ export function ChatList(): JSX.Element {
 
         const fetchParticipantData = async (): Promise<void> => {
             const newParticipantData: ParticipantData = {};
-            
+
             for (const chat of chats) {
                 const otherParticipantId = chat.participants.find(p => p !== user.id);
                 if (otherParticipantId && !participantData[otherParticipantId]) {
@@ -44,7 +44,7 @@ export function ChatList(): JSX.Element {
         void fetchParticipantData();
     }, [chats, user, participantData]);
 
-   
+
 
     if (loading) {
         console.log('ChatList: Loading state');
@@ -69,11 +69,12 @@ export function ChatList(): JSX.Element {
                     (p) => p !== user?.id
                 );
                 const participant = otherParticipant ? participantData[otherParticipant] : null;
-                
+
 
                 return (
                     <button
                         key={chat.id}
+                        type='button'
                         onClick={() => setCurrentChat(chat)}
                         className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
                             currentChat?.id === chat.id
@@ -192,4 +193,4 @@ function ChatListItem({
             </div>
         </button>
     );
-} 
+}
