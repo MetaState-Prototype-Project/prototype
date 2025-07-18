@@ -6,6 +6,8 @@
 	import { page } from '$app/state';
 	import Settings from '$lib/icons/Settings.svelte';
 	import { clickOutside } from '$lib/utils';
+	import { Pen01FreeIcons } from '@hugeicons/core-free-icons';
+	import {HugeiconsIcon} from "@hugeicons/svelte"
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
@@ -153,21 +155,30 @@
 	class="w-[90vw] md:max-w-[30vw] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4 border border-gray-400 rounded-3xl bg-white shadow-xl"
 >
 	<div class="flex flex-col gap-6">
-		<div>
+		<!-- Group Avatar with Edit Icon -->
+		<div class="relative w-[96px] h-[96px] self-center">
+			<img
+				src={groupImageDataUrl || '/images/avatar-placeholder.png'}
+				alt="Group Avatar"
+				class="w-full h-full object-cover rounded-full border border-gray-300"
+			/>
 			{#if canEdit}
-				<InputFile
-					bind:files={groupImageFiles}
+				<!-- Hidden file input trigger -->
+				<input
+					type="file"
 					accept="image/*"
-					label="Upload Group Avatar"
-					cancelLabel="Remove"
-					oncancel={() => {
-						groupImageDataUrl = '';
-						groupImageFiles = undefined;
+					class="hidden"
+					id="group-avatar-input"
+					onchange={(e) => {
+						const files = (e.target as HTMLInputElement).files;
+						if (files && files[0]) {
+							groupImageFiles = files;
+						}
 					}}
 				/>
-			{/if}
-			{#if groupImageDataUrl}
-				<Avatar class="mt-4" src={groupImageDataUrl} alt="Group preview" size="lg" />
+				<label for="group-avatar-input" class="absolute bottom-0 right-0 bg-brand-burnt-orange  border border-brand-burnt-orange rounded-full p-1 shadow cursor-pointer">
+					<HugeiconsIcon icon={Pen01FreeIcons} color="white"/>
+				</label>
 			{/if}
 		</div>
 
@@ -180,6 +191,7 @@
 			{/if}
 		</div>
 
+		<!-- Group Description -->
 		<div>
 			<Label>Description</Label>
 			{#if canEdit}
@@ -190,6 +202,7 @@
 		</div>
 
 		<hr class="text-grey" />
+
 		<div class="flex items-center gap-2">
 			<Button size="sm" variant="primary" callback={() => {(openEditDialog = false)}}>Cancel</Button>
 			{#if canEdit}
@@ -198,3 +211,4 @@
 		</div>
 	</div>
 </dialog>
+
