@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
-import { UserIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { UserIcon, PaperAirplaneIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
@@ -24,7 +24,7 @@ export function ParticipantList({
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -99,10 +99,10 @@ export function ParticipantList({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} className="relative z-50">
+        <Dialog open={open} onClose={onClose} className="relative z-10">
             <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
             <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900">
+                <Dialog.Panel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900">
                     <Dialog.Title className="text-lg font-medium leading-6 text-gray-900 dark:text-white">
                         Participants
                     </Dialog.Title>
@@ -110,8 +110,9 @@ export function ParticipantList({
                         {currentChat?.participants.map((participantId) => (
                             <div
                                 key={participantId}
-                                className="flex items-center gap-3 border-b border-gray-200 pb-2 mb-2 dark:border-gray-800"
+                                className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2 mb-2 dark:border-gray-800"
                             >
+                                <div className='flex items-center gap-3'>
                                 <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                                     {otherUser?.photoURL && otherUser.id === participantId ? (
                                         <Image
@@ -137,7 +138,36 @@ export function ParticipantList({
                                               participantId
                                             : participantId}
                                     </p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {currentChat.owner === participantId && "Owner"}
+                                        {currentChat.admins?.includes(participantId) && "Admin"}
+                                    </p>
                                 </div>
+                                </div>
+                                {currentChat.owner !== participantId &&
+                                <div className="relative">
+                                    <button
+                                        type='button'
+                                        onClick={() =>
+                                            setOpenMenuId((prev) => (prev === participantId ? null : participantId))
+                                        }
+                                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 group"
+                                    >
+                                        <EllipsisVerticalIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                                    </button>
+                                    {openMenuId === participantId && (
+                                        <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50">
+                                            <button type='button' className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                                {currentChat.admins?.includes(participantId) ? 'Remove Admin' : 'Make Admin'}
+                                            </button>
+                                            <button type='button' className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700">
+                                                Remove Participant
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                }
+
                             </div>
                         ))}
                     </div>

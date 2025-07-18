@@ -78,6 +78,8 @@ export function ChatContextProvider({
                     id: 'dummy-chat-2',
                     type: 'group',
                     participants: ['user_1', 'user_3', 'user_4'],
+                    owner: 'user_1',
+                    admins: ['user_3'],
                     createdAt: Timestamp.fromDate(new Date()),
                     updatedAt: Timestamp.fromDate(new Date()),
                     lastMessage: {
@@ -152,7 +154,11 @@ export function ChatContextProvider({
         name?: string
     ): Promise<string> => {
         try {
-            const chatId = await createChat(type, participants, name);
+            if (!user) {
+                throw new Error('User must be logged in to create a chat');
+            }
+
+            const chatId = await createChat(type, participants, name, type === 'group' ? user.id : undefined);
             return chatId;
         } catch (error) {
             setError(error as Error);
