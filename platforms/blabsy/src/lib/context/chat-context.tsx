@@ -5,7 +5,8 @@ import {
     where,
     orderBy,
     onSnapshot,
-    limit
+    limit,
+    Timestamp
 } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import {
@@ -57,7 +58,36 @@ export function ChatContextProvider({
     // Listen to user's chats
     useEffect(() => {
         if (!user) {
-            setChats(null);
+            // setChats(null);
+            // setLoading(false);
+            setChats([
+                {
+                    id: 'dummy-chat-1',
+                    type: 'direct',
+                    participants: ['user_1', 'user_2'],
+                    createdAt: Timestamp.fromDate(new Date()),
+                    updatedAt: Timestamp.fromDate(new Date()),
+                    lastMessage: {
+                        senderId: 'user_1',
+                        text: 'Hey, how are you?',
+                        timestamp: Timestamp.fromDate(new Date()),
+                    },
+                    name: 'Chat with User 2'
+                },
+                {
+                    id: 'dummy-chat-2',
+                    type: 'group',
+                    participants: ['user_1', 'user_3', 'user_4'],
+                    createdAt: Timestamp.fromDate(new Date()),
+                    updatedAt: Timestamp.fromDate(new Date()),
+                    lastMessage: {
+                        senderId: 'user_4',
+                        text: 'Let’s meet tomorrow.',
+                        timestamp: Timestamp.fromDate(new Date()),
+                    },
+                    name: 'Project Team'
+                }
+            ]);
             setLoading(false);
             return;
         }
@@ -208,4 +238,4 @@ export function useChat(): ChatContext {
         throw new Error('useChat must be used within a ChatContextProvider');
 
     return context;
-} 
+}
