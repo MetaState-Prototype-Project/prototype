@@ -116,14 +116,12 @@
 		>
 			View Members
 		</Button>
-		{#if canEdit}
-			<button
-				onclick={() => (openEditDialog = true)}
-				class="border border-brand-burnt-orange-900 rounded-full p-2"
-			>
-				<Settings size="24px" color="var(--color-brand-burnt-orange)" />
-			</button>
-		{/if}
+		<button
+			onclick={() => (openEditDialog = true)}
+			class="border border-brand-burnt-orange-900 rounded-full p-2"
+		>
+			<Settings size="24px" color="var(--color-brand-burnt-orange)" />
+		</button>
 	</div>
 </section>
 
