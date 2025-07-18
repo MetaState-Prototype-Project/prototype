@@ -3,13 +3,10 @@
 	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
-	import { Edit01FreeIcons } from '@hugeicons/core-free-icons';
-	import {HugeiconsIcon} from "@hugeicons/svelte";
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Settings from '$lib/icons/Settings.svelte';
 	import { clickOutside } from '$lib/utils';
-	import VerticalDots from '$lib/icons/VerticalDots.svelte';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
