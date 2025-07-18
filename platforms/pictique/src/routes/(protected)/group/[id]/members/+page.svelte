@@ -5,7 +5,7 @@
 
 	let groupId = page.params.id;
 
-	let userId = 'user-1'; // Simulated current user
+	let userId = 'user-1'; 
 
 	let group = $state({
 		id: groupId,
