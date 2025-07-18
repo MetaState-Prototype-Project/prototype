@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ChatMessage, MessageInput } from '$lib/fragments';
+	import { ChatMessage, MessageInput, InputFile } from '$lib/fragments';
 	import { Avatar, Button, Input, Label } from '$lib/ui';
-	import { InputFile } from '$lib/fragments';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Settings from '$lib/icons/Settings.svelte';
@@ -10,7 +9,6 @@
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
-
 	let userId = 'user-1';
 	let id = page.params.id;
 
@@ -75,28 +73,28 @@
 	let groupImageDataUrl = $state(group.avatar);
 	let groupImageFiles = $state<FileList | undefined>();
 
-	function handleGroupImageChange() {
-		if (groupImageFiles && groupImageFiles[0]) {
+	$effect(()=> {
+		if (groupImageFiles?.[0]) {
+			const file = groupImageFiles[0];
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				if (e.target?.result) {
 					groupImageDataUrl = e.target.result as string;
 				}
 			};
-			reader.readAsDataURL(groupImageFiles[0]);
+			reader.readAsDataURL(file);
 		}
-	}
-
-	$effect(() => {
-		if (groupImageFiles) handleGroupImageChange();
-	});
-
+	}) 
+		
 	function saveGroupInfo() {
 		group.name = groupName;
 		group.description = groupDescription;
 		group.avatar = groupImageDataUrl;
 		openEditDialog = false;
 	}
+
+	const currentUser = group.members.find((m) => m.id === userId);
+	const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 </script>
 
 <section class="flex flex-col md:flex-row items-center justify-between gap-4 px-2 md:px-4 py-3 border-b border-gray-200">
@@ -118,12 +116,14 @@
 		>
 			View Members
 		</Button>
-		<button
-			onclick={() => (openEditDialog = true)}
-			class="border border-brand-burnt-orange-900 rounded-full p-2"
-		>
-			<Settings  size="24px" color="var(--color-brand-burnt-orange)" />
-		</button>
+		{#if canEdit}
+			<button
+				onclick={() => (openEditDialog = true)}
+				class="border border-brand-burnt-orange-900 rounded-full p-2"
+			>
+				<Settings size="24px" color="var(--color-brand-burnt-orange)" />
+			</button>
+		{/if}
 	</div>
 </section>
 
@@ -148,40 +148,55 @@
 	/>
 </section>
 
-<dialog open={openEditDialog} use:clickOutside={() => openEditDialog = false} onclose={() => (openEditDialog = false)} class="w-full max-w-[300px] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-2 border border-gray-100 rounded-4xl" >
+<dialog
+	open={openEditDialog}
+	use:clickOutside={() => (openEditDialog = false)}
+	onclose={() => (openEditDialog = false)}
+	class="w-[90vw] md:max-w-[30vw] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4 border border-gray-400 rounded-3xl bg-white shadow-xl"
+>
 	<div class="flex flex-col gap-6">
 		<div>
-			<InputFile
-				bind:files={groupImageFiles}
-				accept="image/*"
-				label="Upload Group Avatar"
-				cancelLabel="Remove"
-				oncancel={() => {
-					groupImageDataUrl = '';
-					groupImageFiles = undefined;
-				}}
-			/>
-			{#if groupImageDataUrl}
-				<Avatar
-				class="mt-4"
-					src={groupImageDataUrl}
-					alt="Group preview"
-					size="lg"
+			{#if canEdit}
+				<InputFile
+					bind:files={groupImageFiles}
+					accept="image/*"
+					label="Upload Group Avatar"
+					cancelLabel="Remove"
+					oncancel={() => {
+						groupImageDataUrl = '';
+						groupImageFiles = undefined;
+					}}
 				/>
+			{/if}
+			{#if groupImageDataUrl}
+				<Avatar class="mt-4" src={groupImageDataUrl} alt="Group preview" size="lg" />
 			{/if}
 		</div>
 
 		<div>
 			<Label>Group Name</Label>
-			<Input type="text" placeholder="Edit group name" bind:value={groupName} />
+			{#if canEdit}
+				<Input type="text" placeholder="Edit group name" bind:value={groupName} />
+			{:else}
+				<p class="text-gray-700">{group.name}</p>
+			{/if}
 		</div>
 
 		<div>
 			<Label>Description</Label>
-			<Input type="text" placeholder="Edit group description" bind:value={groupDescription} />
+			{#if canEdit}
+				<Input type="text" placeholder="Edit group description" bind:value={groupDescription} />
+			{:else}
+				<p class="text-gray-700">{group.description}</p>
+			{/if}
 		</div>
 
 		<hr class="text-grey" />
-		<Button size="sm" variant="secondary" callback={saveGroupInfo}>Save Changes</Button>
+		<div class="flex items-center gap-2">
+			<Button size="sm" variant="primary" callback={() => {(openEditDialog = false)}}>Cancel</Button>
+			{#if canEdit}
+				<Button size="sm" variant="secondary" callback={saveGroupInfo}>Save Changes</Button>
+			{/if}
+		</div>
 	</div>
 </dialog>
