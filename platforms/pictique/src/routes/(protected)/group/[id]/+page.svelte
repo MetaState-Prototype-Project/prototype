@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { ChatMessage, MessageInput } from '$lib/fragments';
-	import { Avatar, Button } from '$lib/ui';
+	import { Avatar, Button, Input, Label } from '$lib/ui';
+	import { InputFile } from '$lib/fragments';
+	import { HugeiconsFreeIcons, Edit01FreeIcons } from '@hugeicons/core-free-icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import Settings from '$lib/icons/Settings.svelte';
+	import { clickOutside } from '$lib/utils';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
+	let openMenuId = $state<string | null>(null);
 
 	let userId = 'user-1';
 	let id = page.params.id;
@@ -40,8 +45,6 @@
 		}
 	]);
 
-	let openMenuId = $state<string | null>(null);
-
 	function scrollToBottom() {
 		if (messagesContainer) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -67,8 +70,39 @@
 		messageValue = '';
 		setTimeout(scrollToBottom, 0);
 	}
+
+	// Edit Dialog state and logic
+	let openEditDialog = $state(false);
+	let groupName = $state(group.name);
+	let groupDescription = $state(group.description);
+	let groupImageDataUrl = $state(group.avatar);
+	let groupImageFiles = $state<FileList | undefined>();
+
+	function handleGroupImageChange() {
+		if (groupImageFiles && groupImageFiles[0]) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				if (e.target?.result) {
+					groupImageDataUrl = e.target.result as string;
+				}
+			};
+			reader.readAsDataURL(groupImageFiles[0]);
+		}
+	}
+
+	$effect(() => {
+		if (groupImageFiles) handleGroupImageChange();
+	});
+
+	function saveGroupInfo() {
+		group.name = groupName;
+		group.description = groupDescription;
+		group.avatar = groupImageDataUrl;
+		openEditDialog = false;
+	}
 </script>
 
+<!-- Group Header -->
 <section class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200">
 	<div class="flex items-center gap-4">
 		<Avatar src={group.avatar} />
@@ -77,18 +111,26 @@
 			<p class="text-sm text-gray-600">{group.description}</p>
 		</div>
 	</div>
-	<Button
-		variant="secondary"
-		size="sm"
-		class="w-[max-content]"
-		callback={() => {
-			goto(`/group/${id}/members`)
-		}}
-	>
-		View Members
-	</Button>
+	<div class="flex items-center gap-2">
+		<Button
+			variant="secondary"
+			size="sm"
+			class="w-[max-content]"
+			callback={() => {
+				goto(`/group/${id}/members`);
+			}}
+		>
+			View Members
+		</Button>
+		<button
+			onclick={() => (openEditDialog = true)}
+		>
+			<Settings  size="24px" color="var(--color-brand-burnt-orange)" />
+		</button>
+	</div>
 </section>
 
+<!-- Chat Area -->
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-300px)] mt-4 overflow-auto" bind:this={messagesContainer}>
 		{#each messages as msg (msg.id)}
@@ -109,3 +151,40 @@
 		{handleSend}
 	/>
 </section>
+
+<dialog open={openEditDialog} use:clickOutside={() => openEditDialog = false} onclose={() => (openEditDialog = false)} class="absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4" >
+	<div class="flex flex-col gap-6">
+		<div>
+			<InputFile
+				bind:files={groupImageFiles}
+				accept="image/*"
+				label="Upload Group Avatar"
+				cancelLabel="Remove"
+				oncancel={() => {
+					groupImageDataUrl = '';
+					groupImageFiles = undefined;
+				}}
+			/>
+			{#if groupImageDataUrl}
+				<img
+					src={groupImageDataUrl}
+					alt="Group preview"
+					class="mt-2 h-24 w-24 rounded-full object-cover"
+				/>
+			{/if}
+		</div>
+
+		<div>
+			<Label>Group Name</Label>
+			<Input type="text" placeholder="Edit group name" bind:value={groupName} />
+		</div>
+
+		<div>
+			<Label>Description</Label>
+			<Input type="text" placeholder="Edit group description" bind:value={groupDescription} />
+		</div>
+
+		<hr class="text-grey" />
+		<Button size="sm" variant="secondary" callback={saveGroupInfo}>Save Changes</Button>
+	</div>
+</dialog>
