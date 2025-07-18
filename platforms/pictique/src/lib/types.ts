@@ -47,3 +47,9 @@ export type Image = {
 	url: string;
 	alt: string;
 };
+
+export type GroupInfo = {
+	id: string;
+	name: string;
+	avatar: string;
+};
