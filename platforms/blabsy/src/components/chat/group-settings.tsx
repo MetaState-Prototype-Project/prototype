@@ -77,38 +77,61 @@ export function GroupSettings({
                                 ) : (
                                     <UserIcon className='h-24 w-24 text-gray-400' />
                                 )}
-                                <label
-                                    htmlFor='group-photo'
-                                    className='absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs rounded-full cursor-pointer'
-                                >
-                                    Change
-                                    <input
-                                        id='group-photo'
-                                        type='file'
-                                        accept='image/*'
-                                        className='hidden'
-                                    />
-                                </label>
+                                {(user &&
+                                    currentChat?.admins?.includes(user?.id)) ||
+                                    (currentChat?.owner === user?.id && (
+                                        <label
+                                            htmlFor='group-photo'
+                                            className='absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs rounded-full cursor-pointer'
+                                        >
+                                            Change
+                                            <input
+                                                id='group-photo'
+                                                type='file'
+                                                accept='image/*'
+                                                className='hidden'
+                                            />
+                                        </label>
+                                    ))}
                             </div>
                         </div>
                         <div>
+                            {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
                             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
                                 Group Name
-                                <input
-                                    type='text'
-                                    value={currentChat?.name || ''}
-                                    className='mt-1 block w-full py-3 px-4 rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white'
-                                />
+                                {(user &&
+                                    currentChat?.admins?.includes(user?.id)) ||
+                                currentChat?.owner === user?.id ? (
+                                    <input
+                                        type='text'
+                                        value={currentChat?.name || ''}
+                                        className='mt-1 block w-full py-3 px-4 rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white'
+                                    />
+                                ) : (
+                                    <p className='px-4 py-3 font-normal'>
+                                        {currentChat?.name}
+                                    </p>
+                                )}
                             </label>
                         </div>
                         <div>
+                            {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
                             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
                                 Description
-                                <textarea
-                                    value={currentChat?.description || ''}
-                                    rows={3}
-                                    className='mt-1 py-3 px-4 resize-none block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white'
-                                />
+                                {(user &&
+                                    currentChat?.admins?.includes(user?.id)) ||
+                                currentChat?.owner === user?.id ? (
+                                    <textarea
+                                        value={currentChat?.description || ''}
+                                        rows={3}
+                                        className='mt-1 py-3 px-4 resize-none block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white'
+                                    />
+                                ) : (
+                                    <p className='px-4 py-3 font-normal'>
+                                        {currentChat?.description ||
+                                            "It's empty out here."}
+                                    </p>
+                                )}
                             </label>
                         </div>
                         <div className='flex justify-end gap-2 mt-4'>
