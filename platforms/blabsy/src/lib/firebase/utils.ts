@@ -318,6 +318,7 @@ export async function createChat(
     participants: string[],
     name?: string,
     owner?: string,
+    description?: string
 ): Promise<string> {
     const chatRef = doc(chatsCollection);
     const chatData: WithFieldValue<Chat> = {
@@ -326,6 +327,7 @@ export async function createChat(
         participants,
         name,
         owner,
+        description,
         admins: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

@@ -151,14 +151,15 @@ export function ChatContextProvider({
     const createNewChat = async (
         type: 'direct' | 'group',
         participants: string[],
-        name?: string
+        name?: string,
+        description?: string
     ): Promise<string> => {
         try {
             if (!user) {
                 throw new Error('User must be logged in to create a chat');
             }
 
-            const chatId = await createChat(type, participants, name, type === 'group' ? user.id : undefined);
+            const chatId = await createChat(type, participants, name, type === 'group' ? user.id : undefined, description);
             return chatId;
         } catch (error) {
             setError(error as Error);

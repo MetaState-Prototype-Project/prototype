@@ -7,6 +7,7 @@ export type Chat = {
     id: string;
     type: ChatType;
     name?: string; // Required for group chats
+    description?: string;
     participants: string[]; // Array of user IDs
     owner?: string; // Required User ID of the chat owner in group chats
     admins?: string[]; // Required Array of user IDs for group chats
