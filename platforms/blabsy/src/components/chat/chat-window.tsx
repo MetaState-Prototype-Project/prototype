@@ -58,7 +58,7 @@ export function ChatWindow(): JSX.Element {
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-   
+
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -136,7 +136,8 @@ export function ChatWindow(): JSX.Element {
         <div className='flex h-full flex-col'>
             {currentChat ? (
                 <>
-                    <div className='flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
+                    <div className='flex items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
+                        <div className="flex items-center gap-3">
                         <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
                             {otherUser?.photoURL ? (
                                 <Image
@@ -168,6 +169,15 @@ export function ChatWindow(): JSX.Element {
                                     : `${currentChat.participants.length} participants`}
                             </p>
                         </div>
+                        </div>
+                        {
+                            currentChat.type === 'group' &&
+                        <div>
+                            <button onClick={() => alert("view")} className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800">
+                                View Participants
+                            </button>
+                        </div>
+                        }
                     </div>
                     <div className='flex-1 overflow-y-auto p-4'>
                         {isLoading ? (
