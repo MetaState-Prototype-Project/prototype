@@ -10,19 +10,13 @@
 		callback: () => void;
 	}
 
-	const {
-		avatar,
-		name,
-		unread = false,
-		callback,
-		...restProps
-	}: IGroupProps = $props();
+	const { avatar, name, unread = false, callback, ...restProps }: IGroupProps = $props();
 </script>
 
 <button
 	{...restProps}
 	class={cn([
-		'relative flex w-full cursor-pointer items-center gap-3 rounded-lg py-4 px-2',
+		'relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-4',
 		restProps.class
 	])}
 	onclick={callback}
