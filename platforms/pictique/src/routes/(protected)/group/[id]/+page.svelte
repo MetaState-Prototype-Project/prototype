@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ChatMessage, MessageInput, InputFile } from '$lib/fragments';
+	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -155,7 +155,6 @@
 	class="w-[90vw] md:max-w-[30vw] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4 border border-gray-400 rounded-3xl bg-white shadow-xl"
 >
 	<div class="flex flex-col gap-6">
-		<!-- Group Avatar with Edit Icon -->
 		<div class="relative w-[96px] h-[96px] self-center">
 			<img
 				src={groupImageDataUrl || '/images/avatar-placeholder.png'}
@@ -163,7 +162,6 @@
 				class="w-full h-full object-cover rounded-full border border-gray-300"
 			/>
 			{#if canEdit}
-				<!-- Hidden file input trigger -->
 				<input
 					type="file"
 					accept="image/*"
@@ -191,11 +189,12 @@
 			{/if}
 		</div>
 
-		<!-- Group Description -->
 		<div>
 			<Label>Description</Label>
 			{#if canEdit}
-				<Input type="text" placeholder="Edit group description" bind:value={groupDescription} />
+				<!-- svelte-ignore element_invalid_self_closing_tag -->
+				<textarea rows="2"
+				maxlength="60" placeholder="Edit group description" class="w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent invalid:border-red invalid:text-red focus:invalid:text-black-800 focus:invalid:border-transparent" bind:value={groupDescription} />
 			{:else}
 				<p class="text-gray-700">{group.description}</p>
 			{/if}
