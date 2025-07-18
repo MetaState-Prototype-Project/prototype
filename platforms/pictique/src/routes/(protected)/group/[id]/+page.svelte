@@ -3,20 +3,21 @@
 	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
-	import { HugeiconsFreeIcons, Edit01FreeIcons } from '@hugeicons/core-free-icons';
+	import { Edit01FreeIcons } from '@hugeicons/core-free-icons';
+	import {HugeiconsIcon} from "@hugeicons/svelte";
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Settings from '$lib/icons/Settings.svelte';
 	import { clickOutside } from '$lib/utils';
+	import VerticalDots from '$lib/icons/VerticalDots.svelte';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
-	let openMenuId = $state<string | null>(null);
 
 	let userId = 'user-1';
 	let id = page.params.id;
 
-	let group = {
+	let group = $state({
 		id: 'group-123',
 		name: 'Design Team',
 		avatar: 'https://i.pravatar.cc/150?img=15',
@@ -26,7 +27,7 @@
 			{ id: 'user-2', name: 'Bob', avatar: 'https://i.pravatar.cc/150?img=2', role: 'admin' },
 			{ id: 'user-3', name: 'Charlie', avatar: 'https://i.pravatar.cc/150?img=3', role: 'member' }
 		]
-	};
+	});
 
 	let messages = $state([
 		{
@@ -71,7 +72,6 @@
 		setTimeout(scrollToBottom, 0);
 	}
 
-	// Edit Dialog state and logic
 	let openEditDialog = $state(false);
 	let groupName = $state(group.name);
 	let groupDescription = $state(group.description);
@@ -102,8 +102,7 @@
 	}
 </script>
 
-<!-- Group Header -->
-<section class="flex items-center justify-between gap-4 px-4 py-3 border-b border-gray-200">
+<section class="flex flex-col md:flex-row items-center justify-between gap-4 px-2 md:px-4 py-3 border-b border-gray-200">
 	<div class="flex items-center gap-4">
 		<Avatar src={group.avatar} />
 		<div>
@@ -124,13 +123,13 @@
 		</Button>
 		<button
 			onclick={() => (openEditDialog = true)}
+			class="border border-brand-burnt-orange-900 rounded-full p-2"
 		>
 			<Settings  size="24px" color="var(--color-brand-burnt-orange)" />
 		</button>
 	</div>
 </section>
 
-<!-- Chat Area -->
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-300px)] mt-4 overflow-auto" bind:this={messagesContainer}>
 		{#each messages as msg (msg.id)}
@@ -152,7 +151,7 @@
 	/>
 </section>
 
-<dialog open={openEditDialog} use:clickOutside={() => openEditDialog = false} onclose={() => (openEditDialog = false)} class="absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4" >
+<dialog open={openEditDialog} use:clickOutside={() => openEditDialog = false} onclose={() => (openEditDialog = false)} class="w-full max-w-[300px] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-2 border border-gray-100 rounded-4xl" >
 	<div class="flex flex-col gap-6">
 		<div>
 			<InputFile
@@ -166,10 +165,11 @@
 				}}
 			/>
 			{#if groupImageDataUrl}
-				<img
+				<Avatar
+				class="mt-4"
 					src={groupImageDataUrl}
 					alt="Group preview"
-					class="mt-2 h-24 w-24 rounded-full object-cover"
+					size="lg"
 				/>
 			{/if}
 		</div>
