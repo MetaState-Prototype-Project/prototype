@@ -61,8 +61,14 @@ export function GroupSettings({
             <div className='fixed inset-0 flex items-center justify-center p-4'>
                 <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
                     <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
-                        Edit Group Settings
-                        <XMarkIcon className="h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" onClick={onClose} />
+                        {(user && currentChat?.admins?.includes(user?.id)) ||
+                        currentChat?.owner === user?.id
+                            ? 'Edit Group Settings'
+                            : 'Group Info'}
+                        <XMarkIcon
+                            className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            onClick={onClose}
+                        />
                     </Dialog.Title>
                     <form className='mt-4 flex flex-col gap-4'>
                         <div className='flex flex-col items-center'>
@@ -135,21 +141,24 @@ export function GroupSettings({
                                 )}
                             </label>
                         </div>
-                        <div className='flex justify-end gap-2 mt-4'>
-                            <button
-                                type='button'
-                                onClick={onClose}
-                                className='px-4 py-2 text-sm rounded-md bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type='button'
-                                className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
-                            >
-                                Save
-                            </button>
-                        </div>
+                        {((user && currentChat?.admins?.includes(user?.id)) ||
+                            currentChat?.owner === user?.id) && (
+                            <div className='flex justify-end gap-2 mt-4'>
+                                <button
+                                    type='button'
+                                    onClick={onClose}
+                                    className='px-4 py-2 text-sm rounded-md bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type='button'
+                                    className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        )}
                     </form>
                 </Dialog.Panel>
             </div>
