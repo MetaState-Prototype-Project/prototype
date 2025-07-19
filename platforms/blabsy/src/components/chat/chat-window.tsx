@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, set } from 'date-fns';
 import type { Message } from '@lib/types/message';
-import { UserIcon, PaperAirplaneIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import {
+    UserIcon,
+    PaperAirplaneIcon,
+    Cog6ToothIcon
+} from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
@@ -11,6 +15,7 @@ import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
 import { MemberList } from './member-list';
 import { GroupSettings } from './group-settings';
+import { AddMembers } from './add-members';
 
 function MessageItem({
     message,
@@ -61,6 +66,7 @@ export function ChatWindow(): JSX.Element {
     const [isLoading, setIsLoading] = useState(false);
     const [openMemberList, setOpenMemberList] = useState(false);
     const [openEditMenu, setOpenEditMenu] = useState<boolean>(false);
+    const [openAddMemberList, setOpenAddMemberList] = useState<boolean>(false);
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -170,7 +176,7 @@ export function ChatWindow(): JSX.Element {
                             </div>
                         </div>
                         {currentChat.type === 'group' && (
-                            <div className="flex items-center gap-2">
+                            <div className='flex items-center gap-2'>
                                 <div>
                                     <button
                                         type='button'
@@ -262,6 +268,17 @@ export function ChatWindow(): JSX.Element {
             <MemberList
                 open={openMemberList}
                 onClose={() => setOpenMemberList(false)}
+                onOpenAddMemberModal={() => {
+                    setOpenMemberList(false);
+                    setOpenAddMemberList(true);
+                }}
+            />
+            <AddMembers
+                open={openAddMemberList}
+                onClose={() => {
+                    setOpenAddMemberList(false);
+                    setOpenMemberList(true);
+                }}
             />
             <GroupSettings
                 open={openEditMenu}

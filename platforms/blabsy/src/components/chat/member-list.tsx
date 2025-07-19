@@ -16,10 +16,12 @@ import { Dialog } from '@headlessui/react';
 
 export function MemberList({
     open,
-    onClose
+    onClose,
+    onOpenAddMemberModal
 }: {
     open: boolean;
     onClose: () => void;
+    onOpenAddMemberModal: () => void;
 }): JSX.Element {
     const {
         currentChat,
@@ -223,6 +225,7 @@ export function MemberList({
                     <div className='flex justify-center gap-2 mt-4'>
                         <button
                             type='button'
+                            onClick={onOpenAddMemberModal}
                             className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
                         >
                             Add Member
