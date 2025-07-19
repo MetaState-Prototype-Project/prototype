@@ -155,6 +155,7 @@ function ChatListItem({
 
     return (
         <button
+            type='button'
             className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${
                 isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
             }`}
@@ -168,6 +169,7 @@ function ChatListItem({
                         viewBox='0 0 24 24'
                         stroke='currentColor'
                     >
+                        <title>{chat.name || 'Group Chat'}</title>
                         <path
                             strokeLinecap='round'
                             strokeLinejoin='round'
@@ -182,6 +184,10 @@ function ChatListItem({
                         viewBox='0 0 24 24'
                         stroke='currentColor'
                     >
+                        <title>
+                            {otherParticipants.length} User
+                            {otherParticipants.length > 1 ? 's' : ''}
+                        </title>
                         <path
                             strokeLinecap='round'
                             strokeLinejoin='round'
