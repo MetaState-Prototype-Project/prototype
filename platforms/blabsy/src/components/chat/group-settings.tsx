@@ -6,7 +6,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import type { User } from '@lib/types/user';
 import { Dialog } from '@headlessui/react';
-import { UserIcon } from '@heroicons/react/24/outline';
+import { UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 export function GroupSettings({
     open,
@@ -60,8 +60,9 @@ export function GroupSettings({
             <div className='fixed inset-0 bg-black/30' aria-hidden='true' />
             <div className='fixed inset-0 flex items-center justify-center p-4'>
                 <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
-                    <Dialog.Title className='text-lg font-medium leading-6 text-gray-900 dark:text-white'>
+                    <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
                         Edit Group Settings
+                        <XMarkIcon className="h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" onClick={onClose} />
                     </Dialog.Title>
                     <form className='mt-4 flex flex-col gap-4'>
                         <div className='flex flex-col items-center'>
