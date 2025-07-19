@@ -162,75 +162,83 @@ export function MemberList({
                                         </p>
                                     </div>
                                 </div>
-                                {currentChat.owner !== participantId && (
-                                    <div className='relative'>
-                                        <button
-                                            type='button'
-                                            onClick={() =>
-                                                setOpenMenuId((prev) =>
-                                                    prev === participantId
-                                                        ? null
-                                                        : participantId
-                                                )
-                                            }
-                                            className='p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 group'
-                                        >
-                                            <EllipsisVerticalIcon className='h-5 w-5 text-gray-600 dark:text-gray-300' />
-                                        </button>
-                                        {openMenuId === participantId && (
-                                            <div className='absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50'>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => {
-                                                        if (
-                                                            currentChat.admins?.includes(
-                                                                participantId
-                                                            )
-                                                        ) {
-                                                            alert(
-                                                                'Remove admin'
-                                                            );
-                                                        } else {
-                                                            alert('Make admin');
-                                                        }
-                                                        setOpenMenuId(null);
-                                                    }}
-                                                    className='block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                                >
-                                                    {currentChat.admins?.includes(
-                                                        participantId
+                                {((user &&
+                                    currentChat?.admins?.includes(user?.id)) ||
+                                    currentChat?.owner === user?.id) &&
+                                    currentChat.owner !== participantId && (
+                                        <div className='relative'>
+                                            <button
+                                                type='button'
+                                                onClick={() =>
+                                                    setOpenMenuId((prev) =>
+                                                        prev === participantId
+                                                            ? null
+                                                            : participantId
                                                     )
-                                                        ? 'Remove Admin'
-                                                        : 'Make Admin'}
-                                                </button>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => {
-                                                        removeParticipant(
+                                                }
+                                                className='p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 group'
+                                            >
+                                                <EllipsisVerticalIcon className='h-5 w-5 text-gray-600 dark:text-gray-300' />
+                                            </button>
+                                            {openMenuId === participantId && (
+                                                <div className='absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50'>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => {
+                                                            if (
+                                                                currentChat.admins?.includes(
+                                                                    participantId
+                                                                )
+                                                            ) {
+                                                                alert(
+                                                                    'Remove admin'
+                                                                );
+                                                            } else {
+                                                                alert(
+                                                                    'Make admin'
+                                                                );
+                                                            }
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className='block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                    >
+                                                        {currentChat.admins?.includes(
                                                             participantId
-                                                        );
-                                                        setOpenMenuId(null);
-                                                    }}
-                                                    className='block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700'
-                                                >
-                                                    Remove Member
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                                        )
+                                                            ? 'Remove Admin'
+                                                            : 'Make Admin'}
+                                                    </button>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => {
+                                                            removeParticipant(
+                                                                participantId
+                                                            );
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className='block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700'
+                                                    >
+                                                        Remove Member
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                             </div>
                         ))}
                     </div>
-                    <div className='flex justify-center gap-2 mt-4'>
-                        <button
-                            type='button'
-                            onClick={onOpenAddMemberModal}
-                            className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
-                        >
-                            Add Member
-                        </button>
-                    </div>
+                    {((user && currentChat?.admins?.includes(user?.id)) ||
+                        currentChat?.owner === user?.id) && (
+                        <div className='flex justify-center gap-2 mt-4'>
+                            <button
+                                type='button'
+                                onClick={onOpenAddMemberModal}
+                                className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
+                            >
+                                Add Member
+                            </button>
+                        </div>
+                    )}
                 </Dialog.Panel>
             </div>
         </Dialog>
