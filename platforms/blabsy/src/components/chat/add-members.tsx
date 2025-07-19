@@ -16,10 +16,12 @@ import { Dialog } from '@headlessui/react';
 
 export function AddMembers({
     open,
-    onClose
+    onClose,
+    newChat = false
 }: {
     open: boolean;
     onClose: () => void;
+    newChat?: boolean;
 }): JSX.Element {
     const {
         currentChat,
@@ -183,7 +185,7 @@ export function AddMembers({
     }, []);
 
     const filteredUsers = allUsers.filter(
-        (u) => !currentChat?.participants.includes(u.id)
+        (u) => newChat || !currentChat?.participants.includes(u.id)
     );
 
     const toggleUserSelection = (user: User) => {
@@ -195,13 +197,26 @@ export function AddMembers({
     };
 
     const handleAddSelectedMembers = async () => {
-        if (!currentChat) return;
+        if (!currentChat && !newChat) return;
         // Replace this with actual logic to update Firestore group chat participants
-        alert(
-            `Added: ${selectedUsers
-                .map((u) => u.name || u.username)
-                .join(', ')}`
-        );
+        if (newChat) {
+            // alert(
+            //     `Creating new chat with: ${[...selectedUsers, user as User]
+            //         .map((u) => u.name || u.username)
+            //         .join(', ')}`
+            // );
+            alert(
+                `Creating new chat with: ${selectedUsers
+                    .map((u) => u.name || u.username)
+                    .join(', ')}`
+            );
+        } else {
+            alert(
+                `Added: ${selectedUsers
+                    .map((u) => u.name || u.username)
+                    .join(', ')}`
+            );
+        }
         setSelectedUsers([]);
         onClose();
     };
@@ -290,7 +305,11 @@ export function AddMembers({
                                 className='w-full px-4 py-2 bg-main-accent text-white rounded hover:brightness-90'
                                 onClick={handleAddSelectedMembers}
                             >
-                                Add Selected Members
+                                {newChat
+                                    ? selectedUsers.length > 1
+                                        ? 'Make Group'
+                                        : 'Send Message'
+                                    : 'Add Selected Members'}
                             </button>
                         </div>
                     )}

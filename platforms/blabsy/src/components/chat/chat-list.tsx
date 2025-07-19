@@ -10,6 +10,7 @@ import { db } from '@lib/firebase/app';
 import { usersCollection } from '@lib/firebase/collections';
 import type { User } from '@lib/types/user';
 import Image from 'next/image';
+import { AddMembers } from './add-members';
 
 type ParticipantData = {
     [key: string]: User;
@@ -19,6 +20,7 @@ export function ChatList(): JSX.Element {
     const { chats, currentChat, setCurrentChat, loading } = useChat();
     const { user } = useAuth();
     const [participantData, setParticipantData] = useState<ParticipantData>({});
+    const [openCreateNewChatModal, setOpenCreateNewChatModal] = useState(false);
 
     useEffect(() => {
         if (!chats || !user) return;
@@ -128,10 +130,16 @@ export function ChatList(): JSX.Element {
             </div>
             <button
                 type='button'
+                onClick={() => setOpenCreateNewChatModal(true)}
                 className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
             >
                 New Chat
             </button>
+            <AddMembers
+                open={openCreateNewChatModal}
+                onClose={() => setOpenCreateNewChatModal(false)}
+                newChat={true}
+            />
         </div>
     );
 }
