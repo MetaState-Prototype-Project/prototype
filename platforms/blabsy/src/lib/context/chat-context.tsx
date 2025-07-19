@@ -32,7 +32,11 @@ type ChatContext = {
     loading: boolean;
     error: Error | null;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (type: 'direct' | 'group', participants: string[], name?: string) => Promise<string>;
+    createNewChat: (
+        type: 'direct' | 'group',
+        participants: string[],
+        name?: string
+    ) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
@@ -70,7 +74,7 @@ export function ChatContextProvider({
                     lastMessage: {
                         senderId: 'user_1',
                         text: 'Hey, how are you?',
-                        timestamp: Timestamp.fromDate(new Date()),
+                        timestamp: Timestamp.fromDate(new Date())
                     },
                     name: 'Chat with User 2'
                 },
@@ -85,7 +89,7 @@ export function ChatContextProvider({
                     lastMessage: {
                         senderId: 'user_4',
                         text: 'Let’s meet tomorrow.',
-                        timestamp: Timestamp.fromDate(new Date()),
+                        timestamp: Timestamp.fromDate(new Date())
                     },
                     name: 'Project Team'
                 }
@@ -98,7 +102,6 @@ export function ChatContextProvider({
             chatsCollection,
             where('participants', 'array-contains', user.id)
         );
-
 
         const unsubscribe = onSnapshot(
             chatsQuery,
@@ -159,7 +162,13 @@ export function ChatContextProvider({
                 throw new Error('User must be logged in to create a chat');
             }
 
-            const chatId = await createChat(type, participants, name, type === 'group' ? user.id : undefined, description);
+            const chatId = await createChat(
+                type,
+                participants,
+                name,
+                type === 'group' ? user.id : undefined,
+                description
+            );
             return chatId;
         } catch (error) {
             setError(error as Error);

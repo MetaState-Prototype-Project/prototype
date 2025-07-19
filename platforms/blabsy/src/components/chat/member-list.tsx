@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
-import { UserIcon, PaperAirplaneIcon, EllipsisVerticalIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+    UserIcon,
+    PaperAirplaneIcon,
+    EllipsisVerticalIcon,
+    XMarkIcon
+} from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
@@ -11,13 +16,19 @@ import { Dialog } from '@headlessui/react';
 
 export function MemberList({
     open,
-    onClose,
+    onClose
 }: {
     open: boolean;
     onClose: () => void;
 }): JSX.Element {
-    const { currentChat, messages, sendNewMessage, markAsRead, removeParticipant, loading } =
-        useChat();
+    const {
+        currentChat,
+        messages,
+        sendNewMessage,
+        markAsRead,
+        removeParticipant,
+        loading
+    } = useChat();
     const { user } = useAuth();
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -44,8 +55,7 @@ export function MemberList({
                     setOtherUser(userDoc.data() as User);
                 } else {
                 }
-            } catch (error) {
-            }
+            } catch (error) {}
         };
 
         void fetchUserData();
@@ -79,7 +89,6 @@ export function MemberList({
                 !message.readBy.includes(user.id)
         );
 
-
         if (unreadMessages?.length) {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
@@ -94,90 +103,130 @@ export function MemberList({
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) {
-        }
+        } catch (error) {}
     };
 
     return (
-        <Dialog open={open} onClose={onClose} className="relative z-10">
-            <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-            <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900">
-                    <Dialog.Title className="flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white">
+        <Dialog open={open} onClose={onClose} className='relative z-10'>
+            <div className='fixed inset-0 bg-black/30' aria-hidden='true' />
+            <div className='fixed inset-0 flex items-center justify-center p-4'>
+                <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
+                    <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
                         Members
-                        <XMarkIcon className="h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300" onClick={onClose} />
+                        <XMarkIcon
+                            className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            onClick={onClose}
+                        />
                     </Dialog.Title>
-                    <div className="mt-4 flex flex-col gap-2">
+                    <div className='mt-4 flex flex-col gap-2'>
                         {currentChat?.participants.map((participantId) => (
                             <div
                                 key={participantId}
-                                className="flex items-center justify-between gap-3 border-b border-gray-200 pb-2 mb-2 dark:border-gray-800"
+                                className='flex items-center justify-between gap-3 border-b border-gray-200 pb-2 mb-2 dark:border-gray-800'
                             >
                                 <div className='flex items-center gap-3'>
-                                <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                                    {otherUser?.photoURL && otherUser.id === participantId ? (
-                                        <Image
-                                            src={otherUser.photoURL}
-                                            alt={
-                                                otherUser.name ||
-                                                otherUser.username ||
-                                                'User'
-                                            }
-                                            width={40}
-                                            height={40}
-                                            className="object-cover"
-                                        />
-                                    ) : (
-                                        <UserIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="font-medium text-gray-900 dark:text-white">
-                                        {otherUser?.id === participantId
-                                            ? otherUser?.name ||
-                                              otherUser?.username ||
-                                              participantId
-                                            : participantId}
-                                    </p>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        {currentChat.owner === participantId && "Owner"}
-                                        {currentChat.admins?.includes(participantId) && "Admin"}
-                                    </p>
-                                </div>
-                                </div>
-                                {currentChat.owner !== participantId &&
-                                <div className="relative">
-                                    <button
-                                        type='button'
-                                        onClick={() =>
-                                            setOpenMenuId((prev) => (prev === participantId ? null : participantId))
-                                        }
-                                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 group"
-                                    >
-                                        <EllipsisVerticalIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-                                    </button>
-                                    {openMenuId === participantId && (
-                                        <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50">
-                                            <button type='button' onClick={() => {
-                                                if (currentChat.admins?.includes(participantId)) {
-                                                    alert("Remove admin");
-                                                } else {
-                                                    alert("Make admin");
+                                    <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                        {otherUser?.photoURL &&
+                                        otherUser.id === participantId ? (
+                                            <Image
+                                                src={otherUser.photoURL}
+                                                alt={
+                                                    otherUser.name ||
+                                                    otherUser.username ||
+                                                    'User'
                                                 }
-                                                setOpenMenuId(null);
-                                            }} className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-                                                {currentChat.admins?.includes(participantId) ? 'Remove Admin' : 'Make Admin'}
-                                            </button>
-                                            <button type='button' onClick={() => {removeParticipant(participantId); setOpenMenuId(null)}} className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700">
-                                                Remove Member
-                                            </button>
-                                        </div>
-                                    )}
+                                                width={40}
+                                                height={40}
+                                                className='object-cover'
+                                            />
+                                        ) : (
+                                            <UserIcon className='h-6 w-6 text-gray-500 dark:text-gray-400' />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className='font-medium text-gray-900 dark:text-white'>
+                                            {otherUser?.id === participantId
+                                                ? otherUser?.name ||
+                                                  otherUser?.username ||
+                                                  participantId
+                                                : participantId}
+                                        </p>
+                                        <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                            {currentChat.owner ===
+                                                participantId && 'Owner'}
+                                            {currentChat.admins?.includes(
+                                                participantId
+                                            ) && 'Admin'}
+                                        </p>
+                                    </div>
                                 </div>
-                                }
-
+                                {currentChat.owner !== participantId && (
+                                    <div className='relative'>
+                                        <button
+                                            type='button'
+                                            onClick={() =>
+                                                setOpenMenuId((prev) =>
+                                                    prev === participantId
+                                                        ? null
+                                                        : participantId
+                                                )
+                                            }
+                                            className='p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 group'
+                                        >
+                                            <EllipsisVerticalIcon className='h-5 w-5 text-gray-600 dark:text-gray-300' />
+                                        </button>
+                                        {openMenuId === participantId && (
+                                            <div className='absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50'>
+                                                <button
+                                                    type='button'
+                                                    onClick={() => {
+                                                        if (
+                                                            currentChat.admins?.includes(
+                                                                participantId
+                                                            )
+                                                        ) {
+                                                            alert(
+                                                                'Remove admin'
+                                                            );
+                                                        } else {
+                                                            alert('Make admin');
+                                                        }
+                                                        setOpenMenuId(null);
+                                                    }}
+                                                    className='block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                >
+                                                    {currentChat.admins?.includes(
+                                                        participantId
+                                                    )
+                                                        ? 'Remove Admin'
+                                                        : 'Make Admin'}
+                                                </button>
+                                                <button
+                                                    type='button'
+                                                    onClick={() => {
+                                                        removeParticipant(
+                                                            participantId
+                                                        );
+                                                        setOpenMenuId(null);
+                                                    }}
+                                                    className='block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700'
+                                                >
+                                                    Remove Member
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
+                    </div>
+                    <div className='flex justify-center gap-2 mt-4'>
+                        <button
+                            type='button'
+                            className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90'
+                        >
+                            Add Member
+                        </button>
                     </div>
                 </Dialog.Panel>
             </div>
