@@ -450,6 +450,9 @@ importers:
       '@heroicons/react':
         specifier: ^2.0.11
         version: 2.2.0(react@18.2.0)
+      '@sidekickicons/react':
+        specifier: ^0.13.0
+        version: 0.13.0(react@18.2.0)
       axios:
         specifier: ^1.6.7
         version: 1.9.0
@@ -2757,6 +2760,11 @@ packages:
 
   '@rushstack/eslint-patch@1.11.0':
     resolution: {integrity: sha512-zxnHvoMQVqewTJr/W4pKjF0bMGiKJv1WX7bSrkl46Hg0QjESbzBROWK0Wg4RphzSOS5Jiy7eFimmM3UgMrMZbQ==}
+
+  '@sidekickicons/react@0.13.0':
+    resolution: {integrity: sha512-v4KQZ+nfca5NAa2vT4S5UV1z2QxDWoAsNHQGToczOnfKN6mvZW2Jr48ZbYhYHzV2BUKp8Kywe8/+t+Ue73e3QQ==}
+    peerDependencies:
+      react: '>= 16 || ^19.0.0-rc'
 
   '@sinclair/typebox@0.24.51':
     resolution: {integrity: sha512-1P1OROm/rdubP5aFDSZQILU0vrLCJ4fvHt6EoqHEM+2D/G5MK3bIaymUKLit8Js9gbns5UyJnkP/TZROLw4tUA==}
@@ -11366,6 +11374,10 @@ snapshots:
   '@rtsao/scc@1.1.0': {}
 
   '@rushstack/eslint-patch@1.11.0': {}
+
+  '@sidekickicons/react@0.13.0(react@18.2.0)':
+    dependencies:
+      react: 18.2.0
 
   '@sinclair/typebox@0.24.51': {}
 

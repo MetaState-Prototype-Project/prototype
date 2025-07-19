@@ -13,6 +13,7 @@ import { db } from '@lib/firebase/app';
 import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
 import { Dialog } from '@headlessui/react';
+import { CrownIcon, ShieldIcon } from '@sidekickicons/react/24/outline';
 
 export function MemberList({
     open,
@@ -146,12 +147,21 @@ export function MemberList({
                                         )}
                                     </div>
                                     <div>
-                                        <p className='font-medium text-gray-900 dark:text-white'>
+                                        <p className='flex items-center gap-1 font-medium text-gray-900 dark:text-white'>
                                             {otherUser?.id === participantId
                                                 ? otherUser?.name ||
                                                   otherUser?.username ||
                                                   participantId
                                                 : participantId}
+                                            {currentChat.owner ===
+                                                participantId && (
+                                                <CrownIcon className='inline h-6 w-6 text-yellow-500 ml-1' />
+                                            )}
+                                            {currentChat.admins?.includes(
+                                                participantId
+                                            ) && (
+                                                <ShieldIcon className='inline h-5 w-5 text-yellow-600 ml-1' />
+                                            )}
                                         </p>
                                         <p className='text-sm text-gray-500 dark:text-gray-400'>
                                             {currentChat.owner ===
