@@ -152,7 +152,7 @@ export default function CreateCharter() {
       </div>
       
       {/* Create Charter Form */}
-      <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+      <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
         <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="mb-6 sm:mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Create New Charter</h2>
@@ -172,7 +172,7 @@ export default function CreateCharter() {
                     <FormControl>
                       <Input 
                         placeholder="Enter charter name" 
-                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 bg-white/80 backdrop-blur-sm" 
+                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 bg-white/80 backdrop-blur-xs" 
                         {...field} 
                       />
                     </FormControl>
@@ -195,7 +195,7 @@ export default function CreateCharter() {
                             variant="outline"
                             role="combobox"
                             className={cn(
-                              "w-full justify-between rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-3 h-auto",
+                              "w-full justify-between rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-xs px-4 py-3 h-auto",
                               !field.value && "text-muted-foreground"
                             )}
                           >
@@ -284,7 +284,7 @@ export default function CreateCharter() {
                       </div>
                       <Input
                         placeholder={`Enter ${index === 0 ? "first" : index === 1 ? "second" : "third"} guideline...`}
-                        className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                        className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 bg-white/80 backdrop-blur-xs"
                         value={guideline}
                         onChange={(e) => updateGuideline(index, e.target.value)}
                       />
@@ -325,7 +325,7 @@ export default function CreateCharter() {
                       name="autoApprove"
                       render={({ field }) => (
                         <FormItem>
-                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200">
+                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-xs border border-gray-200">
                             <div className="flex-1">
                               <FormLabel className="text-sm font-medium text-gray-700">Auto-approve new members</FormLabel>
                               <p className="text-xs text-gray-500 mt-1">
@@ -350,7 +350,7 @@ export default function CreateCharter() {
                       name="allowPosts"
                       render={({ field }) => (
                         <FormItem>
-                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200">
+                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-xs border border-gray-200">
                             <div className="flex-1">
                               <FormLabel className="text-sm font-medium text-gray-700">Allow member posts</FormLabel>
                               <p className="text-xs text-gray-500 mt-1">
@@ -375,7 +375,7 @@ export default function CreateCharter() {
                       name="isActive"
                       render={({ field }) => (
                         <FormItem>
-                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-200">
+                          <div className="flex items-center justify-between p-4 rounded-2xl bg-white/70 backdrop-blur-xs border border-gray-200">
                             <div className="flex-1">
                               <FormLabel className="text-sm font-medium text-gray-700">Charter status</FormLabel>
                               <p className="text-xs text-gray-500 mt-1">
@@ -403,7 +403,7 @@ export default function CreateCharter() {
                   type="button"
                   variant="outline"
                   onClick={() => setLocation("/")}
-                  className="w-full sm:flex-1 bg-white/70 backdrop-blur-sm text-gray-700 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold hover:bg-white/90 transition-all duration-300 shadow-lg"
+                  className="w-full sm:flex-1 bg-white/70 backdrop-blur-xs text-gray-700 px-6 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold hover:bg-white/90 transition-all duration-300 shadow-lg"
                 >
                   Cancel
                 </Button>

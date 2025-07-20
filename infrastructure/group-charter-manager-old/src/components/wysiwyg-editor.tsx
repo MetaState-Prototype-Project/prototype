@@ -26,7 +26,7 @@ export default function WysiwygEditor({ content, onChange, placeholder = "Enter 
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none min-h-[120px] p-4 text-sm leading-relaxed',
+        class: 'prose prose-sm max-w-none focus:outline-hidden min-h-[120px] p-4 text-sm leading-relaxed',
       },
     },
   })
@@ -36,7 +36,7 @@ export default function WysiwygEditor({ content, onChange, placeholder = "Enter 
   }
 
   return (
-    <div className={cn("border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm", className)}>
+    <div className={cn("border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-xs", className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 p-3 border-b border-gray-200">
         <Button

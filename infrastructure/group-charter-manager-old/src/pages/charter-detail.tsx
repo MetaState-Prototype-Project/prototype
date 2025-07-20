@@ -183,14 +183,14 @@ export default function CharterDetail() {
       </div>
       
       {/* Charter Header */}
-      <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow mb-6 sm:mb-8">
+      <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow mb-6 sm:mb-8">
         <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center space-x-3 sm:space-x-6 mb-4 sm:mb-6 lg:mb-0">
               <img 
                 src={charter.group.imageUrl || "https://via.placeholder.com/120"} 
                 alt={charter.group.name}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl object-cover flex-shrink-0"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl object-cover shrink-0"
               />
               <div className="flex-1">
                 {isEditing ? (
@@ -243,7 +243,7 @@ export default function CharterDetail() {
                   <Button 
                     onClick={handleEditCancel}
                     variant="outline"
-                    className="bg-white/70 backdrop-blur-sm text-gray-700 px-6 py-3 rounded-2xl font-medium hover:bg-white/90 transition-all duration-300 shadow-lg"
+                    className="bg-white/70 backdrop-blur-xs text-gray-700 px-6 py-3 rounded-2xl font-medium hover:bg-white/90 transition-all duration-300 shadow-lg"
                   >
                     <X className="mr-2" size={18} />
                     Cancel
@@ -251,7 +251,7 @@ export default function CharterDetail() {
                 </>
               ) : (
                 <>
-                  <Button className="bg-white/70 backdrop-blur-sm text-gray-700 px-6 py-3 rounded-2xl font-medium hover:bg-white/90 transition-all duration-300 shadow-lg">
+                  <Button className="bg-white/70 backdrop-blur-xs text-gray-700 px-6 py-3 rounded-2xl font-medium hover:bg-white/90 transition-all duration-300 shadow-lg">
                     <Share className="mr-2" size={18} />
                     Share
                   </Button>
@@ -275,7 +275,7 @@ export default function CharterDetail() {
         
         {/* Charter Details */}
         <div className="lg:col-span-2">
-          <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow mb-6">
+          <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow mb-6">
             <CardContent className="p-8">
               <h3 className="text-xl font-semibold text-gray-800 mb-6">Charter Details</h3>
               <div className="space-y-6">
@@ -297,7 +297,7 @@ export default function CharterDetail() {
                           </div>
                           <Input
                             placeholder={`Enter guideline ${index + 1}...`}
-                            className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                            className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 bg-white/80 backdrop-blur-xs"
                             value={guideline}
                             onChange={(e) => updateGuideline(index, e.target.value)}
                           />
@@ -350,7 +350,7 @@ export default function CharterDetail() {
         <div className="space-y-6">
           
           {/* Charter Owner */}
-          <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+          <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Charter Owner</h3>
               <div className="space-y-4">
@@ -360,7 +360,7 @@ export default function CharterDetail() {
           </Card>
           
           {/* Group Admins */}
-          <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+          <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Group Admins</h3>
               <div className="space-y-4">
@@ -372,7 +372,7 @@ export default function CharterDetail() {
           </Card>
           
           {/* Group Members */}
-          <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+          <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">Group Members</h3>
@@ -397,7 +397,7 @@ export default function CharterDetail() {
           </Card>
           
           {/* Charter Stats */}
-          <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+          <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Charter Stats</h3>
               <div className="space-y-3">
@@ -426,10 +426,10 @@ export default function CharterDetail() {
       {/* Danger Zone - Only visible to charter owner */}
       {charter.owner && user && user.id === charter.owner.id && (
         <div className="mt-8 max-w-4xl mx-auto">
-          <Card className="border-red-200 bg-red-50/50 backdrop-blur-sm rounded-3xl">
+          <Card className="border-red-200 bg-red-50/50 backdrop-blur-xs rounded-3xl">
             <CardContent className="p-6">
               <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                     <AlertTriangle className="w-5 h-5 text-red-600" />
                   </div>

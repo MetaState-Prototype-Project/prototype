@@ -131,7 +131,7 @@ export default function Dashboard() {
       {/* Your Groups */}
       <div>
         <h3 className="text-xl font-semibold text-gray-800 mb-6">Your Groups</h3>
-        <Card className="bg-white/70 backdrop-blur-sm rounded-3xl soft-shadow">
+        <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
           <CardContent className="p-6">
             <div className="overflow-x-auto">
               <table className="w-full">

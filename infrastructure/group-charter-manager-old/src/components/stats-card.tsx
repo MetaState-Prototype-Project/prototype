@@ -9,7 +9,7 @@ interface StatsCardProps {
 
 export default function StatsCard({ title, value, icon: Icon, gradient }: StatsCardProps) {
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-6 soft-shadow hover-lift fade-in">
+    <div className="bg-white/60 backdrop-blur-xs rounded-3xl p-6 soft-shadow hover-lift fade-in">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-gray-600 text-sm font-medium">{title}</p>

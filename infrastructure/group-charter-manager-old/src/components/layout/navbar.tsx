@@ -35,7 +35,7 @@ export default function Navbar() {
           {/* Mobile & Desktop User Section */}
           <div className="flex items-center space-x-2">
             {/* Desktop Navigation */}
-            <div className="hidden md:flex space-x-1 bg-white/20 backdrop-blur-sm rounded-2xl p-1">
+            <div className="hidden md:flex space-x-1 bg-white/20 backdrop-blur-xs rounded-2xl p-1">
               {!isActive("/") && (
                 <Link href="/">
                   <button className="px-6 py-2 rounded-xl font-medium transition-all duration-300 text-gray-600 hover:text-gray-800 hover:bg-white/40">
@@ -66,7 +66,7 @@ export default function Navbar() {
             </Button>
             
             {/* User Profile */}
-            <div className="flex items-center space-x-2 sm:space-x-3 bg-white/20 backdrop-blur-sm rounded-2xl p-2">
+            <div className="flex items-center space-x-2 sm:space-x-3 bg-white/20 backdrop-blur-xs rounded-2xl p-2">
               <div className="w-8 h-8 gradient-secondary rounded-full flex items-center justify-center">
                 <User className="text-white text-sm" />
               </div>

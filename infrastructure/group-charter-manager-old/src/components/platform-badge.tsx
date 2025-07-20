@@ -12,7 +12,7 @@ export function PlatformBadge({ platform, className = "" }: PlatformBadgeProps) 
       case 'facebook':
         return {
           name: 'Pictique',
-          className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+          className: 'bg-linear-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
         };
       case 'twitter':
       case 'discord':

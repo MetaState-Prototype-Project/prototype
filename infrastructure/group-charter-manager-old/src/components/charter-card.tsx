@@ -18,7 +18,7 @@ export default function CharterCard({ charter }: CharterCardProps) {
 
 
   return (
-    <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-4 sm:p-6 soft-shadow hover-lift cursor-pointer fade-in">
+    <div className="bg-white/70 backdrop-blur-xs rounded-3xl p-4 sm:p-6 soft-shadow hover-lift cursor-pointer fade-in">
       <div className="flex items-start justify-between mb-3 sm:mb-4">
         <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
           <div className="min-w-0 flex-1">
@@ -29,7 +29,7 @@ export default function CharterCard({ charter }: CharterCardProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+        <div className="flex items-center space-x-2 shrink-0 ml-2">
           {isOwner && (
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center">
               <Crown className="text-yellow-600 text-sm" size={12} />
