@@ -25,9 +25,9 @@ export default function MemberAvatar({ name, role, size = "md" }: MemberAvatarPr
     "gradient-primary",
     "gradient-secondary",
     "gradient-accent",
-    "bg-gradient-to-r from-indigo-500 to-purple-500",
-    "bg-gradient-to-r from-pink-500 to-red-500",
-    "bg-gradient-to-r from-teal-500 to-green-500",
+    "bg-linear-to-r from-indigo-500 to-purple-500",
+    "bg-linear-to-r from-pink-500 to-red-500",
+    "bg-linear-to-r from-teal-500 to-green-500",
   ];
 
   const gradient = gradients[displayName.length % gradients.length];

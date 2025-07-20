@@ -46,7 +46,7 @@ export default function CharterCard({ charter }: CharterCardProps) {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                <div className="flex items-center space-x-2 shrink-0 ml-2">
                     {isOwner && (
                         <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-100 rounded-full flex items-center justify-center">
                             <Crown
