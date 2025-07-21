@@ -1,38 +1,42 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import { Tick01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import type { Snippet } from "svelte";
-import type { HTMLLabelAttributes } from "svelte/elements";
-import { fade } from "svelte/transition";
+    import { cn } from "$lib/utils";
+    import { Tick01Icon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import type { Snippet } from "svelte";
+    import type { HTMLLabelAttributes } from "svelte/elements";
+    import { fade } from "svelte/transition";
 
-interface ISelectorProps extends HTMLLabelAttributes {
-    id: string;
-    name: string;
-    value: string;
-    icon?: Snippet<[string]>;
-    selected?: string;
-    children?: Snippet;
-}
+    interface ISelectorProps extends HTMLLabelAttributes {
+        id: string;
+        name: string;
+        value: string;
+        icon?: Snippet<[string]>;
+        selected?: string;
+        children?: Snippet;
+        disable?: boolean;
+    }
 
-let {
-    id,
-    name,
-    value,
-    icon = undefined,
-    selected = $bindable(),
-    children = undefined,
-    ...restProps
-}: ISelectorProps = $props();
+    let {
+        id,
+        name,
+        value,
+        icon = undefined,
+        selected = $bindable(),
+        children = undefined,
+        disable = false,
+        ...restProps
+    }: ISelectorProps = $props();
 </script>
 
 <label
     {...restProps}
     for={id}
     class={cn(
-        ["flex w-full justify-between items-center ps-[5vw] py-6", restProps.class].join(
-            " "
-        )
+        [
+            "flex w-full justify-between items-center ps-[5vw] py-6",
+            disable ? "opacity-50 pointer-events-none select-none" : "",
+            restProps.class,
+        ].join(" "),
     )}
 >
     <div class="flex">
@@ -46,12 +50,12 @@ let {
                 bind:group={selected}
             />
             {#if icon}
-            <div class="">
-              {@render icon?.(id)}
-            </div>
+                <div class="">
+                    {@render icon?.(id)}
+                </div>
             {/if}
             <p>
-              {@render children?.()}
+                {@render children?.()}
             </p>
         </div>
     </div>
@@ -66,7 +70,7 @@ let {
     {/if}
 </label>
 
-<!-- 
+<!--
   @component
   export default Selector
   @description
@@ -86,28 +90,28 @@ let {
     import Selector from '$lib/ui/Selector/Selector.svelte'
     import { getLanguageWithCountry } from '$lib/utils/getLanguage'
     import { writable } from 'svelte/store'
-  
+
     const AVAILABLE_LANGUAGES = ['en-GB', 'es', 'de', 'fr', 'ru']
-  
+
     const selectors = AVAILABLE_LANGUAGES.map((locale) => {
       const { code, name } = getLanguageWithCountry(locale)
-  
+
       return {
         id: code,
         value: name,
         checked: locale === 'en-GB',
       }
     })
-  
+
     let selected = writable(selectors[0].value)
   </script>
-  
+
   <h1 class="text-2xl font-bold">Select your language</h1>
-  
+
   <fieldset class="mx-8 flex flex-col gap-4 mt-12">
     {#each selectors as selector}
       {@const { id, value, checked } = selector}
-  
+
       <Selector {id} name="lang" {value} bind:selected={$selected}>
         {#snippet icon(id: string)}
           <div
