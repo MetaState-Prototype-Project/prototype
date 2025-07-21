@@ -59,7 +59,7 @@ export default function Home() {
             <p className="text-gray-600 mb-4">
               Create a new vote with custom options and voting modes
             </p>
-            <Button asChild className="w-full bg-[--crimson] text-white hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border transition-colors">
+            <Button asChild className="w-full bg-(--crimson) text-white hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border transition-colors">
               <Link href="/create">
                 <Plus className="w-4 h-4 mr-2" />
                 Create Vote
@@ -80,7 +80,7 @@ export default function Home() {
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--crimson]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)"></div>
             </div>
           ) : votablePolls.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -108,7 +108,7 @@ export default function Home() {
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-500">{poll.totalVotes} votes</div>
-                        <Button asChild size="sm" className="w-full bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white">
+                        <Button asChild size="sm" className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
                           <Link href={`/vote/${poll.id}`}>View Vote</Link>
                         </Button>
                         <CountdownTimer deadline={poll.deadline} className="mt-2" />
@@ -153,7 +153,7 @@ export default function Home() {
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-500">{poll.totalVotes} votes</div>
-                        <Button asChild size="sm" className="w-full bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white">
+                        <Button asChild size="sm" className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
                           <Link href={`/vote/${poll.id}`}>View Results</Link>
                         </Button>
                       </div>
@@ -177,7 +177,7 @@ export default function Home() {
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--crimson]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)"></div>
             </div>
           ) : userPolls.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -205,7 +205,7 @@ export default function Home() {
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-500">{poll.totalVotes} votes</div>
-                        <Button asChild size="sm" className="w-full bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white">
+                        <Button asChild size="sm" className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
                           <Link href={`/vote/${poll.id}`}>View Vote</Link>
                         </Button>
                         <CountdownTimer deadline={poll.deadline} className="mt-2" />

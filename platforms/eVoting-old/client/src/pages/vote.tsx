@@ -157,7 +157,7 @@ export default function Vote() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--crimson]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)"></div>
       </div>
     );
   }
@@ -168,7 +168,7 @@ export default function Vote() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Vote Not Found</h1>
           <p className="text-gray-600 mb-4">The vote you're looking for doesn't exist or has been removed.</p>
-          <Button onClick={() => setLocation("/")} className="bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white">
+          <Button onClick={() => setLocation("/")} className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
@@ -182,7 +182,7 @@ export default function Vote() {
       <div className="flex items-center justify-between">
         <Button 
           onClick={() => setLocation("/")}
-          className="bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white flex items-center"
+          className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white flex items-center"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
@@ -433,7 +433,7 @@ export default function Vote() {
               <Button 
                 onClick={handleVoteSubmit}
                 disabled={selectedOption === null || submitVoteMutation.isPending || !isVotingAllowed}
-                className="bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white px-8"
+                className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
               >
                 {submitVoteMutation.isPending ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

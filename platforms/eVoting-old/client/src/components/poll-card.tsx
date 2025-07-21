@@ -34,13 +34,13 @@ export default function PollCard({ poll }: PollCardProps) {
         
         <div className="flex space-x-2">
           <Link href="/vote">
-            <a className="text-[--crimson] hover:text-[--crimson-700] font-medium flex items-center">
+            <a className="text-(--crimson) hover:text-(--crimson-700) font-medium flex items-center">
               <Vote className="w-4 h-4 mr-1" />
               Vote
             </a>
           </Link>
           <Link href={`/results/${poll.id}`}>
-            <a className="text-[--crimson] hover:text-[--crimson-700] font-medium flex items-center">
+            <a className="text-(--crimson) hover:text-(--crimson-700) font-medium flex items-center">
               <BarChart3 className="w-4 h-4 mr-1" />
               Results
             </a>

@@ -171,10 +171,10 @@ const PollingDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'bg-gradient-to-r from-green-400 to-emerald-500 text-white';
-      case 'draft': return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white';
-      case 'closed': return 'bg-gradient-to-r from-red-400 to-pink-500 text-white';
-      default: return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white';
+      case 'active': return 'bg-linear-to-r from-green-400 to-emerald-500 text-white';
+      case 'draft': return 'bg-linear-to-r from-gray-400 to-gray-500 text-white';
+      case 'closed': return 'bg-linear-to-r from-red-400 to-pink-500 text-white';
+      default: return 'bg-linear-to-r from-gray-400 to-gray-500 text-white';
     }
   };
 
@@ -205,10 +205,10 @@ const PollingDashboard = () => {
         animationDelay: `${delay}ms`
       }}
     >
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-xs"></div>
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className="p-2 lg:p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+          <div className="p-2 lg:p-3 bg-white/20 rounded-2xl backdrop-blur-xs">
             <Icon className="w-6 h-6 lg:w-8 lg:h-8 text-white" />
           </div>
           <div className="text-right">
@@ -224,15 +224,15 @@ const PollingDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-purple-50">
       {/* Header */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-teal-600"></div>
+        <div className="absolute inset-0 bg-linear-to-r from-purple-600 via-blue-600 to-teal-600"></div>
         <div className="absolute inset-0 bg-black/20"></div>
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center py-6 lg:py-8 space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-3 lg:space-x-4">
-              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white/20 backdrop-blur-xs rounded-2xl flex items-center justify-center">
                 <span className="text-2xl lg:text-3xl">🗳️</span>
               </div>
               <div>
@@ -246,11 +246,11 @@ const PollingDashboard = () => {
                 <input
                   type="text"
                   placeholder="Search polls..."
-                  className="pl-10 lg:pl-12 pr-4 py-2.5 lg:py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent w-full sm:w-64"
+                  className="pl-10 lg:pl-12 pr-4 py-2.5 lg:py-3 bg-white/20 backdrop-blur-xs border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-hidden focus:ring-2 focus:ring-white/50 focus:border-transparent w-full sm:w-64"
                 />
               </div>
               <div className="flex space-x-3">
-                <button className="p-2.5 lg:p-3 bg-white/20 backdrop-blur-sm rounded-2xl text-white hover:bg-white/30 transition-all">
+                <button className="p-2.5 lg:p-3 bg-white/20 backdrop-blur-xs rounded-2xl text-white hover:bg-white/30 transition-all">
                   <Bell className="w-5 h-5 lg:w-6 lg:h-6" />
                 </button>
                 <button
@@ -280,7 +280,7 @@ const PollingDashboard = () => {
               onClick={() => setActiveTab(id)}
               className={`flex items-center justify-center sm:justify-start px-4 lg:px-6 py-3 rounded-2xl text-sm font-semibold transition-all whitespace-nowrap ${
                 activeTab === id
-                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105'
+                  ? 'bg-linear-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               }`}
             >
@@ -322,7 +322,7 @@ const PollingDashboard = () => {
 
             {/* Recent Polls */}
             <div className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 overflow-hidden">
-              <div className="p-4 lg:p-8 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
+              <div className="p-4 lg:p-8 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
                 <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Recent Polls</h2>
                 <p className="text-gray-600 mt-1 text-sm lg:text-base">Your latest polling activities</p>
               </div>
@@ -330,7 +330,7 @@ const PollingDashboard = () => {
                 {polls.slice(0, 3).map((poll, index) => (
                   <div key={poll.id} className="p-4 lg:p-8 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-white/20 transition-all group space-y-4 sm:space-y-0">
                     <div className="flex items-center space-x-4 lg:space-x-6 flex-1">
-                      <div className="w-12 h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-400 to-blue-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div className="w-12 h-12 lg:w-16 lg:h-16 bg-linear-to-br from-purple-400 to-blue-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                         <span className="text-white text-lg lg:text-xl">📊</span>
                       </div>
                       <div className="flex-1 min-w-0">
@@ -373,13 +373,13 @@ const PollingDashboard = () => {
 
         {activeTab === 'polls' && (
           <div className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 overflow-hidden">
-            <div className="p-4 lg:p-8 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
+            <div className="p-4 lg:p-8 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
                 <div>
                   <h2 className="text-xl lg:text-2xl font-bold text-gray-900">All Polls</h2>
                   <p className="text-gray-600 mt-1 text-sm lg:text-base">Manage your polling campaigns</p>
                 </div>
-                <button className="flex items-center px-3 lg:px-4 py-2 bg-white/50 backdrop-blur-sm rounded-2xl text-gray-600 hover:bg-white/70 transition-all text-sm lg:text-base">
+                <button className="flex items-center px-3 lg:px-4 py-2 bg-white/50 backdrop-blur-xs rounded-2xl text-gray-600 hover:bg-white/70 transition-all text-sm lg:text-base">
                   <Filter className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
                   Filter
                 </button>
@@ -393,7 +393,7 @@ const PollingDashboard = () => {
                   <div key={poll.id} className="p-4 hover:bg-white/30 transition-all">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-500 rounded-xl flex items-center justify-center">
+                        <div className="w-10 h-10 bg-linear-to-br from-purple-400 to-blue-500 rounded-xl flex items-center justify-center">
                           <span className="text-white text-sm">📊</span>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -437,7 +437,7 @@ const PollingDashboard = () => {
             {/* Desktop Table View */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <thead className="bg-linear-to-r from-gray-50 to-gray-100">
                   <tr>
                     <th className="px-8 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
                       Poll
@@ -464,14 +464,14 @@ const PollingDashboard = () => {
                     <tr key={poll.id} className="hover:bg-white/30 transition-all group">
                       <td className="px-8 py-6">
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-blue-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <div className="w-12 h-12 bg-linear-to-br from-purple-400 to-blue-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
                             <span className="text-white">📊</span>
                           </div>
                           <div className="font-bold text-gray-900">{poll.title}</div>
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <span className="inline-flex items-center px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 rounded-full text-sm font-medium capitalize">
+                        <span className="inline-flex items-center px-3 py-1 bg-linear-to-r from-blue-100 to-purple-100 text-blue-800 rounded-full text-sm font-medium capitalize">
                           {poll.type.replace('_', ' ')}
                         </span>
                       </td>
@@ -518,11 +518,11 @@ const PollingDashboard = () => {
           <div className="space-y-4 lg:space-y-8">
             {/* Poll Header */}
             <div className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 overflow-hidden">
-              <div className="p-4 lg:p-8 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
+              <div className="p-4 lg:p-8 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
                   <button 
                     onClick={closePollView}
-                    className="p-2 lg:p-3 bg-white/50 backdrop-blur-sm rounded-xl text-gray-600 hover:bg-white/70 transition-all touch-manipulation"
+                    className="p-2 lg:p-3 bg-white/50 backdrop-blur-xs rounded-xl text-gray-600 hover:bg-white/70 transition-all touch-manipulation"
                   >
                     ← Back
                   </button>
@@ -554,7 +554,7 @@ const PollingDashboard = () => {
 
             {/* Poll Results */}
             <div className="bg-white/60 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 overflow-hidden">
-              <div className="p-4 lg:p-8 bg-gradient-to-r from-green-500/10 to-teal-500/10 border-b border-white/20">
+              <div className="p-4 lg:p-8 bg-linear-to-r from-green-500/10 to-teal-500/10 border-b border-white/20">
                 <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Live Results</h2>
                 <p className="text-gray-600 mt-1 text-sm lg:text-base">Real-time voting data and analytics</p>
               </div>
@@ -564,10 +564,10 @@ const PollingDashboard = () => {
                     {selectedPoll.options.map((option, index) => {
                       const percentage = selectedPoll.votes > 0 ? (option.votes / selectedPoll.votes * 100) : 0;
                       return (
-                        <div key={option.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
+                        <div key={option.id} className="bg-linear-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
                           <div className="flex items-center justify-between mb-2 lg:mb-3">
                             <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
-                              <div className="w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-r from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
+                              <div className="w-6 h-6 lg:w-8 lg:h-8 bg-linear-to-r from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
                                 <span className="text-white font-bold text-xs lg:text-sm">{index + 1}</span>
                               </div>
                               <span className="font-semibold text-gray-900 text-sm lg:text-base truncate">{option.text}</span>
@@ -579,7 +579,7 @@ const PollingDashboard = () => {
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2 lg:h-3 overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-1000"
+                              className="h-full bg-linear-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-1000"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
@@ -594,14 +594,14 @@ const PollingDashboard = () => {
                     {selectedPoll.options.sort((a, b) => b.votes - a.votes).map((option, index) => {
                       const percentage = selectedPoll.votes > 0 ? (option.votes / selectedPoll.votes * 100) : 0;
                       return (
-                        <div key={option.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
+                        <div key={option.id} className="bg-linear-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
                           <div className="flex items-center justify-between mb-2 lg:mb-3">
                             <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
                               <div className={`w-6 h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center ${
-                                index === 0 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
-                                index === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
-                                index === 2 ? 'bg-gradient-to-r from-orange-400 to-red-500' :
-                                'bg-gradient-to-r from-blue-400 to-purple-500'
+                                index === 0 ? 'bg-linear-to-r from-yellow-400 to-orange-500' :
+                                index === 1 ? 'bg-linear-to-r from-gray-400 to-gray-500' :
+                                index === 2 ? 'bg-linear-to-r from-orange-400 to-red-500' :
+                                'bg-linear-to-r from-blue-400 to-purple-500'
                               }`}>
                                 <span className="text-white font-bold text-xs lg:text-sm">#{index + 1}</span>
                               </div>
@@ -615,10 +615,10 @@ const PollingDashboard = () => {
                           <div className="w-full bg-gray-200 rounded-full h-2 lg:h-3 overflow-hidden">
                             <div 
                               className={`h-full rounded-full transition-all duration-1000 ${
-                                index === 0 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' :
-                                index === 1 ? 'bg-gradient-to-r from-gray-400 to-gray-500' :
-                                index === 2 ? 'bg-gradient-to-r from-orange-400 to-red-500' :
-                                'bg-gradient-to-r from-blue-400 to-purple-500'
+                                index === 0 ? 'bg-linear-to-r from-yellow-400 to-orange-500' :
+                                index === 1 ? 'bg-linear-to-r from-gray-400 to-gray-500' :
+                                index === 2 ? 'bg-linear-to-r from-orange-400 to-red-500' :
+                                'bg-linear-to-r from-blue-400 to-purple-500'
                               }`}
                               style={{ width: `${percentage}%` }}
                             ></div>
@@ -635,7 +635,7 @@ const PollingDashboard = () => {
                       const totalVotes = selectedPoll.ratings.reduce((sum, r) => sum + r.count, 0);
                       const percentage = totalVotes > 0 ? (rating.count / totalVotes * 100) : 0;
                       return (
-                        <div key={rating.stars} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
+                        <div key={rating.stars} className="bg-linear-to-r from-gray-50 to-gray-100 rounded-2xl p-4 lg:p-6">
                           <div className="flex items-center justify-between mb-2 lg:mb-3">
                             <div className="flex items-center space-x-2 lg:space-x-3 flex-1 min-w-0">
                               <div className="flex space-x-1">
@@ -654,7 +654,7 @@ const PollingDashboard = () => {
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2 lg:h-3 overflow-hidden">
                             <div 
-                              className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full transition-all duration-1000"
+                              className="h-full bg-linear-to-r from-yellow-400 to-orange-500 rounded-full transition-all duration-1000"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
@@ -703,7 +703,7 @@ const PollingDashboard = () => {
               <p className="text-gray-600 mt-1 text-sm lg:text-base">Configure your polling preferences</p>
             </div>
             <div className="space-y-6 lg:space-y-8">
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 lg:p-6">
+              <div className="bg-linear-to-r from-purple-50 to-blue-50 rounded-2xl p-4 lg:p-6">
                 <h3 className="text-base lg:text-lg font-bold text-gray-900 mb-4">Default Poll Settings</h3>
                 <div className="space-y-3 lg:space-y-4">
                   <div className="flex items-center justify-between p-3 lg:p-4 bg-white/50 rounded-xl">
@@ -735,9 +735,9 @@ const PollingDashboard = () => {
 
       {/* Create Poll Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 p-3 lg:p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-start justify-center z-50 p-3 lg:p-4 overflow-y-auto">
           <div className="bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl max-w-lg lg:max-w-2xl w-full my-4 lg:my-8 border border-white/20">
-            <div className="p-3 lg:p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
+            <div className="p-3 lg:p-4 bg-linear-to-r from-purple-500/10 to-blue-500/10 border-b border-white/20">
               <h2 className="text-lg lg:text-xl font-bold text-gray-900">Create New Poll</h2>
               <p className="text-gray-600 text-xs lg:text-sm mt-1">Design your perfect polling experience</p>
             </div>
@@ -750,7 +750,7 @@ const PollingDashboard = () => {
                   type="text"
                   value={newPoll.title}
                   onChange={(e) => setNewPoll({...newPoll, title: e.target.value})}
-                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                   placeholder="Enter an engaging poll title"
                 />
               </div>
@@ -763,7 +763,7 @@ const PollingDashboard = () => {
                   value={newPoll.description}
                   onChange={(e) => setNewPoll({...newPoll, description: e.target.value})}
                   rows={2}
-                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                   placeholder="Describe what this poll is about"
                 />
               </div>
@@ -775,7 +775,7 @@ const PollingDashboard = () => {
                 <select
                   value={newPoll.type}
                   onChange={(e) => setNewPoll({...newPoll, type: e.target.value})}
-                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                  className="w-full px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                 >
                   {pollTypes.map((type) => (
                     <option key={type.value} value={type.value}>
@@ -794,14 +794,14 @@ const PollingDashboard = () => {
                   <div className="space-y-2">
                     {newPoll.options.map((option, index) => (
                       <div key={index} className="flex items-center space-x-2">
-                        <div className="w-5 h-5 lg:w-6 lg:h-6 bg-gradient-to-r from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
+                        <div className="w-5 h-5 lg:w-6 lg:h-6 bg-linear-to-r from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
                           <span className="text-white font-bold text-xs">{index + 1}</span>
                         </div>
                         <input
                           type="text"
                           value={option}
                           onChange={(e) => updateOption(index, e.target.value)}
-                          className="flex-1 px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                          className="flex-1 px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                           placeholder={`Option ${index + 1}`}
                         />
                         {newPoll.options.length > 2 && (
@@ -834,7 +834,7 @@ const PollingDashboard = () => {
                     type="date"
                     value={newPoll.expiryDate}
                     onChange={(e) => setNewPoll({...newPoll, expiryDate: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                    className="w-full px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                   />
                 </div>
                 <div>
@@ -845,14 +845,14 @@ const PollingDashboard = () => {
                     type="number"
                     value={newPoll.maxVotes}
                     onChange={(e) => setNewPoll({...newPoll, maxVotes: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
+                    className="w-full px-3 py-2 bg-white/50 backdrop-blur-xs border border-white/30 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm lg:text-base"
                     placeholder="Unlimited"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
-                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl">
+                <div className="flex items-center justify-between p-3 bg-linear-to-r from-purple-50 to-blue-50 rounded-xl">
                   <div className="flex-1 min-w-0 mr-3">
                     <label className="font-semibold text-gray-900 text-xs lg:text-sm">Anonymous voting</label>
                     <p className="text-xs text-gray-600">Protect voter privacy</p>
@@ -865,7 +865,7 @@ const PollingDashboard = () => {
                   />
                 </div>
                 {newPoll.type === 'multiple_choice' && (
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-linear-to-r from-purple-50 to-blue-50 rounded-xl">
                     <div className="flex-1 min-w-0 mr-3">
                       <label className="font-semibold text-gray-900 text-xs lg:text-sm">Multiple selections</label>
                       <p className="text-xs text-gray-600">Allow multiple choices</p>
@@ -880,7 +880,7 @@ const PollingDashboard = () => {
                 )}
               </div>
             </div>
-            <div className="p-3 lg:p-4 bg-gradient-to-r from-gray-50 to-gray-100 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+            <div className="p-3 lg:p-4 bg-linear-to-r from-gray-50 to-gray-100 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all font-semibold text-sm lg:text-base touch-manipulation"
@@ -889,7 +889,7 @@ const PollingDashboard = () => {
               </button>
               <button
                 onClick={handleCreatePoll}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold shadow-lg hover:shadow-xl text-sm lg:text-base touch-manipulation"
+                className="px-4 py-2 bg-linear-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all font-semibold shadow-lg hover:shadow-xl text-sm lg:text-base touch-manipulation"
               >
                 Create Poll
               </button>

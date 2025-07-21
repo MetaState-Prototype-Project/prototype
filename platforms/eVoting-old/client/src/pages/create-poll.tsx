@@ -146,7 +146,7 @@ export default function CreatePoll() {
             id="title"
             {...register("title")}
             placeholder="Enter your vote question"
-            className="mt-2 focus:ring-[--crimson] focus:border-[--crimson]"
+            className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
           />
           {errors.title && (
             <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>
@@ -165,11 +165,11 @@ export default function CreatePoll() {
                 <RadioGroupItem value="public" className="sr-only" />
                 <div className={`border-2 rounded-lg p-4 flex-1 transition-all ${
                   watchedMode === "public" 
-                    ? "border-[--crimson] bg-[--crimson-50]" 
-                    : "border-gray-300 hover:border-[--crimson]"
+                    ? "border-(--crimson) bg-(--crimson-50)" 
+                    : "border-gray-300 hover:border-(--crimson)"
                 }`}>
                   <div className="flex items-center">
-                    <Eye className="text-[--crimson] w-6 h-6 mr-3" />
+                    <Eye className="text-(--crimson) w-6 h-6 mr-3" />
                     <div>
                       <div className="font-semibold text-gray-900">Public</div>
                       <div className="text-sm text-gray-600">Voters are public</div>
@@ -182,11 +182,11 @@ export default function CreatePoll() {
                 <RadioGroupItem value="private" className="sr-only" />
                 <div className={`border-2 rounded-lg p-4 flex-1 transition-all ${
                   watchedMode === "private" 
-                    ? "border-[--crimson] bg-[--crimson-50]" 
-                    : "border-gray-300 hover:border-[--crimson]"
+                    ? "border-(--crimson) bg-(--crimson-50)" 
+                    : "border-gray-300 hover:border-(--crimson)"
                 }`}>
                   <div className="flex items-center">
-                    <UserX className="text-[--crimson] w-6 h-6 mr-3" />
+                    <UserX className="text-(--crimson) w-6 h-6 mr-3" />
                     <div>
                       <div className="font-semibold text-gray-900">Private</div>
                       <div className="text-sm text-gray-600">Voters are hidden</div>
@@ -206,7 +206,7 @@ export default function CreatePoll() {
             id="deadline"
             type="datetime-local"
             {...register("deadline")}
-            className="mt-2 focus:ring-[--crimson] focus:border-[--crimson]"
+            className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
             min={new Date().toISOString().slice(0, 16)}
           />
           {errors.deadline && (
@@ -226,7 +226,7 @@ export default function CreatePoll() {
                   value={option}
                   onChange={(e) => updateOption(index, e.target.value)}
                   placeholder={`Option ${index + 1}`}
-                  className="flex-1 focus:ring-[--crimson] focus:border-[--crimson]"
+                  className="flex-1 focus:ring-(--crimson) focus:border-(--crimson)"
                   required
                 />
                 <Button
@@ -246,7 +246,7 @@ export default function CreatePoll() {
             <Button
               type="button"
               onClick={addOption}
-              className="bg-red-50 text-[--crimson] border-[--crimson] border hover:bg-red-100 transition-all duration-200"
+              className="bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
             >
               <Plus className="w-4 h-4 mr-1" />
               Add Option
@@ -261,7 +261,7 @@ export default function CreatePoll() {
           <Button
             type="button"
             onClick={() => setLocation("/")}
-            className="flex-1 bg-red-50 text-[--crimson] border-[--crimson] border hover:bg-red-100 transition-all duration-200"
+            className="flex-1 bg-red-50 text-(--crimson) border-(--crimson) border hover:bg-red-100 transition-all duration-200"
           >
             <X className="w-4 h-4 mr-2" />
             Cancel
@@ -269,7 +269,7 @@ export default function CreatePoll() {
           <Button
             type="submit"
             disabled={createPollMutation.isPending}
-            className="flex-1 bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] border text-white"
+            className="flex-1 bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
           >
             {createPollMutation.isPending ? (
               <>

@@ -37,7 +37,7 @@ export default function ResultsChart({ results }: ResultsChartProps) {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div 
-                  className="bg-[--crimson] h-3 rounded-full transition-all duration-500"
+                  className="bg-(--crimson) h-3 rounded-full transition-all duration-500"
                   style={{ width: `${percentage}%` }}
                 />
               </div>

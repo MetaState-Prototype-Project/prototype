@@ -22,12 +22,12 @@ export default function Navigation() {
   const isActive = (path: string) => location === path;
 
   return (
-    <nav className="bg-white shadow-lg border-b-2 border-[--crimson]">
+    <nav className="bg-white shadow-lg border-b-2 border-(--crimson)">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <div className="bg-[--crimson] p-2 rounded-md mr-3">
+            <div className="shrink-0 flex items-center">
+              <div className="bg-(--crimson) p-2 rounded-md mr-3">
                 <Vote className="h-6 w-6 text-white font-bold" strokeWidth={2.5} />
               </div>
               <span className="text-xl font-bold text-gray-900">eVoting</span>
@@ -39,7 +39,7 @@ export default function Navigation() {
             <div className="ml-10 flex items-baseline space-x-4">
               {isAuthenticated ? (
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-[--crimson] transition-colors cursor-pointer">
+                  <DropdownMenuTrigger className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-(--crimson) transition-colors cursor-pointer">
                     {user?.profileImageUrl && (
                       <img
                         src={user.profileImageUrl}
@@ -76,7 +76,7 @@ export default function Navigation() {
               ) : (
                 <a
                   href="/api/login"
-                  className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-[--crimson] hover:bg-[--crimson-700] transition-colors"
+                  className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-(--crimson) hover:bg-(--crimson-700) transition-colors"
                 >
                   <User className="w-4 h-4 mr-1" />
                   Sign In
@@ -89,7 +89,7 @@ export default function Navigation() {
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-700 hover:text-[--crimson] p-2"
+              className="text-gray-700 hover:text-(--crimson) p-2"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -116,8 +116,8 @@ export default function Navigation() {
                       <div
                         className={`flex items-center px-3 py-2 rounded-md text-base font-medium w-full text-left cursor-pointer ${
                           isActive(path)
-                            ? "text-[--crimson] bg-[--crimson-50]"
-                            : "text-gray-700 hover:text-[--crimson]"
+                            ? "text-(--crimson) bg-(--crimson-50)"
+                            : "text-gray-700 hover:text-(--crimson)"
                         }`}
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -141,7 +141,7 @@ export default function Navigation() {
                     </div>
                     <a
                       href="/api/logout"
-                      className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-[--crimson] w-full text-left"
+                      className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-(--crimson) w-full text-left"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <LogOut className="w-5 h-5 mr-2" />
@@ -152,7 +152,7 @@ export default function Navigation() {
               ) : (
                 <a
                   href="/api/login"
-                  className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white bg-[--crimson] hover:bg-[--crimson-700] w-full text-left"
+                  className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white bg-(--crimson) hover:bg-(--crimson-700) w-full text-left"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <User className="w-5 h-5 mr-2" />

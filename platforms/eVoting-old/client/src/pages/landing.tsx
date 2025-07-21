@@ -33,8 +33,8 @@ export default function Landing() {
       <div className="grid md:grid-cols-3 gap-8">
         <div className="card p-6">
           <div className="text-center">
-            <div className="bg-[--crimson-100] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="text-[--crimson] h-8 w-8" />
+            <div className="bg-(--crimson-100) w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Shield className="text-(--crimson) h-8 w-8" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure Voting</h3>
             <p className="text-gray-600">One user, one vote system with secure authentication and vote tracking</p>
@@ -43,8 +43,8 @@ export default function Landing() {
         
         <div className="card p-6">
           <div className="text-center">
-            <div className="bg-[--crimson-100] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserX className="text-[--crimson] h-8 w-8" />
+            <div className="bg-(--crimson-100) w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserX className="text-(--crimson) h-8 w-8" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Public & Private</h3>
             <p className="text-gray-600">Choose between public voting (transparent) or anonymous voting modes</p>
@@ -53,8 +53,8 @@ export default function Landing() {
         
         <div className="card p-6">
           <div className="text-center">
-            <div className="bg-[--crimson-100] w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="text-[--crimson] h-8 w-8" />
+            <div className="bg-(--crimson-100) w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="text-(--crimson) h-8 w-8" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Real-time Results</h3>
             <p className="text-gray-600">View live voting results with detailed analytics and visual charts</p>
@@ -72,21 +72,21 @@ export default function Landing() {
           </p>
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <div className="flex flex-col items-center">
-              <div className="bg-[--crimson] text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
+              <div className="bg-(--crimson) text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
                 1
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Sign Up</h3>
               <p className="text-gray-600 text-sm">Create your secure account to get started</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="bg-[--crimson] text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
+              <div className="bg-(--crimson) text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
                 2
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Create or Vote</h3>
               <p className="text-gray-600 text-sm">Start creating polls or vote on existing ones</p>
             </div>
             <div className="flex flex-col items-center">
-              <div className="bg-[--crimson] text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
+              <div className="bg-(--crimson) text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-3">
                 3
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">View Results</h3>

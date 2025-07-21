@@ -22,7 +22,7 @@ function LoginPage() {
           </p>
         </div>
         
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 shadow-sm sm:rounded-lg sm:px-10">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Welcome to eVoting</h2>
             <p className="text-gray-600 mb-8">
@@ -31,7 +31,7 @@ function LoginPage() {
             
             <a
               href="/api/login"
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[--crimson] hover:bg-[--crimson-50] hover:text-[--crimson] hover:border-[--crimson] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[--crimson] transition-colors"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-xs text-sm font-medium text-white bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-(--crimson) transition-colors"
             >
               Sign in with Replit
             </a>
@@ -59,7 +59,7 @@ function Router() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--crimson]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)"></div>
       </div>
     );
   }
