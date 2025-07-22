@@ -244,7 +244,7 @@
 						handleSelectedRow && handleSelectedRow(i);
 					}}
 					class="w-full bg-white select-none hover:bg-gray
-                        {selectedRow === i && 'bg-black-300!'}"
+                        {selectedRow === i && 'bg-gray!'}"
 				>
 					{#if withSelection}
 						<th class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
@@ -286,9 +286,9 @@
 				<div class="flex flex-col items-center justify-center">
 					{#if sortBy === cellData.sortable}
 						{#if sortOrder != 'asc'}
-							<ArrowUpOutline class="h-5 w-5 text-blue-400" />
+							<ArrowUpOutline class="h-5 w-5 text-gray-500" />
 						{:else}
-							<ArrowDownOutline class="h-5 w-5 text-blue-400" />
+							<ArrowDownOutline class="h-5 w-5 text-gray-500" />
 						{/if}
 					{:else}
 						<div class="flex flex-col">
