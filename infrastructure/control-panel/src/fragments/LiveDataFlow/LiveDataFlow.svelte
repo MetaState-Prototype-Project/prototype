@@ -12,7 +12,7 @@
 
 <style>
     .dot{
-        offset-path: rect(0px 92% 175px 0px round 10%);
+        offset-path: rect(0px 100% 175px 0px round 0%);
         offset-distance: 0%;
         offset-rotate: auto;
         animation: move 10s linear infinite;
@@ -20,19 +20,10 @@
 
     @keyframes move {
   0% {
-    offset-distance: 0%;
-  }
-  25% {
-    offset-distance: 25%;
-  }
-  50% {
-    offset-distance: 50%;
-  }
-  75% {
-     offset-distance: 75%;
+    offset-distance: 100%;
   }
   100% {
-    offset-distance: 100%;
+    offset-distance: 0%;
   }
 }
 </style>
@@ -40,7 +31,7 @@
 <article class="w-full h-[80vh] px-16 flex items-center bg-gray rounded-md">
     <div class="relative w-full flex justify-between items-center z-10">
         <!-- svelte-ignore element_invalid_self_closing_tag -->
-        <div class="w-[92%] h-[175px] absolute top-[55%] start-[50%] translate-x-[-50%] bg-transparent border border-t-transparent border-s-green border-b-green border-e-green rounded-md">
+        <div class="w-[92%] h-[175px] absolute top-[55%] start-[50%] z-[-1] translate-x-[-50%] bg-transparent border border-t-transparent border-s-green border-b-green border-e-green rounded-md">
             <div class="dot absolute h-2.5 w-2.5 top-0 start-[-1px] bg-green rounded-full"/>
         </div>
 
