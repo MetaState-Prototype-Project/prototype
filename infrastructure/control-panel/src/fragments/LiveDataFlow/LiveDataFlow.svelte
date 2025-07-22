@@ -19,13 +19,15 @@
     }
 
     @keyframes move {
-  0% {
-    offset-distance: 100%;
-  }
-  100% {
-    offset-distance: 0%;
-  }
-}
+        0% {
+        offset-distance: 100%;
+        opacity: 1;
+        }
+        100% {
+        offset-distance: 0%;
+        opacity: 0;
+        }
+    }
 </style>
 
 <article class="w-full h-[80vh] px-16 flex items-center bg-gray rounded-md">
