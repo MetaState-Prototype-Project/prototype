@@ -20,12 +20,21 @@
 
     @keyframes move {
         0% {
-        offset-distance: 100%;
-        opacity: 1;
+            offset-distance: 100%;
+            opacity: 1;
+        }
+        25%{
+            opacity: 1;
+        }
+        50%{
+            opacity: 1;
+        }
+        75%{
+            opacity: 1;
         }
         100% {
-        offset-distance: 0%;
-        opacity: 0;
+            offset-distance: 0%;
+            opacity: 0;
         }
     }
 </style>
