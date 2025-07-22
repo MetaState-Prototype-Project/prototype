@@ -8,7 +8,7 @@
 		...restProps
 	}: { events: LogEvent[]; activeEventIndex: number } = $props();
 
-	const commonClasses = 'w-full h-full bg-white';
+	const commonClasses = 'w-full h-full rounded-md p-4 bg-white';
 	const commonLogClasses =
 		'flex cursor-pointer gap-2 rounded-md p-2 transition-colors hover:bg-gray-100';
 	const activeLogClass = 'bg-gray-100';
