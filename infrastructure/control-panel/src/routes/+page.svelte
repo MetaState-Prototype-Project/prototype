@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Table } from "$lib/ui";
+	import { LiveDataFlow } from "../fragments";
 
     const handlePreviousPage = async () => {
 	alert('Previous btn clicked. Make a call to your server to fetch data.');
@@ -72,7 +73,7 @@ const mappedData = tableData.map((row) => {
 </script>
 
 
-<section>
+<!-- <section>
     <Table
     class="mb-7"
     tableData= {mappedData}
@@ -87,4 +88,6 @@ const mappedData = tableData.map((row) => {
     {handlePreviousPage}
     {handleNextPage}
     />
-</section>
+</section> -->
+
+<LiveDataFlow/>
