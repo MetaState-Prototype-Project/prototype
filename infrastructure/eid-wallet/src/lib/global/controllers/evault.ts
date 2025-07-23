@@ -63,9 +63,11 @@ export class VaultController {
     /**
      * Set the profile creation status
      */
-    set profileCreationStatus(
-        status: "idle" | "loading" | "success" | "failed"
-    ) {
+    set profileCreationStatus(status:
+        | "idle"
+        | "loading"
+        | "success"
+        | "failed") {
         this.#profileCreationStatus = status;
     }
 
@@ -87,14 +89,14 @@ export class VaultController {
             await this.createUserProfileInEVault(
                 vault.ename,
                 displayName,
-                vault.ename
+                vault.ename,
             );
 
             this.profileCreationStatus = "success";
         } catch (error) {
             console.error(
                 "Failed to create UserProfile in eVault (retry):",
-                error
+                error,
             );
             this.profileCreationStatus = "failed";
             throw error;
@@ -107,7 +109,7 @@ export class VaultController {
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
             const response = await axios.get(
-                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString()
+                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -134,7 +136,7 @@ export class VaultController {
         ename: string,
         displayName: string,
         w3id: string,
-        maxRetries = 10
+        maxRetries = 10,
     ): Promise<void> {
         console.log("attempting");
         const username = ename.replace("@", "");
@@ -159,7 +161,7 @@ export class VaultController {
                 const client = await this.ensureClient(w3id);
 
                 console.log(
-                    `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`
+                    `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
                 );
 
                 const response = await client.request<MetaEnvelopeResponse>(
@@ -170,23 +172,23 @@ export class VaultController {
                             payload: userProfile,
                             acl: ["*"],
                         },
-                    }
+                    },
                 );
 
                 console.log(
                     "UserProfile created successfully in eVault:",
-                    response.storeMetaEnvelope.metaEnvelope.id
+                    response.storeMetaEnvelope.metaEnvelope.id,
                 );
                 return;
             } catch (error) {
                 console.error(
                     `Failed to create UserProfile in eVault (attempt ${attempt}/${maxRetries}):`,
-                    error
+                    error,
                 );
 
                 if (attempt === maxRetries) {
                     console.error(
-                        "Max retries reached, giving up on UserProfile creation"
+                        "Max retries reached, giving up on UserProfile creation",
                     );
                     throw error;
                 }
@@ -199,12 +201,10 @@ export class VaultController {
         }
     }
 
-    set vault(
-        vault:
-            | Promise<Record<string, string> | undefined>
-            | Record<string, string>
-            | undefined
-    ) {
+    set vault(vault:
+        | Promise<Record<string, string> | undefined>
+        | Record<string, string>
+        | undefined) {
         if (vault instanceof Promise)
             vault
                 .then(async (resolvedUser) => {
@@ -221,13 +221,13 @@ export class VaultController {
                             await this.createUserProfileInEVault(
                                 resolvedUser?.ename as string,
                                 displayName as string,
-                                resolvedUser?.ename as string
+                                resolvedUser?.ename as string,
                             );
                             this.profileCreationStatus = "success";
                         } catch (error) {
                             console.error(
                                 "Failed to create UserProfile in eVault:",
-                                error
+                                error,
                             );
                             this.profileCreationStatus = "failed";
                         }
@@ -252,26 +252,26 @@ export class VaultController {
                     await this.createUserProfileInEVault(
                         vault.ename,
                         displayName,
-                        vault.ename
+                        vault.ename,
                     );
                     this.profileCreationStatus = "success";
                 } catch (error) {
                     console.error(
                         "Failed to get user data or create UserProfile:",
-                        error
+                        error,
                     );
                     // Fallback to using ename as display name
                     try {
                         await this.createUserProfileInEVault(
                             vault.ename,
                             vault.ename,
-                            vault.ename
+                            vault.ename,
                         );
                         this.profileCreationStatus = "success";
                     } catch (fallbackError) {
                         console.error(
                             "Failed to create UserProfile in eVault (fallback):",
-                            fallbackError
+                            fallbackError,
                         );
                         this.profileCreationStatus = "failed";
                     }
