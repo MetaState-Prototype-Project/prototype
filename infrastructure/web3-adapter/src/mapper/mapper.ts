@@ -1,4 +1,7 @@
-import type { IMappingConversionOptions, IMapperResponse } from "./mapper.types";
+import type {
+    IMappingConversionOptions,
+    IMapperResponse,
+} from "./mapper.types";
 
 export function getValueByPath(obj: Record<string, any>, path: string): any {
     // Handle array mapping case (e.g., "images[].src")

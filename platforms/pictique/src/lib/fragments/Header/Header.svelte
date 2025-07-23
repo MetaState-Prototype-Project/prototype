@@ -12,8 +12,7 @@
 		options?: { name: string; handler: () => void }[];
 	}
 
-	const { variant, isCallBackNeeded, callback, heading, options, ...restProps }: IHeaderProps =
-		$props();
+	const { variant, isCallBackNeeded, callback, heading, ...restProps }: IHeaderProps = $props();
 
 	const variantClasses = {
 		primary: {
