@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Message } from '$lib/fragments';
-	import { onMount } from 'svelte';
 	import { apiClient } from '$lib/utils/axios';
+	import { onMount } from 'svelte';
 	import { heading } from '../../store';
 
 	let messages = $state([]);
@@ -27,7 +27,7 @@
 
 <section>
 	{#if messages && messages.length > 0}
-		{#each messages as message}
+		{#each messages as message (message.id)}
 			<Message
 				class="mb-6"
 				avatar={message.avatar}

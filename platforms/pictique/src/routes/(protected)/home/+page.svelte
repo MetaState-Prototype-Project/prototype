@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { Drawer, Post } from '$lib/fragments';
-	import { onMount } from 'svelte';
-	import type { CupertinoPane } from 'cupertino-pane';
-	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType, userProfile } from '$lib/types';
-	import { ownerId, showComments } from '$lib/store/store.svelte';
-	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
-	import { activePostId } from '$lib/stores/comments';
-	import { apiClient, getAuthToken } from '$lib/utils';
 	import { goto } from '$app/navigation';
+	import { Drawer, Post } from '$lib/fragments';
+	import { Comment, MessageInput } from '$lib/fragments';
+	import { showComments } from '$lib/store/store.svelte';
+	import { activePostId } from '$lib/stores/comments';
+	import { error, fetchFeed, isLoading, posts, toggleLike } from '$lib/stores/posts';
+	import type { CommentType, userProfile } from '$lib/types';
+	import { apiClient, getAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
+	import type { CupertinoPane } from 'cupertino-pane';
+	import { onMount } from 'svelte';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -137,7 +137,7 @@
 <Drawer bind:drawer>
 	<ul class="pb-4">
 		<h3 class="text-black-600 mb-6 text-center">{_comments.length} Comments</h3>
-		{#each _comments as comment}
+		{#each _comments as comment (comment.commentId)}
 			<li class="mb-4">
 				<Comment
 					{comment}

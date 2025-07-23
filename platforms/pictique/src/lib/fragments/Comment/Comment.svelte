@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Like } from '$lib/icons';
+	import type { CommentType } from '$lib/types';
 	import { Avatar } from '$lib/ui';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import type { CommentType } from '$lib/types';
 
 	interface ICommentProps extends HTMLAttributes<HTMLElement> {
 		comment: CommentType;
@@ -32,7 +32,7 @@
 	</div>
 	{#if comment?.replies?.length}
 		<ul class="ms-12 mt-4 space-y-2">
-			{#each comment.replies.slice(0, visibleReplies) as reply}
+			{#each comment.replies.slice(0, visibleReplies) as reply, i (i)}
 				<li>
 					<div class="align-start flex gap-2">
 						<Avatar src={reply.userImgSrc ?? '/images/user.png'} size="sm" />

@@ -1,5 +1,5 @@
 import { GraphQLClient } from "graphql-request";
-import axios, { AxiosInstance } from "axios";
+import axios, { type AxiosInstance } from "axios";
 import { v4 } from "uuid";
 
 export interface MetaEnvelope {

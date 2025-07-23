@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { createPost, closeCreatePostModal } from '$lib/stores/posts';
-	import Modal from '$lib/ui/Modal/Modal.svelte';
+	import { closeCreatePostModal, createPost } from '$lib/stores/posts';
 	import Button from '$lib/ui/Button/Button.svelte';
+	import Modal from '$lib/ui/Modal/Modal.svelte';
 
 	let text = $state('');
 	let images = $state<string[]>([]);
@@ -69,7 +69,7 @@
 
 		{#if images.length > 0}
 			<div class="mb-4 grid grid-cols-2 gap-4">
-				{#each images as image, index}
+				{#each images as image, index (index)}
 					<div class="relative">
 						<!-- svelte-ignore a11y_img_redundant_alt -->
 						<img

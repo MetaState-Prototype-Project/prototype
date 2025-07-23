@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { createPost } from '$lib/stores/posts';
 	import Button from '$lib/ui/Button/Button.svelte';
+	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -65,7 +65,7 @@
 				placeholder="What's on your mind??"
 				class="focus:border-brand-burnt-orange w-full rounded-lg border border-gray-300 p-3 focus:outline-none"
 				rows="4"
-			/>
+			></textarea>
 
 			<div class="space-y-2">
 				<label class="block text-sm font-medium text-gray-700"> Add Images </label>
@@ -80,7 +80,7 @@
 
 			{#if images.length > 0}
 				<div class="grid grid-cols-3 gap-4">
-					{#each images as image, index}
+					{#each images as image, index (index)}
 						<div class="relative">
 							<img
 								src={image}

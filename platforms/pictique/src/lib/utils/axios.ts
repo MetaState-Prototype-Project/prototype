@@ -1,9 +1,9 @@
-import axios, { type AxiosInstance } from 'axios';
 import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+import axios, { type AxiosInstance } from 'axios';
 
 const TOKEN_KEY = 'pictique_auth_token';
 
-let headers: Record<string, any> = {
+const headers: Record<string, string> = {
 	'Content-Type': 'application/json'
 };
 if (getAuthToken()) {

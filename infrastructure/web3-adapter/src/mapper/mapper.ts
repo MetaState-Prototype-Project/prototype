@@ -1,4 +1,4 @@
-import { IMappingConversionOptions, IMapperResponse } from "./mapper.types";
+import type { IMappingConversionOptions, IMapperResponse } from "./mapper.types";
 
 export function getValueByPath(obj: Record<string, any>, path: string): any {
     // Handle array mapping case (e.g., "images[].src")
@@ -57,11 +57,11 @@ export async function fromGlobal({
 }: IMappingConversionOptions): Promise<Omit<IMapperResponse, "ownerEvault">> {
     const result: Record<string, unknown> = {};
 
-    for (let [localKey, globalPathRaw] of Object.entries(
+    for (const [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap,
     )) {
         let value: any;
-        let targetKey: string = localKey;
+        const targetKey: string = localKey;
         let tableRef: string | null = null;
 
         const internalFnMatch = globalPathRaw.match(/^__(\w+)\((.+)\)$/);
@@ -164,7 +164,7 @@ export async function toGlobal({
 }: IMappingConversionOptions): Promise<IMapperResponse> {
     const result: Record<string, unknown> = {};
 
-    for (let [localKey, globalPathRaw] of Object.entries(
+    for (const [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap,
     )) {
         let value: any;

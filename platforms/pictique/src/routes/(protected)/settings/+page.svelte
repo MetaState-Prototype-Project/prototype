@@ -13,7 +13,7 @@
 	import { onMount } from 'svelte';
 
 	let route = $derived(page.url.pathname);
-	let ownerId: string | null = $state(null);
+	let ownerId: string | null = $derived(getAuthId());
 
 	let profile = $state<userProfile | null>(null);
 	let error = $state<string | null>(null);
@@ -31,9 +31,6 @@
 			loading = false;
 		}
 	}
-	$effect(() => {
-		ownerId = getAuthId();
-	});
 	onMount(fetchProfile);
 </script>
 
@@ -51,12 +48,10 @@
 			onclick={() => goto(`/settings/account`)}
 			profileSrc={profile?.avatarUrl}
 		>
-			{#snippet children()}
-				<div class="flex flex-col items-start">
-					<h2 class="text-lg">{profile?.handle}</h2>
-					<p class="text-sm">{profile?.description}</p>
-				</div>
-			{/snippet}
+			<div class="flex flex-col items-start">
+				<h2 class="text-lg">{profile?.handle}</h2>
+				<p class="text-sm">{profile?.description}</p>
+			</div>
 		</SettingsNavigationButton>
 	{/if}
 </div>
@@ -72,9 +67,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Notifications
-			{/snippet}
+			Notifications
 		</SettingsNavigationButton>
 	</div>
 	<div
@@ -90,9 +83,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Data & Storage
-			{/snippet}
+			Data & Storage
 		</SettingsNavigationButton>
 	</div>
 	<hr class="text-grey" />
@@ -105,9 +96,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Logout
-			{/snippet}
+			Logout
 		</SettingsNavigationButton>
 	</div>
 </div>

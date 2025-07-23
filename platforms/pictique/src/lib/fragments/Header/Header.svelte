@@ -1,14 +1,8 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import {
-		ArrowLeft01Icon,
-		ArrowLeft02Icon,
-		MoreVerticalIcon,
-		ZapIcon
-	} from '@hugeicons/core-free-icons';
+	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import ActionMenu from '../ActionMenu/ActionMenu.svelte';
 
 	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
 		variant: 'primary' | 'secondary' | 'tertiary';
@@ -41,11 +35,11 @@
 		tertiary: ArrowLeft02Icon
 	};
 
-	const menuButton = {
-		primary: ZapIcon,
-		secondary: MoreVerticalIcon,
-		tertiary: MoreVerticalIcon
-	};
+	// const menuButton = {
+	// 	primary: ZapIcon,
+	// 	secondary: MoreVerticalIcon,
+	// 	tertiary: MoreVerticalIcon
+	// };
 
 	const classes = $derived({
 		common: cn(
@@ -87,10 +81,9 @@
 		<button
 			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
 			onclick={callback}
+			aria-label="Callback"
 		>
 		</button>
-	{:else if variant === 'secondary' && options && isCallBackNeeded}
-		<div></div>
 	{/if}
 </header>
 

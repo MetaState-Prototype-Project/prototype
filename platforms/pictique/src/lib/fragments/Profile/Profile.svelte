@@ -1,21 +1,18 @@
 <script lang="ts">
+	import type { userProfile } from '$lib/types';
 	import { Button } from '$lib/ui';
-	import type { userProfile, PostData } from '$lib/types';
 	import Post from '../Post/Post.svelte';
-	import { posts } from '$lib/stores/posts';
 
 	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
 
 	let {
 		variant = 'user',
 		profileData,
-		handleSinglePost,
 		handleFollow,
 		handleMessage
 	}: {
 		variant: 'user' | 'other';
 		profileData: userProfile;
-		handleSinglePost: (post: PostData) => void;
 		handleFollow: () => Promise<void>;
 		handleMessage: () => Promise<void>;
 	} = $props();
@@ -58,7 +55,7 @@
 
 	<div class="grid grid-cols-3 gap-1">
 		{#if imgPosts.length > 0}
-			{#each imgPosts as post}
+			{#each imgPosts as post (post.id)}
 				<li class="mb-6 list-none">
 					<Post
 						avatar={profileData.avatarUrl || 'https://picsum.photos/200/200'}
@@ -67,15 +64,8 @@
 						text={post.caption}
 						time={post.time ? new Date(post.time).toLocaleDateString() : ''}
 						callback={{
-							like: async () => {
-								try {
-								} catch (err) {}
-							},
-							comment: () => {
-								if (window.matchMedia('(max-width: 768px)').matches) {
-								} else {
-								}
-							},
+							like: () => true,
+							comment: () => true,
 							menu: () => alert('menu')
 						}}
 					/>

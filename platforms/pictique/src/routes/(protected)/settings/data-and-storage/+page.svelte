@@ -4,9 +4,7 @@
 
 <div class="flex flex-col gap-3">
 	<SettingsNavigationButton>
-		{#snippet children()}
-			Merul will add things here (as per out discussion)
-		{/snippet}
+		Merul will add things here (as per out discussion)
 	</SettingsNavigationButton>
 	<hr class="text-grey" />
 </div>

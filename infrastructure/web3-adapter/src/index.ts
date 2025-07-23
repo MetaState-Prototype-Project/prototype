@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import path from "path";
-import { IMapping } from "./mapper/mapper.types";
+import type { IMapping } from "./mapper/mapper.types";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";

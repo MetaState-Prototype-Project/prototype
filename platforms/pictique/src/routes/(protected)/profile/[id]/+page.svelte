@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { Profile } from '$lib/fragments';
 	import { selectedPost } from '$lib/store/store.svelte';
-	import type { userProfile, PostData } from '$lib/types';
+	import type { PostData, userProfile } from '$lib/types';
 	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
@@ -11,7 +11,7 @@
 	let profile = $state<userProfile | null>(null);
 	let error = $state<string | null>(null);
 	let loading = $state(true);
-	let ownerId: string | null = $state(null);
+	let ownerId: string | null = $derived(getAuthId());
 
 	async function fetchProfile() {
 		try {
@@ -53,9 +53,6 @@
 		selectedPost.value = post;
 		goto('/profile/post');
 	}
-	$effect(() => {
-		ownerId = getAuthId();
-	});
 
 	onMount(fetchProfile);
 </script>
