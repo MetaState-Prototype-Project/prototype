@@ -13,6 +13,7 @@
   interface IDataFlowProps {
     events: IEvent[];
   }
+
   let {events}: IDataFlowProps = $props();
 	let isPaused = $state(false);
 </script>

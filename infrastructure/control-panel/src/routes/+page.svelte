@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { LiveDataFlow, Logs } from '$lib/fragments';
 	import { Table } from '$lib/ui';
 
 	const handlePreviousPage = async () => {
@@ -95,7 +94,7 @@
 	];
 </script>
 
-<!-- <section>
+<section>
     <Table
     class="mb-7"
     tableData= {mappedData}
@@ -110,13 +109,4 @@
     {handlePreviousPage}
     {handleNextPage}
     />
-</section> -->
-
-<section class="flex gap-2">
-	<LiveDataFlow events={[
-		{ id: "1", from: "Alice", to: "Pictique", vaultName: "Alice.Vault.Dev", imageSrc: "" },
-		{ id: "2", from: "Pictique", to: "Bob",vaultName: "Pictique.Vault.Dev", imageSrc: "" },
-		{ id: "3", from: "Bob", to: "", vaultName: "Bob.Vault.Dev", imageSrc: "" },
-	]}/>
-	<Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
 </section>
