@@ -25,26 +25,35 @@ export function ChatList(): JSX.Element {
 
         const fetchParticipantData = async (): Promise<void> => {
             const newParticipantData: ParticipantData = {};
-            
+
             for (const chat of chats) {
-                const otherParticipantId = chat.participants.find(p => p !== user.id);
-                if (otherParticipantId && !participantData[otherParticipantId]) {
-                    const userDoc = await getDoc(doc(db, 'users', otherParticipantId));
+                const otherParticipantId = chat.participants.find(
+                    (p) => p !== user.id
+                );
+                if (
+                    otherParticipantId &&
+                    !participantData[otherParticipantId]
+                ) {
+                    const userDoc = await getDoc(
+                        doc(db, 'users', otherParticipantId)
+                    );
                     if (userDoc.exists()) {
-                        newParticipantData[otherParticipantId] = userDoc.data() as User;
+                        newParticipantData[otherParticipantId] =
+                            userDoc.data() as User;
                     }
                 }
             }
 
             if (Object.keys(newParticipantData).length > 0) {
-                setParticipantData(prev => ({ ...prev, ...newParticipantData }));
+                setParticipantData((prev) => ({
+                    ...prev,
+                    ...newParticipantData
+                }));
             }
         };
 
         void fetchParticipantData();
     }, [chats, user, participantData]);
-
-   
 
     if (loading) {
         console.log('ChatList: Loading state');
@@ -55,9 +64,7 @@ export function ChatList(): JSX.Element {
         console.log('ChatList: No chats found');
         return (
             <div className='flex h-full items-center justify-center'>
-                <p className='text-gray-500 dark:text-gray-400'>
-                    No chats yet
-                </p>
+                <p className='text-gray-500 dark:text-gray-400'>No chats yet</p>
             </div>
         );
     }
@@ -68,8 +75,9 @@ export function ChatList(): JSX.Element {
                 const otherParticipant = chat.participants.find(
                     (p) => p !== user?.id
                 );
-                const participant = otherParticipant ? participantData[otherParticipant] : null;
-                
+                const participant = otherParticipant
+                    ? participantData[otherParticipant]
+                    : null;
 
                 return (
                     <button
@@ -85,7 +93,11 @@ export function ChatList(): JSX.Element {
                             {participant?.photoURL ? (
                                 <Image
                                     src={participant.photoURL}
-                                    alt={participant.name || participant.username || 'User'}
+                                    alt={
+                                        participant.name ||
+                                        participant.username ||
+                                        'User'
+                                    }
                                     width={40}
                                     height={40}
                                     className='object-cover'
@@ -97,7 +109,9 @@ export function ChatList(): JSX.Element {
                         <div className='flex-1 overflow-hidden text-left'>
                             <p className='truncate font-medium'>
                                 {chat.type === 'direct'
-                                    ? participant?.name || participant?.username || otherParticipant
+                                    ? participant?.name ||
+                                      participant?.username ||
+                                      otherParticipant
                                     : chat.name}
                             </p>
                             {chat.lastMessage && (
@@ -137,46 +151,46 @@ function ChatListItem({
             }`}
             onClick={onClick}
         >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+            <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700'>
                 {chat.type === 'group' ? (
                     <svg
-                        className="h-6 w-6 text-gray-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                        className='h-6 w-6 text-gray-500'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
                     >
                         <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
                             strokeWidth={2}
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                            d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
                         />
                     </svg>
                 ) : (
                     <svg
-                        className="h-6 w-6 text-gray-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                        className='h-6 w-6 text-gray-500'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
                     >
                         <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
                             strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                            d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
                         />
                     </svg>
                 )}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex items-center justify-between">
-                    <p className="truncate font-medium">
+            <div className='flex min-w-0 flex-1 flex-col'>
+                <div className='flex items-center justify-between'>
+                    <p className='truncate font-medium'>
                         {chat.type === 'group'
                             ? chat.name
                             : `Chat with ${otherParticipants.length} users`}
                     </p>
                     {chat.lastMessage && (
-                        <span className="text-xs text-gray-500">
+                        <span className='text-xs text-gray-500'>
                             {formatDistanceToNow(
                                 chat.lastMessage.timestamp.toDate(),
                                 { addSuffix: true }
@@ -185,11 +199,11 @@ function ChatListItem({
                     )}
                 </div>
                 {chat.lastMessage && (
-                    <p className="truncate text-sm text-gray-500">
+                    <p className='truncate text-sm text-gray-500'>
                         {chat.lastMessage.text}
                     </p>
                 )}
             </div>
         </button>
     );
-} 
+}

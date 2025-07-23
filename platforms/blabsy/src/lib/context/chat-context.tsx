@@ -31,7 +31,11 @@ type ChatContext = {
     loading: boolean;
     error: Error | null;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (type: 'direct' | 'group', participants: string[], name?: string) => Promise<string>;
+    createNewChat: (
+        type: 'direct' | 'group',
+        participants: string[],
+        name?: string
+    ) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
@@ -66,7 +70,6 @@ export function ChatContextProvider({
             chatsCollection,
             where('participants', 'array-contains', user.id)
         );
-
 
         const unsubscribe = onSnapshot(
             chatsQuery,
@@ -208,4 +211,4 @@ export function useChat(): ChatContext {
         throw new Error('useChat must be used within a ChatContextProvider');
 
     return context;
-} 
+}

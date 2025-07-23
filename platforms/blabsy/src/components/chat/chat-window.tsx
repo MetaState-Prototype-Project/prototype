@@ -58,8 +58,6 @@ export function ChatWindow(): JSX.Element {
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-   
-
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
     );
@@ -78,8 +76,7 @@ export function ChatWindow(): JSX.Element {
                     setOtherUser(userDoc.data() as User);
                 } else {
                 }
-            } catch (error) {
-            }
+            } catch (error) {}
         };
 
         void fetchUserData();
@@ -113,7 +110,6 @@ export function ChatWindow(): JSX.Element {
                 !message.readBy.includes(user.id)
         );
 
-
         if (unreadMessages?.length) {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
@@ -128,8 +124,7 @@ export function ChatWindow(): JSX.Element {
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) {
-        }
+        } catch (error) {}
     };
 
     return (

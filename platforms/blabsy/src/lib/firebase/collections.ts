@@ -13,29 +13,33 @@ import type { Chat } from '@lib/types/chat';
 import type { Message } from '@lib/types/message';
 
 export const usersCollection = collection(db, 'users').withConverter(
-  userConverter
+    userConverter
 );
 
 export const tweetsCollection = collection(db, 'tweets').withConverter(
-  tweetConverter
+    tweetConverter
 );
 
 export function userBookmarksCollection(
-  id: string
+    id: string
 ): CollectionReference<Bookmark> {
-  return collection(db, `users/${id}/bookmarks`).withConverter(
-    bookmarkConverter
-  );
+    return collection(db, `users/${id}/bookmarks`).withConverter(
+        bookmarkConverter
+    );
 }
 
 export function userStatsCollection(id: string): CollectionReference<Stats> {
-  return collection(db, `users/${id}/stats`).withConverter(statsConverter);
+    return collection(db, `users/${id}/stats`).withConverter(statsConverter);
 }
 
-export const chatsCollection = collection(db, 'chats').withConverter(chatConverter);
+export const chatsCollection = collection(db, 'chats').withConverter(
+    chatConverter
+);
 
 export function chatMessagesCollection(
     chatId: string
 ): CollectionReference<Message> {
-    return collection(db, `chats/${chatId}/messages`).withConverter(messageConverter);
+    return collection(db, `chats/${chatId}/messages`).withConverter(
+        messageConverter
+    );
 }
