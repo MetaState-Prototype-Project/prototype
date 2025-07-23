@@ -1,24 +1,24 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import {
     ArrowLeft,
     Edit,
     Share,
     Calendar,
     Users,
-    BarChart3,
     Save,
     X,
     Plus,
     Trash2,
     AlertTriangle,
+    CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+// Assuming these components exist in your project
 import MemberAvatar from "@/components/member-avatar";
 import WysiwygEditor from "@/components/wysiwyg-editor";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import type { User } from "@/types";
 import Link from "next/link";
 
@@ -51,24 +59,216 @@ const getUserDisplayName = (user: User): string => {
     return user.email || "Unknown User";
 };
 
+// --- DUMMY DATA ---
+// Replace with your actual user data structure from your backend
+const DUMMY_USERS: User[] = [
+    {
+        id: "user1",
+        firstName: "Alice",
+        lastName: "Smith",
+        email: "alice@example.com",
+    },
+    {
+        id: "user2",
+        firstName: "Bob",
+        lastName: "Johnson",
+        email: "bob@example.com",
+    },
+    {
+        id: "user3",
+        firstName: "Charlie",
+        lastName: "Brown",
+        email: "charlie@example.com",
+    },
+    {
+        id: "user4",
+        firstName: "Diana",
+        lastName: "Prince",
+        email: "diana@example.com",
+    },
+    {
+        id: "user5",
+        firstName: "Eve",
+        lastName: "Adams",
+        email: "eve@example.com",
+    },
+    {
+        id: "user6",
+        firstName: "Frank",
+        lastName: "White",
+        email: "frank@example.com",
+    },
+    {
+        id: "user7",
+        firstName: "Grace",
+        lastName: "Hopper",
+        email: "grace@example.com",
+    },
+    {
+        id: "user8",
+        firstName: "Heidi",
+        lastName: "Klum",
+        email: "heidi@example.com",
+    },
+    {
+        id: "user9",
+        firstName: "Ivan",
+        lastName: "Drago",
+        email: "ivan@example.com",
+    },
+    {
+        id: "user10",
+        firstName: "Julia",
+        lastName: "Roberts",
+        email: "julia@example.com",
+    },
+];
+
+// Replace with your actual charter data structure from your backend
+const DUMMY_CHARTER = {
+    id: "charter123",
+    name: "Community Moderation Guidelines",
+    description:
+        "<p>This charter outlines the principles and guidelines for moderating our online community. Our goal is to foster a safe, inclusive, and respectful environment for all members.</p><p>We believe in open dialogue and diverse perspectives, but we also maintain zero tolerance for harassment, hate speech, and discrimination.</p>",
+    group: {
+        id: "groupABC",
+        name: "Official Community Moderators",
+        imageUrl: "https://picsum.photos/id/237/120/120",
+        platform: "Discord",
+        memberCount: 520,
+    },
+    owner: DUMMY_USERS[0], // Alice Smith is the owner for this dummy data
+    admins: [DUMMY_USERS[1], DUMMY_USERS[2]],
+    members: DUMMY_USERS.slice(0, 10), // All 10 dummy users as members
+    guidelines: [
+        "Be respectful and civil in all interactions.",
+        "No hate speech, discrimination, or personal attacks.",
+        "Keep discussions constructive and on-topic.",
+        "Do not share private information without consent.",
+        "Report any violations to the moderation team.",
+        "No spamming or self-promotion without permission.",
+    ],
+    autoApprove: true,
+    allowPosts: false,
+    isActive: true,
+    createdAt: new Date(2023, 0, 15).toISOString(),
+    updatedAt: new Date(2024, 6, 20, 10, 30).toISOString(),
+    stats: {
+        totalViews: 1543,
+    },
+    signedBy: ["user2", "user3"], // IDs of dummy users who have "signed" the charter
+};
+
 export default function CharterDetail({
     params,
 }: {
     params: Promise<{ id: string }>;
 }) {
+    // State to hold charter data and loading status
+    const [charter, setCharter] = useState<typeof DUMMY_CHARTER | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Get charter ID from Next.js params
     const { id } = use(params);
     const { toast } = useToast();
+    // Use your authentication hook to get the current user
     const { user } = useAuth();
+
+    // Determine the current user for logic (e.g., enabling edit/delete buttons)
+    // In a real app, 'user' from useAuth would be the definitive source.
+    // For this dummy setup, we default to DUMMY_USERS[0] if useAuth doesn't provide one.
+    const currentUser = user || DUMMY_USERS[0];
+
+    // State for UI interactions
     const [isEditing, setIsEditing] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showSignCharterModal, setShowSignCharterModal] = useState(false);
     const [editForm, setEditForm] = useState({
         name: "",
         description: "",
         guidelines: [] as string[],
     });
 
-    const { data: charter, isLoading } = { data: null, isLoading: false }; // TODO: Replace with API call to fetch charter by ID
+    // Simulate fetching charter data on component mount or ID change
+    useEffect(() => {
+        const fetchCharter = async () => {
+            setIsLoading(true);
+            // Simulate an API call delay for a realistic loading experience
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // In a real application, you'd fetch data from your API here
+            // Example: const response = await fetch(`/api/charters/${id}`);
+            // const data = await response.json();
+            // setCharter(data);
+            setCharter(DUMMY_CHARTER); // Using dummy data for demonstration
+            setIsLoading(false);
+        };
+        fetchCharter();
+    }, [id]);
 
+    // Mock mutation hooks to simulate API interactions
+    // In a real app, you would integrate with a library like React Query or SWR
+    // to manage mutations and data invalidation.
+
+    const updateMutation = {
+        isPending: false, // Simulates a loading state during API call
+        mutate: (data: typeof editForm) => {
+            console.log("Simulating charter update:", data);
+            // Simulate API call success
+            toast({
+                title: "Charter Updated",
+                description: "Your changes have been saved successfully.",
+            });
+            setIsEditing(false);
+            // Optimistically update the UI with new data
+            setCharter((prev) =>
+                prev ? { ...prev, ...data, updatedAt: new Date().toISOString() } : null
+            );
+        },
+    };
+
+    const deleteMutation = {
+        isPending: false, // Simulates a loading state during API call
+        mutate: () => {
+            console.log("Simulating delete charter with ID:", id);
+            // Simulate API call success
+            toast({
+                title: "Charter Deleted",
+                description: "The charter has been permanently removed.",
+                variant: "destructive",
+            });
+            setShowDeleteDialog(false);
+            // After deletion, clear the charter data to show "not found"
+            setCharter(null);
+            // In a real app, you might redirect the user to a dashboard
+            // router.push('/dashboard');
+        },
+    };
+
+    const signCharterMutation = {
+        isPending: false, // Simulates a loading state during API call
+        mutate: (userId: string) => {
+            console.log("Simulating signing charter by user:", userId);
+            // Simulate API call success
+            toast({
+                title: "Charter Signed!",
+                description: "You have successfully signed the charter.",
+            });
+            setShowSignCharterModal(false);
+            // Update the signedBy array to reflect the new signature
+            setCharter((prev) => {
+                if (prev) {
+                    // Add user ID if not already present
+                    const newSignedBy = prev.signedBy.includes(userId)
+                        ? prev.signedBy
+                        : [...prev.signedBy, userId];
+                    return { ...prev, signedBy: newSignedBy };
+                }
+                return prev;
+            });
+        },
+    };
+
+    // Handlers for edit mode
     const handleEditStart = () => {
         if (charter) {
             setEditForm({
@@ -81,14 +281,22 @@ export default function CharterDetail({
     };
 
     const handleEditSave = () => {
-        // TODO: Implement API call to save edited charter
+        updateMutation.mutate(editForm);
     };
 
     const handleEditCancel = () => {
         setIsEditing(false);
-        setEditForm({ name: "", description: "", guidelines: [] });
+        // Reset edit form to original charter data
+        if (charter) {
+            setEditForm({
+                name: charter.name,
+                description: charter.description || "",
+                guidelines: charter.guidelines || [],
+            });
+        }
     };
 
+    // Handlers for guidelines in edit mode
     const updateGuideline = (index: number, value: string) => {
         const newGuidelines = [...editForm.guidelines];
         newGuidelines[index] = value;
@@ -104,10 +312,28 @@ export default function CharterDetail({
         setEditForm({ ...editForm, guidelines: newGuidelines });
     };
 
+    // Handler for charter deletion
     const handleDelete = () => {
-        // Handle charter deletion API call
+        deleteMutation.mutate();
     };
 
+    // Handler for signing the charter
+    const handleSignCharter = () => {
+        if (currentUser) {
+            signCharterMutation.mutate(currentUser.id);
+        } else {
+            toast({
+                title: "Sign-in Required",
+                description: "Please log in to sign the charter.",
+                variant: "destructive", // Changed to destructive for more prominence
+            });
+        }
+    };
+
+    // Check if the current user has already signed the charter
+    const hasUserSigned = charter?.signedBy.includes(currentUser.id) || false;
+
+    // Loading state UI
     if (isLoading) {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -119,6 +345,7 @@ export default function CharterDetail({
         );
     }
 
+    // Not found state UI
     if (!charter || !charter.group || !charter.owner) {
         return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -257,12 +484,36 @@ export default function CharterDetail({
                                         <Share className="mr-2" size={18} />
                                         Share
                                     </Button>
-                                    <Link href={`/charter/${charter.id}/edit`}>
-                                        <Button className="gradient-primary text-white px-6 py-3 rounded-2xl font-medium hover:shadow-xl transition-all duration-300">
+                                    {/* Sign Charter Button */}
+                                    {/* Show "Sign Charter" if not signed, otherwise show "Charter Signed" with checkmark */}
+                                    {hasUserSigned ? (
+                                        <Button
+                                            disabled
+                                            className="bg-gray-200 text-gray-600 px-6 py-3 rounded-2xl font-medium cursor-not-allowed"
+                                        >
+                                            <CheckCircle className="mr-2" size={18} />
+                                            Charter Signed
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            onClick={() => setShowSignCharterModal(true)}
+                                            className="bg-green-600 text-white px-6 py-3 rounded-2xl font-medium hover:bg-green-700 transition-all duration-300"
+                                        >
+                                            <CheckCircle className="mr-2" size={18} />
+                                            Sign Charter
+                                        </Button>
+                                    )}
+
+                                    {/* Edit Charter Button (only for charter owner) */}
+                                    {currentUser && currentUser.id === charter.owner.id && (
+                                        <Button
+                                            onClick={handleEditStart}
+                                            className="gradient-primary text-white px-6 py-3 rounded-2xl font-medium hover:shadow-xl transition-all duration-300"
+                                        >
                                             <Edit className="mr-2" size={18} />
                                             Edit Charter
                                         </Button>
-                                    </Link>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -283,12 +534,26 @@ export default function CharterDetail({
                                 {/* Charter Description */}
                                 {charter.description && (
                                     <div>
-                                        <div
-                                            className="text-gray-600 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{
-                                                __html: charter.description,
-                                            }}
-                                        />
+                                        {isEditing ? (
+                                            <WysiwygEditor
+                                                content={editForm.description}
+                                                onChange={(content) =>
+                                                    setEditForm({
+                                                        ...editForm,
+                                                        description: content,
+                                                    })
+                                                }
+                                                placeholder="Charter description..."
+                                                className="text-gray-600 border rounded-xl p-4 min-h-[150px]"
+                                            />
+                                        ) : (
+                                            <div
+                                                className="text-gray-600 prose prose-sm max-w-none"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: charter.description,
+                                                }}
+                                            />
+                                        )}
                                     </div>
                                 )}
 
@@ -356,18 +621,18 @@ export default function CharterDetail({
                                             </Button>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2 text-gray-600">
+                                        <ul className="space-y-2 text-gray-600 list-disc pl-5">
                                             {charter.guidelines?.map(
                                                 (
                                                     guideline: string,
                                                     index: number
                                                 ) => (
-                                                    <p key={index}>
-                                                        • {guideline}
-                                                    </p>
+                                                    <li key={index}>
+                                                        {guideline}
+                                                    </li>
                                                 )
                                             )}
-                                        </div>
+                                        </ul>
                                     )}
                                 </div>
 
@@ -378,21 +643,38 @@ export default function CharterDetail({
                                     <div className="space-y-2 text-gray-600">
                                         <p>
                                             • Auto-approve new members:{" "}
-                                            {charter.autoApprove
-                                                ? "Enabled"
-                                                : "Disabled"}
+                                            <strong>
+                                                {charter.autoApprove
+                                                    ? "Enabled"
+                                                    : "Disabled"}
+                                            </strong>
                                         </p>
                                         <p>
                                             • Allow member posts:{" "}
-                                            {charter.allowPosts
-                                                ? "Enabled"
-                                                : "Disabled"}
+                                            <strong>
+                                                {charter.allowPosts
+                                                    ? "Enabled"
+                                                    : "Disabled"}
+                                            </strong>
                                         </p>
                                         <p>
                                             • Charter status:{" "}
-                                            {charter.isActive
-                                                ? "Active"
-                                                : "Inactive"}
+                                            <Badge
+                                                variant={
+                                                    charter.isActive
+                                                        ? "success"
+                                                        : "destructive"
+                                                }
+                                                className={`${
+                                                    charter.isActive
+                                                        ? "bg-green-100 text-green-700"
+                                                        : "bg-red-100 text-red-700"
+                                                }`}
+                                            >
+                                                {charter.isActive
+                                                    ? "Active"
+                                                    : "Inactive"}
+                                            </Badge>
                                         </p>
                                     </div>
                                 </div>
@@ -519,6 +801,14 @@ export default function CharterDetail({
                                         {charter.stats?.totalViews || 0}
                                     </span>
                                 </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-gray-600 text-sm">
+                                        Times Signed
+                                    </span>
+                                    <span className="font-medium text-gray-800 text-sm">
+                                        {charter.signedBy.length}
+                                    </span>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -526,7 +816,7 @@ export default function CharterDetail({
             </div>
 
             {/* Danger Zone - Only visible to charter owner */}
-            {charter.owner && user && user.id === charter.owner.id && (
+            {charter.owner && currentUser && currentUser.id === charter.owner.id && (
                 <div className="mt-8 max-w-4xl mx-auto">
                     <Card className="border-red-200 bg-red-50/50 backdrop-blur-xs rounded-3xl">
                         <CardContent className="p-6">
@@ -574,8 +864,11 @@ export default function CharterDetail({
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently
-                            delete the charter "{charter.name}" and remove all
-                            associated data.
+                            delete the charter "
+                            <span className="font-semibold">
+                                {charter ? charter.name : "this charter"}
+                            </span>
+                            " and remove all associated data.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -592,6 +885,46 @@ export default function CharterDetail({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Sign Charter Modal */}
+            <Dialog open={showSignCharterModal} onOpenChange={setShowSignCharterModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Sign the Charter</DialogTitle>
+                        <DialogDescription>
+                            By signing this charter, you agree to abide by all the
+                            community guidelines and principles outlined in this document.
+                            Your commitment helps maintain a positive and respectful
+                            environment for everyone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-gray-700 mb-2">
+                            Please confirm your understanding and agreement by clicking
+                            "Confirm Signature".
+                        </p>
+                        <div className="flex items-center space-x-2 text-gray-600 text-sm mt-3">
+                            <CheckCircle size={16} className="text-green-500" />
+                            <span>I agree to all terms and conditions.</span>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowSignCharterModal(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSignCharter}
+                            disabled={signCharterMutation.isPending}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            {signCharterMutation.isPending ? "Signing..." : "Confirm Signature"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
