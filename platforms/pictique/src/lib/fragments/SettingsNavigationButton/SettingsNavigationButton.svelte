@@ -38,7 +38,7 @@
 			<img
 				width="24px"
 				height="24px"
-				class="flex aspect-square size-10 items-center justify-center rounded-full md:size-12 object-cover"
+				class="flex aspect-square size-10 items-center justify-center rounded-full object-cover md:size-12"
 				src={profileSrc}
 				alt=""
 			/>
