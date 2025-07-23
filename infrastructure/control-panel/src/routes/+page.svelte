@@ -113,6 +113,10 @@
 </section> -->
 
 <section class="flex gap-2">
-	<LiveDataFlow />
+	<LiveDataFlow events={[
+		{ id: "1", from: "Alice", to: "Pictique", vaultName: "Alice.Vault.Dev", imageSrc: "" },
+		{ id: "2", from: "Pictique", to: "Bob",vaultName: "Pictique.Vault.Dev", imageSrc: "" },
+		{ id: "3", from: "Bob", to: "", vaultName: "Bob.Vault.Dev", imageSrc: "" },
+	]}/>
 	<Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
 </section>
