@@ -31,10 +31,10 @@
 			loading = false;
 		}
 	}
-	$effect(()=> { 
+	$effect(() => {
 		ownerId = getAuthId();
-	})
-	onMount(fetchProfile)
+	});
+	onMount(fetchProfile);
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
@@ -47,14 +47,17 @@
 			<p class="text-red-500">{error}</p>
 		</div>
 	{:else if profile}
-	<SettingsNavigationButton onclick={() => goto(`/settings/account`)} profileSrc={profile?.avatarUrl}>
-		{#snippet children()}
-			<div class="flex flex-col items-start">
-				<h2 class="text-lg">{profile?.handle}</h2>
-				<p class="text-sm">{profile?.description}</p>
-			</div>
-		{/snippet}
-	</SettingsNavigationButton>
+		<SettingsNavigationButton
+			onclick={() => goto(`/settings/account`)}
+			profileSrc={profile?.avatarUrl}
+		>
+			{#snippet children()}
+				<div class="flex flex-col items-start">
+					<h2 class="text-lg">{profile?.handle}</h2>
+					<p class="text-sm">{profile?.description}</p>
+				</div>
+			{/snippet}
+		</SettingsNavigationButton>
 	{/if}
 </div>
 <hr class="text-grey" />

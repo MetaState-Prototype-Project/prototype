@@ -53,9 +53,9 @@
 		selectedPost.value = post;
 		goto('/profile/post');
 	}
-	$effect(()=> {
+	$effect(() => {
 		ownerId = getAuthId();
-	})
+	});
 
 	onMount(fetchProfile);
 </script>

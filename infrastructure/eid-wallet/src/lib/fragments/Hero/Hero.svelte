@@ -1,25 +1,25 @@
 <script lang="ts">
-    import * as Button from "$lib/ui/Button";
-    import { cn } from "$lib/utils";
-    import { Settings02Icon } from "@hugeicons/core-free-icons";
-    import type { Snippet } from "svelte";
-    import type { HTMLAttributes } from "svelte/elements";
+import * as Button from "$lib/ui/Button";
+import { cn } from "$lib/utils";
+import { Settings02Icon } from "@hugeicons/core-free-icons";
+import type { Snippet } from "svelte";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface IHeroProps extends HTMLAttributes<HTMLElement> {
-        title?: string;
-        subtitle?: Snippet;
-        showSettings?: boolean;
-        titleClasses?: string;
-    }
-    const {
-        title,
-        subtitle,
-        showSettings = false,
-        titleClasses,
-        children,
-        ...restProps
-    }: IHeroProps = $props();
-    const baseClasses = "w-full flex justify-between items-center";
+interface IHeroProps extends HTMLAttributes<HTMLElement> {
+    title?: string;
+    subtitle?: Snippet;
+    showSettings?: boolean;
+    titleClasses?: string;
+}
+const {
+    title,
+    subtitle,
+    showSettings = false,
+    titleClasses,
+    children,
+    ...restProps
+}: IHeroProps = $props();
+const baseClasses = "w-full flex justify-between items-center";
 </script>
 
 <header {...restProps} class={cn(baseClasses, restProps.class)}>

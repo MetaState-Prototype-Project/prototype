@@ -42,7 +42,7 @@
 
 	$effect(() => {
 		console.log($searchResults);
-	})
+	});
 </script>
 
 <section class="w-full max-w-[500px]">

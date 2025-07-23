@@ -21,7 +21,7 @@
 
 			eventSource.onmessage = function (e) {
 				const data = JSON.parse(e.data);
-				const {user} =  data
+				const { user } = data;
 				setAuthId(user.id);
 				const { token } = data;
 				setAuthToken(token);
