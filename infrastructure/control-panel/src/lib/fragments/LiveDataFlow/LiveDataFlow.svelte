@@ -27,24 +27,24 @@
     }
 
     @keyframes move {
-  0% {
-    offset-distance: 100%;
-    opacity: 1;
-  }
-  50% {
-    opacity: 1;
-  }
-  55% {
-    opacity: 0.4;
-  }
-  60% {
-    opacity: 0;
-  }
-  100% {
-    offset-distance: 0%;
-    opacity: 0;
-  }
-}
+      0% {
+        offset-distance: 100%;
+        opacity: 1;
+      }
+      50% {
+        opacity: 1;
+      }
+      55% {
+        opacity: 0.4;
+      }
+      60% {
+        opacity: 0;
+      }
+      100% {
+        offset-distance: 0%;
+        opacity: 0;
+      }
+    }
 
 </style>
 
