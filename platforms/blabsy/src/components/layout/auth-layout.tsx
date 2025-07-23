@@ -30,9 +30,9 @@ export function AuthLayout({ children }: LayoutProps): JSX.Element {
 
     // If there's an auth error (user not found), redirect to login
     useEffect(() => {
-        if (error) {
+        if (error) 
             void replace('/');
-        }
+        
     }, [error, replace]);
 
     if (loading || pending) return <Placeholder />;

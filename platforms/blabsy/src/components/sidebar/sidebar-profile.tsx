@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu } from '@headlessui/react';
 import cn from 'clsx';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 import { useModal } from '@lib/hooks/useModal';
 import { Modal } from '@components/modal/modal';
@@ -13,20 +14,19 @@ import { UserName } from '@components/user/user-name';
 import { UserUsername } from '@components/user/user-username';
 import { variants } from './more-settings';
 import type { User } from '@lib/types/user';
-import { useEffect, useState } from 'react';
 
 export function SidebarProfile(): JSX.Element {
     const { user, signOut } = useAuth();
     const { open, openModal, closeModal } = useModal();
 
-    let [name, setName] = useState<string>();
-    let [username, setUsername] = useState<string>();
-    let [verified, setVerified] = useState<boolean>();
-    let [photoURL, setPhotoUrl] = useState<string>();
+    const [name, setName] = useState<string>();
+    const [username, setUsername] = useState<string>();
+    const [verified, setVerified] = useState<boolean>();
+    const [photoURL, setPhotoUrl] = useState<string>();
 
     useEffect(() => {
         if (user) {
-            const { name, username, verified, photoURL } = user as User;
+            const { name, username, verified, photoURL } = user ;
             setName(name);
             setUsername(username);
             setVerified(verified);

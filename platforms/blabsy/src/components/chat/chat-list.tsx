@@ -1,15 +1,14 @@
-import { useChat } from '@lib/context/chat-context';
-import { useAuth } from '@lib/context/auth-context';
+import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
-import type { Chat } from '@lib/types/chat';
-import { Loading } from '@components/ui/loading';
 import { UserIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@lib/context/auth-context';
+import { useChat } from '@lib/context/chat-context';
 import { db } from '@lib/firebase/app';
-import { usersCollection } from '@lib/firebase/collections';
+import { Loading } from '@components/ui/loading';
+import type { Chat } from '@lib/types/chat';
 import type { User } from '@lib/types/user';
-import Image from 'next/image';
 
 type ParticipantData = {
     [key: string]: User;
@@ -37,19 +36,17 @@ export function ChatList(): JSX.Element {
                     const userDoc = await getDoc(
                         doc(db, 'users', otherParticipantId)
                     );
-                    if (userDoc.exists()) {
+                    if (userDoc.exists())
                         newParticipantData[otherParticipantId] =
                             userDoc.data() as User;
-                    }
                 }
             }
 
-            if (Object.keys(newParticipantData).length > 0) {
+            if (Object.keys(newParticipantData).length > 0)
                 setParticipantData((prev) => ({
                     ...prev,
                     ...newParticipantData
                 }));
-            }
         };
 
         void fetchParticipantData();
@@ -81,6 +78,7 @@ export function ChatList(): JSX.Element {
 
                 return (
                     <button
+                        type='button'
                         key={chat.id}
                         onClick={() => setCurrentChat(chat)}
                         className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
@@ -146,6 +144,7 @@ function ChatListItem({
 
     return (
         <button
+            type='button'
             className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${
                 isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
             }`}
@@ -159,6 +158,7 @@ function ChatListItem({
                         viewBox='0 0 24 24'
                         stroke='currentColor'
                     >
+                        <title>{chat.name || 'Group Chat'}</title>
                         <path
                             strokeLinecap='round'
                             strokeLinejoin='round'
@@ -173,6 +173,11 @@ function ChatListItem({
                         viewBox='0 0 24 24'
                         stroke='currentColor'
                     >
+                        <title>
+                            {otherParticipants.length > 0
+                                ? `Chat with ${otherParticipants.length} user(s)`
+                                : 'Direct Chat'}
+                        </title>
                         <path
                             strokeLinecap='round'
                             strokeLinejoin='round'

@@ -481,9 +481,9 @@ export async function getOrCreateDirectChat(
 
     for (const doc of existingChats.docs) {
         const chat = doc.data();
-        if (chat.participants.includes(targetUserId)) {
+        if (chat.participants.includes(targetUserId)) 
             return doc.id;
-        }
+        
     }
 
     // If no existing chat, create a new one

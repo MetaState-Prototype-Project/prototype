@@ -1,16 +1,15 @@
-import { collection } from 'firebase/firestore';
-import { userConverter } from '@lib/types/user';
-import { tweetConverter } from '@lib/types/tweet';
 import { bookmarkConverter } from '@lib/types/bookmark';
-import { statsConverter } from '@lib/types/stats';
+import type { Bookmark } from '@lib/types/bookmark';
 import { chatConverter } from '@lib/types/chat';
 import { messageConverter } from '@lib/types/message';
-import { db } from './app';
-import type { CollectionReference } from 'firebase/firestore';
-import type { Bookmark } from '@lib/types/bookmark';
-import type { Stats } from '@lib/types/stats';
-import type { Chat } from '@lib/types/chat';
 import type { Message } from '@lib/types/message';
+import { statsConverter } from '@lib/types/stats';
+import type { Stats } from '@lib/types/stats';
+import { tweetConverter } from '@lib/types/tweet';
+import { userConverter } from '@lib/types/user';
+import { collection } from 'firebase/firestore';
+import type { CollectionReference } from 'firebase/firestore';
+import { db } from './app';
 
 export const usersCollection = collection(db, 'users').withConverter(
     userConverter

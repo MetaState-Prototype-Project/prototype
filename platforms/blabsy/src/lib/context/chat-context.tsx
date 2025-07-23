@@ -1,13 +1,5 @@
 import { useState, useEffect, useContext, createContext, useMemo } from 'react';
-import {
-    collection,
-    query,
-    where,
-    orderBy,
-    onSnapshot,
-    limit
-} from 'firebase/firestore';
-import { db } from '@lib/firebase/app';
+import { query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import {
     chatsCollection,
     chatMessagesCollection
@@ -79,6 +71,7 @@ export function ChatContextProvider({
                 setLoading(false);
             },
             (error) => {
+                // eslint-disable-next-line no-console
                 console.error('[ChatContext] Error in chat listener:', error);
                 setError(error as Error);
                 setLoading(false);
@@ -134,9 +127,7 @@ export function ChatContextProvider({
     };
 
     const sendNewMessage = async (text: string): Promise<void> => {
-        if (!user || !currentChat) {
-            return;
-        }
+        if (!user || !currentChat) return;
 
         try {
             await sendMessage(currentChat.id, user.id, text);
@@ -147,9 +138,7 @@ export function ChatContextProvider({
     };
 
     const markAsRead = async (messageId: string): Promise<void> => {
-        if (!user || !currentChat) {
-            return;
-        }
+        if (!user || !currentChat) return;
 
         try {
             await markMessageAsRead(currentChat.id, messageId, user.id);
@@ -160,9 +149,7 @@ export function ChatContextProvider({
     };
 
     const addParticipant = async (userId: string): Promise<void> => {
-        if (!currentChat) {
-            return;
-        }
+        if (!currentChat) return;
 
         try {
             await addParticipantToChat(currentChat.id, userId);
@@ -173,9 +160,7 @@ export function ChatContextProvider({
     };
 
     const removeParticipant = async (userId: string): Promise<void> => {
-        if (!currentChat) {
-            return;
-        }
+        if (!currentChat) return;
 
         try {
             await removeParticipantFromChat(currentChat.id, userId);

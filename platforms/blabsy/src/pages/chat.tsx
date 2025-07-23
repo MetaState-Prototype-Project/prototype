@@ -2,14 +2,13 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
-import { chatsCollection } from '@lib/firebase/collections';
-import { Chat } from '@components/chat/chat';
 import { ChatContextProvider } from '@lib/context/chat-context';
 import { useChat } from '@lib/context/chat-context';
+import { Chat } from '@components/chat/chat';
 import { Loading } from '@components/ui/loading';
-import type { Chat as ChatType } from '@lib/types/chat';
 import { MainLayout } from '@components/layout/main-layout';
 import { ProtectedLayout } from '@components/layout/common-layout';
+import type { Chat as ChatType } from '@lib/types/chat';
 import type { ReactElement, ReactNode } from 'react';
 
 function ChatPageContent(): JSX.Element {
@@ -26,10 +25,9 @@ function ChatPageContent(): JSX.Element {
                 if (chatDoc.exists()) {
                     const chatData = chatDoc.data() as Omit<ChatType, 'id'>;
                     setCurrentChat({ id: chatDoc.id, ...chatData });
-                } else {
-                    await push('/chat');
-                }
+                } else await push('/chat');
             } catch (error) {
+                // eslint-disable-next-line no-console
                 console.error('Error fetching chat:', error);
                 await push('/chat');
             }

@@ -47,7 +47,7 @@ export class MappingDatabase {
         // Validate inputs
         if (!params.localId || !params.globalId) {
             throw new Error(
-                "Invalid mapping parameters: all fields are required"
+                "Invalid mapping parameters: all fields are required",
             );
         }
 
@@ -64,7 +64,7 @@ export class MappingDatabase {
             await this.runAsync(
                 `INSERT INTO id_mappings (local_id, global_id)
                 VALUES (?, ?)`,
-                [params.localId, params.globalId]
+                [params.localId, params.globalId],
             );
 
             const storedMapping = await this.getGlobalId(params.localId);
@@ -73,7 +73,7 @@ export class MappingDatabase {
                 console.log(
                     "storedMappingError",
                     storedMapping,
-                    params.globalId
+                    params.globalId,
                 );
                 console.error("Failed to store mapping");
                 return;
@@ -96,7 +96,7 @@ export class MappingDatabase {
                 `SELECT global_id
                 FROM id_mappings
                 WHERE local_id = ?`,
-                [localId]
+                [localId],
             );
             return result?.global_id ?? null;
         } catch (error) {
@@ -118,7 +118,7 @@ export class MappingDatabase {
                 `SELECT local_id
                 FROM id_mappings
                 WHERE global_id = ?`,
-                [globalId]
+                [globalId],
             );
             return result?.local_id ?? null;
         } catch (error) {
@@ -138,7 +138,7 @@ export class MappingDatabase {
             await this.runAsync(
                 `DELETE FROM id_mappings
                 WHERE local_id = ?`,
-                [localId]
+                [localId],
             );
         } catch (error) {
             throw error;
@@ -157,7 +157,7 @@ export class MappingDatabase {
         try {
             const results = await this.allAsync(
                 `SELECT local_id, global_id
-                FROM id_mappings`
+                FROM id_mappings`,
             );
 
             return results.map(({ local_id, global_id }) => ({
