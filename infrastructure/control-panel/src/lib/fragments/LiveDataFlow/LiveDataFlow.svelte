@@ -6,8 +6,8 @@
     id: string,
     from: string,
     to: string,
-    imageSrc: string,
-    vaultName: string
+    imageSrc?: string,
+    vaultName?: string
   }
 
   interface IDataFlowProps {
@@ -50,7 +50,7 @@
 
 <article class="w-full h-[80vh] px-16 py-6 flex flex-col items-center bg-gray rounded-md">
     <div class="w-full flex justify-between items-center mb-20.5">
-        <h4 class="text-xl">Live Monitering</h4>
+        <h4 class="text-xl">Live Monitoring</h4>
         <button onclick={() => isPaused = !isPaused} class="px-4 py-3 flex items-center gap-2 text-base font-geist font-medium text-black-700 bg-white border border-[#e5e5e5] rounded-4xl">
             {#if isPaused}
             <HugeiconsIcon icon={PlayFreeIcons} size="24px"/>
