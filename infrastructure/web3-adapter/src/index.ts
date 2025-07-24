@@ -18,13 +18,13 @@ export class Web3Adapter {
             dbPath: string;
             registryUrl: string;
             platform: string;
-        }
+        },
     ) {
         this.readPaths();
         this.mappingDb = new MappingDatabase(config.dbPath);
         this.evaultClient = new EVaultClient(
             config.registryUrl,
-            config.platform
+            config.platform,
         );
         this.platform = config.platform;
     }
@@ -32,15 +32,15 @@ export class Web3Adapter {
     async readPaths() {
         const allRawFiles = await fs.readdir(this.config.schemasPath);
         const mappingFiles = allRawFiles.filter((p: string) =>
-            p.endsWith(".json")
+            p.endsWith(".json"),
         );
 
         for (const mappingFile of mappingFiles) {
             const mappingFileContent = await fs.readFile(
-                path.join(this.config.schemasPath, mappingFile)
+                path.join(this.config.schemasPath, mappingFile),
             );
             const mappingParsed = JSON.parse(
-                mappingFileContent.toString()
+                mappingFileContent.toString(),
             ) as IMapping;
             this.mapping[mappingParsed.tableName] = mappingParsed;
         }
@@ -62,7 +62,7 @@ export class Web3Adapter {
         const { data, tableName, participants } = props;
 
         const existingGlobalId = await this.mappingDb.getGlobalId(
-            data.id as string
+            data.id as string,
         );
 
         console.log(this.mapping, tableName, this.mapping[tableName]);
@@ -121,12 +121,12 @@ export class Web3Adapter {
 
         // Handle references for other participants
         const otherEvaults = (participants ?? []).filter(
-            (i: string) => i !== global.ownerEvault
+            (i: string) => i !== global.ownerEvault,
         );
         for (const evault of otherEvaults) {
             await this.evaultClient.storeReference(
                 `${global.ownerEvault}/${globalId}`,
-                evault
+                evault,
             );
         }
 

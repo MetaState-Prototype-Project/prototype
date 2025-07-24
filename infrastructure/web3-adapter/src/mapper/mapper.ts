@@ -17,7 +17,7 @@ export function getValueByPath(obj: Record<string, any>, path: string): any {
         // If there's a field path after [], map through the array
         if (fieldPath) {
             return array.map((item) =>
-                getValueByPath(item, fieldPath.slice(1))
+                getValueByPath(item, fieldPath.slice(1)),
             ); // Remove the leading dot
         }
 
@@ -35,7 +35,7 @@ export function getValueByPath(obj: Record<string, any>, path: string): any {
 
 async function extractOwnerEvault(
     data: Record<string, unknown>,
-    ownerEnamePath: string
+    ownerEnamePath: string,
 ): Promise<string | null> {
     if (!ownerEnamePath || ownerEnamePath === "null") {
         return null;
@@ -63,7 +63,7 @@ export async function fromGlobal({
     const result: Record<string, unknown> = {};
 
     for (const [localKey, globalPathRaw] of Object.entries(
-        mapping.localToUniversalMap
+        mapping.localToUniversalMap,
     )) {
         // biome-ignore lint/suspicious/noExplicitAny: <explanation>
         let value: any;
@@ -79,7 +79,7 @@ export async function fromGlobal({
                 if (calcMatch) {
                     const calcResult = evaluateCalcExpression(
                         calcMatch[1],
-                        data
+                        data,
                     );
                     value =
                         calcResult !== undefined
@@ -120,7 +120,7 @@ export async function fromGlobal({
                         const localId = await mappingStore.getLocalId(v);
 
                         return localId ? `${tableRef}(${localId})` : null;
-                    })
+                    }),
                 );
             } else {
                 value = await mappingStore.getLocalId(value);
@@ -139,7 +139,7 @@ export async function fromGlobal({
 function evaluateCalcExpression(
     expr: string,
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-    context: Record<string, any>
+    context: Record<string, any>,
 ): number | undefined {
     const tokens = expr
         .split(/[^\w.]+/)
@@ -152,7 +152,7 @@ function evaluateCalcExpression(
         if (typeof value !== "undefined") {
             resolvedExpr = resolvedExpr.replace(
                 new RegExp(`\\b${token.replace(".", "\\.")}\\b`, "g"),
-                value
+                value,
             );
         }
     }
@@ -172,7 +172,7 @@ export async function toGlobal({
     const result: Record<string, unknown> = {};
 
     for (const [localKey, globalPathRaw] of Object.entries(
-        mapping.localToUniversalMap
+        mapping.localToUniversalMap,
     )) {
         // biome-ignore lint/suspicious/noExplicitAny: <explanation>
         let value: any;
@@ -205,7 +205,7 @@ export async function toGlobal({
                 if (calcMatch) {
                     const calcResult = evaluateCalcExpression(
                         calcMatch[1],
-                        data
+                        data,
                     );
                     value =
                         calcResult !== undefined
@@ -263,8 +263,8 @@ export async function toGlobal({
                 value = await Promise.all(
                     value.map(
                         async (v) =>
-                            (await mappingStore.getGlobalId(v)) ?? undefined
-                    )
+                            (await mappingStore.getGlobalId(v)) ?? undefined,
+                    ),
                 );
             } else {
                 value = (await mappingStore.getGlobalId(value)) ?? undefined;

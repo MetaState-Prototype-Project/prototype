@@ -130,7 +130,10 @@ export class EVaultClient {
     private httpClient: AxiosInstance;
     private isDisposed = false;
 
-    constructor(private registryUrl: string, private platform: string) {
+    constructor(
+        private registryUrl: string,
+        private platform: string,
+    ) {
         // Configure axios with connection pooling and timeouts
         this.httpClient = axios.create({
             timeout: CONFIG.REQUEST_TIMEOUT,
@@ -174,7 +177,7 @@ export class EVaultClient {
      */
     private async withRetry<T>(
         operation: () => Promise<T>,
-        maxRetries: number = CONFIG.MAX_RETRIES
+        maxRetries: number = CONFIG.MAX_RETRIES,
     ): Promise<T> {
         let lastError: Error;
 
@@ -217,7 +220,7 @@ export class EVaultClient {
             const response = await this.httpClient.post<PlatformTokenResponse>(
                 new URL(
                     "/platforms/certification",
-                    this.registryUrl
+                    this.registryUrl,
                 ).toString(),
                 { platform: this.platform },
                 {
@@ -225,7 +228,7 @@ export class EVaultClient {
                         "Content-Type": "application/json",
                     },
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                }
+                },
             );
 
             const now = Date.now();
@@ -271,7 +274,7 @@ export class EVaultClient {
                 new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
                 {
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                }
+                },
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -357,7 +360,7 @@ export class EVaultClient {
                     {
                         id,
                         w3id,
-                    }
+                    },
                 );
                 return response.metaEnvelope;
             } catch (error) {
@@ -369,12 +372,12 @@ export class EVaultClient {
 
     async updateMetaEnvelopeById(
         id: string,
-        envelope: MetaEnvelope
+        envelope: MetaEnvelope,
     ): Promise<void> {
         return this.withRetry(async () => {
             console.log("sending to eVault", envelope.w3id);
             const client = await this.ensureClient(envelope.w3id).catch(
-                () => null
+                () => null,
             );
             if (!client)
                 throw new Error("Failed to establish client connection");
@@ -392,7 +395,7 @@ export class EVaultClient {
                 const response =
                     await client.request<StoreMetaEnvelopeResponse>(
                         UPDATE_META_ENVELOPE,
-                        variables
+                        variables,
                     );
             } catch (error) {
                 console.error("Error updating meta envelope:", error);
