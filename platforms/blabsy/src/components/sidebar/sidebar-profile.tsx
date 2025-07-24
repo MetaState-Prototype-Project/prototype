@@ -26,7 +26,7 @@ export function SidebarProfile(): JSX.Element {
 
     useEffect(() => {
         if (user) {
-            const { name, username, verified, photoURL } = user ;
+            const { name, username, verified, photoURL } = user;
             setName(name);
             setUsername(username);
             setVerified(verified);
