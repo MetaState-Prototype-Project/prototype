@@ -4,9 +4,9 @@
   import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 
   import {Logs, VaultNode} from '$lib/fragments';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
-	import {ButtonAction} from '$lib/ui';
+  import { HugeiconsIcon } from '@hugeicons/svelte';
+  import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
+  import {ButtonAction} from '$lib/ui';
   
 
   let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
@@ -16,6 +16,7 @@
   };
 
   let isPaused = $state(false);
+  let modal: HTMLDialogElement | undefined = $state();
 
   let nodes: Node[] = $state([
       {
@@ -45,43 +46,77 @@
   ]);
 
   let edges: Edge[] = $derived(
-    nodes.flatMap((node, index, arr) => {
-        if (index < arr.length - 1) {
-            return [{
-                id: `e${node.id}-${arr[index + 1].id}`,
-                source: node.id,
-                target: arr[index + 1].id,
+    (() => {
+        const generatedEdges: Edge[] = [];
+
+        nodes.forEach((node, index, arr) => {
+            if (index < arr.length - 1) {
+                // Skip default connection if it's part of the explicit two-way connection
+                // This ensures we don't have duplicate edges
+                if ((node.id === '1' && arr[index + 1].id === '2') || (node.id === '2' && arr[index + 1].id === '1')) {
+                    return;
+                }
+                generatedEdges.push({
+                    id: `e${node.id}-${arr[index + 1].id}`,
+                    source: node.id,
+                    target: arr[index + 1].id,
+                    animated: !isPaused,
+                    type: 'smoothstep',
+                    label: `from ${node.data.label}`,
+                    style: 'stroke: #4CAF50; stroke-width: 2;',
+                });
+            }
+        });
+
+        generatedEdges.push(
+            {
+                id: 'e-alice-to-pictique',
+                source: '1',
+                target: '2',
                 animated: !isPaused,
                 type: 'smoothstep',
-                style: 'stroke: #4CAF50; stroke-width: 2;',
-            }];
-        }
-        return [];
-    })
+                label: 'from Alice',
+                labelStyle:  'fill: #fff; fontWeight: 700',
+                style: 'stroke: #007BFF; stroke-width: 2;',
+            },
+            {
+                id: 'e-pictique-from-alice',
+                source: '2', 
+                target: '1',
+                animated: !isPaused,
+                type: 'smoothstep',
+                label: 'from Pictique',
+                labelStyle:  'fill: #fff; fontWeight: 700',
+                style: 'stroke: #FFA500; stroke-width: 2;',
+            }
+        );
+
+        return generatedEdges;
+    })()
   );
 
   let currentSelectedEventIndex = $state(-1);
 
-	const events = [
-		{
-			timestamp: new Date(),
-			action: 'upload',
-			message: 'msg_123',
-			to: 'alice.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'fetch',
-			message: 'msg_124',
-			from: 'bob.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'webhook',
-			to: 'Alice',
-			from: 'Pic'
-		}
-	];
+  const events = [
+    {
+      timestamp: new Date(),
+      action: 'upload',
+      message: 'msg_123',
+      to: 'alice.vault.dev'
+    },
+    {
+      timestamp: new Date(),
+      action: 'fetch',
+      message: 'msg_124',
+      from: 'bob.vault.dev'
+    },
+    {
+      timestamp: new Date(),
+      action: 'webhook',
+      to: 'Alice',
+      from: 'Pic'
+    }
+  ];
 
   onMount(async () => {
       const mod = await import('@xyflow/svelte');
@@ -94,7 +129,7 @@
     <div class="w-full flex justify-between items-center p-4 bg-white shadow-sm z-10">
       <h4 class="text-xl text-gray-800 font-semibold">Live Monitoring</h4>
       <div class="flex gap-2">
-        <ButtonAction class="w-[max-content]" variant="soft" size="sm">Add Vault</ButtonAction>
+        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {modal?.show()}}>Add Vault</ButtonAction>
         <button
         onclick={() => isPaused = !isPaused}
         class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
@@ -121,21 +156,39 @@
   {:else}
   <div class="flex-grow flex justify-center items-center text-gray-700">Loading flow chart...</div>
   {/if}
-</div>
-<Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
+  </div>
+  <Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
 </section>
 
+
 <style>
+  /*
   :global(.svelte-flow__edge-path) {
       stroke: #4CAF50 !important;
       stroke-width: 2 !important;
   }
+  */
 
   :global(.svelte-flow__edge.animated .svelte-flow__edge-path) {
     stroke-dasharray: 5 5; 
   }
 
   :global(.svelte-flow) {
-      background-color: transparent !important;
+    background-color: transparent !important;
+    --xy-edge-label-color-default: black;
+  }
+
+  :global(.svelte-flow__edge-label) {
+    background: #d2d2d2;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  :global(.svelte-flow__edge-label):nth-child(3) {
+    translate: -100px 0;
+  }
+
+  :global(.svelte-flow__edge-label):nth-child(4) {
+    translate: 0 -100px;
   }
 </style>
