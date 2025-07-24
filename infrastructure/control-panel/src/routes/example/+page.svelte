@@ -6,6 +6,7 @@
   import {Logs, VaultNode} from '$lib/fragments';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
+	import {ButtonAction} from '$lib/ui';
   
 
   let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
@@ -19,7 +20,7 @@
   let nodes: Node[] = $state([
       {
           id: '1',
-          position: { x: 100, y: 50 }, 
+          position: { x: 50, y: 50 }, 
           data: { label: 'Alice', subLabel: 'alice.vault.dev' },
           type: 'vault',
       },
@@ -31,13 +32,13 @@
       },
       {
           id: '3',
-          position: { x: 500, y: 50 }, 
+          position: { x: 550, y: 50 }, 
           data: { label: 'Bob', subLabel: 'bob.vault.dev' },
           type: 'vault',
       },
       {
           id: '4',
-          position: { x: 800, y: 50 }, 
+          position: { x: 750, y: 250 }, 
           data: { label: 'xyz', subLabel: 'xyz.vault.dev' },
           type: 'vault',
       },
@@ -92,17 +93,20 @@
   <div class="w-screen h-screen flex flex-col bg-gray">
     <div class="w-full flex justify-between items-center p-4 bg-white shadow-sm z-10">
       <h4 class="text-xl text-gray-800 font-semibold">Live Monitoring</h4>
-    <button
-      onclick={() => isPaused = !isPaused}
-      class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
-    >
+      <div class="flex gap-2">
+        <ButtonAction class="w-[max-content]" variant="soft" size="sm">Add Vault</ButtonAction>
+        <button
+        onclick={() => isPaused = !isPaused}
+        class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
+        >
         {#if isPaused}
         <HugeiconsIcon icon={PlayFreeIcons} size="20px"/>
         {:else}
         <HugeiconsIcon icon={PauseFreeIcons} size="20px"/>
         {/if}
         {isPaused ? 'Resume Live Feed' : 'Pause Live Feed'}
-    </button>
+      </button>
+    </div>
   </div>
 
   {#if SvelteFlowComponent}
