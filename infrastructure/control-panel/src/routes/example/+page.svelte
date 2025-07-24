@@ -1,7 +1,3 @@
-<script module lang="ts">
-  export const ssr = false;
-</script>
-
 <script lang="ts">
   import { onMount } from 'svelte';
   import '@xyflow/svelte/dist/style.css';
