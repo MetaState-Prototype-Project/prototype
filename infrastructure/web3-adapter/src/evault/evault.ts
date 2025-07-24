@@ -1,10 +1,12 @@
-import { GraphQLClient } from "graphql-request";
+import { Agent } from "node:http";
 import axios, { type AxiosInstance } from "axios";
+import { GraphQLClient } from "graphql-request";
 import { v4 } from "uuid";
 
 export interface MetaEnvelope {
     id?: string | null;
     schemaId: string;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     data: Record<string, any>;
     w3id: string;
 }
@@ -71,14 +73,17 @@ interface StoreMetaEnvelopeResponse {
             envelopes: Array<{
                 id: string;
                 ontology: string;
+                // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                 value: any;
                 valueType: string;
             }>;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             parsed: any;
         };
         envelopes: Array<{
             id: string;
             ontology: string;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             value: any;
             valueType: string;
         }>;
@@ -90,14 +95,17 @@ interface StoreMetaEnvelopeResponse {
             envelopes: Array<{
                 id: string;
                 ontology: string;
+                // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                 value: any;
                 valueType: string;
             }>;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             parsed: any;
         };
         envelopes: Array<{
             id: string;
             ontology: string;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             value: any;
             valueType: string;
         }>;
@@ -122,21 +130,18 @@ export class EVaultClient {
     private httpClient: AxiosInstance;
     private isDisposed = false;
 
-    constructor(
-        private registryUrl: string,
-        private platform: string,
-    ) {
+    constructor(private registryUrl: string, private platform: string) {
         // Configure axios with connection pooling and timeouts
         this.httpClient = axios.create({
             timeout: CONFIG.REQUEST_TIMEOUT,
             maxRedirects: 3,
             // Connection pooling configuration
-            httpAgent: new (require("http").Agent)({
+            httpAgent: new Agent({
                 keepAlive: true,
                 maxSockets: CONFIG.CONNECTION_POOL_SIZE,
                 timeout: CONFIG.CONNECTION_TIMEOUT,
             }),
-            httpsAgent: new (require("https").Agent)({
+            httpsAgent: new Agent({
                 keepAlive: true,
                 maxSockets: CONFIG.CONNECTION_POOL_SIZE,
                 timeout: CONFIG.CONNECTION_TIMEOUT,
@@ -169,7 +174,7 @@ export class EVaultClient {
      */
     private async withRetry<T>(
         operation: () => Promise<T>,
-        maxRetries: number = CONFIG.MAX_RETRIES,
+        maxRetries: number = CONFIG.MAX_RETRIES
     ): Promise<T> {
         let lastError: Error;
 
@@ -194,11 +199,12 @@ export class EVaultClient {
                 }
 
                 // Exponential backoff
-                const delay = CONFIG.RETRY_DELAY * Math.pow(2, attempt);
+                const delay = CONFIG.RETRY_DELAY * 2 ** attempt;
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
         }
 
+        // biome-ignore lint/style/noNonNullAssertion: <explanation>
         throw lastError!;
     }
 
@@ -211,7 +217,7 @@ export class EVaultClient {
             const response = await this.httpClient.post<PlatformTokenResponse>(
                 new URL(
                     "/platforms/certification",
-                    this.registryUrl,
+                    this.registryUrl
                 ).toString(),
                 { platform: this.platform },
                 {
@@ -219,7 +225,7 @@ export class EVaultClient {
                         "Content-Type": "application/json",
                     },
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                },
+                }
             );
 
             const now = Date.now();
@@ -265,7 +271,7 @@ export class EVaultClient {
                 new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
                 {
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                },
+                }
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -351,7 +357,7 @@ export class EVaultClient {
                     {
                         id,
                         w3id,
-                    },
+                    }
                 );
                 return response.metaEnvelope;
             } catch (error) {
@@ -363,12 +369,12 @@ export class EVaultClient {
 
     async updateMetaEnvelopeById(
         id: string,
-        envelope: MetaEnvelope,
+        envelope: MetaEnvelope
     ): Promise<void> {
         return this.withRetry(async () => {
             console.log("sending to eVault", envelope.w3id);
             const client = await this.ensureClient(envelope.w3id).catch(
-                () => null,
+                () => null
             );
             if (!client)
                 throw new Error("Failed to establish client connection");
@@ -386,7 +392,7 @@ export class EVaultClient {
                 const response =
                     await client.request<StoreMetaEnvelopeResponse>(
                         UPDATE_META_ENVELOPE,
-                        variables,
+                        variables
                     );
             } catch (error) {
                 console.error("Error updating meta envelope:", error);
