@@ -1,6 +1,9 @@
 <script lang="ts">
+import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { ButtonAction, Drawer } from "$lib/ui";
 import {
     Key01Icon,
     LanguageSquareIcon,
@@ -8,10 +11,7 @@ import {
     PinCodeIcon,
     Shield01Icon,
 } from "@hugeicons/core-free-icons";
-import { ButtonAction, Drawer } from "$lib/ui";
 import { getContext } from "svelte";
-import type { GlobalState } from "$lib/global";
-import { goto } from "$app/navigation";
 
 const globalState = getContext<() => GlobalState>("globalState")();
 

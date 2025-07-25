@@ -15,7 +15,7 @@ const handleNext = async () => {
 
 onMount(async () => {
     const vault = await globalState.vaultController.vault;
-    ename = vault.ename;
+    ename = vault?.ename;
 });
 </script>
 

@@ -36,7 +36,7 @@ async function ensureCameraPermission() {
     }
 }
 
-async function hasTorch(track) {
+async function hasTorch(track: MediaStreamTrack) {
     try {
         const capabilities = track.getCapabilities?.();
         return capabilities && "torch" in capabilities;

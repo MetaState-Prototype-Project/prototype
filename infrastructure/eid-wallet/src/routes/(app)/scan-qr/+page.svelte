@@ -1,6 +1,8 @@
 <script lang="ts">
+import { goto } from "$app/navigation";
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import type { GlobalState } from "$lib/global";
 import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon } from "@hugeicons/core-free-icons";
@@ -14,11 +16,9 @@ import {
     requestPermissions,
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
+import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
-import type { GlobalState } from "$lib/global";
-import axios from "axios";
-import { goto } from "$app/navigation";
 
 const globalState = getContext<() => GlobalState>("globalState")();
 const pathProps: SVGAttributes<SVGPathElement> = {
@@ -36,7 +36,7 @@ let loggedInDrawerOpen = $state(false);
 let scannedData: Scanned | undefined = $state(undefined);
 let scanning = false;
 let loading = false;
-let redirect = $state();
+let redirect = $state<string | null>();
 let permissions_nullable: PermissionState | null;
 
 async function startScan() {

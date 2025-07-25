@@ -6,7 +6,7 @@ import type { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import { getContext, onMount } from "svelte";
 
-let userData = $state();
+let userData = $state<Record<string, string | boolean | undefined>>();
 let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
 
 const handleFinish = async () => {

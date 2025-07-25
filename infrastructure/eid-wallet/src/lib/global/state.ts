@@ -1,7 +1,7 @@
 import { Store } from "@tauri-apps/plugin-store";
+import { VaultController } from "./controllers/evault";
 import { SecurityController } from "./controllers/security";
 import { UserController } from "./controllers/user";
-import { VaultController } from "./controllers/evault";
 /**
  * @author SoSweetHam <soham@auvo.io>
  * @description A centralized state that can be used to control the global state of the application, meant to be used as a singleton through the main layout component.

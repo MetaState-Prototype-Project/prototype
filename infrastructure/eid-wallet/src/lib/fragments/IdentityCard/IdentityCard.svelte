@@ -10,7 +10,7 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
 
 interface userData {
-    [fieldName: string]: string;
+    [fieldName: string]: string | boolean | undefined;
 }
 interface IIdentityCard extends HTMLAttributes<HTMLElement> {
     variant?: "eName" | "ePassport" | "eVault";

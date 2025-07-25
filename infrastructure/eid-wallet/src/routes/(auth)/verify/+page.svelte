@@ -24,10 +24,79 @@ import {
     verificaitonId,
 } from "./store";
 
+type Document = {
+    country: { value: string };
+    firstIssue: Date;
+    licenseNumber: string;
+    number: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    placeOfIssue: string;
+    processNumber: string;
+    residencePermitType: string;
+    type: { value: string };
+    validFrom: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    validUntil: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+};
+
+type Person = {
+    address: {
+        confidenceCategory: string;
+        value: string;
+        components: Record<string, unknown>;
+        sources: string[];
+    };
+    dateOfBirth: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    employer: string;
+    extraNames: string;
+    firstName: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    foreignerStatus: string;
+    gender: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    idNumber: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    lastName: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    nationality: {
+        confidenceCategory: string;
+        value: string;
+        sources: string[];
+    };
+    occupation: string;
+    placeOfBirth: string;
+};
+
 let globalState: GlobalState | undefined = $state(undefined);
 let showVeriffModal = $state(false);
-let person: Record<string, unknown>;
-let document: Record<string, unknown>;
+let person: Person;
+let document: Document;
 let loading = $state(false);
 
 async function handleVerification() {
@@ -46,12 +115,12 @@ function watchEventStream(id: string) {
     ).toString();
     const eventSource = new EventSource(sseUrl);
 
-    eventSource.onopen = (e) => {
+    eventSource.onopen = () => {
         console.log("Successfully connected.");
     };
 
     eventSource.onmessage = (e) => {
-        const data = JSON.parse(e.data);
+        const data = JSON.parse(e.data as string);
         if (!data.status) console.log(data);
         console.log("STATUS", data);
         status.set(data.status);

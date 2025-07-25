@@ -161,7 +161,7 @@ onDestroy(() => {
         <div
             class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
         >
-            <QrCode size="320" value={ename} />
+            <QrCode size={320} value={ename ?? ""} />
         </div>
 
         <h4 class="text-center mt-2">Share your eName</h4>
