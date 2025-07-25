@@ -137,7 +137,7 @@
     <div class="w-full flex justify-between items-center p-4 bg-white shadow-sm z-10">
       <h4 class="text-xl text-gray-800 font-semibold">Live Monitoring</h4>
       <div class="flex gap-2">
-        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {isModalOpen = !isModalOpen}}>+ Add Vault</ButtonAction>
+        <ButtonAction class="w-[max-content] shadow-md" variant="soft" size="sm" callback={() => {isModalOpen = !isModalOpen}}>+ Add Vault</ButtonAction>
         <button
         onclick={() => isPaused = !isPaused}
         class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
