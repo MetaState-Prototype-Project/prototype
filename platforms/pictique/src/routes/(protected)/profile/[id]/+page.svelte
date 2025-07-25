@@ -17,9 +17,8 @@
 		try {
 			loading = true;
 			error = null;
-			const response = await apiClient.get(`/api/users/${profileId}`);
+			const response = await apiClient.get<userProfile>(`/api/users/${profileId}`);
 			profile = response.data;
-			console.log(JSON.stringify(profile));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load profile';
 		} finally {
@@ -38,7 +37,7 @@
 
 	async function handleMessage() {
 		try {
-			await apiClient.post(`/api/chats/`, {
+			await apiClient.post('/api/chats/', {
 				name: profile?.username,
 				participantIds: [profileId]
 			});

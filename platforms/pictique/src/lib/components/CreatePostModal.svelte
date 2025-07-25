@@ -100,7 +100,13 @@
 			{/if}
 
 			<div class="flex justify-end gap-4">
-				<Button type="button" variant="secondary" on:click={() => dispatch('close')}>
+				<Button
+					type="button"
+					variant="secondary"
+					callback={() => {
+						dispatch('close');
+					}}
+				>
 					Cancel
 				</Button>
 				<Button

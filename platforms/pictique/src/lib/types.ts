@@ -32,18 +32,66 @@ export type PostData = {
 	};
 };
 
+export interface Post {
+	id: string;
+	text: string;
+	images: string[];
+	author: {
+		id: string;
+		handle: string;
+		name: string;
+		avatarUrl: string;
+	};
+	createdAt: string;
+	likedBy: userProfile[];
+	comments: {
+		id: string;
+		text: string;
+		author: {
+			id: string;
+			handle: string;
+			name: string;
+			avatarUrl: string;
+		};
+		createdAt: string;
+	}[];
+}
+
 export type userProfile = {
-	userId: string;
+	id: string;
+	ename: string;
 	username: string;
+	name: string;
 	avatarUrl: string;
 	totalPosts: number;
 	followers: number;
 	following: number;
 	userBio: string;
+	handle: string;
+	description: string;
 	posts: PostData[];
 };
 
 export type Image = {
 	url: string;
 	alt: string;
+};
+
+export type MessageItem = {
+	id: string;
+	avatar: string;
+	username: string;
+	unread: boolean;
+	text: string;
+};
+
+export type Chats = {
+	id: string;
+	name: string;
+	participants: userProfile[];
+	latestMessage: {
+		text: string;
+		isRead: boolean;
+	};
+	updatedAt: string;
 };

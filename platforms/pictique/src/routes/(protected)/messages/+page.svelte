@@ -1,15 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Message } from '$lib/fragments';
+	import type { Chats, MessageItem, userProfile } from '$lib/types';
 	import { apiClient } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 	import { heading } from '../../store';
 
-	let messages = $state([]);
+	let messages = $state<MessageItem[]>([]);
 
 	onMount(async () => {
-		const { data } = await apiClient.get('/api/chats');
-		const { data: userData } = await apiClient.get('/api/users');
+		const { data } = await apiClient.get<{ chats: Chats[] }>('/api/chats');
+		const { data: userData } = await apiClient.get<userProfile>('/api/users');
+		console.log(data);
+		console.log(userData);
 		messages = data.chats.map((c) => {
 			const members = c.participants.filter((u) => u.id !== userData.id);
 			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);

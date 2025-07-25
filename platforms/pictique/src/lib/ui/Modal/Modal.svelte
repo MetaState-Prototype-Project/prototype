@@ -22,7 +22,7 @@
 
 <div
 	class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-	on:click={handleBackdropClick}
+	onclick={handleBackdropClick}
 >
 	<div class="relative">
 		<slot />

@@ -48,6 +48,7 @@
 			onclick={() => goto(`/settings/account`)}
 			profileSrc={profile?.avatarUrl}
 		>
+			{console.log(profile)}
 			<div class="flex flex-col items-start">
 				<h2 class="text-lg">{profile?.handle}</h2>
 				<p class="text-sm">{profile?.description}</p>

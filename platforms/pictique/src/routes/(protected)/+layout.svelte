@@ -63,7 +63,7 @@
 		if (showComments.value && activePostId) {
 			isCommentsLoading = true;
 			commentsError = null;
-			fetchComments($activePostId)
+			fetchComments($activePostId as string)
 				.catch((err) => {
 					commentsError = err.message;
 				})

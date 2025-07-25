@@ -1,28 +1,32 @@
 <script lang="ts">
-	import type { userProfile } from '$lib/types';
+	import type { PostData, userProfile } from '$lib/types';
 	import { Button } from '$lib/ui';
 	import Post from '../Post/Post.svelte';
-
-	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
 
 	let {
 		variant = 'user',
 		profileData,
 		handleFollow,
+		handleSinglePost,
 		handleMessage
 	}: {
 		variant: 'user' | 'other';
 		profileData: userProfile;
+		handleSinglePost: (post: PostData) => void;
 		handleFollow: () => Promise<void>;
 		handleMessage: () => Promise<void>;
 	} = $props();
+
+	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
 </script>
 
 <div class="flex flex-col gap-4 p-4">
 	<div class="flex items-center gap-4">
 		<img
 			src={profileData.avatarUrl ?? '/images/user.png'}
-			onerror={(profileData.avatarUrl = '/images/user.png')}
+			onerror={() => {
+				profileData.avatarUrl = '/images/user.png';
+			}}
 			alt={profileData.username}
 			class="h-20 w-20 rounded-full object-cover"
 		/>
@@ -56,7 +60,9 @@
 	<div class="grid grid-cols-3 gap-1">
 		{#if imgPosts.length > 0}
 			{#each imgPosts as post (post.id)}
-				<li class="mb-6 list-none">
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+				<li class="mb-6 list-none" onclick={() => handleSinglePost(post)}>
 					<Post
 						avatar={profileData.avatarUrl || 'https://picsum.photos/200/200'}
 						username={profileData?.name ?? profileData?.username}

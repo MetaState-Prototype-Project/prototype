@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button, Input, Label } from '$lib/ui';
 	import { InputFile } from '$lib/fragments';
+	import { Button, Input, Label } from '$lib/ui';
 	import { apiClient } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
@@ -11,7 +11,7 @@
 	let saved = $state(false);
 
 	function handleFileChange() {
-		if (files && files[0]) {
+		if (files?.[0]) {
 			const file = files[0];
 			const reader = new FileReader();
 
@@ -27,13 +27,15 @@
 
 	async function saveProfileData() {
 		try {
-			await apiClient.patch(`/api/users/`, {
+			await apiClient.patch('/api/users/', {
 				handle,
 				avatar: profileImageDataUrl,
 				name
 			});
 			saved = true;
-			setTimeout(() => (saved = false), 3_000);
+			setTimeout(() => {
+				saved = false;
+			}, 3_000);
 		} catch (err) {
 			console.log(err instanceof Error ? err.message : 'please check the info again');
 		}

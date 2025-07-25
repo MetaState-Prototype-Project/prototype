@@ -14,7 +14,7 @@
 		userId?: string;
 		imgUris: string[];
 		text: string;
-		isLiked: boolean;
+		isLiked?: boolean;
 		count?: {
 			likes: number;
 			comments: number;

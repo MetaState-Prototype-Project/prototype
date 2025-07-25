@@ -1,30 +1,6 @@
+import type { Post } from '$lib/types';
 import { apiClient } from '$lib/utils/axios';
 import { writable } from 'svelte/store';
-
-export interface Post {
-	id: string;
-	text: string;
-	images: string[];
-	author: {
-		id: string;
-		handle: string;
-		name: string;
-		avatarUrl: string;
-	};
-	createdAt: string;
-	likedBy: string[];
-	comments: {
-		id: string;
-		text: string;
-		author: {
-			id: string;
-			handle: string;
-			name: string;
-			avatarUrl: string;
-		};
-		createdAt: string;
-	}[];
-}
 
 export const posts = writable<Post[]>([]);
 export const isLoading = writable(false);
@@ -38,8 +14,10 @@ export const fetchFeed = async (page = 1, limit = 10_000) => {
 	try {
 		isLoading.set(true);
 		error.set(null);
-		const response = await apiClient.get(`/api/posts/feed?page=${page}&limit=${limit}`);
-		posts.set(response.data);
+		const response = await apiClient.get<{ posts: Post[] }>(
+			`/api/posts/feed?page=${page}&limit=${limit}`
+		);
+		posts.set(response.data.posts);
 	} catch (err) {
 		error.set(err instanceof Error ? err.message : 'Failed to fetch feed');
 	} finally {
