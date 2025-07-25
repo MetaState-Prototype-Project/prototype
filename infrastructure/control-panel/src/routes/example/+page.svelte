@@ -177,18 +177,4 @@
     background-color: transparent !important;
     --xy-edge-label-color-default: black;
   }
-
-  :global(.svelte-flow__edge-label) {
-    background: #d2d2d2;
-    border-radius: 10px;
-    padding: 5px;
-  }
-
-  :global(.svelte-flow__edge-label):nth-child(3) {
-    translate: -100px 0;
-  }
-
-  :global(.svelte-flow__edge-label):nth-child(4) {
-    translate: 0 -100px;
-  }
 </style>
