@@ -65,8 +65,7 @@ export async function fromGlobal({
     for (const [localKey, globalPathRaw] of Object.entries(
         mapping.localToUniversalMap,
     )) {
-        // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-        let value: any;
+        let value: string | number | undefined | (string | null)[] | null;
         const targetKey: string = localKey;
         let tableRef: string | null = null;
 
@@ -117,13 +116,15 @@ export async function fromGlobal({
             if (Array.isArray(value)) {
                 value = await Promise.all(
                     value.map(async (v) => {
-                        const localId = await mappingStore.getLocalId(v);
+                        const localId = await mappingStore.getLocalId(
+                            v as string,
+                        );
 
                         return localId ? `${tableRef}(${localId})` : null;
                     }),
                 );
             } else {
-                value = await mappingStore.getLocalId(value);
+                value = await mappingStore.getLocalId(value as string);
                 value = value ? `${tableRef}(${value})` : null;
             }
         }
