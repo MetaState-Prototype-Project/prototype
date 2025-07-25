@@ -170,7 +170,7 @@
 
 <Modal bind:open={isModalOpen} class="absolute top-[50%] start-[50%] translate-x-[-50%] translate-y-[-50%] max-w-[30vw] w-full p-4" closeBtnClass="fixed end-4 top-4">
   <h4 class="text-primary mb-2">Search vaults</h4>
-  <input type="search" value="" placeholder="Please search to vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist text-black text-base">
+  <input type="search" value="" placeholder="Please search vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist text-black text-base">
   
   <ul class="mt-4">
     {#each vaults as vault (vault.id)}
