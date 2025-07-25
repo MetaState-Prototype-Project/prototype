@@ -1,12 +1,15 @@
 <script lang="ts">
     import { Handle, Position } from '@xyflow/svelte';
 	  import { HugeiconsIcon } from '@hugeicons/svelte';
-	  import { Database01FreeIcons } from '@hugeicons/core-free-icons';
+	  import { Cancel01FreeIcons, Database01FreeIcons } from '@hugeicons/core-free-icons';
   
     export let data: { label: string; subLabel: string };
   </script>
   
-  <div class="vault-node-wrapper">
+  <div class="vault-node-wrapper relative">
+    <!-- <button class="absolute top-[10px] end-[10px]" onclick={handleCancel}>
+      <HugeiconsIcon icon={Cancel01FreeIcons} size="15px"/>
+    </button> -->
     <div class="vault-node-content">
       <HugeiconsIcon icon={Database01FreeIcons}/>
       <div class="vault-labels">

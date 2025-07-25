@@ -5,8 +5,8 @@
   import {Logs, VaultNode} from '$lib/fragments';
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
-  import {ButtonAction, Checkbox} from '$lib/ui';
-	import { Modal } from 'flowbite-svelte';
+  import {ButtonAction} from '$lib/ui';
+	import { Button, Modal } from 'flowbite-svelte';
   
 
   let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
@@ -137,7 +137,7 @@
     <div class="w-full flex justify-between items-center p-4 bg-white shadow-sm z-10">
       <h4 class="text-xl text-gray-800 font-semibold">Live Monitoring</h4>
       <div class="flex gap-2">
-        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {isModalOpen = !isModalOpen}}>Add Vault</ButtonAction>
+        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {isModalOpen = !isModalOpen}}>+ Add Vault</ButtonAction>
         <button
         onclick={() => isPaused = !isPaused}
         class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
@@ -170,7 +170,7 @@
 
 <Modal bind:open={isModalOpen} class="absolute top-[50%] start-[50%] translate-x-[-50%] translate-y-[-50%] max-w-[30vw] w-full p-4" closeBtnClass="fixed end-4 top-4">
   <h4 class="text-primary mb-2">Search vaults</h4>
-  <input type="search" value="" placeholder="Please search vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist text-black text-base">
+  <input type="search" value="" placeholder="Please search vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist placeholder:font-geist placeholder:text-gray-600 text-black text-base">
   
   <ul class="mt-4">
     {#each vaults as vault (vault.id)}
@@ -184,6 +184,7 @@
       </li>
     {/each}
   </ul>
+  <ButtonAction variant="solid" size="sm" class="w-full mt-4" callback={() => alert("added")}>Add Voults</ButtonAction>
 </Modal>
 
 <style>
