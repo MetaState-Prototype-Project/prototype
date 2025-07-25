@@ -119,12 +119,29 @@
     }
   ];
   
-  let vaults = [
-    { id: 'vault-1', name: 'Personal Documents', sublabel: 'Important files' },
-    { id: 'vault-2', name: 'Family Photos', sublabel: 'Cherished memories' },
-    { id: 'vault-3', name: 'Work Projects', sublabel: 'Current tasks and files' },
-    { id: 'vault-4', name: 'Archived Data', sublabel: 'Old projects and backups' },
-  ];
+  let availableVaults = $state([ // Renamed to clarify its purpose
+    {
+          id: '5',
+          position: { x: 950, y: 350 }, 
+          data: { label: 'personal', subLabel: 'Personal.vault.dev' },
+          type: 'vault',
+      },
+      {
+          id: '6',
+          position: { x: 1150, y: 550 }, 
+          data: { label: 'Another', subLabel: 'Another.vault.dev' },
+          type: 'vault',
+      }
+  ]);
+
+  function addVaultsToFlow() {
+      const vaultsToAdd = availableVaults.filter(vault => selectedVaults.includes(vault.id));
+      nodes = [...nodes, ...vaultsToAdd];
+
+      availableVaults = availableVaults.filter(vault => !selectedVaults.includes(vault.id));
+      selectedVaults = [];
+      isModalOpen = false;
+  }
   
   onMount(async () => {
       const mod = await import('@xyflow/svelte');
@@ -173,18 +190,18 @@
   <input type="search" value="" placeholder="Please search vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist placeholder:font-geist placeholder:text-gray-600 text-black text-base">
   
   <ul class="mt-4">
-    {#each vaults as vault (vault.id)}
+    {#each availableVaults as vault (vault.id)}
       <li class="flex items-center gap-4 px-4 py-1 mb-2 rounded-2xl bg-gray hover:bg-gray-200">
         <input id={vault.id} type="checkbox" value={vault.id} bind:group={selectedVaults}>
         
         <label for={vault.id} class="cursor-pointer inline-block w-full">
-          <p>{vault.name}</p>
-          <p class="small">{vault.sublabel}</p>
+          <p>{vault.data.label}</p>
+          <p class="small">{vault.data.subLabel}</p>
         </label>
       </li>
     {/each}
   </ul>
-  <ButtonAction variant="solid" size="sm" class="w-full mt-4" callback={() => alert("added")}>Add Voults</ButtonAction>
+  <ButtonAction variant="solid" size="sm" class="w-full mt-4" callback={addVaultsToFlow}>Add Voults</ButtonAction>
 </Modal>
 
 <style>
