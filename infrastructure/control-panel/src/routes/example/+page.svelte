@@ -6,7 +6,7 @@
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
   import {ButtonAction} from '$lib/ui';
-	import { Button, Modal } from 'flowbite-svelte';
+	import { Modal } from 'flowbite-svelte';
   
 
   let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
@@ -177,7 +177,7 @@
       <li class="flex items-center gap-4 px-4 py-1 mb-2 rounded-2xl bg-gray hover:bg-gray-200">
         <input id={vault.id} type="checkbox" value={vault.id} bind:group={selectedVaults}>
         
-        <label for={vault.id} class="cursor-pointer">
+        <label for={vault.id} class="cursor-pointer inline-block w-full">
           <p>{vault.name}</p>
           <p class="small">{vault.sublabel}</p>
         </label>
