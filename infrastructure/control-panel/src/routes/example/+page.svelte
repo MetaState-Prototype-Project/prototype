@@ -2,11 +2,11 @@
   import { onMount } from 'svelte';
   import '@xyflow/svelte/dist/style.css';
   import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
-
   import {Logs, VaultNode} from '$lib/fragments';
   import { HugeiconsIcon } from '@hugeicons/svelte';
   import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
-  import {ButtonAction} from '$lib/ui';
+  import {ButtonAction, Checkbox} from '$lib/ui';
+	import { Modal } from 'flowbite-svelte';
   
 
   let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
@@ -16,7 +16,8 @@
   };
 
   let isPaused = $state(false);
-  let modal: HTMLDialogElement | undefined = $state();
+  let isModalOpen= $state(false);
+  let selectedVaults = $state([]);
 
   let nodes: Node[] = $state([
       {
@@ -117,7 +118,14 @@
       from: 'Pic'
     }
   ];
-
+  
+  let vaults = [
+    { id: 'vault-1', name: 'Personal Documents', sublabel: 'Important files' },
+    { id: 'vault-2', name: 'Family Photos', sublabel: 'Cherished memories' },
+    { id: 'vault-3', name: 'Work Projects', sublabel: 'Current tasks and files' },
+    { id: 'vault-4', name: 'Archived Data', sublabel: 'Old projects and backups' },
+  ];
+  
   onMount(async () => {
       const mod = await import('@xyflow/svelte');
       SvelteFlowComponent = mod.SvelteFlow;
@@ -129,7 +137,7 @@
     <div class="w-full flex justify-between items-center p-4 bg-white shadow-sm z-10">
       <h4 class="text-xl text-gray-800 font-semibold">Live Monitoring</h4>
       <div class="flex gap-2">
-        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {modal?.show()}}>Add Vault</ButtonAction>
+        <ButtonAction class="w-[max-content]" variant="soft" size="sm" callback={() => {isModalOpen = !isModalOpen}}>Add Vault</ButtonAction>
         <button
         onclick={() => isPaused = !isPaused}
         class="px-4 py-2 flex items-center gap-2 text-base font-geist font-medium text-gray-700 bg-white border border-[#e5e5e5] rounded-full shadow-md hover:bg-gray-50 transition-colors"
@@ -157,9 +165,26 @@
   <div class="flex-grow flex justify-center items-center text-gray-700">Loading flow chart...</div>
   {/if}
   </div>
-  <Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
+  <Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex}/>
 </section>
 
+<Modal bind:open={isModalOpen} class="absolute top-[50%] start-[50%] translate-x-[-50%] translate-y-[-50%] max-w-[30vw] w-full p-4" closeBtnClass="fixed end-4 top-4">
+  <h4 class="text-primary mb-2">Search vaults</h4>
+  <input type="search" value="" placeholder="Please search to vaults to add" class="w-full border-transparent outline-transparent bg-gray rounded-4xl py-3 px-4 font-geist text-black text-base">
+  
+  <ul class="mt-4">
+    {#each vaults as vault (vault.id)}
+      <li class="flex items-center gap-4 px-4 py-1 mb-2 rounded-2xl bg-gray hover:bg-gray-200">
+        <input id={vault.id} type="checkbox" value={vault.id} bind:group={selectedVaults}>
+        
+        <label for={vault.id} class="cursor-pointer">
+          <p>{vault.name}</p>
+          <p class="small">{vault.sublabel}</p>
+        </label>
+      </li>
+    {/each}
+  </ul>
+</Modal>
 
 <style>
   /*
