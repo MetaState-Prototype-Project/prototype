@@ -1,26 +1,26 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { SettingsTile, UploadedPostView } from "$lib/fragments";
-import { audience, uploadedImages } from "$lib/store/store.svelte";
-import { createPost } from "$lib/stores/posts";
-import { Button, Textarea } from "$lib/ui";
-import { revokeImageUrls } from "$lib/utils";
-let caption: string = $state("");
-$effect(() => {
-    if (!uploadedImages.value || uploadedImages.value.length === 0) {
-        window.history.back();
-    }
-});
+	import { goto } from '$app/navigation';
+	import { SettingsTile, UploadedPostView } from '$lib/fragments';
+	import { audience, uploadedImages } from '$lib/store/store.svelte';
+	import { createPost } from '$lib/stores/posts';
+	import { Button, Textarea } from '$lib/ui';
+	import { revokeImageUrls } from '$lib/utils';
+	let caption: string = $state('');
+	$effect(() => {
+		if (!uploadedImages.value || uploadedImages.value.length === 0) {
+			window.history.back();
+		}
+	});
 
-const postSubmissionHandler = async () => {
-    if (!uploadedImages.value) return;
-    const images = uploadedImages.value.map((img) => img.url);
-    try {
-        await createPost(caption, images);
-    } catch (error) {
-        console.error("Failed to create post:", error);
-    }
-};
+	const postSubmissionHandler = async () => {
+		if (!uploadedImages.value) return;
+		const images = uploadedImages.value.map((img) => img.url);
+		try {
+			await createPost(caption, images);
+		} catch (error) {
+			console.error('Failed to create post:', error);
+		}
+	};
 </script>
 
 <section class="flex h-fit w-full flex-col justify-stretch gap-3">
@@ -48,7 +48,11 @@ const postSubmissionHandler = async () => {
 		onclick={() => goto('/post/audience')}
 	/> -->
 
-	<Button variant="secondary" blockingClick={true} disabled={!uploadedImages.value || uploadedImages.value?.length <= 0} callback={postSubmissionHandler} class="mt-1"
-		>Post</Button
+	<Button
+		variant="secondary"
+		blockingClick={true}
+		disabled={!uploadedImages.value || uploadedImages.value?.length <= 0}
+		callback={postSubmissionHandler}
+		class="mt-1">Post</Button
 	>
 </section>
