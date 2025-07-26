@@ -1,18 +1,18 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { SettingsTile, UploadedPostView } from "$lib/fragments";
-import { audience, uploadedImages } from "$lib/store/store.svelte";
-import { Button, Textarea } from "$lib/ui";
-import { revokeImageUrls } from "$lib/utils";
-let caption: string = $state("");
-$effect(() => {
-    if (!uploadedImages.value || uploadedImages.value.length === 0) {
-        window.history.back();
-    }
-});
+	import { goto } from '$app/navigation';
+	import { SettingsTile, UploadedPostView } from '$lib/fragments';
+	import { audience, uploadedImages } from '$lib/store/store.svelte';
+	import { Button, Textarea } from '$lib/ui';
+	import { revokeImageUrls } from '$lib/utils';
+	let caption: string = $state('');
+	$effect(() => {
+		if (!uploadedImages.value || uploadedImages.value.length === 0) {
+			window.history.back();
+		}
+	});
 </script>
 
-<section class="h-fit w-full flex flex-col gap-3 justify-stretch">
+<section class="flex h-fit w-full flex-col justify-stretch gap-3">
 	<UploadedPostView
 		images={uploadedImages.value ?? []}
 		width="w-auto"
@@ -20,14 +20,14 @@ $effect(() => {
 		callback={(i: number) => {
 			if (uploadedImages.value)
 				uploadedImages.value = uploadedImages.value.filter((img, index) => {
-                    revokeImageUrls([img]);
-                    return index !== i
-                });
+					revokeImageUrls([img]);
+					return index !== i;
+				});
 		}}
 	/>
 
-    <label for="caption">
-        <span class="block mb-2 font-semibold">Add a caption</span>
+	<label for="caption">
+		<span class="mb-2 block font-semibold">Add a caption</span>
 		<Textarea name="caption" rows={3} bind:value={caption} placeholder="Hey guys..." />
 	</label>
 
@@ -37,5 +37,7 @@ $effect(() => {
 		onclick={() => goto('/post/audience')}
 	/>
 
-	<Button variant="secondary" callback={() => alert('TODO: Post created!')} class="mt-1">Post</Button>
+	<Button variant="secondary" callback={() => alert('TODO: Post created!')} class="mt-1"
+		>Post</Button
+	>
 </section>

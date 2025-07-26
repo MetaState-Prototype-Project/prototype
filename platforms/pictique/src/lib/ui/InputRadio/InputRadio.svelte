@@ -1,24 +1,24 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import type { HTMLAttributes } from "svelte/elements";
+	import { cn } from '$lib/utils';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-interface IInputRadioProps extends HTMLAttributes<HTMLElement> {
-    selected?: string;
-    name?: string;
-    value: string;
-}
+	interface IInputRadioProps extends HTMLAttributes<HTMLElement> {
+		selected?: string;
+		name?: string;
+		value: string;
+	}
 
-let {
-    value = "",
-    selected = $bindable(""),
-    name = "",
-    ...restProps
-}: IInputRadioProps = $props();
+	let {
+		value = '',
+		selected = $bindable(''),
+		name = '',
+		...restProps
+	}: IInputRadioProps = $props();
 
-let radioElement: HTMLInputElement | null = $state(null);
+	let radioElement: HTMLInputElement | null = $state(null);
 
-const cbase =
-    "before:h-4.5 before:w-4.5 before:border-brand-burnt-orange before:-left-0.75 before:-bottom-0.25 relative before:absolute before:rounded-full before:border-2 before:bg-white before:content-['']";
+	const cbase =
+		"before:h-4.5 before:w-4.5 before:border-brand-burnt-orange before:-left-0.75 before:-bottom-0.25 relative before:absolute before:rounded-full before:border-2 before:bg-white before:content-['']";
 </script>
 
 <input
@@ -47,7 +47,7 @@ const cbase =
 	}}
 >
 	{#if selected === value}
-		<span class="bg-brand-burnt-orange bottom-0.75 left-0.25 absolute h-2.5 w-2.5 rounded-full"
+		<span class="bg-brand-burnt-orange absolute bottom-0.75 left-0.25 h-2.5 w-2.5 rounded-full"
 		></span>
 	{/if}
 </span>

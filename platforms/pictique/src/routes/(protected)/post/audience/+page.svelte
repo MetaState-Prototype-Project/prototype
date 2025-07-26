@@ -1,6 +1,6 @@
 <script lang="ts">
-import { audience } from "$lib/store/store.svelte";
-import { InputRadio } from "$lib/ui";
+	import { audience } from '$lib/store/store.svelte';
+	import { InputRadio } from '$lib/ui';
 </script>
 
 <h1 class="mb-4">Who can see your posts?</h1>
