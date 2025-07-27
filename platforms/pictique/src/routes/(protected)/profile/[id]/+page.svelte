@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Profile } from '$lib/fragments';
+	import { PostModal, Profile } from '$lib/fragments';
 	import { selectedPost } from '$lib/store/store.svelte';
+	import { createComment } from '$lib/stores/comments';
+	import { toggleLike } from '$lib/stores/posts';
 	import type { PostData, userProfile } from '$lib/types';
+	import { Modal } from '$lib/ui';
 	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
@@ -12,6 +15,12 @@
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let ownerId: string | null = $derived(getAuthId());
+	let ownerProfile = $derived.by(async () => {
+		if (ownerId) {
+			const response = await apiClient.get<userProfile>(`/api/users/${ownerId}`);
+			return response.data;
+		}
+	});
 
 	async function fetchProfile() {
 		try {
@@ -49,8 +58,9 @@
 	}
 
 	function handlePostClick(post: PostData) {
+		console.log(post);
 		selectedPost.value = post;
-		goto('/profile/post');
+		// goto("/profile/post");
 	}
 
 	onMount(fetchProfile);
@@ -102,3 +112,32 @@
 		{/if}
 	{/if}
 </section>
+
+{#await ownerProfile then ownerProfile}
+	<Modal
+		open={selectedPost.value !== null}
+		onclose={() => {
+			selectedPost.value = null;
+		}}
+	>
+		<PostModal
+			avatar={profile?.avatarUrl ?? ''}
+			userId={profile?.id}
+			username={profile?.name ?? profile?.handle ?? ''}
+			imgUris={selectedPost.value?.imgUris ?? []}
+			text={selectedPost.value?.caption ?? ''}
+			count={selectedPost.value?.count ?? { likes: 0, comments: 0 }}
+			{ownerProfile}
+			callback={{
+				like: async () => {
+					await toggleLike(selectedPost.value?.id ?? '');
+				},
+				comment: async (comment) => {
+					if (!selectedPost.value) return;
+					await createComment(selectedPost.value?.id, comment);
+				}
+			}}
+			time={selectedPost.value?.time ?? ''}
+		/>
+	</Modal>
+{/await}

@@ -8,3 +8,4 @@ export { default as Helper } from './Helper/Helper.svelte';
 export { default as Qr } from './Qr/Qr.svelte';
 export { default as InputRadio } from './InputRadio/InputRadio.svelte';
 export { default as Textarea } from './Textarea/Textarea.svelte';
+export { default as Modal } from './Modal/Modal.svelte';
