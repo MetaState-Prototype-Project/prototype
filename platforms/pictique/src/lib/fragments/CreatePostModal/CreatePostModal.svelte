@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { closeCreatePostModal, createPost } from '$lib/stores/posts';
-	import Button from '$lib/ui/Button/Button.svelte';
-	import Modal from '$lib/ui/Modal/Modal.svelte';
+	import { Button, Modal } from '$lib/ui';
+
+	let { open = $bindable() }: { open: boolean } = $props();
 
 	let text = $state('');
 	let images = $state<string[]>([]);
@@ -44,7 +45,7 @@
 	};
 </script>
 
-<Modal on:close={closeCreatePostModal}>
+<Modal {open} onclose={closeCreatePostModal}>
 	<div class="w-full max-w-2xl rounded-lg bg-white p-6">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">Create Post</h2>

@@ -174,6 +174,4 @@
 	{/if}
 </main>
 
-{#if $isCreatePostModalOpen}
-	<CreatePostModal />
-{/if}
+<CreatePostModal bind:open={$isCreatePostModalOpen} />
