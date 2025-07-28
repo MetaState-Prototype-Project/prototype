@@ -13,6 +13,10 @@
         // signPayload, verifySignature
     } from "@auvo/tauri-plugin-crypto-hw-api"
     import * as falso from "@ngneat/falso";
+    import {
+        getCurrent,
+        onOpenUrl
+    } from '@tauri-apps/plugin-deep-link'
     import axios from "axios";
     import { getContext, onMount } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
@@ -85,7 +89,8 @@
 
     let error: string | null = $state(null);
 
-    onMount(() => {
+    onMount(async () => {
+        console.log("YOOOOOO", await getCurrent())
         globalState = getContext<() => GlobalState>("globalState")();
         // handle verification logic + sec user data in the store
 

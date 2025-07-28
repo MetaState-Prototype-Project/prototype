@@ -1,0 +1,12 @@
+services:
+    db:
+        image: postgres:16
+        container_name: dev-metastate-db
+        environment:
+            POSTGRES_USER: metastate
+            POSTGRES_PASSWORD: metastate
+            POSTGRES_DB: metastate
+        volumes:
+            - ./db/data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
