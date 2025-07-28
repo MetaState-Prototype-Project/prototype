@@ -13,10 +13,6 @@
         // signPayload, verifySignature
     } from "@auvo/tauri-plugin-crypto-hw-api"
     import * as falso from "@ngneat/falso";
-    import {
-        getCurrent,
-        onOpenUrl
-    } from '@tauri-apps/plugin-deep-link'
     import axios from "axios";
     import { getContext, onMount } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
@@ -90,7 +86,6 @@
     let error: string | null = $state(null);
 
     onMount(async () => {
-        console.log("YOOOOOO", await getCurrent())
         globalState = getContext<() => GlobalState>("globalState")();
         // handle verification logic + sec user data in the store
 
@@ -146,7 +141,7 @@
                         `${falso.randFirstName()} ${falso.randLastName()}`,
                     ),
                 "Date of Birth": new Date().toDateString(),
-                "ID submitted": "Passport - " + falso.randCountryCode(),
+                "ID submitted": `Passport - ${falso.randCountryCode()}`,
                 "Passport Number": generatePassportNumber(),
             };
             globalState.userController.isFake = true;

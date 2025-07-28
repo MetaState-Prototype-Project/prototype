@@ -1,6 +1,8 @@
 <script lang="ts">
+    import { page } from "$app/state";
     import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
     import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+    import type { GlobalState } from "$lib/global";
     import { Drawer } from "$lib/ui";
     import * as Button from "$lib/ui/Button";
     import { QrCodeIcon } from "@hugeicons/core-free-icons";
@@ -14,10 +16,9 @@
         requestPermissions,
         scan,
     } from "@tauri-apps/plugin-barcode-scanner";
+    import axios from "axios";
     import { getContext, onDestroy, onMount } from "svelte";
     import type { SVGAttributes } from "svelte/elements";
-    import type { GlobalState } from "$lib/global";
-    import axios from "axios";
 
     const globalState = getContext<() => GlobalState>("globalState")();
     const pathProps: SVGAttributes<SVGPathElement> = {
@@ -96,6 +97,31 @@
     }
 
     onMount(async () => {
+        // const params = page.url.searchParams
+        const [_empty, ...rest] = page.url.search.split("?")
+        const methodAndParam = rest.join("?")
+        const [method, ...param] = methodAndParam.split("?")
+        const data = param.join("?")
+        const deeplinkMethodSpecifiers = ["auth"]
+        if (method && !deeplinkMethodSpecifiers.includes(method)) {
+            console.error("Unknown method specifier")
+        }
+        switch (method) {
+            case "auth": {
+                    const params = new URLSearchParams(data)
+                    platform = params.get("platform")
+                    session = params.get("session")
+                    redirect = params.get("redirect")
+                    if (!redirect || !platform || !session) {
+                        console.error("Bad deeplink!")
+                        break
+                    }
+                    hostname = (new URL(redirect as string)).hostname
+                    codeScannedDrawerOpen = true
+                    scanning = false
+                    break
+                }
+        }
         startScan();
     });
 
