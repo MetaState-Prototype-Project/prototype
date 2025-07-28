@@ -97,7 +97,6 @@
     }
 
     onMount(async () => {
-        // const params = page.url.searchParams
         const [_empty, ...rest] = page.url.search.split("?")
         const methodAndParam = rest.join("?")
         const [method, ...param] = methodAndParam.split("?")

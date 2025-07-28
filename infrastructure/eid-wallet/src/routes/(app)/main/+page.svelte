@@ -70,9 +70,6 @@
             if (scheme !== "w3ds") {
                 console.error("unsupported url scheme")
             }
-            // const url = new URL(urls[0])
-            // console.log(url)
-            // if (url.protocol)
             goto(`/scan-qr?${deeplink}`)
         }
 
