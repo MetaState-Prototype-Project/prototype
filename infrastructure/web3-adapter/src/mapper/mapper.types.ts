@@ -1,4 +1,4 @@
-import { MappingDatabase } from "../db";
+import type { MappingDatabase } from "../db";
 
 export interface IMapping {
     /**

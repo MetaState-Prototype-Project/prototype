@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
     import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
@@ -19,12 +20,6 @@
     import axios from "axios";
     import { getContext, onDestroy, onMount } from "svelte";
     import type { SVGAttributes } from "svelte/elements";
-<<<<<<< HEAD
-=======
-    import type { GlobalState } from "$lib/global";
-    import axios from "axios";
-    import { goto } from "$app/navigation";
->>>>>>> main
 
     const globalState = getContext<() => GlobalState>("globalState")();
     const pathProps: SVGAttributes<SVGPathElement> = {
@@ -42,7 +37,7 @@
     let scannedData: Scanned | undefined = $state(undefined);
     let scanning = false;
     let loading = false;
-    let redirect = $state();
+    let redirect = $state<string | null>();
     let permissions_nullable: PermissionState | null;
 
     async function startScan() {
@@ -102,29 +97,29 @@
     }
 
     onMount(async () => {
-        const [_empty, ...rest] = page.url.search.split("?")
-        const methodAndParam = rest.join("?")
-        const [method, ...param] = methodAndParam.split("?")
-        const data = param.join("?")
-        const deeplinkMethodSpecifiers = ["auth"]
+        const [_empty, ...rest] = page.url.search.split("?");
+        const methodAndParam = rest.join("?");
+        const [method, ...param] = methodAndParam.split("?");
+        const data = param.join("?");
+        const deeplinkMethodSpecifiers = ["auth"];
         if (method && !deeplinkMethodSpecifiers.includes(method)) {
-            console.error("Unknown method specifier")
+            console.error("Unknown method specifier");
         }
         switch (method) {
             case "auth": {
-                    const params = new URLSearchParams(data)
-                    platform = params.get("platform")
-                    session = params.get("session")
-                    redirect = params.get("redirect")
-                    if (!redirect || !platform || !session) {
-                        console.error("Bad deeplink!")
-                        break
-                    }
-                    hostname = (new URL(redirect as string)).hostname
-                    codeScannedDrawerOpen = true
-                    scanning = false
-                    break
+                const params = new URLSearchParams(data);
+                platform = params.get("platform");
+                session = params.get("session");
+                redirect = params.get("redirect");
+                if (!redirect || !platform || !session) {
+                    console.error("Bad deeplink!");
+                    break;
                 }
+                hostname = new URL(redirect as string).hostname;
+                codeScannedDrawerOpen = true;
+                scanning = false;
+                break;
+            }
         }
         startScan();
     });

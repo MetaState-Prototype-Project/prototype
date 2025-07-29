@@ -6,11 +6,7 @@ import {
     signOut as signOutFirebase,
     signInWithCustomToken as signInWithCustomTokenFirebase
 } from 'firebase/auth';
-import {
-    doc,
-    getDoc,
-    onSnapshot
-} from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth } from '@lib/firebase/app';
 import {
     usersCollection,
@@ -57,8 +53,14 @@ export function AuthContextProvider({
 
             if (!userSnapshot.exists()) {
                 // User doesn't exist in database - don't create automatically
-                console.error(`User ${uid} not found in database. User must be pre-registered.`);
-                setError(new Error('User not found in database. Please contact support to register your account.'));
+                console.error(
+                    `User ${uid} not found in database. User must be pre-registered.`
+                );
+                setError(
+                    new Error(
+                        'User not found in database. Please contact support to register your account.'
+                    )
+                );
                 setLoading(false);
                 // Sign out the user since they shouldn't be authenticated
                 await signOutFirebase(auth);

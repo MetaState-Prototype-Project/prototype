@@ -3,20 +3,23 @@
 const defaultTheme = require('tailwindcss/defaultTheme');
 
 module.exports = {
-  darkMode: 'class',
-  content: ['src/pages/**/*.tsx', 'src/components/**/*.tsx'],
-  theme: {
-    screens: {
-      xs: '500px',
-      ...defaultTheme.screens
-    },
-    extend: {
-      fontFamily: {
-        'twitter-chirp': ['TwitterChirp', 'sans-serif'],
-        'twitter-chirp-extended': ['TwitterChirpExtendedHeavy', 'sans-serif']
-      },
-      // prettier-ignore
-      colors: {
+    darkMode: 'class',
+    content: ['src/pages/**/*.tsx', 'src/components/**/*.tsx'],
+    theme: {
+        screens: {
+            xs: '500px',
+            ...defaultTheme.screens
+        },
+        extend: {
+            fontFamily: {
+                'twitter-chirp': ['TwitterChirp', 'sans-serif'],
+                'twitter-chirp-extended': [
+                    'TwitterChirpExtendedHeavy',
+                    'sans-serif'
+                ]
+            },
+            // prettier-ignore
+            colors: {
         'main-primary': 'rgb(var(--main-primary) / <alpha-value>)',
         'main-secondary': 'rgb(var(--main-secondary) / <alpha-value>)',
         'main-background': 'rgb(var(--main-background) / <alpha-value>)',
@@ -41,11 +44,11 @@ module.exports = {
         'twitter-icon': '#D6D9DB',
         'image-preview-hover': '#272C30',
       }
-    }
-  },
-  plugins: [
-    ({ addVariant }) => {
-      addVariant('inner', '& > *');
-    }
-  ]
+        }
+    },
+    plugins: [
+        ({ addVariant }) => {
+            addVariant('inner', '& > *');
+        }
+    ]
 };

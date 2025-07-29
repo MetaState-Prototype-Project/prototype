@@ -1,17 +1,18 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { UserRequest } from '$lib/fragments';
-	import { Input } from '$lib/ui';
 	import {
-		searchResults,
+		followUser,
 		isSearching,
 		searchError,
-		searchUsers,
-		followUser
+		searchResults,
+		searchUsers
 	} from '$lib/stores/users';
-	import { goto } from '$app/navigation';
+	import { Input } from '$lib/ui';
 	import { onMount } from 'svelte';
 
 	let searchValue = $state('');
+	// eslint-disable-next-line no-undef
 	let debounceTimer: NodeJS.Timeout;
 
 	function handleSearch(value: string) {
@@ -42,7 +43,7 @@
 
 	$effect(() => {
 		console.log($searchResults);
-	})
+	});
 </script>
 
 <section class="w-full max-w-[500px]">
@@ -61,7 +62,7 @@
 		<div class="mt-6 text-center text-gray-500">No users found</div>
 	{:else if searchValue}
 		<ul class="mt-6 space-y-4 pb-4">
-			{#each $searchResults as user}
+			{#each $searchResults as user (user.id)}
 				<li>
 					<UserRequest
 						userImgSrc={user.avatarUrl}

@@ -8,27 +8,27 @@ import type { NextPage } from 'next';
 import type { AppProps } from 'next/app';
 
 type NextPageWithLayout = NextPage & {
-  getLayout?: (page: ReactElement) => ReactNode;
+    getLayout?: (page: ReactElement) => ReactNode;
 };
 
 type AppPropsWithLayout = AppProps & {
-  Component: NextPageWithLayout;
+    Component: NextPageWithLayout;
 };
 
 export default function App({
-  Component,
-  pageProps
+    Component,
+    pageProps
 }: AppPropsWithLayout): ReactNode {
-  const getLayout = Component.getLayout ?? ((page): ReactNode => page);
+    const getLayout = Component.getLayout ?? ((page): ReactNode => page);
 
-  return (
-    <>
-      <AppHead />
-      <AuthContextProvider>
-        <ThemeContextProvider>
-          {getLayout(<Component {...pageProps} />)}
-        </ThemeContextProvider>
-      </AuthContextProvider>
-    </>
-  );
+    return (
+        <>
+            <AppHead />
+            <AuthContextProvider>
+                <ThemeContextProvider>
+                    {getLayout(<Component {...pageProps} />)}
+                </ThemeContextProvider>
+            </AuthContextProvider>
+        </>
+    );
 }

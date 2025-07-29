@@ -1,8 +1,8 @@
-import type { Store } from "@tauri-apps/plugin-store";
-import { GraphQLClient } from "graphql-request";
-import axios from "axios";
 import { PUBLIC_REGISTRY_URL } from "$env/static/public";
-import { UserController } from "./user";
+import type { Store } from "@tauri-apps/plugin-store";
+import axios from "axios";
+import { GraphQLClient } from "graphql-request";
+import type { UserController } from "./user";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -21,6 +21,7 @@ interface MetaEnvelopeResponse {
         metaEnvelope: {
             id: string;
             ontology: string;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             parsed: any;
         };
     };
@@ -62,7 +63,11 @@ export class VaultController {
     /**
      * Set the profile creation status
      */
-    set profileCreationStatus(status: "idle" | "loading" | "success" | "failed") {
+    set profileCreationStatus(status:
+        | "idle"
+        | "loading"
+        | "success"
+        | "failed") {
         this.#profileCreationStatus = status;
     }
 
@@ -76,20 +81,23 @@ export class VaultController {
         }
 
         this.profileCreationStatus = "loading";
-        
+
         try {
             const userData = await this.#userController.user;
             const displayName = userData?.name || vault.ename;
-            
+
             await this.createUserProfileInEVault(
                 vault.ename,
                 displayName,
-                vault.ename
+                vault.ename,
             );
-            
+
             this.profileCreationStatus = "success";
         } catch (error) {
-            console.error("Failed to create UserProfile in eVault (retry):", error);
+            console.error(
+                "Failed to create UserProfile in eVault (retry):",
+                error,
+            );
             this.profileCreationStatus = "failed";
             throw error;
         }
@@ -101,7 +109,7 @@ export class VaultController {
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
             const response = await axios.get(
-                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString()
+                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -128,10 +136,10 @@ export class VaultController {
         ename: string,
         displayName: string,
         w3id: string,
-        maxRetries: number = 10
+        maxRetries = 10,
     ): Promise<void> {
-        console.log("attempting")
-        const username = ename.replace('@', '');
+        console.log("attempting");
+        const username = ename.replace("@", "");
         const now = new Date().toISOString();
 
         const userProfile: UserProfile = {
@@ -145,14 +153,16 @@ export class VaultController {
             isPrivate: false,
             createdAt: now,
             updatedAt: now,
-            isArchived: false
+            isArchived: false,
         };
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 const client = await this.ensureClient(w3id);
 
-                console.log(`Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`);
+                console.log(
+                    `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
+                );
 
                 const response = await client.request<MetaEnvelopeResponse>(
                     STORE_META_ENVELOPE,
@@ -162,57 +172,64 @@ export class VaultController {
                             payload: userProfile,
                             acl: ["*"],
                         },
-                    }
+                    },
                 );
 
-                console.log("UserProfile created successfully in eVault:", response.storeMetaEnvelope.metaEnvelope.id);
+                console.log(
+                    "UserProfile created successfully in eVault:",
+                    response.storeMetaEnvelope.metaEnvelope.id,
+                );
                 return;
             } catch (error) {
-                console.error(`Failed to create UserProfile in eVault (attempt ${attempt}/${maxRetries}):`, error);
+                console.error(
+                    `Failed to create UserProfile in eVault (attempt ${attempt}/${maxRetries}):`,
+                    error,
+                );
 
                 if (attempt === maxRetries) {
-                    console.error("Max retries reached, giving up on UserProfile creation");
+                    console.error(
+                        "Max retries reached, giving up on UserProfile creation",
+                    );
                     throw error;
                 }
 
                 // Wait before retrying (exponential backoff)
-                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+                const delay = Math.min(1000 * 2 ** (attempt - 1), 10000);
                 console.log(`Waiting ${delay}ms before retry...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                await new Promise((resolve) => setTimeout(resolve, delay));
             }
         }
     }
 
-    set vault(
-        vault:
-            | Promise<Record<string, string> | undefined>
-            | Record<string, string>
-            | undefined,
-    ) {
-        if (vault instanceof Promise) {
+    set vault(vault:
+        | Promise<Record<string, string> | undefined>
+        | Record<string, string>
+        | undefined) {
+        if (vault instanceof Promise)
             vault
                 .then(async (resolvedUser) => {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
-                        
                         // Set loading status
                         this.profileCreationStatus = "loading";
-                        
                         // Get user data for display name
                         const userData = await this.#userController.user;
-                        const displayName = userData?.name || resolvedUser.ename;
-                        
+                        const displayName =
+                            userData?.name || resolvedUser?.ename;
+
                         try {
                             await this.createUserProfileInEVault(
-                                resolvedUser.ename,
-                                displayName,
-                                resolvedUser.ename
+                                resolvedUser?.ename as string,
+                                displayName as string,
+                                resolvedUser?.ename as string,
                             );
                             this.profileCreationStatus = "success";
                         } catch (error) {
-                            console.error("Failed to create UserProfile in eVault:", error);
+                            console.error(
+                                "Failed to create UserProfile in eVault:",
+                                error,
+                            );
                             this.profileCreationStatus = "failed";
-                            // Don't throw here to avoid breaking the vault setting
                         }
                     }
                 })
@@ -220,42 +237,46 @@ export class VaultController {
                     console.error("Failed to set vault:", error);
                     this.profileCreationStatus = "failed";
                 });
-        } else {
-            if (vault?.ename) {
-                this.#store.set("vault", vault);
-                
-                // Set loading status
-                this.profileCreationStatus = "loading";
-                
-                // Get user data for display name and create UserProfile
-                (async () => {
+        else if (vault?.ename) {
+            this.#store.set("vault", vault);
+
+            // Set loading status
+            this.profileCreationStatus = "loading";
+
+            // Get user data for display name and create UserProfile
+            (async () => {
+                try {
+                    const userData = await this.#userController.user;
+                    const displayName = userData?.name || vault.ename;
+
+                    await this.createUserProfileInEVault(
+                        vault.ename,
+                        displayName,
+                        vault.ename,
+                    );
+                    this.profileCreationStatus = "success";
+                } catch (error) {
+                    console.error(
+                        "Failed to get user data or create UserProfile:",
+                        error,
+                    );
+                    // Fallback to using ename as display name
                     try {
-                        const userData = await this.#userController.user;
-                        const displayName = userData?.name || vault.ename;
-                        
                         await this.createUserProfileInEVault(
                             vault.ename,
-                            displayName,
-                            vault.ename
+                            vault.ename,
+                            vault.ename,
                         );
                         this.profileCreationStatus = "success";
-                    } catch (error) {
-                        console.error("Failed to get user data or create UserProfile:", error);
-                        // Fallback to using ename as display name
-                        try {
-                            await this.createUserProfileInEVault(
-                                vault.ename,
-                                vault.ename,
-                                vault.ename
-                            );
-                            this.profileCreationStatus = "success";
-                        } catch (fallbackError) {
-                            console.error("Failed to create UserProfile in eVault (fallback):", fallbackError);
-                            this.profileCreationStatus = "failed";
-                        }
+                    } catch (fallbackError) {
+                        console.error(
+                            "Failed to create UserProfile in eVault (fallback):",
+                            fallbackError,
+                        );
+                        this.profileCreationStatus = "failed";
                     }
-                })();
-            }
+                }
+            })();
         }
     }
 
@@ -275,11 +296,11 @@ export class VaultController {
     }
 
     // Getters for internal properties
-    get client() {
+    getclient() {
         return this.#client;
     }
 
-    get endpoint() {
+    getendpoint() {
         return this.#endpoint;
     }
 }

@@ -14,29 +14,40 @@
     import { Shadow } from "svelte-loading-spinners";
     import QrCode from "svelte-qrcode";
 
-    let userData: Record<string, unknown> | undefined = $state(undefined);
-    let greeting: string | undefined = $state(undefined);
-    let ename: string | undefined = $state(undefined);
-    let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
-        $state("idle");
+let userData: Record<string, unknown> | undefined = $state(undefined);
+let greeting: string | undefined = $state(undefined);
+let ename: string | undefined = $state(undefined);
+let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
+    $state("idle");
 
-    let shareQRdrawerOpen = $state(false);
-    let statusInterval: any = $state(undefined);
+let shareQRdrawerOpen = $state(false);
+let statusInterval: ReturnType<typeof setInterval> | undefined =
+    $state(undefined);
 
-    function shareQR() {
-        alert("QR Code shared!");
-        shareQRdrawerOpen = false;
+function shareQR() {
+    alert("QR Code shared!");
+    shareQRdrawerOpen = false;
+}
+
+async function retryProfileCreation() {
+    try {
+        await globalState.vaultController.retryProfileCreation();
+    } catch (error) {
+        console.error("Retry failed:", error);
     }
+}
 
-    async function retryProfileCreation() {
-        try {
-            await globalState.vaultController.retryProfileCreation();
-        } catch (error) {
-            console.error("Retry failed:", error);
-        }
-    }
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+onMount(() => {
+    // Load initial data
+    (async () => {
+        const userInfo = await globalState.userController.user;
+        const isFake = await globalState.userController.isFake;
+        userData = { ...userInfo, isFake };
+        const vaultData = await globalState.vaultController.vault;
+        ename = vaultData?.ename;
+    })();
 
     onMount(async () => {
         // Load initial data
@@ -48,18 +59,23 @@
             ename = vaultData?.ename;
         })();
 
-        // Get initial profile creation status
+    // Set up a watcher for profile creation status changes
+    const checkStatus = () => {
         profileCreationStatus =
             globalState.vaultController.profileCreationStatus;
+    };
 
-        // Set up a watcher for profile creation status changes
-        const checkStatus = () => {
-            profileCreationStatus =
-                globalState.vaultController.profileCreationStatus;
-        };
+    // Check status periodically
+    statusInterval = setInterval(checkStatus, 1000);
 
-        // Check status periodically
-        statusInterval = setInterval(checkStatus, 1000);
+    const currentHour = new Date().getHours();
+    greeting =
+        currentHour > 17
+            ? "Good Evening"
+            : currentHour > 12
+              ? "Good Afternoon"
+              : "Good Morning";
+});
 
         const urls = await getCurrent()
         if (urls && urls.length > 0) {
@@ -176,7 +192,7 @@
         <div
             class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
         >
-            <QrCode size="320" value={ename} />
+            <QrCode size={320} value={ename ?? ""} />
         </div>
 
         <h4 class="text-center mt-2">Share your eName</h4>

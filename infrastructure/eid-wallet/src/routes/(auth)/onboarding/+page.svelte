@@ -9,9 +9,10 @@
     import { ButtonAction, Drawer } from "$lib/ui";
     import { capitalize } from "$lib/utils";
     import {
-        generate, getPublicKey,
+        generate,
+        getPublicKey,
         // signPayload, verifySignature
-    } from "@auvo/tauri-plugin-crypto-hw-api"
+    } from "@auvo/tauri-plugin-crypto-hw-api";
     import * as falso from "@ngneat/falso";
     import axios from "axios";
     import { getContext, onMount } from "svelte";
@@ -50,26 +51,26 @@
     // IMO, call this function early, check if hardware even supports the app
     // docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
     async function generateApplicationKeyPair() {
-        let res: string | undefined
+        let res: string | undefined;
         try {
-            res = await generate("default")
-            console.log(res)
+            res = await generate("default");
+            console.log(res);
         } catch (e) {
             // Put hardware crypto missing error here
-            console.log(e)
+            console.log(e);
         }
-        return res
+        return res;
     }
 
     async function getApplicationPublicKey() {
-        let res: string | undefined
+        let res: string | undefined;
         try {
-            res = await getPublicKey("default")
-            console.log(res)
+            res = await getPublicKey("default");
+            console.log(res);
         } catch (e) {
-            console.log(e)
+            console.log(e);
         }
-        return res // check getPublicKey doc comments (multibase hex format)
+        return res; // check getPublicKey doc comments (multibase hex format)
     }
 
     const handleNext = async () => {
@@ -85,7 +86,7 @@
 
     let error: string | null = $state(null);
 
-    onMount(async () => {
+    onMount(() => {
         globalState = getContext<() => GlobalState>("globalState")();
         // handle verification logic + sec user data in the store
 
@@ -155,9 +156,37 @@
                 ename,
             };
 
-            setTimeout(() => {
-                goto("/register");
-            }, 10_000);
+            // New function to handle final submission with demo name
+            handleFinalSubmit = async () => {
+                loading = true;
+
+                const tenYearsLater = new Date();
+                tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+                globalState.userController.user = {
+                    name:
+                        demoName ||
+                        capitalize(
+                            `${falso.randFirstName()} ${falso.randLastName()}`,
+                        ),
+                    "Date of Birth": new Date().toDateString(),
+                    "ID submitted": `Passport - ${falso.randCountryCode()}`,
+                    "Passport Number": generatePassportNumber(),
+                };
+                globalState.userController.isFake = true;
+                globalState.userController.document = {
+                    "Valid From": new Date(Date.now()).toDateString(),
+                    "Valid Until": tenYearsLater.toDateString(),
+                    "Verified On": new Date().toDateString(),
+                };
+                globalState.vaultController.vault = {
+                    uri,
+                    ename,
+                };
+
+                setTimeout(() => {
+                    goto("/register");
+                }, 10_000);
+            };
         };
     });
 </script>

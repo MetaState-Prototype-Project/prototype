@@ -1,34 +1,33 @@
-import { useAuth } from '@lib/context/auth-context';
-import { NextImage } from '@components/ui/next-image';
-
 import QRCode from 'react-qr-code';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@lib/context/auth-context';
+import { NextImage } from '@components/ui/next-image';
 
 export function LoginMain(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
-    let [qr, setQr] = useState<string>();
+    const [qr, setQr] = useState<string>();
 
-    function watchEventStream(id: string) {
+    function watchEventStream(id: string): void {
         const sseUrl = new URL(
             `/api/auth/sessions/${id}`,
             process.env.NEXT_PUBLIC_BASE_URL
         ).toString();
         const eventSource = new EventSource(sseUrl);
 
-        eventSource.onopen = function (e) {
+        eventSource.onopen = (): void => {
             console.log('Successfully connected.');
         };
 
-        eventSource.onmessage = function (e) {
-            const data = JSON.parse(e.data);
+        eventSource.onmessage = async (e): Promise<void> => {
+            const data = JSON.parse(e.data as string) as { token: string };
             const { token } = data;
             console.log(token);
-            signInWithCustomToken(token);
+            await signInWithCustomToken(token);
         };
     }
-    const getOfferData = async () => {
-        const { data } = await axios.get(
+    const getOfferData = async (): Promise<void> => {
+        const { data } = await axios.get<{ uri: string }>(
             new URL(
                 '/api/auth/offer',
                 process.env.NEXT_PUBLIC_BASE_URL
@@ -41,7 +40,13 @@ export function LoginMain(): JSX.Element {
     };
 
     useEffect(() => {
-        getOfferData();
+        getOfferData()
+            .then((): void => {
+                console.log('QR code data fetched successfully.');
+            })
+            .catch((error): void => {
+                console.error('Error fetching QR code data:', error);
+            });
     }, []);
 
     return (
@@ -58,10 +63,11 @@ export function LoginMain(): JSX.Element {
             </div>
             <div className='flex flex-col items-center justify-between gap-6 p-8 lg:items-start lg:justify-center'>
                 <div className='flex max-w-xs flex-col gap-4 font-twitter-chirp-extended lg:max-w-none lg:gap-16'>
-                    <h1
-                        className='text-3xl before:content-["See_what’s_happening_in_the_world_right_now."]
-                       lg:text-6xl lg:before:content-["Happening_now"]'
-                    />
+                    <h1 className='text-3xl before:content-["See_what’s_happening_in_the_world_right_now."] lg:text-6xl lg:before:content-["Happening_now"]'>
+                        <span className='sr-only'>
+                            See what’s happening in the world right now.
+                        </span>
+                    </h1>
                     <h2 className='hidden text-xl lg:block lg:text-3xl'>
                         Join Blabsy today.
                     </h2>
@@ -72,7 +78,7 @@ export function LoginMain(): JSX.Element {
                     </div>
                 </div>
                 <div className='flex max-w-xs flex-col gap-6 [&_button]:py-2'>
-                    <div className='grid gap-3 font-bold'></div>
+                    <div className='grid gap-3 font-bold' />
                 </div>
             </div>
         </main>

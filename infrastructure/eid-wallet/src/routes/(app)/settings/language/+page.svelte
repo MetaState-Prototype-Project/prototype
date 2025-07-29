@@ -1,18 +1,18 @@
 <script lang="ts">
-    import { runtime } from "$lib/global/runtime.svelte";
-    import { Selector } from "$lib/ui";
+import { runtime } from "$lib/global/runtime.svelte";
+import { Selector } from "$lib/ui";
 
-    let languages: { name: string; country: string }[] = [
-        { name: "English", country: "gb" },
-        { name: "Spanish", country: "es" },
-        { name: "German", country: "de" },
-        { name: "French", country: "fr" },
-    ];
-    let selected = $state("English");
+let languages: { name: string; country: string }[] = [
+    { name: "English", country: "gb" },
+    { name: "Spanish", country: "es" },
+    { name: "German", country: "de" },
+    { name: "French", country: "fr" },
+];
+let selected = $state("English");
 
-    $effect(() => {
-        runtime.header.title = "Language";
-    });
+$effect(() => {
+    runtime.header.title = "Language";
+});
 </script>
 
 <main>

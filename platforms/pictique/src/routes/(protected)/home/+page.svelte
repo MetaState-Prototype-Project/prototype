@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { Drawer, Post } from '$lib/fragments';
-	import { onMount } from 'svelte';
-	import type { CupertinoPane } from 'cupertino-pane';
-	import { Comment, MessageInput } from '$lib/fragments';
-	import type { CommentType, userProfile } from '$lib/types';
-	import { ownerId, showComments } from '$lib/store/store.svelte';
-	import { posts, isLoading, error, fetchFeed, toggleLike } from '$lib/stores/posts';
-	import { activePostId } from '$lib/stores/comments';
-	import { apiClient, getAuthToken } from '$lib/utils';
 	import { goto } from '$app/navigation';
+	import { Drawer, Post } from '$lib/fragments';
+	import { Comment, MessageInput } from '$lib/fragments';
+	import { showComments } from '$lib/store/store.svelte';
+	import { activePostId } from '$lib/stores/comments';
+	import { error, fetchFeed, isLoading, posts, toggleLike } from '$lib/stores/posts';
+	import type { CommentType, userProfile } from '$lib/types';
+	import { apiClient, getAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
+	import type { CupertinoPane } from 'cupertino-pane';
+	import { onMount } from 'svelte';
 
 	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
@@ -44,9 +44,8 @@
 					if (c.commentId === activeReplyToId) {
 						c.replies.push(newComment);
 						return true;
-					} else if (c.replies.length) {
-						if (addReplyToComment(c.replies)) return true;
 					}
+					if (c.replies.length && addReplyToComment(c.replies)) return true;
 				}
 				return false;
 			};
@@ -65,14 +64,13 @@
 				goto('/auth');
 				return;
 			}
-			const response = await apiClient.get(`/api/users`).catch((e: AxiosError) => {
+			const response = await apiClient.get('/api/users').catch((e: AxiosError) => {
 				if (e.response?.status === 401) {
 					goto('/auth');
 				}
 			});
 			if (!response) return;
 			profile = response.data;
-			console.log(profile);
 		} catch (err) {
 			console.log(err instanceof Error ? err.message : 'Failed to load profile');
 		}
@@ -87,6 +85,8 @@
 		fetchFeed();
 		fetchProfile();
 	});
+
+	$inspect($posts);
 </script>
 
 <div class="flex flex-col">
@@ -96,14 +96,14 @@
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
 		{:else}
-			{#each $posts.posts as post (post.id)}
+			{#each $posts as post (post.id)}
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
 						username={post.author.name ?? post.author.handle}
 						userId={post.author.id}
 						imgUris={post.images}
-						isLiked={post.likedBy.find((p) => p.id === profile?.id)}
+						isLiked={post.likedBy.find((p) => p.id === profile?.id) !== undefined}
 						text={post.text}
 						time={new Date(post.createdAt).toLocaleDateString()}
 						count={{ likes: post.likedBy.length, comments: post.comments.length }}
@@ -137,7 +137,7 @@
 <Drawer bind:drawer>
 	<ul class="pb-4">
 		<h3 class="text-black-600 mb-6 text-center">{_comments.length} Comments</h3>
-		{#each _comments as comment}
+		{#each _comments as comment (comment.commentId)}
 			<li class="mb-4">
 				<Comment
 					{comment}

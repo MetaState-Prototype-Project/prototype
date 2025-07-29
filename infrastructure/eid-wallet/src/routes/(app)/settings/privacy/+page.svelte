@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { runtime } from "$lib/global/runtime.svelte";
+import { runtime } from "$lib/global/runtime.svelte";
 
-    $effect(() => {
-        runtime.header.title = "Privacy";
-    });
+$effect(() => {
+    runtime.header.title = "Privacy";
+});
 </script>
 
 <main

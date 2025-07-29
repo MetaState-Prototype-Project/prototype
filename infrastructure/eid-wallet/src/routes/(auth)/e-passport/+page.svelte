@@ -1,24 +1,23 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
-    import type { GlobalState } from "$lib/global";
-    import { ButtonAction } from "$lib/ui";
-    import { getContext, onMount } from "svelte";
+import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
+import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
+import type { GlobalState } from "$lib/global";
+import { ButtonAction } from "$lib/ui";
+import { getContext, onMount } from "svelte";
 
-    let userData = $state();
-    let globalState: GlobalState =
-        getContext<() => GlobalState>("globalState")();
+let userData = $state<Record<string, string | boolean | undefined>>();
+let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
 
-    const handleFinish = async () => {
-        await goto("/main");
-    };
+const handleFinish = async () => {
+    await goto("/main");
+};
 
-    onMount(async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
-    });
+onMount(async () => {
+    const userInfo = await globalState.userController.user;
+    const isFake = await globalState.userController.isFake;
+    userData = { ...userInfo, isFake };
+});
 </script>
 
 <main

@@ -4,7 +4,7 @@
 	import { Camera, CommentsTwo, Home, Search } from '$lib/icons';
 	import { isNavigatingThroughNav } from '$lib/store/store.svelte';
 	import { uploadedImages } from '$lib/store/store.svelte';
-	import { revokeImageUrls } from '$lib/utils';
+	import { getAuthId, revokeImageUrls } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IBottomNavProps extends HTMLAttributes<HTMLElement> {
@@ -17,6 +17,7 @@
 	}: IBottomNavProps = $props();
 
 	const tabs = ['home', 'discover', 'post', 'messages', 'profile', 'settings'];
+	let ownerId: string | null = $derived(getAuthId());
 	let previousTab = $state('home');
 	let _activeTab = $derived(page.url.pathname);
 	let fullPath = $derived(page.url.pathname);

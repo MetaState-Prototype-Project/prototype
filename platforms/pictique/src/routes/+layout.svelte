@@ -7,7 +7,6 @@
 
 	let { children } = $props();
 
-	let previousRoute = null;
 	let showSplashScreen = $state(true);
 
 	onNavigate((navigation) => {
@@ -25,7 +24,6 @@
 		if (!isNavigatingThroughNav.value) {
 			const currentDirection = 'right';
 			document.documentElement.setAttribute('data-transition', currentDirection);
-			previousRoute = targetRoute;
 		}
 
 		return new Promise((resolve) => {
