@@ -19,6 +19,12 @@
     import axios from "axios";
     import { getContext, onDestroy, onMount } from "svelte";
     import type { SVGAttributes } from "svelte/elements";
+<<<<<<< HEAD
+=======
+    import type { GlobalState } from "$lib/global";
+    import axios from "axios";
+    import { goto } from "$app/navigation";
+>>>>>>> main
 
     const globalState = getContext<() => GlobalState>("globalState")();
     const pathProps: SVGAttributes<SVGPathElement> = {
@@ -57,7 +63,6 @@
         if (permissions === "granted") {
             const formats = [Format.QRCode];
             const windowed = true;
-
             if (scanning) return;
             scanning = true;
             scan({ formats, windowed })
@@ -243,6 +248,7 @@
             class="w-full"
             callback={() => {
                 loggedInDrawerOpen = false;
+                goto("/main");
                 startScan();
             }}
         >

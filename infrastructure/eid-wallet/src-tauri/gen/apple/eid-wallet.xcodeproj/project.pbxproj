@@ -389,7 +389,7 @@
 				CODE_SIGN_ENTITLEMENTS = "eid-wallet_iOS/eid-wallet_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 0.1.7.2;
-				DEVELOPMENT_TEAM = M49C8XS835;
+				DEVELOPMENT_TEAM = 3FS4B734X5;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -416,7 +416,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				MARKETING_VERSION = 0.1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = "foundation.metastate.eid-wallet";
+				PRODUCT_BUNDLE_IDENTIFIER = foundation.metastate.eid-wallet;
 				PRODUCT_NAME = "eID for W3DS";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -437,7 +437,7 @@
 				CODE_SIGN_ENTITLEMENTS = "eid-wallet_iOS/eid-wallet_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 0.1.7.2;
-				DEVELOPMENT_TEAM = M49C8XS835;
+				DEVELOPMENT_TEAM = 3FS4B734X5;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -464,7 +464,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
 				MARKETING_VERSION = 0.1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = "foundation.metastate.eid-wallet";
+				PRODUCT_BUNDLE_IDENTIFIER = foundation.metastate.eid-wallet;
 				PRODUCT_NAME = "eID for W3DS";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
