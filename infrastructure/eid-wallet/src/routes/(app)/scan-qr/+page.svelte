@@ -1,107 +1,107 @@
 <script lang="ts">
-    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import {
-        Format,
-        type PermissionState,
-        type Scanned,
-        cancel,
-        checkPermissions,
-        requestPermissions,
-        scan,
-    } from "@tauri-apps/plugin-barcode-scanner";
-    import { getContext, onDestroy, onMount } from "svelte";
-    import type { SVGAttributes } from "svelte/elements";
-    import type { GlobalState } from "$lib/global";
-    import axios from "axios";
-    import { goto } from "$app/navigation";
+import { goto } from "$app/navigation";
+import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import {
+    Format,
+    type PermissionState,
+    type Scanned,
+    cancel,
+    checkPermissions,
+    requestPermissions,
+    scan,
+} from "@tauri-apps/plugin-barcode-scanner";
+import axios from "axios";
+import { getContext, onDestroy, onMount } from "svelte";
+import type { SVGAttributes } from "svelte/elements";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
-    const pathProps: SVGAttributes<SVGPathElement> = {
-        stroke: "white",
-        "stroke-width": 7,
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round",
-    };
+const globalState = getContext<() => GlobalState>("globalState")();
+const pathProps: SVGAttributes<SVGPathElement> = {
+    stroke: "white",
+    "stroke-width": 7,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+};
 
-    let platform = $state();
-    let hostname = $state();
-    let session = $state();
-    let codeScannedDrawerOpen = $state(false);
-    let loggedInDrawerOpen = $state(false);
-    let scannedData: Scanned | undefined = $state(undefined);
-    let scanning = false;
-    let loading = false;
-    let redirect = $state();
-    let permissions_nullable: PermissionState | null;
+let platform = $state();
+let hostname = $state();
+let session = $state();
+let codeScannedDrawerOpen = $state(false);
+let loggedInDrawerOpen = $state(false);
+let scannedData: Scanned | undefined = $state(undefined);
+let scanning = false;
+let loading = false;
+let redirect = $state<string | null>();
+let permissions_nullable: PermissionState | null;
 
-    async function startScan() {
-        let permissions = await checkPermissions()
-            .then((permissions) => {
-                return permissions;
+async function startScan() {
+    let permissions = await checkPermissions()
+        .then((permissions) => {
+            return permissions;
+        })
+        .catch(() => {
+            return null;
+        });
+
+    if (permissions === "prompt") {
+        permissions = await requestPermissions();
+    }
+
+    permissions_nullable = permissions;
+
+    if (permissions === "granted") {
+        const formats = [Format.QRCode];
+        const windowed = true;
+        if (scanning) return;
+        scanning = true;
+        scan({ formats, windowed })
+            .then((res) => {
+                scannedData = res;
+                const url = new URL(res.content);
+                platform = url.searchParams.get("platform");
+                const redirectUrl = new URL(
+                    url.searchParams.get("redirect") || "",
+                );
+                redirect = url.searchParams.get("redirect");
+                session = url.searchParams.get("session");
+                hostname = redirectUrl.hostname;
+                codeScannedDrawerOpen = true;
             })
-            .catch(() => {
-                return null;
+            .catch((error) => {
+                console.error("Scan error:", error);
+            })
+            .finally(() => {
+                scanning = false;
             });
-
-        if (permissions === "prompt") {
-            permissions = await requestPermissions();
-        }
-
-        permissions_nullable = permissions;
-
-        if (permissions === "granted") {
-            const formats = [Format.QRCode];
-            const windowed = true;
-            if (scanning) return;
-            scanning = true;
-            scan({ formats, windowed })
-                .then((res) => {
-                    scannedData = res;
-                    const url = new URL(res.content);
-                    platform = url.searchParams.get("platform");
-                    const redirectUrl = new URL(
-                        url.searchParams.get("redirect") || "",
-                    );
-                    redirect = url.searchParams.get("redirect");
-                    session = url.searchParams.get("session");
-                    hostname = redirectUrl.hostname;
-                    codeScannedDrawerOpen = true;
-                })
-                .catch((error) => {
-                    console.error("Scan error:", error);
-                })
-                .finally(() => {
-                    scanning = false;
-                });
-        }
     }
+}
 
-    async function handleAuth() {
-        const vault = await globalState.vaultController.vault;
-        if (!vault || !redirect) return;
-        await axios.post(redirect, { ename: vault.ename, session });
-        codeScannedDrawerOpen = false;
-        loggedInDrawerOpen = true;
-        startScan();
-    }
+async function handleAuth() {
+    const vault = await globalState.vaultController.vault;
+    if (!vault || !redirect) return;
+    await axios.post(redirect, { ename: vault.ename, session });
+    codeScannedDrawerOpen = false;
+    loggedInDrawerOpen = true;
+    startScan();
+}
 
-    async function cancelScan() {
-        await cancel();
-        scanning = false;
-    }
+async function cancelScan() {
+    await cancel();
+    scanning = false;
+}
 
-    onMount(async () => {
-        startScan();
-    });
+onMount(async () => {
+    startScan();
+});
 
-    onDestroy(async () => {
-        await cancelScan();
-    });
+onDestroy(async () => {
+    await cancelScan();
+});
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />

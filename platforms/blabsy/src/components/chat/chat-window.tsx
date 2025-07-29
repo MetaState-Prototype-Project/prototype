@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { useChat } from '@lib/context/chat-context';
-import { useAuth } from '@lib/context/auth-context';
 import { formatDistanceToNow } from 'date-fns';
-import type { Message } from '@lib/types/message';
 import { UserIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@lib/context/auth-context';
+import { useChat } from '@lib/context/chat-context';
 import { db } from '@lib/firebase/app';
-import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
+import type { Message } from '@lib/types/message';
+import type { User } from '@lib/types/user';
 
 function MessageItem({
     message,
@@ -58,27 +58,22 @@ export function ChatWindow(): JSX.Element {
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-   
-
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
     );
 
     useEffect(() => {
-        if (!otherParticipant) {
-            return;
-        }
+        if (!otherParticipant) return;
 
         const fetchUserData = async (): Promise<void> => {
             try {
                 const userDoc = await getDoc(
                     doc(db, 'users', otherParticipant)
                 );
-                if (userDoc.exists()) {
-                    setOtherUser(userDoc.data() as User);
-                } else {
-                }
+                if (userDoc.exists()) setOtherUser(userDoc.data() as User);
             } catch (error) {
+                // eslint-disable-next-line no-console
+                console.error(error);
             }
         };
 
@@ -97,15 +92,12 @@ export function ChatWindow(): JSX.Element {
     }, [currentChat]);
 
     useEffect(() => {
-        if (messagesEndRef.current) {
+        if (messagesEndRef.current)
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
     }, [messages]);
 
     useEffect(() => {
-        if (!currentChat || !user) {
-            return;
-        }
+        if (!currentChat || !user) return;
 
         const unreadMessages = messages?.filter(
             (message) =>
@@ -113,12 +105,10 @@ export function ChatWindow(): JSX.Element {
                 !message.readBy.includes(user.id)
         );
 
-
-        if (unreadMessages?.length) {
+        if (unreadMessages?.length)
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
             );
-        }
     }, [currentChat, messages, user, markAsRead]);
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -129,6 +119,8 @@ export function ChatWindow(): JSX.Element {
             await sendNewMessage(messageText);
             setMessageText('');
         } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Error sending message:', error);
         }
     };
 

@@ -1,48 +1,48 @@
 name: Deploy 🚀
 
 on:
-  push:
-    branches: ['main']
-  pull_request:
-    branches: ['main']
+    push:
+        branches: ['main']
+    pull_request:
+        branches: ['main']
 
 jobs:
-  prettier:
-    name: 🧪 Prettier
-    runs-on: ubuntu-latest
-    steps:
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v3
+    prettier:
+        name: 🧪 Prettier
+        runs-on: ubuntu-latest
+        steps:
+            - name: ⬇️ Checkout repo
+              uses: actions/checkout@v3
 
-      - name: 📥 Download deps
-        run: npm ci
+            - name: 📥 Download deps
+              run: npm ci
 
-      - name: 🔍 Format
-        run: npm run format
+            - name: 🔍 Format
+              run: npm run format
 
-  eslint:
-    name: ✅ ESLint
-    runs-on: ubuntu-latest
-    steps:
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v3
+    eslint:
+        name: ✅ ESLint
+        runs-on: ubuntu-latest
+        steps:
+            - name: ⬇️ Checkout repo
+              uses: actions/checkout@v3
 
-      - name: 📥 Download deps
-        run: npm ci
+            - name: 📥 Download deps
+              run: npm ci
 
-      - name: 🪄 Lint
-        run: npm run lint
+            - name: 🪄 Lint
+              run: npm run lint
 
-  jest:
-    name: 🃏 Jest
-    runs-on: ubuntu-latest
-    steps:
-      - name: ⬇️ Checkout repo
-        uses: actions/checkout@v3
+    jest:
+        name: 🃏 Jest
+        runs-on: ubuntu-latest
+        steps:
+            - name: ⬇️ Checkout repo
+              uses: actions/checkout@v3
 
-      - name: 📥 Download deps
-        run: npm ci
+            - name: 📥 Download deps
+              run: npm ci
 
-      # ! uncomment this after you add test
-      # - name: 🔬 Test
-      # run: npm run test:ci
+            # ! uncomment this after you add test
+            # - name: 🔬 Test
+            # run: npm run test:ci

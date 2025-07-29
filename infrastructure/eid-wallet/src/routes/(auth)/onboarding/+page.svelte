@@ -1,165 +1,161 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import {
-        PUBLIC_PROVISIONER_URL,
-        PUBLIC_REGISTRY_URL,
-    } from "$env/static/public";
-    import { Hero } from "$lib/fragments";
-    import { GlobalState } from "$lib/global";
-    import { ButtonAction, Drawer } from "$lib/ui";
-    import { capitalize } from "$lib/utils";
-    import {
-        generate, getPublicKey,
-        // signPayload, verifySignature
-    } from "@auvo/tauri-plugin-crypto-hw-api"
-    import * as falso from "@ngneat/falso";
-    import axios from "axios";
-    import { getContext, onMount } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import { v4 as uuidv4 } from "uuid";
+import { goto } from "$app/navigation";
+import {
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_REGISTRY_URL,
+} from "$env/static/public";
+import { Hero } from "$lib/fragments";
+import { GlobalState } from "$lib/global";
+import { ButtonAction, Drawer } from "$lib/ui";
+import { capitalize } from "$lib/utils";
+import {
+    generate,
+    getPublicKey,
+    // signPayload, verifySignature
+} from "@auvo/tauri-plugin-crypto-hw-api";
+import * as falso from "@ngneat/falso";
+import axios from "axios";
+import { getContext, onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import { v4 as uuidv4 } from "uuid";
 
-    let isPaneOpen = $state(false);
-    let preVerified = $state(false);
-    let loading = $state(false);
-    let verificationId = $state("");
-    let demoName = $state("");
-    let verificationSuccess = $state(false);
+let isPaneOpen = $state(false);
+let preVerified = $state(false);
+let loading = $state(false);
+let verificationId = $state("");
+let demoName = $state("");
+let verificationSuccess = $state(false);
 
-    const handleGetStarted = async () => {
-        //get started functionality
-        isPaneOpen = true;
-        preVerified = false;
-    };
+const handleGetStarted = async () => {
+    //get started functionality
+    isPaneOpen = true;
+    preVerified = false;
+};
 
-    const handlePreVerified = () => {
-        isPaneOpen = true;
-        preVerified = true;
-    };
+const handlePreVerified = () => {
+    isPaneOpen = true;
+    preVerified = true;
+};
 
-    function generatePassportNumber() {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const randomLetters = () =>
-            letters.charAt(Math.floor(Math.random() * letters.length)) +
-            letters.charAt(Math.floor(Math.random() * letters.length));
-        const randomDigits = () =>
-            String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
+function generatePassportNumber() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const randomLetters = () =>
+        letters.charAt(Math.floor(Math.random() * letters.length)) +
+        letters.charAt(Math.floor(Math.random() * letters.length));
+    const randomDigits = () =>
+        String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
 
-        return randomLetters() + randomDigits();
+    return randomLetters() + randomDigits();
+}
+
+// IMO, call this function early, check if hardware even supports the app
+// docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
+async function generateApplicationKeyPair() {
+    let res: string | undefined;
+    try {
+        res = await generate("default");
+        console.log(res);
+    } catch (e) {
+        // Put hardware crypto missing error here
+        console.log(e);
     }
+    return res;
+}
 
-    // IMO, call this function early, check if hardware even supports the app
-    // docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
-    async function generateApplicationKeyPair() {
-        let res: string | undefined
-        try {
-            res = await generate("default")
-            console.log(res)
-        } catch (e) {
-            // Put hardware crypto missing error here
-            console.log(e)
-        }
-        return res
+async function getApplicationPublicKey() {
+    let res: string | undefined;
+    try {
+        res = await getPublicKey("default");
+        console.log(res);
+    } catch (e) {
+        console.log(e);
     }
+    return res; // check getPublicKey doc comments (multibase hex format)
+}
 
-    async function getApplicationPublicKey() {
-        let res: string | undefined
-        try {
-            res = await getPublicKey("default")
-            console.log(res)
-        } catch (e) {
-            console.log(e)
-        }
-        return res // check getPublicKey doc comments (multibase hex format)
-    }
+const handleNext = async () => {
+    //handle next functionlity
+    goto("/verify");
+};
 
-    const handleNext = async () => {
-        //handle next functionlity
-        goto("/verify");
-    };
+let globalState: GlobalState;
+let handleContinue: () => Promise<void> | void;
+let handleFinalSubmit: () => Promise<void> | void;
+let ename: string;
+let uri: string;
 
-    let globalState: GlobalState;
-    let handleContinue: () => Promise<void> | void;
-    let handleFinalSubmit: () => Promise<void> | void;
-    let ename: string;
-    let uri: string;
+let error: string | null = $state(null);
 
-    let error: string | null = $state(null);
+onMount(() => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    // handle verification logic + sec user data in the store
 
-    onMount(() => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        // handle verification logic + sec user data in the store
+    handleContinue = async () => {
+        loading = true;
+        const {
+            data: { token: registryEntropy },
+        } = await axios.get(
+            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+        );
 
-        handleContinue = async () => {
-            loading = true;
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-
-            const { data } = await axios
-                .post(
-                    new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                    {
-                        registryEntropy,
-                        namespace: uuidv4(),
-                        verificationId,
-                    },
-                )
-                .catch(() => {
-                    loading = false;
-                    console.log("caught");
-                    preVerified = false;
-                    verificationId = "";
-                    error = "Wrong pre-verificaiton code";
-                    setTimeout(() => {
-                        error = null;
-                    }, 6_000);
-                    return { data: null };
-                });
-            if (!data) return;
-
-            // If verification is successful, show demo name input
-            if (data.success === true) {
+        const { data } = await axios
+            .post(new URL("/provision", PUBLIC_PROVISIONER_URL).toString(), {
+                registryEntropy,
+                namespace: uuidv4(),
+                verificationId,
+            })
+            .catch(() => {
                 loading = false;
-                verificationSuccess = true;
-                uri = data.uri;
-                ename = data.w3id;
-            }
+                console.log("caught");
+                preVerified = false;
+                verificationId = "";
+                error = "Wrong pre-verificaiton code";
+                setTimeout(() => {
+                    error = null;
+                }, 6_000);
+                return { data: null };
+            });
+        if (!data) return;
+
+        // If verification is successful, show demo name input
+        if (data.success === true) {
+            loading = false;
+            verificationSuccess = true;
+            uri = data.uri;
+            ename = data.w3id;
+        }
+    };
+
+    // New function to handle final submission with demo name
+    handleFinalSubmit = async () => {
+        loading = true;
+
+        const tenYearsLater = new Date();
+        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+        globalState.userController.user = {
+            name:
+                demoName ||
+                capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
+            "Date of Birth": new Date().toDateString(),
+            "ID submitted": `Passport - ${falso.randCountryCode()}`,
+            "Passport Number": generatePassportNumber(),
+        };
+        globalState.userController.isFake = true;
+        globalState.userController.document = {
+            "Valid From": new Date(Date.now()).toDateString(),
+            "Valid Until": tenYearsLater.toDateString(),
+            "Verified On": new Date().toDateString(),
+        };
+        globalState.vaultController.vault = {
+            uri,
+            ename,
         };
 
-        // New function to handle final submission with demo name
-        handleFinalSubmit = async () => {
-            loading = true;
-
-            const tenYearsLater = new Date();
-            tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-            globalState.userController.user = {
-                name:
-                    demoName ||
-                    capitalize(
-                        `${falso.randFirstName()} ${falso.randLastName()}`,
-                    ),
-                "Date of Birth": new Date().toDateString(),
-                "ID submitted": "Passport - " + falso.randCountryCode(),
-                "Passport Number": generatePassportNumber(),
-            };
-            globalState.userController.isFake = true;
-            globalState.userController.document = {
-                "Valid From": new Date(Date.now()).toDateString(),
-                "Valid Until": tenYearsLater.toDateString(),
-                "Verified On": new Date().toDateString(),
-            };
-            globalState.vaultController.vault = {
-                uri,
-                ename,
-            };
-
-            setTimeout(() => {
-                goto("/register");
-            }, 10_000);
-        };
-    });
+        setTimeout(() => {
+            goto("/register");
+        }, 10_000);
+    };
+});
 </script>
 
 <main

@@ -29,7 +29,7 @@
 		].join(' ')
 	)}
 >
-	{#each images as image, i}
+	{#each images as image, i (i)}
 		<div class={cn(['group relative mt-3 mb-2 shrink-0'])}>
 			<Cross
 				class="absolute top-0 right-0 hidden translate-x-1/2 -translate-y-1/2 cursor-pointer group-hover:block"

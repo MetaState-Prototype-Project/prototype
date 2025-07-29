@@ -1,16 +1,16 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { BottomNav, Comment, Header, MessageInput, SideBar } from '$lib/fragments';
-	import { showComments } from '$lib/store/store.svelte';
-	import { openCreatePostModal, isCreatePostModalOpen } from '$lib/stores/posts';
-	import { comments, fetchComments, createComment, activePostId } from '$lib/stores/comments';
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
-	import { onMount } from 'svelte';
-	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
+	import { showComments } from '$lib/store/store.svelte';
+	import { activePostId, comments, createComment, fetchComments } from '$lib/stores/comments';
+	import { isCreatePostModalOpen, openCreatePostModal } from '$lib/stores/posts';
 	import type { userProfile } from '$lib/types';
-	import { heading } from '../store';
-	import { goto } from '$app/navigation';
+	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
+	import { onMount } from 'svelte';
+	import { heading } from '../store';
 
 	let { children } = $props();
 	let ownerId: string | null = $state(null);
@@ -18,7 +18,6 @@
 
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
-	let activeReplyToId: string | null = $state(null);
 	let idFromParams = $state();
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
@@ -31,7 +30,6 @@
 		try {
 			await createComment($activePostId, commentValue);
 			commentValue = '';
-			activeReplyToId = null;
 		} catch (err) {
 			console.error('Failed to create comment:', err);
 		}
@@ -65,7 +63,7 @@
 		if (showComments.value && activePostId) {
 			isCommentsLoading = true;
 			commentsError = null;
-			fetchComments($activePostId)
+			fetchComments($activePostId as string)
 				.catch((err) => {
 					commentsError = err.message;
 				})
@@ -136,7 +134,7 @@
 						{:else if commentsError}
 							<li class="text-center text-red-500">{commentsError}</li>
 						{:else}
-							{#each $comments as comment}
+							{#each $comments as comment (comment.id)}
 								<li class="mb-4">
 									<Comment
 										comment={{
@@ -151,7 +149,6 @@
 											replies: []
 										}}
 										handleReply={() => {
-											activeReplyToId = comment.id;
 											commentInput?.focus();
 										}}
 									/>
@@ -177,6 +174,4 @@
 	{/if}
 </main>
 
-{#if $isCreatePostModalOpen}
-	<CreatePostModal />
-{/if}
+<CreatePostModal bind:open={$isCreatePostModalOpen} />

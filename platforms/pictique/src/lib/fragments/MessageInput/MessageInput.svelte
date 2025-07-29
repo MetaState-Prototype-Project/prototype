@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Avatar, Input } from '$lib/ui';
 	import { cn } from '$lib/utils';
-	import { PlusSignIcon, SentIcon } from '@hugeicons/core-free-icons';
+	import { SentIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -23,12 +23,9 @@
 		input = $bindable(),
 		placeholder,
 		files = $bindable(),
-		handleAdd,
 		handleSend,
 		...restProps
 	}: IMessageInputProps = $props();
-
-	let fileInput: HTMLInputElement | undefined = $state();
 
 	const cBase = 'flex items-center justify-between gap-2';
 </script>
@@ -36,9 +33,6 @@
 <div {...restProps} class={cn([cBase, restProps.class].join(' '))}>
 	{#if variant === 'comment'}
 		<Avatar size="sm" {src} />
-	{:else}
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 	{/if}
 	<Input
 		type="text"

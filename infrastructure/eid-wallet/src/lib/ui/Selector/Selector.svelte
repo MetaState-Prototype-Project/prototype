@@ -1,31 +1,31 @@
 <script lang="ts">
-    import { cn } from "$lib/utils";
-    import { Tick01Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import type { Snippet } from "svelte";
-    import type { HTMLLabelAttributes } from "svelte/elements";
-    import { fade } from "svelte/transition";
+import { cn } from "$lib/utils";
+import { Tick01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { Snippet } from "svelte";
+import type { HTMLLabelAttributes } from "svelte/elements";
+import { fade } from "svelte/transition";
 
-    interface ISelectorProps extends HTMLLabelAttributes {
-        id: string;
-        name: string;
-        value: string;
-        icon?: Snippet<[string]>;
-        selected?: string;
-        children?: Snippet;
-        disable?: boolean;
-    }
+interface ISelectorProps extends HTMLLabelAttributes {
+    id: string;
+    name: string;
+    value: string;
+    icon?: Snippet<[string]>;
+    selected?: string;
+    children?: Snippet;
+    disable?: boolean;
+}
 
-    let {
-        id,
-        name,
-        value,
-        icon = undefined,
-        selected = $bindable(),
-        children = undefined,
-        disable = false,
-        ...restProps
-    }: ISelectorProps = $props();
+let {
+    id,
+    name,
+    value,
+    icon = undefined,
+    selected = $bindable(),
+    children = undefined,
+    disable = false,
+    ...restProps
+}: ISelectorProps = $props();
 </script>
 
 <label

@@ -1,5 +1,9 @@
 import type { Timestamp } from 'firebase/firestore';
-import type { DocumentData, QueryDocumentSnapshot, WithFieldValue } from 'firebase/firestore';
+import type {
+    DocumentData,
+    QueryDocumentSnapshot,
+    WithFieldValue
+} from 'firebase/firestore';
 
 export type ChatType = 'direct' | 'group';
 
@@ -28,4 +32,4 @@ export const chatConverter = {
             ...data
         } as Chat;
     }
-}; 
+};

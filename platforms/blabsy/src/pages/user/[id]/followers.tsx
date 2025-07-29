@@ -6,17 +6,17 @@ import { UserFollow } from '@components/user/user-follow';
 import type { ReactElement, ReactNode } from 'react';
 
 export default function UserFollowers(): JSX.Element {
-  return <UserFollow type='followers' />;
+    return <UserFollow type='followers' />;
 }
 
 UserFollowers.getLayout = (page: ReactElement): ReactNode => (
-  <ProtectedLayout>
-    <MainLayout>
-      <UserLayout>
-        <UserDataLayout>
-          <UserFollowLayout>{page}</UserFollowLayout>
-        </UserDataLayout>
-      </UserLayout>
-    </MainLayout>
-  </ProtectedLayout>
+    <ProtectedLayout>
+        <MainLayout>
+            <UserLayout>
+                <UserDataLayout>
+                    <UserFollowLayout>{page}</UserFollowLayout>
+                </UserDataLayout>
+            </UserLayout>
+        </MainLayout>
+    </ProtectedLayout>
 );

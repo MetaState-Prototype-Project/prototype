@@ -23,6 +23,8 @@
 		common: cn('rounded-full'),
 		size: sizeVariant[size] || sizeVariant.md
 	});
+
+	$inspect(img);
 </script>
 
 <img

@@ -46,6 +46,7 @@ export function UserHomeLayout({ children }: LayoutProps): JSX.Element {
             const chatId = await getOrCreateDirectChat(user.id, userData.id);
             await push(`/chat?chatId=${chatId}`);
         } catch (error) {
+            // eslint-disable-next-line no-console
             console.error('Error creating chat:', error);
         }
     };
@@ -70,7 +71,7 @@ export function UserHomeLayout({ children }: LayoutProps): JSX.Element {
                             </div>
                             <div className='p-8 text-center'>
                                 <p className='text-3xl font-bold'>
-                                    This account doesn't exist
+                                    This account doesn&apos;t exist
                                 </p>
                                 <p className='text-light-secondary dark:text-dark-secondary'>
                                     Try searching for another.

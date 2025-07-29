@@ -1,10 +1,12 @@
+import { Agent } from "node:http";
+import axios, { type AxiosInstance } from "axios";
 import { GraphQLClient } from "graphql-request";
-import axios, { AxiosInstance } from "axios";
 import { v4 } from "uuid";
 
 export interface MetaEnvelope {
     id?: string | null;
     schemaId: string;
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     data: Record<string, any>;
     w3id: string;
 }
@@ -71,14 +73,17 @@ interface StoreMetaEnvelopeResponse {
             envelopes: Array<{
                 id: string;
                 ontology: string;
+                // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                 value: any;
                 valueType: string;
             }>;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             parsed: any;
         };
         envelopes: Array<{
             id: string;
             ontology: string;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             value: any;
             valueType: string;
         }>;
@@ -90,14 +95,17 @@ interface StoreMetaEnvelopeResponse {
             envelopes: Array<{
                 id: string;
                 ontology: string;
+                // biome-ignore lint/suspicious/noExplicitAny: <explanation>
                 value: any;
                 valueType: string;
             }>;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             parsed: any;
         };
         envelopes: Array<{
             id: string;
             ontology: string;
+            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
             value: any;
             valueType: string;
         }>;
@@ -122,18 +130,21 @@ export class EVaultClient {
     private httpClient: AxiosInstance;
     private isDisposed = false;
 
-    constructor(private registryUrl: string, private platform: string) {
+    constructor(
+        private registryUrl: string,
+        private platform: string,
+    ) {
         // Configure axios with connection pooling and timeouts
         this.httpClient = axios.create({
             timeout: CONFIG.REQUEST_TIMEOUT,
             maxRedirects: 3,
             // Connection pooling configuration
-            httpAgent: new (require('http').Agent)({
+            httpAgent: new Agent({
                 keepAlive: true,
                 maxSockets: CONFIG.CONNECTION_POOL_SIZE,
                 timeout: CONFIG.CONNECTION_TIMEOUT,
             }),
-            httpsAgent: new (require('https').Agent)({
+            httpsAgent: new Agent({
                 keepAlive: true,
                 maxSockets: CONFIG.CONNECTION_POOL_SIZE,
                 timeout: CONFIG.CONNECTION_TIMEOUT,
@@ -146,12 +157,12 @@ export class EVaultClient {
      */
     public dispose(): void {
         if (this.isDisposed) return;
-        
+
         this.isDisposed = true;
         this.client = null;
         this.endpoint = null;
         this.tokenInfo = null;
-        
+
         // Close HTTP agents to free connections
         if (this.httpClient.defaults.httpAgent) {
             this.httpClient.defaults.httpAgent.destroy();
@@ -166,36 +177,37 @@ export class EVaultClient {
      */
     private async withRetry<T>(
         operation: () => Promise<T>,
-        maxRetries: number = CONFIG.MAX_RETRIES
+        maxRetries: number = CONFIG.MAX_RETRIES,
     ): Promise<T> {
         let lastError: Error;
-        
+
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
                 return await operation();
             } catch (error) {
                 lastError = error as Error;
-                
+
                 // Don't retry on the last attempt
                 if (attempt === maxRetries) break;
-                
+
                 // Don't retry on certain errors
                 if (error instanceof Error) {
                     const isRetryable = !(
-                        error.message.includes('401') ||
-                        error.message.includes('403') ||
-                        error.message.includes('404')
+                        error.message.includes("401") ||
+                        error.message.includes("403") ||
+                        error.message.includes("404")
                     );
-                    
+
                     if (!isRetryable) break;
                 }
-                
+
                 // Exponential backoff
-                const delay = CONFIG.RETRY_DELAY * Math.pow(2, attempt);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                const delay = CONFIG.RETRY_DELAY * 2 ** attempt;
+                await new Promise((resolve) => setTimeout(resolve, delay));
             }
         }
-        
+
+        // biome-ignore lint/style/noNonNullAssertion: <explanation>
         throw lastError!;
     }
 
@@ -206,19 +218,22 @@ export class EVaultClient {
     private async requestPlatformToken(): Promise<TokenInfo> {
         try {
             const response = await this.httpClient.post<PlatformTokenResponse>(
-                new URL("/platforms/certification", this.registryUrl).toString(),
+                new URL(
+                    "/platforms/certification",
+                    this.registryUrl,
+                ).toString(),
                 { platform: this.platform },
                 {
                     headers: {
                         "Content-Type": "application/json",
                     },
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                }
+                },
             );
-            
+
             const now = Date.now();
-            const expiresAt = response.data.expiresAt || (now + 3600000); // Default 1 hour
-            
+            const expiresAt = response.data.expiresAt || now + 3600000; // Default 1 hour
+
             return {
                 token: response.data.token,
                 expiresAt,
@@ -235,10 +250,10 @@ export class EVaultClient {
      */
     private isTokenExpired(): boolean {
         if (!this.tokenInfo) return true;
-        
+
         const now = Date.now();
         const timeUntilExpiry = this.tokenInfo.expiresAt - now;
-        
+
         return timeUntilExpiry <= CONFIG.TOKEN_REFRESH_THRESHOLD;
     }
 
@@ -259,7 +274,7 @@ export class EVaultClient {
                 new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
                 {
                     timeout: CONFIG.REQUEST_TIMEOUT,
-                }
+                },
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -294,7 +309,7 @@ export class EVaultClient {
                 return null;
             });
             if (!client) return v4();
-            
+
             console.log("sending payload", envelope);
 
             const response = await client
@@ -306,7 +321,7 @@ export class EVaultClient {
                     },
                 })
                 .catch(() => null);
-                
+
             if (!response) return v4();
             return response.storeMetaEnvelope.metaEnvelope.id;
         });
@@ -327,7 +342,7 @@ export class EVaultClient {
                     },
                 })
                 .catch(() => null);
-                
+
             if (!response) {
                 console.error("Failed to store reference");
                 throw new Error("Failed to store reference");
@@ -345,7 +360,7 @@ export class EVaultClient {
                     {
                         id,
                         w3id,
-                    }
+                    },
                 );
                 return response.metaEnvelope;
             } catch (error) {
@@ -357,12 +372,15 @@ export class EVaultClient {
 
     async updateMetaEnvelopeById(
         id: string,
-        envelope: MetaEnvelope
+        envelope: MetaEnvelope,
     ): Promise<void> {
         return this.withRetry(async () => {
             console.log("sending to eVault", envelope.w3id);
-            const client = await this.ensureClient(envelope.w3id).catch(() => null);
-            if (!client) throw new Error("Failed to establish client connection");
+            const client = await this.ensureClient(envelope.w3id).catch(
+                () => null,
+            );
+            if (!client)
+                throw new Error("Failed to establish client connection");
 
             try {
                 const variables = {
@@ -374,10 +392,11 @@ export class EVaultClient {
                     },
                 };
 
-                const response = await client.request<StoreMetaEnvelopeResponse>(
-                    UPDATE_META_ENVELOPE,
-                    variables
-                );
+                const response =
+                    await client.request<StoreMetaEnvelopeResponse>(
+                        UPDATE_META_ENVELOPE,
+                        variables,
+                    );
             } catch (error) {
                 console.error("Error updating meta envelope:", error);
                 throw error;

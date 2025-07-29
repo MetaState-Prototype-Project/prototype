@@ -1,77 +1,77 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { getContext, onMount, type Snippet } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import { onDestroy } from "svelte";
-    import QrCode from "svelte-qrcode";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { type Snippet, getContext, onMount } from "svelte";
+import { onDestroy } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import QrCode from "svelte-qrcode";
 
-    let userData: Record<string, unknown> | undefined = $state(undefined);
-    let greeting: string | undefined = $state(undefined);
-    let ename: string | undefined = $state(undefined);
-    let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
-        $state("idle");
+let userData: Record<string, unknown> | undefined = $state(undefined);
+let greeting: string | undefined = $state(undefined);
+let ename: string | undefined = $state(undefined);
+let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
+    $state("idle");
 
-    let shareQRdrawerOpen = $state(false);
-    let statusInterval: any = $state(undefined);
+let shareQRdrawerOpen = $state(false);
+let statusInterval: ReturnType<typeof setInterval> | undefined =
+    $state(undefined);
 
-    function shareQR() {
-        alert("QR Code shared!");
-        shareQRdrawerOpen = false;
+function shareQR() {
+    alert("QR Code shared!");
+    shareQRdrawerOpen = false;
+}
+
+async function retryProfileCreation() {
+    try {
+        await globalState.vaultController.retryProfileCreation();
+    } catch (error) {
+        console.error("Retry failed:", error);
     }
+}
 
-    async function retryProfileCreation() {
-        try {
-            await globalState.vaultController.retryProfileCreation();
-        } catch (error) {
-            console.error("Retry failed:", error);
-        }
-    }
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+onMount(() => {
+    // Load initial data
+    (async () => {
+        const userInfo = await globalState.userController.user;
+        const isFake = await globalState.userController.isFake;
+        userData = { ...userInfo, isFake };
+        const vaultData = await globalState.vaultController.vault;
+        ename = vaultData?.ename;
+    })();
 
-    onMount(() => {
-        // Load initial data
-        (async () => {
-            const userInfo = await globalState.userController.user;
-            const isFake = await globalState.userController.isFake;
-            userData = { ...userInfo, isFake };
-            const vaultData = await globalState.vaultController.vault;
-            ename = vaultData?.ename;
-        })();
+    // Get initial profile creation status
+    profileCreationStatus = globalState.vaultController.profileCreationStatus;
 
-        // Get initial profile creation status
+    // Set up a watcher for profile creation status changes
+    const checkStatus = () => {
         profileCreationStatus =
             globalState.vaultController.profileCreationStatus;
+    };
 
-        // Set up a watcher for profile creation status changes
-        const checkStatus = () => {
-            profileCreationStatus =
-                globalState.vaultController.profileCreationStatus;
-        };
+    // Check status periodically
+    statusInterval = setInterval(checkStatus, 1000);
 
-        // Check status periodically
-        statusInterval = setInterval(checkStatus, 1000);
+    const currentHour = new Date().getHours();
+    greeting =
+        currentHour > 17
+            ? "Good Evening"
+            : currentHour > 12
+              ? "Good Afternoon"
+              : "Good Morning";
+});
 
-        const currentHour = new Date().getHours();
-        greeting =
-            currentHour > 17
-                ? "Good Evening"
-                : currentHour > 12
-                  ? "Good Afternoon"
-                  : "Good Morning";
-    });
-
-    onDestroy(() => {
-        if (statusInterval) {
-            clearInterval(statusInterval);
-        }
-    });
+onDestroy(() => {
+    if (statusInterval) {
+        clearInterval(statusInterval);
+    }
+});
 </script>
 
 {#if profileCreationStatus === "loading"}
@@ -161,7 +161,7 @@
         <div
             class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
         >
-            <QrCode size="320" value={ename} />
+            <QrCode size={320} value={ename ?? ""} />
         </div>
 
         <h4 class="text-center mt-2">Share your eName</h4>

@@ -14,7 +14,7 @@
 		userId?: string;
 		imgUris: string[];
 		text: string;
-		isLiked: boolean;
+		isLiked?: boolean;
 		count?: {
 			likes: number;
 			comments: number;
@@ -38,7 +38,7 @@
 
 			if (dataPart && chunkPart) {
 				if (dataPart.startsWith('data:')) {
-					result.push(dataPart + ',' + chunkPart);
+					result.push(`${dataPart},${chunkPart}`);
 				} else {
 					result.push(dataPart);
 					result.push(chunkPart);
@@ -62,7 +62,6 @@
 		count,
 		callback,
 		time,
-		options,
 		isLiked,
 		...restProps
 	}: IPostProps = $props();
@@ -124,7 +123,7 @@
 				onscroll={handleScroll}
 				class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 			>
-				{#each imgUris as img}
+				{#each imgUris as img, i (i)}
 					<div class="aspect-[4/5] h-full w-full snap-center md:aspect-[16/9]">
 						<img
 							src={img}
@@ -141,7 +140,8 @@
 				>
 					{#if imgUris.length > 1}
 						<div class="mt-2 flex items-center justify-center gap-1">
-							{#each imgUris as _, i}
+							<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+							{#each imgUris as _, i (i)}
 								<div
 									class={`h-1.5 w-1.5 rounded-full ${currentIndex === i ? 'bg-white' : 'bg-black-600'}`}
 								></div>
@@ -173,7 +173,7 @@
 				>
 					<Like
 						size="24px"
-						color={'var(--color-red-500'}
+						color="var(--color-red-500"
 						fill={isLiked ? 'var(--color-red-500)' : 'white'}
 					/>
 				</button>

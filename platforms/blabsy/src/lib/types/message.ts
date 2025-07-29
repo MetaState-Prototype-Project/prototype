@@ -1,5 +1,9 @@
 import type { Timestamp } from 'firebase/firestore';
-import type { DocumentData, QueryDocumentSnapshot, WithFieldValue } from 'firebase/firestore';
+import type {
+    DocumentData,
+    QueryDocumentSnapshot,
+    WithFieldValue
+} from 'firebase/firestore';
 
 export type Message = {
     id: string;
@@ -22,4 +26,4 @@ export const messageConverter = {
             ...data
         } as Message;
     }
-}; 
+};

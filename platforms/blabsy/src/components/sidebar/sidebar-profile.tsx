@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu } from '@headlessui/react';
 import cn from 'clsx';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 import { useModal } from '@lib/hooks/useModal';
 import { Modal } from '@components/modal/modal';
@@ -13,144 +14,155 @@ import { UserName } from '@components/user/user-name';
 import { UserUsername } from '@components/user/user-username';
 import { variants } from './more-settings';
 import type { User } from '@lib/types/user';
-import { useEffect, useState } from 'react';
 
 export function SidebarProfile(): JSX.Element {
-  const { user, signOut } = useAuth();
-  const { open, openModal, closeModal } = useModal();
+    const { user, signOut } = useAuth();
+    const { open, openModal, closeModal } = useModal();
 
-  let [name, setName] = useState<string>();
-  let [username, setUsername] = useState<string>();
-  let [verified, setVerified] = useState<boolean>();
-  let [photoURL, setPhotoUrl] = useState<string>();
+    const [name, setName] = useState<string>();
+    const [username, setUsername] = useState<string>();
+    const [verified, setVerified] = useState<boolean>();
+    const [photoURL, setPhotoUrl] = useState<string>();
 
-  useEffect(() => {
-  if (user ) {
-    const { name, username, verified, photoURL } = user as User;
-    setName(name);
-    setUsername(username);
-    setVerified(verified);
-    setPhotoUrl(photoURL);
-  }}, [user]);
+    useEffect(() => {
+        if (user) {
+            const { name, username, verified, photoURL } = user;
+            setName(name);
+            setUsername(username);
+            setVerified(verified);
+            setPhotoUrl(photoURL);
+        }
+    }, [user]);
 
-  return (
-      <>
-          <Modal
-              modalClassName='max-w-xs bg-main-background w-full p-8 rounded-2xl'
-              open={open}
-              closeModal={closeModal}
-          >
-              <ActionModal
-                  useIcon
-                  focusOnMainBtn
-                  title='Log out of Blabsy?'
-                  description='You can always log back in at any time. If you just want to switch accounts, you can do that by adding an existing account.'
-                  mainBtnLabel='Log out'
-                  action={signOut}
-                  closeModal={closeModal}
-              />
-          </Modal>
-          <Menu className='relative' as='section'>
-              {({ open }): JSX.Element => (
-                  <>
-                      <Menu.Button
-                          className={cn(
-                              `custom-button main-tab dark-bg-tab flex w-full items-center
+    return (
+        <>
+            <Modal
+                modalClassName='max-w-xs bg-main-background w-full p-8 rounded-2xl'
+                open={open}
+                closeModal={closeModal}
+            >
+                <ActionModal
+                    useIcon
+                    focusOnMainBtn
+                    title='Log out of Blabsy?'
+                    description='You can always log back in at any time. If you just want to switch accounts, you can do that by adding an existing account.'
+                    mainBtnLabel='Log out'
+                    action={signOut}
+                    closeModal={closeModal}
+                />
+            </Modal>
+            <Menu className='relative' as='section'>
+                {({ open }): JSX.Element => (
+                    <>
+                        <Menu.Button
+                            className={cn(
+                                `custom-button main-tab dark-bg-tab flex w-full items-center
                  justify-between hover:bg-light-primary/10 active:bg-light-primary/20
                  dark:hover:bg-dark-primary/10 dark:active:bg-dark-primary/20`,
-                              open &&
-                                  'bg-light-primary/10 dark:bg-dark-primary/10'
-                          )}
-                      >
-                          <div className='flex gap-3 truncate'>
-                              <UserAvatar src={photoURL || '/assets/twitter-avatar.jpg'} alt={name || 'User'} size={40} />
-                              <div className='hidden truncate text-start leading-5 xl:block'>
-                                  <UserName
-                                      name={name || 'User'}
-                                      className='start'
-                                      verified={verified || false}
-                                  />
-                                  <UserUsername
-                                      username={username || 'user'}
-                                      disableLink
-                                  />
-                              </div>
-                          </div>
-                          <HeroIcon
-                              className='hidden h-6 w-6 xl:block'
-                              iconName='EllipsisHorizontalIcon'
-                          />
-                      </Menu.Button>
-                      <AnimatePresence>
-                          {open && (
-                              <Menu.Items
-                                  className='menu-container absolute left-0 right-0 -top-36 w-60 xl:w-full'
-                                  as={motion.div}
-                                  {...variants}
-                                  static
-                              >
-                                  <Menu.Item
-                                      className='flex items-center justify-between gap-4 border-b
+                                open &&
+                                    'bg-light-primary/10 dark:bg-dark-primary/10'
+                            )}
+                        >
+                            <div className='flex gap-3 truncate'>
+                                <UserAvatar
+                                    src={
+                                        photoURL || '/assets/twitter-avatar.jpg'
+                                    }
+                                    alt={name || 'User'}
+                                    size={40}
+                                />
+                                <div className='hidden truncate text-start leading-5 xl:block'>
+                                    <UserName
+                                        name={name || 'User'}
+                                        className='start'
+                                        verified={verified || false}
+                                    />
+                                    <UserUsername
+                                        username={username || 'user'}
+                                        disableLink
+                                    />
+                                </div>
+                            </div>
+                            <HeroIcon
+                                className='hidden h-6 w-6 xl:block'
+                                iconName='EllipsisHorizontalIcon'
+                            />
+                        </Menu.Button>
+                        <AnimatePresence>
+                            {open && (
+                                <Menu.Items
+                                    className='menu-container absolute left-0 right-0 -top-36 w-60 xl:w-full'
+                                    as={motion.div}
+                                    {...variants}
+                                    static
+                                >
+                                    <Menu.Item
+                                        className='flex items-center justify-between gap-4 border-b
                                border-light-border px-4 py-3 dark:border-dark-border'
-                                      as='div'
-                                      disabled
-                                  >
-                                      <div className='flex items-center gap-3 truncate'>
-                                          <UserAvatar
-                                              src={photoURL || '/assets/twitter-avatar.jpg'}
-                                              alt={name || 'User'}
-                                          />
-                                          <div className='truncate'>
-                                              <UserName
-                                                  name={name || 'User'}
-                                                  className='start'
-                                                  verified={verified || false}
-                                              />
-                                              <UserUsername
-                                                  username={username || 'user'}
-                                                  disableLink
-                                              />
-                                          </div>
-                                      </div>
-                                      <i>
-                                          <HeroIcon
-                                              className='h-5 w-5 text-main-accent'
-                                              iconName='CheckIcon'
-                                          />
-                                      </i>
-                                  </Menu.Item>
-                                  <Menu.Item>
-                                      {({ active }): JSX.Element => (
-                                          <Button
-                                              className={cn(
-                                                  'flex w-full gap-3 rounded-md rounded-t-none p-4',
-                                                  active &&
-                                                      'bg-main-sidebar-background'
-                                              )}
-                                              onClick={openModal}
-                                          >
-                                              <HeroIcon iconName='ArrowRightOnRectangleIcon' />
-                                              Log out @{username || 'user'}
-                                          </Button>
-                                      )}
-                                  </Menu.Item>
-                                  <i
-                                      className='absolute -bottom-[10px] left-2 translate-x-1/2 rotate-180
+                                        as='div'
+                                        disabled
+                                    >
+                                        <div className='flex items-center gap-3 truncate'>
+                                            <UserAvatar
+                                                src={
+                                                    photoURL ||
+                                                    '/assets/twitter-avatar.jpg'
+                                                }
+                                                alt={name || 'User'}
+                                            />
+                                            <div className='truncate'>
+                                                <UserName
+                                                    name={name || 'User'}
+                                                    className='start'
+                                                    verified={verified || false}
+                                                />
+                                                <UserUsername
+                                                    username={
+                                                        username || 'user'
+                                                    }
+                                                    disableLink
+                                                />
+                                            </div>
+                                        </div>
+                                        <i>
+                                            <HeroIcon
+                                                className='h-5 w-5 text-main-accent'
+                                                iconName='CheckIcon'
+                                            />
+                                        </i>
+                                    </Menu.Item>
+                                    <Menu.Item>
+                                        {({ active }): JSX.Element => (
+                                            <Button
+                                                className={cn(
+                                                    'flex w-full gap-3 rounded-md rounded-t-none p-4',
+                                                    active &&
+                                                        'bg-main-sidebar-background'
+                                                )}
+                                                onClick={openModal}
+                                            >
+                                                <HeroIcon iconName='ArrowRightOnRectangleIcon' />
+                                                Log out @{username || 'user'}
+                                            </Button>
+                                        )}
+                                    </Menu.Item>
+                                    <i
+                                        className='absolute -bottom-[10px] left-2 translate-x-1/2 rotate-180
                                [filter:drop-shadow(#cfd9de_1px_-1px_1px)]
                                dark:[filter:drop-shadow(#333639_1px_-1px_1px)]
                                xl:left-1/2 xl:-translate-x-1/2'
-                                  >
-                                      <CustomIcon
-                                          className='h-4 w-6 fill-main-background'
-                                          iconName='TriangleIcon'
-                                      />
-                                  </i>
-                              </Menu.Items>
-                          )}
-                      </AnimatePresence>
-                  </>
-              )}
-          </Menu>
-      </>
-  );
+                                    >
+                                        <CustomIcon
+                                            className='h-4 w-6 fill-main-background'
+                                            iconName='TriangleIcon'
+                                        />
+                                    </i>
+                                </Menu.Items>
+                            )}
+                        </AnimatePresence>
+                    </>
+                )}
+            </Menu>
+        </>
+    );
 }

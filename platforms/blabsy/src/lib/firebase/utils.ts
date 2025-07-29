@@ -193,10 +193,10 @@ export async function manageTotalPhotos(
 
 export async function ensureUserStatsExists(userId: string): Promise<void> {
     const userStatsRef = doc(userStatsCollection(userId), 'stats');
-    
+
     // Check if the stats document exists
     const statsDoc = await getDoc(userStatsRef);
-    
+
     if (!statsDoc.exists()) {
         // Create the stats document with default values
         const defaultStatsData: WithFieldValue<Stats> = {
@@ -204,7 +204,7 @@ export async function ensureUserStatsExists(userId: string): Promise<void> {
             tweets: [],
             updatedAt: serverTimestamp()
         };
-        
+
         await setDoc(userStatsRef, defaultStatsData);
         console.log(`Created stats document for user ${userId}`);
     }
@@ -229,19 +229,27 @@ export function manageRetweet(
                 userRetweets: arrayUnion(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                tweets: arrayUnion(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    tweets: arrayUnion(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         } else {
             batch.update(tweetRef, {
                 userRetweets: arrayRemove(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                tweets: arrayRemove(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    tweets: arrayRemove(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         }
 
         await batch.commit();
@@ -267,19 +275,27 @@ export function manageLike(
                 userLikes: arrayUnion(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                likes: arrayUnion(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    likes: arrayUnion(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         } else {
             batch.update(tweetRef, {
                 userLikes: arrayRemove(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                likes: arrayRemove(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    likes: arrayRemove(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         }
 
         await batch.commit();
@@ -465,9 +481,7 @@ export async function getOrCreateDirectChat(
 
     for (const doc of existingChats.docs) {
         const chat = doc.data();
-        if (chat.participants.includes(targetUserId)) {
-            return doc.id;
-        }
+        if (chat.participants.includes(targetUserId)) return doc.id;
     }
 
     // If no existing chat, create a new one

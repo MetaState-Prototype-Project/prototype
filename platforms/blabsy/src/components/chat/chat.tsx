@@ -14,4 +14,4 @@ export function Chat(): JSX.Element {
             </div>
         </main>
     );
-} 
+}

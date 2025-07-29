@@ -55,14 +55,10 @@ export class UserController {
      * @throws {Error} If the user state cannot be set in the store
      */
 
-
-
-    set user(
-        user:
-            | Promise<Record<string, string> | undefined>
-            | Record<string, string>
-            | undefined,
-    ) {
+    set user(user:
+        | Promise<Record<string, string> | undefined>
+        | Record<string, string>
+        | undefined) {
         if (user instanceof Promise) {
             user.then((resolvedUser) => {
                 this.#store.set("user", resolvedUser);
@@ -89,13 +85,7 @@ export class UserController {
             });
     }
 
-
-    set isFake(
-        f:
-            | Promise<boolean| undefined>
-            | boolean
-            | undefined,
-    ) {
+    set isFake(f: Promise<boolean | undefined> | boolean | undefined) {
         if (f instanceof Promise) {
             f.then((resolved) => {
                 this.#store.set("fake", resolved);
@@ -122,12 +112,10 @@ export class UserController {
             });
     }
 
-    set document(
-        document:
-            | Promise<Record<string, string> | undefined>
-            | Record<string, string>
-            | undefined,
-    ) {
+    set document(document:
+        | Promise<Record<string, string> | undefined>
+        | Record<string, string>
+        | undefined) {
         if (document instanceof Promise) {
             document
                 .then((resolvedDoc) => {

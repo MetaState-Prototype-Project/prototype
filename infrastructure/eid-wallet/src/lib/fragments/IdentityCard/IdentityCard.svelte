@@ -1,47 +1,47 @@
 <script lang="ts">
-    import * as Button from "$lib/ui/Button";
-    import { cn } from "$lib/utils";
-    import {
-        CheckmarkBadge02Icon,
-        Upload03Icon,
-        ViewIcon,
-    } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import type { HTMLAttributes } from "svelte/elements";
+import * as Button from "$lib/ui/Button";
+import { cn } from "$lib/utils";
+import {
+    CheckmarkBadge02Icon,
+    Upload03Icon,
+    ViewIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface userData {
-        [fieldName: string]: string;
-    }
-    interface IIdentityCard extends HTMLAttributes<HTMLElement> {
-        variant?: "eName" | "ePassport" | "eVault";
-        userId?: string;
-        viewBtn?: () => void;
-        shareBtn?: () => void;
-        userData?: userData;
-        totalStorage?: number;
-        usedStorage?: number;
-    }
+interface userData {
+    [fieldName: string]: string | boolean | undefined;
+}
+interface IIdentityCard extends HTMLAttributes<HTMLElement> {
+    variant?: "eName" | "ePassport" | "eVault";
+    userId?: string;
+    viewBtn?: () => void;
+    shareBtn?: () => void;
+    userData?: userData;
+    totalStorage?: number;
+    usedStorage?: number;
+}
 
-    const {
-        variant = "eName",
-        userId,
-        viewBtn,
-        shareBtn,
-        userData,
-        totalStorage = 0,
-        usedStorage = 0,
-        ...restProps
-    }: IIdentityCard = $props();
-    const state = $state({
-        progressWidth: "0%",
-    });
+const {
+    variant = "eName",
+    userId,
+    viewBtn,
+    shareBtn,
+    userData,
+    totalStorage = 0,
+    usedStorage = 0,
+    ...restProps
+}: IIdentityCard = $props();
+const state = $state({
+    progressWidth: "0%",
+});
 
-    $effect(() => {
-        state.progressWidth =
-            usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
-    });
+$effect(() => {
+    state.progressWidth =
+        usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
+});
 
-    const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden`;
+const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden`;
 </script>
 
 <div {...restProps} class={cn(baseClasses, restProps.class)}>
