@@ -1,18 +1,16 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-        import {
-        getCurrent
-    } from '@tauri-apps/plugin-deep-link'
-    import { type Snippet, getContext, onMount } from "svelte";
-    import { onDestroy } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import QrCode from "svelte-qrcode";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { getCurrent } from "@tauri-apps/plugin-deep-link";
+import { type Snippet, getContext, onMount } from "svelte";
+import { onDestroy } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import QrCode from "svelte-qrcode";
 
 let userData: Record<string, unknown> | undefined = $state(undefined);
 let greeting: string | undefined = $state(undefined);
@@ -39,7 +37,7 @@ async function retryProfileCreation() {
 
 const globalState = getContext<() => GlobalState>("globalState")();
 
-onMount(() => {
+onMount(async () => {
     // Load initial data
     (async () => {
         const userInfo = await globalState.userController.user;
@@ -59,35 +57,14 @@ onMount(() => {
             ename = vaultData?.ename;
         })();
 
-    // Set up a watcher for profile creation status changes
-    const checkStatus = () => {
-        profileCreationStatus =
-            globalState.vaultController.profileCreationStatus;
-    };
+        // Set up a watcher for profile creation status changes
+        const checkStatus = () => {
+            profileCreationStatus =
+                globalState.vaultController.profileCreationStatus;
+        };
 
-    // Check status periodically
-    statusInterval = setInterval(checkStatus, 1000);
-
-    const currentHour = new Date().getHours();
-    greeting =
-        currentHour > 17
-            ? "Good Evening"
-            : currentHour > 12
-              ? "Good Afternoon"
-              : "Good Morning";
-});
-
-        const urls = await getCurrent()
-        if (urls && urls.length > 0) {
-            const url = urls[0]
-            const [scheme, ...rest] = url.split("://")
-            const deeplink = rest.join("://")
-            console.log("URL", scheme, deeplink)
-            if (scheme !== "w3ds") {
-                console.error("unsupported url scheme")
-            }
-            goto(`/scan-qr?${deeplink}`)
-        }
+        // Check status periodically
+        statusInterval = setInterval(checkStatus, 1000);
 
         const currentHour = new Date().getHours();
         greeting =
@@ -98,11 +75,32 @@ onMount(() => {
                   : "Good Morning";
     });
 
-    onDestroy(() => {
-        if (statusInterval) {
-            clearInterval(statusInterval);
+    const urls = await getCurrent();
+    if (urls && urls.length > 0) {
+        const url = urls[0];
+        const [scheme, ...rest] = url.split("://");
+        const deeplink = rest.join("://");
+        console.log("URL", scheme, deeplink);
+        if (scheme !== "w3ds") {
+            console.error("unsupported url scheme");
         }
-    });
+        goto(`/scan-qr?${deeplink}`);
+    }
+
+    const currentHour = new Date().getHours();
+    greeting =
+        currentHour > 17
+            ? "Good Evening"
+            : currentHour > 12
+              ? "Good Afternoon"
+              : "Good Morning";
+});
+
+onDestroy(() => {
+    if (statusInterval) {
+        clearInterval(statusInterval);
+    }
+});
 </script>
 
 {#if profileCreationStatus === "loading"}
