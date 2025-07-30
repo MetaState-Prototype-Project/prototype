@@ -1,91 +1,91 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { getCurrent } from "@tauri-apps/plugin-deep-link";
-    import { type Snippet, getContext, onMount } from "svelte";
-    import { onDestroy } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import QrCode from "svelte-qrcode";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { getCurrent } from "@tauri-apps/plugin-deep-link";
+import { type Snippet, getContext, onMount } from "svelte";
+import { onDestroy } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import QrCode from "svelte-qrcode";
 
-    let userData: Record<string, unknown> | undefined = $state(undefined);
-    let greeting: string | undefined = $state(undefined);
-    let ename: string | undefined = $state(undefined);
-    let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
-        $state("idle");
+let userData: Record<string, unknown> | undefined = $state(undefined);
+let greeting: string | undefined = $state(undefined);
+let ename: string | undefined = $state(undefined);
+let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
+    $state("idle");
 
-    let shareQRdrawerOpen = $state(false);
-    let statusInterval: ReturnType<typeof setInterval> | undefined =
-        $state(undefined);
+let shareQRdrawerOpen = $state(false);
+let statusInterval: ReturnType<typeof setInterval> | undefined =
+    $state(undefined);
 
-    function shareQR() {
-        alert("QR Code shared!");
-        shareQRdrawerOpen = false;
+function shareQR() {
+    alert("QR Code shared!");
+    shareQRdrawerOpen = false;
+}
+
+async function retryProfileCreation() {
+    try {
+        await globalState.vaultController.retryProfileCreation();
+    } catch (error) {
+        console.error("Retry failed:", error);
     }
+}
 
-    async function retryProfileCreation() {
+const globalState = getContext<() => GlobalState>("globalState")();
+
+onMount(async () => {
+    // Load initial data
+    (async () => {
+        const userInfo = await globalState.userController.user;
+        const isFake = await globalState.userController.isFake;
+        userData = { ...userInfo, isFake };
+        const vaultData = await globalState.vaultController.vault;
+        ename = vaultData?.ename;
+    })();
+
+    // Set up a watcher for profile creation status changes
+    const checkStatus = () => {
+        profileCreationStatus =
+            globalState.vaultController.profileCreationStatus;
+    };
+
+    // Check status periodically
+    statusInterval = setInterval(checkStatus, 1000);
+
+    const urls = await getCurrent();
+    if (urls && urls.length > 0) {
         try {
-            await globalState.vaultController.retryProfileCreation();
+            const url = urls[0];
+            const [scheme, ...rest] = url.split("://");
+            const deeplink = rest.join("://");
+            console.log("URL", scheme, deeplink);
+            if (scheme !== "w3ds") {
+                console.error("unsupported url scheme");
+            }
+            goto(`/scan-qr?${deeplink}`);
         } catch (error) {
-            console.error("Retry failed:", error);
+            console.error("Error processing deep link:", error);
         }
     }
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+    const currentHour = new Date().getHours();
+    greeting =
+        currentHour > 17
+            ? "Good Evening"
+            : currentHour > 12
+              ? "Good Afternoon"
+              : "Good Morning";
+});
 
-    onMount(async () => {
-        // Load initial data
-        (async () => {
-            const userInfo = await globalState.userController.user;
-            const isFake = await globalState.userController.isFake;
-            userData = { ...userInfo, isFake };
-            const vaultData = await globalState.vaultController.vault;
-            ename = vaultData?.ename;
-        })();
-
-        // Set up a watcher for profile creation status changes
-        const checkStatus = () => {
-            profileCreationStatus =
-                globalState.vaultController.profileCreationStatus;
-        };
-
-        // Check status periodically
-        statusInterval = setInterval(checkStatus, 1000);
-
-        const urls = await getCurrent();
-        if (urls && urls.length > 0) {
-            try {
-                const url = urls[0];
-                const [scheme, ...rest] = url.split("://");
-                const deeplink = rest.join("://");
-                console.log("URL", scheme, deeplink);
-                if (scheme !== "w3ds") {
-                    console.error("unsupported url scheme");
-                }
-                goto(`/scan-qr?${deeplink}`);
-            } catch (error) {
-                console.error("Error processing deep link:", error);
-            }
-        }
-
-        const currentHour = new Date().getHours();
-        greeting =
-            currentHour > 17
-                ? "Good Evening"
-                : currentHour > 12
-                  ? "Good Afternoon"
-                  : "Good Morning";
-    });
-
-    onDestroy(() => {
-        if (statusInterval) {
-            clearInterval(statusInterval);
-        }
-    });
+onDestroy(() => {
+    if (statusInterval) {
+        clearInterval(statusInterval);
+    }
+});
 </script>
 
 {#if profileCreationStatus === "loading"}
