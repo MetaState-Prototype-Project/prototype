@@ -121,7 +121,7 @@ onMount(async () => {
             break;
         }
     }
-    startScan();
+    if (!codeScannedDrawerOpen) startScan();
 });
 
 onDestroy(async () => {
