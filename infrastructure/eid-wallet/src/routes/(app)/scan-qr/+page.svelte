@@ -29,9 +29,9 @@ const pathProps: SVGAttributes<SVGPathElement> = {
     "stroke-linejoin": "round",
 };
 
-let platform = $state();
-let hostname = $state();
-let session = $state();
+let platform = $state<string | null>();
+let hostname = $state<string | null>();
+let session = $state<string | null>();
 let codeScannedDrawerOpen = $state(false);
 let loggedInDrawerOpen = $state(false);
 let scannedData: Scanned | undefined = $state(undefined);
@@ -111,11 +111,36 @@ onMount(async () => {
             platform = params.get("platform");
             session = params.get("session");
             redirect = params.get("redirect");
+            hostname = new URL(redirect as string).hostname;
             if (!redirect || !platform || !session) {
                 console.error("Bad deeplink!");
                 break;
             }
-            hostname = new URL(redirect as string).hostname;
+            // Validate platform name
+            if (!/^[a-zA-Z0-9-_.]+$/.test(platform)) {
+                console.error("Invalid platform name format");
+                return;
+            }
+
+            // Validate session format (UUID)
+            if (
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                    session,
+                )
+            ) {
+                console.error("Invalid session format");
+                return;
+            }
+
+            // Validate redirect URL domain
+            if (
+                /^(?=.{1,253}$)(?!\-)([a-zA-Z0-9\-]{1,63}(?<!\-)\.)+[a-zA-Z]{2,}$/.test(
+                    hostname,
+                )
+            ) {
+                console.error("Invalid redirect URL format.");
+                return;
+            }
             codeScannedDrawerOpen = true;
             scanning = false;
             break;
