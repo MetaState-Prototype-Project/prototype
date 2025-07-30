@@ -1,0 +1,338 @@
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar-background);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+
+    @keyframes accordion-down {
+        from {
+            height: 0;
+        }
+        to {
+            height: var(--radix-accordion-content-height);
+        }
+    }
+    @keyframes accordion-up {
+        from {
+            height: var(--radix-accordion-content-height);
+        }
+        to {
+            height: 0;
+        }
+    }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+}
+
+@utility btn-primary {
+    @apply bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+}
+
+@utility btn-secondary {
+    @apply bg-white text-(--crimson) border-2 border-(--crimson) hover:bg-(--crimson-50) font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+}
+
+@utility card {
+    @apply bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow;
+}
+
+@utility crimson-gradient {
+    background: linear-gradient(135deg, var(--crimson-500), var(--crimson-700));
+}
+
+@layer utilities {
+    :root {
+        --background: hsl(0, 0%, 100%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(240, 10%, 3.9%);
+        --popover: hsl(0, 0%, 100%);
+        --popover-foreground: hsl(240, 10%, 3.9%);
+        --primary: hsl(348, 83%, 47%);
+        --primary-foreground: hsl(0, 0%, 98%);
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --muted: hsl(240, 4.8%, 95.9%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+        --accent: hsl(240, 4.8%, 95.9%);
+        --accent-foreground: hsl(240, 5.9%, 10%);
+        --destructive: hsl(0, 84.2%, 60.2%);
+        --destructive-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 5.9%, 90%);
+        --input: hsl(240, 5.9%, 90%);
+        --ring: hsl(348, 83%, 47%);
+        --radius: 0.5rem;
+        --crimson: hsl(348, 83%, 47%);
+        --crimson-50: hsl(348, 100%, 90%);
+        --crimson-100: hsl(348, 100%, 93%);
+        --crimson-200: hsl(348, 96%, 85%);
+        --crimson-300: hsl(348, 94%, 73%);
+        --crimson-400: hsl(348, 91%, 60%);
+        --crimson-500: hsl(348, 83%, 47%);
+        --crimson-600: hsl(348, 83%, 47%);
+        --crimson-700: hsl(348, 70%, 41%);
+        --crimson-800: hsl(348, 70%, 34%);
+        --crimson-900: hsl(348, 70%, 28%);
+    }
+
+    .dark {
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --card: hsl(240, 10%, 3.9%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --popover: hsl(240, 10%, 3.9%);
+        --popover-foreground: hsl(0, 0%, 98%);
+        --primary: hsl(348, 83%, 47%);
+        --primary-foreground: hsl(0, 0%, 98%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --secondary-foreground: hsl(0, 0%, 98%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+        --accent: hsl(240, 3.7%, 15.9%);
+        --accent-foreground: hsl(0, 0%, 98%);
+        --destructive: hsl(0, 62.8%, 30.6%);
+        --destructive-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 3.7%, 15.9%);
+        --input: hsl(240, 3.7%, 15.9%);
+        --ring: hsl(348, 83%, 47%);
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+@layer components {
+    /* Custom styling for datetime-local calendar icon */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+        background-color: white;
+        border: 1px solid var(--crimson);
+        border-radius: 4px;
+        color: var(--crimson);
+        cursor: pointer;
+        padding: 4px;
+        width: 24px;
+        height: 24px;
+        opacity: 1;
+        filter: invert(26%) sepia(100%) saturate(4292%) hue-rotate(347deg)
+            brightness(85%) contrast(91%);
+    }
+
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+        background-color: var(--crimson);
+        filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg)
+            brightness(100%) contrast(100%);
+    }
+}
+
+/* Custom calendar styling */
+input[type="datetime-local"]::-webkit-datetime-edit-text,
+input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
+    color: var(--crimson);
+}
+
+input[type="datetime-local"]:focus {
+    border-color: var(--crimson) !important;
+    box-shadow: 0 0 0 2px var(--crimson-50) !important;
+}
+
+/* Style calendar popup dates - target the actual calendar dropdown */
+input[type="datetime-local"]::-webkit-inner-spin-button {
+    display: none;
+}
+
+/* Calendar icon button styling to match Add Option button */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    background-color: var(--crimson-50) !important;
+    border: 2px solid var(--crimson) !important;
+    border-radius: 4px !important;
+    color: var(--crimson) !important;
+    padding: 4px 6px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    filter: none !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
+
+/* Make sure the datetime-local input has relative positioning */
+input[type="datetime-local"] {
+    position: relative !important;
+    padding-right: 40px !important;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    background-color: hsl(0, 48%, 95%) !important;
+    transform: scale(1.02) !important;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:focus {
+    background-color: var(--crimson-50) !important;
+    border-color: var(--crimson) !important;
+    outline: none !important;
+}
+
+/* Target webkit calendar popup specifically */
+::-webkit-calendar-picker-indicator {
+    accent-color: var(--crimson) !important;
+}
+
+/* Style all date/time inputs to use red accent color */
+input[type="datetime-local"] {
+    accent-color: var(--crimson) !important;
+    color-scheme: light;
+}
+
+/* Target the calendar dropdown and time selectors */
+input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+    background: transparent;
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-text {
+    color: var(--crimson);
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit-month-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-day-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-year-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-hour-field:focus,
+input[type="datetime-local"]::-webkit-datetime-edit-minute-field:focus {
+    background-color: var(--crimson) !important;
+    color: white !important;
+    border-radius: 4px !important;
+}
+
+/* Global accent color override for all form elements */
+* {
+    accent-color: var(--crimson) !important;
+}
+
+/* Button hover fix - use very specific CSS selectors */
+/* Base button styles */
+button {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Red button styling with maximum specificity */
+button.bg-\[--crimson\],
+.bg-\[--crimson\] {
+    background-color: var(--crimson) !important;
+    color: white !important;
+}
+
+/* Red button hover with maximum specificity - this should override everything */
+button.bg-\[--crimson\]:hover,
+.bg-\[--crimson\]:hover,
+button:hover.bg-\[--crimson\],
+button.bg-\[--crimson\]:hover:not(:disabled),
+.bg-\[--crimson\]:hover:not(:disabled) {
+    background-color: var(--crimson-50) !important;
+    color: var(--crimson) !important;
+    border-color: var(--crimson) !important;
+}
+
+/* Outline button hover */
+button[class*="outline"]:hover:not(:disabled) {
+    border-color: var(--crimson) !important;
+    color: var(--crimson) !important;
+    background-color: var(--crimson-50) !important;
+}
+
+/* Super specific override for all red buttons */
+button.inline-flex.items-center.justify-center.bg-\[--crimson\]:hover,
+.inline-flex.items-center.justify-center.bg-\[--crimson\]:hover,
+button:hover[class*="bg-[--crimson]"],
+button[class*="bg-[--crimson]"]:hover {
+    background-color: var(--crimson-50) !important;
+    color: var(--crimson) !important;
+    border-color: var(--crimson) !important;
+}
