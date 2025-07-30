@@ -11,11 +11,11 @@ import {
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
-import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
 import { MemberList } from './member-list';
 import { GroupSettings } from './group-settings';
 import { AddMembers } from './add-members';
+import { User } from '@lib/types/user';
 
 function MessageItem({
     message,
@@ -73,9 +73,7 @@ export function ChatWindow(): JSX.Element {
     );
 
     useEffect(() => {
-        if (!otherParticipant) {
-            return;
-        }
+        if (!otherParticipant) return;
 
         const fetchUserData = async (): Promise<void> => {
             try {
@@ -104,15 +102,12 @@ export function ChatWindow(): JSX.Element {
     }, [currentChat]);
 
     useEffect(() => {
-        if (messagesEndRef.current) {
+        if (messagesEndRef.current)
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
     }, [messages]);
 
     useEffect(() => {
-        if (!currentChat || !user) {
-            return;
-        }
+        if (!currentChat || !user) return;
 
         const unreadMessages = messages?.filter(
             (message) =>
@@ -124,8 +119,7 @@ export function ChatWindow(): JSX.Element {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
             );
-        }
-    }, [currentChat, messages, user, markAsRead]);
+    }});
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();

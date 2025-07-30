@@ -1,5 +1,4 @@
 import { useWindow } from '@lib/context/window-context';
-import { SearchBar } from './search-bar';
 import { AsideFooter } from './aside-footer';
 import type { ReactNode } from 'react';
 

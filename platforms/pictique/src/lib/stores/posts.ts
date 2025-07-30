@@ -1,31 +1,6 @@
-import { writable } from 'svelte/store';
+import type { Post } from '$lib/types';
 import { apiClient } from '$lib/utils/axios';
-import { goto } from '$app/navigation';
-
-export interface Post {
-	id: string;
-	text: string;
-	images: string[];
-	author: {
-		id: string;
-		handle: string;
-		name: string;
-		avatarUrl: string;
-	};
-	createdAt: string;
-	likedBy: string[];
-	comments: {
-		id: string;
-		text: string;
-		author: {
-			id: string;
-			handle: string;
-			name: string;
-			avatarUrl: string;
-		};
-		createdAt: string;
-	}[];
-}
+import { writable } from 'svelte/store';
 
 export const posts = writable<Post[]>([]);
 export const isLoading = writable(false);

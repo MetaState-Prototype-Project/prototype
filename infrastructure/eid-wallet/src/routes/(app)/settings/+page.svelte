@@ -1,47 +1,47 @@
 <script lang="ts">
-    import { SettingsNavigationBtn } from "$lib/fragments";
-    import { runtime } from "$lib/global/runtime.svelte";
-    import {
-        Key01Icon,
-        LanguageSquareIcon,
-        Link02Icon,
-        PinCodeIcon,
-        Shield01Icon,
-    } from "@hugeicons/core-free-icons";
-    import { ButtonAction, Drawer } from "$lib/ui";
-    import { getContext } from "svelte";
-    import type { GlobalState } from "$lib/global";
-    import { goto } from "$app/navigation";
+import { goto } from "$app/navigation";
+import { SettingsNavigationBtn } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { runtime } from "$lib/global/runtime.svelte";
+import { ButtonAction, Drawer } from "$lib/ui";
+import {
+    Key01Icon,
+    LanguageSquareIcon,
+    Link02Icon,
+    PinCodeIcon,
+    Shield01Icon,
+} from "@hugeicons/core-free-icons";
+import { getContext } from "svelte";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    let isDeleteConfirmationOpen = $state(false);
-    let isFinalConfirmationOpen = $state(false);
+let isDeleteConfirmationOpen = $state(false);
+let isFinalConfirmationOpen = $state(false);
 
-    function showDeleteConfirmation() {
-        isDeleteConfirmationOpen = true;
-    }
+function showDeleteConfirmation() {
+    isDeleteConfirmationOpen = true;
+}
 
-    function confirmDelete() {
-        isDeleteConfirmationOpen = false;
-        isFinalConfirmationOpen = true;
-    }
+function confirmDelete() {
+    isDeleteConfirmationOpen = false;
+    isFinalConfirmationOpen = true;
+}
 
-    function nukeWallet() {
-        globalState.userController.user = undefined;
-        globalState.securityController.clearPin();
-        isFinalConfirmationOpen = false;
-        goto("/onboarding");
-    }
+function nukeWallet() {
+    globalState.userController.user = undefined;
+    globalState.securityController.clearPin();
+    isFinalConfirmationOpen = false;
+    goto("/onboarding");
+}
 
-    function cancelDelete() {
-        isDeleteConfirmationOpen = false;
-        isFinalConfirmationOpen = false;
-    }
+function cancelDelete() {
+    isDeleteConfirmationOpen = false;
+    isFinalConfirmationOpen = false;
+}
 
-    $effect(() => {
-        runtime.header.title = "Settings";
-    });
+$effect(() => {
+    runtime.header.title = "Settings";
+});
 </script>
 
 <main>

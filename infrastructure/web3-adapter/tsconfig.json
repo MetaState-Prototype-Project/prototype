@@ -3,9 +3,7 @@
         "target": "ES2021",
         "module": "NodeNext",
         "moduleResolution": "node",
-        "lib": [
-            "ES2020"
-        ],
+        "lib": ["ES2020"],
         "declaration": true,
         "outDir": "./dist",
         "rootDir": "./src",
@@ -14,12 +12,6 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "**/*.test.ts"
-    ]
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

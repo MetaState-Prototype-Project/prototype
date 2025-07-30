@@ -1,27 +1,24 @@
 <script lang="ts">
-    import { AppNav, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import * as Button from "$lib/ui/Button";
-    import { Share05Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { getContext, onMount } from "svelte";
+import { AppNav, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { getContext, onMount } from "svelte";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    function shareEPassport() {
-        alert("EPassport Code shared!");
-    }
+function shareEPassport() {
+    alert("EPassport Code shared!");
+}
 
-    let userData: Record<string, unknown>;
-    let docData: Record<string, unknown> = {};
+let userData: Record<string, string | boolean | undefined>;
+let docData: Record<string, unknown> = {};
 
-    onMount(async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        docData = await globalState.userController.document;
-        userData = { ...userInfo, isFake };
-        console.log("loggg", userData);
-    });
+onMount(async () => {
+    const userInfo = await globalState.userController.user;
+    const isFake = await globalState.userController.isFake;
+    docData = (await globalState.userController.document) ?? {};
+    userData = { ...userInfo, isFake };
+    console.log("loggg", userData);
+});
 </script>
 
 <AppNav title="ePassport" class="mb-8" />

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { Home, CommentsTwo, Search, Settings } from '$lib/icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { CommentsTwo, Home, Search, Settings } from '$lib/icons';
 	import Button from '$lib/ui/Button/Button.svelte';
 	import { cn, getAuthId } from '$lib/utils';
+	import type { HTMLAttributes } from 'svelte/elements';
 
 	let ownerId: string | null = $state(null);
 
@@ -42,7 +42,6 @@
 		'hidden h-screen border border-y-0 border-e-gray-200 py-14 md:flex md:justify-center';
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <nav
 	{...restProps}
 	aria-label="Main navigation"

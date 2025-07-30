@@ -32,6 +32,31 @@ export type PostData = {
 	};
 };
 
+export interface Post {
+	id: string;
+	text: string;
+	images: string[];
+	author: {
+		id: string;
+		handle: string;
+		name: string;
+		avatarUrl: string;
+	};
+	createdAt: string;
+	likedBy: userProfile[];
+	comments: {
+		id: string;
+		text: string;
+		author: {
+			id: string;
+			handle: string;
+			name: string;
+			avatarUrl: string;
+		};
+		createdAt: string;
+	}[];
+}
+
 export type userProfile = {
 	userId: string;
 	username: string;

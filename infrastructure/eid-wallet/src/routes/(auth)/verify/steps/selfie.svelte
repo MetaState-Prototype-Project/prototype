@@ -1,75 +1,72 @@
 <script lang="ts">
-    import { writable } from "svelte/store";
-    import { ButtonAction } from "$lib/ui";
-    import {
-        Selfie,
-        permissionGranted,
-        verifStep,
-        verificaitonId,
-    } from "../store";
-    import { onMount } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import axios from "axios";
-    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { ButtonAction } from "$lib/ui";
+import axios from "axios";
+import { onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import { writable } from "svelte/store";
+import { Selfie, permissionGranted, verifStep, verificaitonId } from "../store";
 
-    let video: HTMLVideoElement;
-    let canvas: HTMLCanvasElement;
-    let image = 1;
-    let imageCaptured = writable(false);
-    let load = false;
-    let stream: MediaStream;
+let video: HTMLVideoElement;
+let canvas: HTMLCanvasElement;
+let image = 1;
+let imageCaptured = writable(false);
+let load = false;
+let stream: MediaStream;
 
-    async function requestCameraPermission() {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "user" },
-            });
-            video.srcObject = stream;
-            video.play();
-            permissionGranted.set(true);
-        } catch (err) {
-            permissionGranted.set(false);
-            console.error("Camera permission denied", err);
-        }
+async function requestCameraPermission() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" },
+        });
+        video.srcObject = stream;
+        video.play();
+        permissionGranted.set(true);
+    } catch (err) {
+        permissionGranted.set(false);
+        console.error("Camera permission denied", err);
     }
+}
 
-    onMount(() => {
-        requestCameraPermission();
-    });
+onMount(() => {
+    requestCameraPermission();
+});
 
-    async function captureImage() {
-        if (image === 1) {
-            const context = canvas.getContext("2d");
-            if (context) {
-                context.drawImage(video, 0, 0, 1920, 1080);
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL("image/png");
-                Selfie.set(dataUrl);
-                load = true;
-                await axios.post(
-                    new URL(
-                        `/verification/${$verificaitonId}/media`,
-                        PUBLIC_PROVISIONER_URL,
-                    ).toString(),
-                    {
-                        img: dataUrl,
-                        type: "face",
-                    },
-                );
-                await axios.patch(
-                    new URL(
-                        `/verification/${$verificaitonId}`,
-                        PUBLIC_PROVISIONER_URL,
-                    ).toString(),
-                );
-                stream.getTracks().forEach((track) => track.stop());
+async function captureImage() {
+    if (image === 1) {
+        const context = canvas.getContext("2d");
+        if (context) {
+            context.drawImage(video, 0, 0, 1920, 1080);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL("image/png");
+            Selfie.set(dataUrl);
+            load = true;
+            await axios.post(
+                new URL(
+                    `/verification/${$verificaitonId}/media`,
+                    PUBLIC_PROVISIONER_URL,
+                ).toString(),
+                {
+                    img: dataUrl,
+                    type: "face",
+                },
+            );
+            await axios.patch(
+                new URL(
+                    `/verification/${$verificaitonId}`,
+                    PUBLIC_PROVISIONER_URL,
+                ).toString(),
+            );
+            for (const track of stream.getTracks()) {
+                track.stop();
             }
-        } else if (image === 2 && $imageCaptured) {
-            verifStep.update((n) => n + 1);
         }
+    } else if (image === 2 && $imageCaptured) {
+        verifStep.update((n) => n + 1);
     }
+}
 </script>
 
 <div class="flex flex-col gap-5">

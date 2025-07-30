@@ -1,15 +1,14 @@
-import { useChat } from '@lib/context/chat-context';
-import { useAuth } from '@lib/context/auth-context';
+import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
-import type { Chat } from '@lib/types/chat';
-import { Loading } from '@components/ui/loading';
 import { UserIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@lib/context/auth-context';
+import { useChat } from '@lib/context/chat-context';
 import { db } from '@lib/firebase/app';
-import { usersCollection } from '@lib/firebase/collections';
+import { Loading } from '@components/ui/loading';
+import type { Chat } from '@lib/types/chat';
 import type { User } from '@lib/types/user';
-import Image from 'next/image';
 import { AddMembers } from './add-members';
 
 type ParticipantData = {

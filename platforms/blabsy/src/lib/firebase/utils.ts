@@ -229,19 +229,27 @@ export function manageRetweet(
                 userRetweets: arrayUnion(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                tweets: arrayUnion(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    tweets: arrayUnion(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         } else {
             batch.update(tweetRef, {
                 userRetweets: arrayRemove(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                tweets: arrayRemove(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    tweets: arrayRemove(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         }
 
         await batch.commit();
@@ -267,19 +275,27 @@ export function manageLike(
                 userLikes: arrayUnion(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                likes: arrayUnion(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    likes: arrayUnion(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         } else {
             batch.update(tweetRef, {
                 userLikes: arrayRemove(userId),
                 updatedAt: serverTimestamp()
             });
-            batch.set(userStatsRef, {
-                likes: arrayRemove(tweetId),
-                updatedAt: serverTimestamp()
-            }, { merge: true });
+            batch.set(
+                userStatsRef,
+                {
+                    likes: arrayRemove(tweetId),
+                    updatedAt: serverTimestamp()
+                },
+                { merge: true }
+            );
         }
 
         await batch.commit();
@@ -470,9 +486,7 @@ export async function getOrCreateDirectChat(
 
     for (const doc of existingChats.docs) {
         const chat = doc.data();
-        if (chat.participants.includes(targetUserId)) {
-            return doc.id;
-        }
+        if (chat.participants.includes(targetUserId)) return doc.id;
     }
 
     // If no existing chat, create a new one

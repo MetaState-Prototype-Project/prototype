@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { createPost, closeCreatePostModal } from '$lib/stores/posts';
-	import Modal from '$lib/ui/Modal/Modal.svelte';
-	import Button from '$lib/ui/Button/Button.svelte';
+	import { closeCreatePostModal, createPost } from '$lib/stores/posts';
+	import { Button, Modal } from '$lib/ui';
+
+	let { open = $bindable() }: { open: boolean } = $props();
 
 	let text = $state('');
 	let images = $state<string[]>([]);
@@ -44,7 +45,7 @@
 	};
 </script>
 
-<Modal on:close={closeCreatePostModal}>
+<Modal {open} onclose={closeCreatePostModal}>
 	<div class="w-full max-w-2xl rounded-lg bg-white p-6">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">Create Post</h2>
@@ -69,7 +70,7 @@
 
 		{#if images.length > 0}
 			<div class="mb-4 grid grid-cols-2 gap-4">
-				{#each images as image, index}
+				{#each images as image, index (index)}
 					<div class="relative">
 						<!-- svelte-ignore a11y_img_redundant_alt -->
 						<img

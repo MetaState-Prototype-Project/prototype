@@ -30,7 +30,7 @@
 		bind:value={selectedCode}
 		class="text-base focus:ring-2 focus:ring-transparent focus:outline-none"
 	>
-		{#each options as country}
+		{#each options as country (country.code)}
 			<option value={country.code} class="text-black-600 text-base">
 				{country.code}
 			</option>
