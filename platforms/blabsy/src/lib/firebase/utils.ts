@@ -1,38 +1,38 @@
-import {
-    doc,
-    query,
-    where,
-    limit,
-    setDoc,
-    getDocs,
-    updateDoc,
-    deleteDoc,
-    increment,
-    writeBatch,
-    arrayUnion,
-    arrayRemove,
-    serverTimestamp,
-    getCountFromServer,
-    getDoc
-} from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './app';
-import {
-    usersCollection,
-    tweetsCollection,
-    userStatsCollection,
-    userBookmarksCollection,
-    chatsCollection,
-    chatMessagesCollection
-} from './collections';
-import type { WithFieldValue, Query } from 'firebase/firestore';
-import type { EditableUserData } from '@lib/types/user';
-import type { FilesWithId, ImagesPreview } from '@lib/types/file';
 import type { Bookmark } from '@lib/types/bookmark';
-import type { Theme, Accent } from '@lib/types/theme';
 import type { Chat } from '@lib/types/chat';
+import type { FilesWithId, ImagesPreview } from '@lib/types/file';
 import type { Message } from '@lib/types/message';
 import type { Stats } from '@lib/types/stats';
+import type { Accent, Theme } from '@lib/types/theme';
+import type { EditableUserData } from '@lib/types/user';
+import {
+    arrayRemove,
+    arrayUnion,
+    deleteDoc,
+    doc,
+    getCountFromServer,
+    getDoc,
+    getDocs,
+    increment,
+    limit,
+    query,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
+    where,
+    writeBatch
+} from 'firebase/firestore';
+import type { Query, WithFieldValue } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
+import { db, storage } from './app';
+import {
+    chatMessagesCollection,
+    chatsCollection,
+    tweetsCollection,
+    userBookmarksCollection,
+    userStatsCollection,
+    usersCollection
+} from './collections';
 
 export async function checkUsernameAvailability(
     username: string
@@ -332,7 +332,9 @@ export async function clearAllBookmarks(userId: string): Promise<void> {
 export async function createChat(
     type: 'direct' | 'group',
     participants: string[],
-    name?: string
+    name?: string,
+    owner?: string,
+    description?: string
 ): Promise<string> {
     const chatRef = doc(chatsCollection);
     const chatData: WithFieldValue<Chat> = {
@@ -340,6 +342,9 @@ export async function createChat(
         type,
         participants,
         name,
+        owner,
+        description,
+        admins: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     };

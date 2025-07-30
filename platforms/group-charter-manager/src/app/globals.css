@@ -1,0 +1,319 @@
+@import "tailwindcss";
+
+@plugin 'tailwindcss-animate';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar-background);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+
+    @keyframes accordion-down {
+        from {
+            height: 0;
+        }
+        to {
+            height: var(--radix-accordion-content-height);
+        }
+    }
+    @keyframes accordion-up {
+        from {
+            height: var(--radix-accordion-content-height);
+        }
+        to {
+            height: 0;
+        }
+    }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentcolor);
+    }
+}
+
+@utility glass-morphism {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility soft-shadow {
+    box-shadow: 0 8px 32px 0 rgba(245, 158, 11, 0.1);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility hover-lift {
+    transition: all 0.3s ease;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px 0 rgba(245, 158, 11, 0.15);
+    }
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+        @media (hover: none) {
+            &:hover {
+                transform: none;
+            }
+        }
+    }
+}
+
+@utility gradient-primary {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility gradient-secondary {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility gradient-accent {
+    background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility text-gradient {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility nav-active {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    color: #1f2937;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+}
+
+@utility stagger-animation {
+    @media (max-width: 768px) {
+        /* Improved hover states for touch devices */
+    }
+    animation: staggerIn 0.5s ease-out forwards;
+}
+
+@layer utilities {
+    :root {
+        --background: hsl(45, 100%, 98%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --muted: hsl(45, 20%, 95%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+        --popover: hsl(0, 0%, 100%);
+        --popover-foreground: hsl(240, 10%, 3.9%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(240, 10%, 3.9%);
+        --border: hsl(45, 20%, 90%);
+        --input: hsl(45, 20%, 90%);
+        --primary: hsl(45, 93%, 47%);
+        --primary-foreground: hsl(240, 10%, 3.9%);
+        --secondary: hsl(45, 20%, 95%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --accent: hsl(45, 20%, 95%);
+        --accent-foreground: hsl(240, 5.9%, 10%);
+        --destructive: hsl(0, 84.2%, 60.2%);
+        --destructive-foreground: hsl(60, 9.1%, 97.8%);
+        --ring: hsl(45, 93%, 47%);
+        --radius: 1rem;
+        --chart-1: hsl(45, 93%, 47%);
+        --chart-2: hsl(38, 92%, 50%);
+        --chart-3: hsl(43, 89%, 38%);
+        --chart-4: hsl(48, 89%, 60%);
+        --chart-5: hsl(35, 89%, 60%);
+    }
+
+    .dark {
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+        --popover: hsl(240, 10%, 3.9%);
+        --popover-foreground: hsl(0, 0%, 98%);
+        --card: hsl(240, 10%, 3.9%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 3.7%, 15.9%);
+        --input: hsl(240, 3.7%, 15.9%);
+        --primary: hsl(45, 93%, 47%);
+        --primary-foreground: hsl(240, 10%, 3.9%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --secondary-foreground: hsl(0, 0%, 98%);
+        --accent: hsl(240, 3.7%, 15.9%);
+        --accent-foreground: hsl(0, 0%, 98%);
+        --destructive: hsl(0, 62.8%, 30.6%);
+        --destructive-foreground: hsl(0, 0%, 98%);
+        --ring: hsl(45, 93%, 47%);
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply font-sans antialiased;
+        background: linear-gradient(
+            135deg,
+            #fffbf0 0%,
+            #fef3c7 50%,
+            #fef7f7 100%
+        );
+        min-height: 100vh;
+    }
+}
+
+@layer components {
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Mobile Optimizations */
+    @media (max-width: 768px) {
+        /* Ensure touch targets are at least 44px */
+        button,
+        a,
+        [role="button"] {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* Better text readability on mobile */
+        body {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* Prevent horizontal scroll */
+        html,
+        body {
+            overflow-x: hidden;
+        }
+
+        /* Better form inputs on mobile */
+        input,
+        textarea,
+        select {
+            font-size: 16px; /* Prevents zoom on iOS */
+        }
+        @media (hover: none) {
+            button:hover,
+            a:hover {
+                transform: none;
+            }
+        }
+    }
+
+    /* Focus styles for better accessibility */
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+        outline: 2px solid #a855f7;
+        outline-offset: 2px;
+    }
+
+    @keyframes staggerIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+}
