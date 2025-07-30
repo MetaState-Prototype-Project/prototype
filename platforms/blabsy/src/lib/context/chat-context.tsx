@@ -5,7 +5,8 @@ import {
     where,
     orderBy,
     onSnapshot,
-    limit
+    limit,
+    Timestamp
 } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import {
@@ -31,7 +32,11 @@ type ChatContext = {
     loading: boolean;
     error: Error | null;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (type: 'direct' | 'group', participants: string[], name?: string) => Promise<string>;
+    createNewChat: (
+        type: 'direct' | 'group',
+        participants: string[],
+        name?: string
+    ) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
@@ -57,7 +62,38 @@ export function ChatContextProvider({
     // Listen to user's chats
     useEffect(() => {
         if (!user) {
-            setChats(null);
+            // setChats(null);
+            // setLoading(false);
+            setChats([
+                {
+                    id: 'dummy-chat-1',
+                    type: 'direct',
+                    participants: ['user_1', 'user_2'],
+                    createdAt: Timestamp.fromDate(new Date()),
+                    updatedAt: Timestamp.fromDate(new Date()),
+                    lastMessage: {
+                        senderId: 'user_1',
+                        text: 'Hey, how are you?',
+                        timestamp: Timestamp.fromDate(new Date())
+                    },
+                    name: 'Chat with User 2'
+                },
+                {
+                    id: 'dummy-chat-2',
+                    type: 'group',
+                    participants: ['user_1', 'user_3', 'user_4'],
+                    owner: 'user_1',
+                    admins: ['user_3'],
+                    createdAt: Timestamp.fromDate(new Date()),
+                    updatedAt: Timestamp.fromDate(new Date()),
+                    lastMessage: {
+                        senderId: 'user_4',
+                        text: 'Let’s meet tomorrow.',
+                        timestamp: Timestamp.fromDate(new Date())
+                    },
+                    name: 'Project Team'
+                }
+            ]);
             setLoading(false);
             return;
         }
@@ -66,7 +102,6 @@ export function ChatContextProvider({
             chatsCollection,
             where('participants', 'array-contains', user.id)
         );
-
 
         const unsubscribe = onSnapshot(
             chatsQuery,
@@ -119,10 +154,21 @@ export function ChatContextProvider({
     const createNewChat = async (
         type: 'direct' | 'group',
         participants: string[],
-        name?: string
+        name?: string,
+        description?: string
     ): Promise<string> => {
         try {
-            const chatId = await createChat(type, participants, name);
+            if (!user) {
+                throw new Error('User must be logged in to create a chat');
+            }
+
+            const chatId = await createChat(
+                type,
+                participants,
+                name,
+                type === 'group' ? user.id : undefined,
+                description
+            );
             return chatId;
         } catch (error) {
             setError(error as Error);
@@ -208,4 +254,4 @@ export function useChat(): ChatContext {
         throw new Error('useChat must be used within a ChatContextProvider');
 
     return context;
-} 
+}

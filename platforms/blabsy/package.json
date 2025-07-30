@@ -16,6 +16,7 @@
     "dependencies": {
         "@headlessui/react": "^1.7.2",
         "@heroicons/react": "^2.0.11",
+        "@sidekickicons/react": "^0.13.0",
         "axios": "^1.6.7",
         "clsx": "^1.2.1",
         "date-fns": "^4.1.0",
