@@ -111,15 +111,20 @@ onMount(async () => {
             platform = params.get("platform");
             session = params.get("session");
             redirect = params.get("redirect");
-            hostname = new URL(redirect as string).hostname;
             if (!redirect || !platform || !session) {
                 console.error("Bad deeplink!");
+                break;
+            }
+            try {
+                hostname = new URL(redirect as string).hostname;
+            } catch (error) {
+                console.error("Invalid redirect URL:", error);
                 break;
             }
             // Validate platform name
             if (!/^[a-zA-Z0-9-_.]+$/.test(platform)) {
                 console.error("Invalid platform name format");
-                return;
+                break;
             }
 
             // Validate session format (UUID)
@@ -129,7 +134,7 @@ onMount(async () => {
                 )
             ) {
                 console.error("Invalid session format");
-                return;
+                break;
             }
 
             // Validate redirect URL domain
@@ -139,7 +144,7 @@ onMount(async () => {
                 )
             ) {
                 console.error("Invalid redirect URL format.");
-                return;
+                break;
             }
             codeScannedDrawerOpen = true;
             scanning = false;
