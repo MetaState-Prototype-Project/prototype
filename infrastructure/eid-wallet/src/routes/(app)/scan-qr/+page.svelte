@@ -139,7 +139,7 @@ onMount(async () => {
 
             // Validate redirect URL domain
             if (
-                /^(?=.{1,253}$)(?!\-)([a-zA-Z0-9\-]{1,63}(?<!\-)\.)+[a-zA-Z]{2,}$/.test(
+                !/^(?=.{1,253}$)(?!\-)([a-zA-Z0-9\-]{1,63}(?<!\-)\.)+[a-zA-Z]{2,}$/.test(
                     hostname,
                 )
             ) {
