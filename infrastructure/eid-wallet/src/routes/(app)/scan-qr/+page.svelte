@@ -97,58 +97,58 @@ async function cancelScan() {
 }
 
 onMount(async () => {
-    const [_empty, ...rest] = page.url.search.split("?");
-    const methodAndParam = rest.join("?");
-    const [method, ...param] = methodAndParam.split("?");
-    const data = param.join("?");
-    const deeplinkMethodSpecifiers = ["auth"];
-    if (method && !deeplinkMethodSpecifiers.includes(method)) {
-        console.error("Unknown method specifier");
-    }
-    switch (method) {
-        case "auth": {
-            const params = new URLSearchParams(data);
-            platform = params.get("platform");
-            session = params.get("session");
-            redirect = params.get("redirect");
-            if (!redirect || !platform || !session) {
-                console.error("Bad deeplink!");
-                break;
-            }
-            try {
-                hostname = new URL(redirect as string).hostname;
-            } catch (error) {
-                console.error("Invalid redirect URL:", error);
-                break;
-            }
-            // Validate platform name
-            if (!/^[a-zA-Z0-9-_.]+$/.test(platform)) {
-                console.error("Invalid platform name format");
-                break;
-            }
+    const params = page.url.searchParams;
+    const deepLinkData = page.url.search.substring(1); // Remove leading '?'
+    if (deepLinkData) {
+        try {
+            const [method, ...paramParts] = deepLinkData.split("?");
+            const paramString = paramParts.join("?");
+            if (method === "auth") {
+                const params = new URLSearchParams(paramString);
+                platform = params.get("platform");
+                session = params.get("session");
+                redirect = params.get("redirect");
+                if (!redirect || !platform || !session) {
+                    console.error("Bad deeplink!");
+                    return;
+                }
+                try {
+                    hostname = new URL(redirect as string).hostname;
+                } catch (error) {
+                    console.error("Invalid redirect URL:", error);
+                    return;
+                }
+                // Validate platform name
+                if (!/^[a-zA-Z0-9-_.]+$/.test(platform)) {
+                    console.error("Invalid platform name format");
+                    return;
+                }
 
-            // Validate session format (UUID)
-            if (
-                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                    session,
-                )
-            ) {
-                console.error("Invalid session format");
-                break;
-            }
+                // Validate session format (UUID)
+                if (
+                    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                        session,
+                    )
+                ) {
+                    console.error("Invalid session format");
+                    return;
+                }
 
-            // Validate redirect URL domain
-            if (
-                !/^(?=.{1,253}$)(?!\-)([a-zA-Z0-9\-]{1,63}(?<!\-)\.)+[a-zA-Z]{2,}$/.test(
-                    hostname,
-                )
-            ) {
-                console.error("Invalid redirect URL format.");
-                break;
+                // Validate redirect URL domain
+                if (
+                    !/^(?=.{1,253}$)(?!\-)([a-zA-Z0-9\-]{1,63}(?<!\-)\.)+[a-zA-Z]{2,}$/.test(
+                        hostname,
+                    )
+                ) {
+                    console.error("Invalid redirect URL format.");
+                    return;
+                }
+                codeScannedDrawerOpen = true;
+                scanning = false;
+                return;
             }
-            codeScannedDrawerOpen = true;
-            scanning = false;
-            break;
+        } catch (err) {
+            console.error("Error parsing deep link data:", err);
         }
     }
     if (!codeScannedDrawerOpen) startScan();
