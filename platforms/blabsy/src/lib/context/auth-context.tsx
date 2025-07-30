@@ -6,7 +6,7 @@ import {
     signOut as signOutFirebase,
     signInWithCustomToken as signInWithCustomTokenFirebase
 } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { auth } from '@lib/firebase/app';
 import {
     usersCollection,

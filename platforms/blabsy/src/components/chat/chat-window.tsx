@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { UserIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+import { useChat } from '@lib/context/chat-context';
+import { useAuth } from '@lib/context/auth-context';
+import { formatDistanceToNow, set } from 'date-fns';
+import type { Message } from '@lib/types/message';
+import {
+    UserIcon,
+    PaperAirplaneIcon,
+    Cog6ToothIcon
+} from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
-import { useAuth } from '@lib/context/auth-context';
-import { useChat } from '@lib/context/chat-context';
 import { db } from '@lib/firebase/app';
 import { Loading } from '@components/ui/loading';
-import type { Message } from '@lib/types/message';
-import type { User } from '@lib/types/user';
+import { MemberList } from './member-list';
+import { GroupSettings } from './group-settings';
+import { AddMembers } from './add-members';
+import { User } from '@lib/types/user';
 
 function MessageItem({
     message,
@@ -57,6 +64,9 @@ export function ChatWindow(): JSX.Element {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [openMemberList, setOpenMemberList] = useState(false);
+    const [openEditMenu, setOpenEditMenu] = useState<boolean>(false);
+    const [openAddMemberList, setOpenAddMemberList] = useState<boolean>(false);
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -70,11 +80,11 @@ export function ChatWindow(): JSX.Element {
                 const userDoc = await getDoc(
                     doc(db, 'users', otherParticipant)
                 );
-                if (userDoc.exists()) setOtherUser(userDoc.data() as User);
-            } catch (error) {
-                // eslint-disable-next-line no-console
-                console.error(error);
-            }
+                if (userDoc.exists()) {
+                    setOtherUser(userDoc.data() as User);
+                } else {
+                }
+            } catch (error) {}
         };
 
         void fetchUserData();
@@ -105,11 +115,11 @@ export function ChatWindow(): JSX.Element {
                 !message.readBy.includes(user.id)
         );
 
-        if (unreadMessages?.length)
+        if (unreadMessages?.length) {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
             );
-    }, [currentChat, messages, user, markAsRead]);
+    }});
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -118,48 +128,69 @@ export function ChatWindow(): JSX.Element {
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('Error sending message:', error);
-        }
+        } catch (error) {}
     };
 
     return (
         <div className='flex h-full flex-col'>
             {currentChat ? (
                 <>
-                    <div className='flex items-center gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
-                        <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                            {otherUser?.photoURL ? (
-                                <Image
-                                    src={otherUser.photoURL}
-                                    alt={
-                                        otherUser.name ||
-                                        otherUser.username ||
-                                        'User'
-                                    }
-                                    width={40}
-                                    height={40}
-                                    className='object-cover'
-                                />
-                            ) : (
-                                <UserIcon className='h-6 w-6' />
-                            )}
+                    <div className='flex items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
+                        <div className='flex items-center gap-3'>
+                            <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                {otherUser?.photoURL ? (
+                                    <Image
+                                        src={otherUser.photoURL}
+                                        alt={
+                                            otherUser.name ||
+                                            otherUser.username ||
+                                            'User'
+                                        }
+                                        width={40}
+                                        height={40}
+                                        className='object-cover'
+                                    />
+                                ) : (
+                                    <UserIcon className='h-6 w-6' />
+                                )}
+                            </div>
+                            <div>
+                                <p className='font-medium'>
+                                    {currentChat.type === 'direct'
+                                        ? otherUser?.name ||
+                                          otherUser?.username ||
+                                          otherParticipant
+                                        : currentChat.name}
+                                </p>
+                                <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                    {currentChat.type === 'direct'
+                                        ? 'Direct Message'
+                                        : `${currentChat.participants.length} participants`}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className='font-medium'>
-                                {currentChat.type === 'direct'
-                                    ? otherUser?.name ||
-                                      otherUser?.username ||
-                                      otherParticipant
-                                    : currentChat.name}
-                            </p>
-                            <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                {currentChat.type === 'direct'
-                                    ? 'Direct Message'
-                                    : `${currentChat.participants.length} participants`}
-                            </p>
-                        </div>
+                        {currentChat.type === 'group' && (
+                            <div className='flex items-center gap-2'>
+                                <div>
+                                    <button
+                                        type='button'
+                                        onClick={() => setOpenMemberList(true)}
+                                        className='flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    >
+                                        View Members
+                                    </button>
+                                </div>
+                                <div>
+                                    <button
+                                        type='button'
+                                        onClick={() => setOpenEditMenu(true)}
+                                        className='rounded-full bg-primary p-2 text-white transition-colors hover:bg-primary/90'
+                                    >
+                                        <Cog6ToothIcon className='h-5 w-5' />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className='flex-1 overflow-y-auto p-4'>
                         {isLoading ? (
@@ -228,6 +259,25 @@ export function ChatWindow(): JSX.Element {
                     </p>
                 </div>
             )}
+            <MemberList
+                open={openMemberList}
+                onClose={() => setOpenMemberList(false)}
+                onOpenAddMemberModal={() => {
+                    setOpenMemberList(false);
+                    setOpenAddMemberList(true);
+                }}
+            />
+            <AddMembers
+                open={openAddMemberList}
+                onClose={() => {
+                    setOpenAddMemberList(false);
+                    setOpenMemberList(true);
+                }}
+            />
+            <GroupSettings
+                open={openEditMenu}
+                onClose={() => setOpenEditMenu(false)}
+            />
         </div>
     );
 }

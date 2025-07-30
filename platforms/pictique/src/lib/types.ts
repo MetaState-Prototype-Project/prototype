@@ -58,17 +58,13 @@ export interface Post {
 }
 
 export type userProfile = {
-	id: string;
-	ename: string;
+	userId: string;
 	username: string;
-	name: string;
 	avatarUrl: string;
 	totalPosts: number;
 	followers: number;
 	following: number;
 	userBio: string;
-	handle: string;
-	description: string;
 	posts: PostData[];
 };
 
@@ -77,21 +73,8 @@ export type Image = {
 	alt: string;
 };
 
-export type MessageItem = {
-	id: string;
-	avatar: string;
-	username: string;
-	unread: boolean;
-	text: string;
-};
-
-export type Chats = {
+export type GroupInfo = {
 	id: string;
 	name: string;
-	participants: userProfile[];
-	latestMessage: {
-		text: string;
-		isRead: boolean;
-	};
-	updatedAt: string;
+	avatar: string;
 };
