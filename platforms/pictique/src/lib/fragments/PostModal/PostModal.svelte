@@ -145,7 +145,7 @@
 				<div
 					bind:this={galleryRef}
 					onscroll={handleScroll}
-					class="hide-scrollbar rounded-4xl flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll md:aspect-[16/9]"
+					class="hide-scrollbar flex aspect-[4/5] snap-x snap-mandatory flex-nowrap gap-2 overflow-hidden overflow-x-scroll rounded-4xl md:aspect-[16/9]"
 				>
 					{#each imgUris as img, i (i)}
 						<div
@@ -154,7 +154,7 @@
 							<img
 								src={img}
 								alt={text}
-								class="rounded-4xl h-full w-full object-cover md:h-auto md:min-w-96"
+								class="h-full w-full rounded-4xl object-cover md:h-auto md:min-w-96"
 								onerror={handleImageError}
 							/>
 						</div>
@@ -162,7 +162,7 @@
 				</div>
 				{#if imgUris.length > 1}
 					<div
-						class="absolute bottom-4 start-[50%] mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
+						class="absolute start-[50%] bottom-4 mt-2 flex translate-x-[-50%] items-center justify-center gap-1"
 					>
 						{#if imgUris.length > 1}
 							<div class="mt-2 flex items-center justify-center gap-1">
@@ -250,7 +250,7 @@
 				<h2>{handle}</h2>
 			</div>
 		</div>
-		<hr class="border-1 rounded-xl border-gray-200" />
+		<hr class="rounded-xl border-1 border-gray-200" />
 		<div class="flex h-1/2 w-full flex-col gap-2 overflow-y-auto">
 			<div class="flex w-full items-start justify-start gap-2">
 				{#key avatar}
@@ -285,7 +285,7 @@
 				{/each}
 			{/if}
 		</div>
-		<hr class="border-1 rounded-xl border-gray-200" />
+		<hr class="rounded-xl border-1 border-gray-200" />
 		<div class="flex w-full flex-col justify-between gap-3">
 			<div class="flex gap-4">
 				<button

@@ -124,7 +124,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}
