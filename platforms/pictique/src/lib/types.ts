@@ -79,3 +79,38 @@ export type GroupInfo = {
     name: string;
     avatar: string;
 };
+
+export type MessageInfo = {
+    avatar: string;
+    id: string;
+    text: string;
+    unread: boolean;
+    username: string;
+};
+
+export type Participant = {
+    avatarUrl: string;
+    handle: string;
+    id: string;
+    name: string;
+    ename: string;
+};
+
+export type ChatInfo = {
+    id: string;
+    name: string;
+    updatedAt: string;
+    participants: Participant[];
+    latestMessage?: {
+        isRead: boolean;
+        text: string;
+    };
+};
+
+export type Member = {
+    id: string;
+    name?: string;
+    handle?: string;
+    ename?: string;
+    avatarUrl?: string;
+};
