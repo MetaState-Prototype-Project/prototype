@@ -59,7 +59,7 @@
 
 		const newMessages = arr.map((m) => {
 			const sender = m.sender as Record<string, string>;
-			const isOwn = sender.id === userId;
+			const isOwn = sender.id !== userId;
 
 			console.log('Message sender ID:', sender.id, 'User ID:', userId, 'IsOwn:', isOwn);
 
