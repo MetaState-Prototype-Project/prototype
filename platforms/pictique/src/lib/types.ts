@@ -22,7 +22,7 @@ export type PostData = {
     id: string;
     avatar: string;
     userId: string;
-    username: string;
+    handle: string;
     imgUris: string[];
     caption: string;
     time: string;
@@ -85,7 +85,7 @@ export type MessageInfo = {
     id: string;
     text: string;
     unread: boolean;
-    username: string;
+    handle: string;
 };
 
 export type Participant = {

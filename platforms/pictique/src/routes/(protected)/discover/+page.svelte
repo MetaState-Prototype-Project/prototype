@@ -66,7 +66,7 @@
 				<li>
 					<UserRequest
 						userImgSrc={user.avatarUrl}
-						userName={user.name || user.handle}
+						handle={user.name || user.handle}
 						description={user.description || ''}
 						handleFollow={() => handleFollow(user.id)}
 						onclick={() => handleProfileClick(user.id)}
