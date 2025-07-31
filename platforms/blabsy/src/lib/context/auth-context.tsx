@@ -19,7 +19,7 @@ import type { User } from '@lib/types/user';
 import type { Bookmark } from '@lib/types/bookmark';
 
 type AuthContext = {
-    user: User | null;
+    user: User;
     error: Error | null;
     loading: boolean;
     isAdmin: boolean;
@@ -139,7 +139,7 @@ export function AuthContextProvider({
     const randomSeed = useMemo(getRandomId, [user?.id]);
 
     const value: AuthContext = {
-        user,
+        user: user!,
         error,
         loading,
         isAdmin,
@@ -149,6 +149,18 @@ export function AuthContextProvider({
         signInWithGoogle,
         signInWithCustomToken
     };
+
+    // Show loading state while auth is being determined
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
