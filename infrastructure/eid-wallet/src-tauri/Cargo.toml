@@ -33,4 +33,4 @@ thiserror = { version = "2.0.11" }
 tauri-plugin-barcode-scanner = "2"
 tauri-plugin-biometric = "2.2.0"
 tauri-plugin-crypto-hw = "0.1.0"
-
+tauri-plugin-deep-link = { git = "https://github.com/sosweetham/plugins-workspace", rev = "0668697" }

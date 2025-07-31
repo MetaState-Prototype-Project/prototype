@@ -47,7 +47,7 @@
 	async function handleMessage() {
 		try {
 			await apiClient.post('/api/chats/', {
-				name: profile?.username,
+				name: profile?.handle,
 				participantIds: [profileId]
 			});
 			goto('/messages');
@@ -62,7 +62,6 @@
 		selectedPost.value = post;
 		// goto("/profile/post");
 	}
-
 	onMount(fetchProfile);
 </script>
 
@@ -89,7 +88,7 @@
 			<!-- 	<li class="mb-6"> -->
 			<!-- 		<Post -->
 			<!-- 			avatar={post.author.avatarUrl} -->
-			<!-- 			username={post.author.handle} -->
+			<!-- 			handle={post.author.handle} -->
 			<!-- 			imgUris={post.images} -->
 			<!-- 			text={post.text} -->
 			<!-- 			time={new Date(post.createdAt).toLocaleDateString()} -->
@@ -123,7 +122,7 @@
 		<PostModal
 			avatar={profile?.avatarUrl ?? ''}
 			userId={profile?.id}
-			username={profile?.name ?? profile?.handle ?? ''}
+			handle={profile?.name ?? profile?.handle ?? ''}
 			imgUris={selectedPost.value?.imgUris ?? []}
 			text={selectedPost.value?.caption ?? ''}
 			count={selectedPost.value?.count ?? { likes: 0, comments: 0 }}
