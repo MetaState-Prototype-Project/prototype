@@ -17,5 +17,6 @@ export { default as Comment } from './Comment/Comment.svelte';
 export { default as SettingsDeleteButton } from './SettingsDeleteButton/SettingsDeleteButton.svelte';
 export { default as UserRequest } from './UserRequest/UserRequest.svelte';
 export { default as UploadedPostView } from './UploadedPostView/UploadedPostView.svelte';
+export { default as Group } from './Group/Group.svelte';
 export { default as SettingsTile } from './SettingsTile/SettingsTile.svelte';
 export { default as PostModal } from './PostModal/PostModal.svelte';

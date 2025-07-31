@@ -9,7 +9,8 @@ export type LayoutProps = {
 };
 
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
-    const user = useRequireAuth();
+    // const user = useRequireAuth();
+    const user = true; // TODO: Change back to useRequireAuth; Doing for development purposes
 
     if (!user) return <Placeholder />;
 

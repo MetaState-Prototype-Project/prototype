@@ -9,6 +9,7 @@ import { db } from '@lib/firebase/app';
 import { Loading } from '@components/ui/loading';
 import type { Chat } from '@lib/types/chat';
 import type { User } from '@lib/types/user';
+import { AddMembers } from './add-members';
 
 type ParticipantData = {
     [key: string]: User;
@@ -18,6 +19,7 @@ export function ChatList(): JSX.Element {
     const { chats, currentChat, setCurrentChat, loading } = useChat();
     const { user } = useAuth();
     const [participantData, setParticipantData] = useState<ParticipantData>({});
+    const [openCreateNewChatModal, setOpenCreateNewChatModal] = useState(false);
 
     useEffect(() => {
         if (!chats || !user) return;
@@ -36,17 +38,19 @@ export function ChatList(): JSX.Element {
                     const userDoc = await getDoc(
                         doc(db, 'users', otherParticipantId)
                     );
-                    if (userDoc.exists())
+                    if (userDoc.exists()) {
                         newParticipantData[otherParticipantId] =
                             userDoc.data() as User;
+                    }
                 }
             }
 
-            if (Object.keys(newParticipantData).length > 0)
+            if (Object.keys(newParticipantData).length > 0) {
                 setParticipantData((prev) => ({
                     ...prev,
                     ...newParticipantData
                 }));
+            }
         };
 
         void fetchParticipantData();
@@ -67,60 +71,74 @@ export function ChatList(): JSX.Element {
     }
 
     return (
-        <div className='flex h-full flex-col gap-2 overflow-y-auto p-4'>
-            {chats.map((chat) => {
-                const otherParticipant = chat.participants.find(
-                    (p) => p !== user?.id
-                );
-                const participant = otherParticipant
-                    ? participantData[otherParticipant]
-                    : null;
+        <div className='flex h-full flex-col gap-4'>
+            <div className='flex h-full flex-col gap-2 overflow-y-auto p-4'>
+                {chats.map((chat) => {
+                    const otherParticipant = chat.participants.find(
+                        (p) => p !== user?.id
+                    );
+                    const participant = otherParticipant
+                        ? participantData[otherParticipant]
+                        : null;
 
-                return (
-                    <button
-                        type='button'
-                        key={chat.id}
-                        onClick={() => setCurrentChat(chat)}
-                        className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
-                            currentChat?.id === chat.id
-                                ? 'bg-primary text-white'
-                                : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                        }`}
-                    >
-                        <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                            {participant?.photoURL ? (
-                                <Image
-                                    src={participant.photoURL}
-                                    alt={
-                                        participant.name ||
-                                        participant.username ||
-                                        'User'
-                                    }
-                                    width={40}
-                                    height={40}
-                                    className='object-cover'
-                                />
-                            ) : (
-                                <UserIcon className='h-6 w-6' />
-                            )}
-                        </div>
-                        <div className='flex-1 overflow-hidden text-left'>
-                            <p className='truncate font-medium'>
-                                {chat.type === 'direct'
-                                    ? participant?.name ||
-                                      participant?.username ||
-                                      otherParticipant
-                                    : chat.name}
-                            </p>
-                            {chat.lastMessage && (
-                                <p className='truncate text-sm text-gray-500 dark:text-gray-400'>
-                                    {chat.lastMessage.text}
+                    return (
+                        <button
+                            key={chat.id}
+                            type='button'
+                            onClick={() => setCurrentChat(chat)}
+                            className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
+                                currentChat?.id === chat.id
+                                    ? 'bg-primary text-white'
+                                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                            <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                {participant?.photoURL ? (
+                                    <Image
+                                        src={participant.photoURL}
+                                        alt={
+                                            participant.name ||
+                                            participant.username ||
+                                            'User'
+                                        }
+                                        width={40}
+                                        height={40}
+                                        className='object-cover'
+                                    />
+                                ) : (
+                                    <UserIcon className='h-6 w-6' />
+                                )}
+                            </div>
+                            <div className='flex-1 overflow-hidden text-left'>
+                                <p className='truncate font-medium'>
+                                    {chat.type === 'direct'
+                                        ? participant?.name ||
+                                          participant?.username ||
+                                          otherParticipant
+                                        : chat.name}
                                 </p>
-                            )}
-                        </div>
-                    </button>
-                );
-            })}
+                                {chat.lastMessage && (
+                                    <p className='truncate text-sm text-gray-500 dark:text-gray-400'>
+                                        {chat.lastMessage.text}
+                                    </p>
+                                )}
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+            <button
+                type='button'
+                onClick={() => setOpenCreateNewChatModal(true)}
+                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+            >
+                New Chat
+            </button>
+            <AddMembers
+                open={openCreateNewChatModal}
+                onClose={() => setOpenCreateNewChatModal(false)}
+                newChat={true}
+            />
         </div>
     );
 }
@@ -174,9 +192,8 @@ function ChatListItem({
                         stroke='currentColor'
                     >
                         <title>
-                            {otherParticipants.length > 0
-                                ? `Chat with ${otherParticipants.length} user(s)`
-                                : 'Direct Chat'}
+                            {otherParticipants.length} User
+                            {otherParticipants.length > 1 ? 's' : ''}
                         </title>
                         <path
                             strokeLinecap='round'
