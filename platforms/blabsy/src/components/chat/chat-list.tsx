@@ -71,7 +71,7 @@ export function ChatList(): JSX.Element {
                 <button
                     type='button'
                     onClick={() => setOpenCreateNewChatModal(true)}
-                    className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+                    className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-2 transition-colors hover:brightness-90 mx-4 mb-4'
                 >
                     New Chat
                 </button>
@@ -144,7 +144,7 @@ export function ChatList(): JSX.Element {
             <button
                 type='button'
                 onClick={() => setOpenCreateNewChatModal(true)}
-                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90 mx-4 mb-4'
             >
                 New Chat
             </button>
