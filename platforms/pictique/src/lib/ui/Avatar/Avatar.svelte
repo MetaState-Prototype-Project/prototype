@@ -11,6 +11,7 @@
 	const { src, alt = 'User Avatar', size = 'md', ...restProps }: IAvatarProps = $props();
 
 	let img = $state(src);
+	let hasError = $state(false);
 
 	const sizeVariant = {
 		xs: 'w-6 h-6',
@@ -24,18 +25,42 @@
 		size: sizeVariant[size] || sizeVariant.md
 	});
 
+	function handleError() {
+		hasError = true;
+		img = '/images/user.png';
+	}
+
 	$inspect(img);
 </script>
 
-<img
-	{...restProps}
-	onerror={() => {
-		img = '/images/user.png';
-	}}
-	src={img}
-	{alt}
-	class={cn([classes.common, classes.size, restProps.class].join(' '))}
-/>
+{#if hasError || !img}
+	<div
+		class={cn(
+			[
+				classes.common,
+				classes.size,
+				'flex items-center justify-center bg-gray-300',
+				restProps.class
+			].join(' ')
+		)}
+	>
+		<svg class="h-1/2 w-1/2 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+			<path
+				fill-rule="evenodd"
+				d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+				clip-rule="evenodd"
+			/>
+		</svg>
+	</div>
+{:else}
+	<img
+		{...restProps}
+		on:error={handleError}
+		src={img}
+		{alt}
+		class={cn([classes.common, classes.size, restProps.class].join(' '))}
+	/>
+{/if}
 
 <!--
 @component
