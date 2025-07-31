@@ -8,7 +8,7 @@ import {
     XMarkIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, Timestamp, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import type { User } from '@lib/types/user';
 import { Loading } from '@components/ui/loading';
@@ -29,7 +29,10 @@ export function AddMembers({
         sendNewMessage,
         markAsRead,
         removeParticipant,
-        loading
+        loading,
+        createNewChat,
+        setCurrentChat,
+        addParticipant
     } = useChat();
     const { user } = useAuth();
     const [messageText, setMessageText] = useState('');
@@ -40,6 +43,10 @@ export function AddMembers({
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+    const [groupName, setGroupName] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<User[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -100,93 +107,59 @@ export function AddMembers({
         }
     }, [currentChat, messages, user, markAsRead]);
 
-    useEffect(() => {
-        // Fetch all users on platform for selection
-        const fetchAllUsers = async (): Promise<void> => {
-            try {
-                // Assuming a collection 'users' in Firestore
-                const usersSnapshot = await db.collection('users').get();
-                const usersData: User[] = usersSnapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...(doc.data() as User)
-                }));
-                setAllUsers(usersData);
-            } catch (error) {
-                // handle error if needed
-                // TODO: Dummy users for development, remove when backend integrated
-                setAllUsers([
-                    {
-                        id: 'user_5',
-                        name: 'Alice Sharma',
-                        username: 'alice.s',
-                        bio: 'Techie and Coffee Lover',
-                        theme: 'dark',
-                        accent: 'blue',
-                        website: 'https://alicesharma.dev',
-                        location: 'Delhi, India',
-                        photoURL: 'https://i.pravatar.cc/150?img=1',
-                        verified: true,
-                        following: [],
-                        followers: [],
-                        createdAt: Timestamp.fromDate(new Date()),
-                        updatedAt: Timestamp.fromDate(new Date()),
-                        totalTweets: 50,
-                        totalPhotos: 5,
-                        pinnedTweet: '',
-                        coverPhotoURL:
-                            'https://source.unsplash.com/random/800x200?tech'
-                    },
-                    {
-                        id: 'user_6',
-                        name: 'Rahul Verma',
-                        username: 'rahulv',
-                        bio: 'Frontend Wizard 🧙‍♂️',
-                        theme: 'light',
-                        accent: 'green',
-                        website: 'https://rahulv.dev',
-                        location: 'Bangalore, India',
-                        photoURL: 'https://i.pravatar.cc/150?img=2',
-                        verified: false,
-                        following: [],
-                        followers: [],
-                        createdAt: Timestamp.fromDate(new Date()),
-                        updatedAt: Timestamp.fromDate(new Date()),
-                        totalTweets: 120,
-                        totalPhotos: 20,
-                        pinnedTweet: '',
-                        coverPhotoURL:
-                            'https://source.unsplash.com/random/800x200?frontend'
-                    },
-                    {
-                        id: 'user_7',
-                        name: 'Nisha Kapoor',
-                        username: 'nishak',
-                        bio: 'UI/UX Designer 🎨',
-                        theme: 'dark',
-                        accent: 'purple',
-                        website: '',
-                        location: 'Mumbai, India',
-                        photoURL: 'https://i.pravatar.cc/150?img=3',
-                        verified: true,
-                        following: [],
-                        followers: [],
-                        createdAt: Timestamp.fromDate(new Date()),
-                        updatedAt: Timestamp.fromDate(new Date()),
-                        totalTweets: 300,
-                        totalPhotos: 45,
-                        pinnedTweet: '',
-                        coverPhotoURL:
-                            'https://source.unsplash.com/random/800x200?design'
-                    }
-                ]);
-            }
-        };
-        void fetchAllUsers();
-    }, []);
+    // Search users function
+    const searchUsers = async (query: string): Promise<void> => {
+        if (!query.trim()) {
+            setSearchResults([]);
+            return;
+        }
 
-    const filteredUsers = allUsers.filter(
-        (u) => newChat || !currentChat?.participants.includes(u.id)
-    );
+        setIsSearching(true);
+        try {
+            // Query Firestore for users - using a simpler approach
+            const usersRef = collection(db, 'users');
+            const usersSnapshot = await getDocs(usersRef);
+            
+            // Filter users based on search query
+            const allUsers = usersSnapshot.docs.map(doc => {
+                const userData = doc.data() as User;
+                return { ...userData, id: doc.id };
+            });
+
+            // Filter by search query and exclude current user and already selected users
+            const availableUsers = allUsers
+                .filter(userData => 
+                    userData.id !== user?.id && // Exclude current user
+                    !selectedUsers.some(selected => selected.id === userData.id) && // Exclude already selected
+                    (userData.name?.toLowerCase().includes(query.toLowerCase()) ||
+                     userData.username?.toLowerCase().includes(query.toLowerCase()) ||
+                     userData.bio?.toLowerCase().includes(query.toLowerCase()))
+                )
+                .slice(0, 5);
+
+            setSearchResults(availableUsers);
+        } catch (error) {
+            console.error('Error searching users:', error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // Debounced search effect
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            void searchUsers(searchQuery);
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, selectedUsers]);
+
+    // Show selected users first, then search results
+    const displayUsers = [
+        ...selectedUsers,
+        ...searchResults
+    ];
 
     const toggleUserSelection = (user: User) => {
         if (selectedUsers.some((u) => u.id === user.id)) {
@@ -198,26 +171,95 @@ export function AddMembers({
 
     const handleAddSelectedMembers = async () => {
         if (!currentChat && !newChat) return;
-        // Replace this with actual logic to update Firestore group chat participants
+        
         if (newChat) {
-            // alert(
-            //     `Creating new chat with: ${[...selectedUsers, user as User]
-            //         .map((u) => u.name || u.username)
-            //         .join(', ')}`
-            // );
-            alert(
-                `Creating new chat with: ${selectedUsers
-                    .map((u) => u.name || u.username)
-                    .join(', ')}`
-            );
+            if (selectedUsers.length === 0) {
+                return; // Just return without alert
+            }
+
+            try {
+                console.log('Creating chat with selected users:', selectedUsers);
+                
+                // Determine if this should be a direct or group chat
+                const isGroupChat = selectedUsers.length > 1;
+                const chatType = isGroupChat ? 'group' : 'direct';
+                
+                // Get all participant IDs (including current user)
+                const participantIds = [
+                    user.id,
+                    ...selectedUsers.map(u => u.id)
+                ];
+
+                console.log('Participant IDs:', participantIds);
+                console.log('Chat type:', chatType);
+
+                let chatName: string | undefined;
+                if (isGroupChat) {
+                    // For group chats, use the custom name or create from selected users
+                    chatName = groupName.trim() || selectedUsers
+                        .map(u => u.name || u.username)
+                        .join(', ');
+                }
+
+                console.log('Chat name:', chatName);
+
+                // Create the new chat
+                const chatId = await createNewChat(
+                    chatType,
+                    participantIds,
+                    chatName
+                );
+
+                console.log('Chat created with ID:', chatId);
+
+                // Set the new chat as current
+                setCurrentChat({
+                    id: chatId,
+                    type: chatType,
+                    participants: participantIds,
+                    name: chatName,
+                    owner: isGroupChat ? user.id : undefined,
+                    admins: isGroupChat ? [user.id] : undefined,
+                    createdAt: Timestamp.fromDate(new Date()),
+                    updatedAt: Timestamp.fromDate(new Date())
+                });
+
+                // Close modal and reset state
+                setSelectedUsers([]);
+                setGroupName('');
+                setSearchQuery('');
+                setSearchResults([]);
+                onClose();
+            } catch (error) {
+                console.error('Error creating chat:', error);
+                console.error('Error details:', {
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    stack: error instanceof Error ? error.stack : undefined
+                });
+                // Don't show alert, just log the error
+            }
         } else {
-            alert(
-                `Added: ${selectedUsers
-                    .map((u) => u.name || u.username)
-                    .join(', ')}`
-            );
+            // Add members to existing chat
+            try {
+                for (const selectedUser of selectedUsers) {
+                    await addParticipant(selectedUser.id);
+                }
+                // Close modal and reset state
+                setSelectedUsers([]);
+                setGroupName('');
+                setSearchQuery('');
+                setSearchResults([]);
+                onClose();
+            } catch (error) {
+                console.error('Error adding participants:', error);
+                // Don't show alert, just log the error
+            }
         }
+        
         setSelectedUsers([]);
+        setGroupName('');
+        setSearchQuery('');
+        setSearchResults([]);
         onClose();
     };
 
@@ -237,66 +279,99 @@ export function AddMembers({
             <div className='fixed inset-0 flex items-center justify-center p-4'>
                 <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
                     <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
-                        Members
+                        {newChat ? 'Create New Chat' : 'Members'}
                         <XMarkIcon
                             className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             onClick={onClose}
                         />
                     </Dialog.Title>
+                    {newChat && selectedUsers.length > 1 && (
+                        <div className='mt-4'>
+                            <input
+                                type='text'
+                                placeholder='Enter group name (optional)'
+                                value={groupName}
+                                onChange={(e) => setGroupName(e.target.value)}
+                                className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
+                            />
+                        </div>
+                    )}
                     <div className='mt-4'>
                         <input
                             type='text'
-                            placeholder='Search users...'
+                            placeholder={newChat ? 'Search users to add to chat...' : 'Search users...'}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
                         />
                     </div>
                     <div className='mt-4 max-h-80 overflow-y-auto'>
-                        {filteredUsers.length === 0 && (
+                        {isSearching && (
                             <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                No users available to add.
+                                Searching...
                             </p>
                         )}
-                        {filteredUsers.map((userItem) => (
-                            <label
-                                key={userItem.id}
-                                className='flex items-center justify-between gap-3 mb-2 pr-2 cursor-pointer'
-                            >
-                                <div className='flex items-center gap-3 mb-2 cursor-pointer'>
-                                    <div className='relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                        {userItem.photoURL ? (
-                                            <Image
-                                                src={userItem.photoURL}
-                                                alt={
-                                                    userItem.name ||
+                        {!isSearching && displayUsers.length === 0 && searchQuery && (
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                No users found.
+                            </p>
+                        )}
+                        {!isSearching && displayUsers.length === 0 && !searchQuery && (
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                Start typing to search for users.
+                            </p>
+                        )}
+                        {displayUsers.map((userItem) => {
+                            const isSelected = selectedUsers.some(u => u.id === userItem.id);
+                            const isSelectedUser = selectedUsers.some(u => u.id === userItem.id);
+                            
+                            return (
+                                <label
+                                    key={userItem.id}
+                                    className={`flex items-center justify-between gap-3 mb-2 pr-2 cursor-pointer ${
+                                        isSelectedUser ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2' : ''
+                                    }`}
+                                >
+                                    <div className='flex items-center gap-3 cursor-pointer'>
+                                        <div className='relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                            {userItem.photoURL ? (
+                                                <Image
+                                                    src={userItem.photoURL}
+                                                    alt={
+                                                        userItem.name ||
+                                                        userItem.username ||
+                                                        'User'
+                                                    }
+                                                    width={32}
+                                                    height={32}
+                                                    className='object-cover'
+                                                />
+                                            ) : (
+                                                <UserIcon className='h-5 w-5 text-gray-500 dark:text-gray-400' />
+                                            )}
+                                        </div>
+                                        <div className='flex flex-col'>
+                                            <span className='text-gray-900 dark:text-white font-medium'>
+                                                {userItem.name ||
                                                     userItem.username ||
-                                                    'User'
-                                                }
-                                                width={32}
-                                                height={32}
-                                                className='object-cover'
-                                            />
-                                        ) : (
-                                            <UserIcon className='h-5 w-5 text-gray-500 dark:text-gray-400' />
-                                        )}
+                                                    userItem.id}
+                                            </span>
+                                            {isSelectedUser && (
+                                                <span className='text-xs text-blue-600 dark:text-blue-400'>
+                                                    Selected
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className='text-gray-900 dark:text-white'>
-                                        {userItem.name ||
-                                            userItem.username ||
-                                            userItem.id}
-                                    </span>
-                                </div>
-                                <input
-                                    type='checkbox'
-                                    checked={selectedUsers.some(
-                                        (u) => u.id === userItem.id
-                                    )}
-                                    onChange={() =>
-                                        toggleUserSelection(userItem)
-                                    }
-                                    className='form-checkbox h-4 w-4 text-main-accent'
-                                />
-                            </label>
-                        ))}
+                                    <input
+                                        type='checkbox'
+                                        checked={isSelected}
+                                        onChange={() => toggleUserSelection(userItem)}
+                                        className='form-checkbox h-4 w-4 text-main-accent'
+                                    />
+                                </label>
+                            );
+                        })}
                     </div>
                     {selectedUsers.length > 0 && (
                         <div className='mt-4'>
