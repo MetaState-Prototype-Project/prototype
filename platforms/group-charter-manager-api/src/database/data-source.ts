@@ -13,7 +13,7 @@ export const AppDataSource = new DataSource({
     url: process.env.GROUP_CHARTER_DATABASE_URL,
     synchronize: false,
     logging: process.env.NODE_ENV === "development",
-    entities: [User, Group, ],
+    entities: [User, Group ],
     migrations: ["src/database/migrations/*.ts"],
     subscribers: [PostgresSubscriber],
 }); 

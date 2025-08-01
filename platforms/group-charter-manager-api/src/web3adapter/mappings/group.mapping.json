@@ -7,7 +7,7 @@
         "name": "name",
         "description": "description",
         "owner": "owner",
-        "admins": "admins",
+        "admins": "users(admins),admins",
         "participants": "users(participants[].id),participantIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"

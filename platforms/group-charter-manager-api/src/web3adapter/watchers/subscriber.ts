@@ -21,6 +21,8 @@ export const adapter = new Web3Adapter({
 
 // Map of junction tables to their parent entities
 const JUNCTION_TABLE_MAP = {
+    user_followers: { entity: "User", idField: "user_id" },
+    user_following: { entity: "User", idField: "user_id" },
     group_participants: { entity: "Group", idField: "group_id" },
 };
 
@@ -159,13 +161,23 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 );
                 globalId = globalId ?? "";
 
-                if (this.adapter.lockedIds.includes(globalId))
-                    return console.log("locked skipping ", globalId);
+                if (this.adapter.lockedIds.includes(globalId)) {
+                    console.log("Entity already locked, skipping:", globalId, entity.id);
+                    return;
+                }
+
+                // Check if this entity was recently created by a webhook
+                if (this.adapter.lockedIds.includes(entity.id)) {
+                    console.log("Local entity locked (webhook created), skipping:", entity.id);
+                    return;
+                }
 
                 console.log(
                     "sending packet for global Id",
                     globalId,
-                    entity.id
+                    entity.id,
+                    "table:",
+                    tableName
                 );
                 const envelope = await this.adapter.handleChange({
                     data,

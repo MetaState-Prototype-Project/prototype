@@ -6,6 +6,8 @@ import { AppDataSource } from "./database/data-source";
 import { UserController } from "./controllers/UserController";
 import { GroupController } from "./controllers/GroupController";
 import { WebhookController } from "./controllers/WebhookController";
+import { AuthController } from "./controllers/AuthController";
+import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter";
 import path from "path";
 
@@ -28,7 +30,7 @@ AppDataSource.initialize()
 app.use(
     cors({
         origin: "*",
-        methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE"],
+        methods: ["GET", "POST", "PUT", "OPTIONS", "PATCH", "DELETE"],
         allowedHeaders: [
             "Content-Type",
             "Authorization",
@@ -43,36 +45,49 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const userController = new UserController();
 const groupController = new GroupController();
 const webhookController = new WebhookController(adapter);
+const authController = new AuthController();
 
-// Public routes (no auth required for now)
+// Public routes (no auth required)
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", service: "group-charter-manager-api" });
 });
 
-// Webhook route (no auth required)
-app.post("/api/webhook", webhookController.handleWebhook);
+// Auth routes (no auth required)
+app.get("/api/auth/offer", authController.getOffer.bind(authController));
+app.post("/api/auth", authController.login.bind(authController));
+app.get("/api/auth/sessions/:id", authController.sseStream.bind(authController));
 
+// Webhook route (no auth required)
+app.post("/api/webhook", webhookController.handleWebhook.bind(webhookController));
+
+// Apply auth middleware to all routes below
+app.use(authMiddleware);
+
+// Protected routes (auth required)
 // User CRUD routes
-app.post("/api/users", userController.createUser);
-app.get("/api/users", userController.getAllUsers);
-app.get("/api/users/me", userController.getCurrentUser);
-app.get("/api/users/:id", userController.getUserById);
-app.put("/api/users", userController.updateUser);
-app.delete("/api/users/:id", userController.deleteUser);
-app.get("/api/users/ename/:ename", userController.getUserByEname);
+app.post("/api/users", authGuard, userController.createUser.bind(userController));
+app.get("/api/users", authGuard, userController.getAllUsers.bind(userController));
+app.get("/api/users/me", authGuard, userController.getCurrentUser.bind(userController));
+app.get("/api/users/:id", authGuard, userController.getUserById.bind(userController));
+app.put("/api/users", authGuard, userController.updateUser.bind(userController));
+app.delete("/api/users/:id", authGuard, userController.deleteUser.bind(userController));
+app.get("/api/users/ename/:ename", userController.getUserByEname.bind(userController));
 
 // Group CRUD routes
-app.post("/api/groups", groupController.createGroup);
-app.get("/api/groups", groupController.getAllGroups);
-app.get("/api/groups/my", groupController.getUserGroups);
-app.get("/api/groups/:id", groupController.getGroupById);
-app.put("/api/groups/:id", groupController.updateGroup);
-app.delete("/api/groups/:id", groupController.deleteGroup);
+app.post("/api/groups", authGuard, groupController.createGroup.bind(groupController));
+app.get("/api/groups", authGuard, groupController.getAllGroups.bind(groupController));
+app.get("/api/groups/my", authGuard, groupController.getUserGroups.bind(groupController));
+app.get("/api/groups/:id", authGuard, groupController.getGroupById.bind(groupController));
+app.put("/api/groups/:id", authGuard, groupController.updateGroup.bind(groupController));
+app.delete("/api/groups/:id", authGuard, groupController.deleteGroup.bind(groupController));
+
+// Charter routes
+app.put("/api/groups/:id/charter", authGuard, groupController.updateCharter.bind(groupController));
 
 // Group participant routes
-app.get("/api/groups/:groupId", groupController.getGroup);
-app.post("/api/groups/:groupId/participants", groupController.addParticipants);
-app.delete("/api/groups/:groupId/participants/:userId", groupController.removeParticipant);
+app.get("/api/groups/:groupId", authGuard, groupController.getGroup.bind(groupController));
+app.post("/api/groups/:groupId/participants", authGuard, groupController.addParticipants.bind(groupController));
+app.delete("/api/groups/:groupId/participants/:userId", authGuard, groupController.removeParticipant.bind(groupController));
 
 // Start server
 app.listen(port, () => {

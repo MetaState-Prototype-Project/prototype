@@ -54,8 +54,26 @@ export class GroupController {
     async updateGroup(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const groupData = req.body;
+            const userId = (req as any).user?.id;
             
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const group = await this.groupService.getGroupById(id);
+            if (!group) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            // Check if user is owner or admin
+            const isOwner = group.owner === userId;
+            const isAdmin = group.admins?.includes(userId);
+            
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: "Access denied" });
+            }
+
+            const groupData = req.body;
             const updatedGroup = await this.groupService.updateGroup(id, groupData);
             if (!updatedGroup) {
                 return res.status(404).json({ error: "Group not found" });
@@ -64,6 +82,40 @@ export class GroupController {
             res.json(updatedGroup);
         } catch (error) {
             console.error("Error updating group:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
+
+    async updateCharter(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const userId = (req as any).user?.id;
+            
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const group = await this.groupService.getGroupById(id);
+            if (!group) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            // Check if user is a participant in the group
+            const isParticipant = group.participants?.some(p => p.id === userId);
+            if (!isParticipant) {
+                return res.status(403).json({ error: "Access denied - you must be a participant in this group" });
+            }
+
+            const { charter } = req.body;
+            const updatedGroup = await this.groupService.updateGroup(id, { charter });
+            
+            if (!updatedGroup) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            res.json(updatedGroup);
+        } catch (error) {
+            console.error("Error updating charter:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     }

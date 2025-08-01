@@ -7,7 +7,6 @@ import {
     ManyToMany,
     JoinTable,
 } from "typeorm";
-import { User } from "./User";
 
 @Entity()
 export class Group {
@@ -26,13 +25,16 @@ export class Group {
     @Column("simple-array", { nullable: true })
     admins!: string[];
 
-    @ManyToMany(() => User)
+    @Column({ type: "text", nullable: true })
+    charter!: string; // Markdown content for the group charter
+
+    @ManyToMany("User")
     @JoinTable({
         name: "group_participants",
         joinColumn: { name: "group_id", referencedColumnName: "id" },
         inverseJoinColumn: { name: "user_id", referencedColumnName: "id" }
     })
-    participants!: User[];
+    participants!: any[];
 
     @CreateDateColumn()
     createdAt!: Date;

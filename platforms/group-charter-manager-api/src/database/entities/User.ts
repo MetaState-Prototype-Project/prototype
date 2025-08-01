@@ -4,11 +4,9 @@ import {
     Column,
     CreateDateColumn,
     UpdateDateColumn,
-    OneToMany,
     ManyToMany,
     JoinTable,
 } from "typeorm";
-import { Group } from "./Group";
 
 @Entity("users")
 export class User {
@@ -54,9 +52,6 @@ export class User {
         inverseJoinColumn: { name: "following_id", referencedColumnName: "id" },
     })
     following!: User[];
-
-    @ManyToMany(() => Group, (group: Group) => group.participants)
-    groups!: Group[];
 
     @CreateDateColumn()
     createdAt!: Date;
