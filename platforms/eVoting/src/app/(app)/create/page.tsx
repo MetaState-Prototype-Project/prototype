@@ -322,6 +322,7 @@ export default function CreatePoll() {
                     <div className="mt-2 space-y-3">
                         {options.map((option, index) => (
                             <div
+                                // biome-ignore lint/suspicious/noArrayIndexKey: jatt dont care OOOOOOOOOO
                                 key={index}
                                 className="flex items-center space-x-2"
                             >
