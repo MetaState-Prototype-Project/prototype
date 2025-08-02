@@ -32,7 +32,7 @@ export function isValidRankVote(
     );
 }
 
-function isValidPointVote(
+export function isValidPointVote(
     data: unknown,
     pollOptions: string[],
 ): data is PointVoteData {
