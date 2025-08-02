@@ -9,6 +9,25 @@ import {
 } from "typeorm";
 import { Poll } from "./Poll";
 
+export type NormalVoteData = string[];
+
+export type PointVoteData = {
+    option: string;
+    points: number;
+}[];
+
+export type RankVoteData = {
+    option: string;
+    points: number; // 1 = top pick, 2 = next, etc.
+}[];
+
+export type VoteData = NormalVoteData | PointVoteData | RankVoteData;
+
+export type VoteDataByMode =
+    | { mode: "normal"; data: NormalVoteData }
+    | { mode: "point"; data: PointVoteData }
+    | { mode: "rank"; data: RankVoteData };
+
 @Entity("vote")
 export class Vote {
     @PrimaryGeneratedColumn("uuid")
@@ -37,10 +56,7 @@ export class Vote {
      * Stored as JSON for flexibility
      */
     @Column("jsonb")
-    data:
-        | string[] // normal
-        | { option: string; points: number }[] // point
-        | string[]; // rank
+    data: VoteDataByMode;
 
     @CreateDateColumn()
     createdAt: Date;
