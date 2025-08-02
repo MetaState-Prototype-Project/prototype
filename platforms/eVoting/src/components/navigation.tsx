@@ -1,5 +1,6 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
 import {
     Vote,
     Plus,
@@ -11,28 +12,35 @@ import {
     User,
     ChevronDown,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+// import { useAuth } from "@/hooks/useAuth";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 
 export default function Navigation() {
-    const [location] = useLocation();
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const { isAuthenticated, user } = useAuth();
+    // const [location] = useLocation();
 
+    const router = useRouter();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // const { isAuthenticated, user } = useAuth();
+    const isAuthenticated = true;
     const navItems = [
         { path: "/", label: "Home", icon: Home },
         { path: "/create", label: "Create Vote", icon: Plus },
     ];
 
-    const isActive = (path: string) => location === path;
+    const isActive = (path: string) => usePathname() === path;
+
+    const session = authClient.useSession();
 
     return (
-        <nav className="bg-white shadow-lg border-b-2 border-(--crimson)">
+        <nav className="bg-white shadow-lg border-b-2 border-(--crimson) mb-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
@@ -55,17 +63,17 @@ export default function Navigation() {
                             {isAuthenticated ? (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-(--crimson) transition-colors cursor-pointer">
-                                        {user?.profileImageUrl && (
+                                        {session.data?.user?.image ? (
                                             <img
-                                                src={user.profileImageUrl}
+                                                src={session.data.user.image}
                                                 alt="Profile"
                                                 className="w-8 h-8 rounded-full object-cover"
                                             />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-gray-200" />
                                         )}
                                         <span className="text-sm text-gray-700">
-                                            {user?.firstName ||
-                                                user?.email ||
-                                                "User"}
+                                            {session.data?.user?.name || "User"}
                                         </span>
                                         <ChevronDown className="w-4 h-4" />
                                     </DropdownMenuTrigger>
@@ -93,7 +101,7 @@ export default function Navigation() {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem asChild>
                                             <a
-                                                href="/api/logout"
+                                                href="/logout"
                                                 className="flex items-center w-full"
                                             >
                                                 <LogOut className="w-4 h-4 mr-2" />
@@ -117,6 +125,7 @@ export default function Navigation() {
                     {/* Mobile menu button */}
                     <div className="md:hidden">
                         <button
+                            type="button"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="text-gray-700 hover:text-(--crimson) p-2"
                         >
@@ -137,6 +146,14 @@ export default function Navigation() {
                     <div
                         className="fixed inset-0 bg-black bg-opacity-50"
                         onClick={() => setMobileMenuOpen(false)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                setMobileMenuOpen(false);
+                            }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label="Close mobile menu backdrop"
                     />
 
                     {/* Menu Content */}
@@ -147,7 +164,8 @@ export default function Navigation() {
                                     {navItems.map(
                                         ({ path, label, icon: Icon }) => (
                                             <Link key={path} href={path}>
-                                                <div
+                                                <button
+                                                    type="button"
                                                     className={`flex items-center px-3 py-2 rounded-md text-base font-medium w-full text-left cursor-pointer ${
                                                         isActive(path)
                                                             ? "text-(--crimson) bg-(--crimson-50)"
@@ -156,30 +174,46 @@ export default function Navigation() {
                                                     onClick={() =>
                                                         setMobileMenuOpen(false)
                                                     }
+                                                    aria-label={`Navigate to ${label}`}
                                                 >
                                                     <Icon className="w-5 h-5 mr-2" />
                                                     {label}
-                                                </div>
+                                                </button>
                                             </Link>
                                         )
                                     )}
                                     <div className="border-t pt-2">
                                         <div className="flex items-center px-3 py-2">
-                                            {user?.profileImageUrl && (
+                                            {/* {user?.profileImageUrl && (
                                                 <img
                                                     src={user.profileImageUrl}
                                                     alt="Profile"
                                                     className="w-8 h-8 rounded-full object-cover mr-2"
                                                 />
+                                            )} */}
+                                            {session.data?.user?.image ? (
+                                                <img
+                                                    src={
+                                                        session.data.user.image
+                                                    }
+                                                    alt="Profile"
+                                                    className="w-8 h-8 rounded-full object-cover mr-2"
+                                                />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 mr-2" />
                                             )}
                                             <span className="text-sm text-gray-700">
-                                                {user?.firstName ||
+                                                {/* {user?.firstName ||
                                                     user?.email ||
+                                                    "User"} */}
+                                                {session.data?.user?.name ||
+                                                    session.data?.user?.email ||
                                                     "User"}
+                                                username
                                             </span>
                                         </div>
                                         <a
-                                            href="/api/logout"
+                                            href="/logout"
                                             className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-(--crimson) w-full text-left"
                                             onClick={() =>
                                                 setMobileMenuOpen(false)
