@@ -116,7 +116,7 @@
 			title="Platforms"
 			placeholder="Search Platforms"
 			bind:searchValue={platformsSearchQuery}
-			rightTitle="No evault selected. Select an evault to monitor logs"
+			rightTitle="No platform selected. Select an platform to monitor logs"
 		/>
 		<Table
 			class="mb-7"
