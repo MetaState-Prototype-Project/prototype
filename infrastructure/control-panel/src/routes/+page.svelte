@@ -1,4 +1,5 @@
 <script lang="ts">
+	import {TableCard, TableCardHeader} from '$lib/fragments';
 	import { Table } from '$lib/ui';
 
 	const handlePreviousPage = async () => {
@@ -15,11 +16,13 @@
 		'Smart Contract'
 		// "Ledger Link",
 	];
+
 	const pages = [
 		{ name: '1', href: '#' },
 		{ name: '2', href: '#' },
 		{ name: '3', href: '#' }
 	];
+
 	const tableData = [
 		{
 			image: 'https://example.com/image1.jpg',
@@ -61,12 +64,6 @@
 				type: 'text',
 				value: row.smartContract
 			}
-			// rowSix: {
-			//     type: "snippet",
-			//     snippet: BadgeCell,
-			//     value:
-			//         row.ledgerLink,
-			// },
 		};
 	});
 
@@ -95,18 +92,31 @@
 </script>
 
 <section>
-    <Table
-    class="mb-7"
-    tableData= {mappedData}
-    withSelection= {true}
-    {handlePreviousPage}
-    {handleNextPage}
-    />
+    <TableCard>
+        <TableCardHeader
+            title="Events"
+            searchValue=""
+            rightTitle="No evault selected. Select an evault to monitor logs"/>
+        <Table
+        class="mb-7"
+        tableData= {mappedData}
+        withSelection= {true}
+        {handlePreviousPage}
+        {handleNextPage}
+        />
+    </TableCard>
 
-    <Table
-    tableData= {mappedData}
-    withSelection= {true}
-    {handlePreviousPage}
-    {handleNextPage}
-    />
+    <TableCard>
+        <TableCardHeader
+            title="Events"
+            searchValue=""
+            rightTitle="No evault selected. Select an evault to monitor logs"/>
+        <Table
+        class="mb-7"
+        tableData= {mappedData}
+        withSelection= {true}
+        {handlePreviousPage}
+        {handleNextPage}
+        />
+    </TableCard>
 </section>

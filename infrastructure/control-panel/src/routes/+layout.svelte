@@ -14,10 +14,10 @@
 		{#if pageUrl === "/"}
 		<div class="flex items-center gap-4">
 			<ButtonAction size="sm"  variant="soft">Refresh</ButtonAction>
-			<ButtonAction size="sm" class="whitespace-nowrap" variant="soft" callback={() => goto("/monitoring")}>Start Monitoring</ButtonAction>
+			<ButtonAction size="sm" class="whitespace-nowrap" variant="solid" callback={() => goto("/monitoring")}>Start Monitoring</ButtonAction>
 		</div>
 		{:else}
-			<ButtonAction size="sm" class="whitespace-nowrap" variant="soft" callback={() => goto("/")}>Exit Monitoring</ButtonAction>
+			<ButtonAction size="sm" class="whitespace-nowrap" variant="solid" callback={() => goto("/")}>Exit Monitoring</ButtonAction>
 		{/if}
 	</header>
 	<section class="px-10">
