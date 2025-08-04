@@ -2,6 +2,9 @@
 	import { TableCard, TableCardHeader } from '$lib/fragments';
 	import { Table } from '$lib/ui';
 
+    let eventsSearchValue = $state('');
+    let platformsSearchQuery = $state('');
+
 	const handlePreviousPage = async () => {
 		alert('Previous btn clicked. Make a call to your server to fetch data.');
 	};
@@ -95,7 +98,8 @@
 	<TableCard>
 		<TableCardHeader
 			title="Events"
-			searchValue=""
+            placeholder="Search Events"
+			bind:searchValue={eventsSearchValue}
 			rightTitle="No evault selected. Select an evault to monitor logs"
 		/>
 		<Table
@@ -109,8 +113,9 @@
 
 	<TableCard>
 		<TableCardHeader
-			title="Events"
-			searchValue=""
+			title="Platforms"
+            placeholder="Search Platforms"
+			bind:searchValue={platformsSearchQuery}
 			rightTitle="No evault selected. Select an evault to monitor logs"
 		/>
 		<Table
