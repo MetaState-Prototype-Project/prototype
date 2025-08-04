@@ -14,8 +14,8 @@ export default {
 export const Default = {
 	args: {
 		events: [
-			{ id: 1, from: "alice", to: "pictique" },
-			{ id: 2, from: "pictique", to: "bob" }
+			{ id: 1, from: 'alice', to: 'pictique' },
+			{ id: 2, from: 'pictique', to: 'bob' }
 		]
 	}
 };

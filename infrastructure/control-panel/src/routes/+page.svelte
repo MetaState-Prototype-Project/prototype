@@ -1,5 +1,5 @@
 <script lang="ts">
-	import {TableCard, TableCardHeader} from '$lib/fragments';
+	import { TableCard, TableCardHeader } from '$lib/fragments';
 	import { Table } from '$lib/ui';
 
 	const handlePreviousPage = async () => {
@@ -91,32 +91,34 @@
 	];
 </script>
 
-<section>
-    <TableCard>
-        <TableCardHeader
-            title="Events"
-            searchValue=""
-            rightTitle="No evault selected. Select an evault to monitor logs"/>
-        <Table
-        class="mb-7"
-        tableData= {mappedData}
-        withSelection= {true}
-        {handlePreviousPage}
-        {handleNextPage}
-        />
-    </TableCard>
+<section class="flex flex-col gap-7">
+	<TableCard>
+		<TableCardHeader
+			title="Events"
+			searchValue=""
+			rightTitle="No evault selected. Select an evault to monitor logs"
+		/>
+		<Table
+			class="mb-7"
+			tableData={mappedData}
+			withSelection={true}
+			{handlePreviousPage}
+			{handleNextPage}
+		/>
+	</TableCard>
 
-    <TableCard>
-        <TableCardHeader
-            title="Events"
-            searchValue=""
-            rightTitle="No evault selected. Select an evault to monitor logs"/>
-        <Table
-        class="mb-7"
-        tableData= {mappedData}
-        withSelection= {true}
-        {handlePreviousPage}
-        {handleNextPage}
-        />
-    </TableCard>
+	<TableCard>
+		<TableCardHeader
+			title="Events"
+			searchValue=""
+			rightTitle="No evault selected. Select an evault to monitor logs"
+		/>
+		<Table
+			class="mb-7"
+			tableData={mappedData}
+			withSelection={true}
+			{handlePreviousPage}
+			{handleNextPage}
+		/>
+	</TableCard>
 </section>

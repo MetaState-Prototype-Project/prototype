@@ -205,7 +205,7 @@
 
 <Table
 	class={cn(
-		['relative w-full table-fixed text-left text-sm text-black-700', restProps.class].join(' ')
+		['text-black-700 relative w-full table-fixed text-left text-sm', restProps.class].join(' ')
 	)}
 >
 	<TableHead class="sticky top-0 h-[var(--table-header-height)] bg-white">
@@ -231,7 +231,7 @@
 	<Table
 		class={cn(
 			[
-				'relative w-full table-fixed border-separate border-spacing-y-2 text-left text-sm text-black-700',
+				'text-black-700 relative w-full table-fixed border-separate border-spacing-y-2 text-left text-sm',
 				restProps.class
 			].join(' ')
 		)}
@@ -243,7 +243,7 @@
 						selectedRow = i;
 						handleSelectedRow && handleSelectedRow(i);
 					}}
-					class="w-full bg-white select-none hover:bg-gray
+					class="hover:bg-gray w-full bg-white select-none
                         {selectedRow === i && 'bg-gray!'}"
 				>
 					{#if withSelection}
@@ -267,7 +267,7 @@
 	{@const cellData = tableData[0]?.[heading]}
 	{@const isSortable = cellData && 'sortable' in cellData && cellData.sortable}
 	<TableHeadCell
-		class="wide:text-base font-roboto p-0 text-xs font-bold text-black-700 normal-case
+		class="wide:text-base font-roboto text-black-700 p-0 text-xs font-bold normal-case
             {i === 0 && !withSelection && 'rounded-l-2xl'}
             {i === tableHeadings.length - 1 && !isScrollable && 'rounded-r-2xl'}
             "
@@ -309,7 +309,7 @@
 
 {#snippet BodyCell(data: Record<string, TableCell>, field: string, i: number)}
 	<TableBodyCell
-		class="wide:text-base font-roboto overflow-hidden p-2 text-xs font-normal text-ellipsis text-black-700
+		class="wide:text-base font-roboto text-black-700 overflow-hidden p-2 text-xs font-normal text-ellipsis
             {i === 0 && !withSelection && 'rounded-s-2xl pl-6'}
             {i === Object.keys(data).length - 1 && 'rounded-e-2xl'}
         "
@@ -322,7 +322,7 @@
 				{@render snippet(value)}
 			{/if}
 		{:else if 'type' in data[field] && data[field].type === 'image' && typeof data[field].value === 'string'}
-        <!-- needs to be change -->
+			<!-- needs to be change -->
 			<img
 				class="h-12 w-12 rounded-lg border-[0.5px] border-gray-700 object-cover [filter:drop-shadow(0_0_5px_rgba(255,255,255,1))]"
 				src={'https://picsum.photos/200'}
@@ -356,7 +356,7 @@
 			<div class="border-primary-900 flex items-center rounded-lg border bg-white">
 				<!-- Previous Button -->
 				<button
-					class=" flex h-8 w-10 items-center justify-center text-black-700 transition-colors hover:bg-black-300 disabled:cursor-not-allowed disabled:opacity-50"
+					class=" text-black-700 hover:bg-black-300 flex h-8 w-10 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={handlePreviousPage}
 					disabled={currentPage <= 1 || isLoading}
 				>
@@ -366,14 +366,14 @@
 				<!-- Page Numbers -->
 				{#each generatePageNumbers(currentPage, totalPages) as pageNum}
 					{#if pageNum === '...'}
-						<span class="flex h-8 w-10 items-center justify-center text-black-700"
+						<span class="text-black-700 flex h-8 w-10 items-center justify-center"
 							>...</span
 						>
 					{:else}
 						<button
 							class="outline-primary-900 flex h-8 w-10 items-center justify-center transition-colors
                                 {currentPage === pageNum
-								? ' bg-white text-black-700'
+								? ' text-black-700 bg-white'
 								: '  text-black-700 hover:bg-white'}"
 							onclick={() =>
 								typeof pageNum === 'number' ? goToPage?.(pageNum) : undefined}
@@ -386,7 +386,7 @@
 
 				<!-- Next Button -->
 				<button
-					class="flex h-8 w-10 items-center justify-center text-black-700 transition-colors hover:bg-black-300 disabled:cursor-not-allowed disabled:opacity-50"
+					class="text-black-700 hover:bg-black-300 flex h-8 w-10 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={handleNextPage}
 					disabled={currentPage >= totalPages || isLoading}
 				>
@@ -396,6 +396,7 @@
 		</div>
 	</div>
 {/if}
+
 <!--
 @component
 @name Table
