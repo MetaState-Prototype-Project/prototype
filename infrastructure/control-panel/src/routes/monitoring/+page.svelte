@@ -7,6 +7,7 @@
 	import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import { ButtonAction } from '$lib/ui';
 	import { Modal } from 'flowbite-svelte';
+	import type { LogEvent } from '$lib/types';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
@@ -16,7 +17,7 @@
 
 	let isPaused = $state(false);
 	let isModalOpen = $state(false);
-	let selectedVaults = $state([]);
+	let selectedVaults: string[] = $state([]);
 
 	let nodes: Node[] = $state([
 		{
@@ -100,7 +101,7 @@
 
 	let currentSelectedEventIndex = $state(-1);
 
-	const events = [
+	const events: LogEvent[] = [
 		{
 			timestamp: new Date(),
 			action: 'upload',

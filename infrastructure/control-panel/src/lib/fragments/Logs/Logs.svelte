@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { LogEvent } from '$lib/types';
 	import { capitalizeFirstLetter, cn, parseTimestamp } from '$lib/utils';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-	let {
-		events,
-		activeEventIndex = $bindable(),
-		...restProps
-	}: { events: LogEvent[]; activeEventIndex: number } = $props();
+	interface ILogsProps extends HTMLAttributes<HTMLElement> {
+		events: LogEvent[];
+		activeEventIndex: number;
+	}
+
+	let { events, activeEventIndex = $bindable(), ...restProps }: ILogsProps = $props();
 
 	const commonClasses = 'w-full h-full rounded-md p-4 bg-white';
 	const commonLogClasses =
@@ -19,7 +21,7 @@
 	};
 </script>
 
-<section class={cn(commonClasses, restProps.class)}>
+<section {...restProps} class={cn(commonClasses, restProps.class)}>
 	<h2 class="pb-4 pl-8 text-xl">Logs</h2>
 	{#each events as event, i}
 		<article
