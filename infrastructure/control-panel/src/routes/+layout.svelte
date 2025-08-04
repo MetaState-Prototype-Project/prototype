@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { ButtonAction } from '$lib/ui';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { RefreshFreeIcons } from '@hugeicons/core-free-icons';
 	import '../app.css';
 
 	let { children } = $props();
@@ -15,7 +17,16 @@
 		<h4 class="text-primary text-xl font-semibold">Control Panel</h4>
 		{#if pageUrl === '/'}
 			<div class="flex items-center gap-4">
-				<ButtonAction size="sm" variant="soft">Refresh</ButtonAction>
+				<ButtonAction size="sm" variant="soft">
+					Refresh
+					<span class="ms-2">
+						<HugeiconsIcon
+							icon={RefreshFreeIcons}
+							color="var(--color-primary)"
+							size="20px"
+						/>
+					</span>
+				</ButtonAction>
 				<ButtonAction
 					size="sm"
 					class="whitespace-nowrap"
