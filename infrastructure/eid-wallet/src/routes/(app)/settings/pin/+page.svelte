@@ -1,29 +1,29 @@
 <script lang="ts">
-    import { runtime } from "$lib/global/runtime.svelte";
-    import { ButtonAction, Drawer, InputPin } from "$lib/ui";
-    import { CircleLock01Icon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
+import { runtime } from "$lib/global/runtime.svelte";
+import { ButtonAction, Drawer, InputPin } from "$lib/ui";
+import { CircleLock01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
-    let currentPin = $state("");
-    let newPin = $state("");
-    let repeatPin = $state("");
-    let isError = $state(false);
-    let showDrawer = $state(false);
+let currentPin = $state("");
+let newPin = $state("");
+let repeatPin = $state("");
+let isError = $state(false);
+let showDrawer = $state(false);
 
-    const handleClose = async () => {
-        // close functionality goes here.
-        showDrawer = false;
-    };
+const handleClose = async () => {
+    // close functionality goes here.
+    showDrawer = false;
+};
 
-    const handleChangePIN = async () => {
-        if (repeatPin.length === 4 && newPin !== repeatPin) isError = true;
-        if (!isError) showDrawer = true;
-    };
+const handleChangePIN = async () => {
+    if (repeatPin.length === 4 && newPin !== repeatPin) isError = true;
+    if (!isError) showDrawer = true;
+};
 
-    $effect(() => {
-        runtime.header.title = "Change PIN";
-        if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
-    });
+$effect(() => {
+    runtime.header.title = "Change PIN";
+    if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
+});
 </script>
 
 <main

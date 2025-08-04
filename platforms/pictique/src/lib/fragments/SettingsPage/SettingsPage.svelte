@@ -24,12 +24,10 @@
 		onclick={() => goto(`/settings/account`)}
 		profileSrc="https://picsum.photos/200/300"
 	>
-		{#snippet children()}
-			<div class="flex flex-col items-start">
-				<h2 class="text-lg">{username}</h2>
-				<p class="text-sm">{userEmail}</p>
-			</div>
-		{/snippet}
+		<div class="flex flex-col items-start">
+			<h2 class="text-lg">{username}</h2>
+			<p class="text-sm">{userEmail}</p>
+		</div>
 	</SettingsNavigationButton>
 </div>
 <hr class="text-grey" />
@@ -44,9 +42,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Notifications
-			{/snippet}
+			Notifications
 		</SettingsNavigationButton>
 	</div>
 </div>
@@ -62,9 +58,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Data & Storage
-			{/snippet}
+			Data & Storage
 		</SettingsNavigationButton>
 	</div>
 	<div class="{route === `/settings/logout` ? 'bg-grey' : ''} rounded-xl p-2">
@@ -76,9 +70,7 @@
 					color="var(--color-brand-burnt-orange)"
 				/>
 			{/snippet}
-			{#snippet children()}
-				Logout
-			{/snippet}
+			Logout
 		</SettingsNavigationButton>
 	</div>
 </div>

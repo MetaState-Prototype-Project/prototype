@@ -1,138 +1,142 @@
 <script lang="ts">
-    import { ButtonAction } from "$lib/ui";
-    import { writable } from "svelte/store";
-    import {
-        permissionGranted,
-        verifStep,
-        DocFront,
-        verificaitonId,
-    } from "../store";
-    import { onMount } from "svelte";
-    import axios from "axios";
-    import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { ButtonAction } from "$lib/ui";
+import axios from "axios";
+import { onMount } from "svelte";
+import { writable } from "svelte/store";
+import {
+    DocFront,
+    permissionGranted,
+    verifStep,
+    verificaitonId,
+} from "../store";
 
-    let error: string;
+let error: string;
 
-    let video: HTMLVideoElement;
-    let canvas1: HTMLCanvasElement;
-    let canvas2: HTMLCanvasElement;
-    let image = 1;
-    let image1Captured = writable(false);
-    let loading = false;
-    let stream: MediaStream;
+let video: HTMLVideoElement;
+let canvas1: HTMLCanvasElement;
+let canvas2: HTMLCanvasElement;
+let image = 1;
+let image1Captured = writable(false);
+let loading = false;
+let stream: MediaStream;
 
-    async function ensureCameraPermission() {
+async function ensureCameraPermission() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+        });
+        // Stop immediately after granting
+        for (const track of stream.getTracks()) {
+            track.stop();
+        }
+    } catch (err) {
+        console.error("Camera permission denied:", err);
+        throw err;
+    }
+}
+
+async function hasTorch(track: MediaStreamTrack) {
+    try {
+        const capabilities = track.getCapabilities?.();
+        return capabilities && "torch" in capabilities;
+    } catch {
+        return false;
+    }
+}
+
+async function findMainCameraWithTorch() {
+    const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+        (d) => d.kind === "videoinput",
+    );
+
+    for (const device of devices) {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
+                video: { deviceId: { exact: device.deviceId } },
             });
-            // Stop immediately after granting
-            stream.getTracks().forEach((track) => track.stop());
+
+            const track = stream.getVideoTracks()[0];
+            const supportsTorch = await hasTorch(track);
+            track.stop();
+
+            if (supportsTorch) {
+                return device.deviceId;
+            }
         } catch (err) {
-            console.error("Camera permission denied:", err);
-            throw err;
+            console.warn(`Could not test device ${device.deviceId}`, err);
         }
     }
 
-    async function hasTorch(track) {
-        try {
-            const capabilities = track.getCapabilities?.();
-            return capabilities && "torch" in capabilities;
-        } catch {
-            return false;
-        }
-    }
+    // Fallback to first device if no torch found
+    return devices[0]?.deviceId;
+}
 
-    async function findMainCameraWithTorch() {
-        const devices = (
+async function getMainCameraStream() {
+    try {
+        const availableDevices = (
             await navigator.mediaDevices.enumerateDevices()
-        ).filter((d) => d.kind === "videoinput");
+        )
+            .filter((d) => d.kind === "videoinput")
+            .map((d) => d.deviceId);
 
-        for (const device of devices) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { deviceId: { exact: device.deviceId } },
-                });
-
-                const track = stream.getVideoTracks()[0];
-                const supportsTorch = await hasTorch(track);
+        const mainCamId = await findMainCameraWithTorch();
+        return await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: mainCamId } },
+        });
+    } catch (err) {
+        console.error("Failed to get main camera stream:", err);
+        throw err;
+    }
+}
+async function requestCameraPermission() {
+    try {
+        await ensureCameraPermission();
+        stream = await getMainCameraStream();
+        video.srcObject = stream;
+        video.play();
+        permissionGranted.set(true);
+    } catch (err) {
+        permissionGranted.set(false);
+        console.error("Camera permission denied", err);
+    }
+}
+async function captureImage() {
+    if (image === 1) {
+        console.log("huh?");
+        const context1 = canvas1.getContext("2d");
+        if (context1) {
+            context1.drawImage(video, 0, 0, 1920, 1080);
+            canvas1.width = video.videoWidth;
+            canvas1.height = video.videoHeight;
+            context1.drawImage(video, 0, 0, canvas1.width, canvas1.height);
+            const dataUrl = canvas1.toDataURL("image/png");
+            DocFront.set(dataUrl);
+            loading = true;
+            await axios.post(
+                new URL(
+                    `/verification/${$verificaitonId}/media`,
+                    PUBLIC_PROVISIONER_URL,
+                ).toString(),
+                {
+                    img: dataUrl,
+                    type: "document-front",
+                },
+            );
+            console.log("here???");
+            loading = false;
+            image1Captured.set(true);
+            for (const track of stream.getTracks()) {
                 track.stop();
-
-                if (supportsTorch) {
-                    return device.deviceId;
-                }
-            } catch (err) {
-                console.warn(`Could not test device ${device.deviceId}`, err);
             }
-        }
-
-        // Fallback to first device if no torch found
-        return devices[0]?.deviceId;
-    }
-
-    async function getMainCameraStream() {
-        try {
-            const availableDevices = (
-                await navigator.mediaDevices.enumerateDevices()
-            )
-                .filter((d) => d.kind === "videoinput")
-                .map((d) => d.deviceId);
-
-            const mainCamId = await findMainCameraWithTorch();
-            return await navigator.mediaDevices.getUserMedia({
-                video: { deviceId: { exact: mainCamId } },
-            });
-        } catch (err) {
-            console.error("Failed to get main camera stream:", err);
-            throw err;
+            verifStep.set(1);
         }
     }
-    async function requestCameraPermission() {
-        try {
-            await ensureCameraPermission();
-            stream = await getMainCameraStream();
-            video.srcObject = stream;
-            video.play();
-            permissionGranted.set(true);
-        } catch (err) {
-            permissionGranted.set(false);
-            console.error("Camera permission denied", err);
-        }
-    }
-    async function captureImage() {
-        if (image === 1) {
-            console.log("huh?");
-            const context1 = canvas1.getContext("2d");
-            if (context1) {
-                context1.drawImage(video, 0, 0, 1920, 1080);
-                canvas1.width = video.videoWidth;
-                canvas1.height = video.videoHeight;
-                context1.drawImage(video, 0, 0, canvas1.width, canvas1.height);
-                const dataUrl = canvas1.toDataURL("image/png");
-                DocFront.set(dataUrl);
-                loading = true;
-                await axios.post(
-                    new URL(
-                        `/verification/${$verificaitonId}/media`,
-                        PUBLIC_PROVISIONER_URL,
-                    ).toString(),
-                    {
-                        img: dataUrl,
-                        type: "document-front",
-                    },
-                );
-                console.log("here???");
-                loading = false;
-                image1Captured.set(true);
-                stream.getTracks().forEach((track) => track.stop());
-                verifStep.set(1);
-            }
-        }
-    }
+}
 
-    onMount(() => {
-        requestCameraPermission();
-    });
+onMount(() => {
+    requestCameraPermission();
+});
 </script>
 
 <div>

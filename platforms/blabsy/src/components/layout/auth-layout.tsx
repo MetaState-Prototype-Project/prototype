@@ -6,36 +6,34 @@ import { Placeholder } from '@components/common/placeholder';
 import type { LayoutProps } from './common-layout';
 
 export function AuthLayout({ children }: LayoutProps): JSX.Element {
-  const [pending, setPending] = useState(true);
+    const [pending, setPending] = useState(true);
 
-  const { user, loading, error } = useAuth();
-  const { replace } = useRouter();
+    const { user, loading, error } = useAuth();
+    const { replace } = useRouter();
 
-  useEffect(() => {
-    const checkLogin = async (): Promise<void> => {
-      setPending(true);
+    useEffect(() => {
+        const checkLogin = async (): Promise<void> => {
+            setPending(true);
 
-      if (user) {
-        await sleep(500);
-        void replace('/home');
-      } else if (!loading) {
-        await sleep(500);
-        setPending(false);
-      }
-    };
+            if (user) {
+                await sleep(500);
+                void replace('/home');
+            } else if (!loading) {
+                await sleep(500);
+                setPending(false);
+            }
+        };
 
-    void checkLogin();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading]);
+        void checkLogin();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, loading]);
 
-  // If there's an auth error (user not found), redirect to login
-  useEffect(() => {
-    if (error) {
-      void replace('/');
-    }
-  }, [error, replace]);
+    // If there's an auth error (user not found), redirect to login
+    useEffect(() => {
+        if (error) void replace('/');
+    }, [error, replace]);
 
-  if (loading || pending) return <Placeholder />;
+    if (loading || pending) return <Placeholder />;
 
-  return <>{children}</>;
+    return <>{children}</>;
 }

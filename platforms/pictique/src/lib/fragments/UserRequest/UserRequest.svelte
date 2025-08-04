@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Avatar } from '$lib/ui';
-	import Button from '$lib/ui/Button/Button.svelte';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -11,8 +10,7 @@
 		handleFollow: () => Promise<void>;
 	}
 
-	let { userImgSrc, userName, description, handleFollow, ...restProps }: IUserRequestprops =
-		$props();
+	let { userImgSrc, userName, description, ...restProps }: IUserRequestprops = $props();
 </script>
 
 <article

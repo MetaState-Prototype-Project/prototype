@@ -1,9 +1,9 @@
-import { firestore, functions, regionalFunctions } from "./lib/utils";
-import { bookmarkConverter, tweetConverter } from "./types";
-import type { Tweet } from "./types";
+import { firestore, functions, regionalFunctions } from './lib/utils';
+import { bookmarkConverter, tweetConverter } from './types';
+import type { Tweet } from './types';
 
 export const normalizeStats = regionalFunctions.firestore
-    .document("tweets/{tweetId}")
+    .document('tweets/{tweetId}')
     .onDelete(async (snapshot): Promise<void> => {
         const tweetId = snapshot.id;
         const tweetData = snapshot.data() as Tweet;
@@ -25,13 +25,13 @@ export const normalizeStats = regionalFunctions.firestore
 
             batch.update(userStatsRef, {
                 tweets: firestore.FieldValue.arrayRemove(tweetId),
-                likes: firestore.FieldValue.arrayRemove(tweetId),
+                likes: firestore.FieldValue.arrayRemove(tweetId)
             });
         });
 
         const bookmarksQuery = firestore()
-            .collectionGroup("bookmarks")
-            .where("id", "==", tweetId)
+            .collectionGroup('bookmarks')
+            .where('id', '==', tweetId)
             .withConverter(bookmarkConverter);
 
         const docsSnap = await bookmarksQuery.get();

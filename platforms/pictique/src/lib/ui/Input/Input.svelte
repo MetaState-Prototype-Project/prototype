@@ -5,6 +5,7 @@
 	interface IInputProps extends HTMLInputAttributes {
 		type: HTMLInputTypeAttribute;
 		input?: HTMLInputElement;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		value: string | number | any;
 		placeholder?: string;
 	}

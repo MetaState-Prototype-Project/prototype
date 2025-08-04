@@ -1,3 +1,3 @@
 import { writable } from 'svelte/store';
 
-export let heading = writable();
+export const heading = writable<string>();

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { MessageInput, ChatMessage } from '$lib/fragments';
-	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
-	import { getAuthToken, apiClient } from '$lib/utils/axios';
+	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+	import { ChatMessage, MessageInput } from '$lib/fragments';
+	import { apiClient, getAuthToken } from '$lib/utils/axios';
 	import moment from 'moment';
+	import { onMount } from 'svelte';
 
 	const id = page.params.id;
 	let userId = $state();
-	let messages: any[] = $state([]);
+	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
 
@@ -33,11 +33,11 @@
 		).toString();
 		const eventSource = new EventSource(sseUrl);
 
-		eventSource.onopen = function (e) {
+		eventSource.onopen = () => {
 			console.log('Successfully connected.');
 		};
 
-		eventSource.onmessage = function (e) {
+		eventSource.onmessage = (e) => {
 			const data = JSON.parse(e.data);
 			console.log('messages', data);
 			addMessages(data);
@@ -55,13 +55,16 @@
 
 	function addMessages(arr: Record<string, unknown>[]) {
 		console.log(arr);
-		const newMessages = arr.map((m) => ({
-			id: m.id,
-			isOwn: m.sender.id !== userId,
-			userImgSrc: m.sender.avatarUrl,
-			time: moment(m.createdAt).fromNow(),
-			message: m.text
-		}));
+		const newMessages = arr.map((m) => {
+			const sender = m.sender as Record<string, string>;
+			return {
+				id: m.id,
+				isOwn: sender.id !== userId,
+				userImgSrc: sender.avatarUrl,
+				time: moment(m.createdAt as string).fromNow(),
+				message: m.text
+			};
+		});
 		apiClient.post(`/api/chats/${id}/messages/read`);
 
 		messages = messages.concat(newMessages);
@@ -78,10 +81,10 @@
 	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
 		{#each messages as msg (msg.id)}
 			<ChatMessage
-				isOwn={msg.isOwn}
-				userImgSrc={msg.userImgSrc}
-				time={msg.time}
-				message={msg.message}
+				isOwn={msg.isOwns as boolean}
+				userImgSrc={msg.userImgSrc as string}
+				time={msg.time as string}
+				message={msg.message as string}
 			/>
 		{/each}
 	</div>

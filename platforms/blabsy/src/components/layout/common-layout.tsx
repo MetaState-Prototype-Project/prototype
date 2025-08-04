@@ -1,6 +1,5 @@
 import { useRequireAuth } from '@lib/hooks/useRequireAuth';
 import { Aside } from '@components/aside/aside';
-import { AsideTrends } from '@components/aside/aside-trends';
 import { Suggestions } from '@components/aside/suggestions';
 import { Placeholder } from '@components/common/placeholder';
 import type { ReactNode } from 'react';
@@ -10,7 +9,8 @@ export type LayoutProps = {
 };
 
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
-    const user = useRequireAuth();
+    // const user = useRequireAuth();
+    const user = true; // TODO: Change back to useRequireAuth; Doing for development purposes
 
     if (!user) return <Placeholder />;
 

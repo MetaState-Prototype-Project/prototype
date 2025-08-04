@@ -68,7 +68,7 @@
 		bind:this={menuEl}
 		class={cn([cBase, restProps.class].join(' '))}
 	>
-		{#each options as option}
+		{#each options as option, i (i)}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<li
