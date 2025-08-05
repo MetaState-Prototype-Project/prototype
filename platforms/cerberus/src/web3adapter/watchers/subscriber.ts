@@ -70,6 +70,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
+        console.log("------------------- AFTER INSERT--------------")
         let entity = event.entity;
         if (entity) {
             entity = (await this.enrichEntity(
@@ -139,6 +140,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
+        console.log("=======================================", entity.id)
         // Check if this is a junction table
         if (tableName === "group_participants") return;
         
@@ -183,6 +185,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     data,
                     tableName: tableName.toLowerCase(),
                 });
+                console.log(envelope)
             }, 3_000);
         } catch (error) {
             console.error(`Error processing change for ${tableName}:`, error);

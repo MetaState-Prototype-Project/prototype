@@ -8,6 +8,7 @@ import { GroupController } from "./controllers/GroupController";
 import { MessageController } from "./controllers/MessageController";
 import { WebhookController } from "./controllers/WebhookController";
 import { AuthController } from "./controllers/AuthController";
+import { PlatformEVaultService } from "./services/PlatformEVaultService";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter";
 import path from "path";
@@ -17,10 +18,27 @@ config({ path: path.resolve(__dirname, "../../../../.env") });
 const app = express();
 const port = process.env.PORT || 3002;
 
-// Initialize database connection
+// Initialize database connection and platform eVault
 AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
+        
+        // Initialize platform eVault for Cerberus
+        try {
+            const platformService = PlatformEVaultService.getInstance();
+            const exists = await platformService.checkPlatformEVaultExists();
+            
+            if (!exists) {
+                console.log("🔧 Creating platform eVault for Cerberus...");
+                const result = await platformService.createPlatformEVault();
+                console.log(`✅ Platform eVault created successfully: ${result.w3id}`);
+            } else {
+                console.log("✅ Platform eVault already exists for Cerberus");
+            }
+        } catch (error) {
+            console.error("❌ Failed to initialize platform eVault:", error);
+            // Don't exit the process, just log the error
+        }
     })
     .catch((error: any) => {
         console.error("Error during initialization:", error);
@@ -105,4 +123,7 @@ app.get("/api/groups/:groupId/messages", authGuard, messageController.getGroupMe
 // Start server
 app.listen(port, () => {
     console.log(`Cerberus API running on port ${port}`);
-}); 
+});
+
+// Export platform service for use in other parts of the application
+export { PlatformEVaultService }; 

@@ -70,6 +70,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
+        console.log("afterInsert?")
         let entity = event.entity;
         if (entity) {
             entity = (await this.enrichEntity(
@@ -98,14 +99,89 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity update.
      */
     async afterUpdate(event: UpdateEvent<any>) {
+        console.log("🔍 afterUpdate triggered:", {
+            hasEntity: !!event.entity,
+            entityId: event.entity?.id,
+            databaseEntity: event.databaseEntity?.id,
+            tableName: event.metadata.tableName,
+            target: event.metadata.target
+        });
+
+        // For updates, we need to reload the full entity since event.entity only contains changed fields
         let entity = event.entity;
-        if (entity) {
-            entity = (await this.enrichEntity(
-                entity,
-                event.metadata.tableName,
-                event.metadata.target
-            )) as ObjectLiteral;
+        
+        // Try different ways to get the entity ID
+        let entityId = event.entity?.id || event.databaseEntity?.id;
+        
+        if (!entityId && event.entity) {
+            // If we have the entity but no ID, try to extract it from the entity object
+            const entityKeys = Object.keys(event.entity);
+            console.log("🔍 Entity keys:", entityKeys);
+            
+            // Look for common ID field names
+            entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
         }
+        
+        // If still no ID, try to find the entity by matching the changed data
+        if (!entityId && event.entity) {
+            try {
+                console.log("🔍 Trying to find entity by matching changed data...");
+                const repository = AppDataSource.getRepository(event.metadata.target);
+                const changedData = event.entity;
+                
+                // For Group entities, try to find by charter content
+                if (changedData.charter) {
+                    console.log("🔍 Looking for group with charter content...");
+                    const matchingEntity = await repository.findOne({
+                        where: { charter: changedData.charter },
+                        select: ['id']
+                    });
+                    
+                    if (matchingEntity) {
+                        entityId = matchingEntity.id;
+                        console.log("🔍 Found entity by charter match:", entityId);
+                    }
+                }
+            } catch (error) {
+                console.log("❌ Error finding entity by changed data:", error);
+            }
+        }
+        
+        console.log("🔍 Final entityId:", entityId);
+        
+        if (entityId) {
+            // Reload the full entity from the database
+            const repository = AppDataSource.getRepository(event.metadata.target);
+            const entityName = typeof event.metadata.target === 'function' 
+                ? event.metadata.target.name 
+                : event.metadata.target;
+            
+            console.log("🔍 Reloading entity:", { entityId, entityName });
+            
+            const fullEntity = await repository.findOne({
+                where: { id: entityId },
+                relations: this.getRelationsForEntity(entityName)
+            });
+            
+            if (fullEntity) {
+                console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
+                entity = (await this.enrichEntity(
+                    fullEntity,
+                    event.metadata.tableName,
+                    event.metadata.target
+                )) as ObjectLiteral;
+            } else {
+                console.log("❌ Could not load full entity for ID:", entityId);
+            }
+        } else {
+            console.log("❌ No entity ID found in update event");
+            console.log("🔍 Event details:", {
+                entity: event.entity,
+                databaseEntity: event.databaseEntity,
+                metadata: event.metadata
+            });
+        }
+        
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
@@ -139,6 +215,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
+        console.log("yoho")
         // Check if this is a junction table
         if (tableName === "group_participants") return;
         
@@ -152,7 +229,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
+        console.log(data, entity)
         if (!data.id) return;
+console.log("hmm?")
 
         try {
             setTimeout(async () => {

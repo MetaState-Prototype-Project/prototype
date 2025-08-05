@@ -277,8 +277,8 @@ export class Web3Adapter {
             data.id as string,
         );
 
-        console.log(this.mapping, tableName, this.mapping[tableName]);
-
+        if (!this.mapping[tableName]) return
+        console.log("We get here?")
         // If we already have a mapping, use that global ID
         if (existingGlobalId) {
             if (this.lockedIds.includes(existingGlobalId)) return;
@@ -305,7 +305,6 @@ export class Web3Adapter {
             };
         }
 
-        // For new entities, create a new global ID
         const global = await toGlobal({
             data,
             mapping: this.mapping[tableName],

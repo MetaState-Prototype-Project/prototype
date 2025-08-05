@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
+import { CerberusTriggerService } from "../services/CerberusTriggerService";
 import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -12,12 +13,14 @@ export class WebhookController {
     userService: UserService;
     groupService: GroupService;
     messageService: MessageService;
+    cerberusTriggerService: CerberusTriggerService;
     adapter: Web3Adapter;
 
     constructor(adapter: Web3Adapter) {
         this.userService = new UserService();
         this.groupService = new GroupService();
         this.messageService = new MessageService();
+        this.cerberusTriggerService = new CerberusTriggerService();
         this.adapter = adapter;
     }
 
@@ -27,7 +30,7 @@ export class WebhookController {
                 schemaId: req.body.schemaId,
                 globalId: req.body.id,
                 tableName: req.body.data?.tableName
-            });
+            }, req.body);
 
             if (process.env.ANCHR_URL) {
                 axios.post(
@@ -144,6 +147,7 @@ export class WebhookController {
                     group.owner = local.data.owner as string;
                     group.admins = admins;
                     group.participants = participants;
+                    group.charter = local.data.charter as string;
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
@@ -156,6 +160,7 @@ export class WebhookController {
                         owner: local.data.owner as string,
                         admins,
                         participants: participants,
+                        charter: local.data.charter as string,
                     });
 
                     console.log("Created group with ID:", group.id);
@@ -219,6 +224,20 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for message:", message.id, "->", req.body.id);
+
+                    // Check if this is a Cerberus trigger message
+                    if (this.cerberusTriggerService.isCerberusTrigger(message.text)) {
+                        console.log("🚨 Cerberus trigger detected!");
+                        
+                        // Process the trigger asynchronously (don't block the webhook response)
+                        this.cerberusTriggerService.processCerberusTrigger(message)
+                            .then(() => {
+                                console.log("✅ Cerberus trigger processing completed");
+                            })
+                            .catch((error) => {
+                                console.error("❌ Error processing Cerberus trigger:", error);
+                            });
+                    }
                 }
             }
             res.status(200).send();

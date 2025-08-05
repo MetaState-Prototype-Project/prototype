@@ -1,12 +1,12 @@
 {
     "tableName": "messages",
     "schemaId": "550e8400-e29b-41d4-a716-446655440004",
-    "ownerEnamePath": "sender.ename",
+    "ownerEnamePath": "users(sender.ename)",
     "ownedJunctionTables": [],
     "localToUniversalMap": {
-        "text": "text",
-        "sender": "sender",
-        "group": "group",
+        "text": "content",
+        "sender": "users(sender.id),senderId",
+        "group": "groups(group.id),chatId",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",
         "isArchived": "isArchived"
