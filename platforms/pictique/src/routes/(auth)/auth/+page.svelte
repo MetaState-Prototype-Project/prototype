@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+	import { W3dslogo } from '$lib/icons';
 	import { Qr } from '$lib/ui';
 	import { apiClient, setAuthId, setAuthToken } from '$lib/utils';
 	import { onMount } from 'svelte';
@@ -43,7 +44,7 @@
 		<p>Connect Socially in the Metastate</p>
 	</div>
 	<div
-		class="h-max-[600px] w-max-[400px] flex flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
+		class="h-max-[600px] w-max-[400px] mb-5 flex flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
 	>
 		<h2>Scan the QR code using your <b><u>eID App</u></b> to login</h2>
 		<article
@@ -83,4 +84,5 @@
 			centralised servers.
 		</p>
 	</div>
+	<W3dslogo />
 </div>
