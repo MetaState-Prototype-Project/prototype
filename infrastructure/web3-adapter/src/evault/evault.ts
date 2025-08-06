@@ -270,13 +270,16 @@ export class EVaultClient {
 
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
-            const response = await this.httpClient.get(
+            const response = await fetch(
                 new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
-                {
-                    timeout: CONFIG.REQUEST_TIMEOUT,
-                },
             );
-            return new URL("/graphql", response.data.uri).toString();
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return new URL("/graphql", data.uri).toString();
         } catch (error) {
             console.error("Error resolving eVault endpoint:", error);
             throw new Error("Failed to resolve eVault endpoint");
