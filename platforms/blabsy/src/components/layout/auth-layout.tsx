@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 import { sleep } from '@lib/utils';
@@ -7,7 +7,6 @@ import type { LayoutProps } from './common-layout';
 
 export function AuthLayout({ children }: LayoutProps): JSX.Element {
     const [pending, setPending] = useState(true);
-
     const { user, loading, error } = useAuth();
     const { replace } = useRouter();
 
@@ -29,8 +28,13 @@ export function AuthLayout({ children }: LayoutProps): JSX.Element {
     }, [user, loading]);
 
     // If there's an auth error (user not found), redirect to login
+    const hasRedirected = useRef(false);
     useEffect(() => {
-        if (error) void replace('/');
+        if (error && !hasRedirected.current) {
+            hasRedirected.current = true;
+            alert(error.message || 'An error occurred');
+            void replace('/');
+        }
     }, [error, replace]);
 
     if (loading || pending) return <Placeholder />;
