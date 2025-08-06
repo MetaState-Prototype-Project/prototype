@@ -167,7 +167,7 @@ export class PlatformEVaultService {
     private async createPlatformProfileInEVault(
         w3id: string,
         uri: string,
-        maxRetries = 10
+        maxRetries = 20
     ): Promise<string> {
         console.log("Creating PlatformProfile in eVault...");
         
@@ -219,7 +219,7 @@ export class PlatformEVaultService {
                 }
 
                 // Wait before retrying (exponential backoff)
-                const delay = Math.min(1000 * 2 ** (attempt - 1), 10000);
+                const delay = Math.min(1000 * 2 ** (attempt - 1), 20000);
                 console.log(`Waiting ${delay}ms before retry...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
