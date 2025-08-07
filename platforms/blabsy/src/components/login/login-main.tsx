@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 import { NextImage } from '@components/ui/next-image';
+import Image from 'next/image';
 
 export function LoginMain(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
@@ -76,9 +77,23 @@ export function LoginMain(): JSX.Element {
                             {qr && <QRCode value={qr} />}
                         </div>
                     </div>
+                    <div className='absolute right-0 rotate-90 top-1/2'>
+                        <Image
+                            src='/assets/w3dslogo.svg'
+                            alt='W3DS logo'
+                            width={100}
+                            height={20}
+                        />
+                    </div>
                 </div>
-                <div className='flex max-w-xs flex-col gap-6 [&_button]:py-2'>
-                    <div className='grid gap-3 font-bold' />
+                <div className='flex max-w-lg flex-col gap-6 [&_button]:py-2 bg-white/20 p-4 rounded-lg'>
+                    <div className='grid gap-3 font-bold text-white/80'>
+                        You are entering Blabsy - a social network built on the
+                        Web 3.0 Data Space (W3DS) architecture. This system is
+                        designed around the principle of data-platform
+                        separation, where all your personal content is stored in
+                        your own sovereign eVault, not on centralised servers.
+                    </div>
                 </div>
             </div>
         </main>
