@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 import { NextImage } from '@components/ui/next-image';
+import Image from 'next/image';
 
 export function LoginMain(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
@@ -75,6 +76,14 @@ export function LoginMain(): JSX.Element {
                         <div className='p-2 rounded-md bg-white w-fit'>
                             {qr && <QRCode value={qr} />}
                         </div>
+                    </div>
+                    <div className='absolute right-0 rotate-90 top-1/2'>
+                        <Image
+                            src='/assets/w3dslogo.svg'
+                            alt='W3DS logo'
+                            width={100}
+                            height={20}
+                        />
                     </div>
                 </div>
                 <div className='flex max-w-lg flex-col gap-6 [&_button]:py-2 bg-white/20 p-4 rounded-lg'>
