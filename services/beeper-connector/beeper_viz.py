@@ -38,14 +38,14 @@ def create_network_graph(g, output_file="network_graph.png", limit=50):
 
     # Get senders with most messages
     sender_counts = defaultdict(int)
-    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
+    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasSender"), None)):
         sender_counts[str(sender_object)] += 1
 
     top_senders = [sender for sender, count in sorted(sender_counts.items(), key=lambda x: x[1], reverse=True)[:limit//2]]
 
     # Get rooms with most messages
     room_counts = defaultdict(int)
-    for subject, predicate, room_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
+    for subject, predicate, room_object in g.triples((None, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasRoom"), None)):
         room_counts[str(room_object)] += 1
 
     top_rooms = [room for room, count in sorted(room_counts.items(), key=lambda x: x[1], reverse=True)[:limit//2]]
@@ -73,9 +73,9 @@ def create_network_graph(g, output_file="network_graph.png", limit=50):
 
     # Add edges between senders and rooms
     for sender in top_senders:
-        for message_subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), rdflib.URIRef(sender))):
+        for message_subject, predicate, sender_object in g.triples((None, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasSender"), rdflib.URIRef(sender))):
             message = message_subject
-            for msg_subject, msg_predicate, room_object in g.triples((message, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
+            for msg_subject, msg_predicate, room_object in g.triples((message, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasRoom"), None)):
                 room = str(room_object)
                 if room in top_rooms:
                     if G.has_edge(sender, room):
@@ -171,7 +171,7 @@ def create_wordcloud(g, output_file="wordcloud.png", min_length=4, max_words=200
 
     # Extract message content from the graph
     texts = []
-    for subject, predicate, content_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasContent"), None)):
+    for subject, predicate, content_object in g.triples((None, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasContent"), None)):
         text = str(content_object)
         if text:
             texts.append(text)
@@ -212,7 +212,7 @@ def create_sender_activity(g, output_file="sender_activity.png", top_n=15):
     sender_counts = defaultdict(int)
     sender_labels = {}
 
-    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
+    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("https://metastate.dev/ontology/beeper/hasSender"), None)):
         sender = str(sender_object)
         sender_counts[sender] += 1
 
