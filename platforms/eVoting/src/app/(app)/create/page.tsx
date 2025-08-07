@@ -1,22 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, X, Eye, UserX } from "lucide-react";
+import {
+    Plus,
+    X,
+    Eye,
+    UserX,
+    ChartLine,
+    ListOrdered,
+    CircleUser,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import Link from "next/link";
 
 const createPollSchema = z.object({
     title: z.string().min(1, "Poll title is required"),
-    mode: z.enum(["public", "private"]),
+    mode: z.enum(["normal", "point", "rank"]),
+    visibility: z.enum(["public", "private"]),
     options: z
         .array(z.string().min(1, "Option cannot be empty"))
         .min(2, "At least 2 options required"),
@@ -26,7 +33,7 @@ const createPollSchema = z.object({
         .refine((val) => {
             if (!val) return true; // Allow empty deadline
             const date = new Date(val);
-            return !isNaN(date.getTime()) && date > new Date();
+            return !Number.isNaN(date.getTime()) && date > new Date();
         }, "Deadline must be a valid future date"),
 });
 
@@ -34,23 +41,7 @@ type CreatePollForm = z.infer<typeof createPollSchema>;
 
 export default function CreatePoll() {
     const { toast } = useToast();
-    const { isAuthenticated, isLoading: authLoading } = useAuth();
     const [options, setOptions] = useState<string[]>(["", ""]);
-
-    // TODO: Redirect to login if not authenticated
-    // useEffect(() => {
-    //     if (!authLoading && !isAuthenticated) {
-    //         toast({
-    //             title: "Unauthorized",
-    //             description: "You are logged out. Logging in again...",
-    //             variant: "destructive",
-    //         });
-    //         setTimeout(() => {
-    //             window.location.href = "/api/login";
-    //         }, 500);
-    //         return;
-    //     }
-    // }, [isAuthenticated, authLoading, toast]);
 
     const {
         register,
@@ -62,13 +53,20 @@ export default function CreatePoll() {
         resolver: zodResolver(createPollSchema),
         defaultValues: {
             title: "",
-            mode: "public",
+            mode: "normal",
+            visibility: "public",
             options: ["", ""],
             deadline: "",
         },
     });
 
+    handleSubmit((data) => {
+        console.log("Form submitted:", data);
+        console.log(data);
+    });
+
     const watchedMode = watch("mode");
+    const watchedVisibility = watch("visibility");
 
     const addOption = () => {
         const newOptions = [...options, ""];
@@ -132,7 +130,107 @@ export default function CreatePoll() {
                     <RadioGroup
                         value={watchedMode}
                         onValueChange={(value) =>
-                            setValue("mode", value as "public" | "private")
+                            setValue(
+                                "mode",
+                                value as "normal" | "point" | "rank"
+                            )
+                        }
+                        className="mt-2"
+                    >
+                        <div className="flex items-center space-x-4">
+                            <Label className="flex items-center cursor-pointer">
+                                <RadioGroupItem
+                                    value="normal"
+                                    className="sr-only"
+                                />
+                                <div
+                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                        watchedMode === "normal"
+                                            ? "border-(--crimson) bg-(--crimson-50)"
+                                            : "border-gray-300 hover:border-(--crimson)"
+                                    }`}
+                                >
+                                    <div className="flex items-center">
+                                        <CircleUser className="text-(--crimson) w-6 h-6 mr-3" />
+                                        <div>
+                                            <div className="font-semibold text-gray-900">
+                                                1P 1V
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                One person, one vote
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Label>
+
+                            <Label className="flex items-center cursor-pointer">
+                                <RadioGroupItem
+                                    value="point"
+                                    className="sr-only"
+                                />
+                                <div
+                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                        watchedMode === "point"
+                                            ? "border-(--crimson) bg-(--crimson-50)"
+                                            : "border-gray-300 hover:border-(--crimson)"
+                                    }`}
+                                >
+                                    <div className="flex items-center">
+                                        <ChartLine className="text-(--crimson) w-6 h-6 mr-3" />
+                                        <div>
+                                            <div className="font-semibold text-gray-900">
+                                                PBV
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                Each voter gets 100 points
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Label>
+
+                            <Label className="flex items-center cursor-pointer">
+                                <RadioGroupItem
+                                    value="rank"
+                                    className="sr-only"
+                                />
+                                <div
+                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                        watchedMode === "rank"
+                                            ? "border-(--crimson) bg-(--crimson-50)"
+                                            : "border-gray-300 hover:border-(--crimson)"
+                                    }`}
+                                >
+                                    <div className="flex items-center">
+                                        <ListOrdered className="text-(--crimson) w-6 h-6 mr-3" />
+                                        <div>
+                                            <div className="font-semibold text-gray-900">
+                                                RBV
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                Voters can rank order the
+                                                choices
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Label>
+                        </div>
+                    </RadioGroup>
+                </div>
+
+                <div>
+                    <Label className="text-sm font-semibold text-gray-700">
+                        Vote Visibility
+                    </Label>
+                    <RadioGroup
+                        value={watchedVisibility}
+                        onValueChange={(value) =>
+                            setValue(
+                                "visibility",
+                                value as "public" | "private"
+                            )
                         }
                         className="mt-2"
                     >
@@ -144,7 +242,7 @@ export default function CreatePoll() {
                                 />
                                 <div
                                     className={`border-2 rounded-lg p-4 flex-1 transition-all ${
-                                        watchedMode === "public"
+                                        watchedVisibility === "public"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
                                     }`}
@@ -170,7 +268,7 @@ export default function CreatePoll() {
                                 />
                                 <div
                                     className={`border-2 rounded-lg p-4 flex-1 transition-all ${
-                                        watchedMode === "private"
+                                        watchedVisibility === "private"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
                                     }`}
@@ -224,6 +322,7 @@ export default function CreatePoll() {
                     <div className="mt-2 space-y-3">
                         {options.map((option, index) => (
                             <div
+                                // biome-ignore lint/suspicious/noArrayIndexKey: jatt dont care OOOOOOOOOO
                                 key={index}
                                 className="flex items-center space-x-2"
                             >
@@ -278,21 +377,8 @@ export default function CreatePoll() {
                     </Link>
                     <Button
                         type="submit"
-                        // disabled={createPollMutation.isPending}
-                        disabled={false} // TODO: replace with actual loading state
                         className="flex-1 bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
                     >
-                        {/* {createPollMutation.isPending ? (
-                            <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                Creating...
-                            </>
-                        ) : (
-                            <>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Vote
-                            </>
-                        )} */}
                         Create Vote
                     </Button>
                 </div>
