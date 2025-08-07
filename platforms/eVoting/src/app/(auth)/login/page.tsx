@@ -26,16 +26,16 @@ export default function LoginPage() {
         router.push("/");
     };
     return (
-        <div className="flex flex-col h-screen items-center justify-center gap-4">
+        <div className="flex flex-col items-center justify-center gap-4 mt-4">
             <div className="flex flex-col items-center text-center gap-4">
-                <div className="flex items-center gap-2 text-5xl font-bold">
-                    <img src="/Logo.png" alt="eVoting Logo" />
+                <div className="flex items-center gap-2 text-2xl font-bold">
+                    <img src="/Logo.png" alt="eVoting Logo" className="h-12" />
                     eVoting
                 </div>
                 <p className="text-2xl">Secure voting in the W3DS</p>
             </div>
-            <Card className="flex flex-col items-center gap-4 w-96 p-8">
-                <CardHeader className="text-foreground text-3xl font-black">
+            <Card className="flex flex-col items-center gap-1 w-1/3 p-4 pt-2">
+                <CardHeader className="text-foreground text-2xl font-black">
                     Welcome to eVoting
                 </CardHeader>
                 <div className="flex flex-col gap-4 text-muted-foreground items-center">
@@ -75,12 +75,12 @@ export default function LoginPage() {
                         <li>View real-time results</li>
                         <li>Manage your created votes</li>
                     </ul> */}
-                    <p className="font-bold text-xl">
-                        The code is only valid for 60 seconds
-                    </p>
-                    <p className="text-xl">
-                        Please refresh the page if it expires
-                    </p>
+                    <span className="flex flex-col gap-2 items-center">
+                        <p className="font-bold text-md">
+                            The code is only valid for 60 seconds
+                        </p>
+                        <p>Please refresh the page if it expires</p>
+                    </span>
                     <div className="bg-muted-foreground/20 p-4 rounded-md text-center">
                         You are entering eVoting - a voting platform built on
                         the Web 3.0 Data Space (WDS) architecture. This system
