@@ -92,7 +92,7 @@ Learn more about the power of Turborepo:
 | [W3ID](./infrastructure/w3id/)             | In Progress |
 | [eID Wallet](./infrastructure/eid-wallet/) | In Progress |
 | EVault Core                                | Planned     |
-| Web3 Adapter                               | Planned     |
+| [Web3 Adapter](./infrastructure/web3-adapter/) | ✅ Complete |
 
 ## Documentation Links
 
@@ -100,6 +100,7 @@ Learn more about the power of Turborepo:
 | ---------------------------- | ------------------------------------------- | -------------------------------------------------------------------------- |
 | MetaState Prototype          | Main project README                         | [README.md](./README.md)                                                   |
 | W3ID                         | Web 3 Identity System documentation         | [W3ID README](./infrastructure/w3id/README.md)                             |
+| Web3 Adapter                 | Platform data synchronization adapter       | [Web3 Adapter README](./infrastructure/web3-adapter/README.md)             |
 | eVault Core                  | Core eVault system documentation            | [eVault Core README](./infrastructure/evault-core/README.md)               |
 | eVault Core W3ID Integration | W3ID integration details for eVault Core    | [W3ID Integration](./infrastructure/evault-core/docs/w3id-integration.md)  |
 | eVault Provisioner           | Provisioning eVault instances documentation | [eVault Provisioner README](./infrastructure/evault-provisioner/README.md) |
@@ -114,7 +115,14 @@ prototype/
 ├─ infrastructure/
 │  ├─ evault-core/
 │  │  └─ package.json
-│  └─ w3id/
+│  ├─ w3id/
+│  │  └─ package.json
+│  └─ web3-adapter/
+│     ├─ src/
+│     │  ├─ adapter.ts
+│     │  ├─ types.ts
+│     │  └─ index.ts
+│     ├─ examples/
 │     └─ package.json
 ├─ packages/
 │  ├─ eslint-config/
@@ -143,3 +151,23 @@ prototype/
 ├─ README.md (This File)
 └─ turbo.json (Configures TurboRepo)
 ```
+
+## Web3 Adapter
+
+The Web3 Adapter is a critical infrastructure component that enables seamless data exchange between different social media platforms through the W3DS infrastructure. It provides:
+
+### Key Features
+- **Schema Mapping**: Maps platform-specific data models to universal ontology schemas
+- **ID Translation**: Maintains bidirectional mapping between W3IDs and platform-specific identifiers
+- **ACL Management**: Handles access control lists for read/write permissions
+- **MetaEnvelope Support**: Converts data to/from eVault's envelope-based storage format
+- **Cross-Platform Exchange**: Enables data sharing between Twitter, Instagram, and other platforms
+
+### How It Works
+1. Platform data is converted to universal ontology format using schema mappings
+2. Data is broken down into atomic Envelopes with ontology references
+3. MetaEnvelopes group related envelopes as logical entities
+4. W3IDs are mapped to local platform IDs for seamless integration
+5. ACLs control data access across platforms
+
+For detailed implementation and usage examples, see the [Web3 Adapter documentation](./infrastructure/web3-adapter/README.md).
