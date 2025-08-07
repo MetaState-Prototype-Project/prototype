@@ -1,9 +1,8 @@
-import { apiClient } from '$lib/utils/axios';
 import { writable } from 'svelte/store';
+import { apiClient } from '$lib/utils/axios';
 
 export interface User {
 	id: string;
-	ename: string;
 	handle: string;
 	name: string;
 	description: string;

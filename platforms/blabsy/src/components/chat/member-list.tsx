@@ -30,7 +30,8 @@ export function MemberList({
         sendNewMessage,
         markAsRead,
         removeParticipant,
-        loading
+        loading,
+        setCurrentChat
     } = useChat();
     const { user } = useAuth();
     const [messageText, setMessageText] = useState('');
@@ -39,6 +40,8 @@ export function MemberList({
     const [isLoading, setIsLoading] = useState(false);
 
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [participantData, setParticipantData] = useState<Record<string, User>>({});
+    const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
     const otherParticipant = currentChat?.participants.find(
         (p) => p !== user?.id
@@ -99,6 +102,38 @@ export function MemberList({
         }
     }, [currentChat, messages, user, markAsRead]);
 
+    // Fetch all participants data
+    useEffect(() => {
+        if (!currentChat?.participants) return;
+
+        const fetchParticipantData = async (): Promise<void> => {
+            try {
+                const newParticipantData: Record<string, User> = {};
+                
+                for (const participantId of currentChat.participants) {
+                    if (participantId === user?.id) {
+                        // Use current user data
+                        if (user) {
+                            newParticipantData[participantId] = user;
+                        }
+                    } else {
+                        // Fetch other participants' data
+                        const userDoc = await getDoc(doc(db, 'users', participantId));
+                        if (userDoc.exists()) {
+                            newParticipantData[participantId] = userDoc.data() as User;
+                        }
+                    }
+                }
+                
+                setParticipantData(newParticipantData);
+            } catch (error) {
+                console.error('Error fetching participants data:', error);
+            }
+        };
+
+        void fetchParticipantData();
+    }, [currentChat, user]);
+
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
         if (!messageText.trim()) return;
@@ -129,13 +164,12 @@ export function MemberList({
                             >
                                 <div className='flex items-center gap-3'>
                                     <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                        {otherUser?.photoURL &&
-                                        otherUser.id === participantId ? (
+                                        {participantData[participantId]?.photoURL ? (
                                             <Image
-                                                src={otherUser.photoURL}
+                                                src={participantData[participantId].photoURL}
                                                 alt={
-                                                    otherUser.name ||
-                                                    otherUser.username ||
+                                                    participantData[participantId].name ||
+                                                    participantData[participantId].username ||
                                                     'User'
                                                 }
                                                 width={40}
@@ -148,27 +182,26 @@ export function MemberList({
                                     </div>
                                     <div>
                                         <p className='flex items-center gap-1 font-medium text-gray-900 dark:text-white'>
-                                            {otherUser?.id === participantId
-                                                ? otherUser?.name ||
-                                                  otherUser?.username ||
-                                                  participantId
-                                                : participantId}
-                                            {currentChat.owner ===
-                                                participantId && (
+                                            {participantData[participantId]?.name || 
+                                             participantData[participantId]?.username || 
+                                             'Unknown User'}
+                                            {currentChat.owner === participantId && (
                                                 <CrownIcon className='inline h-6 w-6 text-yellow-500 ml-1' />
                                             )}
-                                            {currentChat.admins?.includes(
-                                                participantId
-                                            ) && (
+                                            {currentChat.admins?.includes(participantId) && (
                                                 <ShieldIcon className='inline h-5 w-5 text-yellow-600 ml-1' />
                                             )}
                                         </p>
                                         <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                            {currentChat.owner ===
-                                                participantId && 'Owner'}
-                                            {currentChat.admins?.includes(
-                                                participantId
-                                            ) && 'Admin'}
+                                            {participantData[participantId]?.username && (
+                                                <span>@{participantData[participantId].username}</span>
+                                            )}
+                                            {currentChat.owner === participantId && (
+                                                <span className='ml-2 text-yellow-600 dark:text-yellow-400'>Owner</span>
+                                            )}
+                                            {currentChat.admins?.includes(participantId) && currentChat.owner !== participantId && (
+                                                <span className='ml-2 text-blue-600 dark:text-blue-400'>Admin</span>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -194,41 +227,39 @@ export function MemberList({
                                                 <div className='absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-md z-50'>
                                                     <button
                                                         type='button'
-                                                        onClick={() => {
-                                                            if (
-                                                                currentChat.admins?.includes(
-                                                                    participantId
-                                                                )
-                                                            ) {
-                                                                alert(
-                                                                    'Remove admin'
-                                                                );
-                                                            } else {
-                                                                alert(
-                                                                    'Make admin'
-                                                                );
+                                                        disabled={removingUserId === participantId}
+                                                        onClick={async () => {
+                                                            try {
+                                                                setRemovingUserId(participantId);
+                                                                await removeParticipant(participantId);
+                                                                
+                                                                // Immediately update the current chat participants in the UI
+                                                                if (currentChat) {
+                                                                    const updatedParticipants = currentChat.participants.filter(
+                                                                        id => id !== participantId
+                                                                    );
+                                                                    
+                                                                    // Update the current chat object immediately for UI feedback
+                                                                    const updatedChat = {
+                                                                        ...currentChat,
+                                                                        participants: updatedParticipants
+                                                                    };
+                                                                    
+                                                                    // Force a re-render by updating the chat context
+                                                                    setCurrentChat(updatedChat);
+                                                                }
+                                                                
+                                                                setOpenMenuId(null);
+                                                            } catch (error) {
+                                                                console.error('Failed to remove member:', error);
+                                                                // Could add a toast notification here
+                                                            } finally {
+                                                                setRemovingUserId(null);
                                                             }
-                                                            setOpenMenuId(null);
                                                         }}
-                                                        className='block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                                        className='block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
                                                     >
-                                                        {currentChat.admins?.includes(
-                                                            participantId
-                                                        )
-                                                            ? 'Remove Admin'
-                                                            : 'Make Admin'}
-                                                    </button>
-                                                    <button
-                                                        type='button'
-                                                        onClick={() => {
-                                                            removeParticipant(
-                                                                participantId
-                                                            );
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className='block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-700'
-                                                    >
-                                                        Remove Member
+                                                        {removingUserId === participantId ? 'Removing...' : 'Remove Member'}
                                                     </button>
                                                 </div>
                                             )}

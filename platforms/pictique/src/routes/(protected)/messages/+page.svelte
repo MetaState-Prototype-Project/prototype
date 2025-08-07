@@ -28,11 +28,14 @@
 		messages = data.chats.map((c) => {
 			const members = c.participants.filter((u) => u.id !== userData.id);
 			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-			const avatar = members.length > 1 ? '/images/group.png' : members[0].avatarUrl;
+			const avatar =
+				members.length > 1
+					? 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg'
+					: members[0].avatarUrl;
 			return {
 				id: c.id,
 				avatar,
-				handle: memberNames.join(', '),
+				username: c.name ?? memberNames.join(', '),
 				unread: c.latestMessage ? c.latestMessage.isRead : false,
 				text: c.latestMessage?.text ?? 'No message yet'
 			};
@@ -108,16 +111,15 @@
 	</div>
 
 	{#if messages.length > 0}
-		<h3 class="text-md mb-2 font-semibold text-gray-700">Messages</h3>
 		{#each messages as message}
 			<Message
 				class="mb-2"
 				avatar={message.avatar}
-				handle={message.handle}
+				username={message.name ?? message.username}
 				text={message.text}
 				unread={!message.unread}
 				callback={() => {
-					heading.set(message.handle);
+					heading.set(message.username);
 					goto(`/messages/${message.id}`);
 				}}
 			/>
@@ -125,7 +127,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}

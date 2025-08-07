@@ -27,7 +27,7 @@
 			onerror={() => {
 				profileData.avatarUrl = '/images/user.png';
 			}}
-			alt={profileData.handle}
+			alt={profileData.username}
 			class="h-20 w-20 rounded-full object-cover"
 		/>
 		<div class="flex-1">
@@ -65,7 +65,7 @@
 				<li class="mb-6 list-none" onclick={() => handleSinglePost(post)}>
 					<Post
 						avatar={profileData.avatarUrl || 'https://picsum.photos/200/200'}
-						handle={profileData?.name ?? profileData?.handle}
+						username={profileData?.name ?? profileData?.username}
 						imgUris={post.imgUris ?? []}
 						text={post.caption}
 						time={post.time ? new Date(post.time).toLocaleDateString() : ''}

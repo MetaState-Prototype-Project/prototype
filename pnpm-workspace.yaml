@@ -5,11 +5,9 @@ packages:
   - infrastructure/*
 onlyBuiltDependencies:
   - '@biomejs/biome'
-  - '@tailwindcss/oxide'
   - cpu-features
   - esbuild
   - msw
   - protobufjs
   - ssh2
   - svelte-preprocess
-  - unrs-resolver
