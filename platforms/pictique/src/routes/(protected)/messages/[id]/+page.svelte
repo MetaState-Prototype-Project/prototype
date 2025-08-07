@@ -54,12 +54,18 @@
 	}
 
 	function addMessages(arr: Record<string, unknown>[]) {
-		console.log(arr);
+		console.log('Raw messages:', arr);
+		console.log('Current userId:', userId);
+
 		const newMessages = arr.map((m) => {
 			const sender = m.sender as Record<string, string>;
+			const isOwn = sender.id !== userId;
+
+			console.log('Message sender ID:', sender.id, 'User ID:', userId, 'IsOwn:', isOwn);
+
 			return {
 				id: m.id,
-				isOwn: sender.id !== userId,
+				isOwn: isOwn,
 				userImgSrc: sender.avatarUrl,
 				time: moment(m.createdAt as string).fromNow(),
 				message: m.text
@@ -67,7 +73,25 @@
 		});
 		apiClient.post(`/api/chats/${id}/messages/read`);
 
-		messages = messages.concat(newMessages);
+		// Process messages to determine which ones need heads and timestamps
+		const processedMessages = newMessages.map((msg, index) => {
+			const prevMessage = index > 0 ? newMessages[index - 1] : null;
+			const nextMessage = index < newMessages.length - 1 ? newMessages[index + 1] : null;
+
+			// Show head (avatar, pointer) on first message of group
+			const isHeadNeeded = !prevMessage || prevMessage.isOwn !== msg.isOwn;
+
+			// Show timestamp on last message of group
+			const isTimestampNeeded = !nextMessage || nextMessage.isOwn !== msg.isOwn;
+
+			return {
+				...msg,
+				isHeadNeeded,
+				isTimestampNeeded
+			};
+		});
+
+		messages = messages.concat(processedMessages);
 	}
 
 	onMount(async () => {
@@ -81,15 +105,17 @@
 	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
 		{#each messages as msg (msg.id)}
 			<ChatMessage
-				isOwn={msg.isOwns as boolean}
+				isOwn={msg.isOwn as boolean}
 				userImgSrc={msg.userImgSrc as string}
 				time={msg.time as string}
 				message={msg.message as string}
+				isHeadNeeded={msg.isHeadNeeded as boolean}
+				isTimestampNeeded={msg.isTimestampNeeded as boolean}
 			/>
 		{/each}
 	</div>
 	<MessageInput
-		class="sticky start-0 bottom-[-15px] w-full"
+		class="sticky bottom-[-15px] start-0 w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}

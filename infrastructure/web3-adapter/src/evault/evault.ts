@@ -1,5 +1,3 @@
-import { Agent } from "node:http";
-import axios, { type AxiosInstance } from "axios";
 import { GraphQLClient } from "graphql-request";
 import { v4 } from "uuid";
 
@@ -127,30 +125,12 @@ export class EVaultClient {
     private client: GraphQLClient | null = null;
     private endpoint: string | null = null;
     private tokenInfo: TokenInfo | null = null;
-    private httpClient: AxiosInstance;
     private isDisposed = false;
 
     constructor(
         private registryUrl: string,
         private platform: string,
-    ) {
-        // Configure axios with connection pooling and timeouts
-        this.httpClient = axios.create({
-            timeout: CONFIG.REQUEST_TIMEOUT,
-            maxRedirects: 3,
-            // Connection pooling configuration
-            httpAgent: new Agent({
-                keepAlive: true,
-                maxSockets: CONFIG.CONNECTION_POOL_SIZE,
-                timeout: CONFIG.CONNECTION_TIMEOUT,
-            }),
-            httpsAgent: new Agent({
-                keepAlive: true,
-                maxSockets: CONFIG.CONNECTION_POOL_SIZE,
-                timeout: CONFIG.CONNECTION_TIMEOUT,
-            }),
-        });
-    }
+    ) {}
 
     /**
      * Cleanup method to properly dispose of resources
@@ -162,14 +142,6 @@ export class EVaultClient {
         this.client = null;
         this.endpoint = null;
         this.tokenInfo = null;
-
-        // Close HTTP agents to free connections
-        if (this.httpClient.defaults.httpAgent) {
-            this.httpClient.defaults.httpAgent.destroy();
-        }
-        if (this.httpClient.defaults.httpsAgent) {
-            this.httpClient.defaults.httpsAgent.destroy();
-        }
     }
 
     /**
@@ -217,25 +189,27 @@ export class EVaultClient {
      */
     private async requestPlatformToken(): Promise<TokenInfo> {
         try {
-            const response = await this.httpClient.post<PlatformTokenResponse>(
-                new URL(
-                    "/platforms/certification",
-                    this.registryUrl,
-                ).toString(),
-                { platform: this.platform },
+            const response = await fetch(
+                new URL("/platforms/certification", this.registryUrl).toString(),
                 {
+                    method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    timeout: CONFIG.REQUEST_TIMEOUT,
+                    body: JSON.stringify({ platform: this.platform }),
                 },
             );
 
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json() as PlatformTokenResponse;
             const now = Date.now();
-            const expiresAt = response.data.expiresAt || now + 3600000; // Default 1 hour
+            const expiresAt = data.expiresAt || now + 3600000; // Default 1 hour
 
             return {
-                token: response.data.token,
+                token: data.token,
                 expiresAt,
                 obtainedAt: now,
             };
@@ -270,13 +244,16 @@ export class EVaultClient {
 
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
-            const response = await this.httpClient.get(
+            const response = await fetch(
                 new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
-                {
-                    timeout: CONFIG.REQUEST_TIMEOUT,
-                },
             );
-            return new URL("/graphql", response.data.uri).toString();
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return new URL("/graphql", data.uri).toString();
         } catch (error) {
             console.error("Error resolving eVault endpoint:", error);
             throw new Error("Failed to resolve eVault endpoint");
