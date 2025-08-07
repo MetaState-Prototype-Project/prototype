@@ -1,0 +1,27 @@
+{
+    "entity": "Poll",
+    "ontology": "polls",
+    "fields": {
+        "id": "id",
+        "title": "title",
+        "mode": "mode",
+        "visibility": "visibility",
+        "options": "options",
+        "deadline": "deadline",
+        "creatorId": "creatorId",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    },
+    "relations": {
+        "creator": {
+            "type": "manyToOne",
+            "target": "User",
+            "foreignKey": "creatorId"
+        },
+        "votes": {
+            "type": "oneToMany",
+            "target": "Vote",
+            "foreignKey": "pollId"
+        }
+    }
+}

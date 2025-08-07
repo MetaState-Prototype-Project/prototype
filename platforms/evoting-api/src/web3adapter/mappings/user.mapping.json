@@ -1,0 +1,32 @@
+{
+    "entity": "User",
+    "ontology": "users",
+    "fields": {
+        "id": "id",
+        "handle": "handle",
+        "name": "name",
+        "description": "description",
+        "avatarUrl": "avatarUrl",
+        "bannerUrl": "bannerUrl",
+        "ename": "ename",
+        "isVerified": "isVerified",
+        "isPrivate": "isPrivate",
+        "email": "email",
+        "emailVerified": "emailVerified",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt",
+        "isArchived": "isArchived"
+    },
+    "relations": {
+        "polls": {
+            "type": "oneToMany",
+            "target": "Poll",
+            "foreignKey": "creatorId"
+        },
+        "votes": {
+            "type": "oneToMany",
+            "target": "Vote",
+            "foreignKey": "userId"
+        }
+    }
+}

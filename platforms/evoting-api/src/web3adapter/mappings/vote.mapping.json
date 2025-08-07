@@ -1,0 +1,25 @@
+{
+    "entity": "Vote",
+    "ontology": "votes",
+    "fields": {
+        "id": "id",
+        "pollId": "pollId",
+        "userId": "userId",
+        "voterId": "voterId",
+        "data": "data",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    },
+    "relations": {
+        "poll": {
+            "type": "manyToOne",
+            "target": "Poll",
+            "foreignKey": "pollId"
+        },
+        "user": {
+            "type": "manyToOne",
+            "target": "User",
+            "foreignKey": "userId"
+        }
+    }
+}
