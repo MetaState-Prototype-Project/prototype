@@ -54,8 +54,7 @@
 	<button
 		bind:this={buttonEl}
 		onclick={(e) => {
-			e.preventDefault();
-			openMenu();
+			(e.preventDefault(), openMenu());
 		}}
 	>
 		<HugeiconsIcon icon={MoreVerticalIcon} size={24} color="black" />
