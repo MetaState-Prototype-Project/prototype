@@ -1,0 +1,58 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "a8bfb7cf-3200-4b25-9ea9-ee41100f212e",
+    "title": "GroupManifest",
+    "type": "object",
+    "properties": {
+        "eName": {
+            "type": "string",
+            "description": "eName of the group"
+        },
+        "name": {
+            "type": "string",
+            "description": "Human readable name assigned to the group"
+        },
+        "avatar": {
+            "type": "string",
+            "description": "Image assigned to the group"
+        },
+        "description": {
+            "type": "string",
+            "description": "Human readable brief description for the group"
+        },
+        "members": {
+            "type": "array",
+            "description": "Array of eNames of all members, with an indication of managers and a chair",
+            "items": {
+                "type": "string"
+            }
+        },
+        "charter": {
+            "type": "string",
+            "description": "Attached charter document, either in full or in reference (TBD)—if any"
+        },
+        "admins": {
+            "type": "array",
+            "description": "Charter allows to add admins. If more than one, need a special one, the Chair. Chair will be considered by Social Nets as an Admin, as they may not see many admins.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "owner": {
+            "type": "string",
+            "description": "The eName of the group owner"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the group was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the group manifest was last updated"
+        }
+    },
+    "required": ["eName", "name", "members", "admins", "owner"],
+    "additionalProperties": false
+}

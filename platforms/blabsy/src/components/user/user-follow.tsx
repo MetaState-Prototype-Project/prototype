@@ -12,7 +12,7 @@ type UserFollowProps = {
 
 export function UserFollow({ type }: UserFollowProps): JSX.Element {
     const { user } = useUser();
-    const { name, username } = user as User;
+    const { name, username } = user;
 
     const { data, loading } = useCollection(
         query(

@@ -381,10 +381,20 @@ export class DbService {
         acl: string[],
     ): Promise<StoreMetaEnvelopeResult<T>> {
         try {
-            // First, get the existing meta-envelope to find existing envelopes
-            const existing = await this.findMetaEnvelopeById<T>(id);
+            let existing = await this.findMetaEnvelopeById<T>(id);
             if (!existing) {
-                throw new Error(`Meta-envelope with id ${id} not found`);
+                const metaW3id = await new W3IDBuilder().build();
+                await this.runQuery(
+                    `
+                    CREATE (m:MetaEnvelope {
+                        id: $id,
+                        ontology: $ontology,
+                        acl: $acl
+                    })
+                    `,
+                    { id, ontology: meta.ontology, acl }
+                );
+                existing = { id, ontology: meta.ontology, acl, parsed: meta.payload, envelopes: [] };
             }
 
             // Update the meta-envelope properties
