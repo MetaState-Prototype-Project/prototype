@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -20,3 +21,25 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
+=======
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
+>>>>>>> a19aa5e (feat(beeper-connector): add MetaStateTransformer, wire eVault GraphQL writer, fix mutation shape, add sync:once script; update visualize script; add tsconfig files)
