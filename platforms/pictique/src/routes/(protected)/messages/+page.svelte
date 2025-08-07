@@ -32,7 +32,7 @@
 			return {
 				id: c.id,
 				avatar,
-				username: memberNames.join(', '),
+				handle: memberNames.join(', '),
 				unread: c.latestMessage ? c.latestMessage.isRead : false,
 				text: c.latestMessage?.text ?? 'No message yet'
 			};
@@ -113,11 +113,11 @@
 			<Message
 				class="mb-2"
 				avatar={message.avatar}
-				username={message.username}
+				handle={message.handle}
 				text={message.text}
 				unread={!message.unread}
 				callback={() => {
-					heading.set(message.username);
+					heading.set(message.handle);
 					goto(`/messages/${message.id}`);
 				}}
 			/>

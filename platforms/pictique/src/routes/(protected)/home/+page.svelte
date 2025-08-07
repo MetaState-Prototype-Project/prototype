@@ -100,7 +100,7 @@
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
-						username={post.author.name ?? post.author.handle}
+						handle={post.author.name ?? post.author.handle}
 						userId={post.author.id}
 						imgUris={post.images}
 						isLiked={post.likedBy.find((p) => p.id === profile?.id) !== undefined}

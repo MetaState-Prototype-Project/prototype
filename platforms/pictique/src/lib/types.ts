@@ -22,7 +22,7 @@ export type PostData = {
 	id: string;
 	avatar: string;
 	userId: string;
-	username: string;
+	handle: string;
 	imgUris: string[];
 	caption: string;
 	time: string;
