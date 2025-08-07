@@ -1,0 +1,17 @@
+{
+  "name": "@metastate/beeper-connector",
+  "version": "0.1.0",
+  "description": "Tools for extracting Beeper messages to RDF format",
+  "private": true,
+  "scripts": {
+    "extract": "python beeper_to_rdf.py",
+    "visualize": "python beeper_viz.py",
+    "extract:visualize": "python beeper_to_rdf.py --visualize"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "peerDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
