@@ -2,33 +2,30 @@
 """
 Beeper to RDF Converter
 
-This script extracts messages from a Beeper database and converts them to RDF triples.
+This script extracts messages from a Beeper SQLite database and converts them to RDF triples.
 """
 
 import sqlite3
 import json
 import os
+import platform
 from datetime import datetime
 import sys
 import re
 import argparse
+from pathlib import Path
 
 def sanitize_text(text):
-    """Sanitize text for RDF format."""
+    """Sanitize text for RDF format while preserving non-ASCII characters."""
     if text is None:
         return ""
-    # Replace quotes and escape special characters
     text = str(text)
-    # Remove any control characters
     text = ''.join(ch for ch in text if ord(ch) >= 32 or ch == '\n')
-    # Replace problematic characters
     text = text.replace('"', '\\"')
     text = text.replace('\\', '\\\\')
     text = text.replace('\n', ' ')
     text = text.replace('\r', ' ')
     text = text.replace('\t', ' ')
-    # Remove any other characters that might cause issues
-    text = ''.join(ch for ch in text if ord(ch) < 128)
     return text
 
 def get_user_info(cursor, user_id):
@@ -41,7 +38,8 @@ def get_user_info(cursor, user_id):
             name = user_data.get('fullName', user_id)
             return name
         return user_id
-    except:
+    except (sqlite3.Error, json.JSONDecodeError, TypeError) as e:
+        print(f"Warning: Could not get user info for {user_id}: {e}")
         return user_id
 
 def get_thread_info(cursor, thread_id):
@@ -52,16 +50,28 @@ def get_thread_info(cursor, thread_id):
         if result and result[0]:
             return result[0]
         return thread_id
-    except:
+    except (sqlite3.Error, TypeError) as e:
+        print(f"Warning: Could not get thread info for {thread_id}: {e}")
         return thread_id
 
+def get_default_db_path():
+    """Get the default Beeper SQLite database path based on the platform."""
+    system = platform.system()
+    if system == "Darwin":  # macOS
+        return Path.home() / "Library" / "Application Support" / "BeeperTexts" / "index.db"
+    elif system == "Windows":
+        return Path.home() / "AppData" / "Roaming" / "BeeperTexts" / "index.db"
+    else:  # Linux and others
+        return Path.home() / ".config" / "BeeperTexts" / "index.db"
+
 def extract_messages_to_rdf(db_path, output_file, limit=10000):
-    """Extract messages from Beeper database and convert to RDF format."""
+    """Extract messages from Beeper SQLite database and convert to RDF format."""
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        print(f"Extracting up to {limit} messages from Beeper database...")
+        print(f"Extracting up to {limit} messages from Beeper SQLite database...")
 
         # Get messages with text content from the database
         cursor.execute("""
@@ -82,50 +92,49 @@ def extract_messages_to_rdf(db_path, output_file, limit=10000):
         messages = cursor.fetchall()
         print(f"Found {len(messages)} messages with text content.")
 
+        # Keep track of already created entities to avoid duplicates
+        created_rooms = set()
+        created_senders = set()
+        
         with open(output_file, 'w', encoding='utf-8') as f:
-            # Write RDF header
-            f.write('@prefix : <http://example.org/beeper/> .\n')
+            f.write('@prefix : <https://metastate.dev/ontology/beeper/> .\n')
             f.write('@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n')
             f.write('@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n')
             f.write('@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n')
             f.write('@prefix dc: <http://purl.org/dc/elements/1.1/> .\n\n')
 
-            # Process each message and write RDF triples
-            for i, (room_id, sender_id, text, timestamp, event_id) in enumerate(messages):
+            for message_index, (room_id, sender_id, text, timestamp, event_id) in enumerate(messages):
                 if not text:
                     continue
 
-                # Process room ID
                 room_name = get_thread_info(cursor, room_id)
                 room_id_safe = re.sub(r'[^a-zA-Z0-9_]', '_', room_id)
 
-                # Process sender ID
                 sender_name = get_user_info(cursor, sender_id)
                 sender_id_safe = re.sub(r'[^a-zA-Z0-9_]', '_', sender_id)
 
-                # Create a safe event ID
                 event_id_safe = re.sub(r'[^a-zA-Z0-9_]', '_', event_id)
 
-                # Format timestamp
                 timestamp_str = datetime.fromtimestamp(timestamp/1000).isoformat()
 
-                # Generate RDF triples
                 f.write(f':message_{event_id_safe} rdf:type :Message ;\n')
                 f.write(f'    :hasRoom :room_{room_id_safe} ;\n')
                 f.write(f'    :hasSender :sender_{sender_id_safe} ;\n')
                 f.write(f'    :hasContent "{sanitize_text(text)}" ;\n')
                 f.write(f'    dc:created "{timestamp_str}"^^xsd:dateTime .\n\n')
 
-                # Create room triples if not already created
-                f.write(f':room_{room_id_safe} rdf:type :Room ;\n')
-                f.write(f'    rdfs:label "{sanitize_text(room_name)}" .\n\n')
+                if room_id_safe not in created_rooms:
+                    f.write(f':room_{room_id_safe} rdf:type :Room ;\n')
+                    f.write(f'    rdfs:label "{sanitize_text(room_name)}" .\n\n')
+                    created_rooms.add(room_id_safe)
 
-                # Create sender triples if not already created
-                f.write(f':sender_{sender_id_safe} rdf:type :Person ;\n')
-                f.write(f'    rdfs:label "{sanitize_text(sender_name)}" .\n\n')
+                if sender_id_safe not in created_senders:
+                    f.write(f':sender_{sender_id_safe} rdf:type :Person ;\n')
+                    f.write(f'    rdfs:label "{sanitize_text(sender_name)}" .\n\n')
+                    created_senders.add(sender_id_safe)
 
-                if i % 100 == 0:
-                    print(f"Processed {i} messages...")
+                if message_index % 100 == 0:
+                    print(f"Processed {message_index} messages...")
 
             print(f"Successfully converted {len(messages)} messages to RDF format.")
             print(f"Output saved to {output_file}")
@@ -150,8 +159,8 @@ def main():
     parser.add_argument('--limit', '-l', type=int, default=10000,
                         help='Maximum number of messages to extract (default: 10000)')
     parser.add_argument('--db-path', '-d',
-                        default=os.path.expanduser("~/Library/Application Support/BeeperTexts/index.db"),
-                        help='Path to Beeper database file')
+                        default=str(get_default_db_path()),
+                        help='Path to Beeper SQLite database file')
     parser.add_argument('--visualize', '-v', action='store_true',
                         help='Generate visualizations from the RDF data')
     parser.add_argument('--viz-dir', default='visualizations',

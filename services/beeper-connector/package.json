@@ -18,9 +18,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "npx @biomejs/biome lint ./src",
     "format": "npx @biomejs/biome format --write ./src",
-    "extract": "python beeper_to_rdf.py",
-    "visualize": "python beeper_viz.py",
-    "extract:visualize": "python beeper_to_rdf.py --visualize"
+    "extract": "python3 beeper_to_rdf.py",
+    "visualize": "python3 beeper_viz.py",
+    "extract:visualize": "python3 beeper_to_rdf.py --visualize",
+    "create-test-db": "python3 create_test_db.py",
+    "test-extract": "python3 create_test_db.py && python3 beeper_to_rdf.py --db-path test_beeper.db --output test_output.ttl --limit 20"
   },
   "dependencies": {
     "sqlite3": "^5.1.7",
