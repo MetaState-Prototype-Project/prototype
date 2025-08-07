@@ -77,8 +77,14 @@ export function LoginMain(): JSX.Element {
                         </div>
                     </div>
                 </div>
-                <div className='flex max-w-xs flex-col gap-6 [&_button]:py-2'>
-                    <div className='grid gap-3 font-bold' />
+                <div className='flex max-w-lg flex-col gap-6 [&_button]:py-2 bg-white/20 p-4 rounded-lg'>
+                    <div className='grid gap-3 font-bold text-white/80'>
+                        You are entering Blabsy - a social network built on the
+                        Web 3.0 Data Space (W3DS) architecture. This system is
+                        designed around the principle of data-platform
+                        separation, where all your personal content is stored in
+                        your own sovereign eVault, not on centralised servers.
+                    </div>
                 </div>
             </div>
         </main>
