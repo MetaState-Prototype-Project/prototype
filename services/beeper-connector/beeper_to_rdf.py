@@ -168,12 +168,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Extract messages to RDF
     success = extract_messages_to_rdf(args.db_path, args.output, args.limit)
 
     if success and args.visualize:
         try:
-            # Import visualization module
             from beeper_viz import generate_visualizations
             print("\nGenerating visualizations from the RDF data...")
             generate_visualizations(args.output, args.viz_dir)
@@ -184,7 +182,6 @@ def main():
     return success
 
 if __name__ == "__main__":
-    # Run the main function
     if main():
         print("Beeper to RDF conversion completed successfully.")
     else:

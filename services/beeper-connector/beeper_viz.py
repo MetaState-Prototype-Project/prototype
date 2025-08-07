@@ -38,23 +38,23 @@ def create_network_graph(g, output_file="network_graph.png", limit=50):
 
     # Get senders with most messages
     sender_counts = defaultdict(int)
-    for s, p, o in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
-        sender_counts[str(o)] += 1
+    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
+        sender_counts[str(sender_object)] += 1
 
     top_senders = [sender for sender, count in sorted(sender_counts.items(), key=lambda x: x[1], reverse=True)[:limit//2]]
 
     # Get rooms with most messages
     room_counts = defaultdict(int)
-    for s, p, o in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
-        room_counts[str(o)] += 1
+    for subject, predicate, room_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
+        room_counts[str(room_object)] += 1
 
     top_rooms = [room for room, count in sorted(room_counts.items(), key=lambda x: x[1], reverse=True)[:limit//2]]
 
     # Add nodes for top senders and rooms
     for sender in top_senders:
         # Get sender label
-        for s, p, o in g.triples((rdflib.URIRef(sender), rdflib.RDFS.label, None)):
-            sender_label = str(o)
+        for subject, predicate, label_object in g.triples((rdflib.URIRef(sender), rdflib.RDFS.label, None)):
+            sender_label = str(label_object)
             break
         else:
             sender_label = sender.split('_')[-1]
@@ -63,8 +63,8 @@ def create_network_graph(g, output_file="network_graph.png", limit=50):
 
     for room in top_rooms:
         # Get room label
-        for s, p, o in g.triples((rdflib.URIRef(room), rdflib.RDFS.label, None)):
-            room_label = str(o)
+        for subject, predicate, label_object in g.triples((rdflib.URIRef(room), rdflib.RDFS.label, None)):
+            room_label = str(label_object)
             break
         else:
             room_label = room.split('_')[-1]
@@ -73,10 +73,10 @@ def create_network_graph(g, output_file="network_graph.png", limit=50):
 
     # Add edges between senders and rooms
     for sender in top_senders:
-        for s, p, o in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), rdflib.URIRef(sender))):
-            message = s
-            for s2, p2, o2 in g.triples((message, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
-                room = str(o2)
+        for message_subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), rdflib.URIRef(sender))):
+            message = message_subject
+            for msg_subject, msg_predicate, room_object in g.triples((message, rdflib.URIRef("http://example.org/beeper/hasRoom"), None)):
+                room = str(room_object)
                 if room in top_rooms:
                     if G.has_edge(sender, room):
                         G[sender][room]['weight'] += 1
@@ -127,9 +127,9 @@ def create_message_timeline(g, output_file="message_timeline.png"):
 
     # Extract timestamps from the graph
     timestamps = []
-    for s, p, o in g.triples((None, rdflib.URIRef("http://purl.org/dc/elements/1.1/created"), None)):
+    for subject, predicate, timestamp_object in g.triples((None, rdflib.URIRef("http://purl.org/dc/elements/1.1/created"), None)):
         try:
-            timestamp = str(o).replace('^^http://www.w3.org/2001/XMLSchema#dateTime', '').strip('"')
+            timestamp = str(timestamp_object).replace('^^http://www.w3.org/2001/XMLSchema#dateTime', '').strip('"')
             timestamps.append(datetime.fromisoformat(timestamp))
         except (ValueError, TypeError):
             continue
@@ -171,8 +171,8 @@ def create_wordcloud(g, output_file="wordcloud.png", min_length=4, max_words=200
 
     # Extract message content from the graph
     texts = []
-    for s, p, o in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasContent"), None)):
-        text = str(o)
+    for subject, predicate, content_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasContent"), None)):
+        text = str(content_object)
         if text:
             texts.append(text)
 
@@ -212,13 +212,13 @@ def create_sender_activity(g, output_file="sender_activity.png", top_n=15):
     sender_counts = defaultdict(int)
     sender_labels = {}
 
-    for s, p, o in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
-        sender = str(o)
+    for subject, predicate, sender_object in g.triples((None, rdflib.URIRef("http://example.org/beeper/hasSender"), None)):
+        sender = str(sender_object)
         sender_counts[sender] += 1
 
         # Get the sender label
-        for s2, p2, o2 in g.triples((rdflib.URIRef(sender), rdflib.RDFS.label, None)):
-            sender_labels[sender] = str(o2)
+        for label_subject, label_predicate, label_object in g.triples((rdflib.URIRef(sender), rdflib.RDFS.label, None)):
+            sender_labels[sender] = str(label_object)
             break
 
     # Sort senders by message count

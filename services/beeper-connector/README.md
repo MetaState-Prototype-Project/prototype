@@ -50,7 +50,7 @@ This will extract up to 10,000 messages from your Beeper database and save them 
 ### Advanced Options
 
 ```bash
-python beeper_to_rdf.py --output my_messages.ttl --limit 5000 --visualize
+poetry run python beeper_to_rdf.py --output my_messages.ttl --limit 5000 --visualize
 ```
 
 Command-line arguments:

@@ -1,12 +1,12 @@
-# Generated files
-*.ttl
-*.rdf
+# Generated visualization files
 visualizations/
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-*.log
+*.png
+*.svg
+*.pdf
+
+# Test output files
+test_output.ttl
+test_beeper.db
 
 # Python
 __pycache__/
@@ -14,42 +14,27 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+env/
+venv/
+ENV/
+.venv
 
-# Node.js
+# Poetry
+poetry.lock
+
+# Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.eslintcache
-
-# TypeScript
-*.tsbuildinfo
 dist/
+*.log
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+EOF < /dev/null

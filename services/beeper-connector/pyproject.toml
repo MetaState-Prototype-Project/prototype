@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "beeper-connector"
+version = "2.0.0"
+description = "Beeper Connector with Web3 Adapter and bidirectional eVault sync"
+authors = ["MetaState Team"]
+readme = "README.md"
+python = "^3.11"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+rdflib = "^7.0.0"
+matplotlib = "^3.9.0"
+networkx = "^3.3"
+
+[tool.poetry.scripts]
+extract = "beeper_to_rdf:main"
+visualize = "beeper_viz:main"
+create-test-db = "create_test_db:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
