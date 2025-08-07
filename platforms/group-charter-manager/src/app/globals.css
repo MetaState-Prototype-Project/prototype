@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @plugin 'tailwindcss-animate';
 @plugin '@tailwindcss/typography';
@@ -266,7 +266,7 @@
         /* Ensure touch targets are at least 44px */
         button,
         a,
-        [role='button'] {
+        [role="button"] {
             min-height: 44px;
             min-width: 44px;
         }

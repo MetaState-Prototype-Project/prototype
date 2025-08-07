@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { Message } from '$lib/fragments';
 	import Group from '$lib/fragments/Group/Group.svelte';
-	import { isSearching, searchError, searchResults, searchUsers } from '$lib/stores/users';
-	import type { ChatInfo, GroupInfo, Member, MessageInfo, userProfile } from '$lib/types';
-	import { Avatar, Button, Input } from '$lib/ui';
+	import { Button, Avatar, Input } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
-	import { apiClient } from '$lib/utils/axios';
-	import { onMount } from 'svelte';
 	import { heading } from '../../store';
+	import { apiClient } from '$lib/utils/axios';
 
-	let messages = $state<MessageInfo[]>([]);
-	let groups = $state<GroupInfo[]>([]);
-	let allMembers = $state<Member[]>([]);
+	import { searchUsers, searchResults, isSearching, searchError } from '$lib/stores/users';
+	import type { GroupInfo } from '$lib/types';
+
+	let messages = $state([]);
+	let groups: GroupInfo[] = $state([]);
+	let allMembers = $state([]);
 	let selectedMembers = $state<string[]>([]);
 	let currentUserId = '';
 	let openNewChatModal = $state(false);
@@ -20,8 +21,8 @@
 	let debounceTimer: NodeJS.Timeout;
 
 	async function loadMessages() {
-		const { data } = await apiClient.get<{ chats: ChatInfo[] }>('/api/chats');
-		const { data: userData } = await apiClient.get<userProfile>('/api/users');
+		const { data } = await apiClient.get('/api/chats');
+		const { data: userData } = await apiClient.get('/api/users');
 		currentUserId = userData.id;
 
 		messages = data.chats.map((c) => {
@@ -66,7 +67,7 @@
 
 		try {
 			if (selectedMembers.length === 1) {
-				await apiClient.post('/api/chats/', {
+				await apiClient.post(`/api/chats/`, {
 					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
 					participantIds: [selectedMembers[0]]
 				});
@@ -124,7 +125,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}

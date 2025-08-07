@@ -119,8 +119,7 @@ export function ChatWindow(): JSX.Element {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
             );
-        }
-    }, [currentChat, user, messages, markAsRead]);
+    }});
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
