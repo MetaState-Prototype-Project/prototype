@@ -96,6 +96,9 @@ npm run visualize
 
 # Extract messages and generate visualizations
 npm run extract:visualize
+
+# One-off ingestion from Beeper DB to eVault
+npm run sync:once
 ```
 
 ## RDF Schema
@@ -138,6 +141,18 @@ This service is designed to work with the broader MetaState ecosystem:
 
 - Extract messages from Beeper as RDF triples
 - Import data into eVault for semantic storage
+- Supports one-way adapter writing to eVault GraphQL API with ontology `SocialMediaPost`
+
+## Environment
+
+Set the following env vars when running `sync:once`:
+
+- `BEEPER_DB_PATH` — path to Beeper SQLite DB
+- `EVAULT_ENDPOINT` — eVault GraphQL endpoint (e.g. http://localhost:4000/graphql)
+- `EVAULT_AUTH_TOKEN` — optional Bearer token
+- `W3ID_ACL` — JSON array of W3IDs (e.g. ["@your-w3id"]) or comma-separated
+- `STATE_FILE_PATH` — where to persist incremental state (default `.beeper-connector-state.json`)
+- `POLL_INTERVAL_MS` — if > 0, run continuous polling loop for incremental sync
 - Use with the MetaState Ontology Service for enhanced metadata
 - Connect with W3ID for identity management
 

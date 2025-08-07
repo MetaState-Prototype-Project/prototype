@@ -256,8 +256,9 @@ Usage:
 export default BeeperConnector;
 =======
 import { BeeperDbReader } from './beeperDbReader';
-import { MetaStateTransformer } from './metaStateTransformer';
 import { EvaultWriter } from './evaultWriter';
+import { MetaStateTransformer } from './metaStateTransformer';
+import { StateStore } from './state';
 
 async function main() {
   console.log('Beeper Connector Service starting...');
@@ -268,6 +269,11 @@ async function main() {
     process.exit(1);
   }
   console.log(`Attempting to connect to Beeper DB at: ${beeperDbPath}`);
+
+  const pollIntervalMs = Number(process.env.POLL_INTERVAL_MS ?? '0');
+  const statePath = process.env.STATE_FILE_PATH;
+  const stateStore = new StateStore(statePath);
+  const state = stateStore.load();
 
   let dbReader: BeeperDbReader | null = null;
 
@@ -280,22 +286,18 @@ async function main() {
 
       const firstUser = users[0];
       let threads: Awaited<ReturnType<typeof dbReader.getThreads>> = [];
-      let messages: Awaited<ReturnType<typeof dbReader.getMessages>> = [];
+      const messages: Awaited<ReturnType<typeof dbReader.getMessages>> = [];
 
       if (firstUser?.accountID) {
         const firstUserAccountId = firstUser.accountID;
         console.log(`Fetching threads for accountID: ${firstUserAccountId} ...`);
         threads = await dbReader.getThreads(firstUserAccountId);
         console.log(`Found ${threads.length} threads for account ${firstUserAccountId}:`, threads.slice(0, 3));
-
-        const firstThread = threads[0];
-        if (firstThread?.threadID) {
-          const firstThreadId = firstThread.threadID;
-          console.log(`Fetching messages for threadID: ${firstThreadId} ...`);
-          messages = await dbReader.getMessages(firstThreadId, undefined, 20);
-          console.log(`Found ${messages.length} messages for thread ${firstThreadId}:`, messages.slice(0, 5));
-        } else {
-          console.log('Skipping message fetching as no threads or threadID found for the first user account.');
+        for (const th of threads.slice(0, 5)) {
+          const last = state.threads[th.threadID]?.lastTimestampMs;
+          const sinceDate = last ? new Date(last) : undefined;
+          const batch = await dbReader.getMessages(th.threadID, sinceDate, 50);
+          messages.push(...batch);
         }
       } else {
         console.log('Skipping thread and message fetching as no users with an accountID found.');
@@ -327,6 +329,16 @@ async function main() {
           0
         );
         console.log('Write complete.');
+        for (const m of messages) {
+          const t = m.threadID;
+          const ts = m.timestamp;
+          const entry = state.threads[t] ?? { lastTimestampMs: 0 };
+          if (!entry.lastTimestampMs || ts > entry.lastTimestampMs) {
+            entry.lastTimestampMs = ts;
+            state.threads[t] = entry;
+          }
+        }
+        stateStore.save(state);
       } else if (!evaultEndpoint) {
         console.warn('EVAULT_ENDPOINT not set. Skipping write to eVault.');
       }
@@ -343,10 +355,24 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  // This catch is redundant if main already handles errors and process.exit
-  // However, it's good practice for top-level async calls.
-  console.error('Unhandled error in main execution:', error);
+async function loop() {
+  const interval = Number(process.env.POLL_INTERVAL_MS ?? '0');
+  if (!interval || interval <= 0) {
+    await main();
+    return;
+  }
+  while (true) {
+    try {
+      await main();
+    } catch (e) {
+      console.error('Polling iteration failed:', e);
+    }
+    await new Promise((r) => setTimeout(r, interval));
+  }
+}
+
+loop().catch(error => {
+  console.error('Unhandled error in main loop:', error);
   process.exit(1);
 });
 >>>>>>> a19aa5e (feat(beeper-connector): add MetaStateTransformer, wire eVault GraphQL writer, fix mutation shape, add sync:once script; update visualize script; add tsconfig files)
