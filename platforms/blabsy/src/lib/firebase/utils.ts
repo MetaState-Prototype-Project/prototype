@@ -341,10 +341,10 @@ export async function createChat(
         id: chatRef.id,
         type,
         participants,
-        name,
-        owner,
-        description,
-        admins: [],
+        ...(name && { name }),
+        ...(owner && { owner }),
+        ...(description && { description }),
+        admins: type === 'group' ? (owner ? [owner] : []) : [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     };

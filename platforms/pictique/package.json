@@ -56,6 +56,7 @@
 		"axios": "^1.6.7",
 		"moment": "^2.30.1",
 		"svelte-qrcode": "^1.0.1",
+		"svelte-qrcode-action": "^1.0.2",
 		"tailwind-merge": "^3.0.2"
 	}
 }

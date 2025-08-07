@@ -5,9 +5,12 @@
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
 	import { showComments } from '$lib/store/store.svelte';
 	import { activePostId, comments, createComment, fetchComments } from '$lib/stores/comments';
+	import { closeDisclaimerModal, isDisclaimerModalOpen } from '$lib/stores/disclaimer';
 	import { isCreatePostModalOpen, openCreatePostModal } from '$lib/stores/posts';
 	import type { userProfile } from '$lib/types';
+	import { Button, Modal } from '$lib/ui';
 	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
+	import { removeAuthId, removeAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import { onMount } from 'svelte';
 	import { heading } from '../store';
@@ -22,6 +25,7 @@
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
 	let profile = $state<userProfile | null>(null);
+	let confirmedDisclaimer = $state(false);
 
 	const handleSend = async () => {
 		console.log($activePostId, commentValue);
@@ -123,7 +127,7 @@
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
-			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
+			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-b-0 border-e-0 border-t-0 border-s-gray-200 px-8 pt-14 md:block"
 		>
 			{#if route === '/home'}
 				{#if showComments.value}
@@ -156,7 +160,7 @@
 							{/each}
 						{/if}
 						<MessageInput
-							class="sticky start-0 bottom-4 mt-4 w-full px-2"
+							class="sticky bottom-4 start-0 mt-4 w-full px-2"
 							variant="comment"
 							src={profile?.avatarUrl ?? '/images/user.png'}
 							bind:value={commentValue}
@@ -175,3 +179,47 @@
 </main>
 
 <CreatePostModal bind:open={$isCreatePostModalOpen} />
+<Modal
+	open={$isDisclaimerModalOpen}
+	onclose={() => {
+		if (!confirmedDisclaimer) {
+			removeAuthToken();
+			removeAuthId();
+			goto('/auth');
+		}
+	}}
+>
+	<article class="flex max-w-[400px] flex-col gap-2 p-4">
+		<h1>Disclaimer from MetaState Foundation</h1>
+		<p class="font-bold">⚠️ Please note:</p>
+		<p>
+			Pictique is a <b>functional prototype</b>, intended to showcase <b>interoperability</b> and
+			core concepts of the W3DS ecosystem.
+		</p>
+		<p>
+			<b>It is not a production-grade platform</b> and may lack full reliability, performance,
+			and security guarantees.
+		</p>
+		<p>
+			We <b>strongly recommend</b> that you avoid sharing <b>sensitive or private content</b>,
+			and kindly ask for your understanding regarding any bugs, incomplete features, or
+			unexpected behaviours.
+		</p>
+		<p>
+			The app is still in development, so we kindly ask for your understanding regarding any
+			potential issues. If you experience issues or have feedback, feel free to contact us at:
+		</p>
+		<a href="mailto:info@metastate.foundation" class="font-bold outline-none">
+			info@metastate.foundation
+		</a>
+		<Button
+			variant="secondary"
+			size="sm"
+			class="mt-2"
+			callback={() => {
+				closeDisclaimerModal();
+				confirmedDisclaimer = true;
+			}}>I Understand</Button
+		>
+	</article>
+</Modal>

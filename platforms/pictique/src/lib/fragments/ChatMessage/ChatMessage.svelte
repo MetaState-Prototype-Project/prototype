@@ -9,6 +9,7 @@
 		time: string;
 		isOwn: boolean;
 		isHeadNeeded?: boolean;
+		isTimestampNeeded?: boolean;
 	}
 
 	let {
@@ -17,6 +18,7 @@
 		time = '12:55 AM',
 		isOwn,
 		isHeadNeeded = true,
+		isTimestampNeeded = true,
 		...restProps
 	}: IChatMessageProps = $props();
 </script>
@@ -24,7 +26,10 @@
 <div
 	{...restProps}
 	class={cn(
-		[`flex items-start gap-2 ${isOwn ? 'flex' : 'flex-row-reverse'}`, restProps.class].join(' ')
+		[
+			`flex items-start gap-2 ${isOwn ? 'flex' : 'flex-row-reverse'} mb-1`,
+			restProps.class
+		].join(' ')
 	)}
 >
 	<div class="w-8 flex-shrink-0">
@@ -60,14 +65,16 @@
 			</p>
 		</div>
 
-		<p
-			class={cn(
-				`subtext text-black-400 mt-0.5 flex text-xs text-nowrap ${
-					isOwn ? 'justify-end' : 'justify-start'
-				}`
-			)}
-		>
-			{time}
-		</p>
+		{#if isTimestampNeeded}
+			<p
+				class={cn(
+					`subtext text-black-400 mt-0.5 flex text-nowrap text-xs ${
+						isOwn ? 'justify-end' : 'justify-start'
+					}`
+				)}
+			>
+				{time}
+			</p>
+		{/if}
 	</div>
 </div>
