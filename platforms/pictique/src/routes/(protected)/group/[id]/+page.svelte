@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { ChatMessage, MessageInput } from '$lib/fragments';
-	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import Settings from '$lib/icons/Settings.svelte';
+	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
 	import { Pen01FreeIcons } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { onMount } from 'svelte';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
@@ -63,8 +63,8 @@
 		setTimeout(scrollToBottom, 0);
 	});
 
-	function handleSend() {
-		if (!messageValue.trim()) return;
+	async function handleSend() {
+		if (!messageValue.trim()) return Promise.resolve();
 		messages = [
 			...messages,
 			{
@@ -152,7 +152,7 @@
 	</div>
 
 	<MessageInput
-		class="sticky start-0 bottom-[-15px] w-full"
+		class="sticky bottom-[-15px] start-0 w-full"
 		variant="dm"
 		src={group.avatar}
 		bind:value={messageValue}
@@ -188,7 +188,7 @@
 				/>
 				<label
 					for="group-avatar-input"
-					class="bg-brand-burnt-orange border-brand-burnt-orange absolute right-0 bottom-0 cursor-pointer rounded-full border p-1 shadow"
+					class="bg-brand-burnt-orange border-brand-burnt-orange absolute bottom-0 right-0 cursor-pointer rounded-full border p-1 shadow"
 				>
 					<HugeiconsIcon icon={Pen01FreeIcons} color="white" />
 				</label>
@@ -212,7 +212,7 @@
 					rows="2"
 					maxlength="260"
 					placeholder="Edit group description"
-					class="bg-grey text-black-800 font-geist placeholder:text-black-600 invalid:border-red invalid:text-red focus:invalid:text-black-800 w-full rounded-4xl border border-transparent px-6 py-3.5 text-[15px] font-normal outline-0 focus:invalid:border-transparent"
+					class="bg-grey text-black-800 font-geist placeholder:text-black-600 invalid:border-red invalid:text-red focus:invalid:text-black-800 rounded-4xl w-full border border-transparent px-6 py-3.5 text-[15px] font-normal outline-0 focus:invalid:border-transparent"
 					bind:value={groupDescription}
 				/>
 			{:else}
