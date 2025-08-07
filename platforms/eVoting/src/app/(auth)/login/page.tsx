@@ -13,6 +13,7 @@ export default function LoginPage() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState<null | string>(null);
     const handleSubmit = async () => {
         const res = await authClient.signIn.email({
             email,
@@ -20,6 +21,7 @@ export default function LoginPage() {
         });
         if (res.error?.message) {
             console.error("Login failed:", res.error.message);
+            setError(res.error.message);
             return;
         }
         console.log("Login successful:", res.data);
@@ -44,6 +46,11 @@ export default function LoginPage() {
                         <span className="font-bold underline">eID App</span>
                         <span>to login</span>
                     </div>
+                    {error !== null && (
+                        <div className="w-full text-red-500 text-center">
+                            {error}
+                        </div>
+                    )}
                     {/* <SVG
                         text={"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
                         options={{
