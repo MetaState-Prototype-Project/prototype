@@ -32,14 +32,14 @@ export default function RegisterPage() {
     return (
         <div className="flex flex-col h-screen items-center justify-center gap-4">
             <div className="flex flex-col items-center text-center gap-4">
-                <div className="flex items-center gap-2 text-5xl font-bold">
-                    <img src="/Logo.png" alt="eVoting Logo" />
+                <div className="flex items-center gap-2 text-2xl font-bold">
+                    <img src="/Logo.png" alt="eVoting Logo" className="w-12" />
                     eVoting
                 </div>
                 <p className="text-2xl">Join the W3DS</p>
             </div>
 
-            <Card className="flex flex-col items-center gap-4 w-96 p-8">
+            <Card className="flex flex-col items-center gap-4 w-1/3 p-4">
                 <CardHeader className="text-foreground text-3xl font-black">
                     Create your eVoting Account
                 </CardHeader>
