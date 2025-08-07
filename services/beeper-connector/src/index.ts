@@ -274,7 +274,6 @@ async function main() {
   const statePath = process.env.STATE_FILE_PATH;
   const stateStore = new StateStore(statePath);
   const state = stateStore.load();
-
   let dbReader: BeeperDbReader | null = null;
 
   try {
