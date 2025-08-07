@@ -38,7 +38,7 @@ def get_user_info(cursor, user_id):
             name = user_data.get('fullName', user_id)
             return name
         return user_id
-    except (sqlite3.Error, json.JSONDecodeError, TypeError) as e:
+    except (sqlite3.Error, json.JSONDecodeError, TypeError, KeyError) as e:
         print(f"Warning: Could not get user info for {user_id}: {e}")
         return user_id
 
@@ -50,7 +50,7 @@ def get_thread_info(cursor, thread_id):
         if result and result[0]:
             return result[0]
         return thread_id
-    except (sqlite3.Error, TypeError) as e:
+    except (sqlite3.Error, json.JSONDecodeError, TypeError, KeyError) as e:
         print(f"Warning: Could not get thread info for {thread_id}: {e}")
         return thread_id
 
