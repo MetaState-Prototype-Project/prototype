@@ -135,9 +135,7 @@ function watchEventStream(id: string) {
     };
 }
 
-let handleContinue: () => Promise<void> = $state(() => {
-    return Promise.resolve();
-});
+let handleContinue: () => Promise<void>;
 
 onMount(() => {
     globalState = getContext<() => GlobalState>("globalState")();

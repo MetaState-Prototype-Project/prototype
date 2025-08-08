@@ -1,19 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import { Message } from '$lib/fragments';
 	import Group from '$lib/fragments/Group/Group.svelte';
-	import { Button, Avatar, Input } from '$lib/ui';
+	import { isSearching, searchError, searchResults, searchUsers } from '$lib/stores/users';
+	import type { Chat, GroupInfo, MessageType } from '$lib/types';
+	import { Avatar, Button, Input } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
-	import { heading } from '../../store';
 	import { apiClient } from '$lib/utils/axios';
+	import { onMount } from 'svelte';
+	import { heading } from '../../store';
 
-	import { searchUsers, searchResults, isSearching, searchError } from '$lib/stores/users';
-	import type { GroupInfo } from '$lib/types';
-
-	let messages = $state([]);
+	let messages = $state<MessageType[]>([]);
 	let groups: GroupInfo[] = $state([]);
-	let allMembers = $state([]);
+	let allMembers = $state<Record<string, string>[]>([]);
 	let selectedMembers = $state<string[]>([]);
 	let currentUserId = '';
 	let openNewChatModal = $state(false);
@@ -21,20 +20,25 @@
 	let debounceTimer: NodeJS.Timeout;
 
 	async function loadMessages() {
-		const { data } = await apiClient.get('/api/chats');
+		const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
 		const { data: userData } = await apiClient.get('/api/users');
 		currentUserId = userData.id;
 
 		messages = data.chats.map((c) => {
 			const members = c.participants.filter((u) => u.id !== userData.id);
 			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-			const avatar = members.length > 1 ? '/images/group.png' : members[0].avatarUrl;
+			const avatar =
+				members.length > 1
+					? 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg'
+					: members[0].avatarUrl;
 			return {
 				id: c.id,
 				avatar,
-				handle: memberNames.join(', '),
+				username: c.handle ?? memberNames.join(', '),
 				unread: c.latestMessage ? c.latestMessage.isRead : false,
-				text: c.latestMessage?.text ?? 'No message yet'
+				text: c.latestMessage?.text ?? 'No message yet',
+				handle: c.handle ?? memberNames.join(', '),
+				name: c.handle ?? memberNames.join(', ')
 			};
 		});
 	}
@@ -67,7 +71,7 @@
 
 		try {
 			if (selectedMembers.length === 1) {
-				await apiClient.post(`/api/chats/`, {
+				await apiClient.post('/api/chats/', {
 					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
 					participantIds: [selectedMembers[0]]
 				});
@@ -108,16 +112,15 @@
 	</div>
 
 	{#if messages.length > 0}
-		<h3 class="text-md mb-2 font-semibold text-gray-700">Messages</h3>
 		{#each messages as message}
 			<Message
 				class="mb-2"
 				avatar={message.avatar}
-				handle={message.handle}
+				username={message.name ?? message.username}
 				text={message.text}
 				unread={!message.unread}
 				callback={() => {
-					heading.set(message.handle);
+					heading.set(message.username);
 					goto(`/messages/${message.id}`);
 				}}
 			/>
@@ -125,7 +128,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}
@@ -172,7 +175,7 @@
 							class="accent-brand focus:ring"
 						/>
 						<Avatar src={member.avatarUrl} size="sm" />
-						<span class="text-sm">{member.name ?? member.handle ?? member.ename}</span>
+						<span class="text-sm">{member.name ?? member.handle}</span>
 					</label>
 				{/each}
 			</div>

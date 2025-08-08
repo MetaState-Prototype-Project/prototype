@@ -36,19 +36,18 @@
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
 	{#if loading}
-		<div class="flex h-64 items-center justify-center">
+		<div class="flex h-12 items-center justify-center">
 			<p class="text-gray-500">Loading profile...</p>
 		</div>
 	{:else if error}
-		<div class="flex h-64 items-center justify-center">
+		<div class="flex h-12 items-center justify-center">
 			<p class="text-red-500">{error}</p>
 		</div>
 	{:else if profile}
 		<SettingsNavigationButton
 			onclick={() => goto(`/settings/account`)}
-			profileSrc={profile?.avatarUrl}
+			profileSrc={profile?.avatarUrl || '/images/user.png'}
 		>
-			{console.log(profile)}
 			<div class="flex flex-col items-start">
 				<h2 class="text-lg">{profile?.handle}</h2>
 				<p class="text-sm">{profile?.description}</p>

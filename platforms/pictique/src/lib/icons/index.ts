@@ -10,3 +10,4 @@ export { default as Search } from './Search.svelte';
 export { default as Camera } from './Camera.svelte';
 export { default as Settings } from './Settings.svelte';
 export { default as Cross } from './Cross.svelte';
+export { default as W3dslogo } from './W3dslogo.svelte';

@@ -15,7 +15,7 @@ export const fetchFeed = async (page = 1, limit = 10_000) => {
 		isLoading.set(true);
 		error.set(null);
 		const response = await apiClient.get(`/api/posts/feed?page=${page}&limit=${limit}`);
-		posts.set(response.data);
+		posts.set(response.data.posts);
 	} catch (err) {
 		error.set(err instanceof Error ? err.message : 'Failed to fetch feed');
 	} finally {

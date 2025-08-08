@@ -10,7 +10,7 @@
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
-		handle: string;
+		username: string;
 		userId?: string;
 		imgUris: string[];
 		text: string;
@@ -56,7 +56,7 @@
 	const {
 		avatar,
 		userId,
-		handle,
+		username,
 		imgUris: uris,
 		text,
 		count,
@@ -103,8 +103,8 @@
 				class="flex items-center justify-between gap-2"
 				onclick={() => goto(`/profile/${userId}`)}
 			>
-				<Avatar src={avatar ?? '/images/user.png'} alt={handle} size="sm"></Avatar>
-				<h2>{handle}</h2>
+				<Avatar src={avatar ?? '/images/user.png'} alt={username} size="sm"></Avatar>
+				<h2>{username}</h2>
 			</div>
 		</div>
 	{/if}

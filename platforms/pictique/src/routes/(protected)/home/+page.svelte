@@ -78,6 +78,7 @@
 
 	$effect(() => {
 		listElement.addEventListener('scroll', onScroll);
+		console.log($posts);
 		return () => listElement.removeEventListener('scroll', onScroll);
 	});
 
@@ -85,8 +86,6 @@
 		fetchFeed();
 		fetchProfile();
 	});
-
-	$inspect($posts);
 </script>
 
 <div class="flex flex-col">
@@ -100,7 +99,7 @@
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
-						handle={post.author.name ?? post.author.handle}
+						username={post.author.name ?? post.author.handle}
 						userId={post.author.id}
 						imgUris={post.images}
 						isLiked={post.likedBy.find((p) => p.id === profile?.id) !== undefined}

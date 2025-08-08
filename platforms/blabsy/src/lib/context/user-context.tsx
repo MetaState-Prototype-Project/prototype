@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from '@lib/types/user';
 
 type UserContext = {
-    user: User | null;
+    user: User;
     loading: boolean;
 };
 
@@ -29,5 +29,9 @@ export function useUser(): UserContext {
     if (!context)
         throw new Error('useUser must be used within an UserContextProvider');
 
-    return context;
+    // Since loading is handled at the root level, user should never be null here
+    return {
+        user: context.user!,
+        loading: context.loading
+    };
 }

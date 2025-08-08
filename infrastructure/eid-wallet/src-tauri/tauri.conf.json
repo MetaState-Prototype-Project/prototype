@@ -22,15 +22,6 @@
             "csp": null
         }
     },
-    "plugins": {
-        "deep-link": {
-            "mobile": [
-                {
-                    "scheme": ["w3ds"]
-                }
-            ]
-        }
-    },
     "bundle": {
         "active": true,
         "targets": "all",

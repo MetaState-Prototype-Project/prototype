@@ -1,0 +1,12 @@
+services:
+    db:
+        image: postgres:16
+        container_name: dev-evoting-db
+        environment:
+            POSTGRES_USER: evoting
+            POSTGRES_PASSWORD: evoting
+            POSTGRES_DB: evoting
+        volumes:
+            - ./db/data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"

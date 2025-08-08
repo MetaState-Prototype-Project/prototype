@@ -6,7 +6,6 @@ import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
-import { getCurrent } from "@tauri-apps/plugin-deep-link";
 import { type Snippet, getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -37,7 +36,7 @@ async function retryProfileCreation() {
 
 const globalState = getContext<() => GlobalState>("globalState")();
 
-onMount(async () => {
+onMount(() => {
     // Load initial data
     (async () => {
         const userInfo = await globalState.userController.user;
@@ -47,6 +46,9 @@ onMount(async () => {
         ename = vaultData?.ename;
     })();
 
+    // Get initial profile creation status
+    profileCreationStatus = globalState.vaultController.profileCreationStatus;
+
     // Set up a watcher for profile creation status changes
     const checkStatus = () => {
         profileCreationStatus =
@@ -55,22 +57,6 @@ onMount(async () => {
 
     // Check status periodically
     statusInterval = setInterval(checkStatus, 1000);
-
-    const urls = await getCurrent();
-    if (urls && urls.length > 0) {
-        try {
-            const url = urls[0];
-            const [scheme, ...rest] = url.split("://");
-            const deeplink = rest.join("://");
-            console.log("URL", scheme, deeplink);
-            if (scheme !== "w3ds") {
-                console.error("unsupported url scheme");
-            }
-            goto(`/scan-qr?${deeplink}`);
-        } catch (error) {
-            console.error("Error processing deep link:", error);
-        }
-    }
 
     const currentHour = new Date().getHours();
     greeting =

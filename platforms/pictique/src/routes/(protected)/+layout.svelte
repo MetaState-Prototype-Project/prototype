@@ -5,9 +5,12 @@
 	import CreatePostModal from '$lib/fragments/CreatePostModal/CreatePostModal.svelte';
 	import { showComments } from '$lib/store/store.svelte';
 	import { activePostId, comments, createComment, fetchComments } from '$lib/stores/comments';
+	import { closeDisclaimerModal, isDisclaimerModalOpen } from '$lib/stores/disclaimer';
 	import { isCreatePostModalOpen, openCreatePostModal } from '$lib/stores/posts';
 	import type { userProfile } from '$lib/types';
+	import { Button, Modal } from '$lib/ui';
 	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
+	import { removeAuthId, removeAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import { onMount } from 'svelte';
 	import { heading } from '../store';
@@ -22,6 +25,7 @@
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
 	let profile = $state<userProfile | null>(null);
+	let confirmedDisclaimer = $state(false);
 
 	const handleSend = async () => {
 		console.log($activePostId, commentValue);
@@ -97,7 +101,7 @@
 	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && !route.includes('settings') && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
-		profileSrc={profile?.avatarUrl ?? '/images/user.png'}
+		profileSrc={profile?.avatarUrl || '/images/user.png'}
 		handlePost={async () => {
 			openCreatePostModal();
 		}}
@@ -175,3 +179,47 @@
 </main>
 
 <CreatePostModal bind:open={$isCreatePostModalOpen} />
+<Modal
+	open={$isDisclaimerModalOpen}
+	onclose={() => {
+		if (!confirmedDisclaimer) {
+			removeAuthToken();
+			removeAuthId();
+			goto('/auth');
+		}
+	}}
+>
+	<article class="flex max-w-[400px] flex-col gap-2 p-4">
+		<h1>Disclaimer from MetaState Foundation</h1>
+		<p class="font-bold">⚠️ Please note:</p>
+		<p>
+			Pictique is a <b>functional prototype</b>, intended to showcase <b>interoperability</b> and
+			core concepts of the W3DS ecosystem.
+		</p>
+		<p>
+			<b>It is not a production-grade platform</b> and may lack full reliability, performance,
+			and security guarantees.
+		</p>
+		<p>
+			We <b>strongly recommend</b> that you avoid sharing <b>sensitive or private content</b>,
+			and kindly ask for your understanding regarding any bugs, incomplete features, or
+			unexpected behaviours.
+		</p>
+		<p>
+			The app is still in development, so we kindly ask for your understanding regarding any
+			potential issues. If you experience issues or have feedback, feel free to contact us at:
+		</p>
+		<a href="mailto:info@metastate.foundation" class="font-bold outline-none">
+			info@metastate.foundation
+		</a>
+		<Button
+			variant="secondary"
+			size="sm"
+			class="mt-2"
+			callback={() => {
+				closeDisclaimerModal();
+				confirmedDisclaimer = true;
+			}}>I Understand</Button
+		>
+	</article>
+</Modal>

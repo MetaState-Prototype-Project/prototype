@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { UploadedPostView } from '$lib/fragments';
-	import { uploadedImages } from '$lib/store/store.svelte';
+	import { goto } from '$app/navigation';
+	import { SettingsTile, UploadedPostView } from '$lib/fragments';
+	import { audience, uploadedImages } from '$lib/store/store.svelte';
 	import { createPost } from '$lib/stores/posts';
 	import { Button, Textarea } from '$lib/ui';
 	import { revokeImageUrls } from '$lib/utils';
