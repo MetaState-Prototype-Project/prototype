@@ -45,9 +45,9 @@ export class AuthController {
             "/api/auth",
             process.env.PUBLIC_EVOTING_BASE_URL,
         ).toString();
-        const session = uuidv4();
-        const offer = `w3ds://auth?redirect=${url}&session=${session}&platform=evoting`;
-        res.json({ uri: offer });
+        const sessionId = uuidv4();
+        const offer = `w3ds://auth?redirect=${url}&session=${sessionId}&platform=evoting`;
+        res.json({ offer, sessionId });
     };
 
     login = async (req: Request, res: Response) => {

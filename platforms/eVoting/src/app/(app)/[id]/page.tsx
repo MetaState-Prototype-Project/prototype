@@ -16,13 +16,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { useAuth } from "@/lib/auth-context";
+import { pollApi, type Poll } from "@/lib/pollApi";
 import Link from "next/link";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const pollId = id ? Number.parseInt(id) : null;
+    const pollId = id || null;
     const { toast } = useToast();
     const { isAuthenticated, isLoading: authLoading } = useAuth();
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -50,13 +50,29 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         }
     }, [pollId]);
 
-    const { data: polls = [], isLoading } = { data: [], isLoading: false }; // TODO: replace with actual data fetching logic
+    const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const selectedPoll = polls.find((p) => p.id === pollId);
+    useEffect(() => {
+        const fetchPoll = async () => {
+            if (!pollId) return;
+            
+            try {
+                const poll = await pollApi.getPollById(pollId);
+                setSelectedPoll(poll);
+            } catch (error) {
+                console.error("Failed to fetch poll:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPoll();
+    }, [pollId]);
 
     // Check if voting is still allowed
     const isVotingAllowed =
-        selectedPoll?.isActive &&
+        selectedPoll &&
         (!selectedPoll?.deadline ||
             new Date() < new Date(selectedPoll.deadline));
 
@@ -114,13 +130,56 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         return () => clearInterval(interval);
     }, [selectedPoll?.deadline, pollExists]);
 
-    const { data: voteStatus } = { data: null }; // TODO: replace with actual vote status fetching logic
+    const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
+    const [resultsData, setResultsData] = useState<any>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { data: resultsData } = { data: null }; // TODO: replace with actual results fetching logic
+    // Fetch vote status and results
+    useEffect(() => {
+        const fetchVoteData = async () => {
+            if (!selectedPoll || !pollId) return;
+            
+            try {
+                const [voteStatusData, resultsData] = await Promise.all([
+                    pollApi.getUserVote(pollId),
+                    pollApi.getPollResults(pollId)
+                ]);
+                setVoteStatus(voteStatusData);
+                setResultsData(resultsData);
+            } catch (error) {
+                console.error("Failed to fetch vote data:", error);
+            }
+        };
 
-    const handleVoteSubmit = () => {
-        if (selectedPoll && selectedOption !== null) {
-            // TODO: replace with actual vote submission logic
+        fetchVoteData();
+    }, [selectedPoll, pollId]);
+
+    const handleVoteSubmit = async () => {
+        if (!selectedPoll || selectedOption === null || !pollId) return;
+        
+        setIsSubmitting(true);
+        try {
+            await pollApi.submitVote(pollId, selectedOption);
+            toast({
+                title: "Success!",
+                description: "Your vote has been submitted",
+            });
+            // Refresh vote data
+            const [voteStatusData, resultsData] = await Promise.all([
+                pollApi.getUserVote(pollId),
+                pollApi.getPollResults(pollId)
+            ]);
+            setVoteStatus(voteStatusData);
+            setResultsData(resultsData);
+        } catch (error) {
+            console.error("Failed to submit vote:", error);
+            toast({
+                title: "Error",
+                description: "Failed to submit vote. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -352,13 +411,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             </p>
                                             <Badge
                                                 variant={
-                                                    selectedPoll?.isActive
+                                                    isVotingAllowed
                                                         ? "success"
                                                         : "warning"
                                                 }
                                                 className="text-lg px-4 py-2"
                                             >
-                                                {selectedPoll?.isActive
+                                                {isVotingAllowed
                                                     ? "Active"
                                                     : "Ended"}
                                             </Badge>
@@ -464,25 +523,25 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 disabled={!isVotingAllowed}
                             >
                                 <div className="space-y-3">
-                                    {selectedPoll.options.map((option) => (
+                                    {selectedPoll.options.map((option, index) => (
                                         <div
-                                            key={option.id}
+                                            key={index}
                                             className="flex items-center space-x-3"
                                         >
                                             <RadioGroupItem
-                                                value={option.id.toString()}
-                                                id={option.id.toString()}
+                                                value={index.toString()}
+                                                id={index.toString()}
                                                 disabled={!isVotingAllowed}
                                             />
                                             <Label
-                                                htmlFor={option.id.toString()}
+                                                htmlFor={index.toString()}
                                                 className={`text-base flex-1 py-2 ${
                                                     isVotingAllowed
                                                         ? "cursor-pointer"
                                                         : "cursor-not-allowed opacity-50"
                                                 }`}
                                             >
-                                                {option.text}
+                                                {option}
                                             </Label>
                                         </div>
                                     ))}
@@ -495,12 +554,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 onClick={handleVoteSubmit}
                                 disabled={
                                     selectedOption === null ||
-                                    submitVoteMutation.isPending ||
+                                    isSubmitting ||
                                     !isVotingAllowed
                                 }
                                 className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                             >
-                                {submitVoteMutation.isPending ? (
+                                {isSubmitting ? (
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                                 ) : (
                                     <VoteIcon className="w-4 h-4 mr-2" />

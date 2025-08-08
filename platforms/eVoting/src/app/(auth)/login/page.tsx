@@ -1,32 +1,73 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-// import { useQRCode } from "next-qrcode";
+import QRCode from "qrcode.react";
+import { useAuth } from "@/lib/auth-context";
+import { setAuthToken, setAuthId } from "@/lib/authUtils";
 
 export default function LoginPage() {
-    // const { SVG } = useQRCode();
     const router = useRouter();
+    const { login } = useAuth();
+    const [qrData, setQrData] = useState<string | null>(null);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState<null | string>(null);
-    const handleSubmit = async () => {
-        const res = await authClient.signIn.email({
-            email,
-            password,
-        });
-        if (res.error?.message) {
-            console.error("Login failed:", res.error.message);
-            setError(res.error.message);
-            return;
-        }
-        console.log("Login successful:", res.data);
-        router.push("/");
-    };
+    useEffect(() => {
+        const fetchQRCode = async () => {
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_EVOTING_BASE_URL}/api/auth/offer`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch QR code");
+                }
+
+                const data = await response.json();
+                setQrData(data.offer);
+                setSessionId(data.sessionId);
+                setIsLoading(false);
+            } catch (err) {
+                setError("Failed to load QR code");
+                setIsLoading(false);
+            }
+        };
+
+        fetchQRCode();
+    }, []);
+
+    useEffect(() => {
+        if (!sessionId) return;
+
+        const eventSource = new EventSource(
+            `${process.env.NEXT_PUBLIC_EVOTING_BASE_URL}/api/auth/sessions/${sessionId}`
+        );
+
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.token && data.user) {
+                // Store the token and user ID using auth utilities
+                setAuthToken(data.token);
+                setAuthId(data.user.id);
+                // Reload to trigger auth initialization
+                window.location.reload();
+            }
+        };
+
+        eventSource.onerror = () => {
+            eventSource.close();
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, [sessionId, login]);
+
     return (
         <div className="flex flex-col items-center justify-center gap-4 mt-4">
             <div className="flex flex-col items-center text-center gap-4">
@@ -46,42 +87,29 @@ export default function LoginPage() {
                         <span className="font-bold underline">eID App</span>
                         <span>to login</span>
                     </div>
-                    {error !== null && (
+                    {error && (
                         <div className="w-full text-red-500 text-center">
                             {error}
                         </div>
                     )}
-                    {/* <SVG
-                        text={"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}
-                        options={{
-                            margin: 2,
-                            width: 200,
-                            color: {
-                                dark: "#000000",
-                                light: "#FFFFFF",
-                            },
-                        }}
-                    /> */}
-                    <Input
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        type="text"
-                    />
-                    <Input
-                        placeholder="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        type="password"
-                    />
-                    <Button onClick={handleSubmit}>Submit</Button>
-                    {/* <p>Features you'll get access to:</p>
-                    <ul className="flex flex-col gap-2 list-disc">
-                        <li>Create public and blind votes</li>
-                        <li>Vote on active polls</li>
-                        <li>View real-time results</li>
-                        <li>Manage your created votes</li>
-                    </ul> */}
+                    {isLoading ? (
+                        <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div className="text-gray-500">Loading QR Code...</div>
+                        </div>
+                    ) : qrData ? (
+                        <div className="p-4 bg-white rounded-lg">
+                            <QRCode
+                                value={qrData}
+                                size={200}
+                                level="M"
+                                includeMargin={true}
+                            />
+                        </div>
+                    ) : (
+                        <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div className="text-gray-500">QR Code not available</div>
+                        </div>
+                    )}
                     <span className="flex flex-col gap-2 items-center">
                         <p className="font-bold text-md">
                             The code is only valid for 60 seconds

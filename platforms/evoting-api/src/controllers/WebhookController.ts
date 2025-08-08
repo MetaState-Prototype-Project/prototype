@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Web3Adapter } from "../../../infrastructure/web3-adapter/src/index";
+import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src/index";
 import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
 import { Poll } from "../database/entities/Poll";

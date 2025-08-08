@@ -6,6 +6,8 @@ import express from "express";
 import { AppDataSource } from "./database/data-source";
 import { AuthController } from "./controllers/AuthController";
 import { UserController } from "./controllers/UserController";
+import { PollController } from "./controllers/PollController";
+import { VoteController } from "./controllers/VoteController";
 import { WebhookController } from "./controllers/WebhookController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
@@ -29,15 +31,15 @@ AppDataSource.initialize()
 // Middleware
 app.use(
     cors({
-        origin: [process.env.EVOTING_CLIENT_URL || "http://localhost:3000"],
-        methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE", "PUT"],
+        origin: "*",
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: [
             "Content-Type",
             "Authorization",
             "X-Webhook-Signature",
             "X-Webhook-Timestamp",
         ],
-        credentials: true,
+        credentials: false,
     }),
 );
 app.use(express.json({ limit: "50mb" }));
@@ -46,6 +48,8 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Controllers
 const authController = new AuthController();
 const userController = new UserController();
+const pollController = new PollController();
+const voteController = new VoteController();
 const webhookController = new WebhookController(adapter);
 
 // Public routes (no auth required)
@@ -62,6 +66,20 @@ app.get("/api/users/me", authGuard, userController.currentUser);
 app.get("/api/users/search", userController.search);
 app.get("/api/users/:id", authGuard, userController.getProfileById);
 app.patch("/api/users", authGuard, userController.updateProfile);
+
+// Poll routes
+app.get("/api/polls", pollController.getAllPolls);
+app.get("/api/polls/my", authGuard, pollController.getPollsByCreator);
+app.get("/api/polls/:id", pollController.getPollById);
+app.post("/api/polls", authGuard, pollController.createPoll);
+app.put("/api/polls/:id", authGuard, pollController.updatePoll);
+app.delete("/api/polls/:id", authGuard, pollController.deletePoll);
+
+// Vote routes
+app.post("/api/votes", authGuard, voteController.createVote);
+app.get("/api/polls/:pollId/votes", voteController.getVotesByPoll);
+app.get("/api/polls/:pollId/vote", authGuard, voteController.getUserVote);
+app.get("/api/polls/:pollId/results", voteController.getPollResults);
 
 // Start server
 app.listen(port, () => {

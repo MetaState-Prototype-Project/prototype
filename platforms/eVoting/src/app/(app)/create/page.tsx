@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { pollApi } from "@/lib/pollApi";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const createPollSchema = z.object({
@@ -41,7 +43,9 @@ type CreatePollForm = z.infer<typeof createPollSchema>;
 
 export default function CreatePoll() {
     const { toast } = useToast();
+    const router = useRouter();
     const [options, setOptions] = useState<string[]>(["", ""]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         register,
@@ -89,8 +93,33 @@ export default function CreatePoll() {
         setValue("options", newOptions);
     };
 
-    const onSubmit = (data: CreatePollForm) => {
-        // TODO: replace with actual API call to create poll
+    const onSubmit = async (data: CreatePollForm) => {
+        setIsSubmitting(true);
+        try {
+            await pollApi.createPoll({
+                title: data.title,
+                mode: data.mode,
+                visibility: data.visibility,
+                options: data.options.filter(option => option.trim() !== ""),
+                deadline: data.deadline || undefined
+            });
+            
+            toast({
+                title: "Success!",
+                description: "Poll created successfully",
+            });
+            
+            router.push("/");
+        } catch (error) {
+            console.error("Failed to create poll:", error);
+            toast({
+                title: "Error",
+                description: "Failed to create poll. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
