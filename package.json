@@ -23,7 +23,6 @@
     },
     "pnpm": {
         "onlyBuiltDependencies": [
-            "@biomejs/biome",
             "@firebase/util",
             "@tailwindcss/oxide",
             "bufferutil",
