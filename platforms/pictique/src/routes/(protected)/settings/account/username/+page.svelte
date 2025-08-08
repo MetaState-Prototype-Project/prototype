@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { InputFile } from '$lib/fragments';
-	import { Button, Input, Label } from '$lib/ui';
+	import { Button, Input, Label, Textarea } from '$lib/ui';
 	import { apiClient } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
@@ -51,6 +51,7 @@
 		const { data } = await apiClient.get('/api/users');
 		handle = data.handle;
 		name = data.name;
+		profileImageDataUrl = data.avatarUrl;
 	});
 </script>
 

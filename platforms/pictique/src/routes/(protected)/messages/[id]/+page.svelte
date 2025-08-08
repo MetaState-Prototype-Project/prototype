@@ -115,7 +115,7 @@
 		{/each}
 	</div>
 	<MessageInput
-		class="sticky bottom-[-15px] start-0 w-full"
+		class="sticky start-0 bottom-[-15px] w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}

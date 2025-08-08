@@ -36,7 +36,11 @@ function MessageItem({
                 isOwnMessage ? 'justify-end' : 'justify-start'
             }`}
         >
-            <div className={`flex max-w-[70%] ${isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'} gap-1`}>
+            <div
+                className={`flex max-w-[70%] ${
+                    isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'
+                } gap-1`}
+            >
                 {/* User Avatar and Name - Above the message */}
                 {!isOwnMessage && showUserInfo && (
                     <div className='flex items-center gap-2 mb-1'>
@@ -44,7 +48,11 @@ function MessageItem({
                             {userData?.photoURL ? (
                                 <Image
                                     src={userData.photoURL}
-                                    alt={userData.name || userData.username || 'User'}
+                                    alt={
+                                        userData.name ||
+                                        userData.username ||
+                                        'User'
+                                    }
                                     width={24}
                                     height={24}
                                     className='object-cover'
@@ -58,7 +66,7 @@ function MessageItem({
                         </span>
                     </div>
                 )}
-                
+
                 {/* Message Bubble */}
                 <div
                     className={`rounded-2xl px-4 py-2 ${
@@ -92,7 +100,9 @@ export function ChatWindow(): JSX.Element {
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
-    const [participantsData, setParticipantsData] = useState<Record<string, User>>({});
+    const [participantsData, setParticipantsData] = useState<
+        Record<string, User>
+    >({});
     const [isLoading, setIsLoading] = useState(false);
     const [openMemberList, setOpenMemberList] = useState(false);
     const [openEditMenu, setOpenEditMenu] = useState<boolean>(false);
@@ -108,7 +118,7 @@ export function ChatWindow(): JSX.Element {
         const fetchParticipantsData = async (): Promise<void> => {
             try {
                 const newParticipantsData: Record<string, User> = {};
-                
+
                 // Fetch data for all participants
                 for (const participantId of currentChat.participants) {
                     if (participantId === user?.id) {
@@ -118,19 +128,27 @@ export function ChatWindow(): JSX.Element {
                         }
                     } else {
                         // Fetch other participants' data
-                        const userDoc = await getDoc(doc(db, 'users', participantId));
+                        const userDoc = await getDoc(
+                            doc(db, 'users', participantId)
+                        );
                         if (userDoc.exists()) {
-                            newParticipantsData[participantId] = userDoc.data() as User;
+                            newParticipantsData[participantId] =
+                                userDoc.data() as User;
                         }
                     }
                 }
-                
+
                 setParticipantsData(newParticipantsData);
-                
+
                 // Set otherUser for direct chats
                 if (currentChat.type === 'direct') {
-                    const otherParticipant = currentChat.participants.find(p => p !== user?.id);
-                    if (otherParticipant && newParticipantsData[otherParticipant]) {
+                    const otherParticipant = currentChat.participants.find(
+                        (p) => p !== user?.id
+                    );
+                    if (
+                        otherParticipant &&
+                        newParticipantsData[otherParticipant]
+                    ) {
                         setOtherUser(newParticipantsData[otherParticipant]);
                     }
                 }
@@ -171,7 +189,8 @@ export function ChatWindow(): JSX.Element {
             void Promise.all(
                 unreadMessages.map((message) => markAsRead(message.id))
             );
-    }});
+        }
+    }, [currentChat, messages, user, markAsRead]);
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -254,25 +273,44 @@ export function ChatWindow(): JSX.Element {
                                 {[...messages]
                                     .reverse()
                                     .map((message, index, reversedMessages) => {
-                                        const isOwnMessage = message.senderId === user?.id;
-                                        const nextMessage = reversedMessages[index + 1];
-                                        const prevMessage = reversedMessages[index - 1];
-                                        
+                                        const isOwnMessage =
+                                            message.senderId === user?.id;
+                                        const nextMessage =
+                                            reversedMessages[index + 1];
+                                        const prevMessage =
+                                            reversedMessages[index - 1];
+
                                         // Show time if next message is from different sender or doesn't exist
-                                        const showTime = !nextMessage || nextMessage.senderId !== message.senderId;
-                                        
+                                        const showTime =
+                                            !nextMessage ||
+                                            nextMessage.senderId !==
+                                                message.senderId;
+
                                         // Show user info if:
                                         // 1. It's a group chat AND
                                         // 2. Previous message is from different sender OR doesn't exist OR
                                         // 3. Previous message is from same sender but more than 5 minutes ago
-                                        const showUserInfo = currentChat?.type === 'group' && !isOwnMessage && (
-                                            !prevMessage ||
-                                            prevMessage.senderId !== message.senderId ||
-                                            (prevMessage.createdAt?.toDate && message.createdAt?.toDate &&
-                                             Math.abs(prevMessage.createdAt.toDate().getTime() - message.createdAt.toDate().getTime()) > 5 * 60 * 1000)
-                                        );
-                                        
-                                        const userData = participantsData[message.senderId];
+                                        const showUserInfo =
+                                            currentChat?.type === 'group' &&
+                                            !isOwnMessage &&
+                                            (!prevMessage ||
+                                                prevMessage.senderId !==
+                                                    message.senderId ||
+                                                (prevMessage.createdAt
+                                                    ?.toDate &&
+                                                    message.createdAt?.toDate &&
+                                                    Math.abs(
+                                                        prevMessage.createdAt
+                                                            .toDate()
+                                                            .getTime() -
+                                                            message.createdAt
+                                                                .toDate()
+                                                                .getTime()
+                                                    ) >
+                                                        5 * 60 * 1000));
+
+                                        const userData =
+                                            participantsData[message.senderId];
 
                                         return (
                                             <MessageItem
