@@ -32,10 +32,7 @@ export function MobileSidebar(): JSX.Element {
                 open={open}
                 closeModal={closeModal}
             >
-                <MobileSidebarModal
-                    {...user}
-                    closeModal={closeModal}
-                />
+                <MobileSidebarModal {...user} closeModal={closeModal} />
             </Modal>
             <Button className='accent-tab p-0 xs:hidden' onClick={openModal}>
                 <UserAvatar src={photoURL} alt={name} size={30} />
