@@ -1,11 +1,11 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
-import axios from "axios";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Standalone function to spin up an eVault
@@ -197,7 +197,7 @@ async function createGroupManifestWithRetry(
                     metaEnvelope: {
                         id: string;
                         ontology: string;
-                        parsed: any;
+                        parsed: unknown;
                     };
                 };
             }
