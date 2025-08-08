@@ -6,6 +6,7 @@
     "localToUniversalMap": {
         "name": "name",
         "type": "type",
+        "admins": "user(admins),admins",
         "participants": "user(participants[]),participantIds",
         "lastMessage": "lastMessageId",
         "createdAt": "__date(__calc(createdAt._seconds * 1000)),createdAt",

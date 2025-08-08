@@ -5,12 +5,12 @@
 
 	interface IUserRequestprops extends HTMLAttributes<HTMLElement> {
 		userImgSrc: string;
-		handle: string;
+		userName: string;
 		description: string;
 		handleFollow: () => Promise<void>;
 	}
 
-	let { userImgSrc, handle, description, ...restProps }: IUserRequestprops = $props();
+	let { userImgSrc, userName, description, ...restProps }: IUserRequestprops = $props();
 </script>
 
 <article
@@ -20,7 +20,7 @@
 	<div class="me-4.5 flex items-start">
 		<Avatar size="sm" src={userImgSrc} />
 		<div class="ms-2">
-			<h3 class="font-semibold text-black">{handle}</h3>
+			<h3 class="font-semibold text-black">{userName}</h3>
 			<p class="text-black-600">{description}</p>
 		</div>
 	</div>
@@ -32,7 +32,7 @@
 @description A user request card component displaying avatar, name, description, and a follow button.
 @props
   - userImgSrc: URL string for the user's avatar image.
-  - handle: Display name of the user.
+  - userName: Display name of the user.
   - description: A short description or context for the request.
   - handleFollow: Async function to execute when the "Follow" button is clicked.
   - (spread) HTMLAttributes<HTMLElement>: Additional HTML attributes passed to the root <article> element.
@@ -47,7 +47,7 @@
 
   <UserRequest
     userImgSrc="https://picsum.photos/id/237/200"
-    handle="John Doe"
+    userName="John Doe"
     description="Wants to connect with you"
     handleFollow={followUser}
   />

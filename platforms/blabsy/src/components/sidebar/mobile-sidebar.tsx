@@ -19,8 +19,7 @@ const variant: Variants = {
 
 export function MobileSidebar(): JSX.Element {
     const { user } = useAuth();
-
-    const { photoURL, name } = user as User;
+    const { name, photoURL } = user;
 
     const { open, openModal, closeModal } = useModal();
 
@@ -34,7 +33,7 @@ export function MobileSidebar(): JSX.Element {
                 closeModal={closeModal}
             >
                 <MobileSidebarModal
-                    {...(user as User)}
+                    {...user}
                     closeModal={closeModal}
                 />
             </Modal>

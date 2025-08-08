@@ -64,8 +64,22 @@ export function ChatList(): JSX.Element {
     if (!chats?.length) {
         console.log('ChatList: No chats found');
         return (
-            <div className='flex h-full items-center justify-center'>
-                <p className='text-gray-500 dark:text-gray-400'>No chats yet</p>
+            <div className='flex h-full flex-col gap-4'>
+                <div className='flex flex-1 items-center justify-center'>
+                    <p className='text-gray-500 dark:text-gray-400'>No chats yet</p>
+                </div>
+                <button
+                    type='button'
+                    onClick={() => setOpenCreateNewChatModal(true)}
+                    className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-2 transition-colors hover:brightness-90 mx-4 mb-4'
+                >
+                    New Chat
+                </button>
+                <AddMembers
+                    open={openCreateNewChatModal}
+                    onClose={() => setOpenCreateNewChatModal(false)}
+                    newChat={true}
+                />
             </div>
         );
     }
@@ -130,7 +144,7 @@ export function ChatList(): JSX.Element {
             <button
                 type='button'
                 onClick={() => setOpenCreateNewChatModal(true)}
-                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90 mx-4 mb-4'
             >
                 New Chat
             </button>

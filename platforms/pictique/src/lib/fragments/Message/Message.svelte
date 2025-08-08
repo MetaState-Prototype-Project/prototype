@@ -5,7 +5,7 @@
 
 	interface IMessageProps extends HTMLAttributes<HTMLButtonElement> {
 		avatar: string;
-		handle: string;
+		username: string;
 		text: string;
 		unread?: boolean;
 		callback: () => void;
@@ -13,7 +13,7 @@
 
 	const {
 		avatar,
-		handle,
+		username,
 		text,
 		unread = false,
 		callback,
@@ -34,7 +34,7 @@
 	<Avatar src={avatar} alt="User Avatar" size="md" />
 	<span class="flex w-full flex-col items-start justify-end gap-1">
 		<span class="flex w-full items-center justify-between">
-			<h2>{handle}</h2>
+			<h2>{username}</h2>
 			{#if unread}
 				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 			{/if}
@@ -46,10 +46,10 @@
 <!--
 @component
 @name Message
-@description A message component that displays a user's avatar, handle, and message text. It also includes an optional unread indicator.
+@description A message component that displays a user's avatar, username, and message text. It also includes an optional unread indicator.
 @props
     - avatar: string - The URL of the user's avatar image.
-    - handle: string - The name of the user.
+    - username: string - The name of the user.
     - text: string - The message text.
     - unread: boolean - Optional. Indicates if the message is unread. Defaults to false.
     - callback: () => void - Function to call when the message is clicked.
@@ -60,7 +60,7 @@
 
     <Message
         avatar="https://example.com/avatar.jpg"
-        handle="John Doe"
+        username="John Doe"
         text="Hello, how are you?"
         unread={true}
         callback={() => console.log('Message clicked')}

@@ -1,5 +1,39 @@
 @import 'tailwindcss';
 
+@font-face {
+	font-family: 'Archivo';
+	src: url('/fonts/Archivo-VariableFont_wdth,wght.ttf') format('truetype');
+	font-weight: 100 900;
+	font-style: normal;
+}
+
+@layer base {
+	/* Typography */
+	h1 {
+		@apply text-[90px]/[1.5] font-semibold text-black;
+	}
+
+	h2 {
+		@apply text-6xl/[1.5] font-semibold text-black;
+	}
+
+	h3 {
+		@apply text-3xl/[1.5] font-semibold text-black;
+	}
+
+	h4 {
+		@apply text-xl/[1.5] font-semibold text-black;
+	}
+
+	p {
+		@apply text-base/[1.5] font-normal text-black;
+	}
+
+	.small {
+		@apply text-xs/[1.5] font-normal text-black;
+	}
+}
+
 @theme {
 	/* Custom theme */
 	--color-primary: #8e52ff;
@@ -32,4 +66,6 @@
 	--color-danger-300: #ff968e;
 	--color-danger-400: #ff7b77;
 	--color-danger-500: #ff5255;
+
+	--color-green: #0fb340;
 }

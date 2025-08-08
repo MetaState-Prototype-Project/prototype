@@ -12,7 +12,7 @@
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
-		handle: string;
+		username: string;
 		userId?: string;
 		imgUris: string[];
 		text: string;
@@ -69,7 +69,7 @@
 	const {
 		avatar,
 		userId,
-		handle,
+		username,
 		imgUris: uris,
 		text,
 		count,
@@ -127,9 +127,9 @@
 				onclick={() => goto(`/profile/${userId}`)}
 			>
 				{#key avatar}
-					<Avatar src={avatar ?? '/images/user.png'} alt={handle} size="sm"></Avatar>
+					<Avatar src={avatar ?? '/images/user.png'} alt={username} size="sm"></Avatar>
 				{/key}
-				<h2>{handle}</h2>
+				<h2>{username}</h2>
 			</div>
 		</div>
 		{#if imgUris.length > 0}
@@ -245,19 +245,19 @@
 				onclick={() => goto(`/profile/${userId}`)}
 			>
 				{#key avatar}
-					<Avatar src={avatar ?? '/images/user.png'} alt={handle} size="sm"></Avatar>
+					<Avatar src={avatar ?? '/images/user.png'} alt={username} size="sm"></Avatar>
 				{/key}
-				<h2>{handle}</h2>
+				<h2>{username}</h2>
 			</div>
 		</div>
 		<hr class="rounded-xl border-1 border-gray-200" />
 		<div class="flex h-1/2 w-full flex-col gap-2 overflow-y-auto">
 			<div class="flex w-full items-start justify-start gap-2">
 				{#key avatar}
-					<Avatar src={avatar ?? '/images/user.png'} alt={handle} size="sm"></Avatar>
+					<Avatar src={avatar ?? '/images/user.png'} alt={username} size="sm"></Avatar>
 				{/key}
 				<div class="self-center">
-					<p class="inline font-bold">{handle}</p>
+					<p class="inline font-bold">{username}</p>
 					<p class="ml-1 inline">{text}</p>
 					<p class="mt-1 text-black/60">
 						{new Date(time).toLocaleDateString()}

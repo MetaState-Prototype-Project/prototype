@@ -1,7 +1,7 @@
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 import type { User } from '@lib/types/user';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
 
 export function useRequireAuth(redirectUrl?: string): User | null {
     const { user, loading } = useAuth();

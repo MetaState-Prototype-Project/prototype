@@ -78,6 +78,7 @@ app.post(
         res: Response<ProvisionResponse>
     ) => {
         try {
+            console.log("provisioner log 1");
             if (!process.env.PUBLIC_REGISTRY_URL)
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
             const { registryEntropy, namespace, verificationId } = req.body;
@@ -90,6 +91,8 @@ app.post(
                 });
             }
 
+            console.log("provisioner log 2");
+
             const jwksResponse = await axios.get(
                 new URL(
                     `/.well-known/jwks.json`,
@@ -99,6 +102,8 @@ app.post(
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
             const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
+
+            console.log("provisioner log 3");
 
             const userId = await new W3IDBuilder()
                 .withNamespace(namespace)

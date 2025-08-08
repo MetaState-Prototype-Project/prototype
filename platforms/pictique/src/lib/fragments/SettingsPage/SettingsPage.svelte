@@ -13,10 +13,10 @@
 	let route = $derived(page.url.pathname);
 
 	interface ISettingsPageProps extends HTMLAttributes<HTMLElement> {
-		handle: string;
+		username: string;
 		userEmail: string;
 	}
-	let { handle, userEmail }: ISettingsPageProps = $props();
+	let { username, userEmail }: ISettingsPageProps = $props();
 </script>
 
 <div class="bg-grey rounded-xl p-3 md:p-5">
@@ -25,7 +25,7 @@
 		profileSrc="https://picsum.photos/200/300"
 	>
 		<div class="flex flex-col items-start">
-			<h2 class="text-lg">{handle}</h2>
+			<h2 class="text-lg">{username}</h2>
 			<p class="text-sm">{userEmail}</p>
 		</div>
 	</SettingsNavigationButton>
