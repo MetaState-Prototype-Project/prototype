@@ -6,6 +6,7 @@ import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
+import { logger } from "./logging";
 
 /**
  * Standalone function to spin up an eVault
@@ -99,7 +100,7 @@ export async function createGroupEVault(
     try {
         // Step 1: Spin up the eVault
         const evault = await spinUpEVault(registryUrl, provisionerUrl, finalVerificationCode);
-        
+
         // Step 2: Create GroupManifest with exponential backoff
         const manifestId = await createGroupManifestWithRetry(
             registryUrl,
@@ -138,7 +139,7 @@ async function createGroupManifestWithRetry(
     maxRetries = 10
 ): Promise<string> {
     const now = new Date().toISOString();
-    
+
     const groupManifest: GroupManifest = {
         eName: w3id,
         name: groupData.name,
@@ -155,12 +156,12 @@ async function createGroupManifestWithRetry(
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`Attempting to create GroupManifest in eVault (attempt ${attempt}/${maxRetries})`);
-            
+
             const response = await axios.get(
                 new URL(`resolve?w3id=${w3id}`, registryUrl).toString()
             );
             const endpoint = new URL("/graphql", response.data.uri).toString();
-            
+
             const { GraphQLClient } = await import("graphql-request");
             const client = new GraphQLClient(endpoint);
 
@@ -229,7 +230,7 @@ export class Web3Adapter {
             dbPath: string;
             registryUrl: string;
             platform: string;
-            provisionerUrl?: string; 
+            provisionerUrl?: string;
         },
     ) {
         this.readPaths();
@@ -276,6 +277,8 @@ export class Web3Adapter {
         const existingGlobalId = await this.mappingDb.getGlobalId(
             data.id as string,
         );
+
+        logger.info(`Handling change for table ${tableName} with data: ${JSON.stringify(data)}`)
 
         if (!this.mapping[tableName]) return
         console.log("We get here?")
@@ -375,7 +378,7 @@ export class Web3Adapter {
         provisionerUrl?: string
     ): Promise<{ w3id: string; uri: string }> {
         const finalProvisionerUrl = provisionerUrl || this.config.provisionerUrl;
-        
+
         if (!finalProvisionerUrl) {
             throw new Error("Provisioner URL is required. Please provide it in config or as parameter.");
         }
@@ -404,7 +407,7 @@ export class Web3Adapter {
         provisionerUrl?: string
     ): Promise<{ w3id: string; uri: string; manifestId: string }> {
         const finalProvisionerUrl = provisionerUrl || this.config.provisionerUrl;
-        
+
         if (!finalProvisionerUrl) {
             throw new Error("Provisioner URL is required. Please provide it in config or as parameter.");
         }
