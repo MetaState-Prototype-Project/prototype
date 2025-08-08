@@ -95,7 +95,7 @@
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
 		{:else}
-			{#each $posts.posts as post (post.id)}
+			{#each $posts as post (post.id)}
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}

@@ -34,9 +34,11 @@
 			return {
 				id: c.id,
 				avatar,
-				username: c.name ?? memberNames.join(', '),
+				username: c.handle ?? memberNames.join(', '),
 				unread: c.latestMessage ? c.latestMessage.isRead : false,
-				text: c.latestMessage?.text ?? 'No message yet'
+				text: c.latestMessage?.text ?? 'No message yet',
+				handle: c.handle ?? memberNames.join(', '),
+				name: c.handle ?? memberNames.join(', ')
 			};
 		});
 	}
@@ -126,7 +128,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}
@@ -173,7 +175,7 @@
 							class="accent-brand focus:ring"
 						/>
 						<Avatar src={member.avatarUrl} size="sm" />
-						<span class="text-sm">{member.name ?? member.handle ?? member.ename}</span>
+						<span class="text-sm">{member.name ?? member.handle}</span>
 					</label>
 				{/each}
 			</div>
