@@ -23,7 +23,19 @@
     },
     "pnpm": {
         "onlyBuiltDependencies": [
-            "esbuild"
+            "@biomejs/biome",
+            "@firebase/util",
+            "@tailwindcss/oxide",
+            "bufferutil",
+            "core-js",
+            "cpu-features",
+            "esbuild",
+            "msw",
+            "protobufjs",
+            "sharp",
+            "ssh2",
+            "svelte-preprocess",
+            "unrs-resolver"
         ]
     }
 }
