@@ -15,7 +15,7 @@
 	}
 	let {
 		activeTab = $bindable('home'),
-		profileSrc = 'https://picsum.photos/200',
+		profileSrc = 'images/user.png',
 		handlePost,
 		...restProps
 	}: ISideBarProps = $props();
