@@ -55,7 +55,7 @@
 {:else}
 	<img
 		{...restProps}
-		on:error={handleError}
+		onerror={handleError}
 		src={img}
 		{alt}
 		class={cn([classes.common, classes.size, restProps.class].join(' '))}

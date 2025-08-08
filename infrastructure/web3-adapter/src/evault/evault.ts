@@ -190,7 +190,10 @@ export class EVaultClient {
     private async requestPlatformToken(): Promise<TokenInfo> {
         try {
             const response = await fetch(
-                new URL("/platforms/certification", this.registryUrl).toString(),
+                new URL(
+                    "/platforms/certification",
+                    this.registryUrl,
+                ).toString(),
                 {
                     method: "POST",
                     headers: {
@@ -204,7 +207,7 @@ export class EVaultClient {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const data = await response.json() as PlatformTokenResponse;
+            const data = (await response.json()) as PlatformTokenResponse;
             const now = Date.now();
             const expiresAt = data.expiresAt || now + 3600000; // Default 1 hour
 
