@@ -206,7 +206,7 @@ export function ChatWindow(): JSX.Element {
         <div className='flex h-full flex-col'>
             {currentChat ? (
                 <>
-                    <div className='flex items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
+                    <div className='flex h-fit items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
                         <div className='flex items-center gap-3'>
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
                                 {otherUser?.photoURL ? (
@@ -263,7 +263,7 @@ export function ChatWindow(): JSX.Element {
                             </div>
                         )}
                     </div>
-                    <div className='flex-1 overflow-y-auto p-4'>
+                    <div className='flex-1 p-4 overflow-y-auto'>
                         {isLoading ? (
                             <div className='flex h-full w-full items-center justify-center'>
                                 <Loading className='h-8 w-8' />
