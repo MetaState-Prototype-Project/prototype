@@ -4,7 +4,7 @@ import type { LokiOptions } from "pino-loki";
 export const transport = pinoTransport<LokiOptions>({
     target: "pino-loki",
     options: {
-        host: process.env.LOKI_URL || "http://loki:3100",
+        host: process.env.LOKI_URL || "http://localhost:3100",
         labels: {
             app: "web3-adapter",
         },

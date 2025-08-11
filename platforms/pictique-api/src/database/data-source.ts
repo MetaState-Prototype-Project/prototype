@@ -12,6 +12,7 @@ import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
+console.log("SAODIHUOPIFHDSA", process.env.PICTIQUE_DATABASE_URL)
 export const AppDataSource = new DataSource({
     type: "postgres",
     url: process.env.PICTIQUE_DATABASE_URL,
