@@ -118,6 +118,14 @@ export default function Home() {
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
                                                     <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
+                                                    <Badge
                                                         variant={
                                                             poll.visibility ===
                                                             "public"
@@ -151,7 +159,9 @@ export default function Home() {
                                                     </Badge>
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    {poll.votes?.length || 0} votes
+                                                    {poll.mode === "rank" 
+                                                        ? `${poll.votes?.length || 0} points` 
+                                                        : `${poll.votes?.length || 0} votes`}
                                                 </div>
                                                 <Button
                                                     asChild
@@ -203,6 +213,14 @@ export default function Home() {
                                                     {poll.title}
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
                                                     <Badge
                                                         variant={
                                                             poll.visibility ===
@@ -292,6 +310,14 @@ export default function Home() {
                                                     {poll.title}
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
                                                     <Badge
                                                         variant={
                                                             poll.visibility ===

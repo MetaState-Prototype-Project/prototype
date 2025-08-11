@@ -18,7 +18,9 @@ export class VoteService {
     async createVote(voteData: {
         pollId: string;
         userId: string;
-        optionId: number;
+        optionId?: number;
+        points?: { [key: number]: number };
+        ranks?: { [key: number]: number };
     }): Promise<Vote> {
         const poll = await this.pollRepository.findOne({
             where: { id: voteData.pollId }
@@ -48,16 +50,42 @@ export class VoteService {
             throw new Error("User has already voted on this poll");
         }
 
+        let voteDataToStore;
+        if (voteData.optionId !== undefined) {
+            // Normal voting mode
+            voteDataToStore = { 
+                mode: "normal" as const,
+                data: [voteData.optionId.toString()]
+            };
+        } else if (voteData.ranks) {
+            // Ranked choice voting mode - convert to points (50, 35, 15)
+            const rankData = Object.entries(voteData.ranks).map(([rank, optionIndex]) => {
+                const rankNum = parseInt(rank);
+                let points = 0;
+                if (rankNum === 1) points = 50;
+                else if (rankNum === 2) points = 35;
+                else if (rankNum === 3) points = 15;
+                
+                return {
+                    option: poll.options[optionIndex],
+                    points: points
+                };
+            });
+            voteDataToStore = { 
+                mode: "rank" as const,
+                data: rankData
+            };
+        } else {
+            throw new Error("Invalid vote data");
+        }
+
         const vote = this.voteRepository.create({
             poll,
             user,
             pollId: voteData.pollId,
             userId: voteData.userId,
             voterId: voteData.userId,
-            data: { 
-                mode: "normal" as const,
-                data: [voteData.optionId.toString()]
-            }
+            data: voteDataToStore
         });
 
         return await this.voteRepository.save(vote);
@@ -98,22 +126,36 @@ export class VoteService {
 
         votes.forEach(vote => {
             if (vote.data.mode === "normal" && Array.isArray(vote.data.data)) {
+                // Normal voting: count each option
                 vote.data.data.forEach(optionIdStr => {
                     const optionId = parseInt(optionIdStr);
                     if (!isNaN(optionId) && optionId >= 0 && optionId < poll.options.length) {
                         voteCounts[optionId]++;
                     }
                 });
+            } else if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
+                // Ranked voting: sum points for each option (50, 35, 15)
+                vote.data.data.forEach((rankData: any) => {
+                    const optionIndex = poll.options.indexOf(rankData.option);
+                    if (optionIndex >= 0) {
+                        voteCounts[optionIndex] += rankData.points || 0;
+                    }
+                });
             }
         });
 
+        // Calculate total for percentage calculation
+        const total = poll.mode === "rank"
+            ? Object.values(voteCounts).reduce((sum, count) => sum + count, 0)
+            : votes.length;
+
         return {
             poll,
-            totalVotes: votes.length,
+            totalVotes: total,
             results: poll.options.map((option, index) => ({
                 option,
                 votes: voteCounts[index] || 0,
-                percentage: votes.length > 0 ? ((voteCounts[index] || 0) / votes.length) * 100 : 0
+                percentage: total > 0 ? ((voteCounts[index] || 0) / total) * 100 : 0
             }))
         };
     }

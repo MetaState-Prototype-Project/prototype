@@ -10,13 +10,15 @@ export class VoteController {
 
     createVote = async (req: Request, res: Response) => {
         try {
-            const { pollId, optionId } = req.body;
+            const { pollId, optionId, points, ranks } = req.body;
             const userId = (req as any).user.id;
 
             const vote = await this.voteService.createVote({
                 pollId,
                 userId,
-                optionId
+                optionId,
+                points,
+                ranks
             });
 
             res.status(201).json(vote);

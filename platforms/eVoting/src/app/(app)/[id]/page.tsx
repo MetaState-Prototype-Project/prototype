@@ -26,6 +26,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { toast } = useToast();
     const { isAuthenticated, isLoading: authLoading } = useAuth();
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
+
+    const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
     // TODO: Redirect to login if not authenticated
@@ -155,11 +157,39 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     }, [selectedPoll, pollId]);
 
     const handleVoteSubmit = async () => {
-        if (!selectedPoll || selectedOption === null || !pollId) return;
+        if (!selectedPoll || !pollId) return;
+        
+        // Validate based on voting mode
+        let isValid = false;
+        if (selectedPoll.mode === "normal") {
+            isValid = selectedOption !== null;
+        } else if (selectedPoll.mode === "rank") {
+            const totalRanks = Object.keys(rankVotes).length;
+            const maxRanks = Math.min(selectedPoll.options.length, 3);
+            isValid = totalRanks === maxRanks;
+        }
+        
+        if (!isValid) {
+            toast({
+                title: "Invalid Vote",
+                description: selectedPoll.mode === "rank" 
+                    ? "Please rank all options" 
+                    : "Please select an option",
+                variant: "destructive",
+            });
+            return;
+        }
         
         setIsSubmitting(true);
         try {
-            await pollApi.submitVote(pollId, selectedOption);
+            let voteData;
+            if (selectedPoll.mode === "normal") {
+                voteData = { optionId: selectedOption };
+            } else if (selectedPoll.mode === "rank") {
+                voteData = { ranks: rankVotes };
+            }
+            
+            await pollApi.submitVote(pollId, voteData);
             toast({
                 title: "Success!",
                 description: "Your vote has been submitted",
@@ -268,7 +298,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         {/* Vote Distribution */}
                         <div>
                             <div className="space-y-3">
-                                {resultsData?.results.map((option) => {
+                                {resultsData?.results.map((option, index) => {
                                     const percentage =
                                         resultsData.totalVotes > 0
                                             ? (
@@ -278,14 +308,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                               ).toFixed(1)
                                             : 0;
                                     const isUserChoice =
-                                        option.id === voteStatus.vote?.optionId;
+                                        option.option === selectedPoll.options[index];
                                     const isLeading = resultsData.results.every(
                                         (r) => option.votes >= r.votes
                                     );
 
                                     return (
                                         <div
-                                            key={option.id}
+                                            key={index}
                                             className={`p-4 rounded-lg border ${
                                                 isLeading && option.votes > 0
                                                     ? "bg-red-50 border-red-200"
@@ -305,7 +335,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             : "text-gray-900"
                                                     }`}
                                                 >
-                                                    {option.text}
+                                                    {option.option}
                                                 </span>
                                                 <span
                                                     className={`text-sm ${
@@ -317,7 +347,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             : "text-gray-600"
                                                     }`}
                                                 >
-                                                    {option.votes || 0} votes (
+                                                    {selectedPoll.mode === "rank" 
+                                                        ? `${option.votes || 0} points` 
+                                                        : `${option.votes || 0} votes`} (
                                                     {percentage}%)
                                                 </span>
                                             </div>
@@ -350,11 +382,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     <p className="text-sm font-medium text-green-900">
                                         You voted for:{" "}
                                         {
-                                            selectedPoll.options.find(
-                                                (opt) =>
-                                                    opt.id ===
-                                                    voteStatus.vote?.optionId
-                                            )?.text
+                                            selectedPoll.options[
+                                                parseInt(voteStatus.vote?.optionId || "0")
+                                            ]
                                         }
                                     </p>
                                     <p className="text-sm text-green-700">
@@ -367,7 +397,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                         <div className="space-y-6">
                             {/* Poll Statistics */}
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-white p-4 rounded-lg border">
                                     <div className="flex items-center">
                                         <div className="p-2 bg-green-100 rounded-lg">
@@ -375,7 +405,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">
-                                                Votes
+                                                {selectedPoll.mode === "rank" ? "Points" : "Votes"}
                                             </p>
                                             <p className="text-2xl font-bold text-gray-900">
                                                 {resultsData?.totalVotes || 0}
@@ -384,23 +414,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-4 rounded-lg border">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Users className="h-6 w-6 text-blue-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">
-                                                Turnout
-                                            </p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                100%
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div className="bg-white p-4 rounded-lg border col-span-2 md:col-span-1">
+
+                                <div className="bg-white p-4 rounded-lg border col-span-2">
                                     <div className="flex items-center">
                                         <div className="p-2 bg-purple-100 rounded-lg">
                                             <Eye className="h-6 w-6 text-purple-600" />
@@ -453,41 +469,63 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     Final Results
                                 </h3>
                                 <div className="space-y-3">
-                                    {selectedPoll.options.map((option) => {
-                                        const percentage =
-                                            selectedPoll.totalVotes > 0
-                                                ? (
-                                                      ((option.votes || 0) /
-                                                          selectedPoll.totalVotes) *
-                                                      100
-                                                  ).toFixed(1)
-                                                : 0;
+                                    {resultsData ? (
+                                        <>
 
-                                        return (
-                                            <div
-                                                key={option.id}
-                                                className="p-4 rounded-lg border bg-gray-50 border-gray-200"
-                                            >
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="font-medium text-gray-900">
-                                                        {option.text}
-                                                    </span>
-                                                    <span className="text-sm text-gray-600">
-                                                        {option.votes || 0}{" "}
-                                                        votes ({percentage}%)
-                                                    </span>
+                                            
+                                            {resultsData.results && resultsData.results.length > 0 ? (
+                                                resultsData.results.map((result, index) => {
+                                                    const isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes));
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className={`p-4 rounded-lg border ${
+                                                                isWinner 
+                                                                    ? 'bg-green-50 border-green-300' 
+                                                                    : 'bg-gray-50 border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="font-medium text-gray-900">
+                                                                        {result.option || `Option ${index + 1}`}
+                                                                    </span>
+                                                                    {isWinner && (
+                                                                        <Badge variant="success" className="bg-green-500 text-white">
+                                                                            🏆 Winner
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-sm text-gray-600">
+                                                                                                                            {selectedPoll.mode === "rank"
+                                                            ? `${result.votes} points` 
+                                                            : `${result.votes} votes`} ({result.percentage.toFixed(1)}%)
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div
+                                                                    className={`h-2 rounded-full ${
+                                                                        isWinner ? 'bg-green-500' : 'bg-red-500'
+                                                                    }`}
+                                                                    style={{
+                                                                        width: `${result.percentage}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-center py-8 text-gray-500">
+                                                    No results data available.
                                                 </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                                    <div
-                                                        className="h-2 rounded-full bg-red-500"
-                                                        style={{
-                                                            width: `${percentage}%`,
-                                                        }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            No results available yet.
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -511,52 +549,149 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     </div>
                 ) : (
                     <div className="space-y-6">
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                Select your choice:
-                            </h3>
-                            <RadioGroup
-                                value={selectedOption?.toString()}
-                                onValueChange={(value) =>
-                                    setSelectedOption(Number.parseInt(value))
-                                }
-                                disabled={!isVotingAllowed}
-                            >
-                                <div className="space-y-3">
-                                    {selectedPoll.options.map((option, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center space-x-3"
-                                        >
-                                            <RadioGroupItem
-                                                value={index.toString()}
-                                                id={index.toString()}
-                                                disabled={!isVotingAllowed}
-                                            />
-                                            <Label
-                                                htmlFor={index.toString()}
-                                                className={`text-base flex-1 py-2 ${
-                                                    isVotingAllowed
-                                                        ? "cursor-pointer"
-                                                        : "cursor-not-allowed opacity-50"
-                                                }`}
+
+                        {/* Voting Interface based on poll mode */}
+                        {selectedPoll.mode === "normal" && (
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                    Select your choice:
+                                </h3>
+                                <RadioGroup
+                                    value={selectedOption?.toString()}
+                                    onValueChange={(value) =>
+                                        setSelectedOption(Number.parseInt(value))
+                                    }
+                                    disabled={!isVotingAllowed}
+                                >
+                                    <div className="space-y-3">
+                                        {selectedPoll.options.map((option, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center space-x-3"
                                             >
-                                                {option}
-                                            </Label>
-                                        </div>
-                                    ))}
+                                                <RadioGroupItem
+                                                    value={index.toString()}
+                                                    id={index.toString()}
+                                                    disabled={!isVotingAllowed}
+                                                />
+                                                <Label
+                                                    htmlFor={index.toString()}
+                                                    className={`text-base flex-1 py-2 ${
+                                                        isVotingAllowed
+                                                            ? "cursor-pointer"
+                                                            : "cursor-not-allowed opacity-50"
+                                                    }`}
+                                                >
+                                                    {option}
+                                                </Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                        )}
+
+
+
+                        {selectedPoll.mode === "rank" && (
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        {(() => {
+                                            const currentRank = Object.keys(rankVotes).length + 1;
+                                            const maxRanks = Math.min(selectedPoll.options.length, 3);
+                                            
+                                            if (currentRank > maxRanks) {
+                                                return "Ranking Complete";
+                                            }
+                                            
+                                            const rankText = currentRank === 1 ? "1st" : currentRank === 2 ? "2nd" : currentRank === 3 ? "3rd" : `${currentRank}th`;
+                                            return `What's your ${rankText} choice?`;
+                                        })()}
+                                    </h3>
+                                    <Button
+                                        onClick={() => setRankVotes({})}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 border-red-300 hover:bg-red-50"
+                                    >
+                                        Reset Ranking
+                                    </Button>
                                 </div>
-                            </RadioGroup>
-                        </div>
+                                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                    <p className="text-sm text-green-800">
+                                        Select your choices one by one, starting with your most preferred option.
+                                    </p>
+                                </div>
+                                <RadioGroup
+                                    value={selectedOption?.toString()}
+                                    onValueChange={(value) => {
+                                        const optionIndex = parseInt(value);
+                                        const currentRank = Object.keys(rankVotes).length + 1;
+                                        setRankVotes(prev => ({
+                                            ...prev,
+                                            [currentRank]: optionIndex
+                                        }));
+                                        setSelectedOption(optionIndex);
+                                    }}
+                                    disabled={!isVotingAllowed}
+                                >
+                                    <div className="space-y-4">
+                                        {selectedPoll.options.map((option, index) => {
+                                            const isRanked = Object.values(rankVotes).includes(index);
+                                            const rank = Object.entries(rankVotes).find(([_, optionIndex]) => optionIndex === index)?.[0];
+                                            
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${
+                                                        isRanked ? 'bg-green-50 border-green-300' : ''
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center space-x-3">
+                                                        {!isRanked ? (
+                                                            <RadioGroupItem
+                                                                value={index.toString()}
+                                                                id={`rank-${index}`}
+                                                                disabled={!isVotingAllowed}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                                                <span className="text-white text-xs font-bold">{rank}</span>
+                                                            </div>
+                                                        )}
+                                                        <Label
+                                                            htmlFor={`rank-${index}`}
+                                                            className={`font-medium text-gray-900 ${
+                                                                isRanked ? 'text-green-700' : ''
+                                                            }`}
+                                                        >
+                                                            {option}
+                                                        </Label>
+                                                    </div>
+                                                    {isRanked && (
+                                                        <Badge variant="secondary" className="ml-auto">
+                                                            {rank === "1" ? "1st Choice" : rank === "2" ? "2nd Choice" : rank === "3" ? "3rd Choice" : `${rank}th Choice`}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                        )}
 
                         <div className="flex justify-center">
                             <Button
                                 onClick={handleVoteSubmit}
-                                disabled={
-                                    selectedOption === null ||
-                                    isSubmitting ||
-                                    !isVotingAllowed
-                                }
+                                                                    disabled={
+                                        (selectedPoll.mode === "normal" && selectedOption === null) ||
+                                    
+                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                        isSubmitting ||
+                                        !isVotingAllowed
+                                    }
                                 className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                             >
                                 {isSubmitting ? (

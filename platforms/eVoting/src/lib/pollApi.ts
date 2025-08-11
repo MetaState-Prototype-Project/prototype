@@ -86,10 +86,10 @@ export const pollApi = {
   },
 
   // Submit a vote
-  submitVote: async (pollId: string, optionId: number): Promise<Vote> => {
+  submitVote: async (pollId: string, voteData: any): Promise<Vote> => {
     const response = await apiClient.post("/api/votes", {
       pollId,
-      optionId
+      ...voteData
     });
     return response.data;
   },
