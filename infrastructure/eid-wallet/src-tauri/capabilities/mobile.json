@@ -8,7 +8,8 @@
         "opener:default",
         "store:default",
         "biometric:default",
-        "barcode-scanner:default"
+        "barcode-scanner:default",
+        "deep-link:default"
     ],
     "platforms": ["iOS", "android"]
 }

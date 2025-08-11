@@ -89,10 +89,125 @@
     async function handleAuth() {
         const vault = await globalState.vaultController.vault;
         if (!vault || !redirect) return;
-        await axios.post(redirect, { ename: vault.ename, session });
-        codeScannedDrawerOpen = false;
-        loggedInDrawerOpen = true;
-        startScan();
+
+        try {
+            await axios.post(redirect, { ename: vault.ename, session });
+            codeScannedDrawerOpen = false;
+
+            // Check if this was from a deep link
+            let deepLinkData = sessionStorage.getItem("deepLinkData");
+            if (!deepLinkData) {
+                // Also check for pending deep link data
+                deepLinkData = sessionStorage.getItem("pendingDeepLink");
+            }
+
+            if (deepLinkData) {
+                try {
+                    const data = JSON.parse(deepLinkData);
+                    console.log(
+                        "Deep link data found after auth completion:",
+                        data,
+                    );
+
+                    if (data.type === "auth") {
+                        console.log(
+                            "Auth completed via deep link, redirecting back to platform",
+                        );
+                        console.log("Redirect URL:", data.redirect);
+
+                        // Validate the redirect URL
+                        if (
+                            !data.redirect ||
+                            typeof data.redirect !== "string"
+                        ) {
+                            console.error(
+                                "Invalid redirect URL:",
+                                data.redirect,
+                            );
+                            loggedInDrawerOpen = true;
+                            startScan();
+                            return;
+                        }
+
+                        // Check if URL is valid
+                        try {
+                            new URL(data.redirect);
+                            console.log("Redirect URL is valid");
+                        } catch (urlError) {
+                            console.error("Invalid URL format:", urlError);
+                            loggedInDrawerOpen = true;
+                            startScan();
+                            return;
+                        }
+
+                        // Redirect back to the platform that initiated the request
+                        try {
+                            console.log(
+                                "Attempting redirect to:",
+                                data.redirect,
+                            );
+
+                            // Try multiple redirect methods for better compatibility
+                            try {
+                                // Method 1: Direct assignment
+                                window.location.href = data.redirect;
+                            } catch (error1) {
+                                console.log(
+                                    "Method 1 failed, trying method 2:",
+                                    error1,
+                                );
+
+                                try {
+                                    // Method 2: Using assign
+                                    window.location.assign(data.redirect);
+                                } catch (error2) {
+                                    console.log(
+                                        "Method 2 failed, trying method 3:",
+                                        error2,
+                                    );
+
+                                    try {
+                                        // Method 3: Using replace
+                                        window.location.replace(data.redirect);
+                                    } catch (error3) {
+                                        console.log(
+                                            "Method 3 failed, using fallback:",
+                                            error3,
+                                        );
+                                        throw new Error(
+                                            "All redirect methods failed",
+                                        );
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                "All redirect methods failed, staying in app:",
+                                error,
+                            );
+                            // If redirect fails, fall back to normal flow
+                            loggedInDrawerOpen = true;
+                            startScan();
+                        }
+                        return;
+                    }
+                } catch (error) {
+                    console.error(
+                        "Error parsing deep link data for redirect:",
+                        error,
+                    );
+                }
+            } else {
+                console.log("No deep link data found after auth completion");
+            }
+
+            // Not from deep link, show normal success flow
+            loggedInDrawerOpen = true;
+            startScan();
+        } catch (error) {
+            console.error("Error completing authentication:", error);
+            // Handle error appropriately
+        }
     }
 
     async function cancelScan() {
@@ -197,10 +312,28 @@
             signingDrawerOpen = false;
             signingSuccess = true;
 
-            // You could add a success message here or redirect
             console.log("Vote signed successfully!");
 
-            // Continue scanning for new requests after a short delay
+            // Check if this was from a deep link
+            const deepLinkData = sessionStorage.getItem("deepLinkData");
+            if (deepLinkData) {
+                try {
+                    const data = JSON.parse(deepLinkData);
+                    if (data.type === "sign") {
+                        console.log("Signing completed via deep link");
+                        // Show success message briefly, then continue
+                        setTimeout(() => {
+                            signingSuccess = false;
+                            startScan();
+                        }, 1500); // Give user time to see success message
+                        return;
+                    }
+                } catch (error) {
+                    console.error("Error parsing deep link data:", error);
+                }
+            }
+
+            // Not from deep link, continue scanning after a short delay
             setTimeout(() => {
                 signingSuccess = false;
                 startScan();
@@ -214,7 +347,149 @@
     }
 
     onMount(async () => {
-        startScan();
+        console.log("Scan QR page mounted, checking authentication...");
+
+        // Security check: Ensure user is authenticated before allowing access
+        try {
+            const vault = await globalState.vaultController.vault;
+            if (!vault) {
+                console.log("User not authenticated, redirecting to login");
+                await goto("/login");
+                return;
+            }
+            console.log(
+                "User authenticated, proceeding with scan functionality",
+            );
+        } catch (error) {
+            console.log("Authentication check failed, redirecting to login");
+            await goto("/login");
+            return;
+        }
+
+        console.log("Scan QR page mounted, checking for deep link data...");
+
+        // Function to handle deep link data
+        function handleDeepLinkData(data: any) {
+            console.log("Handling deep link data:", data);
+            console.log("Data type:", data.type);
+            console.log("Platform:", data.platform);
+            console.log("Session:", data.session);
+            console.log("Redirect:", data.redirect);
+            console.log("Redirect URI:", data.redirect_uri);
+
+            if (data.type === "auth") {
+                console.log("Handling auth deep link");
+                // Handle auth deep link
+                platform = data.platform;
+                session = data.session;
+                redirect = data.redirect;
+
+                try {
+                    hostname = new URL(data.redirect).hostname;
+                } catch (error) {
+                    console.error("Error parsing redirect URL:", error);
+                    hostname = "unknown";
+                }
+
+                isSigningRequest = false;
+                codeScannedDrawerOpen = true;
+                console.log("Auth modal should now be open");
+                console.log(
+                    "Final state - platform:",
+                    platform,
+                    "redirect:",
+                    redirect,
+                    "hostname:",
+                    hostname,
+                );
+            } else if (data.type === "sign") {
+                console.log("Handling signing deep link");
+                // Handle signing deep link
+                signingSessionId = data.session;
+                const base64Data = data.data;
+                const redirectUri = data.redirect_uri;
+
+                if (signingSessionId && base64Data && redirectUri) {
+                    redirect = redirectUri;
+                    try {
+                        const decodedString = atob(base64Data);
+                        signingData = JSON.parse(decodedString);
+                        console.log("Decoded signing data:", signingData);
+                    } catch (error) {
+                        console.error("Error decoding signing data:", error);
+                        return;
+                    }
+                    isSigningRequest = true;
+                    signingDrawerOpen = true;
+                    console.log("Signing modal should now be open");
+                }
+            }
+        }
+
+        // Check if we have deep link data from sessionStorage
+        let deepLinkData = sessionStorage.getItem("deepLinkData");
+        if (!deepLinkData) {
+            // Also check for pending deep link data (from unauthenticated users)
+            deepLinkData = sessionStorage.getItem("pendingDeepLink");
+        }
+
+        if (deepLinkData) {
+            console.log("Found deep link data:", deepLinkData);
+            try {
+                const data = JSON.parse(deepLinkData);
+                console.log("Parsed deep link data:", data);
+                handleDeepLinkData(data);
+                // Clear both storage keys to be safe
+                sessionStorage.removeItem("deepLinkData");
+                sessionStorage.removeItem("pendingDeepLink");
+            } catch (error) {
+                console.error("Error parsing deep link data:", error);
+                sessionStorage.removeItem("deepLinkData");
+                sessionStorage.removeItem("pendingDeepLink");
+            }
+        } else {
+            console.log("No deep link data found, starting normal scanning");
+            // No deep link data, start normal scanning
+            startScan();
+        }
+
+        // Listen for deep link events when already on the page
+        const handleAuthEvent = (event: CustomEvent) => {
+            console.log("Received deepLinkAuth event:", event.detail);
+            handleDeepLinkData({
+                type: "auth",
+                ...event.detail,
+            });
+        };
+
+        const handleSignEvent = (event: CustomEvent) => {
+            console.log("Received deepLinkSign event:", event.detail);
+            handleDeepLinkData({
+                type: "sign",
+                ...event.detail,
+            });
+        };
+
+        window.addEventListener(
+            "deepLinkAuth",
+            handleAuthEvent as EventListener,
+        );
+        window.addEventListener(
+            "deepLinkSign",
+            handleSignEvent as EventListener,
+        );
+
+        // Cleanup event listeners
+        onDestroy(() => {
+            window.removeEventListener(
+                "deepLinkAuth",
+                handleAuthEvent as EventListener,
+            );
+            window.removeEventListener(
+                "deepLinkSign",
+                handleSignEvent as EventListener,
+            );
+        });
     });
 
     onDestroy(async () => {
@@ -241,10 +516,6 @@
 <h4 class="text-white font-semibold text-center mt-20">
     Point the camera at the code
 </h4>
-
-<div
-    class="fixed bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-8 justify-center items-center"
-></div>
 
 <!-- code scanned drawer -->
 <Drawer
@@ -301,6 +572,14 @@
             Confirm
         </Button.Action>
     </div>
+
+    {#if isSigningRequest === false}
+        <div class="text-center mt-3">
+            <p class="text-sm text-gray-600">
+                After confirmation, you may return to {platform} and continue there
+            </p>
+        </div>
+    {/if}
 </Drawer>
 
 <!-- logged in drawer -->
@@ -330,9 +609,17 @@
     <h4>You're logged in!</h4>
     <p class="text-black-700">You're now connected to {platform}</p>
 
-    <div class="flex justify-center items-center mt-4">
+    <div class="flex flex-col gap-3 mt-4">
+        {#if redirect && platform}
+            <div class="text-center mt-3">
+                <p class="text-sm text-gray-600">
+                    You may return to {platform} and continue there
+                </p>
+            </div>
+        {/if}
+
         <Button.Action
-            variant="solid"
+            variant="soft"
             class="w-full"
             callback={() => {
                 loggedInDrawerOpen = false;
@@ -340,7 +627,7 @@
                 startScan();
             }}
         >
-            Close
+            Stay in App
         </Button.Action>
     </div>
 </Drawer>
@@ -429,7 +716,7 @@
                 <p class="mb-2">Your point distribution:</p>
                 <div class="space-y-2">
                     {#each Object.entries(signingData.voteData.points)
-                        .filter(([_, points]) => points > 0)
+                        .filter(([_, points]) => (points as number) > 0)
                         .sort(([a], [b]) => parseInt(a) - parseInt(b)) as [optionIndex, points]}
                         <div
                             class="flex items-center space-x-3 p-2 bg-purple-50 rounded-lg"
@@ -448,7 +735,8 @@
                 </div>
                 <p class="text-sm text-gray-600 mt-2">
                     (Total: {Object.values(signingData.voteData.points).reduce(
-                        (sum, points) => sum + (points || 0),
+                        (sum, points) =>
+                            (sum as number) + ((points as number) || 0),
                         0,
                     )}/100 points)
                 </p>
@@ -473,6 +761,12 @@
             {loading ? "Signing..." : "Sign Vote"}
         </Button.Action>
     </div>
+
+    <div class="text-center mt-3">
+        <p class="text-sm text-gray-600">
+            After signing, you'll be redirected back to the platform
+        </p>
+    </div>
 </Drawer>
 
 <!-- Success message -->
@@ -496,6 +790,28 @@
             <p class="text-gray-600">
                 Your vote has been signed and submitted to the eVoting system.
             </p>
+            <p class="text-gray-500 text-sm mt-2">
+                Redirecting you back to the platform...
+            </p>
+
+            {#if signingData?.redirect_uri}
+                <div class="mt-4">
+                    <Button.Action
+                        variant="solid"
+                        size="sm"
+                        callback={() => {
+                            try {
+                                window.location.href = signingData.redirect_uri;
+                            } catch (error) {
+                                console.error("Manual redirect failed:", error);
+                            }
+                        }}
+                        class="w-full"
+                    >
+                        Return to Platform Now
+                    </Button.Action>
+                </div>
+            {/if}
         </div>
     </div>
 {/if}

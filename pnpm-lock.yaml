@@ -150,6 +150,9 @@ importers:
       '@tauri-apps/plugin-biometric':
         specifier: ^2.2.0
         version: 2.2.1
+      '@tauri-apps/plugin-deep-link':
+        specifier: ^2.4.1
+        version: 2.4.1
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.2.7
@@ -4872,6 +4875,9 @@ packages:
   '@tauri-apps/api@2.5.0':
     resolution: {integrity: sha512-Ldux4ip+HGAcPUmuLT8EIkk6yafl5vK0P0c0byzAKzxJh7vxelVtdPONjfgTm96PbN24yjZNESY8CKo8qniluA==}
 
+  '@tauri-apps/api@2.7.0':
+    resolution: {integrity: sha512-v7fVE8jqBl8xJFOcBafDzXFc8FnicoH3j8o8DNNs0tHuEBmXUDqrCOAzMRX0UkfpwqZLqvrvK0GNQ45DfnoVDg==}
+
   '@tauri-apps/cli-darwin-arm64@2.5.0':
     resolution: {integrity: sha512-VuVAeTFq86dfpoBDNYAdtQVLbP0+2EKCHIIhkaxjeoPARR0sLpFHz2zs0PcFU76e+KAaxtEtAJAXGNUc8E1PzQ==}
     engines: {node: '>= 10'}
@@ -4948,6 +4954,9 @@ packages:
 
   '@tauri-apps/plugin-biometric@2.2.1':
     resolution: {integrity: sha512-W74n32/PLpR4aT2DgwvKQqiOvINhCSj+pPdeuANM3fe/ZxEz7NnpMk0LUvOttbNmq89zR7UgIWg62JqH/e1+Dg==}
+
+  '@tauri-apps/plugin-deep-link@2.4.1':
+    resolution: {integrity: sha512-I8Bo+spcAKGhIIJ1qN/gapp/Ot3mosQL98znxr975Zn2ODAkUZ++BQ9FnTpR7PDwfIl5ANSGdIW/YU01zVTcJw==}
 
   '@tauri-apps/plugin-opener@2.2.7':
     resolution: {integrity: sha512-uduEyvOdjpPOEeDRrhwlCspG/f9EQalHumWBtLBnp3fRp++fKGLqDOyUhSIn7PzX45b/rKep//ZQSAQoIxobLA==}
@@ -16539,6 +16548,8 @@ snapshots:
 
   '@tauri-apps/api@2.5.0': {}
 
+  '@tauri-apps/api@2.7.0': {}
+
   '@tauri-apps/cli-darwin-arm64@2.5.0':
     optional: true
 
@@ -16593,6 +16604,10 @@ snapshots:
   '@tauri-apps/plugin-biometric@2.2.1':
     dependencies:
       '@tauri-apps/api': 2.5.0
+
+  '@tauri-apps/plugin-deep-link@2.4.1':
+    dependencies:
+      '@tauri-apps/api': 2.7.0
 
   '@tauri-apps/plugin-opener@2.2.7':
     dependencies:
