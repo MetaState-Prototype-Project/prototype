@@ -1,5 +1,5 @@
-import {transport as pinoTransport} from "pino"
-import type { LokiOptions } from "pino-loki"
+import { transport as pinoTransport } from "pino";
+import type { LokiOptions } from "pino-loki";
 
 export const transport = pinoTransport<LokiOptions>({
     target: "pino-loki",
@@ -8,11 +8,9 @@ export const transport = pinoTransport<LokiOptions>({
         labels: {
             app: "web3-adapter",
         },
-        basicAuth:{
+        basicAuth: {
             username: process.env.LOKI_USERNAME || "admin",
-            password: process.env.LOKI_PASSWORD || "admin"
-        }
-    }
-})
-
-
+            password: process.env.LOKI_PASSWORD || "admin",
+        },
+    },
+});
