@@ -39,7 +39,7 @@ app.use(
             "X-Webhook-Signature",
             "X-Webhook-Timestamp",
         ],
-        credentials: false,
+        credentials: true,
     }),
 );
 app.use(express.json({ limit: "50mb" }));
