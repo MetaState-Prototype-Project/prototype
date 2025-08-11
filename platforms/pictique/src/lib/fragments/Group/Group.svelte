@@ -6,27 +6,33 @@
 	interface IGroupProps extends HTMLAttributes<HTMLButtonElement> {
 		avatar: string;
 		name: string;
+		text: string;
 		unread?: boolean;
 		callback: () => void;
 	}
 
-	const { avatar, name, unread = false, callback, ...restProps }: IGroupProps = $props();
+	const { avatar, name, unread = false, text, callback, ...restProps }: IGroupProps = $props();
+
+	const messageText = $derived(text.length < 80 ? text : `${text.substring(0, 80)}...`);
 </script>
 
 <button
 	{...restProps}
 	class={cn([
-		'relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-4',
+		'relative flex w-full cursor-pointer items-center gap-3 rounded-lg py-4',
 		restProps.class
 	])}
 	onclick={callback}
 >
 	<Avatar src={avatar} alt="Group Avatar" size="md" />
-	<span class="flex w-full items-center justify-between">
-		<h2 class="text-left font-medium">{name}</h2>
-		{#if unread}
-			<span class="h-2 w-2 rounded-full bg-blue-500"></span>
-		{/if}
+	<span class="flex w-full flex-col items-start justify-end gap-1">
+		<span class="flex w-full items-center justify-between">
+			<h2 class="text-left font-medium">{name}</h2>
+			{#if unread}
+				<span class="h-2 w-2 rounded-full bg-blue-500"></span>
+			{/if}
+		</span>
+		<p class="text-start text-black/60">{messageText}</p>
 	</span>
 </button>
 
