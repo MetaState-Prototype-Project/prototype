@@ -24,7 +24,7 @@ const initializeDatabase = async () => {
         await AppDataSource.initialize();
         server.log.info("Database connection initialized");
     } catch (error) {
-        server.log.error("Error during database initialization:", error);
+        server.log.error({message: "Error during database initialization", detail: error});
         process.exit(1);
     }
 };
@@ -100,7 +100,7 @@ server.post("/platforms/certification", async (request, reply) => {
 
 server.get("/platforms", async (request, reply) => {
     const platforms = [ process.env.PUBLIC_PICTIQUE_BASE_URL, process.env.PUBLIC_BLABSY_BASE_URL, process.env.PUBLIC_GROUP_CHARTER_BASE_URL, process.env.PUBLIC_CERBERUS_BASE_URL ]
-    
+
     return platforms
 });
 
