@@ -24,7 +24,7 @@ const initializeDatabase = async () => {
         await AppDataSource.initialize();
         server.log.info("Database connection initialized");
     } catch (error) {
-        server.log.error("Error during database initialization:", error);
+        server.log.error({message: "Error during database initialization", detail: error});
         process.exit(1);
     }
 };

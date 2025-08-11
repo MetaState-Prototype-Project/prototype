@@ -45,13 +45,6 @@ services:
       - neo4j_logs:/log
     networks:
       - graphnet
-  loki:
-    image: grafana/loki:latest
-    container_name: loki
-    networks:
-      - graphnet
-    ports:
-      - "3100:3100"
 
 volumes:
   neo4j_data:
