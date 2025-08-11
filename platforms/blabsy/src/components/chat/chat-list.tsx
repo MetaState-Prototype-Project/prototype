@@ -66,7 +66,9 @@ export function ChatList(): JSX.Element {
         return (
             <div className='flex h-full flex-col gap-4'>
                 <div className='flex flex-1 items-center justify-center'>
-                    <p className='text-gray-500 dark:text-gray-400'>No chats yet</p>
+                    <p className='text-gray-500 dark:text-gray-400'>
+                        No chats yet
+                    </p>
                 </div>
                 <button
                     type='button'

@@ -1,19 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import { Message } from '$lib/fragments';
 	import Group from '$lib/fragments/Group/Group.svelte';
-	import { Button, Avatar, Input } from '$lib/ui';
+	import { isSearching, searchError, searchResults, searchUsers } from '$lib/stores/users';
+	import type { Chat, GroupInfo, MessageType } from '$lib/types';
+	import { Avatar, Button, Input } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
-	import { heading } from '../../store';
 	import { apiClient } from '$lib/utils/axios';
+	import { onMount } from 'svelte';
+	import { heading } from '../../store';
 
-	import { searchUsers, searchResults, isSearching, searchError } from '$lib/stores/users';
-	import type { GroupInfo } from '$lib/types';
-
-	let messages = $state([]);
+	let messages = $state<MessageType[]>([]);
 	let groups: GroupInfo[] = $state([]);
-	let allMembers = $state([]);
+	let allMembers = $state<Record<string, string>[]>([]);
 	let selectedMembers = $state<string[]>([]);
 	let currentUserId = '';
 	let openNewChatModal = $state(false);
@@ -21,7 +20,7 @@
 	let debounceTimer: NodeJS.Timeout;
 
 	async function loadMessages() {
-		const { data } = await apiClient.get('/api/chats');
+		const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
 		const { data: userData } = await apiClient.get('/api/users');
 		currentUserId = userData.id;
 
@@ -35,9 +34,11 @@
 			return {
 				id: c.id,
 				avatar,
-				username: c.name ?? memberNames.join(', '),
+				username: c.handle ?? memberNames.join(', '),
 				unread: c.latestMessage ? c.latestMessage.isRead : false,
-				text: c.latestMessage?.text ?? 'No message yet'
+				text: c.latestMessage?.text ?? 'No message yet',
+				handle: c.handle ?? memberNames.join(', '),
+				name: c.handle ?? memberNames.join(', ')
 			};
 		});
 	}
@@ -70,7 +71,7 @@
 
 		try {
 			if (selectedMembers.length === 1) {
-				await apiClient.post(`/api/chats/`, {
+				await apiClient.post('/api/chats/', {
 					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
 					participantIds: [selectedMembers[0]]
 				});
@@ -174,7 +175,7 @@
 							class="accent-brand focus:ring"
 						/>
 						<Avatar src={member.avatarUrl} size="sm" />
-						<span class="text-sm">{member.name ?? member.handle ?? member.ename}</span>
+						<span class="text-sm">{member.name ?? member.handle}</span>
 					</label>
 				{/each}
 			</div>

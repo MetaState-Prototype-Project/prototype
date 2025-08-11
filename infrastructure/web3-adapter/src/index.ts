@@ -1,11 +1,11 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
-import axios from "axios";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Standalone function to spin up an eVault
@@ -17,14 +17,14 @@ import { v4 as uuidv4 } from "uuid";
 export async function spinUpEVault(
     registryUrl: string,
     provisionerUrl: string,
-    verificationCode?: string
+    verificationCode?: string,
 ): Promise<{ w3id: string; uri: string }> {
     const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
     const finalVerificationCode = verificationCode || DEMO_CODE_W3DS;
 
     try {
         const entropyResponse = await axios.get(
-            new URL("/entropy", registryUrl).toString()
+            new URL("/entropy", registryUrl).toString(),
         );
         const registryEntropy = entropyResponse.data.token;
 
@@ -36,11 +36,13 @@ export async function spinUpEVault(
                 registryEntropy,
                 namespace,
                 verificationId: finalVerificationCode,
-            }
+            },
         );
 
         if (!provisionResponse.data.success) {
-            throw new Error(`Failed to provision eVault: ${provisionResponse.data.message || 'Unknown error'}`);
+            throw new Error(
+                `Failed to provision eVault: ${provisionResponse.data.message || "Unknown error"}`,
+            );
         }
 
         return {
@@ -49,9 +51,13 @@ export async function spinUpEVault(
         };
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            throw new Error(`Failed to spin up eVault: ${error.response?.data?.message || error.message}`);
+            throw new Error(
+                `Failed to spin up eVault: ${error.response?.data?.message || error.message}`,
+            );
         }
-        throw new Error(`Failed to spin up eVault: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+            `Failed to spin up eVault: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
     }
 }
 
@@ -91,32 +97,40 @@ export async function createGroupEVault(
         owner: string;
         charter?: string;
     },
-    verificationCode?: string
+    verificationCode?: string,
 ): Promise<{ w3id: string; uri: string; manifestId: string }> {
     const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
     const finalVerificationCode = verificationCode || DEMO_CODE_W3DS;
 
     try {
         // Step 1: Spin up the eVault
-        const evault = await spinUpEVault(registryUrl, provisionerUrl, finalVerificationCode);
-        
+        const evault = await spinUpEVault(
+            registryUrl,
+            provisionerUrl,
+            finalVerificationCode,
+        );
+
         // Step 2: Create GroupManifest with exponential backoff
         const manifestId = await createGroupManifestWithRetry(
             registryUrl,
             evault.w3id,
-            groupData
+            groupData,
         );
 
         return {
             w3id: evault.w3id,
             uri: evault.uri,
-            manifestId
+            manifestId,
         };
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            throw new Error(`Failed to create group eVault: ${error.response?.data?.message || error.message}`);
+            throw new Error(
+                `Failed to create group eVault: ${error.response?.data?.message || error.message}`,
+            );
         }
-        throw new Error(`Failed to create group eVault: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+            `Failed to create group eVault: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
     }
 }
 
@@ -135,10 +149,10 @@ async function createGroupManifestWithRetry(
         owner: string;
         charter?: string;
     },
-    maxRetries = 10
+    maxRetries = 10,
 ): Promise<string> {
     const now = new Date().toISOString();
-    
+
     const groupManifest: GroupManifest = {
         eName: w3id,
         name: groupData.name,
@@ -154,13 +168,15 @@ async function createGroupManifestWithRetry(
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`Attempting to create GroupManifest in eVault (attempt ${attempt}/${maxRetries})`);
-            
+            console.log(
+                `Attempting to create GroupManifest in eVault (attempt ${attempt}/${maxRetries})`,
+            );
+
             const response = await axios.get(
-                new URL(`resolve?w3id=${w3id}`, registryUrl).toString()
+                new URL(`resolve?w3id=${w3id}`, registryUrl).toString(),
             );
             const endpoint = new URL("/graphql", response.data.uri).toString();
-            
+
             const { GraphQLClient } = await import("graphql-request");
             const client = new GraphQLClient(endpoint);
 
@@ -181,28 +197,38 @@ async function createGroupManifestWithRetry(
                     metaEnvelope: {
                         id: string;
                         ontology: string;
-                        parsed: any;
+                        parsed: unknown;
                     };
                 };
             }
 
-            const result = await client.request<MetaEnvelopeResponse>(STORE_META_ENVELOPE, {
-                input: {
-                    ontology: "550e8400-e29b-41d4-a716-446655440001", // GroupManifest schema ID
-                    payload: groupManifest,
-                    acl: ["*"],
+            const result = await client.request<MetaEnvelopeResponse>(
+                STORE_META_ENVELOPE,
+                {
+                    input: {
+                        ontology: "550e8400-e29b-41d4-a716-446655440001", // GroupManifest schema ID
+                        payload: groupManifest,
+                        acl: ["*"],
+                    },
                 },
-            });
+            );
 
             const manifestId = result.storeMetaEnvelope.metaEnvelope.id;
-            console.log("GroupManifest created successfully in eVault:", manifestId);
+            console.log(
+                "GroupManifest created successfully in eVault:",
+                manifestId,
+            );
             return manifestId;
-
         } catch (error) {
-            console.error(`Failed to create GroupManifest in eVault (attempt ${attempt}/${maxRetries}):`, error);
+            console.error(
+                `Failed to create GroupManifest in eVault (attempt ${attempt}/${maxRetries}):`,
+                error,
+            );
 
             if (attempt === maxRetries) {
-                console.error("Max retries reached, giving up on GroupManifest creation");
+                console.error(
+                    "Max retries reached, giving up on GroupManifest creation",
+                );
                 throw error;
             }
 
@@ -229,7 +255,7 @@ export class Web3Adapter {
             dbPath: string;
             registryUrl: string;
             platform: string;
-            provisionerUrl?: string; 
+            provisionerUrl?: string;
         },
     ) {
         this.readPaths();
@@ -277,8 +303,8 @@ export class Web3Adapter {
             data.id as string,
         );
 
-        if (!this.mapping[tableName]) return
-        console.log("We get here?")
+        if (!this.mapping[tableName]) return;
+        console.log("We get here?");
         // If we already have a mapping, use that global ID
         if (existingGlobalId) {
             if (this.lockedIds.includes(existingGlobalId)) return;
@@ -372,15 +398,22 @@ export class Web3Adapter {
      */
     async spinUpEVault(
         verificationCode?: string,
-        provisionerUrl?: string
+        provisionerUrl?: string,
     ): Promise<{ w3id: string; uri: string }> {
-        const finalProvisionerUrl = provisionerUrl || this.config.provisionerUrl;
-        
+        const finalProvisionerUrl =
+            provisionerUrl || this.config.provisionerUrl;
+
         if (!finalProvisionerUrl) {
-            throw new Error("Provisioner URL is required. Please provide it in config or as parameter.");
+            throw new Error(
+                "Provisioner URL is required. Please provide it in config or as parameter.",
+            );
         }
 
-        return spinUpEVault(this.config.registryUrl, finalProvisionerUrl, verificationCode);
+        return spinUpEVault(
+            this.config.registryUrl,
+            finalProvisionerUrl,
+            verificationCode,
+        );
     }
 
     /**
@@ -401,14 +434,22 @@ export class Web3Adapter {
             charter?: string;
         },
         verificationCode?: string,
-        provisionerUrl?: string
+        provisionerUrl?: string,
     ): Promise<{ w3id: string; uri: string; manifestId: string }> {
-        const finalProvisionerUrl = provisionerUrl || this.config.provisionerUrl;
-        
+        const finalProvisionerUrl =
+            provisionerUrl || this.config.provisionerUrl;
+
         if (!finalProvisionerUrl) {
-            throw new Error("Provisioner URL is required. Please provide it in config or as parameter.");
+            throw new Error(
+                "Provisioner URL is required. Please provide it in config or as parameter.",
+            );
         }
 
-        return createGroupEVault(this.config.registryUrl, finalProvisionerUrl, groupData, verificationCode);
+        return createGroupEVault(
+            this.config.registryUrl,
+            finalProvisionerUrl,
+            groupData,
+            verificationCode,
+        );
     }
 }
