@@ -62,7 +62,10 @@ export default function LoginScreen() {
             setIsAuthenticating(true);
 
             // Force a page refresh to trigger AuthProvider re-initialization
-            window.location.reload();
+            // window.location.reload();
+
+            // Redirect the user after successful login
+            router.push("/charter");
         };
 
         eventSource.onerror = (error) => {
