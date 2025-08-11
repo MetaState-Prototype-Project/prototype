@@ -49,6 +49,12 @@ export interface PollResults {
   }[];
 }
 
+export interface SigningSession {
+  sessionId: string;
+  qrData: string;
+  expiresAt: string;
+}
+
 export const pollApi = {
   // Get all polls
   getAllPolls: async (): Promise<Poll[]> => {
@@ -109,6 +115,16 @@ export const pollApi = {
   // Get poll results
   getPollResults: async (pollId: string): Promise<PollResults> => {
     const response = await apiClient.get(`/api/polls/${pollId}/results`);
+    return response.data;
+  },
+
+  // Create signing session
+  createSigningSession: async (pollId: string, voteData: any, userId: string): Promise<SigningSession> => {
+    const response = await apiClient.post("/api/signing/sessions", {
+      pollId,
+      voteData,
+      userId,
+    });
     return response.data;
   }
 }; 

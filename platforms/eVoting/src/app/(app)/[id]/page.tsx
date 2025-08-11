@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback } from "react";
 import {
     Vote as VoteIcon,
     ArrowLeft,
@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { pollApi, type Poll } from "@/lib/pollApi";
 import Link from "next/link";
+import { SigningInterface } from "@/components/signing-interface";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -28,7 +29,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
+    const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
+
+    // Calculate total points for points-based voting
+    const totalPoints = Object.values(pointVotes).reduce((sum, points) => sum + (points || 0), 0);
 
     // TODO: Redirect to login if not authenticated
     // useEffect(() => {
@@ -54,21 +59,23 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [showSigningInterface, setShowSigningInterface] = useState(false);
+
+    // Fetch poll data
+    const fetchPoll = async () => {
+        if (!pollId) return;
+        
+        try {
+            const poll = await pollApi.getPollById(pollId);
+            setSelectedPoll(poll);
+        } catch (error) {
+            console.error("Failed to fetch poll:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchPoll = async () => {
-            if (!pollId) return;
-            
-            try {
-                const poll = await pollApi.getPollById(pollId);
-                setSelectedPoll(poll);
-            } catch (error) {
-                console.error("Failed to fetch poll:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchPoll();
     }, [pollId]);
 
@@ -137,24 +144,25 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fetch vote status and results
-    useEffect(() => {
-        const fetchVoteData = async () => {
-            if (!selectedPoll || !pollId) return;
+    const fetchVoteData = async () => {
+        if (!pollId) return;
+        
+        try {
             
-            try {
-                const [voteStatusData, resultsData] = await Promise.all([
-                    pollApi.getUserVote(pollId),
-                    pollApi.getPollResults(pollId)
-                ]);
-                setVoteStatus(voteStatusData);
-                setResultsData(resultsData);
-            } catch (error) {
-                console.error("Failed to fetch vote data:", error);
-            }
-        };
+            const [voteStatusData, resultsData] = await Promise.all([
+                pollApi.getUserVote(pollId),
+                pollApi.getPollResults(pollId)
+            ]);
+            setVoteStatus(voteStatusData);
+            setResultsData(resultsData);
+        } catch (error) {
+            console.error("Failed to fetch vote data:", error);
+        }
+    };
 
+    useEffect(() => {
         fetchVoteData();
-    }, [selectedPoll, pollId]);
+    }, [pollId]);
 
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
@@ -167,6 +175,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             const totalRanks = Object.keys(rankVotes).length;
             const maxRanks = Math.min(selectedPoll.options.length, 3);
             isValid = totalRanks === maxRanks;
+        } else if (selectedPoll.mode === "point") {
+            isValid = totalPoints === 100;
         }
         
         if (!isValid) {
@@ -174,43 +184,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                 title: "Invalid Vote",
                 description: selectedPoll.mode === "rank" 
                     ? "Please rank all options" 
+                    : selectedPoll.mode === "point"
+                    ? "Please distribute exactly 100 points"
                     : "Please select an option",
                 variant: "destructive",
             });
             return;
         }
         
-        setIsSubmitting(true);
-        try {
-            let voteData;
-            if (selectedPoll.mode === "normal") {
-                voteData = { optionId: selectedOption };
-            } else if (selectedPoll.mode === "rank") {
-                voteData = { ranks: rankVotes };
-            }
-            
-            await pollApi.submitVote(pollId, voteData);
-            toast({
-                title: "Success!",
-                description: "Your vote has been submitted",
-            });
-            // Refresh vote data
-            const [voteStatusData, resultsData] = await Promise.all([
-                pollApi.getUserVote(pollId),
-                pollApi.getPollResults(pollId)
-            ]);
-            setVoteStatus(voteStatusData);
-            setResultsData(resultsData);
-        } catch (error) {
-            console.error("Failed to submit vote:", error);
-            toast({
-                title: "Error",
-                description: "Failed to submit vote. Please try again.",
-                variant: "destructive",
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        // Show signing interface instead of submitting directly
+        setShowSigningInterface(true);
     };
 
     if (isLoading) {
@@ -295,6 +278,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                 {voteStatus?.hasVoted === true ? (
                     <div className="space-y-6">
+                        
                         {/* Vote Distribution */}
                         <div>
                             <div className="space-y-3">
@@ -349,6 +333,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 >
                                                     {selectedPoll.mode === "rank" 
                                                         ? `${option.votes || 0} points` 
+                                                        : selectedPoll.mode === "point"
+                                                        ? `${option.votes || 0} points`
                                                         : `${option.votes || 0} votes`} (
                                                     {percentage}%)
                                                 </span>
@@ -414,9 +400,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     </div>
                                 </div>
 
-
-
-                                <div className="bg-white p-4 rounded-lg border col-span-2">
+                                <div className="bg-white p-4 rounded-lg border">
                                     <div className="flex items-center">
                                         <div className="p-2 bg-purple-100 rounded-lg">
                                             <Eye className="h-6 w-6 text-purple-600" />
@@ -549,7 +533,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     </div>
                 ) : (
                     <div className="space-y-6">
-
+                        
                         {/* Voting Interface based on poll mode */}
                         {selectedPoll.mode === "normal" && (
                             <div>
@@ -591,7 +575,72 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         )}
 
-
+                        {selectedPoll.mode === "point" && (
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                        Distribute your points
+                                    </h3>
+                                    <Button
+                                        onClick={() => setPointVotes({})}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 border-red-300 hover:bg-red-50"
+                                    >
+                                        Reset Points
+                                    </Button>
+                                </div>
+                                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <p className="text-sm text-blue-800">
+                                        You have 100 points to distribute. Assign points to each option based on your preference.
+                                    </p>
+                                </div>
+                                <div className="space-y-4">
+                                    {selectedPoll.options.map((option, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center space-x-4 p-4 border rounded-lg"
+                                        >
+                                            <div className="flex-1">
+                                                <Label className="text-base font-medium">
+                                                    {option}
+                                                </Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    value={pointVotes[index] || 0}
+                                                    onChange={(e) => {
+                                                        const value = parseInt(e.target.value) || 0;
+                                                        setPointVotes(prev => ({
+                                                            ...prev,
+                                                            [index]: value
+                                                        }));
+                                                    }}
+                                                    className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
+                                                    disabled={!isVotingAllowed}
+                                                />
+                                                <span className="text-sm text-gray-500">points</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-medium text-gray-700">
+                                                Total Points Used:
+                                            </span>
+                                            <span className={`text-sm font-bold ${
+                                                totalPoints === 100 ? 'text-green-600' : 'text-red-600'
+                                            }`}>
+                                                {totalPoints}/100
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {selectedPoll.mode === "rank" && (
                             <div>
@@ -701,7 +750,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 )}
                                 {!isVotingAllowed
                                     ? "Voting Ended"
-                                    : "Submit Vote"}
+                                    : "Sign & Submit Vote"}
                             </Button>
                         </div>
                     </div>
@@ -761,6 +810,45 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         </div>
                     )}
+
+                {/* Signing Interface Modal */}
+                {showSigningInterface && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full">
+                            <SigningInterface
+                                pollId={pollId!}
+                                voteData={
+                                    selectedPoll?.mode === "normal"
+                                        ? { optionId: selectedOption }
+                                        : selectedPoll?.mode === "rank"
+                                        ? { ranks: rankVotes }
+                                        : { points: pointVotes }
+                                }
+                                onSigningComplete={(voteId) => {
+                                    setShowSigningInterface(false);
+                                    
+                                    // Add a small delay to ensure backend has processed the vote
+                                    setTimeout(async () => {
+                                        try {
+                                            await fetchPoll();
+                                            await fetchVoteData();
+                                        } catch (error) {
+                                            console.error("Error during data refresh:", error);
+                                        }
+                                    }, 2000); // 2 second delay
+                                    
+                                    toast({
+                                        title: "Success!",
+                                        description: "Your vote has been signed and submitted.",
+                                    });
+                                }}
+                                onCancel={() => {
+                                    setShowSigningInterface(false);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

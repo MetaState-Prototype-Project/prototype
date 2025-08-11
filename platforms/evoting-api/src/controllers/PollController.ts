@@ -21,12 +21,13 @@ export class PollController {
     getPollById = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
+
             const poll = await this.pollService.getPollById(id);
-            
+
             if (!poll) {
                 return res.status(404).json({ error: "Poll not found" });
             }
-            
+
             res.json(poll);
         } catch (error) {
             console.error("Error fetching poll:", error);

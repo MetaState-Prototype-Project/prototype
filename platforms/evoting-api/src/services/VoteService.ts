@@ -75,6 +75,25 @@ export class VoteService {
                 mode: "rank" as const,
                 data: rankData
             };
+        } else if (voteData.points) {
+            // Points-based voting mode
+            const pointData = Object.entries(voteData.points)
+                .filter(([optionIndex, points]) => {
+                    const index = parseInt(optionIndex);
+                    return index >= 0 && index < poll.options.length && points > 0;
+                })
+                .map(([optionIndex, points]) => {
+                    const index = parseInt(optionIndex);
+                    return {
+                        option: poll.options[index],
+                        points: points
+                    };
+                });
+            
+            voteDataToStore = { 
+                mode: "point" as const,
+                data: pointData
+            };
         } else {
             throw new Error("Invalid vote data");
         }
@@ -141,11 +160,19 @@ export class VoteService {
                         voteCounts[optionIndex] += rankData.points || 0;
                     }
                 });
+            } else if (vote.data.mode === "point" && Array.isArray(vote.data.data)) {
+                // Points voting: sum points for each option
+                vote.data.data.forEach((pointData: any) => {
+                    const optionIndex = poll.options.indexOf(pointData.option);
+                    if (optionIndex >= 0) {
+                        voteCounts[optionIndex] += pointData.points || 0;
+                    }
+                });
             }
         });
 
         // Calculate total for percentage calculation
-        const total = poll.mode === "rank"
+        const total = poll.mode === "rank" || poll.mode === "point"
             ? Object.values(voteCounts).reduce((sum, count) => sum + count, 0)
             : votes.length;
 

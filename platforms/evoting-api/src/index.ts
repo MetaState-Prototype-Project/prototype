@@ -9,6 +9,7 @@ import { UserController } from "./controllers/UserController";
 import { PollController } from "./controllers/PollController";
 import { VoteController } from "./controllers/VoteController";
 import { WebhookController } from "./controllers/WebhookController";
+import { SigningController } from "./controllers/SigningController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
@@ -22,6 +23,14 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
+        
+        // Initialize controllers after database is ready
+        try {
+            signingController = new SigningController();
+            console.log("SigningController initialized successfully");
+        } catch (error) {
+            console.error("Failed to initialize SigningController:", error);
+        }
     })
     .catch((error: unknown) => {
         console.error("Error during initialization:", error);
@@ -51,12 +60,74 @@ const userController = new UserController();
 const pollController = new PollController();
 const voteController = new VoteController();
 const webhookController = new WebhookController(adapter);
+let signingController: SigningController | null = null;
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.post("/api/webhook", webhookController.handleWebhook);
+
+// Signing routes (public for signing flow)
+app.post("/api/signing/sessions", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.createSigningSession(req, res);
+});
+app.get("/api/signing/sessions/:sessionId/status", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.getSigningSessionStatus(req, res);
+});
+app.post("/api/signing/callback", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.handleSignedPayload(req, res);
+});
+app.get("/api/signing/sessions/:sessionId", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.getSigningSession(req, res);
+});
+
+// Test endpoint to verify signing service is working
+app.get("/api/signing/test", (req, res) => {
+    try {
+        if (!signingController) {
+            return res.status(503).json({ 
+                error: "Signing service not ready", 
+                message: "Service is still initializing" 
+            });
+        }
+        const testResult = signingController.testConnection();
+        res.json({ 
+            message: "Signing service is working", 
+            timestamp: new Date().toISOString(),
+            testResult
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: "Signing service test failed", 
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+});
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+    res.json({ 
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        services: {
+            database: AppDataSource.isInitialized ? "connected" : "disconnected",
+            signing: signingController ? "ready" : "initializing"
+        }
+    });
+});
 
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below
@@ -70,16 +141,18 @@ app.patch("/api/users", authGuard, userController.updateProfile);
 // Poll routes
 app.get("/api/polls", pollController.getAllPolls);
 app.get("/api/polls/my", authGuard, pollController.getPollsByCreator);
-app.get("/api/polls/:id", pollController.getPollById);
 app.post("/api/polls", authGuard, pollController.createPoll);
 app.put("/api/polls/:id", authGuard, pollController.updatePoll);
 app.delete("/api/polls/:id", authGuard, pollController.deletePoll);
 
-// Vote routes
+// Vote routes (must come before generic poll routes to avoid conflicts)
 app.post("/api/votes", authGuard, voteController.createVote);
-app.get("/api/polls/:pollId/votes", voteController.getVotesByPoll);
-app.get("/api/polls/:pollId/vote", authGuard, voteController.getUserVote);
-app.get("/api/polls/:pollId/results", voteController.getPollResults);
+app.get("/api/polls/:id/votes", voteController.getVotesByPoll);
+app.get("/api/polls/:id/vote", authGuard, voteController.getUserVote);
+app.get("/api/polls/:id/results", voteController.getPollResults);
+
+// Generic poll route (must come last to avoid conflicts with specific routes)
+app.get("/api/polls/:id", pollController.getPollById);
 
 // Start server
 app.listen(port, () => {

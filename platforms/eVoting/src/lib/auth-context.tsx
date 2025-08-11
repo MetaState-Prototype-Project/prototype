@@ -35,30 +35,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const isAuthenticated = !!user;
-  
-  // Debug logging
-  console.log("Auth state - user:", user, "isAuthenticated:", isAuthenticated, "isLoading:", isLoading);
 
   useEffect(() => {
     const initializeAuth = async () => {
       const token = getAuthToken();
       const userId = getAuthId();
 
-      console.log("Auth initialization - Token:", !!token, "UserId:", userId);
-
       if (token && userId) {
         try {
-          console.log("Fetching current user...");
           const response = await apiClient.get("/api/users/me");
-          console.log("User data received:", response.data);
           setUser(response.data);
-          console.log("User state set, isAuthenticated should be:", !!response.data);
         } catch (error) {
           console.error("Failed to get current user:", error);
           clearAuth();
         }
-      } else {
-        console.log("No stored credentials found");
       }
       setIsLoading(false);
     };

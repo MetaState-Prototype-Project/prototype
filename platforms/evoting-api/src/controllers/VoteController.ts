@@ -38,8 +38,8 @@ export class VoteController {
 
     getVotesByPoll = async (req: Request, res: Response) => {
         try {
-            const { pollId } = req.params;
-            const votes = await this.voteService.getVotesByPoll(pollId);
+            const { id } = req.params;
+            const votes = await this.voteService.getVotesByPoll(id);
             res.json(votes);
         } catch (error) {
             console.error("Error fetching votes:", error);
@@ -49,10 +49,11 @@ export class VoteController {
 
     getUserVote = async (req: Request, res: Response) => {
         try {
-            const { pollId } = req.params;
+            const { id } = req.params;
             const userId = (req as any).user.id;
             
-            const vote = await this.voteService.getUserVote(pollId, userId);
+            const vote = await this.voteService.getUserVote(id, userId);
+            
             res.json({ hasVoted: !!vote, vote });
         } catch (error) {
             console.error("Error fetching user vote:", error);
@@ -62,8 +63,8 @@ export class VoteController {
 
     getPollResults = async (req: Request, res: Response) => {
         try {
-            const { pollId } = req.params;
-            const results = await this.voteService.getPollResults(pollId);
+            const { id } = req.params;
+            const results = await this.voteService.getPollResults(id);
             res.json(results);
         } catch (error) {
             console.error("Error fetching poll results:", error);
