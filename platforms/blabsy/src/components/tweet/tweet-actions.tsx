@@ -51,13 +51,13 @@ type PinModalData = Record<'title' | 'description' | 'mainBtnLabel', string>;
 
 const pinModalData: Readonly<PinModalData[]> = [
     {
-        title: 'Pin Tweet to from profile?',
+        title: 'Pin Blab to from profile?',
         description:
-            'This will appear at the top of your profile and replace any previously pinned Tweet.',
+            'This will appear at the top of your profile and replace any previously pinned Blab.',
         mainBtnLabel: 'Pin'
     },
     {
-        title: 'Unpin Tweet from profile?',
+        title: 'Unpin Blab from profile?',
         description:
             'This will no longer appear automatically at the top of your profile.',
         mainBtnLabel: 'Unpin'
@@ -173,7 +173,7 @@ export function TweetActions({
                         isInAdminControl ? `@${username}'s` : 'your'
                     } profile, the timeline of any accounts that follow ${
                         isInAdminControl ? `@${username}` : 'you'
-                    }, and from Twitter search results.`}
+                    }, and from Blabsy search results.`}
                     mainBtnClassName='bg-accent-red hover:bg-accent-red/90 active:bg-accent-red/75 accent-tab
                             focus-visible:bg-accent-red/90'
                     mainBtnLabel='Delete'

@@ -12,6 +12,11 @@
             "src": "/logo.svg",
             "type": "image/svg+xml",
             "sizes": "any"
+        },
+        {
+            "src": "/logo.png",
+            "type": "image/png",
+            "sizes": "any"
         }
     ]
 }
