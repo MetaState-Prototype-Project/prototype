@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { apiClient } from "@/lib/apiClient";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
 import { useRouter } from "next/navigation";
+import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
 
 export default function LoginScreen() {
   const [qrData, setQrData] = useState<string>("");
@@ -88,7 +89,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -101,14 +102,28 @@ export default function LoginScreen() {
 
         {qrData && (
           <div className="flex justify-center mb-6">
-            <div className="bg-white p-4 rounded-lg border">
-              <QRCodeSVG
-                value={qrData}
-                size={200}
-                level="M"
-                includeMargin={true}
-              />
-            </div>
+            {isMobileDevice() ? (
+              <div className="flex flex-col gap-4 items-center">
+                <a
+                  href={getDeepLinkUrl(qrData)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
+                >
+                  Login with eID Wallet
+                </a>
+                <div className="text-xs text-gray-500 text-center max-w-xs">
+                  Click the button to open your eID wallet app
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 rounded-lg border">
+                <QRCodeSVG
+                  value={qrData}
+                  size={200}
+                  level="M"
+                  includeMargin={true}
+                />
+              </div>
+            )}
           </div>
         )}
 

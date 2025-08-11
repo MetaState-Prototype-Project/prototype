@@ -787,12 +787,7 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
                 Vote Signed Successfully!
             </h3>
-            <p class="text-gray-600">
-                Your vote has been signed and submitted to the eVoting system.
-            </p>
-            <p class="text-gray-500 text-sm mt-2">
-                Redirecting you back to the platform...
-            </p>
+            <p class="text-gray-600">You can return to the platform</p>
 
             {#if signingData?.redirect_uri}
                 <div class="mt-4">

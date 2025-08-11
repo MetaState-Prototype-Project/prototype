@@ -138,23 +138,9 @@ export default function Navigation() {
 
             {/* Mobile Navigation Overlay */}
             {mobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-50">
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 bg-black bg-opacity-50"
-                        onClick={() => setMobileMenuOpen(false)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                                setMobileMenuOpen(false);
-                            }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label="Close mobile menu backdrop"
-                    />
-
+                <div className="md:hidden">
                     {/* Menu Content */}
-                    <div className="fixed top-16 left-0 right-0 bg-white border-b shadow-lg">
+                    <div className="absolute top-16 left-0 right-0 bg-white border-b shadow-lg z-50">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
                             {isAuthenticated ? (
                                 <>

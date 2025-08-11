@@ -336,3 +336,57 @@ button[class*="bg-[--crimson]"]:hover {
     color: var(--crimson) !important;
     border-color: var(--crimson) !important;
 }
+
+/* iOS Safari viewport height fix */
+@supports (-webkit-touch-callout: none) {
+    .min-h-screen {
+        min-height: -webkit-fill-available;
+    }
+
+    html,
+    body {
+        height: -webkit-fill-available;
+    }
+}
+
+/* Ensure proper viewport handling on mobile */
+html {
+    height: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    min-height: 100%;
+    overflow-x: hidden;
+}
+
+/* iOS safe area support */
+@supports (padding: max(0px)) {
+    .safe-area-top {
+        padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    .safe-area-bottom {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .pb-safe {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+}
+
+/* iOS modal positioning fixes */
+@supports (-webkit-touch-callout: none) {
+    .modal-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+}

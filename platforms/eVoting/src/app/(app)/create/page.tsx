@@ -163,7 +163,7 @@ export default function CreatePoll() {
                         }
                         className="mt-2"
                     >
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Label className="flex items-center cursor-pointer">
                                 <RadioGroupItem
                                     value="normal"
@@ -255,7 +255,7 @@ export default function CreatePoll() {
                         disabled
                         className="mt-2"
                     >
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Label className="flex items-center cursor-not-allowed opacity-50">
                                 <RadioGroupItem
                                     value="1p1v"
@@ -318,7 +318,7 @@ export default function CreatePoll() {
                         }
                         className="mt-2"
                     >
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Label className="flex items-center cursor-pointer">
                                 <RadioGroupItem
                                     value="public"

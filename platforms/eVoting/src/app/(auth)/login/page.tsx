@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode.react";
 import { useAuth } from "@/lib/auth-context";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
+import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -51,11 +52,10 @@ export default function LoginPage() {
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.token && data.user) {
-                // Store the token and user ID using auth utilities
                 setAuthToken(data.token);
                 setAuthId(data.user.id);
                 // Reload to trigger auth initialization
-                window.location.reload();
+                window.location.href = '/';
             }
         };
 
@@ -69,7 +69,7 @@ export default function LoginPage() {
     }, [sessionId, login]);
 
     return (
-        <div className="flex flex-col items-center justify-center gap-4 mt-4">
+        <div className="modal-container flex flex-col items-center justify-center gap-4 safe-area-top safe-area-bottom min-h-screen px-4 pb-safe">
             <div className="flex flex-col items-center text-center gap-4">
                 <div className="flex items-center gap-2 text-2xl font-bold">
                     <img src="/Logo.png" alt="eVoting Logo" className="h-12" />
@@ -77,7 +77,7 @@ export default function LoginPage() {
                 </div>
                 <p className="text-2xl">Secure voting in the W3DS</p>
             </div>
-            <Card className="flex flex-col items-center gap-1 w-1/3 p-4 pt-2">
+            <Card className="flex flex-col items-center gap-1 w-full max-w-md p-4 pt-2 mx-4">
                 <CardHeader className="text-foreground text-2xl font-black">
                     Welcome to eVoting
                 </CardHeader>
@@ -97,14 +97,30 @@ export default function LoginPage() {
                             <div className="text-gray-500">Loading QR Code...</div>
                         </div>
                     ) : qrData ? (
-                        <div className="p-4 bg-white rounded-lg">
-                            <QRCode
-                                value={qrData}
-                                size={200}
-                                level="M"
-                                includeMargin={true}
-                            />
-                        </div>
+                        <>
+                            {isMobileDevice() ? (
+                                <div className="flex flex-col gap-4 items-center">
+                                    <a
+                                        href={getDeepLinkUrl(qrData)}
+                                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
+                                    >
+                                        Login with eID Wallet
+                                    </a>
+                                    <div className="text-xs text-gray-500 text-center max-w-xs">
+                                        Click the button to open your eID wallet app
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-white rounded-lg">
+                                    <QRCode
+                                        value={qrData}
+                                        size={200}
+                                        level="M"
+                                        includeMargin={true}
+                                    />
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
                             <div className="text-gray-500">QR Code not available</div>

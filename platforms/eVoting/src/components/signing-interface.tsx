@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { pollApi } from "@/lib/pollApi";
 import { useAuth } from "@/lib/auth-context";
+import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
 
 interface SigningInterfaceProps {
   pollId: string | number;
@@ -254,19 +255,35 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
       </CardHeader>
       <CardContent className="text-center space-y-4">
         {qrData && (
-          <div className="bg-white p-4 rounded-lg inline-block">
-            <SVG
-              text={qrData}
-              options={{
-                margin: 2,
-                width: 200,
-                color: {
-                  dark: "#000000",
-                  light: "#FFFFFF",
-                },
-              }}
-            />
-          </div>
+          <>
+            {isMobileDevice() ? (
+              <div className="flex flex-col gap-4 items-center">
+                <a
+                  href={getDeepLinkUrl(qrData)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
+                >
+                  Sign Vote with eID Wallet
+                </a>
+                <div className="text-xs text-gray-500 text-center max-w-xs">
+                  Click the button to open your eID wallet app and sign your vote
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 rounded-lg inline-block">
+                <SVG
+                  text={qrData}
+                  options={{
+                    margin: 2,
+                    width: 200,
+                    color: {
+                      dark: "#000000",
+                      light: "#FFFFFF",
+                    },
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
         
         <div className="space-y-2">
@@ -283,10 +300,21 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
         </div>
 
         <div className="text-xs text-gray-500 space-y-1">
-          <p>1. Open your eID Wallet app</p>
-          <p>2. Scan this QR code</p>
-          <p>3. Review and sign the message</p>
-          <p>4. Your vote will be submitted automatically</p>
+          {isMobileDevice() ? (
+            <>
+              <p>1. Click the button above</p>
+              <p>2. Your eID wallet app will open</p>
+              <p>3. Review and sign the message</p>
+              <p>4. Your vote will be submitted automatically</p>
+            </>
+          ) : (
+            <>
+              <p>1. Open your eID Wallet app</p>
+              <p>2. Scan this QR code</p>
+              <p>3. Review and sign the message</p>
+              <p>4. Your vote will be submitted automatically</p>
+            </>
+          )}
         </div>
 
         <Button onClick={onCancel} variant="outline" className="w-full">
