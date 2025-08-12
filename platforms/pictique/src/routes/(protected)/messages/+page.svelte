@@ -23,26 +23,28 @@
 			const { data: userData } = await apiClient.get('/api/users');
 			currentUserId = userData.id;
 
-			// Filter out group chats, only show direct messages
-			messages = data.chats
-				.filter((c) => c.participants.length === 2) // Only direct messages (2 participants: user + other person)
-				.map((c) => {
-					const members = c.participants.filter((u) => u.id !== userData.id);
-					const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-					const avatar =
-						members[0]?.avatarUrl ||
+			// Show all chats (direct messages and groups) in one unified list
+			messages = data.chats.map((c) => {
+				const members = c.participants.filter((u) => u.id !== userData.id);
+				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+				const isGroup = members.length > 1;
+
+				// Use group avatar for groups, user avatar for direct messages
+				const avatar = isGroup
+					? '/images/group.png'
+					: members[0]?.avatarUrl ||
 						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
 
-					return {
-						id: c.id,
-						avatar,
-						username: c.handle ?? memberNames.join(', '),
-						unread: c.latestMessage ? !c.latestMessage.isRead : false,
-						text: c.latestMessage?.text ?? 'No message yet',
-						handle: c.handle ?? memberNames.join(', '),
-						name: c.handle ?? memberNames.join(', ')
-					};
-				});
+				return {
+					id: c.id,
+					avatar,
+					username: c.handle ?? memberNames.join(', '),
+					unread: c.latestMessage ? !c.latestMessage.isRead : false,
+					text: c.latestMessage?.text ?? 'No message yet',
+					handle: c.handle ?? memberNames.join(', '),
+					name: c.handle ?? memberNames.join(', ')
+				};
+			});
 		} catch (error) {
 			console.error('Failed to load messages:', error);
 		}
