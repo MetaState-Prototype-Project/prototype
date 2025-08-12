@@ -95,7 +95,7 @@
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
 		{:else}
-			{#each $posts.posts as post (post.id)}
+			{#each $posts as post (post.id)}
 				<li class="mb-6">
 					<Post
 						avatar={post.author.avatarUrl}
@@ -148,7 +148,7 @@
 			</li>
 		{/each}
 		<MessageInput
-			class="fixed bottom-4 start-0 mt-4 w-full px-5"
+			class="fixed start-0 bottom-4 mt-4 w-full px-5"
 			variant="comment"
 			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 			bind:value={commentValue}

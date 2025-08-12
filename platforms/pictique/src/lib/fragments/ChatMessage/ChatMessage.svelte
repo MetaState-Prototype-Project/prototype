@@ -68,7 +68,7 @@
 		{#if isTimestampNeeded}
 			<p
 				class={cn(
-					`subtext text-black-400 mt-0.5 flex text-nowrap text-xs ${
+					`subtext text-black-400 mt-0.5 flex text-xs text-nowrap ${
 						isOwn ? 'justify-end' : 'justify-start'
 					}`
 				)}

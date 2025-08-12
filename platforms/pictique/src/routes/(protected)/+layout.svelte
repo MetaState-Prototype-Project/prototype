@@ -101,7 +101,7 @@
 	class={`block h-[100dvh] ${route !== '/home' && route !== '/messages' && route !== '/profile' && !route.includes('settings') && !route.includes('/profile') ? 'grid-cols-[20vw_auto]' : 'grid-cols-[20vw_auto_30vw]'} md:grid`}
 >
 	<SideBar
-		profileSrc={profile?.avatarUrl ?? '/images/user.png'}
+		profileSrc={profile?.avatarUrl || '/images/user.png'}
 		handlePost={async () => {
 			openCreatePostModal();
 		}}
@@ -127,7 +127,7 @@
 	</section>
 	{#if route === '/home' || route === '/messages'}
 		<aside
-			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-b-0 border-e-0 border-t-0 border-s-gray-200 px-8 pt-14 md:block"
+			class="hide-scrollbar relative hidden h-[100dvh] overflow-y-scroll border border-e-0 border-t-0 border-b-0 border-s-gray-200 px-8 pt-14 md:block"
 		>
 			{#if route === '/home'}
 				{#if showComments.value}
@@ -160,7 +160,7 @@
 							{/each}
 						{/if}
 						<MessageInput
-							class="sticky bottom-4 start-0 mt-4 w-full px-2"
+							class="sticky start-0 bottom-4 mt-4 w-full px-2"
 							variant="comment"
 							src={profile?.avatarUrl ?? '/images/user.png'}
 							bind:value={commentValue}

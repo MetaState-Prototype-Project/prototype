@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { ChatMessage, MessageInput } from '$lib/fragments';
-	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import Settings from '$lib/icons/Settings.svelte';
+	import { Avatar, Button, Input, Label } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
 	import { Pen01FreeIcons } from '@hugeicons/core-free-icons';
-	import {HugeiconsIcon} from "@hugeicons/svelte"
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { onMount } from 'svelte';
 
 	let messagesContainer: HTMLDivElement;
 	let messageValue = $state('');
@@ -20,9 +20,19 @@
 		avatar: 'https://i.pravatar.cc/150?img=15',
 		description: 'Discuss all design-related tasks and updates here.',
 		members: [
-			{ id: 'user-1', name: 'Alice', avatar: 'https://i.pravatar.cc/150?img=1', role: 'owner' },
+			{
+				id: 'user-1',
+				name: 'Alice',
+				avatar: 'https://i.pravatar.cc/150?img=1',
+				role: 'owner'
+			},
 			{ id: 'user-2', name: 'Bob', avatar: 'https://i.pravatar.cc/150?img=2', role: 'admin' },
-			{ id: 'user-3', name: 'Charlie', avatar: 'https://i.pravatar.cc/150?img=3', role: 'member' }
+			{
+				id: 'user-3',
+				name: 'Charlie',
+				avatar: 'https://i.pravatar.cc/150?img=3',
+				role: 'member'
+			}
 		]
 	});
 
@@ -53,8 +63,8 @@
 		setTimeout(scrollToBottom, 0);
 	});
 
-	function handleSend() {
-		if (!messageValue.trim()) return;
+	async function handleSend() {
+		if (!messageValue.trim()) return Promise.resolve();
 		messages = [
 			...messages,
 			{
@@ -75,7 +85,7 @@
 	let groupImageDataUrl = $state(group.avatar);
 	let groupImageFiles = $state<FileList | undefined>();
 
-	$effect(()=> {
+	$effect(() => {
 		if (groupImageFiles?.[0]) {
 			const file = groupImageFiles[0];
 			const reader = new FileReader();
@@ -86,8 +96,8 @@
 			};
 			reader.readAsDataURL(file);
 		}
-	}) 
-		
+	});
+
 	function saveGroupInfo() {
 		group.name = groupName;
 		group.description = groupDescription;
@@ -99,7 +109,9 @@
 	const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 </script>
 
-<section class="flex flex-col md:flex-row items-center justify-between gap-4 px-2 md:px-4 py-3 border-b border-gray-200">
+<section
+	class="flex flex-col items-center justify-between gap-4 border-b border-gray-200 px-2 py-3 md:flex-row md:px-4"
+>
 	<div class="flex items-center gap-4">
 		<Avatar src={group.avatar} />
 		<div>
@@ -120,7 +132,7 @@
 		</Button>
 		<button
 			onclick={() => (openEditDialog = true)}
-			class="border border-brand-burnt-orange-900 rounded-full p-2"
+			class="border-brand-burnt-orange-900 rounded-full border p-2"
 		>
 			<Settings size="24px" color="var(--color-brand-burnt-orange)" />
 		</button>
@@ -128,7 +140,7 @@
 </section>
 
 <section class="chat relative px-0">
-	<div class="h-[calc(100vh-300px)] mt-4 overflow-auto" bind:this={messagesContainer}>
+	<div class="mt-4 h-[calc(100vh-300px)] overflow-auto" bind:this={messagesContainer}>
 		{#each messages as msg (msg.id)}
 			<ChatMessage
 				isOwn={msg.isOwn}
@@ -152,14 +164,14 @@
 	open={openEditDialog}
 	use:clickOutside={() => (openEditDialog = false)}
 	onclose={() => (openEditDialog = false)}
-	class="w-[90vw] md:max-w-[30vw] z-50 absolute start-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] p-4 border border-gray-400 rounded-3xl bg-white shadow-xl"
+	class="absolute start-[50%] top-[50%] z-50 w-[90vw] translate-x-[-50%] translate-y-[-50%] rounded-3xl border border-gray-400 bg-white p-4 shadow-xl md:max-w-[30vw]"
 >
 	<div class="flex flex-col gap-6">
-		<div class="relative w-[96px] h-[96px] self-center">
+		<div class="relative h-[96px] w-[96px] self-center">
 			<img
 				src={groupImageDataUrl || '/images/avatar-placeholder.png'}
 				alt="Group Avatar"
-				class="w-full h-full object-cover rounded-full border border-gray-300"
+				class="h-full w-full rounded-full border border-gray-300 object-cover"
 			/>
 			{#if canEdit}
 				<input
@@ -174,8 +186,11 @@
 						}
 					}}
 				/>
-				<label for="group-avatar-input" class="absolute bottom-0 right-0 bg-brand-burnt-orange  border border-brand-burnt-orange rounded-full p-1 shadow cursor-pointer">
-					<HugeiconsIcon icon={Pen01FreeIcons} color="white"/>
+				<label
+					for="group-avatar-input"
+					class="bg-brand-burnt-orange border-brand-burnt-orange absolute right-0 bottom-0 cursor-pointer rounded-full border p-1 shadow"
+				>
+					<HugeiconsIcon icon={Pen01FreeIcons} color="white" />
 				</label>
 			{/if}
 		</div>
@@ -193,8 +208,13 @@
 			<Label>Description</Label>
 			{#if canEdit}
 				<!-- svelte-ignore element_invalid_self_closing_tag -->
-				<textarea rows="2"
-				maxlength="260" placeholder="Edit group description" class="w-full bg-grey py-3.5 px-6 text-[15px] text-black-800 font-geist font-normal placeholder:text-black-600 rounded-4xl outline-0 border border-transparent invalid:border-red invalid:text-red focus:invalid:text-black-800 focus:invalid:border-transparent" bind:value={groupDescription} />
+				<textarea
+					rows="2"
+					maxlength="260"
+					placeholder="Edit group description"
+					class="bg-grey text-black-800 font-geist placeholder:text-black-600 invalid:border-red invalid:text-red focus:invalid:text-black-800 w-full rounded-4xl border border-transparent px-6 py-3.5 text-[15px] font-normal outline-0 focus:invalid:border-transparent"
+					bind:value={groupDescription}
+				/>
 			{:else}
 				<p class="text-gray-700">{group.description}</p>
 			{/if}
@@ -203,11 +223,16 @@
 		<hr class="text-grey" />
 
 		<div class="flex items-center gap-2">
-			<Button size="sm" variant="primary" callback={() => {(openEditDialog = false)}}>Cancel</Button>
+			<Button
+				size="sm"
+				variant="primary"
+				callback={() => {
+					openEditDialog = false;
+				}}>Cancel</Button
+			>
 			{#if canEdit}
 				<Button size="sm" variant="secondary" callback={saveGroupInfo}>Save Changes</Button>
 			{/if}
 		</div>
 	</div>
 </dialog>
-

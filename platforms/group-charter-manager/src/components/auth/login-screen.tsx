@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/apiClient";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
 import { useRouter } from "next/navigation";
 import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
+import Image from "next/image";
 
 export default function LoginScreen() {
   const [qrData, setQrData] = useState<string>("");
@@ -132,7 +133,24 @@ export default function LoginScreen() {
             Use your W3DS wallet to scan this QR code and authenticate
           </p>
         </div>
+        
+        <div className="p-4 rounded-xl bg-gray-100 text-gray-700 mt-4">
+          You are entering Group Charter - a group charter management
+          platform built on the Web 3.0 Data Space (W3DS)
+          architecture. This system is designed around the principle
+          of data-platform separation, where all your personal content
+          is stored in your own sovereign eVault, not on centralised
+          servers.
+        </div>
+        
+        <Image
+          src="/W3DS.svg"
+          alt="W3DS Logo"
+          width={50}
+          height={20}
+          className="mx-auto mt-5"
+        />
       </div>
     </div>
   );
-} 
+}
