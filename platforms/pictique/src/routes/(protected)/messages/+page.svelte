@@ -20,34 +20,61 @@
 	let debounceTimer: NodeJS.Timeout;
 
 	async function loadMessages() {
-		const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
-		const { data: userData } = await apiClient.get('/api/users');
-		currentUserId = userData.id;
+		try {
+			const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
+			const { data: userData } = await apiClient.get('/api/users');
+			currentUserId = userData.id;
 
-		messages = data.chats.map((c) => {
-			const members = c.participants.filter((u) => u.id !== userData.id);
-			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-			const avatar =
-				members.length > 1
-					? 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg'
-					: members[0].avatarUrl;
-			return {
-				id: c.id,
-				avatar,
-				username: c.handle ?? memberNames.join(', '),
-				unread: c.latestMessage ? c.latestMessage.isRead : false,
-				text: c.latestMessage?.text ?? 'No message yet',
-				handle: c.handle ?? memberNames.join(', '),
-				name: c.handle ?? memberNames.join(', ')
-			};
-		});
+			// Separate direct messages and group chats
+			const directMessages: MessageType[] = [];
+			const groupChats: GroupInfo[] = [];
+
+			data.chats.forEach((c) => {
+				const members = c.participants.filter((u) => u.id !== userData.id);
+				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+				const isGroup = members.length > 1;
+
+				if (isGroup) {
+					// This is a group chat
+					groupChats.push({
+						id: c.id,
+						name: c.handle ?? memberNames.join(', '),
+						avatar: '/images/group.png'
+					});
+				}
+
+				const avatar = isGroup
+					? '/images/group.png'
+					: members[0]?.avatarUrl ||
+						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
+
+				directMessages.push({
+					id: c.id,
+					avatar,
+					username: c.handle ?? memberNames.join(', '),
+					unread: c.latestMessage ? !c.latestMessage.isRead : false,
+					text: c.latestMessage?.text ?? 'No message yet',
+					handle: c.handle ?? memberNames.join(', '),
+					name: c.handle ?? memberNames.join(', ')
+				});
+			});
+
+			messages = directMessages;
+			groups = groupChats;
+		} catch (error) {
+			console.error('Failed to load messages:', error);
+		}
 	}
 
 	onMount(async () => {
-		await loadMessages();
+		try {
+			await loadMessages();
 
-		const memberRes = await apiClient.get('/api/members');
-		allMembers = memberRes.data;
+			const memberRes = await apiClient.get('/api/members');
+			allMembers = memberRes.data;
+		} catch (error) {
+			console.error('Failed to initialize messages page:', error);
+		}
 	});
 
 	function toggleMemberSelection(id: string) {
@@ -71,25 +98,47 @@
 
 		try {
 			if (selectedMembers.length === 1) {
-				await apiClient.post('/api/chats/', {
+				// Create direct message
+				await apiClient.post('/api/chats', {
 					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
 					participantIds: [selectedMembers[0]]
 				});
-				await loadMessages(); // 🛠️ Refresh to include the new direct message
+				await loadMessages(); // Refresh to include the new direct message
 			} else {
+				// Create group chat
 				const groupMembers = allMembers.filter((m) => selectedMembers.includes(m.id));
 				const groupName = groupMembers.map((m) => m.name ?? m.handle ?? m.ename).join(', ');
-				groups = [
-					...groups,
-					{
-						id: Math.random().toString(36).slice(2),
-						name: groupName,
-						avatar: '/images/group.png'
-					}
-				];
+
+				// Create group chat via API
+				const response = await apiClient.post('/api/chats', {
+					name: groupName,
+					participantIds: selectedMembers,
+					isGroup: true
+				});
+
+				// Add to local groups state
+				const newGroup: GroupInfo = {
+					id: response.data.id,
+					name: groupName,
+					avatar: '/images/group.png'
+				};
+				groups = [...groups, newGroup];
+
+				// Also add to messages for consistency
+				const newMessage: MessageType = {
+					id: response.data.id,
+					avatar: newGroup.avatar,
+					username: groupName,
+					text: 'Group chat created',
+					unread: false,
+					name: groupName,
+					handle: groupName
+				};
+				messages = [newMessage, ...messages];
 			}
 		} catch (err) {
 			console.error('Failed to create chat:', err);
+			alert('Failed to create chat. Please try again.');
 		} finally {
 			openNewChatModal = false;
 			selectedMembers = [];
@@ -128,7 +177,7 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}
@@ -143,53 +192,108 @@
 		</div>
 	{/if}
 
-	<dialog
-		open={openNewChatModal}
-		use:clickOutside={() => (openNewChatModal = false)}
-		onclose={() => (openNewChatModal = false)}
-		class="absolute start-[50%] top-[50%] z-50 w-[90vw] translate-x-[-50%] translate-y-[-50%] rounded-3xl border border-gray-400 bg-white p-4 shadow-xl md:max-w-[40vw]"
-	>
-		<div class="relative w-full space-y-6 rounded-xl bg-white p-6">
-			<h2 class="text-xl font-semibold">Start a New Chat</h2>
+	{#if openNewChatModal}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+			<div
+				class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
+			>
+				<div class="mb-6 flex items-center justify-between">
+					<h2 class="text-xl font-semibold text-gray-900">Start a New Chat</h2>
+					<button
+						onclick={() => (openNewChatModal = false)}
+						class="rounded-full p-2 hover:bg-gray-100"
+					>
+						<svg
+							class="h-5 w-5 text-gray-500"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							></path>
+						</svg>
+					</button>
+				</div>
 
-			<Input
-				type="text"
-				bind:value={searchValue}
-				placeholder="Search users..."
-				oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
-			/>
+				<div class="space-y-4">
+					<Input
+						type="text"
+						bind:value={searchValue}
+						placeholder="Search users..."
+						oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
+					/>
 
-			{#if $isSearching}
-				<div class="mt-2 text-gray-500">Searching...</div>
-			{:else if $searchError}
-				<div class="mt-2 text-red-500">{$searchError}</div>
-			{/if}
+					{#if $isSearching}
+						<div class="text-center text-gray-500">Searching...</div>
+					{:else if $searchError}
+						<div class="text-center text-red-500">{$searchError}</div>
+					{:else if $searchResults.length === 0 && searchValue.trim()}
+						<div class="text-center text-gray-500">No users found</div>
+					{/if}
 
-			<div class="max-h-[250px] space-y-3 overflow-y-auto">
-				{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
-					<label class="flex cursor-pointer items-center space-x-3">
-						<input
-							type="checkbox"
-							checked={selectedMembers.includes(member.id)}
-							onchange={() => toggleMemberSelection(member.id)}
-							class="accent-brand focus:ring"
-						/>
-						<Avatar src={member.avatarUrl} size="sm" />
-						<span class="text-sm">{member.name ?? member.handle}</span>
-					</label>
-				{/each}
-			</div>
+					{#if $searchResults.length > 0}
+						<div class="max-h-[250px] space-y-3 overflow-y-auto">
+							{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
+								<label
+									class="flex cursor-pointer items-center space-x-3 rounded-lg p-3 hover:bg-gray-50"
+								>
+									<input
+										type="checkbox"
+										checked={selectedMembers.includes(member.id)}
+										onchange={(e: Event) => {
+											toggleMemberSelection(member.id);
+										}}
+										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									/>
+									<Avatar src={member.avatarUrl} size="sm" />
+									<div class="flex flex-col">
+										<span class="text-sm font-medium text-gray-900"
+											>{member.name ?? member.handle}</span
+										>
+										{#if member.description}
+											<span class="text-xs text-gray-500"
+												>{member.description}</span
+											>
+										{/if}
+									</div>
+								</label>
+							{/each}
+						</div>
+					{/if}
 
-			<div class="flex justify-end gap-2 pt-4">
-				<Button
-					size="sm"
-					variant="secondary"
-					callback={() => {
-						openNewChatModal = false;
-					}}>Cancel</Button
-				>
-				<Button size="sm" variant="primary" callback={createChat}>Start Chat</Button>
+					{#if selectedMembers.length > 0}
+						<div class="rounded-lg bg-blue-50 p-3">
+							<p class="text-sm text-blue-800">
+								{selectedMembers.length === 1
+									? 'Direct message will be created'
+									: `Group chat with ${selectedMembers.length} members will be created`}
+							</p>
+						</div>
+					{/if}
+
+					<div class="flex justify-end gap-3 pt-4">
+						<Button
+							size="sm"
+							variant="secondary"
+							callback={() => (openNewChatModal = false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							size="sm"
+							variant="primary"
+							callback={createChat}
+							disabled={selectedMembers.length === 0}
+						>
+							{selectedMembers.length === 1 ? 'Start Chat' : 'Create Group'}
+						</Button>
+					</div>
+				</div>
 			</div>
 		</div>
-	</dialog>
+	{/if}
 </section>
