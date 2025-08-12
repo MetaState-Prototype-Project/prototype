@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Message } from '$lib/fragments';
-	import Group from '$lib/fragments/Group/Group.svelte';
 	import { isSearching, searchError, searchResults, searchUsers } from '$lib/stores/users';
-	import type { Chat, GroupInfo, MessageType } from '$lib/types';
+	import type { Chat, MessageType } from '$lib/types';
 	import { Avatar, Button, Input } from '$lib/ui';
 	import { clickOutside } from '$lib/utils';
 	import { apiClient } from '$lib/utils/axios';
@@ -11,7 +10,6 @@
 	import { heading } from '../../store';
 
 	let messages = $state<MessageType[]>([]);
-	let groups: GroupInfo[] = $state([]);
 	let allMembers = $state<Record<string, string>[]>([]);
 	let selectedMembers = $state<string[]>([]);
 	let currentUserId = '';
@@ -25,42 +23,26 @@
 			const { data: userData } = await apiClient.get('/api/users');
 			currentUserId = userData.id;
 
-			// Separate direct messages and group chats
-			const directMessages: MessageType[] = [];
-			const groupChats: GroupInfo[] = [];
-
-			data.chats.forEach((c) => {
-				const members = c.participants.filter((u) => u.id !== userData.id);
-				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-				const isGroup = members.length > 1;
-
-				if (isGroup) {
-					// This is a group chat
-					groupChats.push({
-						id: c.id,
-						name: c.handle ?? memberNames.join(', '),
-						avatar: '/images/group.png'
-					});
-				}
-
-				const avatar = isGroup
-					? '/images/group.png'
-					: members[0]?.avatarUrl ||
+			// Filter out group chats, only show direct messages
+			messages = data.chats
+				.filter((c) => c.participants.length === 2) // Only direct messages (2 participants: user + other person)
+				.map((c) => {
+					const members = c.participants.filter((u) => u.id !== userData.id);
+					const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+					const avatar =
+						members[0]?.avatarUrl ||
 						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
 
-				directMessages.push({
-					id: c.id,
-					avatar,
-					username: c.handle ?? memberNames.join(', '),
-					unread: c.latestMessage ? !c.latestMessage.isRead : false,
-					text: c.latestMessage?.text ?? 'No message yet',
-					handle: c.handle ?? memberNames.join(', '),
-					name: c.handle ?? memberNames.join(', ')
+					return {
+						id: c.id,
+						avatar,
+						username: c.handle ?? memberNames.join(', '),
+						unread: c.latestMessage ? !c.latestMessage.isRead : false,
+						text: c.latestMessage?.text ?? 'No message yet',
+						handle: c.handle ?? memberNames.join(', '),
+						name: c.handle ?? memberNames.join(', ')
+					};
 				});
-			});
-
-			messages = directMessages;
-			groups = groupChats;
 		} catch (error) {
 			console.error('Failed to load messages:', error);
 		}
@@ -103,39 +85,21 @@
 					name: allMembers.find((m) => m.id === selectedMembers[0])?.name ?? 'New Chat',
 					participantIds: [selectedMembers[0]]
 				});
-				await loadMessages(); // Refresh to include the new direct message
 			} else {
 				// Create group chat
-				const groupMembers = allMembers.filter((m) => selectedMembers.includes(m.id));
+				const groupMembers = allMembers.filter((m) => m.id === selectedMembers[0]);
 				const groupName = groupMembers.map((m) => m.name ?? m.handle ?? m.ename).join(', ');
 
 				// Create group chat via API
-				const response = await apiClient.post('/api/chats', {
+				await apiClient.post('/api/chats', {
 					name: groupName,
 					participantIds: selectedMembers,
 					isGroup: true
 				});
-
-				// Add to local groups state
-				const newGroup: GroupInfo = {
-					id: response.data.id,
-					name: groupName,
-					avatar: '/images/group.png'
-				};
-				groups = [...groups, newGroup];
-
-				// Also add to messages for consistency
-				const newMessage: MessageType = {
-					id: response.data.id,
-					avatar: newGroup.avatar,
-					username: groupName,
-					text: 'Group chat created',
-					unread: false,
-					name: groupName,
-					handle: groupName
-				};
-				messages = [newMessage, ...messages];
 			}
+
+			// Redirect to messages page with refresh
+			window.location.href = '/messages';
 		} catch (err) {
 			console.error('Failed to create chat:', err);
 			alert('Failed to create chat. Please try again.');
@@ -176,17 +140,7 @@
 		{/each}
 	{/if}
 
-	{#if groups.length > 0}
-		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
-		{#each groups as group}
-			<Group
-				name={group.name || 'New Group'}
-				avatar={group.avatar}
-				unread={true}
-				callback={() => goto(`/group/${group.id}`)}
-			/>
-		{/each}
-	{:else if messages.length === 0}
+	{#if messages.length === 0}
 		<div class="w-full px-5 py-5 text-center text-sm text-gray-500">
 			You don't have any messages yet. Start a Direct Message by searching a name.
 		</div>
@@ -286,7 +240,7 @@
 						<Button
 							size="sm"
 							variant="primary"
-							callback={createChat}
+							callback={() => createChat()}
 							disabled={selectedMembers.length === 0}
 						>
 							{selectedMembers.length === 1 ? 'Start Chat' : 'Create Group'}
