@@ -23,24 +23,40 @@
 		const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
 		const { data: userData } = await apiClient.get('/api/users');
 		currentUserId = userData.id;
-
-		messages = data.chats.map((c) => {
-			const members = c.participants.filter((u) => u.id !== userData.id);
-			const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-			const avatar =
-				members.length > 1
-					? 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg'
-					: members[0].avatarUrl;
-			return {
-				id: c.id,
-				avatar,
-				username: c.handle ?? memberNames.join(', '),
-				unread: c.latestMessage ? c.latestMessage.isRead : false,
-				text: c.latestMessage?.text ?? 'No message yet',
-				handle: c.handle ?? memberNames.join(', '),
-				name: c.handle ?? memberNames.join(', ')
-			};
-		});
+		console.log(data.chats);
+		messages = data.chats
+			.filter((c) => c.participants.length <= 2)
+			.map((c) => {
+				const members = c.participants.filter((u) => u.id !== userData.id);
+				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
+				const avatar =
+					members.length > 1
+						? 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg'
+						: members[0].avatarUrl;
+				return {
+					id: c.id,
+					avatar,
+					username: c.name ?? memberNames.join(', '),
+					unread: c.latestMessage ? c.latestMessage.isRead : false,
+					text: c.latestMessage?.text ?? 'No message yet',
+					handle: c.name ?? memberNames.join(', '),
+					name: c.name ?? memberNames.join(', ')
+				};
+			});
+		groups = data.chats
+			.filter((c) => c.participants.length > 2)
+			.map((c) => {
+				console.log(c.participants);
+				const avatar = '/images/group.png';
+				return {
+					id: c.id,
+					avatar,
+					unread: c.latestMessage ? c.latestMessage.isRead : false,
+					text: c.latestMessage?.text ?? 'No message yet',
+					participants: c.participants,
+					name: c.name
+				};
+			});
 	}
 
 	onMount(async () => {
@@ -79,14 +95,11 @@
 			} else {
 				const groupMembers = allMembers.filter((m) => selectedMembers.includes(m.id));
 				const groupName = groupMembers.map((m) => m.name ?? m.handle ?? m.ename).join(', ');
-				groups = [
-					...groups,
-					{
-						id: Math.random().toString(36).slice(2),
-						name: groupName,
-						avatar: '/images/group.png'
-					}
-				];
+				await apiClient.post('/api/chats', {
+					name: groupName,
+					participantIds: selectedMembers
+				});
+				await loadMessages(); // 🛠️ Refresh to include the new group
 			}
 		} catch (err) {
 			console.error('Failed to create chat:', err);
@@ -128,13 +141,17 @@
 	{/if}
 
 	{#if groups.length > 0}
-		<h3 class="text-md mt-6 mb-2 font-semibold text-gray-700">Groups</h3>
+		<h3 class="text-md mb-2 mt-6 font-semibold text-gray-700">Groups</h3>
 		{#each groups as group}
 			<Group
 				name={group.name || 'New Group'}
 				avatar={group.avatar}
-				unread={true}
-				callback={() => goto(`/group/${group.id}`)}
+				unread={group.unread}
+				text={group.text}
+				callback={() => {
+					heading.set(group.name || 'New Group');
+					goto(`/group/${group.id}`);
+				}}
 			/>
 		{/each}
 	{:else if messages.length === 0}
