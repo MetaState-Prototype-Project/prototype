@@ -37,7 +37,7 @@ export function TweetShare({
                 type === 'bookmark'
                     ? (): JSX.Element => (
                           <span className='flex gap-2'>
-                              Tweet added to your Bookmarks
+                              Blab added to your Bookmarks
                               <Link href='/bookmarks'>
                                   <a className='custom-underline font-bold'>
                                       View
@@ -45,7 +45,7 @@ export function TweetShare({
                               </Link>
                           </span>
                       )
-                    : 'Tweet removed from your bookmarks'
+                    : 'Blab removed from your bookmarks'
             );
         };
 
@@ -94,7 +94,7 @@ export function TweetShare({
                                     onClick={preventBubbling(handleCopy(close))}
                                 >
                                     <HeroIcon iconName='LinkIcon' />
-                                    Copy link to Tweet
+                                    Copy link to Blab
                                 </Popover.Button>
                                 {!tweetIsBookmarked ? (
                                     <Popover.Button
