@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
+import { pollApi } from "@/lib/pollApi";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const createPollSchema = z.object({
@@ -41,7 +43,9 @@ type CreatePollForm = z.infer<typeof createPollSchema>;
 
 export default function CreatePoll() {
     const { toast } = useToast();
+    const router = useRouter();
     const [options, setOptions] = useState<string[]>(["", ""]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const {
         register,
@@ -60,10 +64,7 @@ export default function CreatePoll() {
         },
     });
 
-    handleSubmit((data) => {
-        console.log("Form submitted:", data);
-        console.log(data);
-    });
+
 
     const watchedMode = watch("mode");
     const watchedVisibility = watch("visibility");
@@ -89,8 +90,33 @@ export default function CreatePoll() {
         setValue("options", newOptions);
     };
 
-    const onSubmit = (data: CreatePollForm) => {
-        // TODO: replace with actual API call to create poll
+    const onSubmit = async (data: CreatePollForm) => {
+        setIsSubmitting(true);
+        try {
+            await pollApi.createPoll({
+                title: data.title,
+                mode: data.mode,
+                visibility: data.visibility,
+                options: data.options.filter(option => option.trim() !== ""),
+                deadline: data.deadline || undefined
+            });
+            
+            toast({
+                title: "Success!",
+                description: "Poll created successfully",
+            });
+            
+            router.push("/");
+        } catch (error) {
+            console.error("Failed to create poll:", error);
+            toast({
+                title: "Error",
+                description: "Failed to create poll. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -137,14 +163,14 @@ export default function CreatePoll() {
                         }
                         className="mt-2"
                     >
-                        <div className="flex items-center space-x-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <Label className="flex items-center cursor-pointer">
                                 <RadioGroupItem
                                     value="normal"
                                     className="sr-only"
                                 />
                                 <div
-                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
                                         watchedMode === "normal"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
@@ -154,10 +180,10 @@ export default function CreatePoll() {
                                         <CircleUser className="text-(--crimson) w-6 h-6 mr-3" />
                                         <div>
                                             <div className="font-semibold text-gray-900">
-                                                1P 1V
+                                                Simple
                                             </div>
                                             <div className="text-sm text-gray-600">
-                                                One person, one vote
+                                                Select one option to vote for
                                             </div>
                                         </div>
                                     </div>
@@ -170,7 +196,7 @@ export default function CreatePoll() {
                                     className="sr-only"
                                 />
                                 <div
-                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
                                         watchedMode === "point"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
@@ -196,7 +222,7 @@ export default function CreatePoll() {
                                     className="sr-only"
                                 />
                                 <div
-                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
                                         watchedMode === "rank"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
@@ -222,6 +248,64 @@ export default function CreatePoll() {
 
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
+                        Voting Weight
+                    </Label>
+                    <RadioGroup
+                        value=""
+                        disabled
+                        className="mt-2"
+                    >
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Label className="flex items-center cursor-not-allowed opacity-50">
+                                <RadioGroupItem
+                                    value="1p1v"
+                                    className="sr-only"
+                                    disabled
+                                />
+                                <div className="border-2 border-gray-300 rounded-lg p-4 w-full h-24 bg-gray-50">
+                                    <div className="flex items-center">
+                                        <CircleUser className="text-gray-400 w-6 h-6 mr-3" />
+                                        <div>
+                                            <div className="font-semibold text-gray-500">
+                                                1P 1V
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                One person, one vote
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Label>
+
+                            <Label className="flex items-center cursor-not-allowed opacity-50">
+                                <RadioGroupItem
+                                    value="reputation"
+                                    className="sr-only"
+                                    disabled
+                                />
+                                <div className="border-2 border-gray-300 rounded-lg p-4 w-full h-24 bg-gray-50">
+                                    <div className="flex items-center">
+                                        <ChartLine className="text-gray-400 w-6 h-6 mr-3" />
+                                        <div>
+                                            <div className="font-semibold text-gray-500">
+                                                eReputation Weighted
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                Votes weighted by eReputation
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Label>
+                        </div>
+                    </RadioGroup>
+                    <p className="mt-2 text-sm text-gray-500 italic">
+                        Coming soon - currently disabled
+                    </p>
+                </div>
+
+                <div>
+                    <Label className="text-sm font-semibold text-gray-700">
                         Vote Visibility
                     </Label>
                     <RadioGroup
@@ -234,14 +318,14 @@ export default function CreatePoll() {
                         }
                         className="mt-2"
                     >
-                        <div className="flex items-center space-x-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <Label className="flex items-center cursor-pointer">
                                 <RadioGroupItem
                                     value="public"
                                     className="sr-only"
                                 />
                                 <div
-                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
                                         watchedVisibility === "public"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"
@@ -267,7 +351,7 @@ export default function CreatePoll() {
                                     className="sr-only"
                                 />
                                 <div
-                                    className={`border-2 rounded-lg p-4 flex-1 transition-all ${
+                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
                                         watchedVisibility === "private"
                                             ? "border-(--crimson) bg-(--crimson-50)"
                                             : "border-gray-300 hover:border-(--crimson)"

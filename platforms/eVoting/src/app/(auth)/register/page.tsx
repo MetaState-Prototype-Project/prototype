@@ -25,7 +25,6 @@ export default function RegisterPage() {
             setError(res.error.message);
             return;
         }
-        console.log("Registration successful:", res.data);
         router.push("/login");
     };
 

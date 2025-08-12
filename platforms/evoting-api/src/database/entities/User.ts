@@ -1,33 +1,61 @@
-import { Column, Entity } from "typeorm";
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    OneToMany,
+} from "typeorm";
+import { Poll } from "./Poll";
+import { Vote } from "./Vote";
 
-@Entity("user")
+@Entity("users")
 export class User {
-    @Column("varchar", { primary: true, name: "id", length: 36 })
-    id: string;
+    @PrimaryGeneratedColumn("uuid")
+    id!: string;
 
-    @Column("text", { name: "name", nullable: false })
-    name: string;
+    @Column({ nullable: true })
+    handle!: string;
 
-    @Column("varchar", { name: "email", length: 255, nullable: false })
-    email: string;
+    @Column({ nullable: true })
+    name!: string;
+
+    @Column({ nullable: true })
+    description!: string;
+
+    @Column({ nullable: true })
+    avatarUrl!: string;
+
+    @Column({ nullable: true })
+    bannerUrl!: string;
+
+    @Column({ nullable: true })
+    ename!: string;
+
+    @Column({ default: false })
+    isVerified!: boolean;
+
+    @Column({ default: false })
+    isPrivate!: boolean;
+
+    @Column("varchar", { name: "email", length: 255, nullable: true })
+    email!: string;
 
     @Column("boolean", { name: "emailVerified", default: false })
-    emailVerified: boolean;
+    emailVerified!: boolean;
 
-    @Column("text", { name: "image", nullable: true })
-    image: string;
+    @OneToMany(() => Poll, (poll) => poll.creator)
+    polls!: Poll[];
 
-    @Column("timestamp", {
-        name: "createdAt",
-        nullable: false,
-        default: () => "CURRENT_TIMESTAMP",
-    })
-    createdAt: Date;
+    @OneToMany(() => Vote, (vote) => vote.user)
+    votes!: Vote[];
 
-    @Column("timestamp", {
-        name: "updatedAt",
-        nullable: false,
-        default: () => "CURRENT_TIMESTAMP",
-    })
-    updatedAt: Date;
+    @CreateDateColumn()
+    createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+
+    @Column({ default: false })
+    isArchived!: boolean;
 }

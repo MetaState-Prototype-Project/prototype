@@ -1,11 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { Plus, Vote, BarChart3, LogOut, Eye, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import { isUnauthorizedError } from "@/lib/authUtils";
-import { CountdownTimer } from "@/components/CountdownTimer";
+import { useAuth } from "@/lib/auth-context";
+import { pollApi, type Poll } from "@/lib/pollApi";
+import { useEffect, useState } from "react";
 
 type PollOption = {
     id: string;
@@ -13,36 +15,36 @@ type PollOption = {
     votes: number;
 };
 
-type Poll = {
-    id: number;
-    title: string;
-    mode: "public" | "private";
-    options: PollOption[];
-    totalVotes: number;
-    isActive: boolean;
-    createdBy: string;
-    deadline?: string | null;
-    createdAt: string;
-};
-
 export default function Home() {
     const { user } = useAuth();
+    const [polls, setPolls] = useState<Poll[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const { data: polls = [], isLoading } = { data: [], isLoading: false }; // TODO: replace with actual data fetching logic for polls
+    useEffect(() => {
+        const fetchPolls = async () => {
+            try {
+                const fetchedPolls = await pollApi.getAllPolls();
+                setPolls(fetchedPolls);
+            } catch (error) {
+                console.error("Failed to fetch polls:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPolls();
+    }, []);
 
     // Helper function to check if a poll is actually active (not expired)
     const isPollActive = (poll: Poll) => {
-        if (!poll.isActive) return false;
         if (!poll.deadline) return true;
         return new Date() < new Date(poll.deadline);
     };
 
     // Filter polls
-    const activePolls = polls.filter((poll) => poll.isActive);
-    const userPolls = polls.filter((poll) => poll.createdBy === user?.id);
-    // Split active polls into truly active and expired
-    const votablePolls = activePolls.filter((poll) => isPollActive(poll));
-    const expiredPolls = activePolls.filter((poll) => !isPollActive(poll));
+    const activePolls = polls.filter((poll) => isPollActive(poll));
+    const userPolls = polls.filter((poll) => poll.creatorId === user?.id);
+    const expiredPolls = polls.filter((poll) => !isPollActive(poll));
 
     return (
         <div className="max-w-6xl mx-auto space-y-8">
@@ -96,13 +98,13 @@ export default function Home() {
                         <div className="flex justify-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
                         </div>
-                    ) : votablePolls.length === 0 ? (
+                    ) : activePolls.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                             No active votes available for voting.
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {votablePolls.map((poll) => {
+                            {activePolls.map((poll) => {
                                 const isActive = isPollActive(poll);
                                 return (
                                     <Card
@@ -116,14 +118,22 @@ export default function Home() {
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
                                                     <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
+                                                    <Badge
                                                         variant={
-                                                            poll.mode ===
+                                                            poll.visibility ===
                                                             "public"
                                                                 ? "default"
                                                                 : "secondary"
                                                         }
                                                     >
-                                                        {poll.mode ===
+                                                        {poll.visibility ===
                                                         "public" ? (
                                                             <>
                                                                 <Eye className="w-3 h-3 mr-1" />
@@ -149,7 +159,9 @@ export default function Home() {
                                                     </Badge>
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    {poll.totalVotes} votes
+                                                    {poll.mode === "rank" 
+                                                        ? `${poll.votes?.length || 0} points` 
+                                                        : `${poll.votes?.length || 0} votes`}
                                                 </div>
                                                 <Button
                                                     asChild
@@ -157,15 +169,16 @@ export default function Home() {
                                                     className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
                                                 >
                                                     <Link
-                                                        href={`/vote/${poll.id}`}
+                                                        href={`/${poll.id}`}
                                                     >
                                                         View Vote
                                                     </Link>
                                                 </Button>
-                                                <CountdownTimer
-                                                    deadline={poll.deadline}
-                                                    className="mt-2"
-                                                />
+                                                {poll.deadline && (
+                                                    <div className="text-xs text-gray-500 mt-2">
+                                                        Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -201,14 +214,22 @@ export default function Home() {
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
                                                     <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
+                                                    <Badge
                                                         variant={
-                                                            poll.mode ===
+                                                            poll.visibility ===
                                                             "public"
                                                                 ? "default"
                                                                 : "secondary"
                                                         }
                                                     >
-                                                        {poll.mode ===
+                                                        {poll.visibility ===
                                                         "public" ? (
                                                             <>
                                                                 <Eye className="w-3 h-3 mr-1" />
@@ -234,7 +255,7 @@ export default function Home() {
                                                     </Badge>
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    {poll.totalVotes} votes
+                                                    {poll.votes?.length || 0} votes
                                                 </div>
                                                 <Button
                                                     asChild
@@ -242,7 +263,7 @@ export default function Home() {
                                                     className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
                                                 >
                                                     <Link
-                                                        href={`/vote/${poll.id}`}
+                                                        href={`/${poll.id}`}
                                                     >
                                                         View Results
                                                     </Link>
@@ -290,14 +311,22 @@ export default function Home() {
                                                 </h3>
                                                 <div className="flex items-center space-x-2">
                                                     <Badge
+                                                        variant="secondary"
+                                                        className="text-xs"
+                                                    >
+                                                        {poll.mode === "normal" ? "Single Choice" : 
+                                                         poll.mode === "rank" ? "Ranked" : 
+                                                         poll.mode === "point" ? "Points" : "Unknown"}
+                                                    </Badge>
+                                                    <Badge
                                                         variant={
-                                                            poll.mode ===
+                                                            poll.visibility ===
                                                             "public"
                                                                 ? "default"
                                                                 : "secondary"
                                                         }
                                                     >
-                                                        {poll.mode ===
+                                                        {poll.visibility ===
                                                         "public" ? (
                                                             <>
                                                                 <Eye className="w-3 h-3 mr-1" />
@@ -323,7 +352,7 @@ export default function Home() {
                                                     </Badge>
                                                 </div>
                                                 <div className="text-sm text-gray-500">
-                                                    {poll.totalVotes} votes
+                                                    {poll.votes?.length || 0} votes
                                                 </div>
                                                 <Button
                                                     asChild
@@ -331,15 +360,16 @@ export default function Home() {
                                                     className="w-full bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white"
                                                 >
                                                     <Link
-                                                        href={`/vote/${poll.id}`}
+                                                        href={`/${poll.id}`}
                                                     >
                                                         View Vote
                                                     </Link>
                                                 </Button>
-                                                <CountdownTimer
-                                                    deadline={poll.deadline}
-                                                    className="mt-2"
-                                                />
+                                                {poll.deadline && (
+                                                    <div className="text-xs text-gray-500 mt-2">
+                                                        Deadline: {new Date(poll.deadline).toLocaleDateString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Deep Links for eID Wallet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-link {
+            display: block;
+            margin: 10px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+        .test-link:hover {
+            background: #e0e0e0;
+            border-color: #999;
+        }
+        .auth-link {
+            border-color: #4CAF50;
+            background: #e8f5e8;
+        }
+        .sign-link {
+            border-color: #2196F3;
+            background: #e3f2fd;
+        }
+        .description {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Deep Links for eID Wallet</h1>
+    <p>Click on these links to test deep link functionality in your eID Wallet app:</p>
+
+    <h2>Authentication Deep Links</h2>
+    
+    <a href="w3ds://auth?session=test-session-123&platform=TestPlatform&redirect=https://example.com/auth-callback" class="test-link auth-link">
+        <strong>Test Auth Deep Link</strong>
+        <div class="description">
+            w3ds://auth?session=test-session-123&platform=TestPlatform&redirect=https://example.com/auth-callback
+        </div>
+    </a>
+
+    <a href="w3ds://auth?session=another-session&platform=DemoApp&redirect=https://demo.example.com/callback" class="test-link auth-link">
+        <strong>Another Auth Test</strong>
+        <div class="description">
+            w3ds://auth?session=another-session&platform=DemoApp&redirect=https://demo.example.com/callback
+        </div>
+    </a>
+
+    <h2>Signing Deep Links</h2>
+    
+    <a href="w3ds://sign?session=sign-session-456&data=eyJwb2xsSWQiOiJwb2xsLTEyMyIsInZvdGVEYXRhIjp7Im9wdGlvbklkIjoiMCJ9LCJ1c2VySWQiOiJ1c2VyLTQ1NiJ9&redirect_uri=https://example.com/sign-callback" class="test-link sign-link">
+        <strong>Test Sign Deep Link (Simple Vote)</strong>
+        <div class="description">
+            w3ds://sign?session=sign-session-456&data=eyJwb2xsSWQiOiJwb2xsLTEyMyIsInZvdGVEYXRhIjp7Im9wdGlvbklkIjoiMCJ9LCJ1c2VySWQiOiJ1c2VyLTQ1NiJ9&redirect_uri=https://example.com/sign-callback
+        </div>
+    </a>
+
+    <a href="w3ds://sign?session=ranked-vote-session&data=eyJwb2xsSWQiOiJyYW5rZWQtcG9sbCIsInZvdGVEYXRhIjp7InJhbmtzIjp7IjEiOiIwIiwiMiI6IjEiLCIzIjoiMiJ9fSwidXNlcklkIjoicmFuay11c2VyIn0%3D&redirect_uri=https://example.com/ranked-callback" class="test-link sign-link">
+        <strong>Test Sign Deep Link (Ranked Vote)</strong>
+        <div class="description">
+            w3ds://sign?session=ranked-vote-session&data=eyJwb2xsSWQiOiJyYW5rZWQtcG9sbCIsInZvdGVEYXRhIjp7InJhbmtzIjp7IjEiOiIwIiwiMiI6IjEiLCIzIjoiMiJ9fSwidXNlcklkIjoicmFuay11c2VyIn0%3D&redirect_uri=https://example.com/ranked-callback
+        </div>
+    </a>
+
+    <h2>How to Test</h2>
+    <ol>
+        <li>Make sure your eID Wallet app is installed on your device</li>
+        <li>Click on any of the test links above</li>
+        <li>Your device should prompt you to open the eID Wallet app</li>
+        <li><strong>If not logged in:</strong> App will redirect to login page with a blue notification about pending authentication</li>
+        <li><strong>After login:</strong> App will automatically redirect to scan-qr page and show the appropriate modal</li>
+        <li>Check the console logs in your app for debugging information</li>
+    </ol>
+
+    <h2>Expected Behavior</h2>
+    <ul>
+        <li><strong>Security First:</strong> Deep links will NOT bypass authentication</li>
+        <li><strong>If not logged in:</strong> Redirects to login page with pending request notification</li>
+        <li><strong>After login:</strong> Automatically processes the deep link and shows the appropriate modal</li>
+        <li><strong>Auth links:</strong> Should open the authentication confirmation modal</li>
+        <li><strong>Sign links:</strong> Should open the vote signing confirmation modal</li>
+        <li><strong>Return to Platform:</strong> After completion, users are automatically redirected back to the originating platform</li>
+        <li><strong>Manual Return:</strong> Users can manually return to the platform using provided buttons</li>
+        <li>Console should show detailed logging of the deep link processing</li>
+    </ul>
+
+    <h2>Troubleshooting</h2>
+    <ul>
+        <li>If the app doesn't open, check that the deep link scheme is properly registered</li>
+        <li>If the modal doesn't appear, check the console logs for errors</li>
+        <li>Make sure the app is not already running (deep links work best when app is launched fresh)</li>
+        <li>Try testing on both Android and iOS if possible</li>
+    </ul>
+
+    <script>
+        // Add click tracking for debugging
+        document.querySelectorAll('.test-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                console.log('Clicked deep link:', e.target.href);
+                // Don't prevent default - let the deep link work
+            });
+        });
+    </script>
+</body>
+</html> 
