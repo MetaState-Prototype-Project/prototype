@@ -15,9 +15,15 @@ export class EVaultService {
 		}
 	}
 
-	static async getEVaultLogs(namespace: string, podName: string, tail: number = 100): Promise<string[]> {
+	static async getEVaultLogs(
+		namespace: string,
+		podName: string,
+		tail: number = 100
+	): Promise<string[]> {
 		try {
-			const response = await fetch(`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs?tail=${tail}`);
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs?tail=${tail}`
+			);
 			if (!response.ok) {
 				throw new Error('Failed to fetch logs');
 			}
@@ -31,7 +37,9 @@ export class EVaultService {
 
 	static async getEVaultDetails(namespace: string, podName: string): Promise<any> {
 		try {
-			const response = await fetch(`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/details`);
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/details`
+			);
 			if (!response.ok) {
 				throw new Error('Failed to fetch eVault details');
 			}
@@ -44,7 +52,9 @@ export class EVaultService {
 
 	static async getEVaultMetrics(namespace: string, podName: string): Promise<any> {
 		try {
-			const response = await fetch(`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/metrics`);
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/metrics`
+			);
 			if (!response.ok) {
 				throw new Error('Failed to fetch metrics');
 			}
@@ -54,4 +64,4 @@ export class EVaultService {
 			return null;
 		}
 	}
-} 
+}

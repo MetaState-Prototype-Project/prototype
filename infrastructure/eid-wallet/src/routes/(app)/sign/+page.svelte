@@ -1,120 +1,119 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { onMount, getContext } from "svelte";
-    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-    import type { GlobalState } from "$lib/global";
-    import { Drawer } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
+import { goto } from "$app/navigation";
+import { onMount, getContext } from "svelte";
+import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import type { GlobalState } from "$lib/global";
+import { Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+const globalState = getContext<() => GlobalState>("globalState")();
 
-    interface SigningData {
-        session: string;
-        data: string;
-        redirect_uri: string;
+interface SigningData {
+    session: string;
+    data: string;
+    redirect_uri: string;
+}
+
+let signingData: SigningData | null = $state(null);
+let decodedData: any = $state(null);
+let signingStatus: "pending" | "signing" | "success" | "error" =
+    $state("pending");
+let errorMessage = $state("");
+
+onMount(() => {
+    // Get signing data from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const session = urlParams.get("session");
+    const data = urlParams.get("data");
+    const redirect_uri = urlParams.get("redirect_uri");
+
+    if (!session || !data || !redirect_uri) {
+        errorMessage = "Invalid signing request. Missing required parameters.";
+        signingStatus = "error";
+        return;
     }
 
-    let signingData: SigningData | null = $state(null);
-    let decodedData: any = $state(null);
-    let signingStatus: "pending" | "signing" | "success" | "error" =
-        $state("pending");
-    let errorMessage = $state("");
+    try {
+        // Decode base64 data
+        const decodedString = atob(data);
+        decodedData = JSON.parse(decodedString);
 
-    onMount(() => {
-        // Get signing data from URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const session = urlParams.get("session");
-        const data = urlParams.get("data");
-        const redirect_uri = urlParams.get("redirect_uri");
-
-        if (!session || !data || !redirect_uri) {
-            errorMessage =
-                "Invalid signing request. Missing required parameters.";
-            signingStatus = "error";
-            return;
-        }
-
-        try {
-            // Decode base64 data
-            const decodedString = atob(data);
-            decodedData = JSON.parse(decodedString);
-
-            signingData = { session, data, redirect_uri };
-            signingStatus = "pending";
-        } catch (error) {
-            console.error("Error decoding signing data:", error);
-            errorMessage = "Invalid signing data format.";
-            signingStatus = "error";
-        }
-    });
-
-    async function handleSign() {
-        if (!signingData || !decodedData) return;
-
-        try {
-            signingStatus = "signing";
-
-            // Get the vault for signing
-            const vault = await globalState.vaultController.vault;
-            if (!vault) {
-                throw new Error("No vault available for signing");
-            }
-
-            // Create the message to sign
-            const messageToSign = JSON.stringify({
-                pollId: decodedData.pollId,
-                voteData: decodedData.voteData,
-                userId: decodedData.userId,
-                timestamp: Date.now(),
-            });
-
-            // In a real implementation, you would use the vault's signing capabilities
-            // For now, we'll simulate the signing process
-            await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate signing delay
-
-            // Create the signed payload
-            const signedPayload = {
-                sessionId: signingData.session,
-                signature: "simulated_signature_" + Date.now(), // In real implementation, this would be the actual signature
-                publicKey: vault.ename, // Use eName as public key for now
-                message: messageToSign,
-            };
-
-            // Send the signed payload to the redirect URI
-            const response = await fetch(signingData.redirect_uri, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(signedPayload),
-            });
-
-            if (!response.ok) {
-                throw new Error("Failed to submit signed payload");
-            }
-
-            signingStatus = "success";
-
-            // Redirect back to the main app after a short delay
-            setTimeout(() => {
-                goto("/main");
-            }, 3000);
-        } catch (error) {
-            console.error("Error during signing:", error);
-            errorMessage =
-                error instanceof Error ? error.message : "Signing failed";
-            signingStatus = "error";
-        }
-    }
-
-    function handleCancel() {
-        goto("/main");
-    }
-
-    function handleRetry() {
+        signingData = { session, data, redirect_uri };
         signingStatus = "pending";
-        errorMessage = "";
+    } catch (error) {
+        console.error("Error decoding signing data:", error);
+        errorMessage = "Invalid signing data format.";
+        signingStatus = "error";
     }
+});
+
+async function handleSign() {
+    if (!signingData || !decodedData) return;
+
+    try {
+        signingStatus = "signing";
+
+        // Get the vault for signing
+        const vault = await globalState.vaultController.vault;
+        if (!vault) {
+            throw new Error("No vault available for signing");
+        }
+
+        // Create the message to sign
+        const messageToSign = JSON.stringify({
+            pollId: decodedData.pollId,
+            voteData: decodedData.voteData,
+            userId: decodedData.userId,
+            timestamp: Date.now(),
+        });
+
+        // In a real implementation, you would use the vault's signing capabilities
+        // For now, we'll simulate the signing process
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate signing delay
+
+        // Create the signed payload
+        const signedPayload = {
+            sessionId: signingData.session,
+            signature: "simulated_signature_" + Date.now(), // In real implementation, this would be the actual signature
+            publicKey: vault.ename, // Use eName as public key for now
+            message: messageToSign,
+        };
+
+        // Send the signed payload to the redirect URI
+        const response = await fetch(signingData.redirect_uri, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(signedPayload),
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to submit signed payload");
+        }
+
+        signingStatus = "success";
+
+        // Redirect back to the main app after a short delay
+        setTimeout(() => {
+            goto("/main");
+        }, 3000);
+    } catch (error) {
+        console.error("Error during signing:", error);
+        errorMessage =
+            error instanceof Error ? error.message : "Signing failed";
+        signingStatus = "error";
+    }
+}
+
+function handleCancel() {
+    goto("/main");
+}
+
+function handleRetry() {
+    signingStatus = "pending";
+    errorMessage = "";
+}
 </script>
 
 <AppNav title="Sign Message" titleClasses="text-white" iconColor="white" />

@@ -35,6 +35,7 @@ export function LoginMain(): JSX.Element {
                 process.env.NEXT_PUBLIC_BASE_URL
             ).toString()
         );
+        console.log('getting offer data');
         setQr(data.uri);
         watchEventStream(
             new URL(data.uri).searchParams.get('session') as string

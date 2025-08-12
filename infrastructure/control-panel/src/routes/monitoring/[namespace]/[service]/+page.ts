@@ -4,4 +4,4 @@ export const load = ({ params }) => {
 		namespace: params.namespace,
 		service: params.service
 	};
-}; 
+};
