@@ -1,19 +1,17 @@
 import "reflect-metadata";
 import path from "node:path";
-import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import { config } from "dotenv";
 import express from "express";
-import { auth } from "./auth";
-// import { AuthController } from "./controllers/AuthController";
-// import { CommentController } from "./controllers/CommentController";
-// import { MessageController } from "./controllers/MessageController";
-// import { PostController } from "./controllers/PostController";
-// import { UserController } from "./controllers/UserController";
-// import { WebhookController } from "./controllers/WebhookController";
 import { AppDataSource } from "./database/data-source";
-// import { authGuard, authMiddleware } from "./middleware/auth";
-// import { adapter } from "./web3adapter/watchers/subscriber";
+import { AuthController } from "./controllers/AuthController";
+import { UserController } from "./controllers/UserController";
+import { PollController } from "./controllers/PollController";
+import { VoteController } from "./controllers/VoteController";
+import { WebhookController } from "./controllers/WebhookController";
+import { SigningController } from "./controllers/SigningController";
+import { authMiddleware, authGuard } from "./middleware/auth";
+import { adapter } from "./web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -24,7 +22,15 @@ const port = process.env.PORT || 4000;
 AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
-        // console.log("Web3 adapter initialized");
+        console.log("Web3 adapter initialized");
+        
+        // Initialize controllers after database is ready
+        try {
+            signingController = new SigningController();
+            console.log("SigningController initialized successfully");
+        } catch (error) {
+            console.error("Failed to initialize SigningController:", error);
+        }
     })
     .catch((error: unknown) => {
         console.error("Error during initialization:", error);
@@ -34,8 +40,8 @@ AppDataSource.initialize()
 // Middleware
 app.use(
     cors({
-        origin: [process.env.EVOTING_CLIENT_URL || "http://localhost:3000"],
-        methods: ["GET", "POST", "OPTIONS", "PATCH", "DELETE"],
+        origin: "*",
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: [
             "Content-Type",
             "Authorization",
@@ -45,95 +51,108 @@ app.use(
         credentials: true,
     }),
 );
-app.all("/api/auth/*", toNodeHandler(auth));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// // Controllers
-// const postController = new PostController();
-// const authController = new AuthController();
-// const commentController = new CommentController();
-// const messageController = new MessageController();
-// const userController = new UserController();
-// const webhookController = new WebhookController(adapter);
+// Controllers
+const authController = new AuthController();
+const userController = new UserController();
+const pollController = new PollController();
+const voteController = new VoteController();
+const webhookController = new WebhookController(adapter);
+let signingController: SigningController | null = null;
 
-// // Webhook route (no auth required)
-// // app.post("/api/webhook", adapter.webhookHandler.handleWebhook);
+// Public routes (no auth required)
+app.get("/api/auth/offer", authController.getOffer);
+app.post("/api/auth", authController.login);
+app.get("/api/auth/sessions/:id", authController.sseStream);
+app.post("/api/webhook", webhookController.handleWebhook);
 
-// // Public routes (no auth required)
-// app.get("/api/auth/offer", authController.getOffer);
-// app.post("/api/auth", authController.login);
-// app.get("/api/auth/sessions/:id", authController.sseStream);
-// app.get("/api/chats/:chatId/events", messageController.getChatEvents);
-// app.post("/api/webhook", webhookController.handleWebhook);
+// Signing routes (public for signing flow)
+app.post("/api/signing/sessions", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.createSigningSession(req, res);
+});
+app.get("/api/signing/sessions/:sessionId/status", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.getSigningSessionStatus(req, res);
+});
+app.post("/api/signing/callback", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.handleSignedPayload(req, res);
+});
+app.get("/api/signing/sessions/:sessionId", (req, res) => {
+    if (!signingController) {
+        return res.status(503).json({ error: "Signing service not ready" });
+    }
+    signingController.getSigningSession(req, res);
+});
 
-// // Protected routes (auth required)
-// app.use(authMiddleware); // Apply auth middleware to all routes below
+// Test endpoint to verify signing service is working
+app.get("/api/signing/test", (req, res) => {
+    try {
+        if (!signingController) {
+            return res.status(503).json({ 
+                error: "Signing service not ready", 
+                message: "Service is still initializing" 
+            });
+        }
+        const testResult = signingController.testConnection();
+        res.json({ 
+            message: "Signing service is working", 
+            timestamp: new Date().toISOString(),
+            testResult
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            error: "Signing service test failed", 
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+});
 
-// // Post routes
-// app.get("/api/posts/feed", authGuard, postController.getFeed);
-// app.post("/api/posts", authGuard, postController.createPost);
-// app.post("/api/posts/:id/like", authGuard, postController.toggleLike);
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+    res.json({ 
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        services: {
+            database: AppDataSource.isInitialized ? "connected" : "disconnected",
+            signing: signingController ? "ready" : "initializing"
+        }
+    });
+});
 
-// // Comment routes
-// app.post("/api/comments", authGuard, commentController.createComment);
-// app.get(
-//     "/api/posts/:postId/comments",
-//     authGuard,
-//     commentController.getPostComments,
-// );
-// app.put("/api/comments/:id", authGuard, commentController.updateComment);
-// app.delete("/api/comments/:id", authGuard, commentController.deleteComment);
+// Protected routes (auth required)
+app.use(authMiddleware); // Apply auth middleware to all routes below
 
-// // Chat routes
-// app.post("/api/chats", authGuard, messageController.createChat);
-// app.get("/api/chats", authGuard, messageController.getUserChats);
-// app.get("/api/chats/:chatId", authGuard, messageController.getChat);
+// User routes
+app.get("/api/users/me", authGuard, userController.currentUser);
+app.get("/api/users/search", userController.search);
+app.get("/api/users/:id", authGuard, userController.getProfileById);
+app.patch("/api/users", authGuard, userController.updateProfile);
 
-// // Chat participant routes
-// app.post(
-//     "/api/chats/:chatId/participants",
-//     authGuard,
-//     messageController.addParticipants,
-// );
-// app.delete(
-//     "/api/chats/:chatId/participants/:userId",
-//     authGuard,
-//     messageController.removeParticipant,
-// );
+// Poll routes
+app.get("/api/polls", pollController.getAllPolls);
+app.get("/api/polls/my", authGuard, pollController.getPollsByCreator);
+app.post("/api/polls", authGuard, pollController.createPoll);
+app.put("/api/polls/:id", authGuard, pollController.updatePoll);
+app.delete("/api/polls/:id", authGuard, pollController.deletePoll);
 
-// app.post(
-//     "/api/chats/:chatId/messages",
-//     authGuard,
-//     messageController.createMessage,
-// );
-// app.get(
-//     "/api/chats/:chatId/messages",
-//     authGuard,
-//     messageController.getMessages,
-// );
-// app.delete(
-//     "/api/chats/:chatId/messages/:messageId",
-//     authGuard,
-//     messageController.deleteMessage,
-// );
-// app.post(
-//     "/api/chats/:chatId/messages/read",
-//     authGuard,
-//     messageController.markAsRead,
-// );
-// app.get(
-//     "/api/chats/:chatId/messages/unread",
-//     authGuard,
-//     messageController.getUnreadCount,
-// );
+// Vote routes (must come before generic poll routes to avoid conflicts)
+app.post("/api/votes", authGuard, voteController.createVote);
+app.get("/api/polls/:id/votes", voteController.getVotesByPoll);
+app.get("/api/polls/:id/vote", authGuard, voteController.getUserVote);
+app.get("/api/polls/:id/results", voteController.getPollResults);
 
-// // User routes
-// app.get("/api/users", userController.currentUser);
-// app.get("/api/users/search", userController.search);
-// app.post("/api/users/:id/follow", authGuard, userController.follow);
-// app.get("/api/users/:id", authGuard, userController.getProfileById);
-// app.patch("/api/users", authGuard, userController.updateProfile);
+// Generic poll route (must come last to avoid conflicts with specific routes)
+app.get("/api/polls/:id", pollController.getPollById);
 
 // Start server
 app.listen(port, () => {

@@ -50,6 +50,7 @@
 		"flowbite": "^3.1.2",
 		"flowbite-svelte": "^1.10.7",
 		"flowbite-svelte-icons": "^2.2.1",
+		"lucide-svelte": "^0.539.0",
 		"tailwind-merge": "^3.0.2"
 	}
 }

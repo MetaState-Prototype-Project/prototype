@@ -8,6 +8,7 @@ import {
     UpdateDateColumn,
 } from "typeorm";
 import { Poll } from "./Poll";
+import { User } from "./User";
 
 export type NormalVoteData = string[];
 
@@ -28,10 +29,10 @@ export type VoteDataByMode =
     | { mode: "point"; data: PointVoteData }
     | { mode: "rank"; data: RankVoteData };
 
-@Entity("vote")
+@Entity("votes")
 export class Vote {
     @PrimaryGeneratedColumn("uuid")
-    id: string;
+    id!: string;
 
     @ManyToOne(
         () => Poll,
@@ -39,14 +40,21 @@ export class Vote {
         { onDelete: "CASCADE" },
     )
     @JoinColumn({ name: "pollId" })
-    poll: Poll;
+    poll!: Poll;
 
     @Column("uuid")
-    pollId: string;
+    pollId!: string;
+
+    @ManyToOne(() => User, (user) => user.votes)
+    @JoinColumn({ name: "userId" })
+    user!: User;
+
+    @Column("uuid")
+    userId!: string;
 
     // This can be user ID, session ID, or anonymous identifier
     @Column("varchar", { length: 255 })
-    voterId: string;
+    voterId!: string;
 
     /**
      * For "normal" mode: array of chosen options (usually 1)
@@ -56,11 +64,11 @@ export class Vote {
      * Stored as JSON for flexibility
      */
     @Column("jsonb")
-    data: VoteDataByMode;
+    data!: VoteDataByMode;
 
     @CreateDateColumn()
-    createdAt: Date;
+    createdAt!: Date;
 
     @UpdateDateColumn()
-    updatedAt: Date;
+    updatedAt!: Date;
 }

@@ -1,24 +1,28 @@
 <script lang="ts">
 	import { TableCard, TableCardHeader } from '$lib/fragments';
 	import { Table } from '$lib/ui';
+	import { EVaultService } from '$lib/services/evaultService';
+	import type { EVault } from './api/evaults/+server';
+	import { onMount } from 'svelte';
+	import { RefreshCw } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 
-	let eventsSearchValue = $state('');
+	let evaultsSearchValue = $state('');
 	let platformsSearchQuery = $state('');
+	let evaults = $state<EVault[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let mappedData = $state<any[]>([]);
 
 	const handlePreviousPage = async () => {
 		alert('Previous btn clicked. Make a call to your server to fetch data.');
 	};
+
 	const handleNextPage = async () => {
 		alert('Next btn clicked. Make a call to your server to fetch data.');
 	};
-	const tableHeadings = [
-		'Image',
-		'Material Name',
-		'Description',
-		'Product ID',
-		'Smart Contract'
-		// "Ledger Link",
-	];
+
+	const tableHeadings = ['eName', 'Uptime', 'IP', 'URI'];
 
 	const pages = [
 		{ name: '1', href: '#' },
@@ -26,89 +30,107 @@
 		{ name: '3', href: '#' }
 	];
 
-	const tableData = [
-		{
-			image: 'https://example.com/image1.jpg',
-			name: 'Material 1',
-			description: 'Description of Material 1',
-			productId: '12345',
-			smartContract: '0x1234567890abcdef',
-			ledgerLink: 'https://example.com/ledger1'
-		},
-		{
-			image: 'https://example.com/image2.jpg',
-			name: 'Material 2',
-			description: 'Description of Material 2',
-			productId: '67890',
-			smartContract: '0xabcdef1234567890',
-			ledgerLink: 'https://example.com/ledger2'
-		}
-	];
+	const fetchEVaults = async () => {
+		try {
+			isLoading = true;
+			error = null;
+			const data = await EVaultService.getEVaults();
+			evaults = data;
 
-	const mappedData = tableData.map((row) => {
-		return {
-			rowOne: {
-				type: 'image',
-				value: row.image
-			},
-			rowTwo: {
-				type: 'text',
-				value: row.name
-			},
-			rowThree: {
-				type: 'text',
-				value: row.description
-			},
-			rowFour: {
-				type: 'text',
-				value: row.productId
-			},
-			rowFive: {
-				type: 'text',
-				value: row.smartContract
+			// Map the data after fetching
+			try {
+				const mapped = data.map((evault) => {
+					const mapped = {
+						eName: {
+							type: 'text',
+							value: evault.evaultId,
+							className:
+								'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
+						},
+						Uptime: {
+							type: 'text',
+							value: evault.age
+						},
+						IP: {
+							type: 'text',
+							value: evault.ip
+						},
+						URI: {
+							type: 'link',
+							value: evault.serviceUrl || 'N/A',
+							link: evault.serviceUrl || '#',
+							external: true
+						}
+					};
+					return mapped;
+				});
+
+				mappedData = mapped;
+			} catch (mappingError) {
+				console.error('Error mapping data:', mappingError);
+				error =
+					'Error mapping data: ' +
+					(mappingError instanceof Error ? mappingError.message : String(mappingError));
 			}
-		};
-	});
-
-	let currentSelectedEventIndex = $state(-1);
-
-	const events = [
-		{
-			timestamp: new Date(),
-			action: 'upload',
-			message: 'msg_123',
-			to: 'alice.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'fetch',
-			message: 'msg_124',
-			from: 'bob.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'webhook',
-			to: 'Alice',
-			from: 'Pic'
+		} catch (err) {
+			error = 'Failed to fetch eVaults';
+			console.error('Error fetching eVaults:', err);
+		} finally {
+			isLoading = false;
 		}
-	];
+	};
+
+	let currentSelectedEVaultIndex = $state(-1);
+
+	function handleEVaultRowClick(index: number) {
+		const evault = evaults[index];
+		if (evault) {
+			goto(`/monitoring/${evault.namespace}/${evault.name}`);
+		}
+	}
+
+	onMount(() => {
+		fetchEVaults();
+	});
 </script>
 
 <section class="flex flex-col gap-7">
 	<TableCard>
 		<TableCardHeader
-			title="Events"
-			placeholder="Search Events"
-			bind:searchValue={eventsSearchValue}
-			rightTitle="No evault selected. Select an evault to monitor logs"
+			title="eVaults"
+			placeholder="Search eVaults"
+			bind:searchValue={evaultsSearchValue}
+			rightTitle="Monitoring all eVault pods across Kubernetes clusters"
 		/>
-		<Table
-			class="mb-7"
-			tableData={mappedData}
-			withSelection={true}
-			{handlePreviousPage}
-			{handleNextPage}
-		/>
+
+		{#if isLoading}
+			<div class="flex justify-center py-8">
+				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+			</div>
+		{:else if error}
+			<div class="py-8 text-center text-red-500">
+				{error}
+				<button
+					onclick={fetchEVaults}
+					class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				>
+					Retry
+				</button>
+			</div>
+		{:else if evaults.length === 0}
+			<div class="py-8 text-center text-gray-500">
+				No eVault pods found. Make sure kubectl is configured and eVault pods are running.
+			</div>
+		{:else}
+			<Table
+				class="mb-7"
+				tableData={mappedData}
+				withSelection={true}
+				{handlePreviousPage}
+				{handleNextPage}
+				handleSelectedRow={handleEVaultRowClick}
+			/>
+		{/if}
 	</TableCard>
 
 	<TableCard>
