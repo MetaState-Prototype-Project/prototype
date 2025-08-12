@@ -499,23 +499,30 @@
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
 
-<svg
-    class="mx-auto mt-48"
-    width="204"
-    height="215"
-    viewBox="0 0 204 215"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
+<div
+    class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
 >
-    <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
-    <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
-    <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
-    <path d="M158 211H189C195.075 211 200 206.075 200 200V169" {...pathProps} />
-</svg>
+    <svg
+        class="mx-auto"
+        width="204"
+        height="215"
+        viewBox="0 0 204 215"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+    >
+        <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
+        <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
+        <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
+        <path
+            d="M158 211H189C195.075 211 200 206.075 200 200V169"
+            {...pathProps}
+        />
+    </svg>
 
-<h4 class="text-white font-semibold text-center mt-20">
-    Point the camera at the code
-</h4>
+    <h4 class="text-white font-semibold text-center mt-20">
+        Point the camera at the code
+    </h4>
+</div>
 
 <!-- code scanned drawer -->
 <Drawer
