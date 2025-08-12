@@ -57,11 +57,11 @@
 	<div
 		class="mb-5 flex w-full max-w-[400px] flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
 	>
-		<h2 class="text-center">Scan the QR code using your <b><u>eID App</u></b> to login</h2>
-
 		{#if qrData}
 			{#if isMobile}
-				<!-- Mobile: Show Login Button -->
+				<h2 class="text-center">
+					Click the button below to login using your <b><u>eID App</u></b>
+				</h2>
 				<a
 					href={qrData}
 					class="w-full rounded-lg bg-[#4D44EF] px-4 py-3 text-center font-semibold text-white transition hover:opacity-90"
@@ -69,7 +69,9 @@
 					Login with eID Wallet
 				</a>
 			{:else}
-				<!-- Desktop: Show QR -->
+				<h2 class="text-center">
+					Scan the QR code using your <b><u>eID App</u></b> to login
+				</h2>
 				<article
 					class="overflow-hidden rounded-2xl"
 					use:qrcode={{
