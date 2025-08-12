@@ -16,7 +16,7 @@ import { adapter } from "./web3adapter/watchers/subscriber";
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 1111;
 
 // Initialize database connection and adapter
 AppDataSource.initialize()

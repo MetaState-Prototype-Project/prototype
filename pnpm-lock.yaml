@@ -478,6 +478,12 @@ importers:
       graphql-request:
         specifier: ^6.1.0
         version: 6.1.0(encoding@0.1.13)(graphql@16.11.0)
+      pino:
+        specifier: ^9.8.0
+        version: 9.8.0
+      pino-loki:
+        specifier: ^2.6.0
+        version: 2.6.0
       sqlite3:
         specifier: ^5.1.7
         version: 5.1.7
@@ -9860,6 +9866,10 @@ packages:
 
   pino-abstract-transport@2.0.0:
     resolution: {integrity: sha512-F63x5tizV6WCh4R6RHyi2Ml+M70DNRXt/+HANowMflpgGFMAym/VKm6G7ZOQRjqN7XbGxK1Lg9t6ZrtzOaivMw==}
+
+  pino-loki@2.6.0:
+    resolution: {integrity: sha512-Qy+NeIdb0YmZe/M5mgnO5aGaAyVaeqgwn45T6VajhRXZlZVfGe1YNYhFa9UZyCeNFAPGaUkD2e9yPGjx+2BBYA==}
+    hasBin: true
 
   pino-std-serializers@7.0.0:
     resolution: {integrity: sha512-e906FRY0+tV27iq4juKzSYPbUj2do2X2JX4EzSca1631EB2QJQUqGbDuERal7LCtOpxl6x3+nvo9NPZcmjkiFA==}
@@ -23525,6 +23535,11 @@ snapshots:
   pino-abstract-transport@2.0.0:
     dependencies:
       split2: 4.2.0
+
+  pino-loki@2.6.0:
+    dependencies:
+      pino-abstract-transport: 2.0.0
+      pump: 3.0.3
 
   pino-std-serializers@7.0.0: {}
 

@@ -47,6 +47,7 @@
 		class="h-max-[600px] w-max-[400px] mb-5 flex flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
 	>
 		<h2>Scan the QR code using your <b><u>eID App</u></b> to login</h2>
+    {#if qrData}
 		<article
 			class="overflow-hidden rounded-2xl"
 			use:qrcode={{
@@ -73,6 +74,7 @@
 			}}
 		></article>
 		<a href={qrData}>{qrData}</a>
+    {/if}
 		<p>
 			<span class="mb-1 block font-bold text-gray-600">The code is valid for 60 seconds</span>
 			<span class="block font-light text-gray-600">Please refresh the page if it expires</span

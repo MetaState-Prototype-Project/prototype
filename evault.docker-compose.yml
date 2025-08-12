@@ -16,7 +16,7 @@ services:
       - W3ID=${W3ID}
     volumes:
       - secrets:/app/secrets
-    networks: 
+    networks:
       - graphnet
     depends_on:
       - neo4j

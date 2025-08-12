@@ -4,6 +4,7 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { MappingDatabase } from "./db";
 import { EVaultClient } from "./evault/evault";
+import { logger } from "./logging";
 import { fromGlobal, toGlobal } from "./mapper/mapper";
 import type { IMapping } from "./mapper/mapper.types";
 
@@ -306,6 +307,15 @@ export class Web3Adapter {
         if (!this.mapping[tableName]) return;
         console.log("We get here?");
         // If we already have a mapping, use that global ID
+
+        logger.info({
+            message: "Handling change",
+            dataId: data.id,
+            tableName,
+            existingGlobalId,
+            participants,
+        });
+
         if (existingGlobalId) {
             if (this.lockedIds.includes(existingGlobalId)) return;
             const global = await toGlobal({
