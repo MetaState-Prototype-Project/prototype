@@ -10,6 +10,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
     title: "Group Charter Manager",
     description: "Manage your group charters and memberships",
+    icons: {
+        icon: "/logo.png"
+    }
 };
 
 export default function RootLayout({

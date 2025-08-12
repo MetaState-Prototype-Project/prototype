@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
     title: "eVoting Platform",
     description: "A platform for creating and managing votes",
+    icons: {
+        icon: "/Logo.png",
+    },
 };
 
 export default function RootLayout({

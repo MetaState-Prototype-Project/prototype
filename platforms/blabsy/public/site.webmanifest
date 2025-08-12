@@ -9,14 +9,14 @@
     "orientation": "portrait",
     "icons": [
         {
-            "src": "/logo192.png",
-            "type": "image/png",
-            "sizes": "192x192"
+            "src": "/logo.svg",
+            "type": "image/svg+xml",
+            "sizes": "any"
         },
         {
-            "src": "/logo512.png",
+            "src": "/logo.png",
             "type": "image/png",
-            "sizes": "512x512"
+            "sizes": "any"
         }
     ]
 }
