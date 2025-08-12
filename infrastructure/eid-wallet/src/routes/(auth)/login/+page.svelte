@@ -1,152 +1,144 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { InputPin } from "$lib/ui";
-    import * as Button from "$lib/ui/Button";
-    import {
-        type AuthOptions,
-        authenticate,
-        checkStatus,
-    } from "@tauri-apps/plugin-biometric";
-    import { getContext, onMount } from "svelte";
+import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { InputPin } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import {
+    type AuthOptions,
+    authenticate,
+    checkStatus,
+} from "@tauri-apps/plugin-biometric";
+import { getContext, onMount } from "svelte";
 
-    let pin = $state("");
-    let isError = $state(false);
-    let clearPin = $state(async () => {});
-    let handlePinInput = $state((pin: string) => {});
-    let globalState: GlobalState | undefined = $state(undefined);
-    let hasPendingDeepLink = $state(false);
+let pin = $state("");
+let isError = $state(false);
+let clearPin = $state(async () => {});
+let handlePinInput = $state((pin: string) => {});
+let globalState: GlobalState | undefined = $state(undefined);
+let hasPendingDeepLink = $state(false);
 
-    const authOpts: AuthOptions = {
-        allowDeviceCredential: false,
+const authOpts: AuthOptions = {
+    allowDeviceCredential: false,
 
-        cancelTitle: "Cancel",
+    cancelTitle: "Cancel",
 
-        // iOS
-        fallbackTitle: "Please enter your PIN",
+    // iOS
+    fallbackTitle: "Please enter your PIN",
 
-        // Android
-        title: "Login",
-        subtitle: "Please authenticate to continue",
-        confirmationRequired: true,
+    // Android
+    title: "Login",
+    subtitle: "Please authenticate to continue",
+    confirmationRequired: true,
+};
+
+onMount(async () => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    if (!globalState) {
+        console.error("Global state is not defined");
+        await goto("/"); // Redirect to home or error page
+        return;
+    }
+
+    // Check if there's a pending deep link
+    const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
+    hasPendingDeepLink = !!pendingDeepLink;
+    if (hasPendingDeepLink) {
+        console.log("Pending deep link detected on login page");
+    }
+
+    clearPin = async () => {
+        await globalState?.securityController.clearPin();
+        goto("/");
     };
 
-    onMount(async () => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        if (!globalState) {
-            console.error("Global state is not defined");
-            await goto("/"); // Redirect to home or error page
-            return;
-        }
+    handlePinInput = async (pin: string) => {
+        if (pin.length === 4) {
+            isError = false;
+            const check = globalState
+                ? await globalState.securityController.verifyPin(pin)
+                : false;
+            if (!check) {
+                isError = true;
+                return;
+            }
 
-        // Check if there's a pending deep link
-        const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
-        hasPendingDeepLink = !!pendingDeepLink;
-        if (hasPendingDeepLink) {
-            console.log("Pending deep link detected on login page");
-        }
+            // Check if there's a pending deep link to process
+            const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
+            if (pendingDeepLink) {
+                try {
+                    const deepLinkData = JSON.parse(pendingDeepLink);
+                    console.log(
+                        "Processing pending deep link after login:",
+                        deepLinkData,
+                    );
 
-        clearPin = async () => {
-            await globalState?.securityController.clearPin();
-            goto("/");
-        };
+                    // Store the deep link data for the scan page
+                    sessionStorage.setItem("deepLinkData", pendingDeepLink);
+                    // Clear the pending deep link
+                    sessionStorage.removeItem("pendingDeepLink");
 
-        handlePinInput = async (pin: string) => {
-            if (pin.length === 4) {
-                isError = false;
-                const check = globalState
-                    ? await globalState.securityController.verifyPin(pin)
-                    : false;
-                if (!check) {
-                    isError = true;
+                    // Redirect to scan page to process the deep link
+                    await goto("/scan-qr");
                     return;
+                } catch (error) {
+                    console.error("Error processing pending deep link:", error);
+                    sessionStorage.removeItem("pendingDeepLink");
                 }
-
-                // Check if there's a pending deep link to process
-                const pendingDeepLink =
-                    sessionStorage.getItem("pendingDeepLink");
-                if (pendingDeepLink) {
-                    try {
-                        const deepLinkData = JSON.parse(pendingDeepLink);
-                        console.log(
-                            "Processing pending deep link after login:",
-                            deepLinkData,
-                        );
-
-                        // Store the deep link data for the scan page
-                        sessionStorage.setItem("deepLinkData", pendingDeepLink);
-                        // Clear the pending deep link
-                        sessionStorage.removeItem("pendingDeepLink");
-
-                        // Redirect to scan page to process the deep link
-                        await goto("/scan-qr");
-                        return;
-                    } catch (error) {
-                        console.error(
-                            "Error processing pending deep link:",
-                            error,
-                        );
-                        sessionStorage.removeItem("pendingDeepLink");
-                    }
-                }
-
-                // No pending deep link, go to main page
-                await goto("/main");
             }
-        };
 
-        // for some reason it's important for this to be done before the biometric stuff
-        // otherwise pin doesn't work
-        $effect(() => {
-            handlePinInput(pin);
-        });
-
-        if (
-            (await globalState.securityController.biometricSupport) &&
-            (await checkStatus()).isAvailable
-        ) {
-            try {
-                await authenticate(
-                    "You must authenticate with PIN first",
-                    authOpts,
-                );
-
-                // Check if there's a pending deep link to process
-                const pendingDeepLink =
-                    sessionStorage.getItem("pendingDeepLink");
-                if (pendingDeepLink) {
-                    try {
-                        const deepLinkData = JSON.parse(pendingDeepLink);
-                        console.log(
-                            "Processing pending deep link after biometric login:",
-                            deepLinkData,
-                        );
-
-                        // Store the deep link data for the scan page
-                        sessionStorage.setItem("deepLinkData", pendingDeepLink);
-                        // Clear the pending deep link
-                        sessionStorage.removeItem("pendingDeepLink");
-
-                        // Redirect to scan page to process the deep link
-                        await goto("/scan-qr");
-                        return;
-                    } catch (error) {
-                        console.error(
-                            "Error processing pending deep link:",
-                            error,
-                        );
-                        sessionStorage.removeItem("pendingDeepLink");
-                    }
-                }
-
-                // No pending deep link, go to main page
-                await goto("/main");
-            } catch (e) {
-                console.error("Biometric authentication failed", e);
-            }
+            // No pending deep link, go to main page
+            await goto("/main");
         }
+    };
+
+    // for some reason it's important for this to be done before the biometric stuff
+    // otherwise pin doesn't work
+    $effect(() => {
+        handlePinInput(pin);
     });
+
+    if (
+        (await globalState.securityController.biometricSupport) &&
+        (await checkStatus()).isAvailable
+    ) {
+        try {
+            await authenticate(
+                "You must authenticate with PIN first",
+                authOpts,
+            );
+
+            // Check if there's a pending deep link to process
+            const pendingDeepLink = sessionStorage.getItem("pendingDeepLink");
+            if (pendingDeepLink) {
+                try {
+                    const deepLinkData = JSON.parse(pendingDeepLink);
+                    console.log(
+                        "Processing pending deep link after biometric login:",
+                        deepLinkData,
+                    );
+
+                    // Store the deep link data for the scan page
+                    sessionStorage.setItem("deepLinkData", pendingDeepLink);
+                    // Clear the pending deep link
+                    sessionStorage.removeItem("pendingDeepLink");
+
+                    // Redirect to scan page to process the deep link
+                    await goto("/scan-qr");
+                    return;
+                } catch (error) {
+                    console.error("Error processing pending deep link:", error);
+                    sessionStorage.removeItem("pendingDeepLink");
+                }
+            }
+
+            // No pending deep link, go to main page
+            await goto("/main");
+        } catch (e) {
+            console.error("Biometric authentication failed", e);
+        }
+    }
+});
 </script>
 
 <main

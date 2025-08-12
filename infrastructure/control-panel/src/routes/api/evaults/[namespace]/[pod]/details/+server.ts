@@ -11,14 +11,18 @@ export const GET: RequestHandler = async ({ params }) => {
 	try {
 		// Get detailed pod information
 		const { stdout: podInfo } = await execAsync(`kubectl describe pod -n ${namespace} ${pod}`);
-		
+
 		// Get pod YAML
-		const { stdout: podYaml } = await execAsync(`kubectl get pod -n ${namespace} ${pod} -o yaml`);
-		
+		const { stdout: podYaml } = await execAsync(
+			`kubectl get pod -n ${namespace} ${pod} -o yaml`
+		);
+
 		// Get pod metrics if available
 		let metrics = null;
 		try {
-			const { stdout: metricsOutput } = await execAsync(`kubectl top pod -n ${namespace} ${pod}`);
+			const { stdout: metricsOutput } = await execAsync(
+				`kubectl top pod -n ${namespace} ${pod}`
+			);
 			metrics = metricsOutput.trim();
 		} catch (metricsError) {
 			// Metrics might not be available
@@ -34,4 +38,4 @@ export const GET: RequestHandler = async ({ params }) => {
 		console.error('Error fetching pod details:', error);
 		return json({ error: 'Failed to fetch pod details' }, { status: 500 });
 	}
-}; 
+};

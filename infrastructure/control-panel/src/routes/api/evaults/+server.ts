@@ -26,54 +26,60 @@ export const GET: RequestHandler = async () => {
 		// Get minikube IP for NodePort services
 		let minikubeIP = 'localhost';
 		try {
-			const { stdout: minikubeIPOutput } = await execAsync('minikube ip 2>/dev/null || echo "localhost"');
+			const { stdout: minikubeIPOutput } = await execAsync(
+				'minikube ip 2>/dev/null || echo "localhost"'
+			);
 			if (minikubeIPOutput.trim()) {
 				minikubeIP = minikubeIPOutput.trim();
 			}
 		} catch (ipError) {
 			console.log('Could not get minikube IP, using localhost');
 		}
-		
+
 		console.log('Using IP:', minikubeIP);
-		
+
 		// Get all namespaces
 		const { stdout: namespacesOutput } = await execAsync('kubectl get namespaces -o json');
 		const namespaces = JSON.parse(namespacesOutput);
-		
+
 		// Filter for eVault namespaces
 		const evaultNamespaces = namespaces.items
 			.filter((ns: any) => ns.metadata.name.startsWith('evault-'))
 			.map((ns: any) => ns.metadata.name);
-		
+
 		console.log('Found eVault namespaces:', evaultNamespaces);
-		
+
 		let allEVaults: EVault[] = [];
 
 		// Get services and pods from each eVault namespace
 		for (const namespace of evaultNamespaces) {
 			try {
 				// Get services in this namespace as JSON
-				const { stdout: servicesOutput } = await execAsync(`kubectl get services -n ${namespace} -o json`);
+				const { stdout: servicesOutput } = await execAsync(
+					`kubectl get services -n ${namespace} -o json`
+				);
 				const services = JSON.parse(servicesOutput);
-				
+
 				// Get pods in this namespace as JSON
-				const { stdout: podsOutput } = await execAsync(`kubectl get pods -n ${namespace} -o json`);
+				const { stdout: podsOutput } = await execAsync(
+					`kubectl get pods -n ${namespace} -o json`
+				);
 				const pods = JSON.parse(podsOutput);
-				
+
 				console.log(`=== SERVICES FOR ${namespace} ===`);
 				console.log(JSON.stringify(services, null, 2));
 				console.log(`=== PODS FOR ${namespace} ===`);
 				console.log(JSON.stringify(pods, null, 2));
 				console.log(`=== END DATA ===`);
-				
+
 				if (services.items && services.items.length > 0) {
 					for (const service of services.items) {
 						const serviceName = service.metadata.name;
 						const serviceType = service.spec.type;
 						const ports = service.spec.ports;
-						
+
 						console.log(`Service: ${serviceName}, Type: ${serviceType}, Ports:`, ports);
-						
+
 						// Find NodePort for NodePort services
 						let nodePort = null;
 						if (serviceType === 'NodePort' && ports) {
@@ -84,9 +90,9 @@ export const GET: RequestHandler = async () => {
 								}
 							}
 						}
-						
+
 						console.log(`NodePort: ${nodePort}`);
-						
+
 						// Get pod data for this service
 						let podData = {
 							status: 'Unknown',
@@ -98,28 +104,39 @@ export const GET: RequestHandler = async () => {
 							node: 'N/A',
 							podName: 'N/A'
 						};
-						
+
 						if (pods.items && pods.items.length > 0) {
 							// Find pod that matches this service (usually same name or has service label)
-							const matchingPod = pods.items.find((pod: any) => 
-								pod.metadata.name.includes(serviceName.replace('-service', '')) ||
-								pod.metadata.labels?.app === 'evault'
+							const matchingPod = pods.items.find(
+								(pod: any) =>
+									pod.metadata.name.includes(
+										serviceName.replace('-service', '')
+									) || pod.metadata.labels?.app === 'evault'
 							);
-							
+
 							if (matchingPod) {
 								const pod = matchingPod;
-								const readyCount = pod.status.containerStatuses?.filter((cs: any) => cs.ready).length || 0;
+								const readyCount =
+									pod.status.containerStatuses?.filter((cs: any) => cs.ready)
+										.length || 0;
 								const totalCount = pod.status.containerStatuses?.length || 0;
-								const restarts = pod.status.containerStatuses?.reduce((sum: number, cs: any) => sum + (cs.restartCount || 0), 0) || 0;
-								
+								const restarts =
+									pod.status.containerStatuses?.reduce(
+										(sum: number, cs: any) => sum + (cs.restartCount || 0),
+										0
+									) || 0;
+
 								// Calculate age
 								const creationTime = new Date(pod.metadata.creationTimestamp);
 								const now = new Date();
 								const ageMs = now.getTime() - creationTime.getTime();
 								const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
-								const ageHours = Math.floor((ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-								const age = ageDays > 0 ? `${ageDays}d${ageHours}h` : `${ageHours}h`;
-								
+								const ageHours = Math.floor(
+									(ageMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+								);
+								const age =
+									ageDays > 0 ? `${ageDays}d${ageHours}h` : `${ageHours}h`;
+
 								podData = {
 									status: pod.status.phase || 'Unknown',
 									age: age,
@@ -132,18 +149,18 @@ export const GET: RequestHandler = async () => {
 								};
 							}
 						}
-						
+
 						// Extract the eVault ID from the namespace
 						const evaultId = namespace.replace('evault-', '');
-						
+
 						// Generate service URL
 						let serviceUrl = '';
 						if (nodePort) {
 							serviceUrl = `http://${minikubeIP}:${nodePort}`;
 						}
-						
+
 						console.log(`Service URL: ${serviceUrl}`);
-						
+
 						allEVaults.push({
 							id: serviceName,
 							name: serviceName,
@@ -172,4 +189,4 @@ export const GET: RequestHandler = async () => {
 		console.error('Error fetching eVaults:', error);
 		return json({ error: 'Failed to fetch eVaults', evaults: [] }, { status: 500 });
 	}
-}; 
+};
