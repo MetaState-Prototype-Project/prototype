@@ -17,9 +17,14 @@ export class GraphQLServer {
         resolvers: {},
     });
     server?: Server;
-    constructor(db: DbService) {
+    private evaultPublicKey: string | null;
+    private evaultW3ID: string | null;
+
+    constructor(db: DbService, evaultPublicKey?: string | null, evaultW3ID?: string | null) {
         this.db = db;
         this.accessGuard = new VaultAccessGuard(db);
+        this.evaultPublicKey = evaultPublicKey || process.env.EVAULT_PUBLIC_KEY || null;
+        this.evaultW3ID = evaultW3ID || process.env.W3ID || null;
     }
 
     public getSchema(): GraphQLSchema {
@@ -165,7 +170,8 @@ export class GraphQLServer {
                             context.tokenPayload?.platform || null;
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
-                            w3id: `@${process.env.W3ID}`,
+                            w3id: this.evaultW3ID,
+                            evaultPublicKey: this.evaultPublicKey,
                             data: input.payload,
                             schemaId: input.ontology,
                         };
@@ -222,7 +228,8 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
-                                w3id: `@${process.env.W3ID}`,
+                                w3id: this.evaultW3ID,
+                                evaultPublicKey: this.evaultPublicKey,
                                 data: input.payload,
                                 schemaId: input.ontology,
                             };

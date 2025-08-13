@@ -22,12 +22,16 @@ class EVault {
     graphqlServer: GraphQLServer;
     logService: LogService;
     driver: Driver;
+    publicKey: string | null;
+    w3id: string | null;
 
     private constructor(driver: Driver) {
         this.driver = driver;
+        this.publicKey = process.env.EVAULT_PUBLIC_KEY || null;
+        this.w3id = process.env.W3ID || null;
         const dbService = new DbService(driver);
         this.logService = new LogService(driver);
-        this.graphqlServer = new GraphQLServer(dbService);
+        this.graphqlServer = new GraphQLServer(dbService, this.publicKey, this.w3id);
         this.server = fastify({
             logger: true,
         });
@@ -48,18 +52,27 @@ class EVault {
             );
         }
 
+        if (!process.env.W3ID) {
+            console.warn(
+                "W3ID environment variable not set. The eVault will not have an associated W3ID identifier.",
+            );
+        }
+
+        if (!process.env.EVAULT_PUBLIC_KEY) {
+            console.warn(
+                "EVAULT_PUBLIC_KEY environment variable not set. The eVault will not have an associated public key for cryptographic operations.",
+            );
+        }
+
         const driver = await connectWithRetry(uri, user, password);
         return new EVault(driver);
     }
 
     async initialize() {
-        await registerHttpRoutes(this.server);
+        await registerHttpRoutes(this.server, this);
 
-        const w3id = await W3ID.get({
-            id: process.env.W3ID as string,
-            driver: this.driver,
-            password: process.env.ENCRYPTION_PASSWORD,
-        });
+        // No longer automatically create W3ID - just use the provided W3ID and public key
+        // The private key is now managed on the user's phone
 
         const yoga = this.graphqlServer.init();
 

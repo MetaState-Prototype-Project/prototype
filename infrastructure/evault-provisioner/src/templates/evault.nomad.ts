@@ -36,7 +36,7 @@ export function generatePassword(length = 16): string {
  *
  * @throws {Error} If the service endpoint cannot be determined from the cluster.
  */
-export async function provisionEVault(w3id: string, registryUrl: string) {
+export async function provisionEVault(w3id: string, registryUrl: string, publicKey: string) {
     console.log("starting to provision");
     const idParts = w3id.split("@");
     w3id = idParts[idParts.length - 1];
@@ -127,6 +127,10 @@ export async function provisionEVault(w3id: string, registryUrl: string) {
                                 {
                                     name: "REGISTRY_URL",
                                     value: registryUrl,
+                                },
+                                {
+                                    name: "EVAULT_PUBLIC_KEY", 
+                                    value: publicKey
                                 },
                                 {
                                     name: "NEO4J_PASSWORD",

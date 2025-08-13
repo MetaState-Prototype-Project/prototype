@@ -53,6 +53,7 @@ interface ProvisionRequest {
     registryEntropy: string;
     namespace: string;
     verificationId: string;
+    publicKey: string;
 }
 
 interface ProvisionResponse {
@@ -81,13 +82,13 @@ app.post(
             console.log("provisioner log 1");
             if (!process.env.PUBLIC_REGISTRY_URL)
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
-            const { registryEntropy, namespace, verificationId } = req.body;
-            if (!registryEntropy || !namespace || !verificationId) {
+            const { registryEntropy, namespace, verificationId, publicKey } = req.body;
+            if (!registryEntropy || !namespace || !verificationId || !publicKey) {
                 return res.status(400).json({
                     success: false,
                     error: "registryEntropy and namespace are required",
                     message:
-                        "Missing required fields: registryEntropy, namespace, verifficationId",
+                        "Missing required fields: registryEntropy, namespace, verifficationId, publicKey",
                 });
             }
 
@@ -129,7 +130,8 @@ app.post(
             const evaultId = await new W3IDBuilder().withGlobal(true).build();
             const uri = await provisionEVault(
                 w3id,
-                process.env.PUBLIC_REGISTRY_URL
+                process.env.PUBLIC_REGISTRY_URL,
+                publicKey
             );
             await axios.post(
                 new URL(

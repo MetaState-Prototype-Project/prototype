@@ -1,11 +1,7 @@
 import fastify, { FastifyInstance } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import { W3ID } from "../w3id/w3id";
-import { LogEvent } from "w3id";
-import axios from "axios";
 import { WatcherRequest, TypedRequest, TypedReply } from "./types";
-import { verifierCallback } from "../utils/signer";
 
 interface WatcherSignatureRequest {
   w3id: string;
@@ -18,7 +14,8 @@ interface WatcherSignatureRequest {
 }
 
 export async function registerHttpRoutes(
-  server: FastifyInstance
+  server: FastifyInstance,
+  evault: any // EVault instance to access publicKey
 ): Promise<void> {
   // Register Swagger
   await server.register(swagger, {
@@ -42,61 +39,46 @@ export async function registerHttpRoutes(
     routePrefix: "/docs",
   });
 
-  // Whois endpoint
+  // Whois endpoint - returns both W3ID identifier and public key
   server.get(
     "/whois",
     {
       schema: {
         tags: ["identity"],
-        description: "Get W3ID response with logs",
+        description: "Get eVault W3ID identifier and public key",
         response: {
           200: {
             type: "object",
             properties: {
               w3id: { type: "string" },
-              logs: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string" },
-                    versionId: { type: "string" },
-                    versionTime: { type: "string", format: "date-time" },
-                    updateKeys: { type: "array", items: { type: "string" } },
-                    nextKeyHashes: { type: "array", items: { type: "string" } },
-                    method: { type: "string" },
-                    proofs: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          signature: { type: "string" },
-                          alg: { type: "string" },
-                          kid: { type: "string" },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
+              publicKey: { type: "string" },
+              message: { type: "string" },
             },
           },
         },
       },
     },
     async (request: TypedRequest<{}>, reply: TypedReply) => {
-      const w3id = await W3ID.get();
-      const logs = (await w3id.logs?.repository.findMany({})) as LogEvent[];
       const result = {
-        w3id: w3id.id,
-        logs: logs,
+        w3id: evault.w3id,
+        publicKey: evault.publicKey,
+        message: evault.w3id && evault.publicKey 
+          ? "eVault identified by W3ID and public key" 
+          : evault.w3id 
+            ? "eVault identified by W3ID only (no public key)"
+            : evault.publicKey
+              ? "eVault identified by public key only (no W3ID)"
+              : "eVault has no associated identifier or public key",
       };
-      console.log(result);
+      console.log("Whois request:", result);
       return result;
     }
   );
 
-  // Watchers signature endpoint
+  // Watchers signature endpoint - DISABLED: Requires W3ID functionality
+  // This endpoint is disabled because the eVault no longer creates/manages W3IDs
+  // The private key is now stored on the user's phone
+  /*
   server.post<{ Body: WatcherSignatureRequest }>(
     "/watchers/sign",
     {
@@ -178,12 +160,17 @@ export async function registerHttpRoutes(
             error instanceof Error
               ? error.message
               : "Failed to store signature",
+          requestId: "",
         };
       }
     }
   );
+  */
 
-  // Watchers request endpoint
+  // Watchers request endpoint - DISABLED: Requires W3ID functionality
+  // This endpoint is disabled because the eVault no longer creates/manages W3IDs
+  // The private key is now stored on the user's phone
+  /*
   server.post<{ Body: WatcherRequest }>(
     "/watchers/request",
     {
@@ -262,4 +249,5 @@ export async function registerHttpRoutes(
       }
     }
   );
+  */
 }
