@@ -617,7 +617,7 @@ onDestroy(async () => {
                 startScan();
             }}
         >
-            Stay in App
+            Ok
         </Button.Action>
     </div>
 </Drawer>
