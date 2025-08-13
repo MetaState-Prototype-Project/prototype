@@ -9,6 +9,12 @@ import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import Drawer from "$lib/ui/Drawer/Drawer.svelte";
 import { capitalize } from "$lib/utils";
+import {
+    exists,
+    generate,
+    getPublicKey,
+    // signPayload, verifySignature
+} from "@auvo/tauri-plugin-crypto-hw-api";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -135,11 +141,42 @@ function watchEventStream(id: string) {
     };
 }
 
+// IMO, call this function early, check if hardware even supports the app
+// docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
+async function generateApplicationKeyPair() {
+    let res: string | undefined;
+    try {
+        res = await generate("default");
+        console.log(res);
+    } catch (e) {
+        // Put hardware crypto missing error here
+        console.log(e);
+    }
+    return res;
+}
+
+async function getApplicationPublicKey() {
+    let res: string | undefined;
+    try {
+        res = await getPublicKey("default");
+        console.log(res);
+    } catch (e) {
+        console.log(e);
+    }
+    return res; // check getPublicKey doc comments (multibase hex format)
+}
+
 let handleContinue: () => Promise<void>;
 
 onMount(() => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
+
+    // check if default key pair exists
+    const keyExists = exists("default");
+    if (!keyExists) {
+        generateApplicationKeyPair();
+    }
 
     handleContinue = async () => {
         if ($status !== "approved") return verifStep.set(0);
@@ -171,6 +208,7 @@ onMount(() => {
                 registryEntropy,
                 namespace: uuidv4(),
                 verificationId: $verificaitonId,
+                publicKey: await getApplicationPublicKey(),
             },
         );
         if (data.success === true) {
