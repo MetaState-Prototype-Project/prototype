@@ -111,11 +111,11 @@ export function LoginMain(): JSX.Element {
                         your own sovereign eVault, not on centralised servers.
                     </div>
                     <Image
-                            src='/assets/w3dslogo.svg'
-                            alt='W3DS logo'
-                            width={100}
-                            height={20}
-                        />
+                        src='/assets/w3dslogo.svg'
+                        alt='W3DS logo'
+                        width={100}
+                        height={20}
+                    />
                 </div>
             </div>
         </main>
