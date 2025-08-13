@@ -4,14 +4,18 @@ import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
 import { Poll } from "../database/entities/Poll";
 import { Vote } from "../database/entities/Vote";
+import { Group } from "../database/entities/Group";
 import { MetaEnvelopeMap } from "../database/entities/MetaEnvelopeMap";
+import { GroupService } from "../services/GroupService";
 
 export class WebhookController {
     private adapter: Web3Adapter;
     private userRepository = AppDataSource.getRepository(User);
     private pollRepository = AppDataSource.getRepository(Poll);
     private voteRepository = AppDataSource.getRepository(Vote);
+    private groupRepository = AppDataSource.getRepository(Group);
     private mappingRepository = AppDataSource.getRepository(MetaEnvelopeMap);
+    private groupService = new GroupService();
 
     constructor(adapter: Web3Adapter) {
         this.adapter = adapter;
