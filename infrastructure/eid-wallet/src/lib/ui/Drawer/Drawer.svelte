@@ -83,7 +83,9 @@ $effect(() => {
         padding-block-start: 50px !important;
         padding-block-end: 20px !important;
         background-color: var(--color-white) !important;
-        overflow: hidden !important; /* Prevents content overflow */
+        overflow-y: auto !important; /* vertical scroll if needed */
+        overflow-x: hidden !important; /* prevent sideways scroll */
+        -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
     }
 
     :global(.move) {
