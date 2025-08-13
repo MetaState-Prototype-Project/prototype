@@ -1,189 +1,231 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import {
-    PUBLIC_PROVISIONER_URL,
-    PUBLIC_REGISTRY_URL,
-} from "$env/static/public";
-import { Hero } from "$lib/fragments";
-import { GlobalState } from "$lib/global";
-import { ButtonAction } from "$lib/ui";
-import Drawer from "$lib/ui/Drawer/Drawer.svelte";
-import { capitalize } from "$lib/utils";
-import axios from "axios";
-import { getContext, onMount } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
-import { v4 as uuidv4 } from "uuid";
-import Passport from "./steps/passport.svelte";
-import Selfie from "./steps/selfie.svelte";
-import {
-    DocFront,
-    Selfie as SelfiePic,
-    reason,
-    status,
-    verifStep,
-    verificaitonId,
-} from "./store";
-
-type Document = {
-    country: { value: string };
-    firstIssue: Date;
-    licenseNumber: string;
-    number: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    placeOfIssue: string;
-    processNumber: string;
-    residencePermitType: string;
-    type: { value: string };
-    validFrom: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    validUntil: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-};
-
-type Person = {
-    address: {
-        confidenceCategory: string;
-        value: string;
-        components: Record<string, unknown>;
-        sources: string[];
-    };
-    dateOfBirth: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    employer: string;
-    extraNames: string;
-    firstName: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    foreignerStatus: string;
-    gender: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    idNumber: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    lastName: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    nationality: {
-        confidenceCategory: string;
-        value: string;
-        sources: string[];
-    };
-    occupation: string;
-    placeOfBirth: string;
-};
-
-let globalState: GlobalState | undefined = $state(undefined);
-let showVeriffModal = $state(false);
-let person: Person;
-let document: Document;
-let loading = $state(false);
-
-async function handleVerification() {
-    const { data } = await axios.post(
-        new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
-    );
-    verificaitonId.set(data.id);
-    showVeriffModal = true;
-    watchEventStream(data.id);
-}
-
-function watchEventStream(id: string) {
-    const sseUrl = new URL(
-        `/verification/sessions/${id}`,
+    import { goto } from "$app/navigation";
+    import {
         PUBLIC_PROVISIONER_URL,
-    ).toString();
-    const eventSource = new EventSource(sseUrl);
+        PUBLIC_REGISTRY_URL,
+    } from "$env/static/public";
+    import { Hero } from "$lib/fragments";
+    import { GlobalState } from "$lib/global";
+    import { ButtonAction } from "$lib/ui";
+    import Drawer from "$lib/ui/Drawer/Drawer.svelte";
+    import { capitalize } from "$lib/utils";
+    import {
+        exists,
+        generate,
+        getPublicKey,
+        // signPayload, verifySignature
+    } from "@auvo/tauri-plugin-crypto-hw-api";
+    import axios from "axios";
+    import { getContext, onMount } from "svelte";
+    import { Shadow } from "svelte-loading-spinners";
+    import { v4 as uuidv4 } from "uuid";
+    import Passport from "./steps/passport.svelte";
+    import Selfie from "./steps/selfie.svelte";
+    import {
+        DocFront,
+        Selfie as SelfiePic,
+        reason,
+        status,
+        verifStep,
+        verificaitonId,
+    } from "./store";
 
-    eventSource.onopen = () => {
-        console.log("Successfully connected.");
+    type Document = {
+        country: { value: string };
+        firstIssue: Date;
+        licenseNumber: string;
+        number: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        placeOfIssue: string;
+        processNumber: string;
+        residencePermitType: string;
+        type: { value: string };
+        validFrom: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        validUntil: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
     };
 
-    eventSource.onmessage = (e) => {
-        const data = JSON.parse(e.data as string);
-        if (!data.status) console.log(data);
-        console.log("STATUS", data);
-        status.set(data.status);
-        reason.set(data.reason);
-        person = data.person;
-        document = data.document;
-        if (data.status === "resubmission_requested") {
-            DocFront.set(null);
-            SelfiePic.set(null);
-        }
-        verifStep.set(2);
+    type Person = {
+        address: {
+            confidenceCategory: string;
+            value: string;
+            components: Record<string, unknown>;
+            sources: string[];
+        };
+        dateOfBirth: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        employer: string;
+        extraNames: string;
+        firstName: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        foreignerStatus: string;
+        gender: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        idNumber: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        lastName: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        nationality: {
+            confidenceCategory: string;
+            value: string;
+            sources: string[];
+        };
+        occupation: string;
+        placeOfBirth: string;
     };
-}
 
-let handleContinue: () => Promise<void>;
+    let globalState: GlobalState | undefined = $state(undefined);
+    let showVeriffModal = $state(false);
+    let person: Person;
+    let document: Document;
+    let loading = $state(false);
 
-onMount(() => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    // handle verification logic + sec user data in the store
-
-    handleContinue = async () => {
-        if ($status !== "approved") return verifStep.set(0);
-        if (!globalState) throw new Error("Global state is not defined");
-
-        loading = true;
-        globalState.userController.user = {
-            name: capitalize(
-                `${person.firstName.value} ${person.lastName.value}`,
-            ),
-            "Date of Birth": new Date(person.dateOfBirth.value).toDateString(),
-            "ID submitted": `Passport - ${person.nationality.value}`,
-            "Passport Number": document.number.value,
-        };
-        globalState.userController.document = {
-            "Valid From": new Date(document.validFrom.value).toDateString(),
-            "Valid Until": new Date(document.validUntil.value).toDateString(),
-            "Verified On": new Date().toDateString(),
-        };
-        globalState.userController.isFake = false;
-        const {
-            data: { token: registryEntropy },
-        } = await axios.get(
-            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-        );
+    async function handleVerification() {
         const { data } = await axios.post(
-            new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-            {
-                registryEntropy,
-                namespace: uuidv4(),
-                verificationId: $verificaitonId,
-            },
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
         );
-        if (data.success === true) {
-            globalState.vaultController.vault = {
-                uri: data.uri,
-                ename: data.w3id,
-            };
+        verificaitonId.set(data.id);
+        showVeriffModal = true;
+        watchEventStream(data.id);
+    }
+
+    function watchEventStream(id: string) {
+        const sseUrl = new URL(
+            `/verification/sessions/${id}`,
+            PUBLIC_PROVISIONER_URL,
+        ).toString();
+        const eventSource = new EventSource(sseUrl);
+
+        eventSource.onopen = () => {
+            console.log("Successfully connected.");
+        };
+
+        eventSource.onmessage = (e) => {
+            const data = JSON.parse(e.data as string);
+            if (!data.status) console.log(data);
+            console.log("STATUS", data);
+            status.set(data.status);
+            reason.set(data.reason);
+            person = data.person;
+            document = data.document;
+            if (data.status === "resubmission_requested") {
+                DocFront.set(null);
+                SelfiePic.set(null);
+            }
+            verifStep.set(2);
+        };
+    }
+
+    // IMO, call this function early, check if hardware even supports the app
+    // docs: https://github.com/auvoid/tauri-plugin-crypto-hw/blob/48d0b9db7083f9819766e7b3bfd19e39de9a77f3/examples/tauri-app/src/App.svelte#L13
+    async function generateApplicationKeyPair() {
+        let res: string | undefined;
+        try {
+            res = await generate("default");
+            console.log(res);
+        } catch (e) {
+            // Put hardware crypto missing error here
+            console.log(e);
         }
-        setTimeout(() => {
-            goto("/register");
-        }, 10_000);
-    };
-});
+        return res;
+    }
+
+    async function getApplicationPublicKey() {
+        let res: string | undefined;
+        try {
+            res = await getPublicKey("default");
+            console.log(res);
+        } catch (e) {
+            console.log(e);
+        }
+        return res; // check getPublicKey doc comments (multibase hex format)
+    }
+
+    let handleContinue: () => Promise<void>;
+
+    onMount(() => {
+        globalState = getContext<() => GlobalState>("globalState")();
+        // handle verification logic + sec user data in the store
+
+        // check if default key pair exists
+        const keyExists = exists("default");
+        if (!keyExists) {
+            generateApplicationKeyPair();
+        }
+
+        handleContinue = async () => {
+            if ($status !== "approved") return verifStep.set(0);
+            if (!globalState) throw new Error("Global state is not defined");
+
+            loading = true;
+            globalState.userController.user = {
+                name: capitalize(
+                    `${person.firstName.value} ${person.lastName.value}`,
+                ),
+                "Date of Birth": new Date(
+                    person.dateOfBirth.value,
+                ).toDateString(),
+                "ID submitted": `Passport - ${person.nationality.value}`,
+                "Passport Number": document.number.value,
+            };
+            globalState.userController.document = {
+                "Valid From": new Date(document.validFrom.value).toDateString(),
+                "Valid Until": new Date(
+                    document.validUntil.value,
+                ).toDateString(),
+                "Verified On": new Date().toDateString(),
+            };
+            globalState.userController.isFake = false;
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+            const { data } = await axios.post(
+                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                {
+                    registryEntropy,
+                    namespace: uuidv4(),
+                    verificationId: $verificaitonId,
+                    publicKey: await getApplicationPublicKey(),
+                },
+            );
+            if (data.success === true) {
+                globalState.vaultController.vault = {
+                    uri: data.uri,
+                    ename: data.w3id,
+                };
+            }
+            setTimeout(() => {
+                goto("/register");
+            }, 10_000);
+        };
+    });
 </script>
 
 <main
