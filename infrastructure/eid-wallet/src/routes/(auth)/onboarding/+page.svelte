@@ -9,6 +9,7 @@ import { GlobalState } from "$lib/global";
 import { ButtonAction, Drawer } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import {
+    exists,
     generate,
     getPublicKey,
     // signPayload, verifySignature
@@ -86,9 +87,16 @@ let uri: string;
 
 let error: string | null = $state(null);
 
-onMount(() => {
+onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
+
+    // check if default keypair exists
+    const keyExists = await exists("default");
+    if (!keyExists) {
+        // if not, generate it
+        await generateApplicationKeyPair();
+    }
 
     handleContinue = async () => {
         loading = true;
@@ -103,6 +111,7 @@ onMount(() => {
                 registryEntropy,
                 namespace: uuidv4(),
                 verificationId,
+                publicKey: await getApplicationPublicKey(),
             })
             .catch(() => {
                 loading = false;

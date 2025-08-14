@@ -9,7 +9,8 @@
         "store:default",
         "biometric:default",
         "barcode-scanner:default",
-        "deep-link:default"
+        "deep-link:default",
+        "crypto-hw:default"
     ],
     "platforms": ["iOS", "android"]
 }

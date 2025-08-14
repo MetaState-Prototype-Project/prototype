@@ -47,19 +47,19 @@ export default function LoginScreen() {
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data);
       console.log('Auth data received:', data);
-      
+
       const { user, token } = data;
-      
+
       // Set authentication data
       setAuthId(user.id);
       setAuthToken(token);
-      
+
       // Close the event source
       eventSource.close();
-      
+
       // Set authenticating state
       setIsAuthenticating(true);
-      
+
       // Force a page refresh to trigger AuthProvider re-initialization
       window.location.reload();
     };
@@ -90,8 +90,22 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+    <div className="flex flex-col gap-6 min-h-screen items-center justify-center p-4">
+        <div className="flex flex-col gap-2 items-center justify-center">
+            <div className="flex gap-4 justify-center items-center">
+                <Image
+                    src="/logo.png"
+                    alt="Group Charter Manager Logo"
+                    width={50}
+                    height={50}
+                />
+                <h1 className="text-3xl font-bold">Group Charter</h1>
+            </div>
+            <p class="text-gray-600">
+                Coordinate your group in the MetaState
+            </p>
+        </div>
+      <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Group Charter Manager
@@ -133,7 +147,7 @@ export default function LoginScreen() {
             Use your W3DS wallet to scan this QR code and authenticate
           </p>
         </div>
-        
+
         <div className="p-4 rounded-xl bg-gray-100 text-gray-700 mt-4">
           You are entering Group Charter - a group charter management
           platform built on the Web 3.0 Data Space (W3DS)
@@ -142,7 +156,7 @@ export default function LoginScreen() {
           is stored in your own sovereign eVault, not on centralised
           servers.
         </div>
-        
+
         <Image
           src="/W3DS.svg"
           alt="W3DS Logo"

@@ -43,6 +43,7 @@ pub fn run() {
             {
                 _app.handle().plugin(tauri_plugin_biometric::init())?;
                 _app.handle().plugin(tauri_plugin_barcode_scanner::init())?;
+                _app.handle().plugin(tauri_plugin_crypto_hw::init())?;
             }
             Ok(())
         })
