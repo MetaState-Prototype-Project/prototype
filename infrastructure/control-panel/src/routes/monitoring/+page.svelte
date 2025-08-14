@@ -1,171 +1,341 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { SvelteFlow, Background, Controls } from '@xyflow/svelte';
+	import { goto } from '$app/navigation';
+	import { onMount, onDestroy } from 'svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 	import { Logs, VaultNode } from '$lib/fragments';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
-	import { ButtonAction } from '$lib/ui';
-	import { Modal } from 'flowbite-svelte';
+	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import type { LogEvent } from '$lib/types';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
-	const customNodeTypes: NodeTypes = {
+	const customNodeTypes = {
 		vault: VaultNode
 	};
 
 	let isPaused = $state(false);
-	let isModalOpen = $state(false);
-	let selectedVaults: string[] = $state([]);
 
-	let nodes: Node[] = $state([
-		{
-			id: '1',
-			position: { x: 50, y: 50 },
-			data: { label: 'Alice', subLabel: 'alice.vault.dev' },
-			type: 'vault'
-		},
-		{
-			id: '2',
-			position: { x: 300, y: 150 },
-			data: { label: 'Pictique', subLabel: 'pictique.com' },
-			type: 'vault'
-		},
-		{
-			id: '3',
-			position: { x: 550, y: 50 },
-			data: { label: 'Bob', subLabel: 'bob.vault.dev' },
-			type: 'vault'
-		},
-		{
-			id: '4',
-			position: { x: 750, y: 250 },
-			data: { label: 'xyz', subLabel: 'xyz.vault.dev' },
-			type: 'vault'
+	// Read selected items from sessionStorage
+	let selectedEVaults = $state<any[]>([]);
+	let selectedPlatforms = $state<any[]>([]);
+	let nodes: Node[] = $state([]);
+	let edges: Edge[] = $state([]);
+
+	// Data flow state
+	let currentFlowStep = $state(0);
+	let flowMessages = $state<string[]>([]);
+	let eventSource: EventSource | null = null;
+	let highlightedNodeId = $state<string | null>(null);
+	let sequenceStarted = $state(false);
+
+	onMount(() => {
+		// Load selected items from sessionStorage
+		const evaultsData = sessionStorage.getItem('selectedEVaults');
+		const platformsData = sessionStorage.getItem('selectedPlatforms');
+
+		if (evaultsData) {
+			selectedEVaults = JSON.parse(evaultsData);
 		}
-	]);
+		if (platformsData) {
+			selectedPlatforms = JSON.parse(platformsData);
+		}
 
-	let edges: Edge[] = $derived(
-		(() => {
-			const generatedEdges: Edge[] = [];
+		// Create nodes from selected items
+		const newNodes: Node[] = [];
+		let nodeId = 1;
 
-			nodes.forEach((node, index, arr) => {
-				if (index < arr.length - 1) {
-					// Skip default connection if it's part of the explicit two-way connection
-					// This ensures we don't have duplicate edges
-					if (
-						(node.id === '1' && arr[index + 1].id === '2') ||
-						(node.id === '2' && arr[index + 1].id === '1')
-					) {
-						return;
-					}
-					generatedEdges.push({
-						id: `e${node.id}-${arr[index + 1].id}`,
-						source: node.id,
-						target: arr[index + 1].id,
-						animated: !isPaused,
-						type: 'smoothstep',
-						label: `from ${node.data.label}`,
-						style: 'stroke: #4CAF50; stroke-width: 2;'
-					});
-				}
-			});
-
-			generatedEdges.push(
-				{
-					id: 'e-alice-to-pictique',
-					source: '1',
-					target: '2',
-					animated: !isPaused,
-					type: 'smoothstep',
-					label: 'from Alice',
-					labelStyle: 'fill: #fff; fontWeight: 700',
-					style: 'stroke: #007BFF; stroke-width: 2;'
+		// Add eVaults in one row at the top (y: 100)
+		selectedEVaults.forEach((evault, index) => {
+			newNodes.push({
+				id: `evault-${index + 1}`,
+				position: { x: 100 + index * 400, y: 100 },
+				data: {
+					label: evault.evaultId || evault.name || 'eVault',
+					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
+					type: 'evault',
+					selected: false
 				},
-				{
-					id: 'e-pictique-from-alice',
-					source: '2',
-					target: '1',
-					animated: !isPaused,
-					type: 'smoothstep',
-					label: 'from Pictique',
-					labelStyle: 'fill: #fff; fontWeight: 700',
-					style: 'stroke: #FFA500; stroke-width: 2;'
-				}
-			);
+				type: 'vault'
+			});
+		});
 
-			return generatedEdges;
-		})()
-	);
+		// Add platforms in one row at the bottom (y: 400)
+		selectedPlatforms.forEach((platform, index) => {
+			newNodes.push({
+				id: `platform-${index + 1}`,
+				position: { x: 100 + index * 400, y: 400 },
+				data: {
+					label: platform.name,
+					subLabel: platform.url,
+					type: 'platform',
+					selected: false
+				},
+				type: 'vault'
+			});
+		});
+
+		nodes = newNodes;
+		// Start with no edges (connections)
+		edges = [];
+
+		// Load SvelteFlow component
+		loadSvelteFlow();
+	});
+
+	async function loadSvelteFlow() {
+		const mod = await import('@xyflow/svelte');
+		SvelteFlowComponent = mod.SvelteFlow;
+	}
+
+	onDestroy(() => {
+		if (eventSource) {
+			eventSource.close();
+		}
+	});
+
+	function subscribeToEvents() {
+		eventSource = new EventSource('/api/events');
+
+		eventSource.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data);
+				handleFlowEvent(data);
+			} catch (error) {
+				console.error('Error parsing SSE data:', error);
+			}
+		};
+
+		eventSource.onerror = (error) => {
+			console.error('SSE connection error:', error);
+			// Try to reconnect after a delay
+			setTimeout(() => {
+				if (eventSource) {
+					eventSource.close();
+					subscribeToEvents();
+				}
+			}, 2000);
+		};
+
+		eventSource.onopen = () => {
+			console.log('SSE connection established');
+		};
+	}
+
+	function handleFlowEvent(data: any) {
+		switch (data.type) {
+			case 'platform_message_created':
+				handlePlatformMessageCreated(data);
+				break;
+			case 'request_sent_to_evault':
+				handleRequestSentToEvault(data);
+				break;
+			case 'evault_metaenvelope_created':
+				handleEvaultMetaenvelopeCreated(data);
+				break;
+			case 'notify_platforms_awareness':
+				handleNotifyPlatformsAwareness(data);
+				break;
+		}
+	}
+
+	function handlePlatformMessageCreated(data: any) {
+		currentFlowStep = 1;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date().toLocaleTimeString()}] ${data.platformName}: ${data.message}`
+		];
+
+		// Highlight the platform
+		highlightNode(`platform-${data.platformIndex + 1}`);
+	}
+
+	function handleRequestSentToEvault(data: any) {
+		currentFlowStep = 2;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date().toLocaleTimeString()}] Request sent from ${data.platformName} to eVault ${data.evaultIndex + 1}`
+		];
+
+		// Clear old edges first
+		edges = [];
+
+		// Create arrow from platform to eVault
+		const platformId = `platform-${data.platformIndex + 1}`;
+		const evaultId = `evault-${data.evaultIndex + 1}`;
+
+		console.log('Creating edge from:', platformId, 'to:', evaultId);
+
+		const newEdge: Edge = {
+			id: `flow-${Date.now()}`,
+			source: platformId,
+			target: evaultId,
+			type: 'bezier',
+			animated: true,
+			style: 'stroke: #007BFF; stroke-width: 3; marker-end: url(#arrowhead-blue);',
+			label: 'Syncing to eVault'
+		};
+
+		edges = [newEdge];
+
+		// Remove this edge after 5 seconds
+		setTimeout(() => {
+			edges = edges.filter((edge) => edge.id !== newEdge.id);
+		}, 5000);
+	}
+
+	function handleEvaultMetaenvelopeCreated(data: any) {
+		currentFlowStep = 3;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date().toLocaleTimeString()}] eVault ${data.evaultIndex + 1}: ${data.message}`
+		];
+
+		// Highlight the eVault
+		highlightNode(`evault-${data.evaultIndex + 1}`);
+	}
+
+	function handleNotifyPlatformsAwareness(data: any) {
+		currentFlowStep = 4;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date().toLocaleTimeString()}] eVault ${data.evaultIndex + 1}: ${data.message}`
+		];
+
+		// Clear old edges first
+		edges = [];
+
+		// Create edges from eVault to all platforms
+		const evaultId = `evault-${data.evaultIndex + 1}`;
+		const newEdges: Edge[] = selectedPlatforms.map((platform, index) => ({
+			id: `awareness-${Date.now()}-${index}`,
+			source: evaultId,
+			target: `platform-${index + 1}`,
+			type: 'bezier',
+			animated: true,
+			style: 'stroke: #28a745; stroke-width: 3; marker-end: url(#arrowhead-green);',
+			label: 'Awareness Protocol'
+		}));
+
+		edges = newEdges;
+
+		// Remove all awareness edges after 5 seconds
+		setTimeout(() => {
+			edges = edges.filter((edge) => !edge.id.startsWith('awareness-'));
+		}, 5000);
+	}
+
+	function highlightNode(nodeId: string) {
+		// Set the highlighted node
+		highlightedNodeId = nodeId;
+
+		// Update the node data to show it's selected
+		nodes = nodes.map((node) => {
+			if (node.id === nodeId) {
+				return {
+					...node,
+					data: {
+						...node.data,
+						selected: true
+					}
+				};
+			} else {
+				return {
+					...node,
+					data: {
+						...node.data,
+						selected: false
+					}
+				};
+			}
+		});
+
+		// Remove highlight after 2 seconds
+		setTimeout(() => {
+			highlightedNodeId = null;
+			nodes = nodes.map((node) => ({
+				...node,
+				data: {
+					...node.data,
+					selected: false
+				}
+			}));
+		}, 2000);
+	}
 
 	let currentSelectedEventIndex = $state(-1);
 
-	const events: LogEvent[] = [
-		{
-			timestamp: new Date(),
-			action: 'upload',
-			message: 'msg_123',
-			to: 'alice.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'fetch',
-			message: 'msg_124',
-			from: 'bob.vault.dev'
-		},
-		{
-			timestamp: new Date(),
-			action: 'webhook',
-			to: 'Alice',
-			from: 'Pic'
+	// Function to start the sequence
+	function startSequence() {
+		// If already running, don't restart
+		if (sequenceStarted && currentFlowStep < 4) return;
+
+		sequenceStarted = true;
+		currentFlowStep = 0;
+		// Don't clear flowMessages - keep old logs
+		edges = [];
+
+		// Close existing connection if any
+		if (eventSource) {
+			eventSource.close();
 		}
-	];
 
-	let availableVaults = $state([
-		// Renamed to clarify its purpose
-		{
-			id: '5',
-			position: { x: 950, y: 350 },
-			data: { label: 'personal', subLabel: 'Personal.vault.dev' },
-			type: 'vault'
-		},
-		{
-			id: '6',
-			position: { x: 1150, y: 550 },
-			data: { label: 'Another', subLabel: 'Another.vault.dev' },
-			type: 'vault'
-		}
-	]);
-
-	function addVaultsToFlow() {
-		const vaultsToAdd = availableVaults.filter((vault) => selectedVaults.includes(vault.id));
-		nodes = [...nodes, ...vaultsToAdd];
-
-		availableVaults = availableVaults.filter((vault) => !selectedVaults.includes(vault.id));
-		selectedVaults = [];
-		isModalOpen = false;
+		// Start new SSE connection
+		subscribeToEvents();
 	}
 
-	onMount(async () => {
-		const mod = await import('@xyflow/svelte');
-		SvelteFlowComponent = mod.SvelteFlow;
-	});
+	// Function to reset the sequence
+	function resetSequence() {
+		sequenceStarted = false;
+		currentFlowStep = 0;
+		// Don't clear flowMessages - keep old logs
+		edges = [];
+
+		// Close existing connection
+		if (eventSource) {
+			eventSource.close();
+			eventSource = null;
+		}
+	}
 </script>
 
 <section class="flex h-full w-full">
 	<div class="bg-gray flex h-screen w-screen flex-col">
 		<div class="z-10 flex w-full items-center justify-between bg-white p-4 shadow-sm">
-			<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
+			<div>
+				<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
+				<p class="mt-1 text-sm text-gray-600">
+					Monitoring {selectedEVaults.length} eVault{selectedEVaults.length !== 1
+						? 's'
+						: ''} and {selectedPlatforms.length} platform{selectedPlatforms.length !== 1
+						? 's'
+						: ''}
+				</p>
+				{#if currentFlowStep > 0}
+					<div class="mt-2 flex items-center gap-2">
+						<div class="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
+						<span class="text-xs font-medium text-green-600">
+							{currentFlowStep === 1
+								? 'Platform creating message'
+								: currentFlowStep === 2
+									? 'Request sent to eVault'
+									: currentFlowStep === 3
+										? 'eVault created metaenvelope'
+										: currentFlowStep === 4
+											? 'Notifying platforms'
+											: 'Complete'}
+						</span>
+					</div>
+				{/if}
+			</div>
 			<div class="flex gap-2">
-				<ButtonAction
-					class="w-[max-content] shadow-md"
-					variant="soft"
-					size="sm"
-					callback={() => {
-						isModalOpen = !isModalOpen;
-					}}>+ Add Vault</ButtonAction
+				<button
+					onclick={() => goto('/')}
+					class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
 				>
+					← Back to Control Panel
+				</button>
 				<button
 					onclick={() => (isPaused = !isPaused)}
 					class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
@@ -181,54 +351,96 @@
 		</div>
 
 		{#if SvelteFlowComponent}
-			<div class="flex-grow">
-				<SvelteFlowComponent
-					bind:nodes
-					bind:edges
-					nodeTypes={customNodeTypes}
-					style="width: 100%; height: 100%; background: transparent;"
-				/>
-			</div>
+			{#if selectedEVaults.length === 0 && selectedPlatforms.length === 0}
+				<div class="flex flex-grow items-center justify-center">
+					<div class="text-center">
+						<h3 class="mb-2 text-xl font-semibold text-gray-700">No Items Selected</h3>
+						<p class="text-gray-500">
+							Go back to the main page and select eVaults and platforms to monitor.
+						</p>
+					</div>
+				</div>
+			{:else}
+				<div class="flex-grow">
+					<SvelteFlow
+						bind:nodes
+						bind:edges
+						nodeTypes={customNodeTypes}
+						style="width: 100%; height: 100%; background: transparent;"
+					>
+						<Background />
+						<Controls />
+
+						<!-- SVG Definitions for Arrow Markers -->
+						<svg style="position: absolute; width: 0; height: 0;">
+							<defs>
+								<marker
+									id="arrowhead-blue"
+									markerWidth="3"
+									markerHeight="7"
+									refX="3"
+									refY="3.5"
+									orient="auto"
+								>
+									<polygon points="0 0, 3 3.5, 0 7" fill="#007BFF" />
+								</marker>
+								<marker
+									id="arrowhead-green"
+									markerWidth="3"
+									markerHeight="7"
+									refX="3"
+									refY="3.5"
+									orient="auto"
+								>
+									<polygon points="0 0, 3 3.5, 0 7" fill="#28a745" />
+								</marker>
+							</defs>
+						</svg>
+					</SvelteFlow>
+				</div>
+			{/if}
 		{:else}
 			<div class="flex flex-grow items-center justify-center text-gray-700">
 				Loading flow chart...
 			</div>
 		{/if}
 	</div>
-	<Logs class="w-[40%]" {events} bind:activeEventIndex={currentSelectedEventIndex} />
-</section>
 
-<Modal
-	bind:open={isModalOpen}
-	class="absolute start-[50%] top-[50%] w-full max-w-[30vw] translate-x-[-50%] translate-y-[-50%] p-4"
-	closeBtnClass="fixed end-4 top-4"
->
-	<h4 class="text-primary mb-2">Search vaults</h4>
-	<input
-		type="search"
-		value=""
-		placeholder="Please search vaults to add"
-		class="bg-gray font-geist placeholder:font-geist w-full rounded-4xl border-transparent px-4 py-3 text-base text-black outline-transparent placeholder:text-gray-600"
-	/>
-
-	<ul class="mt-4">
-		{#each availableVaults as vault (vault.id)}
-			<li
-				class="bg-gray mb-2 flex items-center gap-4 rounded-2xl px-4 py-1 hover:bg-gray-200"
-			>
-				<input id={vault.id} type="checkbox" value={vault.id} bind:group={selectedVaults} />
-
-				<label for={vault.id} class="inline-block w-full cursor-pointer">
-					<p>{vault.data.label}</p>
-					<p class="small">{vault.data.subLabel}</p>
-				</label>
-			</li>
-		{/each}
-	</ul>
-	<ButtonAction variant="solid" size="sm" class="mt-4 w-full" callback={addVaultsToFlow}
-		>Add Voults</ButtonAction
+	<!-- Flow Messages Panel -->
+	<div
+		class="w-[40%] cursor-pointer bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+		onclick={!sequenceStarted || currentFlowStep >= 4 ? startSequence : undefined}
+		class:cursor-pointer={!sequenceStarted || currentFlowStep >= 4}
+		class:cursor-default={sequenceStarted && currentFlowStep < 4}
 	>
-</Modal>
+		<div class="mb-4">
+			<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
+			{#if sequenceStarted}
+				<div class="mt-2 text-sm text-gray-600">
+					Current Step: {currentFlowStep === 0
+						? 'Waiting...'
+						: currentFlowStep === 1
+							? 'Platform creating message'
+							: currentFlowStep === 2
+								? 'Request sent to eVault'
+								: currentFlowStep === 3
+									? 'eVault created metaenvelope'
+									: currentFlowStep === 4
+										? 'Notifying platforms'
+										: 'Complete'}
+				</div>
+			{/if}
+		</div>
+
+		<div class="max-h-96 space-y-2 overflow-y-auto">
+			{#each flowMessages as message, i}
+				<div class="rounded bg-gray-50 p-2 font-mono text-sm">
+					{message}
+				</div>
+			{/each}
+		</div>
+	</div>
+</section>
 
 <style>
 	/*
@@ -245,5 +457,27 @@
 	:global(.svelte-flow) {
 		background-color: transparent !important;
 		--xy-edge-label-color-default: black;
+	}
+
+	/* Make edge labels bigger and more readable */
+	:global(.svelte-flow__edge-label) {
+		font-size: 14px !important;
+		font-weight: 600 !important;
+		background-color: rgba(255, 255, 255, 0.9) !important;
+		padding: 4px 8px !important;
+		border-radius: 4px !important;
+		border: 1px solid rgba(0, 0, 0, 0.1) !important;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+	}
+
+	/* Make default edges more curved and squiggly */
+	:global(.svelte-flow__edge-path) {
+		stroke-linecap: round !important;
+		stroke-linejoin: round !important;
+	}
+
+	/* Override the default edge path to be more curved */
+	:global(.svelte-flow__edge.default .svelte-flow__edge-path) {
+		stroke-dasharray: none !important;
 	}
 </style>

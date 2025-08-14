@@ -43,7 +43,10 @@
 	tabindex="0"
 	role="checkbox"
 	aria-checked={checked}
-	onclick={() => inputElement?.click()}
+	onclick={(e) => {
+		e.stopPropagation();
+		inputElement?.click();
+	}}
 >
 	{#if checked}
 		<span class="bg-primary block h-2 w-2 rounded-[1px]"></span>

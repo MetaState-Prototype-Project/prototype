@@ -67,6 +67,7 @@
 		onSort?: (column: string) => void;
 		sortBy?: string;
 		sortOrder?: 'asc' | 'desc';
+		onSelectionChange?: (index: number, checked: boolean) => void;
 	}
 
 	let {
@@ -88,6 +89,7 @@
 		onSort,
 		sortBy,
 		sortOrder,
+		onSelectionChange,
 		...restProps
 	}: ITableProps = $props();
 
@@ -107,6 +109,11 @@
 		const all = checkItems.every(Boolean);
 		if (checkAll !== all) {
 			checkAll = all;
+		}
+
+		// Call the onSelectionChange callback if provided
+		if (onSelectionChange) {
+			onSelectionChange(i, checked);
 		}
 	}
 
@@ -210,7 +217,7 @@
 >
 	<TableHead class="sticky top-0 h-[var(--table-header-height)] bg-white">
 		{#if withSelection}
-			<TableHeadCell class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
+			<TableHeadCell class="wide:px-5 w-[48px] min-w-[48px] max-w-[48px] rounded-l-2xl p-4">
 				<Checkbox checked={checkAll} onchange={(e) => toggleCheckAll(e as boolean)} />
 			</TableHeadCell>
 		{/if}
@@ -239,15 +246,24 @@
 		<TableBody>
 			{#each tableData as data, i}
 				<TableBodyRow
-					onclick={() => {
-						selectedRow = i;
-						handleSelectedRow && handleSelectedRow(i);
+					onclick={(e) => {
+						// Don't trigger row selection if clicking on checkbox area
+						const target = e.target as HTMLElement;
+						const isCheckboxClick =
+							target.closest('th') ||
+							target.closest('[role="checkbox"]') ||
+							target.closest('input[type="checkbox"]');
+
+						if (!isCheckboxClick) {
+							selectedRow = i;
+							handleSelectedRow && handleSelectedRow(i);
+						}
 					}}
-					class="hover:bg-gray w-full bg-white select-none
+					class="hover:bg-gray w-full select-none bg-white
                         {selectedRow === i && 'bg-gray!'}"
 				>
 					{#if withSelection}
-						<th class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
+						<th class="wide:px-5 w-[48px] min-w-[48px] max-w-[48px] rounded-l-2xl p-4">
 							<Checkbox
 								checked={checkItems[i]}
 								onchange={(e) => toggleCheckItem(i, e as boolean)}
@@ -309,7 +325,7 @@
 
 {#snippet BodyCell(data: Record<string, TableCell>, field: string, i: number)}
 	<TableBodyCell
-		class="wide:text-base font-roboto text-black-700 overflow-hidden p-2 text-xs font-normal text-ellipsis
+		class="wide:text-base font-roboto text-black-700 overflow-hidden text-ellipsis p-2 text-xs font-normal
             {i === 0 && !withSelection && 'rounded-s-2xl pl-6'}
             {i === Object.keys(data).length - 1 && 'rounded-e-2xl'}
         "
