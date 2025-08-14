@@ -305,6 +305,13 @@ export class Web3Adapter {
         );
 
         if (!this.mapping[tableName]) return;
+        
+        if (this.mapping[tableName].readOnly) {
+            // early return on mappings which are readonly so as to not 
+            // sync any update to the eVault which is not warranted
+            return;
+        }
+        
         console.log("We get here?");
         // If we already have a mapping, use that global ID
 

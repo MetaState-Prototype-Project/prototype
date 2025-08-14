@@ -12,5 +12,6 @@
         "participants": "users(participants[].id),participantIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
-    }
+    },
+    "readOnly": true
 } 

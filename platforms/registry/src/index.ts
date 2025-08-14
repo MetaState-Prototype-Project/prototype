@@ -99,7 +99,13 @@ server.post("/platforms/certification", async (request, reply) => {
 });
 
 server.get("/platforms", async (request, reply) => {
-    const platforms = [ process.env.PUBLIC_PICTIQUE_BASE_URL, process.env.PUBLIC_BLABSY_BASE_URL, process.env.PUBLIC_GROUP_CHARTER_BASE_URL, process.env.PUBLIC_CERBERUS_BASE_URL ]
+    const platforms = [ 
+        process.env.PUBLIC_PICTIQUE_BASE_URL, 
+        process.env.PUBLIC_BLABSY_BASE_URL, 
+        process.env.PUBLIC_GROUP_CHARTER_BASE_URL, 
+        process.env.PUBLIC_CERBERUS_BASE_URL, 
+        process.env.PUBLIC_EVOTING_BASE_URL,
+    ]
 
     return platforms
 });
