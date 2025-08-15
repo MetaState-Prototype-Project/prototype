@@ -14,7 +14,7 @@ import { AppDataSource } from "../../database/data-source";
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
-    dbPath: path.resolve(process.env.GROUP_CHARTER_MAPPING_DB_PATH as string),
+    dbPath: path.resolve(process.env.EVOTING_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
     platform: process.env.PUBLIC_GROUP_CHARTER_BASE_URL as string,
 });

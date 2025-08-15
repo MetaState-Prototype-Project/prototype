@@ -36,9 +36,11 @@ export class GroupService {
 
     async createGroup(
         name: string,
-        description?: string,
-        memberIds: string[] = [],
-        adminIds: string[] = [],
+        description: string,
+        owner: string,
+        adminIds: string[],
+        memberIds: string[],
+        charter?: string,
         isPrivate: boolean = false,
         visibility: "public" | "private" | "restricted" = "public",
         avatarUrl?: string,
@@ -61,8 +63,11 @@ export class GroupService {
         const group = this.groupRepository.create({
             name,
             description,
+            owner,
+            charter,
             members,
             admins,
+            participants: members, // Also set participants for compatibility
             isPrivate,
             visibility,
             avatarUrl,
@@ -74,7 +79,7 @@ export class GroupService {
     async getGroupById(id: string): Promise<Group | null> {
         return await this.groupRepository.findOne({
             where: { id },
-            relations: ["members", "admins"],
+            relations: ["members", "admins", "participants"],
         });
     }
 
@@ -123,7 +128,7 @@ export class GroupService {
             throw new Error("One or more members not found");
         }
 
-        group.members = [...group.members, ...newMembers];
+        group.participants = [...group.participants, ...newMembers];
         return await this.groupRepository.save(group);
     }
 
@@ -148,6 +153,7 @@ export class GroupService {
             throw new Error("Group not found");
         }
 
+        // Verify the users exist
         const newAdmins = await this.userRepository.findBy({
             id: In(adminIds),
         });
@@ -209,7 +215,7 @@ export class GroupService {
     async isUserMember(groupId: string, userId: string): Promise<boolean> {
         const group = await this.getGroupById(groupId);
         if (!group) return false;
-        return group.members.some(m => m.id === userId);
+        return group.participants.some(m => m.id === userId);
     }
 
     async isUserAdmin(groupId: string, userId: string): Promise<boolean> {

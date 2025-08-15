@@ -3,6 +3,7 @@ import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
 import { formatDistanceToNow, set } from 'date-fns';
 import type { Message } from '@lib/types/message';
+import { getChatType } from '@lib/types/chat';
 import {
     UserIcon,
     PaperAirplaneIcon,
@@ -141,7 +142,7 @@ export function ChatWindow(): JSX.Element {
                 setParticipantsData(newParticipantsData);
 
                 // Set otherUser for direct chats
-                if (currentChat.type === 'direct') {
+                if (getChatType(currentChat) === 'direct') {
                     const otherParticipant = currentChat.participants.find(
                         (p) => p !== user?.id
                     );
@@ -227,20 +228,20 @@ export function ChatWindow(): JSX.Element {
                             </div>
                             <div>
                                 <p className='font-medium'>
-                                    {currentChat.type === 'direct'
+                                    {getChatType(currentChat) === 'direct'
                                         ? otherUser?.name ||
                                           otherUser?.username ||
                                           otherParticipant
                                         : currentChat.name}
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                    {currentChat.type === 'direct'
+                                    {getChatType(currentChat) === 'direct'
                                         ? 'Direct Message'
                                         : `${currentChat.participants.length} participants`}
                                 </p>
                             </div>
                         </div>
-                        {currentChat.type === 'group' && (
+                        {getChatType(currentChat) === 'group' && (
                             <div className='flex items-center gap-2'>
                                 <div>
                                     <button
@@ -291,7 +292,7 @@ export function ChatWindow(): JSX.Element {
                                         // 2. Previous message is from different sender OR doesn't exist OR
                                         // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
-                                            currentChat?.type === 'group' &&
+                                            getChatType(currentChat) === 'group' &&
                                             !isOwnMessage &&
                                             (!prevMessage ||
                                                 prevMessage.senderId !==

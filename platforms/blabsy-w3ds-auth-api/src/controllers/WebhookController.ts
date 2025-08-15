@@ -43,7 +43,7 @@ type Tweet = {
 
 type Chat = {
     id: string;
-    type: "direct" | "group";
+    type: "direct" | "group";  // Always set by webhook based on participant count
     name?: string;
     participants: string[];
     createdAt: Timestamp;
@@ -269,13 +269,17 @@ export class WebhookController {
     }
 
     private mapChatData(data: any, now: Timestamp): Partial<Chat> {
+        const participants = data.participants.map(
+            (p: string) => p.split("(")[1].split(")")[0],
+        ) || [];
+        
+        // Derive type from participant count
+        const type = participants.length > 2 ? "group" : "direct";
+        
         return {
-            type: data.type || "direct",
+            type,
             name: data.name,
-            participants:
-                data.participants.map(
-                    (p: string) => p.split("(")[1].split(")")[0],
-                ) || [],
+            participants,
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
                 : now,

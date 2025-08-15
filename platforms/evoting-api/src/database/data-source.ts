@@ -3,6 +3,7 @@ import path from "node:path";
 import { config } from "dotenv";
 import { DataSource, type DataSourceOptions } from "typeorm";
 import { User } from "./entities/User";
+import { Group } from "./entities/Group";
 import { Verification } from "./entities/Verification";
 import { Poll } from "./entities/Poll";
 import { Vote } from "./entities/Vote";
@@ -14,7 +15,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.EVOTING_DATABASE_URL,
     synchronize: false,
-    entities: [User, Verification, Poll, Vote, MetaEnvelopeMap],
+    entities: [User, Group, Verification, Poll, Vote, MetaEnvelopeMap],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
 };

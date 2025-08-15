@@ -9,7 +9,7 @@ export type ChatType = 'direct' | 'group';
 
 export type Chat = {
     id: string;
-    type: ChatType;
+    type?: ChatType; // Make type optional for backward compatibility
     name?: string; // Required for group chats
     description?: string;
     participants: string[]; // Array of user IDs
@@ -23,6 +23,19 @@ export type Chat = {
         timestamp: Timestamp;
     };
 };
+
+// Helper function to derive chat type from participant count
+export function deriveChatType(participants: string[]): ChatType {
+    return participants.length > 2 ? 'group' : 'direct';
+}
+
+// Helper function to get chat type (with fallback for backward compatibility)
+export function getChatType(chat: Chat): ChatType {
+    if (chat.type) {
+        return chat.type; // Use explicit type if it exists (backward compatibility)
+    }
+    return deriveChatType(chat.participants); // Derive from participant count
+}
 
 export const chatConverter = {
     toFirestore(chat: WithFieldValue<Chat>): DocumentData {

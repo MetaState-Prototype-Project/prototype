@@ -84,7 +84,12 @@ export class GroupController {
     // Get user's groups
     getUserGroups = async (req: Request, res: Response) => {
         try {
-            const { userId } = req.params;
+            // Get user ID from authenticated request
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
             const { page = 1, limit = 10 } = req.query;
             
             const result = await this.groupService.getUserGroups(
@@ -93,7 +98,8 @@ export class GroupController {
                 parseInt(limit as string)
             );
             
-            res.json(result);
+            // Return just the groups array, not the full result object
+            res.json(result.groups);
         } catch (error) {
             console.error("Error getting user groups:", error);
             res.status(500).json({ error: "Failed to get user groups" });

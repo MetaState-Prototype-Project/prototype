@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,13 +12,15 @@ import {
     ChartLine,
     ListOrdered,
     CircleUser,
+    Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { pollApi } from "@/lib/pollApi";
+import { pollApi, type Group } from "@/lib/pollApi";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -26,6 +28,7 @@ const createPollSchema = z.object({
     title: z.string().min(1, "Poll title is required"),
     mode: z.enum(["normal", "point", "rank"]),
     visibility: z.enum(["public", "private"]),
+    groupId: z.string().min(1, "Please select a group"),
     options: z
         .array(z.string().min(1, "Option cannot be empty"))
         .min(2, "At least 2 options required"),
@@ -46,6 +49,8 @@ export default function CreatePoll() {
     const router = useRouter();
     const [options, setOptions] = useState<string[]>(["", ""]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [groups, setGroups] = useState<Group[]>([]);
+    const [isLoadingGroups, setIsLoadingGroups] = useState(true);
 
     const {
         register,
@@ -59,11 +64,34 @@ export default function CreatePoll() {
             title: "",
             mode: "normal",
             visibility: "public",
+            groupId: "",
             options: ["", ""],
             deadline: "",
         },
     });
 
+    // Fetch user's groups on component mount
+    useEffect(() => {
+        const fetchGroups = async () => {
+            try {
+                const userGroups = await pollApi.getUserGroups();
+                // Ensure groups is always an array
+                setGroups(Array.isArray(userGroups) ? userGroups : []);
+            } catch (error) {
+                console.error("Failed to fetch groups:", error);
+                setGroups([]); // Set empty array on error
+                toast({
+                    title: "Error",
+                    description: "Failed to load your groups. Please try again.",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsLoadingGroups(false);
+            }
+        };
+
+        fetchGroups();
+    }, [toast]);
 
 
     const watchedMode = watch("mode");
@@ -97,6 +125,7 @@ export default function CreatePoll() {
                 title: data.title,
                 mode: data.mode,
                 visibility: data.visibility,
+                groupId: data.groupId,
                 options: data.options.filter(option => option.trim() !== ""),
                 deadline: data.deadline || undefined
             });
@@ -129,18 +158,16 @@ export default function CreatePoll() {
                 onSubmit={handleSubmit(onSubmit)}
                 className="card p-8 space-y-6"
             >
+                {/* Vote Question */}
                 <div>
-                    <Label
-                        htmlFor="title"
-                        className="text-sm font-semibold text-gray-700"
-                    >
+                    <Label className="text-sm font-semibold text-gray-700">
                         Vote Question
                     </Label>
                     <Input
-                        id="title"
                         {...register("title")}
                         placeholder="Enter your vote question"
                         className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
+                        required
                     />
                     {errors.title && (
                         <p className="mt-1 text-sm text-red-600">
@@ -149,103 +176,130 @@ export default function CreatePoll() {
                     )}
                 </div>
 
+                {/* Group Selection */}
+                <div>
+                    <Label className="text-sm font-semibold text-gray-700">
+                        Group
+                    </Label>
+                    <Select onValueChange={(value) => setValue("groupId", value)}>
+                        <SelectTrigger className="w-full mt-2">
+                            <SelectValue placeholder="Select a group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {isLoadingGroups ? (
+                                <SelectItem value="loading" disabled>Loading groups...</SelectItem>
+                            ) : !Array.isArray(groups) || groups.length === 0 ? (
+                                <SelectItem value="no-groups" disabled>No groups found. Create one!</SelectItem>
+                            ) : (
+                                groups.map((group) => (
+                                    <SelectItem key={group.id} value={group.id}>
+                                        {group.name}
+                                    </SelectItem>
+                                ))
+                            )}
+                        </SelectContent>
+                    </Select>
+                    {errors.groupId && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.groupId.message}
+                        </p>
+                    )}
+                </div>
+
+                {/* Vote Deadline */}
+                <div>
+                    <Label className="text-sm font-semibold text-gray-700">
+                        Vote Deadline (Optional)
+                    </Label>
+                    <Input
+                        {...register("deadline")}
+                        type="datetime-local"
+                        className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
+                    />
+                    <p className="mt-1 text-sm text-gray-500">
+                        Leave empty for no deadline. Voting will be open indefinitely.
+                    </p>
+                    {errors.deadline && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.deadline.message}
+                        </p>
+                    )}
+                </div>
+
+                {/* Vote Type */}
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
                         Vote Type
                     </Label>
-                    <RadioGroup
-                        value={watchedMode}
-                        onValueChange={(value) =>
-                            setValue(
-                                "mode",
-                                value as "normal" | "point" | "rank"
-                            )
-                        }
-                        className="mt-2"
-                    >
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <Label className="flex items-center cursor-pointer">
-                                <RadioGroupItem
-                                    value="normal"
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
-                                        watchedMode === "normal"
-                                            ? "border-(--crimson) bg-(--crimson-50)"
-                                            : "border-gray-300 hover:border-(--crimson)"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <CircleUser className="text-(--crimson) w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900">
-                                                Simple
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Select one option to vote for
-                                            </div>
-                                        </div>
-                                    </div>
+                    <div className="mt-2 space-y-3">
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedMode === "normal" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="normal"
+                                {...register("mode")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <CircleUser className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">Simple</div>
+                                    <div className="text-sm opacity-90">Select one option to vote for</div>
                                 </div>
-                            </Label>
+                            </div>
+                        </Label>
 
-                            <Label className="flex items-center cursor-pointer">
-                                <RadioGroupItem
-                                    value="point"
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
-                                        watchedMode === "point"
-                                            ? "border-(--crimson) bg-(--crimson-50)"
-                                            : "border-gray-300 hover:border-(--crimson)"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <ChartLine className="text-(--crimson) w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900">
-                                                PBV
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Each voter gets 100 points
-                                            </div>
-                                        </div>
-                                    </div>
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedMode === "point" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="point"
+                                {...register("mode")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <ChartLine className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">PBV</div>
+                                    <div className="text-sm opacity-90">Each voter gets 100 points</div>
                                 </div>
-                            </Label>
+                            </div>
+                        </Label>
 
-                            <Label className="flex items-center cursor-pointer">
-                                <RadioGroupItem
-                                    value="rank"
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
-                                        watchedMode === "rank"
-                                            ? "border-(--crimson) bg-(--crimson-50)"
-                                            : "border-gray-300 hover:border-(--crimson)"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <ListOrdered className="text-(--crimson) w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900">
-                                                RBV
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Voters can rank order the
-                                                choices
-                                            </div>
-                                        </div>
-                                    </div>
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedMode === "rank" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="rank"
+                                {...register("mode")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <ListOrdered className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">RBV</div>
+                                    <div className="text-sm opacity-90">Voters can rank order the choices</div>
                                 </div>
-                            </Label>
-                        </div>
-                    </RadioGroup>
+                            </div>
+                        </Label>
+                    </div>
+                    {errors.mode && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.mode.message}
+                        </p>
+                    )}
                 </div>
 
+                {/* Voting Weight */}
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
                         Voting Weight
@@ -276,10 +330,9 @@ export default function CreatePoll() {
                                     </div>
                                 </div>
                             </Label>
-
                             <Label className="flex items-center cursor-not-allowed opacity-50">
                                 <RadioGroupItem
-                                    value="reputation"
+                                    value="ereputation"
                                     className="sr-only"
                                     disabled
                                 />
@@ -299,106 +352,63 @@ export default function CreatePoll() {
                             </Label>
                         </div>
                     </RadioGroup>
-                    <p className="mt-2 text-sm text-gray-500 italic">
-                        Coming soon - currently disabled
-                    </p>
+                    <p className="mt-2 text-sm text-gray-500">Coming soon - currently disabled</p>
                 </div>
 
+                {/* Vote Visibility */}
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
                         Vote Visibility
                     </Label>
-                    <RadioGroup
-                        value={watchedVisibility}
-                        onValueChange={(value) =>
-                            setValue(
-                                "visibility",
-                                value as "public" | "private"
-                            )
-                        }
-                        className="mt-2"
-                    >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Label className="flex items-center cursor-pointer">
-                                <RadioGroupItem
-                                    value="public"
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
-                                        watchedVisibility === "public"
-                                            ? "border-(--crimson) bg-(--crimson-50)"
-                                            : "border-gray-300 hover:border-(--crimson)"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <Eye className="text-(--crimson) w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900">
-                                                Public
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Voters are public
-                                            </div>
-                                        </div>
-                                    </div>
+                    <div className="mt-2 space-y-3">
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedVisibility === "public" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="public"
+                                {...register("visibility")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <Eye className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">Public</div>
+                                    <div className="text-sm opacity-90">Voters are public</div>
                                 </div>
-                            </Label>
+                            </div>
+                        </Label>
 
-                            <Label className="flex items-center cursor-pointer">
-                                <RadioGroupItem
-                                    value="private"
-                                    className="sr-only"
-                                />
-                                <div
-                                    className={`border-2 rounded-lg p-4 w-full h-24 transition-all ${
-                                        watchedVisibility === "private"
-                                            ? "border-(--crimson) bg-(--crimson-50)"
-                                            : "border-gray-300 hover:border-(--crimson)"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <UserX className="text-(--crimson) w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900">
-                                                Private
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Voters are hidden
-                                            </div>
-                                        </div>
-                                    </div>
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedVisibility === "private" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="private"
+                                {...register("visibility")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <UserX className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">Private</div>
+                                    <div className="text-sm opacity-90">Voters are hidden</div>
                                 </div>
-                            </Label>
-                        </div>
-                    </RadioGroup>
-                </div>
-
-                <div>
-                    <Label
-                        htmlFor="deadline"
-                        className="text-sm font-semibold text-gray-700"
-                    >
-                        Vote Deadline (Optional)
-                    </Label>
-                    <Input
-                        id="deadline"
-                        type="datetime-local"
-                        {...register("deadline")}
-                        className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
-                        min={new Date().toISOString().slice(0, 16)}
-                    />
-                    {errors.deadline && (
+                            </div>
+                        </Label>
+                    </div>
+                    {errors.visibility && (
                         <p className="mt-1 text-sm text-red-600">
-                            {errors.deadline.message}
+                            {errors.visibility.message}
                         </p>
                     )}
-                    <p className="mt-1 text-sm text-gray-500">
-                        Leave empty for no deadline. Voting will be open
-                        indefinitely.
-                    </p>
                 </div>
 
+                {/* Vote Options */}
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
                         Vote Options

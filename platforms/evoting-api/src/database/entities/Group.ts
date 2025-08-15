@@ -23,9 +23,6 @@ export class Group {
     @Column({ nullable: true })
     owner!: string;
 
-    @Column("simple-array", { nullable: true })
-    admins!: string[];
-
     @Column({ type: "text", nullable: true })
     charter!: string; // Markdown content for the group charter
 
@@ -42,6 +39,14 @@ export class Group {
         inverseJoinColumn: { name: "user_id", referencedColumnName: "id" }
     })
     members!: User[];
+
+    @ManyToMany(() => User)
+    @JoinTable({
+        name: "group_admins",
+        joinColumn: { name: "group_id", referencedColumnName: "id" },
+        inverseJoinColumn: { name: "user_id", referencedColumnName: "id" }
+    })
+    admins!: User[];
 
     @ManyToMany(() => User)
     @JoinTable({

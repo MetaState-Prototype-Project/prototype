@@ -33,7 +33,6 @@ type ChatContext = {
     error: Error | null;
     setCurrentChat: (chat: Chat | null) => void;
     createNewChat: (
-        type: 'direct' | 'group',
         participants: string[],
         name?: string
     ) => Promise<string>;
@@ -67,7 +66,6 @@ export function ChatContextProvider({
             setChats([
                 {
                     id: 'dummy-chat-1',
-                    type: 'direct',
                     participants: ['user_1', 'user_2'],
                     createdAt: Timestamp.fromDate(new Date()),
                     updatedAt: Timestamp.fromDate(new Date()),
@@ -80,7 +78,6 @@ export function ChatContextProvider({
                 },
                 {
                     id: 'dummy-chat-2',
-                    type: 'group',
                     participants: ['user_1', 'user_3', 'user_4'],
                     owner: 'user_1',
                     admins: ['user_3'],
@@ -153,7 +150,6 @@ export function ChatContextProvider({
     }, [currentChat]);
 
     const createNewChat = async (
-        type: 'direct' | 'group',
         participants: string[],
         name?: string,
         description?: string
@@ -164,10 +160,9 @@ export function ChatContextProvider({
             }
 
             const chatId = await createChat(
-                type,
                 participants,
                 name,
-                type === 'group' ? user.id : undefined,
+                participants.length > 2 ? user.id : undefined,
                 description
             );
             return chatId;

@@ -83,6 +83,7 @@ export type GroupInfo = {
 
 export type Chat = {
 	id: string;
+	name?: string; // Add the name property for group chats
 	avatar: string;
 	handle: string;
 	unread: boolean;

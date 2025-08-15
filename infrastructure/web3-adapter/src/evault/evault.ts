@@ -247,8 +247,10 @@ export class EVaultClient {
 
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
+            const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`
+            console.log("fetching endpoint for :", enrichedW3id)
             const response = await fetch(
-                new URL(`/resolve?w3id=${w3id}`, this.registryUrl).toString(),
+                new URL(`/resolve?w3id=${enrichedW3id}`, this.registryUrl).toString(),
             );
 
             if (!response.ok) {
@@ -280,6 +282,7 @@ export class EVaultClient {
                 },
             });
         }
+        console.log('sending to endpoint', this.endpoint)
         return this.client;
     }
 
@@ -290,6 +293,7 @@ export class EVaultClient {
             });
             if (!client) return v4();
 
+            console.log("sending to eVault: ", envelope.w3id)
             console.log("sending payload", envelope);
 
             const response = await client

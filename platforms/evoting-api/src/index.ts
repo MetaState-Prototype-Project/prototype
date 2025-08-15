@@ -10,6 +10,7 @@ import { PollController } from "./controllers/PollController";
 import { VoteController } from "./controllers/VoteController";
 import { WebhookController } from "./controllers/WebhookController";
 import { SigningController } from "./controllers/SigningController";
+import { GroupController } from "./controllers/GroupController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
@@ -59,7 +60,8 @@ const authController = new AuthController();
 const userController = new UserController();
 const pollController = new PollController();
 const voteController = new VoteController();
-const webhookController = new WebhookController(adapter);
+const webhookController = new WebhookController();
+const groupController = new GroupController();
 let signingController: SigningController | null = null;
 
 // Public routes (no auth required)
@@ -137,6 +139,17 @@ app.get("/api/users/me", authGuard, userController.currentUser);
 app.get("/api/users/search", userController.search);
 app.get("/api/users/:id", authGuard, userController.getProfileById);
 app.patch("/api/users", authGuard, userController.updateProfile);
+
+// Group routes
+app.get("/api/groups/my", authGuard, groupController.getUserGroups);
+app.get("/api/groups/:id", authGuard, groupController.getGroupById);
+app.post("/api/groups", authGuard, groupController.createGroup);
+app.put("/api/groups/:id", authGuard, groupController.updateGroup);
+app.delete("/api/groups/:id", authGuard, groupController.deleteGroup);
+app.post("/api/groups/:id/members", authGuard, groupController.addMembers);
+app.delete("/api/groups/:id/members/:userId", authGuard, groupController.removeMember);
+app.post("/api/groups/:id/admins", authGuard, groupController.addAdmins);
+app.delete("/api/groups/:id/admins/:userId", authGuard, groupController.removeAdmin);
 
 // Poll routes
 app.get("/api/polls", pollController.getAllPolls);

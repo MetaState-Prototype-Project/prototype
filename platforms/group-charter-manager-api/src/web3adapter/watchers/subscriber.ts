@@ -332,7 +332,7 @@ console.log("hmm?")
     private getRelationsForEntity(entityName: string): string[] {
         switch (entityName) {
             case "User":
-                return ["followers", "following", "groups"];
+                return ["followers", "following"];
             case "Group":
                 return ["participants"];
             default:

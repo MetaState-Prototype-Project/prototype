@@ -25,6 +25,11 @@ export class ChatService {
     }
 
     // Chat CRUD Operations
+    /**
+     * Find a chat with exactly the same participants.
+     * Note: This is primarily used to prevent duplicate direct messages (DMs).
+     * Groups with the same members are allowed to be duplicated.
+     */
     async findChatByParticipants(participantIds: string[]): Promise<Chat | null> {
         if (participantIds.length === 0) {
             return null;
