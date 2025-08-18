@@ -72,8 +72,8 @@ export class CronManagerService {
     } {
         return {
             deadlineCheckJob: {
-                running: this.deadlineCheckJob ? this.deadlineCheckJob.running : false,
-                nextRun: this.deadlineCheckJob ? this.deadlineCheckJob.nextDate().toDate() : undefined
+                running: this.deadlineCheckJob ? true : false,
+                nextRun: undefined // node-cron doesn't provide next run time in newer versions
             }
         };
     }
