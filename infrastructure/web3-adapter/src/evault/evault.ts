@@ -19,6 +19,7 @@ const CONFIG = {
     CONNECTION_POOL_SIZE: 10,
     HEALTH_CHECK_TIMEOUT: 5000, // 5 seconds for health check
     MAX_HEALTH_CHECK_FAILURES: 3, // Max consecutive failures before re-resolution
+    GRAPHQL_TIMEOUT: 10000, // 10 seconds for GraphQL requests before considering endpoint unhealthy
 } as const;
 
 const STORE_META_ENVELOPE = `
@@ -390,6 +391,35 @@ export class EVaultClient {
     }
 
     /**
+     * Wrapper for GraphQL requests with timeout handling
+     */
+    private async withTimeout<T>(
+        w3id: string,
+        operation: () => Promise<T>
+    ): Promise<T> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.log(`GraphQL request timeout for ${w3id}, marking endpoint as unhealthy`);
+            this.removeCachedClient(w3id);
+        }, CONFIG.GRAPHQL_TIMEOUT);
+
+        try {
+            const result = await operation();
+            clearTimeout(timeoutId);
+            return result;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error(`Request timeout after ${CONFIG.GRAPHQL_TIMEOUT}ms`);
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
      * Manually trigger a health check for a specific w3id
      * Useful for testing or forcing re-resolution
      */
@@ -466,15 +496,15 @@ export class EVaultClient {
             console.log("sending to eVault: ", envelope.w3id)
             console.log("sending payload", envelope);
 
-            const response = await client
-                .request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+            const response = await this.withTimeout(envelope.w3id, () =>
+                client.request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
                     input: {
                         ontology: envelope.schemaId,
                         payload: envelope.data,
                         acl: ["*"],
                     },
                 })
-                .catch(() => null);
+            ).catch(() => null);
 
             if (!response) return v4();
             return response.storeMetaEnvelope.metaEnvelope.id;

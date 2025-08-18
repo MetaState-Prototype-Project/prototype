@@ -42,7 +42,7 @@ export class UriResolutionService {
             return originalUri;
         }
         
-        const newUri = `${workingIp}:${port}`;
+        const newUri = `http://${workingIp}:${port}`;
         console.log(`Substituted ${originalUri} with ${newUri} using working IP from Kubernetes`);
         
         return newUri;
