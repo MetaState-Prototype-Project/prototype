@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { AppDataSource } from "./config/database";
 import { VaultService } from "./services/VaultService";
+import { UriResolutionService } from "./services/UriResolutionService";
 import cors from "@fastify/cors";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
@@ -31,6 +32,9 @@ const initializeDatabase = async () => {
 
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
+
+// Initialize UriResolutionService for health checks and Kubernetes fallbacks
+const uriResolutionService = new UriResolutionService();
 
 // Middleware to check shared secret
 const checkSharedSecret = async (request: any, reply: any) => {
@@ -138,10 +142,15 @@ server.get("/resolve", async (request, reply) => {
             return reply.status(404).send({ error: "Service not found" });
         }
 
+        // Resolve the URI with health check and Kubernetes fallback
+        const resolvedUri = await uriResolutionService.resolveUri(vault.uri);
+
         return {
             ename: vault.ename,
-            uri: vault.uri,
+            uri: resolvedUri,
             evault: vault.evault,
+            originalUri: vault.uri, // Include original URI for debugging
+            resolved: resolvedUri !== vault.uri, // Flag if URI was resolved
         };
     } catch (error) {
         server.log.error(error);
@@ -153,11 +162,22 @@ server.get("/resolve", async (request, reply) => {
 server.get("/list", async (request, reply) => {
     try {
         const vaults = await vaultService.findAll();
-        return vaults.map(vault => ({
-            ename: vault.ename,
-            uri: vault.uri,
-            evault: vault.evault,
-        }));
+        
+        // Resolve URIs for all vaults
+        const resolvedVaults = await Promise.all(
+            vaults.map(async (vault) => {
+                const resolvedUri = await uriResolutionService.resolveUri(vault.uri);
+                return {
+                    ename: vault.ename,
+                    uri: resolvedUri,
+                    evault: vault.evault,
+                    originalUri: vault.uri,
+                    resolved: resolvedUri !== vault.uri,
+                };
+            })
+        );
+        
+        return resolvedVaults;
     } catch (error) {
         server.log.error(error);
         reply.status(500).send({ error: "Failed to list vault entries" });

@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "ES2021",
         "module": "NodeNext",
-        "moduleResolution": "node",
+        "moduleResolution": "NodeNext",
         "lib": ["ES2020"],
         "declaration": true,
         "outDir": "./dist",
