@@ -5,6 +5,7 @@ import path from "path";
 import { AppDataSource } from "./config/database";
 import { VaultService } from "./services/VaultService";
 import { UriResolutionService } from "./services/UriResolutionService";
+import { KubernetesService } from "./services/KubernetesService";
 import cors from "@fastify/cors";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
@@ -35,6 +36,9 @@ const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
 
 // Initialize UriResolutionService for health checks and Kubernetes fallbacks
 const uriResolutionService = new UriResolutionService();
+
+// Initialize KubernetesService for debugging
+const kubernetesService = new KubernetesService();
 
 // Middleware to check shared secret
 const checkSharedSecret = async (request: any, reply: any) => {
@@ -124,6 +128,23 @@ server.get("/.well-known/jwks.json", async (request, reply) => {
     } catch (error) {
         server.log.error(error);
         reply.status(500).send({ error: "Failed to get JWK" });
+    }
+});
+
+// Debug endpoint for Kubernetes connectivity (remove in production)
+server.get("/debug/kubernetes", async (request, reply) => {
+    try {
+        const debugInfo = await kubernetesService.debugExternalIps();
+        reply.send({
+            status: "ok",
+            timestamp: new Date().toISOString(),
+            kubernetes: debugInfo
+        });
+    } catch (error) {
+        reply.status(500).send({
+            error: "Failed to get Kubernetes debug info",
+            message: error instanceof Error ? error.message : String(error)
+        });
     }
 });
 

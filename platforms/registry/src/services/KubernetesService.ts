@@ -17,79 +17,45 @@ export class KubernetesService {
     }
 
     /**
-     * Get a working external IP from Kubernetes services
-     * This will look for services with LoadBalancer type or NodePort with external IPs
+     * Get a working external IP from Kubernetes nodes
      */
     async getWorkingExternalIp(): Promise<string | null> {
         try {
-            console.log('Querying Kubernetes for external IPs...');
+            console.log('Querying Kubernetes for node external IPs...');
             
-            // Get all services across all namespaces
-            const servicesResponse = await this.coreV1Api.listServiceForAllNamespaces();
-            
+            const nodesResponse = await this.coreV1Api.listNode();
             const externalIps: string[] = [];
             
-            for (const service of servicesResponse.body.items) {
-                // Check for LoadBalancer services with external IPs
-                if (service.spec?.type === 'LoadBalancer' && service.status?.loadBalancer?.ingress) {
-                    for (const ingress of service.status.loadBalancer.ingress) {
-                        if (ingress.ip) {
-                            externalIps.push(ingress.ip);
-                            console.log(`Found LoadBalancer external IP: ${ingress.ip}`);
+            for (const node of nodesResponse.body.items) {
+                if (node.status?.addresses) {
+                    for (const address of node.status.addresses) {
+                        if (address.type === 'ExternalIP' && address.address) {
+                            externalIps.push(address.address);
+                            console.log(`Found node external IP: ${address.address}`);
                         }
                     }
                 }
-                
-                // Check for services with external IPs
-                if (service.spec?.externalIPs) {
-                    for (const externalIp of service.spec.externalIPs) {
-                        externalIps.push(externalIp);
-                        console.log(`Found service external IP: ${externalIp}`);
-                    }
-                }
             }
             
-            // Remove duplicates
-            const uniqueIps = [...new Set(externalIps)];
-            
-            if (uniqueIps.length === 0) {
-                console.log('No external IPs found in Kubernetes');
+            if (externalIps.length === 0) {
+                console.log('No external IPs found in Kubernetes nodes');
                 return null;
             }
             
-            // Test each IP to find a working one
-            for (const ip of uniqueIps) {
-                if (await this.testIpConnectivity(ip)) {
-                    console.log(`Found working external IP: ${ip}`);
-                    return ip;
-                }
-            }
+            console.log(`Found ${externalIps.length} external IPs:`, externalIps);
             
-            console.log('No working external IPs found');
-            return null;
+            // Just return the first external IP we find
+            const workingIp = externalIps[0];
+            console.log(`Using external IP: ${workingIp}`);
+            return workingIp;
             
         } catch (error) {
-            console.error('Error querying Kubernetes:', error);
+            console.error('Error querying Kubernetes nodes:', error);
             return null;
         }
     }
 
-    /**
-     * Test if an IP is reachable
-     */
-    private async testIpConnectivity(ip: string): Promise<boolean> {
-        try {
-            // Try to connect to port 80 (HTTP) as a basic connectivity test
-            const response = await fetch(`http://${ip}:80`, {
-                method: 'HEAD',
-                signal: AbortSignal.timeout(3000) // 3 second timeout
-            });
-            return true;
-        } catch (error) {
-            console.log(`IP ${ip} is not reachable:`, error instanceof Error ? error.message : 'Unknown error');
-            return false;
-        }
-    }
+
 
     /**
      * Get external IPs for a specific service
@@ -120,5 +86,44 @@ export class KubernetesService {
             console.error(`Error getting service ${serviceName} in namespace ${namespace}:`, error);
             return [];
         }
+    }
+
+    /**
+     * Get all node external IPs
+     */
+    async getNodeExternalIps(): Promise<string[]> {
+        try {
+            const nodesResponse = await this.coreV1Api.listNode();
+            const externalIps: string[] = [];
+            
+            for (const node of nodesResponse.body.items) {
+                if (node.status?.addresses) {
+                    for (const address of node.status.addresses) {
+                        if (address.type === 'ExternalIP' && address.address) {
+                            externalIps.push(address.address);
+                        }
+                    }
+                }
+            }
+            
+            return externalIps;
+            
+        } catch (error) {
+            console.error('Error getting node external IPs:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Debug method to show node external IPs
+     */
+    async debugExternalIps(): Promise<{
+        nodeExternalIps: string[];
+    }> {
+        const nodeExternalIps = await this.getNodeExternalIps();
+        
+        return {
+            nodeExternalIps,
+        };
     }
 } 
