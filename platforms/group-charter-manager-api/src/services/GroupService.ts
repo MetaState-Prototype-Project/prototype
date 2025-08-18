@@ -61,12 +61,15 @@ export class GroupService {
             });
         });
 
-        // Filter groups where user is a participant
-        const userGroups = allGroups.filter(group => 
-            group.participants?.some(participant => participant.id === userId)
-        );
+        // Filter groups where user is a participant AND group has at least 3 participants
+        const userGroups = allGroups.filter(group => {
+            const isUserParticipant = group.participants?.some(participant => participant.id === userId);
+            const hasMinimumParticipants = group.participants && group.participants.length >= 3;
+            
+            return isUserParticipant && hasMinimumParticipants;
+        });
         
-        console.log("User groups found:", userGroups.length);
+        console.log("User groups found (with minimum 3 participants):", userGroups.length);
         return userGroups;
     }
 
