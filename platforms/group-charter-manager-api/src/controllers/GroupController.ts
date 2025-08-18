@@ -250,4 +250,26 @@ export class GroupController {
             res.status(500).json({ error: "Internal server error" });
         }
     }
+
+    /**
+     * Admin endpoint to ensure Cerberus monitoring is set up for all groups
+     */
+    async ensureCerberusInAllGroups(req: Request, res: Response) {
+        try {
+            const userId = (req as any).user?.id;
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            // This is an admin-only operation - you might want to add more specific admin checks
+            console.log(`User ${userId} requested to set up Cerberus monitoring for all groups`);
+            
+            await this.groupService.ensureCerberusInAllGroups();
+            
+            res.json({ message: "Cerberus monitoring has been set up for all groups with charter requirements" });
+        } catch (error) {
+            console.error("Error setting up Cerberus monitoring for all groups:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
 } 

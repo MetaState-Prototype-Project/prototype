@@ -13,6 +13,7 @@ import { SigningController } from "./controllers/SigningController";
 import { GroupController } from "./controllers/GroupController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
+import { CronManagerService } from "./services/CronManagerService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -129,6 +130,46 @@ app.get("/api/health", (req, res) => {
             signing: signingController ? "ready" : "initializing"
         }
     });
+});
+
+// Cron job management endpoints
+app.get("/api/cron/status", (req, res) => {
+    try {
+        const cronManager = new CronManagerService();
+        const status = cronManager.getJobStatus();
+        res.json({
+            status: "ok",
+            timestamp: new Date().toISOString(),
+            cronJobs: status
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Failed to get cron job status",
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+});
+
+app.post("/api/cron/deadline-check", (req, res) => {
+    try {
+        const cronManager = new CronManagerService();
+        cronManager.manualDeadlineCheck().then(() => {
+            res.json({
+                message: "Manual deadline check completed",
+                timestamp: new Date().toISOString()
+            });
+        }).catch((error) => {
+            res.status(500).json({
+                error: "Manual deadline check failed",
+                message: error instanceof Error ? error.message : String(error)
+            });
+        });
+    } catch (error) {
+        res.status(500).json({
+            error: "Failed to trigger manual deadline check",
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
 });
 
 // Protected routes (auth required)

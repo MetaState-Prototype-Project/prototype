@@ -147,7 +147,7 @@ export default function Dashboard() {
                             Group Charter Manager
                         </h1>
                         <p className="mt-2 text-sm text-gray-600">
-                            Welcome back, {user?.ename || 'User'}! Manage your group charters and memberships.
+                            Welcome back, {user?.name || user?.ename || 'User'}! Manage your group charters and memberships.
                         </p>
                     </div>
                     <div className="mt-4 sm:mt-0 flex items-center gap-3">
@@ -155,7 +155,7 @@ export default function Dashboard() {
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm">
                                     <Users className="h-4 w-4 mr-2" />
-                                    {user?.ename || 'User'}
+                                    {user?.name || user?.ename || 'User'}
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">

@@ -89,9 +89,19 @@ export async function fromGlobal({
                     if (typeof rawVal === "number") {
                         value = new Date(rawVal).toISOString();
                     } else if (rawVal?._seconds) {
+                        // Handle Firebase v8 timestamp format
                         value = new Date(rawVal._seconds * 1000).toISOString();
+                    } else if (rawVal?.seconds) {
+                        // Handle Firebase v9+ timestamp format
+                        value = new Date(rawVal.seconds * 1000).toISOString();
+                    } else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                        // Handle Firebase Timestamp objects
+                        value = rawVal.toDate().toISOString();
                     } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
+                    } else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                        // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
+                        value = new Date(rawVal).toISOString();
                     } else {
                         value = undefined;
                     }
@@ -217,9 +227,19 @@ export async function toGlobal({
                     if (typeof rawVal === "number") {
                         value = new Date(rawVal).toISOString();
                     } else if (rawVal?._seconds) {
+                        // Handle Firebase v8 timestamp format
                         value = new Date(rawVal._seconds * 1000).toISOString();
+                    } else if (rawVal?.seconds) {
+                        // Handle Firebase v9+ timestamp format
+                        value = new Date(rawVal.seconds * 1000).toISOString();
+                    } else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                        // Handle Firebase Timestamp objects
+                        value = rawVal.toDate().toISOString();
                     } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
+                    } else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                        // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
+                        value = new Date(rawVal).toISOString();
                     } else {
                         value = undefined;
                     }

@@ -5,9 +5,11 @@ import {
     PrimaryGeneratedColumn,
     Column,
     ManyToMany,
+    OneToMany,
     JoinTable,
 } from "typeorm";
 import { User } from "./User";
+import { Message } from "./Message";
 
 @Entity()
 export class Group {
@@ -61,6 +63,9 @@ export class Group {
 
     @Column({ nullable: true })
     bannerUrl!: string;
+
+    @OneToMany(() => Message, (message) => message.group)
+    messages!: Message[];
 
     @CreateDateColumn()
     createdAt!: Date;

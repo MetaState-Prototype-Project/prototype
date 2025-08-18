@@ -28,9 +28,13 @@ const JUNCTION_TABLE_MAP = {
 
 @EventSubscriber()
 export class PostgresSubscriber implements EntitySubscriberInterface {
+    static {
+        console.log("🔧 PostgresSubscriber class is being loaded");
+    }
     private adapter: Web3Adapter;
 
     constructor() {
+        console.log("🚀 PostgresSubscriber constructor called - subscriber is being instantiated");
         this.adapter = adapter;
     }
 
@@ -38,20 +42,29 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity is loaded.
      */
     afterLoad(entity: any) {
-        // Handle any post-load processing if needed
+        console.log("🔍 afterLoad triggered for entity:", {
+            type: entity?.constructor?.name,
+            id: entity?.id,
+            tableName: entity?.constructor?.name?.toLowerCase() + 's'
+        });
     }
 
     /**
      * Called before entity insertion.
      */
     beforeInsert(event: InsertEvent<any>) {
-        // Handle any pre-insert processing if needed
+        console.log("🔍 beforeInsert triggered:", {
+            tableName: event.metadata.tableName,
+            target: typeof event.metadata.target === 'function' ? event.metadata.target.name : event.metadata.target,
+            hasEntity: !!event.entity
+        });
     }
 
     async enrichEntity(entity: any, tableName: string, tableTarget: any) {
         try {
             const enrichedEntity = { ...entity };
 
+            // Handle author enrichment (for backward compatibility)
             if (entity.author) {
                 const author = await AppDataSource.getRepository(
                     "User"
@@ -59,10 +72,64 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
+            // Special handling for Message entities to ensure group and admin data is loaded
+            if (tableName === "messages" && entity.group) {
+                // Load the full group with admins and members
+                const groupRepository = AppDataSource.getRepository("Group");
+                const fullGroup = await groupRepository.findOne({
+                    where: { id: entity.group.id },
+                    relations: ["admins", "members", "participants"]
+                });
+                
+                if (fullGroup) {
+                    enrichedEntity.group = fullGroup;
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
             return this.entityToPlain(entity);
+        }
+    }
+
+    /**
+     * Special enrichment method for Message entities to ensure group and admin data is loaded
+     */
+    private async enrichMessageEntity(messageEntity: any): Promise<any> {
+        try {
+            const enrichedMessage = { ...messageEntity };
+            
+            // If the message has a group, load the full group with admins and members
+            if (enrichedMessage.group && enrichedMessage.group.id) {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const fullGroup = await groupRepository.findOne({
+                    where: { id: enrichedMessage.group.id },
+                    relations: ["admins", "members", "participants"]
+                });
+                
+                if (fullGroup) {
+                    enrichedMessage.group = fullGroup;
+                    console.log("📝 Message group enriched with admins:", fullGroup.admins?.length || 0);
+                }
+            }
+            
+            // If the message has a sender, ensure it's loaded
+            if (enrichedMessage.sender && enrichedMessage.sender.id) {
+                const userRepository = AppDataSource.getRepository("User");
+                const fullSender = await userRepository.findOne({
+                    where: { id: enrichedMessage.sender.id }
+                });
+                
+                if (fullSender) {
+                    enrichedMessage.sender = fullSender;
+                }
+            }
+            
+            return enrichedMessage;
+        } catch (error) {
+            console.error("Error enriching Message entity:", error);
+            return messageEntity;
         }
     }
 
@@ -79,6 +146,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 event.metadata.target
             )) as ObjectLiteral;
         }
+        
+        // Special handling for Message entities to ensure complete data
+        if (event.metadata.tableName === "messages" && entity) {
+            console.log("📝 Enriching Message entity after insert");
+            entity = await this.enrichMessageEntity(entity);
+        }
+        
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
@@ -170,6 +244,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     event.metadata.tableName,
                     event.metadata.target
                 )) as ObjectLiteral;
+                
+                // Special handling for Message entities to ensure complete data
+                if (event.metadata.tableName === "messages" && entity) {
+                    console.log("📝 Enriching Message entity after update");
+                    entity = await this.enrichMessageEntity(entity);
+                }
             } else {
                 console.log("❌ Could not load full entity for ID:", entityId);
             }
@@ -231,7 +311,20 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         const data = this.entityToPlain(entity);
         console.log(data, entity)
         if (!data.id) return;
-console.log("hmm?")
+        
+        // Special logging for Message entities to track group and admin data
+        if (tableName === "messages") {
+            console.log("📝 Processing Message change:", {
+                id: data.id,
+                hasGroup: !!data.group,
+                groupId: data.group?.id,
+                hasAdmins: !!data.group?.admins,
+                adminCount: data.group?.admins?.length || 0,
+                isSystemMessage: data.isSystemMessage
+            });
+        }
+        
+        console.log("hmm?")
 
         try {
             setTimeout(async () => {
@@ -334,7 +427,9 @@ console.log("hmm?")
             case "User":
                 return ["followers", "following", "groups"];
             case "Group":
-                return ["participants"];
+                return ["participants", "admins", "members"];
+            case "Message":
+                return ["group", "sender"];
             default:
                 return [];
         }

@@ -37,12 +37,18 @@ export class Poll {
     @Column({ type: "timestamp", nullable: true })
     deadline!: Date | null;
 
+    @Column({ type: "boolean", default: false })
+    deadlineMessageSent!: boolean;
+
     @ManyToOne(() => User, (user) => user.polls)
     @JoinColumn({ name: "creatorId" })
     creator!: User;
 
     @Column("uuid")
     creatorId!: string;
+
+    @Column("uuid", { nullable: true })
+    groupId!: string | null; // Group this poll belongs to
 
     @OneToMany(
         () => Vote,

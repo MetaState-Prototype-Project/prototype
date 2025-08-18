@@ -221,10 +221,12 @@ export class ChatService {
         }
 
         // First get all message IDs for this chat that were sent by other users
+        // Exclude system messages (no sender) and messages sent by the current user
         const messageIds = await this.messageRepository
             .createQueryBuilder("message")
             .select("message.id")
             .where("message.chat.id = :chatId", { chatId })
+            .andWhere("message.sender IS NOT NULL") // Exclude system messages
             .andWhere("message.sender.id != :userId", { userId }) // Only messages not sent by the user
             .getMany();
 
@@ -253,6 +255,11 @@ export class ChatService {
 
         if (!message) {
             throw new Error("Message not found");
+        }
+
+        // System messages cannot be deleted by users
+        if (!message.sender) {
+            throw new Error("Cannot delete system messages");
         }
 
         if (message.sender.id !== userId) {

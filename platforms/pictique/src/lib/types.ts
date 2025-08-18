@@ -110,3 +110,17 @@ export type MessageType = {
 	name: string;
 	username: string;
 };
+
+export interface Message {
+	id: string;
+	text: string;
+	sender?: {
+		id: string;
+		name: string;
+		handle: string;
+		avatarUrl: string;
+	};
+	isSystemMessage: boolean;
+	createdAt: string;
+	updatedAt: string;
+}

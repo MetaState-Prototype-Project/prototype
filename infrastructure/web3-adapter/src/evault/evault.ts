@@ -122,8 +122,8 @@ interface TokenInfo {
 }
 
 export class EVaultClient {
-    private client: GraphQLClient | null = null;
-    private endpoint: string | null = null;
+    private clients: Map<string, GraphQLClient> = new Map();
+    private endpoints: Map<string, string> = new Map();
     private tokenInfo: TokenInfo | null = null;
     private isDisposed = false;
 
@@ -139,8 +139,8 @@ export class EVaultClient {
         if (this.isDisposed) return;
 
         this.isDisposed = true;
-        this.client = null;
-        this.endpoint = null;
+        this.clients.clear();
+        this.endpoints.clear();
         this.tokenInfo = null;
     }
 
@@ -270,20 +270,32 @@ export class EVaultClient {
             throw new Error("EVaultClient has been disposed");
         }
 
-        if (!this.endpoint || !this.client) {
-            this.endpoint = await this.resolveEndpoint(w3id).catch(() => null);
-            if (!this.endpoint) throw new Error("Failed to resolve endpoint");
-
-            // Get platform token and create client with authorization header
-            const token = await this.ensurePlatformToken();
-            this.client = new GraphQLClient(this.endpoint, {
-                headers: {
-                    authorization: `Bearer ${token}`,
-                },
-            });
+        // Check if we already have a client for this specific w3id
+        if (this.clients.has(w3id)) {
+            const client = this.clients.get(w3id)!;
+            const endpoint = this.endpoints.get(w3id)!;
+            console.log('reusing existing client for w3id:', w3id, 'endpoint:', endpoint);
+            return client;
         }
-        console.log('sending to endpoint', this.endpoint)
-        return this.client;
+
+        // Resolve endpoint for this specific w3id
+        const endpoint = await this.resolveEndpoint(w3id).catch(() => null);
+        if (!endpoint) throw new Error("Failed to resolve endpoint");
+
+        // Get platform token and create client with authorization header
+        const token = await this.ensurePlatformToken();
+        const client = new GraphQLClient(endpoint, {
+            headers: {
+                authorization: `Bearer ${token}`,
+            },
+        });
+
+        // Cache the client and endpoint for this specific w3id
+        this.clients.set(w3id, client);
+        this.endpoints.set(w3id, endpoint);
+        
+        console.log('created new client for w3id:', w3id, 'endpoint:', endpoint);
+        return client;
     }
 
     async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {

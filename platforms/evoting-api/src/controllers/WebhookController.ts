@@ -67,12 +67,20 @@ export class WebhookController {
                     const user = await this.userService.getUserById(localId);
                     if (!user) throw new Error();
 
-                    for (const key of Object.keys(local.data)) {
-                        // @ts-ignore
-                        user[key] = local.data[key];
-                    }
-                    user.name = req.body.data.displayName;
-                    await this.userService.updateUser(user.id, user);
+                    // Only update simple properties, not relationships
+                    const updateData: Partial<User> = {
+                        name: req.body.data.displayName,
+                        handle: local.data.username as string | undefined,
+                        description: local.data.bio as string | undefined,
+                        avatarUrl: local.data.avatarUrl as string | undefined,
+                        bannerUrl: local.data.bannerUrl as string | undefined,
+                        isVerified: local.data.isVerified as boolean | undefined,
+                        isPrivate: local.data.isPrivate as boolean | undefined,
+                        email: local.data.email as string | undefined,
+                        emailVerified: local.data.emailVerified as boolean | undefined,
+                    };
+
+                    await this.userService.updateUser(user.id, updateData);
                     await this.adapter.mappingDb.storeMapping({
                         localId: user.id,
                         globalId: req.body.id,

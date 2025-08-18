@@ -58,6 +58,23 @@
 		console.log('Current userId:', userId);
 
 		const newMessages = arr.map((m) => {
+			// Check if this is a system message (no sender)
+			const isSystemMessage =
+				!m.sender || m.text?.toString().startsWith('$$system-message$$');
+
+			if (isSystemMessage) {
+				// Handle system messages - they don't have a sender
+				return {
+					id: m.id,
+					isOwn: false, // System messages are not "owned" by any user
+					userImgSrc: '/images/system-message.png', // Default system message icon
+					time: moment(m.createdAt as string).fromNow(),
+					message: m.text,
+					isSystemMessage: true
+				};
+			}
+
+			// Handle regular user messages
 			const sender = m.sender as Record<string, string>;
 			const isOwn = sender.id !== userId;
 
@@ -68,7 +85,11 @@
 				isOwn: isOwn,
 				userImgSrc: sender.avatarUrl,
 				time: moment(m.createdAt as string).fromNow(),
-				message: m.text
+				message: m.text,
+				isSystemMessage: false,
+				senderId: sender.id,
+				senderName: sender.name,
+				senderHandle: sender.handle
 			};
 		});
 		apiClient.post(`/api/chats/${id}/messages/read`);
@@ -111,11 +132,19 @@
 				message={msg.message as string}
 				isHeadNeeded={msg.isHeadNeeded as boolean}
 				isTimestampNeeded={msg.isTimestampNeeded as boolean}
+				sender={msg.isSystemMessage
+					? null
+					: {
+							id: msg.senderId as string,
+							name: msg.senderName as string,
+							handle: msg.senderHandle as string,
+							avatarUrl: msg.userImgSrc as string
+						}}
 			/>
 		{/each}
 	</div>
 	<MessageInput
-		class="sticky start-0 bottom-[-15px] w-full"
+		class="sticky bottom-[-15px] start-0 w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}
