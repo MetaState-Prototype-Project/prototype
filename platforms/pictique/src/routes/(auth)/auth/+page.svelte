@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+	import {
+		PUBLIC_APP_STORE_EID_WALLET,
+		PUBLIC_PICTIQUE_BASE_URL,
+		PUBLIC_PLAY_STORE_EID_WALLET
+	} from '$env/static/public';
 	import { W3dslogo } from '$lib/icons';
 	import { Qr } from '$lib/ui';
 	import { apiClient, setAuthId, setAuthToken } from '$lib/utils';
+	import { getDeepLinkUrl, isMobileDevice } from '$lib/utils/mobile-detection';
 	import { onMount } from 'svelte';
 	import { onDestroy } from 'svelte';
 	import { qrcode } from 'svelte-qrcode-action';
-	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
 
 	let qrData: string;
 	let isMobile = false;
@@ -16,7 +20,22 @@
 		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
 	}
 
+	let getAppStoreLink: () => string = () => '';
+
 	onMount(async () => {
+		getAppStoreLink = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			if (/android/i.test(userAgent)) {
+				return PUBLIC_PLAY_STORE_EID_WALLET;
+			}
+
+			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+				return PUBLIC_APP_STORE_EID_WALLET;
+			}
+
+			return PUBLIC_PLAY_STORE_EID_WALLET;
+		};
+
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
@@ -60,7 +79,7 @@
 	>
 		<h2>
 			{#if isMobileDevice()}
-				Login with your <b><u>eID Wallet</u></b>
+				Login with your <a href={getAppStoreLink()}><b><u>eID Wallet</u></b></a>
 			{:else}
 				Scan the QR code using your <b><u>eID App</u></b> to login
 			{/if}
@@ -120,6 +139,7 @@
 			centralised servers.
 		</p>
 	</div>
-
-	<W3dslogo />
+	<a href="https://metastate.foundation" target="_blank">
+		<W3dslogo />
+	</a>
 </div>
