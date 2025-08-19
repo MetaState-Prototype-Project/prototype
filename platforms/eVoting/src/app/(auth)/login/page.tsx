@@ -66,6 +66,17 @@ export default function LoginPage() {
         return () => eventSource.close();
     }, [sessionId, login]);
 
+    const getAppStoreLink = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			if (/android/i.test(userAgent)) {
+				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+			}
+			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
+			}
+			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+		};
+
     return (
         <div className="flex flex-col items-center justify-center gap-4 min-h-screen px-4 pb-safe">
             {/* Logo + Tagline */}
@@ -89,13 +100,13 @@ export default function LoginPage() {
                         {isMobile ? (
                             <>
                                 <span>Click the button below using your</span>
-                                <span className="font-bold underline">eID App</span>
+                                <a href={getAppStoreLink()}><span className="font-bold underline">eID App</span></a>
                                 <span>to login</span>
                             </>
                         ) : (
                             <>
                                 <span>Scan the QR using your</span>
-                                <span className="font-bold underline">eID App</span>
+                                <a href={getAppStoreLink()}><span className="font-bold underline">eID App</span></a>
                                 <span>to login</span>
                             </>
                         )}
@@ -156,8 +167,9 @@ export default function LoginPage() {
                     </div>
                 </div>
             </Card>
-
+            <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
             <img src="/W3DS.svg" alt="w3ds Logo" className="max-h-8" />
+            </a>
         </div>
     );
 }

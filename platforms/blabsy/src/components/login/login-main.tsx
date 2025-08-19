@@ -139,12 +139,14 @@ export function LoginMain(): JSX.Element {
                         separation, where all your personal content is stored in
                         your own sovereign eVault, not on centralised servers.
                     </div>
+                    <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
                     <Image
                         src='/assets/w3dslogo.svg'
                         alt='W3DS logo'
                         width={100}
                         height={20}
                     />
+                    </a>
                 </div>
             </div>
         </main>
