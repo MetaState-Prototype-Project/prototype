@@ -196,7 +196,7 @@ export class CharterSignatureService {
                 await this.groupRepository.save(group);
 
                 // Post system message about charter status change
-                const charterUrl = `${process.env.PUBLIC_GROUP_CHARTER_BASE_URL}/charter/${groupId}`;
+                const charterUrl = `${process.env.PUBLIC_GROUP_CHARTER_BASE_URL}`;
                 
                 if (analysis.isActive) {
                     await messageService.createSystemMessage({
@@ -263,7 +263,7 @@ export class CharterSignatureService {
             const changeSummary = await openaiService.analyzeCharterChanges(oldCharter, newCharter);
 
             // Post system message about charter changes
-            const charterUrl = `${process.env.PUBLIC_GROUP_CHARTER_BASE_URL}/charter/${groupId}`;
+            const charterUrl = `${process.env.PUBLIC_GROUP_CHARTER_BASE_URL}`;
             
             await messageService.createSystemMessage({
                 text: `📝 Charter Updated\n\n` +
