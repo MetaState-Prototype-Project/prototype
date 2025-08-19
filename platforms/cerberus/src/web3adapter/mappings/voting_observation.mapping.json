@@ -1,0 +1,19 @@
+{
+    "tableName": "voting_observations",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440005",
+    "ownerEnamePath": "users(owner.ename)",
+    "localToUniversalMap": {
+        "id": "id",
+        "groupId": "groups(groupId),group",
+        "owner": "users(owner),owner",
+        "lastCheckTime": "__date(lastCheckTime)",
+        "lastVoteTime": "__date(lastVoteTime)",
+        "requiredVoteInterval": "requiredVoteInterval",
+        "messagesAnalyzed": "messagesAnalyzed",
+        "timeRangeStart": "__date(timeRangeStart)",
+        "timeRangeEnd": "__date(timeRangeEnd)",
+        "findings": "findings",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    }
+}

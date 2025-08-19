@@ -12,6 +12,7 @@ export type Chat = {
     type?: ChatType; // Make type optional for backward compatibility
     name?: string; // Required for group chats
     description?: string;
+    photoURL?: string; // Group profile picture URL
     participants: string[]; // Array of user IDs
     owner?: string; // Required User ID of the chat owner in group chats
     admins?: string[]; // Required Array of user IDs for group chats

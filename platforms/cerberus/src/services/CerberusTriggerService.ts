@@ -47,6 +47,41 @@ export class CerberusTriggerService {
     }
 
     /**
+     * Check if a group has Cerberus enabled (has charter and watchdog name is "Cerberus")
+     */
+    async isCerberusEnabled(groupId: string): Promise<boolean> {
+        try {
+            const group = await this.groupService.getGroupById(groupId);
+            if (!group || !group.charter) {
+                return false;
+            }
+            
+            // Check if the watchdog name is specifically set to "Cerberus"
+            const charterText = group.charter.toLowerCase();
+            
+            // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+            const watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+            if (watchdogNameMatch) {
+                const watchdogName = watchdogNameMatch[1].trim();
+                return watchdogName === 'cerberus';
+            }
+            
+            // Alternative: look for "Watchdog Name: Cerberus" on same line
+            const sameLineMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+            if (sameLineMatch) {
+                const watchdogName = sameLineMatch[1].trim();
+                return watchdogName === 'cerberus';
+            }
+            
+            // Fallback: check if "Watchdog Name: Cerberus" appears anywhere
+            return charterText.includes('watchdog name: cerberus');
+        } catch (error) {
+            console.error("Error checking if Cerberus is enabled for group:", error);
+            return false;
+        }
+    }
+
+    /**
      * Get the last message sent by Cerberus in a group
      */
     async getLastCerberusMessage(groupId: string): Promise<Message | null> {
@@ -89,6 +124,13 @@ export class CerberusTriggerService {
      */
     async processCharterChange(groupId: string, groupName: string, oldCharter: string | undefined, newCharter: string): Promise<void> {
         try {
+            // Check if Cerberus is enabled for this group
+            const cerberusEnabled = await this.isCerberusEnabled(groupId);
+            if (!cerberusEnabled) {
+                console.log(`Cerberus not enabled for group ${groupId} - skipping charter change processing`);
+                return;
+            }
+
             let changeType: 'created' | 'updated' | 'removed';
             
             if (!oldCharter && newCharter) {
@@ -110,6 +152,24 @@ export class CerberusTriggerService {
                 text: changeMessage,
                 groupId: groupId,
             });
+
+            // If charter was updated, also handle signature invalidation and detailed analysis
+            if (changeType === 'updated' && oldCharter && newCharter) {
+                try {
+                    // Import CharterSignatureService dynamically to avoid circular dependencies
+                    const { CharterSignatureService } = await import('./CharterSignatureService');
+                    const charterSignatureService = new CharterSignatureService();
+                    
+                    await charterSignatureService.handleCharterTextChange(
+                        groupId,
+                        oldCharter,
+                        newCharter,
+                        this.messageService
+                    );
+                } catch (error) {
+                    console.error("Error handling charter signature invalidation:", error);
+                }
+            }
 
         } catch (error) {
             console.error("Error processing charter change:", error);
@@ -377,6 +437,13 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
      */
     async processCerberusTrigger(triggerMessage: Message): Promise<void> {
         try {
+            // Check if Cerberus is enabled for this group
+            const cerberusEnabled = await this.isCerberusEnabled(triggerMessage.group.id);
+            if (!cerberusEnabled) {
+                console.log(`Cerberus not enabled for group ${triggerMessage.group.id} - skipping trigger processing`);
+                return;
+            }
+
             // Get messages since last Cerberus message
             const messages = await this.getMessagesSinceLastCerberus(
                 triggerMessage.group.id, 

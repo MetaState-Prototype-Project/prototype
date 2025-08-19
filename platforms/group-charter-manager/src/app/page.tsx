@@ -12,6 +12,7 @@ import {
     MoreHorizontal,
     Trash2,
     LogOut,
+    CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,7 +44,8 @@ interface Group {
     owner: string;
     admins: string[];
     participants: any[];
-    charter?: string; // Add charter field
+    charter?: string;
+    hasSigned?: boolean; // Add signing status field
     createdAt: string;
     updatedAt: string;
 }
@@ -88,8 +90,7 @@ export default function Dashboard() {
     // Calculate stats from groups data
     const stats = {
         totalCharters: charters.length,
-        activeGroups: groups.length,
-        totalMembers: groups.reduce((total, group) => total + (group.participants?.length || 0), 0)
+        activeGroups: groups.length
     };
     const statsLoading = groupsLoading;
 
@@ -176,7 +177,7 @@ export default function Dashboard() {
             </div>
 
             {/* Stats Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <StatsCard
                     title="Total Charters"
                     value={stats?.totalCharters || 0}
@@ -191,20 +192,13 @@ export default function Dashboard() {
                     trend="+5%"
                     trendDirection="up"
                 />
-                <StatsCard
-                    title="Total Members"
-                    value={stats?.totalMembers || 0}
-                    icon={UserPlus}
-                    trend="+8%"
-                    trendDirection="up"
-                />
             </div>
 
-            {/* Charters Section */}
+            {/* Groups Section */}
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        Your Charters
+                        Your Groups
                     </h2>
                     <Link href="/create">
                         <Button variant="outline" size="sm">
@@ -214,47 +208,101 @@ export default function Dashboard() {
                     </Link>
                 </div>
 
-                {charters && charters.length > 0 ? (
+                {groups && groups.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {charters.map((group) => (
-                            <Card key={group.id} className="hover:shadow-md transition-shadow">
+                        {groups.map((group) => {
+                            const hasCharter = group.charter && group.charter.trim() !== '';
+                            const isOwner = group.owner === user?.id;
+                            const isAdmin = group.admins?.includes(user?.id || '');
+                            const hasSigned = group.hasSigned || false;
+                            
+                            return (
+                                <Card 
+                                    key={group.id} 
+                                    className={`hover:shadow-md transition-shadow ${
+                                        !hasCharter ? 'opacity-60 bg-gray-50' : ''
+                                    }`}
+                                >
                                 <CardContent className="p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div>
                                             <h3 className="font-semibold text-gray-900 mb-1">
                                                 {group.name || 'Unnamed Group'}
                                             </h3>
-                                            <p className="text-sm text-gray-600">
-                                                {group.description || 'No description'}
-                                            </p>
+                                                <div className="text-sm text-gray-600 space-y-1">
+                                                    {hasCharter ? (
+                                                        hasSigned ? (
+                                                            <p>Charter signed</p>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                                                <p>Please sign the charter</p>
                                         </div>
-                                        <Badge variant="secondary" className="text-xs">
-                                            Charter
-                                        </Badge>
+                                                        )
+                                                    ) : (
+                                                        <p className="text-gray-500 italic">No charter found</p>
+                                                    )}
+                                                    <Badge 
+                                                        variant={isOwner ? "default" : isAdmin ? "secondary" : "outline"}
+                                                        className="text-xs"
+                                                    >
+                                                        {isOwner ? 'Owner' : isAdmin ? 'Admin' : 'Member'}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                            <div className="relative">
+                                                {hasCharter && (
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                                        hasSigned ? 'bg-green-100' : 'bg-yellow-100'
+                                                    }`}>
+                                                        <Scroll className={`h-4 w-4 ${
+                                                            hasSigned ? 'text-green-600' : 'text-yellow-600'
+                                                        }`} />
+                                                        {hasSigned && (
+                                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                                                <CheckCircle className="h-3 w-3 text-white" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs text-gray-500">
                                             {group.participants?.length || 0} members
                                         </span>
+                                            {hasCharter ? (
                                         <Link href={`/charter/${group.id}`}>
                                             <Button variant="outline" size="sm">
                                                 <Eye className="h-4 w-4 mr-2" />
                                                 View Charter
                                             </Button>
                                         </Link>
+                                            ) : (
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    disabled 
+                                                    className="text-gray-400 cursor-not-allowed"
+                                                >
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    No Charter
+                                                </Button>
+                                            )}
                                     </div>
                                 </CardContent>
                             </Card>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-12">
-                        <Scroll className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            No charters yet
+                            No groups yet
                         </h3>
                         <p className="text-gray-600 mb-6">
-                            Create your first group charter to get started.
+                            You haven't joined any groups yet.
                         </p>
                         <Link href="/create">
                             <Button>
@@ -266,102 +314,7 @@ export default function Dashboard() {
                 )}
             </div>
 
-            {/* Groups Section */}
-            <div>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                        Your Groups
-                    </h2>
-                </div>
 
-                {groupsLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[1, 2, 3].map((i) => (
-                            <Card key={i} className="animate-pulse">
-                                <CardContent className="p-6">
-                                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : groupsError ? (
-                    <div className="text-center py-12">
-                        <div className="text-red-500 mb-4">
-                            <Users className="h-12 w-12 mx-auto" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            Error loading groups
-                        </h3>
-                        <p className="text-gray-600 mb-4">{groupsError}</p>
-                        <Button onClick={fetchGroups} variant="outline">
-                            Try Again
-                        </Button>
-                    </div>
-                ) : groups && groups.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {groups.map((group) => (
-                            <Card key={group.id} className="hover:shadow-md transition-shadow">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900 mb-1">
-                                                {group.name || 'Unnamed Group'}
-                                            </h3>
-                                            <p className="text-sm text-gray-600">
-                                                {group.description || 'No description'}
-                                            </p>
-                                        </div>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem>
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    View
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                    <Edit className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600">
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                            <Users className="h-4 w-4 text-gray-400" />
-                                            <span className="text-sm text-gray-600">
-                                                {group.participants?.length || 0} members
-                                            </span>
-                                        </div>
-                                        <Badge variant="secondary">
-                                            {group.owner === user?.id ? 'Owner' : 'Member'}
-                                        </Badge>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-12">
-                        <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            No groups yet
-                        </h3>
-                        <p className="text-gray-600">
-                            You haven't joined any groups yet.
-                        </p>
-                    </div>
-                )}
-            </div>
         </div>
     );
 }

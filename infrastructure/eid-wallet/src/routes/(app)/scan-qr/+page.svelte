@@ -247,6 +247,17 @@
             try {
                 const decodedString = atob(base64Data);
                 signingData = JSON.parse(decodedString);
+
+                // Debug logging
+                console.log("🔍 DEBUG: Decoded signing data:", signingData);
+                console.log(
+                    "🔍 DEBUG: Data keys:",
+                    Object.keys(signingData || {}),
+                );
+                console.log(
+                    "🔍 DEBUG: Is poll request?",
+                    !!(signingData?.pollId && signingData?.voteData),
+                );
             } catch (error) {
                 console.error("Error decoding signing data:", error);
                 return;
@@ -271,13 +282,25 @@
                 throw new Error("No vault available for signing");
             }
 
-            // Create the message to sign
-            const messageToSign = JSON.stringify({
-                pollId: signingData.pollId,
-                voteData: signingData.voteData,
-                userId: signingData.userId,
-                // Removed timestamp since backend doesn't verify it
-            });
+            // Create the message to sign based on type
+            let messageToSign: string;
+
+            if (signingData.pollId && signingData.voteData) {
+                // Poll-specific signing
+                messageToSign = JSON.stringify({
+                    pollId: signingData.pollId,
+                    voteData: signingData.voteData,
+                    userId: signingData.userId,
+                    // Removed timestamp since backend doesn't verify it
+                });
+            } else {
+                // Generic signature request
+                messageToSign = JSON.stringify({
+                    message: signingData.message,
+                    sessionId: signingData.sessionId,
+                    timestamp: Date.now(),
+                });
+            }
 
             // In a real implementation, you would use the vault's signing capabilities
             // For now, we'll simulate the signing process
@@ -312,8 +335,11 @@
             signingDrawerOpen = false;
             signingSuccess = true;
 
-            console.log("Vote signed successfully!");
-
+            console.log(
+                signingData.pollId
+                    ? "Vote signed successfully!"
+                    : "Message signed successfully!",
+            );
             // Check if this was from a deep link
             const deepLinkData = sessionStorage.getItem("deepLinkData");
             if (deepLinkData) {
@@ -641,7 +667,7 @@
 
 <!-- signing confirmation drawer -->
 <Drawer
-    title="Sign Vote"
+    title={signingData?.pollId ? "Sign Vote" : "Sign Message"}
     bind:isPaneOpen={signingDrawerOpen}
     class="flex flex-col gap-4 items-center justify-center"
 >
@@ -663,95 +689,119 @@
         />
     </div>
 
-    <h4>Sign Vote Request</h4>
+    <h4>
+        {signingData?.pollId ? "Sign Vote Request" : "Sign Message Request"}
+    </h4>
     <p class="text-black-700">
-        You're being asked to sign a vote for the following poll
+        {signingData?.pollId
+            ? "You're being asked to sign a vote for the following poll"
+            : "You're being asked to sign the following message"}
     </p>
 
-    <div class="bg-gray rounded-2xl w-full p-4 mt-4">
-        <h4 class="text-base text-black-700">Poll ID</h4>
-        <p class="text-black-700 font-normal">
-            {signingData?.pollId ?? "Unknown"}
-        </p>
-    </div>
-
-    <div class="bg-gray rounded-2xl w-full p-4">
-        <h4 class="text-base text-black-700">Your Vote</h4>
-        <div class="text-black-700 font-normal">
-            {#if signingData?.voteData?.optionId !== undefined}
-                <!-- Normal voting mode -->
-                <p>
-                    You selected: <strong
-                        >Option {parseInt(signingData.voteData.optionId) +
-                            1}</strong
-                    >
-                </p>
-                <p class="text-sm text-gray-600 mt-1">
-                    (This is the option number from the poll)
-                </p>
-            {:else if signingData?.voteData?.ranks}
-                <!-- Ranked voting mode -->
-                <p class="mb-2">Your ranking order:</p>
-                <div class="space-y-2">
-                    {#each Object.entries(signingData.voteData.ranks).sort(([a], [b]) => parseInt(a) - parseInt(b)) as [rank, optionIndex]}
-                        <div
-                            class="flex items-center space-x-3 p-2 bg-blue-50 rounded-lg"
-                        >
-                            <span
-                                class="text-sm bg-blue-500 text-white px-3 py-1 rounded-full font-medium"
-                            >
-                                {rank === "1"
-                                    ? "1st"
-                                    : rank === "2"
-                                      ? "2nd"
-                                      : rank === "3"
-                                        ? "3rd"
-                                        : `${rank}th`}
-                            </span>
-                            <span class="font-medium"
-                                >Option {parseInt(String(optionIndex)) +
-                                    1}</span
-                            >
-                        </div>
-                    {/each}
-                </div>
-                <p class="text-sm text-gray-600 mt-2">
-                    (1st = most preferred, 2nd = second choice, etc.)
-                </p>
-            {:else if signingData?.voteData?.points}
-                <!-- Points voting mode -->
-                <p class="mb-2">Your point distribution:</p>
-                <div class="space-y-2">
-                    {#each Object.entries(signingData.voteData.points)
-                        .filter(([_, points]) => (points as number) > 0)
-                        .sort(([a], [b]) => parseInt(a) - parseInt(b)) as [optionIndex, points]}
-                        <div
-                            class="flex items-center space-x-3 p-2 bg-purple-50 rounded-lg"
-                        >
-                            <span
-                                class="text-sm bg-purple-500 text-white px-3 py-1 rounded-full font-medium"
-                            >
-                                {points} pts
-                            </span>
-                            <span class="font-medium"
-                                >Option {parseInt(String(optionIndex)) +
-                                    1}</span
-                            >
-                        </div>
-                    {/each}
-                </div>
-                <p class="text-sm text-gray-600 mt-2">
-                    (Total: {Object.values(signingData.voteData.points).reduce(
-                        (sum, points) =>
-                            (sum as number) + ((points as number) || 0),
-                        0,
-                    )}/100 points)
-                </p>
-            {:else}
-                <p>Vote data not available</p>
-            {/if}
+    {#if signingData?.pollId && signingData?.voteData}
+        <!-- Poll Details -->
+        <div class="bg-gray rounded-2xl w-full p-4 mt-4">
+            <h4 class="text-base text-black-700">Poll ID</h4>
+            <p class="text-black-700 font-normal">
+                {signingData?.pollId ?? "Unknown"}
+            </p>
         </div>
-    </div>
+
+        <div class="bg-gray rounded-2xl w-full p-4">
+            <h4 class="text-base text-black-700">Your Vote</h4>
+            <div class="text-black-700 font-normal">
+                {#if signingData?.voteData?.optionId !== undefined}
+                    <!-- Normal voting mode -->
+                    <p>
+                        You selected: <strong
+                            >Option {parseInt(signingData.voteData.optionId) +
+                                1}</strong
+                        >
+                    </p>
+                    <p class="text-sm text-gray-600 mt-1">
+                        (This is the option number from the poll)
+                    </p>
+                {:else if signingData?.voteData?.ranks}
+                    <!-- Ranked voting mode -->
+                    <p class="mb-2">Your ranking order:</p>
+                    <div class="space-y-2">
+                        {#each Object.entries(signingData.voteData.ranks).sort(([a], [b]) => parseInt(a) - parseInt(b)) as [rank, optionIndex]}
+                            <div
+                                class="flex items-center space-x-3 p-2 bg-blue-50 rounded-lg"
+                            >
+                                <span
+                                    class="text-sm bg-blue-500 text-white px-3 py-1 rounded-full font-medium"
+                                >
+                                    {rank === "1"
+                                        ? "1st"
+                                        : rank === "2"
+                                          ? "2nd"
+                                          : rank === "3"
+                                            ? "3rd"
+                                            : `${rank}th`}
+                                </span>
+                                <span class="font-medium"
+                                    >Option {parseInt(String(optionIndex)) +
+                                        1}</span
+                                >
+                            </div>
+                        {/each}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">
+                        (1st = most preferred, 2nd = second choice, etc.)
+                    </p>
+                {:else if signingData?.voteData?.points}
+                    <!-- Points voting mode -->
+                    <p class="mb-2">Your point distribution:</p>
+                    <div class="space-y-2">
+                        {#each Object.entries(signingData.voteData.points)
+                            .filter(([_, points]) => (points as number) > 0)
+                            .sort(([a], [b]) => parseInt(a) - parseInt(b)) as [optionIndex, points]}
+                            <div
+                                class="flex items-center space-x-3 p-2 bg-purple-50 rounded-lg"
+                            >
+                                <span
+                                    class="text-sm bg-purple-500 text-white px-3 py-1 rounded-full font-medium"
+                                >
+                                    {points} pts
+                                </span>
+                                <span class="font-medium"
+                                    >Option {parseInt(String(optionIndex)) +
+                                        1}</span
+                                >
+                            </div>
+                        {/each}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">
+                        (Total: {Object.values(
+                            signingData.voteData.points,
+                        ).reduce(
+                            (sum, points) =>
+                                (sum as number) + ((points as number) || 0),
+                            0,
+                        )}/100 points)
+                    </p>
+                {:else}
+                    <p>Vote data not available</p>
+                {/if}
+            </div>
+        </div>
+    {:else}
+        <!-- Generic Message Details -->
+        <div class="bg-gray rounded-2xl w-full p-4 mt-4">
+            <h4 class="text-base text-black-700">Message</h4>
+            <p class="text-black-700 font-normal">
+                {signingData?.message ?? "No message provided"}
+            </p>
+        </div>
+
+        <div class="bg-gray rounded-2xl w-full p-4">
+            <h4 class="text-base text-black-700">Session ID</h4>
+            <p class="text-black-700 font-normal font-mono">
+                {signingData?.sessionId?.slice(0, 8) ?? "Unknown"}...
+            </p>
+        </div>
+    {/if}
 
     <div class="flex justify-center gap-3 items-center mt-4">
         <Button.Action
@@ -765,7 +815,11 @@
             Decline
         </Button.Action>
         <Button.Action variant="solid" class="w-full" callback={handleSignVote}>
-            {loading ? "Signing..." : "Sign Vote"}
+            {loading
+                ? "Signing..."
+                : signingData?.pollId
+                  ? "Sign Vote"
+                  : "Sign Message"}
         </Button.Action>
     </div>
 
@@ -792,18 +846,26 @@
                 />
             </div>
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                Vote Signed Successfully!
+                {signingData?.pollId
+                    ? "Vote Signed Successfully!"
+                    : "Message Signed Successfully!"}
             </h3>
-            <p class="text-gray-600">You can return to the platform</p>
+            <p class="text-gray-600">
+                {signingData?.pollId
+                    ? "Your vote has been signed and submitted to the voting system."
+                    : "Your message has been signed and submitted successfully."}
+            </p>
 
-            {#if signingData?.redirect_uri}
+            {#if redirect}
                 <div class="mt-4">
                     <Button.Action
                         variant="solid"
                         size="sm"
                         callback={() => {
                             try {
-                                window.location.href = signingData.redirect_uri;
+                                if (redirect) {
+                                    window.location.href = redirect;
+                                }
                             } catch (error) {
                                 console.error("Manual redirect failed:", error);
                             }

@@ -183,7 +183,7 @@ export function AddMembers({
                         !selectedUsers.some(
                             (selected) => selected.id === userData.id
                         ) && // Exclude already selected
-                        !currentChat?.participants.includes(userData.id) && // Exclude existing chat participants
+                        (newChat || !currentChat?.participants.includes(userData.id)) && // Only exclude existing participants if NOT creating new chat
                         (userData.name
                             ?.toLowerCase()
                             .includes(query.toLowerCase()) ||
@@ -478,7 +478,7 @@ export function AddMembers({
                                 (u) => u.id === userItem.id
                             );
                             const isExistingMember =
-                                currentChat?.participants.includes(userItem.id);
+                                !newChat && currentChat?.participants.includes(userItem.id);
 
                             return (
                                 <label

@@ -3,6 +3,7 @@ import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { CerberusTriggerService } from "../services/CerberusTriggerService";
+import { CharterSignatureService } from "../services/CharterSignatureService";
 import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -14,6 +15,7 @@ export class WebhookController {
     groupService: GroupService;
     messageService: MessageService;
     cerberusTriggerService: CerberusTriggerService;
+    charterSignatureService: CharterSignatureService;
     adapter: Web3Adapter;
 
     constructor(adapter: Web3Adapter) {
@@ -21,6 +23,7 @@ export class WebhookController {
         this.groupService = new GroupService();
         this.messageService = new MessageService();
         this.cerberusTriggerService = new CerberusTriggerService();
+        this.charterSignatureService = new CharterSignatureService();
         this.adapter = adapter;
     }
 
@@ -297,6 +300,81 @@ export class WebhookController {
                                 console.error("❌ Error processing Cerberus trigger:", error);
                             });
                     }
+                }
+            } else if (mapping.tableName === "charter_signatures") {
+                console.log("Processing charter signature with data:", local.data);
+
+                // Extract group and user from the signature data
+                let group: Group | null = null;
+                let user: User | null = null;
+
+                // Parse groupId from relation string like "groups(cd8e7ce1-ca76-4564-8fb8-1cbb5c3d1917)"
+                if (local.data.groupId && typeof local.data.groupId === "string") {
+                    const groupId = local.data.groupId.split("(")[1].split(")")[0];
+                    console.log("Extracted groupId:", groupId);
+                    group = await this.groupService.getGroupById(groupId);
+                }
+
+                // Parse userId from relation string like "users(userId)" or handle null case
+                if (local.data.userId && typeof local.data.userId === "string") {
+                    const userId = local.data.userId.split("(")[1].split(")")[0];
+                    console.log("Extracted userId:", userId);
+                    user = await this.userService.getUserById(userId);
+                } else if (local.data.userId === null) {
+                    console.log("userId is null, skipping user lookup");
+                    // For now, we'll create the signature without a user - you might want to handle this differently
+                }
+
+                if (!group) {
+                    console.error("Group not found for charter signature");
+                    return res.status(500).send();
+                }
+
+                if (!user) {
+                    console.error("User not found for charter signature - userId was null or invalid");
+                    return res.status(500).send();
+                }
+
+                if (localId) {
+                    console.log("Updating existing charter signature with localId:", localId);
+                    // For now, we'll just log that we're updating
+                    // You might want to add update logic here if needed
+                    console.log("Charter signature update not yet implemented");
+                } else {
+                    console.log("Creating new charter signature");
+                    
+                    // Create the charter signature using the service
+                                            const charterSignature = await this.charterSignatureService.createCharterSignature({
+                            data: {
+                                id: req.body.id,
+                                group: group.id,
+                                user: user.id,
+                                charterHash: local.data.charterHash,
+                                signature: local.data.signature,
+                                publicKey: local.data.publicKey,
+                                message: local.data.message,
+                                createdAt: local.data.createdAt,
+                                updatedAt: local.data.updatedAt,
+                            }
+                        });
+
+                        console.log("Created charter signature with ID:", charterSignature.id);
+                        this.adapter.addToLockedIds(charterSignature.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: charterSignature.id,
+                            globalId: req.body.id,
+                        });
+                        console.log("Stored mapping for charter signature:", charterSignature.id, "->", req.body.id);
+
+                        // Analyze charter activation after new signature
+                        try {
+                            await this.charterSignatureService.analyzeCharterActivation(
+                                group.id,
+                                this.messageService
+                            );
+                        } catch (error) {
+                            console.error("Error analyzing charter activation:", error);
+                        }
                 }
             }
             res.status(200).send();

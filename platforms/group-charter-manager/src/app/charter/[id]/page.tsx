@@ -8,6 +8,7 @@ import {
     Users,
     Save,
     X,
+    CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ import { apiClient } from "@/lib/apiClient";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CharterSigningStatus } from "@/components/charter-signing-status";
+import { CharterSigningInterface } from "@/components/charter-signing-interface";
 
 interface Group {
     id: string;
@@ -43,13 +46,14 @@ export default function CharterDetail({
     const [isEditing, setIsEditing] = useState(false);
     const [editCharter, setEditCharter] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [showSigningInterface, setShowSigningInterface] = useState(false);
+    const [signingStatus, setSigningStatus] = useState<any>(null);
+    const [signingStatusLoading, setSigningStatusLoading] = useState(true);
 
     const { id } = use(params);
     const { toast } = useToast();
     const { user } = useAuth();
 
-    // Fetch group data on component mount
-    useEffect(() => {
         const fetchGroup = async () => {
             try {
                 setIsLoading(true);
@@ -68,10 +72,33 @@ export default function CharterDetail({
             }
         };
 
+    const fetchSigningStatus = async () => {
+        if (!group?.charter) return;
+        
+        try {
+            setSigningStatusLoading(true);
+            const response = await apiClient.get(`/api/groups/${id}/charter/signing-status`);
+            setSigningStatus(response.data);
+        } catch (error) {
+            console.error('Failed to fetch signing status:', error);
+        } finally {
+            setSigningStatusLoading(false);
+        }
+    };
+
+    // Fetch group data on component mount
+    useEffect(() => {
         if (id) {
             fetchGroup();
         }
     }, [id, toast]);
+
+    // Fetch signing status when group changes
+    useEffect(() => {
+        if (group?.charter) {
+            fetchSigningStatus();
+        }
+    }, [group?.charter]);
 
     const handleEditStart = () => {
         setIsEditing(true);
@@ -125,8 +152,8 @@ export default function CharterDetail({
         isEditing
     });
 
-    // Temporary: Always show edit button for testing
-    const showEditButton = true; // canEdit;
+    // Only show edit button for admins
+    const showEditButton = canEdit;
 
     if (isLoading) {
         return (
@@ -231,7 +258,7 @@ export default function CharterDetail({
                                 </>
                             ) : (
                                 <>
-                                    {/* Edit Charter Button (only for owner or admin) */}
+                                    {/* Edit Charter Button (only for admins) */}
                                     {showEditButton && (
                                         <Button
                                             onClick={handleEditStart}
@@ -240,6 +267,40 @@ export default function CharterDetail({
                                             <Edit className="mr-2" size={18} />
                                             Edit Charter
                                         </Button>
+                                    )}
+                                    
+                                    {/* Sign Charter Button (only if current user hasn't signed) */}
+                                    {group.charter && signingStatus && !signingStatusLoading && (
+                                        (() => {
+                                            const currentUser = signingStatus.participants.find((p: any) => p.id === user?.id);
+                                            return currentUser && !currentUser.hasSigned;
+                                        })() && (
+                                            <Button
+                                                onClick={() => setShowSigningInterface(true)}
+                                                variant="outline"
+                                                className="bg-green-600 text-white px-6 py-3 rounded-2xl font-medium hover:bg-green-700 transition-all duration-300 shadow-lg"
+                                            >
+                                                <CheckCircle className="mr-2" size={18} />
+                                                Sign Charter
+                                            </Button>
+                                        )
+                                    )}
+                                    
+                                    {/* Disabled button for users who have already signed */}
+                                    {group.charter && signingStatus && !signingStatusLoading && (
+                                        (() => {
+                                            const currentUser = signingStatus.participants.find((p: any) => p.id === user?.id);
+                                            return currentUser && currentUser.hasSigned;
+                                        })() && (
+                                            <Button
+                                                disabled
+                                                variant="outline"
+                                                className="bg-green-50 text-green-600 border-green-600 cursor-not-allowed px-6 py-3 rounded-2xl font-medium"
+                                            >
+                                                <CheckCircle className="mr-2" size={18} />
+                                                Charter Signed
+                                            </Button>
+                                        )
                                     )}
                                 </>
                             )}
@@ -274,10 +335,28 @@ export default function CharterDetail({
                                                        </ReactMarkdown>
                                                    </div>
                                                ) : (
+                                                   <div>
                                                    <p className="text-gray-500 italic">
                                                        No charter content has been set for this group.
                                                    </p>
+                                                       {!canEdit && (
+                                                           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                               <p className="text-sm text-blue-700">
+                                                                   💡 Only admins can create the charter. Contact a group admin to get started.
+                                                               </p>
+                                                           </div>
+                                                       )}
+                                                   </div>
                                                )}
+                                           </div>
+                                       )}
+                                        
+                                        {/* Info message for non-admin users */}
+                                        {!canEdit && group.charter && (
+                                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <p className="text-sm text-blue-700">
+                                                    💡 Only admins can edit the charter. Contact a group admin if you need changes.
+                                                </p>
                                            </div>
                                        )}
                             </div>
@@ -295,12 +374,15 @@ export default function CharterDetail({
                             </h3>
                             <div className="space-y-3 text-sm">
                                 <div>
-                                    <span className="text-gray-600">Owner:</span>
-                                    <span className="ml-2 font-medium">{group.owner}</span>
-                                </div>
-                                <div>
                                     <span className="text-gray-600">Admins:</span>
-                                    <span className="ml-2 font-medium">{group.admins?.length || 0}</span>
+                                    <span className="ml-2 font-medium">
+                                        {group.participants && group.admins ? (
+                                            group.participants
+                                                .filter(participant => group.admins.includes(participant.id))
+                                                .map(participant => participant.name || participant.ename || 'Unknown')
+                                                .join(', ')
+                                        ) : 'None'}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Members:</span>
@@ -329,8 +411,53 @@ export default function CharterDetail({
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* Charter Signing Status */}
+                    {group.charter && (
+                        <CharterSigningStatus 
+                            groupId={group.id} 
+                            charterContent={group.charter} 
+                        />
+                    )}
                 </div>
             </div>
+
+            {/* Signing Interface Modal */}
+            {showSigningInterface && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <CharterSigningInterface
+                            groupId={group.id}
+                            charterData={{ charter: group.charter }}
+                            onSigningComplete={(groupId) => {
+                                setShowSigningInterface(false);
+                                // Immediately update signing status without full refresh
+                                fetchSigningStatus();
+                            }}
+                            onCancel={() => setShowSigningInterface(false)}
+                            onSigningStatusUpdate={(participantId, hasSigned) => {
+                                // Immediately update the local signing status
+                                if (signingStatus) {
+                                    setSigningStatus(prev => {
+                                        if (!prev) return prev;
+                                        
+                                        const updatedParticipants = prev.participants.map(participant => 
+                                            participant.id === participantId 
+                                                ? { ...participant, hasSigned }
+                                                : participant
+                                        );
+                                        
+                                        return {
+                                            ...prev,
+                                            participants: updatedParticipants
+                                        };
+                                    });
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
