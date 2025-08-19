@@ -262,43 +262,90 @@ export function manageLike(
     tweetId: string
 ) {
     return async (): Promise<void> => {
-        const batch = writeBatch(db);
-
-        const userStatsRef = doc(userStatsCollection(userId), 'stats');
+        console.log(`[DEBUG] Starting ${type} operation for user ${userId} on tweet ${tweetId}`);
+        
+        const userStatsRef = doc(userStatsCollection(userId));
         const tweetRef = doc(tweetsCollection, tweetId);
 
-        // Ensure stats document exists before updating
-        await ensureUserStatsExists(userId);
+        console.log(`[DEBUG] User stats ref: ${userStatsRef.path}`);
+        console.log(`[DEBUG] Tweet ref: ${tweetRef.path}`);
 
-        if (type === 'like') {
-            batch.update(tweetRef, {
-                userLikes: arrayUnion(userId),
-                updatedAt: serverTimestamp()
-            });
-            batch.set(
-                userStatsRef,
-                {
-                    likes: arrayUnion(tweetId),
+        try {
+            // Check if user stats document exists, create if it doesn't
+            const userStatsDoc = await getDoc(userStatsRef);
+            if (!userStatsDoc.exists()) {
+                console.log(`[DEBUG] User stats document doesn't exist, creating it...`);
+                await setDoc(userStatsRef, {
+                    likes: [],
+                    tweets: [],
                     updatedAt: serverTimestamp()
-                },
-                { merge: true }
-            );
-        } else {
-            batch.update(tweetRef, {
-                userLikes: arrayRemove(userId),
-                updatedAt: serverTimestamp()
-            });
-            batch.set(
-                userStatsRef,
-                {
-                    likes: arrayRemove(tweetId),
-                    updatedAt: serverTimestamp()
-                },
-                { merge: true }
-            );
+                });
+                console.log(`[DEBUG] User stats document created successfully`);
+            }
+
+            if (type === 'like') {
+                console.log(`[DEBUG] Adding like to tweet...`);
+                try {
+                    await updateDoc(tweetRef, {
+                        userLikes: arrayUnion(userId),
+                        updatedAt: serverTimestamp()
+                    });
+                    console.log(`[DEBUG] Tweet updated successfully`);
+                } catch (tweetError) {
+                    console.error(`[DEBUG] Error updating tweet:`, tweetError);
+                    throw tweetError;
+                }
+                
+                console.log(`[DEBUG] Adding tweet to user stats...`);
+                try {
+                    await setDoc(
+                        userStatsRef,
+                        {
+                            likes: arrayUnion(tweetId),
+                            updatedAt: serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                    console.log(`[DEBUG] User stats updated successfully`);
+                } catch (statsError) {
+                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    throw statsError;
+                }
+            } else {
+                console.log(`[DEBUG] Removing like from tweet...`);
+                try {
+                    await updateDoc(tweetRef, {
+                        userLikes: arrayRemove(userId),
+                        updatedAt: serverTimestamp()
+                    });
+                    console.log(`[DEBUG] Tweet updated successfully`);
+                } catch (tweetError) {
+                    console.error(`[DEBUG] Error updating tweet:`, tweetError);
+                    throw tweetError;
+                }
+                
+                console.log(`[DEBUG] Removing tweet from user stats...`);
+                try {
+                    await setDoc(
+                        userStatsRef,
+                        {
+                            likes: arrayRemove(tweetId),
+                            updatedAt: serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                    console.log(`[DEBUG] User stats updated successfully`);
+                } catch (statsError) {
+                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    throw statsError;
+                }
+            }
+            
+            console.log(`[DEBUG] Like operation completed successfully`);
+        } catch (error) {
+            console.error(`[DEBUG] Error in like operation:`, error);
+            throw error;
         }
-
-        await batch.commit();
     };
 }
 

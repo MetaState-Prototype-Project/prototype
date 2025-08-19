@@ -91,15 +91,26 @@ export function AuthContextProvider({
 
         const { id } = user;
 
-        const unsubscribeUser = onSnapshot(doc(usersCollection, id), (doc) => {
-            setUser(doc.data() as User);
-        });
+        const unsubscribeUser = onSnapshot(
+            doc(usersCollection, id), 
+            (doc) => {
+                setUser(doc.data() as User);
+            },
+            (error) => {
+                console.error('[DEBUG] Error in user document listener:', error);
+                // Don't throw here, just log the error
+            }
+        );
 
         const unsubscribeBookmarks = onSnapshot(
             userBookmarksCollection(id),
             (snapshot) => {
                 const bookmarks = snapshot.docs.map((doc) => doc.data());
                 setUserBookmarks(bookmarks);
+            },
+            (error) => {
+                console.error('[DEBUG] Error in bookmarks listener:', error);
+                // Don't throw here, just log the error
             }
         );
 
