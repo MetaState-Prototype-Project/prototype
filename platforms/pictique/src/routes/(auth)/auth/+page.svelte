@@ -127,7 +127,9 @@
 		{/if}
 
 		<p class="text-center">
-			<span class="mb-1 block font-bold text-gray-600">The code is valid for 60 seconds</span>
+			<span class="mb-1 block font-bold text-gray-600"
+				>The {isMobileDevice() ? 'button' : 'code'} is valid for 60 seconds</span
+			>
 			<span class="block font-light text-gray-600">Please refresh the page if it expires</span
 			>
 		</p>

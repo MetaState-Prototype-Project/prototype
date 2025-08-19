@@ -70,10 +70,21 @@ export default function LoginScreen() {
     };
   };
 
+  const getAppStoreLink = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			if (/android/i.test(userAgent)) {
+				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+			}
+			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
+			}
+			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+		};
+
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
       </div>
     );
   }
@@ -101,15 +112,15 @@ export default function LoginScreen() {
                 />
                 <h1 className="text-3xl font-bold">Group Charter</h1>
             </div>
-            <p class="text-gray-600">
+            <p className="text-gray-600">
                 Coordinate your group in the MetaState
             </p>
         </div>
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
-          
+
           <p className="text-gray-600">
-            Scan the QR code to login with your W3DS identity
+            Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
           </p>
         </div>
 
@@ -142,7 +153,9 @@ export default function LoginScreen() {
 
         <div className="text-center">
           <p className="text-sm text-gray-500">
-            Use your W3DS wallet to scan this QR code and authenticate
+           <span className="mb-1 block font-bold text-gray-600">The {isMobileDevice() ? "button": "code"} is valid for 60 seconds</span>
+			<span className="block font-light text-gray-600">Please refresh the page if it expires</span
+			>
           </p>
         </div>
 
@@ -155,13 +168,15 @@ export default function LoginScreen() {
           servers.
         </div>
 
-        <Image
-          src="/W3DS.svg"
-          alt="W3DS Logo"
-          width={50}
-          height={20}
-          className="mx-auto mt-5"
-        />
+        <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
+            <Image
+            src="/W3DS.svg"
+            alt="W3DS Logo"
+            width={50}
+            height={20}
+            className="mx-auto mt-5"
+            />
+        </a>
       </div>
     </div>
   );
