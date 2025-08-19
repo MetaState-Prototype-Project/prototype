@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { UserService } from "../services/UserService";
 import { EventEmitter } from "events";
+import { signToken } from "../utils/jwt";
 
 export class AuthController {
     private userService: UserService;
@@ -58,8 +59,18 @@ export class AuthController {
                 return res.status(400).json({ error: "ename is required" });
             }
 
-            const { user, token } =
-                await this.userService.findOrCreateUser(ename);
+            // Only find existing users - don't create new ones during auth
+            const user = await this.userService.findUser(ename);
+            
+            if (!user) {
+                // User doesn't exist - they need to be created via webhook first
+                return res.status(404).json({ 
+                    error: "User not found", 
+                    message: "User must be created via eVault webhook before authentication" 
+                });
+            }
+
+            const token = signToken({ userId: user.id });
 
             const data = {
                 user: {

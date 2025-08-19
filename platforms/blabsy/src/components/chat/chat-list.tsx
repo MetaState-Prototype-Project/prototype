@@ -8,6 +8,7 @@ import { useChat } from '@lib/context/chat-context';
 import { db } from '@lib/firebase/app';
 import { Loading } from '@components/ui/loading';
 import type { Chat } from '@lib/types/chat';
+import { getChatType } from '@lib/types/chat';
 import type { User } from '@lib/types/user';
 import { AddMembers } from './add-members';
 
@@ -127,7 +128,7 @@ export function ChatList(): JSX.Element {
                             </div>
                             <div className='flex-1 overflow-hidden text-left'>
                                 <p className='truncate font-medium'>
-                                    {chat.type === 'direct'
+                                    {getChatType(chat) === 'direct'
                                         ? participant?.name ||
                                           participant?.username ||
                                           otherParticipant
@@ -185,7 +186,7 @@ function ChatListItem({
             onClick={onClick}
         >
             <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700'>
-                {chat.type === 'group' ? (
+                {getChatType(chat) === 'group' ? (
                     <svg
                         className='h-6 w-6 text-gray-500'
                         fill='none'

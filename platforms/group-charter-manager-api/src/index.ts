@@ -89,6 +89,9 @@ app.get("/api/groups/:groupId", authGuard, groupController.getGroup.bind(groupCo
 app.post("/api/groups/:groupId/participants", authGuard, groupController.addParticipants.bind(groupController));
 app.delete("/api/groups/:groupId/participants/:userId", authGuard, groupController.removeParticipant.bind(groupController));
 
+// Admin routes
+app.post("/api/admin/ensure-cerberus", authGuard, groupController.ensureCerberusInAllGroups.bind(groupController));
+
 // Start server
 app.listen(port, () => {
     console.log(`Group Charter Manager API running on port ${port}`);

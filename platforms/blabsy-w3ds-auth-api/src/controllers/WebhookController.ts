@@ -43,7 +43,7 @@ type Tweet = {
 
 type Chat = {
     id: string;
-    type: "direct" | "group";
+    type: "direct" | "group";  // Always set by webhook based on participant count
     name?: string;
     participants: string[];
     createdAt: Timestamp;
@@ -58,11 +58,12 @@ type Chat = {
 type Message = {
     id: string;
     chatId: string;
-    senderId: string;
+    senderId: string | null; // null for system messages
     text: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
     readBy: string[];
+    isSystemMessage?: boolean; // Flag for system messages
 };
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
@@ -269,13 +270,17 @@ export class WebhookController {
     }
 
     private mapChatData(data: any, now: Timestamp): Partial<Chat> {
+        const participants = data.participants.map(
+            (p: string) => p.split("(")[1].split(")")[0],
+        ) || [];
+        
+        // Derive type from participant count
+        const type = participants.length > 2 ? "group" : "direct";
+        
         return {
-            type: data.type || "direct",
+            type,
             name: data.name,
-            participants:
-                data.participants.map(
-                    (p: string) => p.split("(")[1].split(")")[0],
-                ) || [],
+            participants,
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
                 : now,
@@ -292,6 +297,40 @@ export class WebhookController {
     }
 
     private mapMessageData(data: any, now: Timestamp): Partial<Message> {
+        // Check if this is a system message
+        const isSystemMessage = !data.senderId || data.text?.startsWith('$$system-message$$');
+        
+        // For system messages, we don't need a sender
+        if (isSystemMessage) {
+            return {
+                chatId: data.chatId.split("(")[1].split(")")[0],
+                senderId: null, // System messages have no sender
+                text: data.text,
+                createdAt: data.createdAt
+                    ? Timestamp.fromDate(new Date(data.createdAt))
+                    : now,
+                updatedAt: now,
+                readBy: data.readBy || [],
+                isSystemMessage: true,
+            };
+        }
+        
+        // Regular user messages - ensure senderId exists before splitting
+        if (!data.senderId) {
+            console.warn("Message has no senderId but is not a system message:", data);
+            return {
+                chatId: data.chatId.split("(")[1].split(")")[0],
+                senderId: null,
+                text: data.text,
+                createdAt: data.createdAt
+                    ? Timestamp.fromDate(new Date(data.createdAt))
+                    : now,
+                updatedAt: now,
+                readBy: data.readBy || [],
+                isSystemMessage: true, // Treat as system message if no sender
+            };
+        }
+        
         return {
             chatId: data.chatId.split("(")[1].split(")")[0],
             senderId: data.senderId.split("(")[1].split(")")[0],
@@ -301,6 +340,7 @@ export class WebhookController {
                 : now,
             updatedAt: now,
             readBy: data.readBy || [],
+            isSystemMessage: false,
         };
     }
 }

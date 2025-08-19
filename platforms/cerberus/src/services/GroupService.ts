@@ -14,7 +14,8 @@ export class GroupService {
     async getGroupById(id: string): Promise<Group | null> {
         return await this.groupRepository.findOne({ 
             where: { id },
-            relations: ['participants']
+            relations: ['participants'],
+            select: ['id', 'name', 'charter', 'createdAt', 'updatedAt']
         });
     }
 

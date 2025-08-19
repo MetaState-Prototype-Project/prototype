@@ -1,14 +1,21 @@
 import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
 import { User } from "../database/entities/User";
+import { MessageService } from "./MessageService";
 
 export class GroupService {
     public groupRepository = AppDataSource.getRepository(Group);
     private userRepository = AppDataSource.getRepository(User);
+    private messageService = new MessageService();
 
     async createGroup(groupData: Partial<Group>): Promise<Group> {
         const group = this.groupRepository.create(groupData);
-        return await this.groupRepository.save(group);
+        const savedGroup = await this.groupRepository.save(group);
+        
+        // Note: Cerberus is only added when a charter is defined, not when group is created
+        // This happens in updateGroupCharter when the charter content mentions Cerberus
+        
+        return savedGroup;
     }
 
     async getGroupById(id: string): Promise<Group | null> {
@@ -54,15 +61,46 @@ export class GroupService {
             });
         });
 
-        // Filter groups where user is a participant
-        const userGroups = allGroups.filter(group => 
-            group.participants?.some(participant => participant.id === userId)
-        );
+        // Filter groups where user is a participant AND group has at least 3 participants
+        const userGroups = allGroups.filter(group => {
+            const isUserParticipant = group.participants?.some(participant => participant.id === userId);
+            const hasMinimumParticipants = group.participants && group.participants.length >= 3;
+            
+            return isUserParticipant && hasMinimumParticipants;
+        });
         
-        console.log("User groups found:", userGroups.length);
+        console.log("User groups found (with minimum 3 participants):", userGroups.length);
         return userGroups;
     }
 
+
+
+    /**
+     * Update group charter and create a system message about the change
+     */
+    async updateGroupCharter(groupId: string, newCharter: string, changeDescription: string): Promise<Group | null> {
+        const group = await this.getGroupById(groupId);
+        
+        if (!group) {
+            throw new Error("Group not found");
+        }
+
+        // Update the charter
+        group.charter = newCharter;
+        const updatedGroup = await this.groupRepository.save(group);
+
+        // Check if Cerberus should be added based on the charter content
+        await this.addCerberusToGroupIfRequired(groupId, newCharter);
+
+        // Create a system message about the charter change
+        await this.messageService.createCharterChangeMessage(groupId, changeDescription);
+
+        return updatedGroup;
+    }
+
+    /**
+     * Add participant and create a system message
+     */
     async addParticipantToGroup(groupId: string, userId: string): Promise<void> {
         const group = await this.getGroupById(groupId);
         const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -70,15 +108,88 @@ export class GroupService {
         if (group && user) {
             group.participants = [...group.participants, user];
             await this.groupRepository.save(group);
+
+            // Create a system message about the new participant
+            await this.messageService.createSystemMessage({
+                text: `👋 ${user.name || user.handle} joined the group`,
+                groupId,
+            });
         }
     }
 
+    /**
+     * Remove participant and create a system message
+     */
     async removeParticipantFromGroup(groupId: string, userId: string): Promise<void> {
         const group = await this.getGroupById(groupId);
+        const user = await this.userRepository.findOne({ where: { id: userId } });
         
-        if (group) {
+        if (group && user) {
             group.participants = group.participants.filter(p => p.id !== userId);
             await this.groupRepository.save(group);
+
+            // Create a system message about the participant leaving
+            await this.messageService.createSystemMessage({
+                text: `👋 ${user.name || user.handle} left the group`,
+                groupId,
+            });
+        }
+    }
+
+    /**
+     * Check if a charter mentions Cerberus in its watchdog policy
+     */
+    private charterMentionsCerberus(charterContent: string): boolean {
+        if (!charterContent) return false;
+        
+        // Check if the charter contains the watchdog policy section mentioning Cerberus
+        const hasWatchdogSection = charterContent.toLowerCase().includes('automated watchdog policy');
+        const mentionsCerberus = charterContent.toLowerCase().includes('cerberus');
+        
+        return hasWatchdogSection && mentionsCerberus;
+    }
+
+    /**
+     * Notify that Cerberus will monitor the group if the charter requires it
+     */
+    async addCerberusToGroupIfRequired(groupId: string, charterContent?: string): Promise<void> {
+        try {
+            // Only notify if the charter mentions Cerberus in the watchdog policy
+            if (!charterContent || !this.charterMentionsCerberus(charterContent)) {
+                console.log("Charter does not mention Cerberus watchdog policy - skipping notification");
+                return;
+            }
+
+            console.log(`Charter mentions Cerberus watchdog policy - Cerberus will monitor group ${groupId} for compliance`);
+
+            // Create a system message about Cerberus monitoring
+            await this.messageService.createSystemMessage({
+                text: `🔒 Cerberus Platform will monitor this group for charter compliance as specified in the Automated Watchdog Policy. Use "cerberus trigger" to request a compliance check.`,
+                groupId,
+            });
+        } catch (error) {
+            console.error("Error setting up Cerberus monitoring notification:", error);
+        }
+    }
+
+    /**
+     * Ensure Cerberus monitoring is set up for all groups that have charters mentioning it
+     */
+    async ensureCerberusInAllGroups(): Promise<void> {
+        try {
+            const allGroups = await this.getAllGroups();
+            console.log(`Checking ${allGroups.length} groups for Cerberus monitoring requirements...`);
+            
+            for (const group of allGroups) {
+                // Only set up Cerberus monitoring if the group has a charter that mentions it
+                if (group.charter) {
+                    await this.addCerberusToGroupIfRequired(group.id, group.charter);
+                }
+            }
+            
+            console.log("Finished setting up Cerberus monitoring for groups with charter requirements");
+        } catch (error) {
+            console.error("Error setting up Cerberus monitoring for all groups:", error);
         }
     }
 } 

@@ -142,16 +142,39 @@ export class WebhookController {
                         return res.status(500).send();
                     }
 
+                    // Store old charter for change detection
+                    const oldCharter = group.charter;
+                    const newCharter = local.data.charter as string;
+
                     group.name = local.data.name as string;
                     group.description = local.data.description as string;
                     group.owner = local.data.owner as string;
                     group.admins = admins;
                     group.participants = participants;
-                    group.charter = local.data.charter as string;
+                    
+                    // Only update charter if new data is provided, preserve existing if not
+                    if (newCharter !== undefined && newCharter !== null) {
+                        group.charter = newCharter;
+                    }
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
                     console.log("Updated group:", group.id);
+
+                    // Check for charter changes and send Cerberus notifications
+                    // Only process if there's actually a charter change, not just a message update
+                    if (newCharter !== undefined && newCharter !== null && oldCharter !== newCharter) {
+                        console.log("Charter change detected, notifying Cerberus...");
+                        console.log("Old charter:", oldCharter ? "exists" : "none");
+                        console.log("New charter:", newCharter ? "exists" : "none");
+                        
+                        await this.cerberusTriggerService.processCharterChange(
+                            group.id,
+                            group.name,
+                            oldCharter,
+                            newCharter
+                        );
+                    }
                 } else {
                     console.log("Creating new group");
                     const group = await this.groupService.createGroup({
@@ -171,6 +194,17 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for group:", group.id, "->", req.body.id);
+
+                    // Check if new group has a charter and send Cerberus welcome message
+                    if (group.charter) {
+                        console.log("New group with charter detected, sending Cerberus welcome...");
+                        await this.cerberusTriggerService.processCharterChange(
+                            group.id,
+                            group.name,
+                            undefined, // No old charter for new groups
+                            group.charter
+                        );
+                    }
                 }
             } else if (mapping.tableName === "messages") {
                 console.log("Processing message with data:", local.data);
@@ -189,8 +223,18 @@ export class WebhookController {
                     group = await this.groupService.getGroupById(groupId);
                 }
 
-                if (!sender || !group) {
-                    console.error("Sender or group not found for message");
+                // Check if this is a system message (no sender required)
+                const isSystemMessage = local.data.isSystemMessage === true || 
+                                     (local.data.text && typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
+
+                if (!group) {
+                    console.error("Group not found for message");
+                    return res.status(500).send();
+                }
+
+                // For system messages, sender can be null
+                if (!isSystemMessage && !sender) {
+                    console.error("Sender not found for non-system message");
                     return res.status(500).send();
                 }
 
@@ -202,20 +246,35 @@ export class WebhookController {
                         return res.status(500).send();
                     }
 
-                    message.text = local.data.text as string;
+                    // For system messages, ensure the prefix is preserved
+                    if (isSystemMessage && !(local.data.text as string).startsWith('$$system-message$$')) {
+                        message.text = `$$system-message$$ ${local.data.text as string}`;
+                    } else {
+                        message.text = local.data.text as string;
+                    }
                     message.sender = sender;
                     message.group = group;
+                    message.isSystemMessage = isSystemMessage as boolean;
 
                     this.adapter.addToLockedIds(localId);
                     await this.messageService.messageRepository.save(message);
                     console.log("Updated message:", message.id);
                 } else {
                     console.log("Creating new message");
-                    const message = await this.messageService.createMessage({
-                        text: local.data.text as string,
-                        senderId: sender.id,
-                        groupId: group.id,
-                    });
+                    let message: Message;
+                    
+                    if (isSystemMessage) {
+                        message = await this.messageService.createSystemMessageWithoutPrefix({
+                            text: local.data.text as string,
+                            groupId: group.id,
+                        });
+                    } else {
+                        message = await this.messageService.createMessage({
+                            text: local.data.text as string,
+                            senderId: sender!.id, // We know sender exists for non-system messages
+                            groupId: group.id,
+                        });
+                    }
 
                     console.log("Created message with ID:", message.id);
                     this.adapter.addToLockedIds(message.id);

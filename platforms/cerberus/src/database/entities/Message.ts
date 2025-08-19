@@ -14,11 +14,14 @@ export class Message {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @ManyToOne(() => User)
-    sender!: User;
+    @ManyToOne(() => User, { nullable: true })
+    sender!: User | null;
 
     @Column("text")
     text!: string;
+
+    @Column({ default: false })
+    isSystemMessage!: boolean;
 
     @ManyToOne(() => Group, (group) => group.messages)
     group!: Group;

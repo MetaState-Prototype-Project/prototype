@@ -19,12 +19,14 @@ export class GraphQLServer {
     server?: Server;
     private evaultPublicKey: string | null;
     private evaultW3ID: string | null;
+    private evaultInstance: any; // Reference to the eVault instance
 
-    constructor(db: DbService, evaultPublicKey?: string | null, evaultW3ID?: string | null) {
+    constructor(db: DbService, evaultPublicKey?: string | null, evaultW3ID?: string | null, evaultInstance?: any) {
         this.db = db;
         this.accessGuard = new VaultAccessGuard(db);
         this.evaultPublicKey = evaultPublicKey || process.env.EVAULT_PUBLIC_KEY || null;
         this.evaultW3ID = evaultW3ID || process.env.W3ID || null;
+        this.evaultInstance = evaultInstance;
     }
 
     public getSchema(): GraphQLSchema {
@@ -110,6 +112,17 @@ export class GraphQLServer {
         }
     }
 
+    /**
+     * Gets the current eVault W3ID dynamically from the eVault instance
+     * @returns string | null - The current eVault W3ID
+     */
+    private getCurrentEvaultW3ID(): string | null {
+        if (this.evaultInstance && this.evaultInstance.w3id) {
+            return this.evaultInstance.w3id;
+        }
+        return this.evaultW3ID;
+    }
+
     init() {
         const resolvers = {
             JSON: require("graphql-type-json"),
@@ -170,7 +183,7 @@ export class GraphQLServer {
                             context.tokenPayload?.platform || null;
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
-                            w3id: this.evaultW3ID,
+                            w3id: this.getCurrentEvaultW3ID(),
                             evaultPublicKey: this.evaultPublicKey,
                             data: input.payload,
                             schemaId: input.ontology,
@@ -228,7 +241,7 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
-                                w3id: this.evaultW3ID,
+                                w3id: this.getCurrentEvaultW3ID(),
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: input.payload,
                                 schemaId: input.ontology,

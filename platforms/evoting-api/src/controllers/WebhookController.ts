@@ -1,109 +1,184 @@
 import { Request, Response } from "express";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src/index";
-import { AppDataSource } from "../database/data-source";
+import { UserService } from "../services/UserService";
+import { GroupService } from "../services/GroupService";
+import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
-import { Poll } from "../database/entities/Poll";
-import { Vote } from "../database/entities/Vote";
-import { MetaEnvelopeMap } from "../database/entities/MetaEnvelopeMap";
+import { Group } from "../database/entities/Group";
+import axios from "axios";
 
 export class WebhookController {
-    private adapter: Web3Adapter;
-    private userRepository = AppDataSource.getRepository(User);
-    private pollRepository = AppDataSource.getRepository(Poll);
-    private voteRepository = AppDataSource.getRepository(Vote);
-    private mappingRepository = AppDataSource.getRepository(MetaEnvelopeMap);
+    userService: UserService;
+    groupService: GroupService;
+    adapter: typeof adapter;
 
-    constructor(adapter: Web3Adapter) {
+    constructor() {
+        this.userService = new UserService();
+        this.groupService = new GroupService();
         this.adapter = adapter;
     }
 
     handleWebhook = async (req: Request, res: Response) => {
         try {
-            const { data, entityType } = req.body;
-
-            if (!data || !entityType) {
-                return res.status(400).json({ error: "Missing data or entityType" });
-            }
-
-            console.log(`Webhook received for ${entityType}:`, data);
-
-            const existingMapping = await this.mappingRepository.findOne({
-                where: { globalId: data.id, entityType }
+            console.log("Webhook received:", {
+                schemaId: req.body.schemaId,
+                globalId: req.body.id,
+                tableName: req.body.data?.tableName
             });
 
-            if (existingMapping) {
-                console.log(`Entity ${entityType} with global ID ${data.id} already exists locally`);
-                return res.status(200).json({ message: "Entity already exists" });
+            if (process.env.ANCHR_URL) {
+                axios.post(
+                    new URL("evoting-api", process.env.ANCHR_URL).toString(),
+                    req.body
+                );
             }
 
-            const localId = await this.createLocalEntity(entityType, data);
+            const schemaId = req.body.schemaId;
+            const globalId = req.body.id;
+            const mapping = Object.values(this.adapter.mapping).find(
+                (m: any) => m.schemaId === schemaId
+            ) as any;
 
-            if (localId) {
-                await this.mappingRepository.save({
-                    localId,
-                    globalId: data.id,
-                    entityType,
-                    platform: process.env.PUBLIC_EVOTING_BASE_URL || "evoting"
-                });
+            console.log("Found mapping:", mapping?.tableName);
+            console.log("Available mappings:", Object.keys(this.adapter.mapping));
 
-                console.log(`Created local ${entityType} with ID ${localId} for global ID ${data.id}`);
+            if (!mapping) {
+                console.error("No mapping found for schemaId:", schemaId);
+                throw new Error("No mapping found");
             }
 
-            res.status(200).json({ message: "Webhook processed successfully" });
-        } catch (error) {
-            console.error("Error processing webhook:", error);
-            res.status(500).json({ error: "Internal server error" });
+            // Check if this globalId is already locked (being processed)
+            if (this.adapter.lockedIds.includes(globalId)) {
+                console.log("GlobalId already locked, skipping:", globalId);
+                return res.status(200).send();
+            }
+
+            this.adapter.addToLockedIds(globalId);
+
+            const local = await this.adapter.fromGlobal({
+                data: req.body.data,
+                mapping,
+            });
+
+            let localId = await this.adapter.mappingDb.getLocalId(globalId);
+            console.log("Local ID for globalId", globalId, ":", localId);
+
+            if (mapping.tableName === "users") {
+                if (localId) {
+                    const user = await this.userService.getUserById(localId);
+                    if (!user) throw new Error();
+
+                    // Only update simple properties, not relationships
+                    const updateData: Partial<User> = {
+                        name: req.body.data.displayName,
+                        handle: local.data.username as string | undefined,
+                        description: local.data.bio as string | undefined,
+                        avatarUrl: local.data.avatarUrl as string | undefined,
+                        bannerUrl: local.data.bannerUrl as string | undefined,
+                        isVerified: local.data.isVerified as boolean | undefined,
+                        isPrivate: local.data.isPrivate as boolean | undefined,
+                        email: local.data.email as string | undefined,
+                        emailVerified: local.data.emailVerified as boolean | undefined,
+                    };
+
+                    await this.userService.updateUser(user.id, updateData);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: user.id,
+                        globalId: req.body.id,
+                    });
+                    this.adapter.addToLockedIds(user.id);
+                    this.adapter.addToLockedIds(globalId);
+                } else {
+                    const user = await this.userService.createBlankUser(req.body.w3id);
+                    
+                    // Update user with webhook data
+                    await this.userService.updateUser(user.id, {
+                        name: req.body.data.displayName,
+                        handle: req.body.data.username,
+                        description: req.body.data.bio,
+                        avatarUrl: req.body.data.avatarUrl,
+                        bannerUrl: req.body.data.bannerUrl,
+                        isVerified: req.body.data.isVerified,
+                        isPrivate: req.body.data.isPrivate,
+                    });
+
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: user.id,
+                        globalId: req.body.id,
+                    });
+                    this.adapter.addToLockedIds(user.id);
+                    this.adapter.addToLockedIds(globalId);
+                }
+            } else if (mapping.tableName === "groups") {
+                console.log("Processing group with data:", local.data);
+
+                let participants: User[] = [];
+                if (
+                    local.data.participants &&
+                    Array.isArray(local.data.participants)
+                ) {
+                    console.log("Processing participants:", local.data.participants);
+                    const participantPromises = local.data.participants.map(
+                        async (ref: string) => {
+                            if (ref && typeof ref === "string") {
+                                const userId = ref.split("(")[1].split(")")[0];
+                                console.log("Extracted userId:", userId);
+                                return await this.userService.getUserById(userId);
+                            }
+                            return null;
+                        }
+                    );
+
+                    participants = (
+                        await Promise.all(participantPromises)
+                    ).filter((user: User | null): user is User => user !== null);
+                    console.log("Found participants:", participants.length);
+                }
+
+                let adminIds = local?.data?.admins as string[] ?? []
+                adminIds = adminIds.map((a) => a.includes("(") ? a.split("(")[1].split(")")[0]: a)
+
+                if (localId) {
+                    console.log("Updating existing group with localId:", localId);
+                    const group = await this.groupService.getGroupById(localId);
+                    if (!group) {
+                        console.error("Group not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    group.name = local.data.name as string;
+                    group.description = local.data.description as string;
+                    group.owner = local.data.owner as string;
+                    group.admins = adminIds.map(id => ({ id } as User));
+                    group.participants = participants;
+
+                    this.adapter.addToLockedIds(localId);
+                    await this.groupService.groupRepository.save(group);
+                    console.log("Updated group:", group.id);
+                } else {
+                    console.log("Creating new group");
+                    const group = await this.groupService.createGroup(
+                        local.data.name as string,
+                        local.data.description as string,
+                        local.data.owner as string,
+                        adminIds,
+                        participants.map(p => p.id),
+                        local.data.charter as string | undefined
+                    );
+
+                    console.log("Created group with ID:", group.id);
+                    console.log(group)
+                    this.adapter.addToLockedIds(group.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: group.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Stored mapping for group:", group.id, "->", req.body.id);
+                }
+            }
+            res.status(200).send();
+        } catch (e) {
+            console.error("Webhook error:", e);
+            res.status(500).send();
         }
     };
-
-    private async createLocalEntity(entityType: string, data: any): Promise<string | null> {
-        try {
-            switch (entityType) {
-                case "User":
-                    const user = this.userRepository.create({
-                        ename: data.ename,
-                        name: data.name || data.ename,
-                        handle: data.handle || data.ename,
-                        description: data.description,
-                        avatarUrl: data.avatarUrl,
-                        bannerUrl: data.bannerUrl,
-                        isVerified: data.isVerified || false,
-                        isPrivate: data.isPrivate || false,
-                        email: data.email,
-                        emailVerified: data.emailVerified || false,
-                    });
-                    const savedUser = await this.userRepository.save(user);
-                    return savedUser.id;
-
-                case "Poll":
-                    const poll = this.pollRepository.create({
-                        title: data.title,
-                        mode: data.mode || "normal",
-                        visibility: data.visibility || "public",
-                        options: data.options || [],
-                        deadline: data.deadline ? new Date(data.deadline) : null,
-                        creatorId: data.creatorId,
-                    });
-                    const savedPoll = await this.pollRepository.save(poll);
-                    return savedPoll.id;
-
-                case "Vote":
-                    const vote = this.voteRepository.create({
-                        pollId: data.pollId,
-                        userId: data.userId,
-                        voterId: data.voterId,
-                        data: data.data,
-                    });
-                    const savedVote = await this.voteRepository.save(vote);
-                    return savedVote.id;
-
-                default:
-                    console.log(`Unknown entity type: ${entityType}`);
-                    return null;
-            }
-        } catch (error) {
-            console.error(`Error creating local ${entityType}:`, error);
-            return null;
-        }
-    }
 }

@@ -37,8 +37,10 @@ export class PollController {
 
     createPoll = async (req: Request, res: Response) => {
         try {
-            const { title, mode, visibility, options, deadline } = req.body;
+            const { title, mode, visibility, options, deadline, groupId } = req.body;
             const creatorId = (req as any).user.id;
+
+            // groupId is optional - only required for system messages
 
             const poll = await this.pollService.createPoll({
                 title,
@@ -46,7 +48,8 @@ export class PollController {
                 visibility,
                 options,
                 deadline,
-                creatorId
+                creatorId,
+                groupId
             });
 
             res.status(201).json(poll);

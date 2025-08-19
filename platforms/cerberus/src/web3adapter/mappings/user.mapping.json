@@ -17,5 +17,6 @@
         "isArchived": "isArchived",
         "followers": "followers",
         "following": "following"
-    }
+    },
+    "readOnly": true
 } 

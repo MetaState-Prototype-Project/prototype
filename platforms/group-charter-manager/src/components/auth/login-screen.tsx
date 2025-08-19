@@ -107,9 +107,7 @@ export default function LoginScreen() {
         </div>
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Group Charter Manager
-          </h1>
+          
           <p className="text-gray-600">
             Scan the QR code to login with your W3DS identity
           </p>

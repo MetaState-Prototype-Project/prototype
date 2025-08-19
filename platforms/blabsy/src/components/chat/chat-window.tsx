@@ -3,6 +3,7 @@ import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
 import { formatDistanceToNow, set } from 'date-fns';
 import type { Message } from '@lib/types/message';
+import { getChatType } from '@lib/types/chat';
 import {
     UserIcon,
     PaperAirplaneIcon,
@@ -30,6 +31,36 @@ function MessageItem({
     showUserInfo?: boolean;
     userData?: User | null;
 }): JSX.Element {
+    // Check if this is a system message
+    const isSystemMessage = !message.senderId || message.text.startsWith('$$system-message$$');
+    // Remove the prefix for display
+    const displayText = isSystemMessage && message.text.startsWith('$$system-message$$') 
+        ? message.text.replace('$$system-message$$', '').trim() 
+        : message.text;
+
+
+
+        if (isSystemMessage) {
+        return (
+            <div className="flex w-full justify-center my-4">
+                <div className="max-w-[80%] text-center">
+                    <div className="inline-block rounded-[10px] bg-gray-100 dark:bg-gray-800 px-4 py-2">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-left">
+                            <div dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
+                        </div>
+                    </div>
+                    {showTime && message.createdAt?.toDate && (
+                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                            {formatDistanceToNow(message.createdAt.toDate(), {
+                                addSuffix: true
+                            })}
+                        </p>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className={`flex w-full ${
@@ -75,7 +106,7 @@ function MessageItem({
                             : 'bg-[#6600ff] text-white'
                     } ${!isOwnMessage ? 'ml-8' : ''}`}
                 >
-                    <p className='break-words'>{message.text}</p>
+                    <div className='break-words whitespace-pre-wrap' dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
                     {showTime && message.createdAt?.toDate && (
                         <p
                             className={`mt-1 text-xs ${
@@ -141,7 +172,7 @@ export function ChatWindow(): JSX.Element {
                 setParticipantsData(newParticipantsData);
 
                 // Set otherUser for direct chats
-                if (currentChat.type === 'direct') {
+                if (getChatType(currentChat) === 'direct') {
                     const otherParticipant = currentChat.participants.find(
                         (p) => p !== user?.id
                     );
@@ -227,20 +258,20 @@ export function ChatWindow(): JSX.Element {
                             </div>
                             <div>
                                 <p className='font-medium'>
-                                    {currentChat.type === 'direct'
+                                    {getChatType(currentChat) === 'direct'
                                         ? otherUser?.name ||
                                           otherUser?.username ||
                                           otherParticipant
                                         : currentChat.name}
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                    {currentChat.type === 'direct'
+                                    {getChatType(currentChat) === 'direct'
                                         ? 'Direct Message'
                                         : `${currentChat.participants.length} participants`}
                                 </p>
                             </div>
                         </div>
-                        {currentChat.type === 'group' && (
+                        {getChatType(currentChat) === 'group' && (
                             <div className='flex items-center gap-2'>
                                 <div>
                                     <button
@@ -291,7 +322,7 @@ export function ChatWindow(): JSX.Element {
                                         // 2. Previous message is from different sender OR doesn't exist OR
                                         // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
-                                            currentChat?.type === 'group' &&
+                                            getChatType(currentChat) === 'group' &&
                                             !isOwnMessage &&
                                             (!prevMessage ||
                                                 prevMessage.senderId !==

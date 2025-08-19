@@ -330,21 +330,23 @@ export async function clearAllBookmarks(userId: string): Promise<void> {
 }
 
 export async function createChat(
-    type: 'direct' | 'group',
     participants: string[],
     name?: string,
     owner?: string,
     description?: string
 ): Promise<string> {
     const chatRef = doc(chatsCollection);
+    
+    // Derive type from participant count
+    const isGroup = participants.length > 2;
+    
     const chatData: WithFieldValue<Chat> = {
         id: chatRef.id,
-        type,
         participants,
         ...(name && { name }),
         ...(owner && { owner }),
         ...(description && { description }),
-        admins: type === 'group' ? (owner ? [owner] : []) : [],
+        admins: isGroup ? (owner ? [owner] : []) : [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     };
@@ -478,7 +480,6 @@ export async function getOrCreateDirectChat(
     // Check if a direct chat already exists between these users
     const existingChatsQuery = query(
         chatsCollection,
-        where('type', '==', 'direct'),
         where('participants', 'array-contains', userId)
     );
 
@@ -486,14 +487,16 @@ export async function getOrCreateDirectChat(
 
     for (const doc of existingChats.docs) {
         const chat = doc.data();
-        if (chat.participants.includes(targetUserId)) return doc.id;
+        // Check if it's a direct chat (2 participants) and includes target user
+        if (chat.participants.length === 2 && chat.participants.includes(targetUserId)) {
+            return doc.id;
+        }
     }
 
     // If no existing chat, create a new one
     const newChatRef = doc(chatsCollection);
     const newChat: WithFieldValue<Chat> = {
         id: newChatRef.id,
-        type: 'direct',
         participants: [userId, targetUserId],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

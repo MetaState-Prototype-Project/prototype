@@ -1,47 +1,100 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { SettingsNavigationBtn } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { runtime } from "$lib/global/runtime.svelte";
-import { ButtonAction, Drawer } from "$lib/ui";
-import {
-    Key01Icon,
-    LanguageSquareIcon,
-    Link02Icon,
-    PinCodeIcon,
-    Shield01Icon,
-} from "@hugeicons/core-free-icons";
-import { getContext } from "svelte";
+    import { goto } from "$app/navigation";
+    import { SettingsNavigationBtn } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { runtime } from "$lib/global/runtime.svelte";
+    import { ButtonAction, Drawer } from "$lib/ui";
+    import {
+        Key01Icon,
+        LanguageSquareIcon,
+        Link02Icon,
+        PinCodeIcon,
+        Shield01Icon,
+    } from "@hugeicons/core-free-icons";
+    import { getContext } from "svelte";
 
-const globalState = getContext<() => GlobalState>("globalState")();
+    const globalState = getContext<() => GlobalState>("globalState")();
 
-let isDeleteConfirmationOpen = $state(false);
-let isFinalConfirmationOpen = $state(false);
+    let isDeleteConfirmationOpen = $state(false);
+    let isFinalConfirmationOpen = $state(false);
 
-function showDeleteConfirmation() {
-    isDeleteConfirmationOpen = true;
-}
+    // Hidden eVault profile retry functionality
+    let tapCount = $state(0);
+    let lastTapTime = $state(0);
+    let isRetrying = $state(false);
+    let retryMessage = $state("");
 
-function confirmDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = true;
-}
+    function showDeleteConfirmation() {
+        isDeleteConfirmationOpen = true;
+    }
 
-function nukeWallet() {
-    globalState.userController.user = undefined;
-    globalState.securityController.clearPin();
-    isFinalConfirmationOpen = false;
-    goto("/onboarding");
-}
+    function confirmDelete() {
+        isDeleteConfirmationOpen = false;
+        isFinalConfirmationOpen = true;
+    }
 
-function cancelDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = false;
-}
+    function nukeWallet() {
+        globalState.userController.user = undefined;
+        globalState.securityController.clearPin();
+        isFinalConfirmationOpen = false;
+        goto("/onboarding");
+    }
 
-$effect(() => {
-    runtime.header.title = "Settings";
-});
+    function cancelDelete() {
+        isDeleteConfirmationOpen = false;
+        isFinalConfirmationOpen = false;
+    }
+
+    async function handleVersionTap() {
+        const now = Date.now();
+
+        // Reset counter if more than 3 seconds between taps
+        if (now - lastTapTime > 3000) {
+            tapCount = 0;
+        }
+
+        tapCount++;
+        lastTapTime = now;
+
+        // Show tap count feedback (only visible to user)
+        if (tapCount >= 5) {
+            retryMessage = `Taps: ${tapCount}/10`;
+        }
+
+        // Trigger eVault profile retry after 10 taps
+        if (tapCount === 10) {
+            isRetrying = true;
+            retryMessage = "Retrying eVault profile setup...";
+
+            try {
+                await globalState.vaultController.retryProfileCreation();
+                retryMessage =
+                    "✅ eVault profile setup completed successfully!";
+
+                // Reset after success
+                setTimeout(() => {
+                    tapCount = 0;
+                    retryMessage = "";
+                    isRetrying = false;
+                }, 3000);
+            } catch (error) {
+                console.error("Failed to retry eVault profile setup:", error);
+                retryMessage =
+                    "❌ Failed to setup eVault profile. Check console for details.";
+
+                // Reset after error
+                setTimeout(() => {
+                    tapCount = 0;
+                    retryMessage = "";
+                    isRetrying = false;
+                }, 5000);
+            }
+        }
+    }
+
+    $effect(() => {
+        runtime.header.title = "Settings";
+    });
 </script>
 
 <main>
@@ -66,7 +119,28 @@ $effect(() => {
         >Delete Account</ButtonAction
     >
 
-    <p class="w-full py-10 text-center">Version v0.1.8.1</p>
+    <!-- Hidden eVault profile retry - tap version 10 times -->
+    <div class="w-full py-10 text-center">
+        <button
+            class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
+            on:click={handleVersionTap}
+            disabled={isRetrying}
+        >
+            Version v0.1.8.1
+        </button>
+
+        {#if retryMessage}
+            <div
+                class="mt-2 text-sm {isRetrying
+                    ? 'text-blue-600'
+                    : retryMessage.includes('✅')
+                      ? 'text-green-600'
+                      : 'text-red-600'}"
+            >
+                {retryMessage}
+            </div>
+        {/if}
+    </div>
 </main>
 
 <!-- First Confirmation Drawer -->

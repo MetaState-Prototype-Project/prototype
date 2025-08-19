@@ -31,7 +31,7 @@ class EVault {
         this.w3id = process.env.W3ID || null;
         const dbService = new DbService(driver);
         this.logService = new LogService(driver);
-        this.graphqlServer = new GraphQLServer(dbService, this.publicKey, this.w3id);
+        this.graphqlServer = new GraphQLServer(dbService, this.publicKey, this.w3id, this);
         this.server = fastify({
             logger: true,
         });

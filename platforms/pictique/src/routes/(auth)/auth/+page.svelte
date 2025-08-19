@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import { onDestroy } from 'svelte';
 	import { qrcode } from 'svelte-qrcode-action';
+	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
 
 	let qrData: string;
 	let isMobile = false;
@@ -57,21 +58,27 @@
 	<div
 		class="mb-5 flex w-full max-w-[400px] flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
 	>
-		{#if qrData}
-			{#if isMobile}
-				<h2 class="text-center">
-					Click the button below to login using your <b><u>eID App</u></b>
-				</h2>
-				<a
-					href={qrData}
-					class="w-full rounded-lg bg-[#4D44EF] px-4 py-3 text-center font-semibold text-white transition hover:opacity-90"
-				>
-					Login with eID Wallet
-				</a>
+		<h2>
+			{#if isMobileDevice()}
+				Login with your <b><u>eID Wallet</u></b>
 			{:else}
-				<h2 class="text-center">
-					Scan the QR code using your <b><u>eID App</u></b> to login
-				</h2>
+				Scan the QR code using your <b><u>eID App</u></b> to login
+			{/if}
+		</h2>
+		{#if qrData}
+			{#if isMobileDevice()}
+				<div class="flex flex-col items-center gap-4">
+					<a
+						href={getDeepLinkUrl(qrData)}
+						class="rounded-xl bg-gradient-to-r from-[#4D44EF] via-[#F35B5B] to-[#F7A428] px-8 py-4 text-lg font-semibold text-white transition-opacity hover:opacity-90"
+					>
+						Login with eID Wallet
+					</a>
+					<div class="max-w-xs text-center text-sm text-gray-600">
+						Click the button to open your eID wallet app
+					</div>
+				</div>
+			{:else}
 				<article
 					class="overflow-hidden rounded-2xl"
 					use:qrcode={{
