@@ -39,12 +39,10 @@ export class CharterSigningService {
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
 
-        // Create minimal QR data - just essential info, not the full charter
+        // Create generic signature request data
         const messageData = JSON.stringify({
-            groupId,
-            charterHash: charterData.charter ? Buffer.from(charterData.charter).toString('hex').substring(0, 16) : 'no-charter',
-            userId,
-            timestamp: Date.now()
+            message: `Sign charter for group: ${groupId}`,
+            sessionId: sessionId
         });
         
         const base64Data = Buffer.from(messageData).toString('base64');

@@ -51,6 +51,7 @@ interface Group {
     owner: string;
     admins: string[];
     participants: any[];
+    charter?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -155,8 +156,11 @@ export default function CreateCharter() {
         }
     };
 
-    // Filter groups based on search query
-    const filteredGroups = groups.filter(group =>
+    // Filter groups to only show those without charters
+    const groupsWithoutCharters = groups.filter(group => !group.charter || group.charter.trim() === '');
+    
+    // Filter groups based on search query (only for groups without charters)
+    const filteredGroups = groupsWithoutCharters.filter(group =>
         group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (group.description && group.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
@@ -168,6 +172,49 @@ export default function CreateCharter() {
                     <div className="h-8 bg-black bg-opacity-10 rounded w-1/4" />
                     <div className="h-96 bg-black bg-opacity-10 rounded-3xl" />
                 </div>
+            </div>
+        );
+    }
+
+    // Check if all groups already have charters
+    if (groups.length > 0 && groupsWithoutCharters.length === 0) {
+        return (
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                {/* Back Button */}
+                <div className="mb-4 sm:mb-6">
+                    <Link href="/">
+                        <Button
+                            variant="ghost"
+                            className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200 p-2 sm:p-3"
+                        >
+                            <ArrowLeft className="mr-2" size={16} />
+                            <span className="text-sm sm:text-base">
+                                Back to Dashboard
+                            </span>
+                        </Button>
+                    </Link>
+                </div>
+
+                {/* All Groups Have Charters Message */}
+                <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
+                    <CardContent className="p-8 text-center">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Check className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-3">
+                            All Groups Have Charters!
+                        </h2>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                            Great news! All of your groups already have charters attached. 
+                            You can view and edit existing charters from the dashboard.
+                        </p>
+                        <Link href="/">
+                            <Button className="gradient-primary text-white px-6 py-3 rounded-2xl font-medium hover:shadow-xl transition-all duration-300">
+                                Back to Dashboard
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

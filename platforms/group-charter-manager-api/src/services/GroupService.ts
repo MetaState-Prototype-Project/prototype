@@ -59,7 +59,7 @@ export class GroupService {
         });
     }
 
-    async getUserGroups(userId: string): Promise<Group[]> {
+    async getUserGroups(userId: string): Promise<any[]> {
         console.log("Getting groups for user:", userId);
         
         // First, let's get all groups and filter manually to debug
@@ -83,8 +83,27 @@ export class GroupService {
             return isUserParticipant && hasMinimumParticipants;
         });
         
-        console.log("User groups found (with minimum 3 participants):", userGroups.length);
-        return userGroups;
+        // Add signing status for each group
+        const groupsWithSigningStatus = await Promise.all(userGroups.map(async (group) => {
+            // Check if user has signed the charter (if one exists)
+            let hasSigned = false;
+            if (group.charter && group.charter.trim() !== '') {
+                try {
+                    hasSigned = await this.charterSignatureService.hasUserSignedCharter(group.id, userId, group.charter);
+                } catch (error) {
+                    console.error(`Error checking signing status for group ${group.id}:`, error);
+                    hasSigned = false;
+                }
+            }
+            
+            return {
+                ...group,
+                hasSigned
+            };
+        }));
+        
+        console.log("User groups found (with minimum 3 participants):", groupsWithSigningStatus.length);
+        return groupsWithSigningStatus;
     }
 
 
