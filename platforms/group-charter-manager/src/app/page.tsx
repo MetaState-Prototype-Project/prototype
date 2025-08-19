@@ -223,12 +223,12 @@ export default function Dashboard() {
                                         !hasCharter ? 'opacity-60 bg-gray-50' : ''
                                     }`}
                                 >
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div>
-                                                <h3 className="font-semibold text-gray-900 mb-1">
-                                                    {group.name || 'Unnamed Group'}
-                                                </h3>
+                                <CardContent className="p-6">
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div>
+                                            <h3 className="font-semibold text-gray-900 mb-1">
+                                                {group.name || 'Unnamed Group'}
+                                            </h3>
                                                 <div className="text-sm text-gray-600 space-y-1">
                                                     {hasCharter ? (
                                                         hasSigned ? (
@@ -237,7 +237,7 @@ export default function Dashboard() {
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                                                                 <p>Please sign the charter</p>
-                                                            </div>
+                                        </div>
                                                         )
                                                     ) : (
                                                         <p className="text-gray-500 italic">No charter found</p>
@@ -266,18 +266,18 @@ export default function Dashboard() {
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs text-gray-500">
-                                                {group.participants?.length || 0} members
-                                            </span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-gray-500">
+                                            {group.participants?.length || 0} members
+                                        </span>
                                             {hasCharter ? (
-                                                <Link href={`/charter/${group.id}`}>
-                                                    <Button variant="outline" size="sm">
-                                                        <Eye className="h-4 w-4 mr-2" />
-                                                        View Charter
-                                                    </Button>
-                                                </Link>
+                                        <Link href={`/charter/${group.id}`}>
+                                            <Button variant="outline" size="sm">
+                                                <Eye className="h-4 w-4 mr-2" />
+                                                View Charter
+                                            </Button>
+                                        </Link>
                                             ) : (
                                                 <Button 
                                                     variant="outline" 
@@ -289,9 +289,9 @@ export default function Dashboard() {
                                                     No Charter
                                                 </Button>
                                             )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                    </div>
+                                </CardContent>
+                            </Card>
                             );
                         })}
                     </div>

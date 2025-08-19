@@ -111,6 +111,24 @@ export class CerberusTriggerService {
                 groupId: groupId,
             });
 
+            // If charter was updated, also handle signature invalidation and detailed analysis
+            if (changeType === 'updated' && oldCharter && newCharter) {
+                try {
+                    // Import CharterSignatureService dynamically to avoid circular dependencies
+                    const { CharterSignatureService } = await import('./CharterSignatureService');
+                    const charterSignatureService = new CharterSignatureService();
+                    
+                    await charterSignatureService.handleCharterTextChange(
+                        groupId,
+                        oldCharter,
+                        newCharter,
+                        this.messageService
+                    );
+                } catch (error) {
+                    console.error("Error handling charter signature invalidation:", error);
+                }
+            }
+
         } catch (error) {
             console.error("Error processing charter change:", error);
         }

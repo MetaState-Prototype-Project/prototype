@@ -1,0 +1,60 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "1d83fada-581d-49b0-b6f5-1fe0766da34f",
+    "title": "Charter Signature",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the charter signature"
+        },
+        "group": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the group whose charter is being signed"
+        },
+        "user": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who signed the charter"
+        },
+        "charterHash": {
+            "type": "string",
+            "description": "Hash of the charter content to track versions and prevent replay attacks"
+        },
+        "signature": {
+            "type": "string",
+            "description": "Cryptographic signature proving the user's agreement to the charter"
+        },
+        "publicKey": {
+            "type": "string",
+            "description": "User's public key for signature verification"
+        },
+        "message": {
+            "type": "string",
+            "description": "Original message that was signed (usually contains charter details)"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the signature was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the signature was last updated"
+        }
+    },
+    "required": [
+        "id",
+        "group",
+        "user",
+        "charterHash",
+        "signature",
+        "publicKey",
+        "message",
+        "createdAt"
+    ],
+    "additionalProperties": false
+}

@@ -54,23 +54,23 @@ export default function CharterDetail({
     const { toast } = useToast();
     const { user } = useAuth();
 
-    const fetchGroup = async () => {
-        try {
-            setIsLoading(true);
-            const response = await apiClient.get(`/api/groups/${id}`);
-            setGroup(response.data);
-            setEditCharter(response.data.charter || "");
-        } catch (error) {
-            console.error('Failed to fetch group:', error);
-            toast({
-                title: "Error",
-                description: "Failed to load charter",
-                variant: "destructive",
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        const fetchGroup = async () => {
+            try {
+                setIsLoading(true);
+                const response = await apiClient.get(`/api/groups/${id}`);
+                setGroup(response.data);
+                setEditCharter(response.data.charter || "");
+            } catch (error) {
+                console.error('Failed to fetch group:', error);
+                toast({
+                    title: "Error",
+                    description: "Failed to load charter",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
     const fetchSigningStatus = async () => {
         if (!group?.charter) return;
@@ -336,9 +336,9 @@ export default function CharterDetail({
                                                    </div>
                                                ) : (
                                                    <div>
-                                                       <p className="text-gray-500 italic">
-                                                           No charter content has been set for this group.
-                                                       </p>
+                                                   <p className="text-gray-500 italic">
+                                                       No charter content has been set for this group.
+                                                   </p>
                                                        {!canEdit && (
                                                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                                                <p className="text-sm text-blue-700">
@@ -357,8 +357,8 @@ export default function CharterDetail({
                                                 <p className="text-sm text-blue-700">
                                                     💡 Only admins can edit the charter. Contact a group admin if you need changes.
                                                 </p>
-                                            </div>
-                                        )}
+                                           </div>
+                                       )}
                             </div>
                         </CardContent>
                     </Card>

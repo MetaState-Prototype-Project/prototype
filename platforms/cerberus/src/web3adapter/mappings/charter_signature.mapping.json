@@ -1,0 +1,17 @@
+{
+    "tableName": "charter_signatures",
+    "schemaId": "1d83fada-581d-49b0-b6f5-1fe0766da34f",
+    "ownerEnamePath": "users(userId.ename)",
+    "localToUniversalMap": {
+        "id": "id",
+        "groupId": "groups(groupId),group",
+        "userId": "users(userId),user",
+        "charterHash": "charterHash",
+        "signature": "signature",
+        "publicKey": "publicKey",
+        "message": "message",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    },
+    "readOnly": true
+}

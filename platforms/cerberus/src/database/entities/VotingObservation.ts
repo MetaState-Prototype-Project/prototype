@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from "typeorm";
+import { User } from "./User";
 
 @Entity("voting_observations")
 export class VotingObservation {
@@ -7,6 +8,13 @@ export class VotingObservation {
 
     @Column("uuid")
     groupId!: string;
+
+    @Column("uuid")
+    owner!: string;
+
+    @ManyToOne(() => User)
+    @JoinColumn({ name: "owner" })
+    ownerUser!: User;
 
     @Column("timestamp")
     lastCheckTime!: Date;

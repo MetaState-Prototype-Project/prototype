@@ -139,19 +139,29 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity removal.
      */
     async afterRemove(event: RemoveEvent<any>) {
-        this.handleChange(
-            // @ts-ignore
-            event.entityId,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
-        );
+        // For remove events, we only have the entityId, not the full entity
+        // We'll handle this differently to avoid errors
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
+        
+        console.log(`Entity removed from ${tableName} with ID: ${event.entityId}`);
+        
+        // For now, we'll skip processing removed entities in the web3adapter
+        // since we don't have the full entity data to work with
+        // This prevents the error when trying to access entity.id
     }
 
     /**
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
+        // Safety check: ensure entity exists and has an id
+        if (!entity || !entity.id) {
+            console.log(`Skipping handleChange for ${tableName}: entity or entity.id is missing`);
+            return;
+        }
+        
         console.log("=======================================", entity.id)
         // Check if this is a junction table
         if (tableName === "group_participants") return;
@@ -273,6 +283,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["participants", "messages"];
             case "Message":
                 return ["sender", "group"];
+            case "CharterSignature":
+                return ["user", "group"];
             default:
                 return [];
         }

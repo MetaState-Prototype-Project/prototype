@@ -9,6 +9,7 @@ import {
     OneToMany,
 } from "typeorm";
 import { Message } from "./Message";
+import { CharterSignature } from "./CharterSignature";
 
 @Entity()
 export class Group {
@@ -30,6 +31,9 @@ export class Group {
     @Column({ type: "text", nullable: true })
     charter!: string; // Markdown content for the group charter
 
+    @Column({ default: true })
+    isCharterActive!: boolean; // Whether the charter is currently active and monitoring violations
+
     @ManyToMany("User")
     @JoinTable({
         name: "group_participants",
@@ -40,6 +44,9 @@ export class Group {
 
     @OneToMany(() => Message, (message) => message.group)
     messages!: Message[];
+
+    @OneToMany(() => CharterSignature, (signature) => signature.group)
+    charterSignatures!: CharterSignature[];
 
     @CreateDateColumn()
     createdAt!: Date;
