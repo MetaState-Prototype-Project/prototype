@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
+	import {
+		PUBLIC_APP_STORE_EID_WALLET,
+		PUBLIC_PICTIQUE_BASE_URL,
+		PUBLIC_PLAY_STORE_EID_WALLET
+	} from '$env/static/public';
 	import { W3dslogo } from '$lib/icons';
 	import { Qr } from '$lib/ui';
 	import { apiClient, setAuthId, setAuthToken } from '$lib/utils';
+	import { getDeepLinkUrl, isMobileDevice } from '$lib/utils/mobile-detection';
 	import { onMount } from 'svelte';
 	import { onDestroy } from 'svelte';
 	import { qrcode } from 'svelte-qrcode-action';
-	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
 
 	let qrData: string;
 	let isMobile = false;
@@ -16,7 +20,22 @@
 		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
 	}
 
+	let getAppStoreLink: () => string = () => '';
+
 	onMount(async () => {
+		getAppStoreLink = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			if (/android/i.test(userAgent)) {
+				return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
+			}
+
+			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+				return 'https://apps.apple.com/in/app/eid-for-w3ds/id6747748667';
+			}
+
+			return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
+		};
+
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
@@ -60,7 +79,7 @@
 	>
 		<h2>
 			{#if isMobileDevice()}
-				Login with your <b><u>eID Wallet</u></b>
+				Login with your <a href={getAppStoreLink()}><b><u>eID Wallet</u></b></a>
 			{:else}
 				Scan the QR code using your <b><u>eID App</u></b> to login
 			{/if}
@@ -108,7 +127,9 @@
 		{/if}
 
 		<p class="text-center">
-			<span class="mb-1 block font-bold text-gray-600">The code is valid for 60 seconds</span>
+			<span class="mb-1 block font-bold text-gray-600"
+				>The {isMobileDevice() ? 'button' : 'code'} is valid for 60 seconds</span
+			>
 			<span class="block font-light text-gray-600">Please refresh the page if it expires</span
 			>
 		</p>
@@ -120,6 +141,7 @@
 			centralised servers.
 		</p>
 	</div>
-
-	<W3dslogo />
+	<a href="https://metastate.foundation" target="_blank">
+		<W3dslogo />
+	</a>
 </div>

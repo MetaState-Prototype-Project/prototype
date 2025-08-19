@@ -55,7 +55,7 @@
                 return null;
             });
 
-        if (permissions === "prompt") {
+        if (permissions === "prompt" || permissions === "denied") {
             permissions = await requestPermissions();
         }
 
@@ -340,7 +340,6 @@
                     ? "Vote signed successfully!"
                     : "Message signed successfully!",
             );
-
             // Check if this was from a deep link
             const deepLinkData = sessionStorage.getItem("deepLinkData");
             if (deepLinkData) {

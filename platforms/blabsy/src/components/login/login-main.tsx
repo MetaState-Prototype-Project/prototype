@@ -41,6 +41,16 @@ export function LoginMain(): JSX.Element {
             new URL(data.uri).searchParams.get('session') as string
         );
     };
+    const getAppStoreLink = () => {
+			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+			if (/android/i.test(userAgent)) {
+				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+			}
+			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
+			}
+			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+		};
 
     useEffect(() => {
         getOfferData()
@@ -77,19 +87,38 @@ export function LoginMain(): JSX.Element {
                     <div>
                         {isMobileDevice() ? (
                             <div className='flex flex-col gap-4 items-center'>
+                                <div className='text-xs text-gray-500 text-center max-w-xs'>
+                                    Click the button to open your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
+                                </div>
                                 <a
                                     href={qr ? getDeepLinkUrl(qr) : '#'}
                                     className='px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center'
                                 >
                                     Login with eID Wallet
                                 </a>
-                                <div className='text-xs text-gray-500 text-center max-w-xs'>
-                                    Click the button to open your eID wallet app
-                                </div>
+                                <div className="text-center mt-4">
+                                <p className="text-sm text-gray-500">
+                                <span className="mb-1 block font-bold text-gray-600">The button is valid for 60 seconds</span>
+                                    <span className="block font-light text-gray-600">Please refresh the page if it expires</span
+                                    >
+                                </p>
+                            </div>
                             </div>
                         ) : (
+                            <div className='flex flex-col gap-4 items-center'>
+                                <p className="text-gray-600">
+                                    Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
+                                </p>
                             <div className='p-2 rounded-md bg-white w-fit'>
                                 {qr && <QRCode value={qr} />}
+                            </div>
+                            <div className="text-center mt-4">
+                                <p className="text-sm text-gray-500">
+                                <span className="mb-1 block font-bold text-gray-600">The code is valid for 60 seconds</span>
+                                    <span className="block font-light text-gray-600">Please refresh the page if it expires</span
+                                    >
+                                </p>
+                            </div>
                             </div>
                         )}
                     </div>
@@ -110,12 +139,14 @@ export function LoginMain(): JSX.Element {
                         separation, where all your personal content is stored in
                         your own sovereign eVault, not on centralised servers.
                     </div>
+                    <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
                     <Image
                         src='/assets/w3dslogo.svg'
                         alt='W3DS logo'
                         width={100}
                         height={20}
                     />
+                    </a>
                 </div>
             </div>
         </main>
