@@ -8,6 +8,7 @@ import {
     Users,
     Save,
     X,
+    CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,8 @@ import { apiClient } from "@/lib/apiClient";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CharterSigningStatus } from "@/components/charter-signing-status";
+import { CharterSigningInterface } from "@/components/charter-signing-interface";
 
 interface Group {
     id: string;
@@ -43,35 +46,59 @@ export default function CharterDetail({
     const [isEditing, setIsEditing] = useState(false);
     const [editCharter, setEditCharter] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [showSigningInterface, setShowSigningInterface] = useState(false);
+    const [signingStatus, setSigningStatus] = useState<any>(null);
+    const [signingStatusLoading, setSigningStatusLoading] = useState(true);
 
     const { id } = use(params);
     const { toast } = useToast();
     const { user } = useAuth();
 
+    const fetchGroup = async () => {
+        try {
+            setIsLoading(true);
+            const response = await apiClient.get(`/api/groups/${id}`);
+            setGroup(response.data);
+            setEditCharter(response.data.charter || "");
+        } catch (error) {
+            console.error('Failed to fetch group:', error);
+            toast({
+                title: "Error",
+                description: "Failed to load charter",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchSigningStatus = async () => {
+        if (!group?.charter) return;
+        
+        try {
+            setSigningStatusLoading(true);
+            const response = await apiClient.get(`/api/groups/${id}/charter/signing-status`);
+            setSigningStatus(response.data);
+        } catch (error) {
+            console.error('Failed to fetch signing status:', error);
+        } finally {
+            setSigningStatusLoading(false);
+        }
+    };
+
     // Fetch group data on component mount
     useEffect(() => {
-        const fetchGroup = async () => {
-            try {
-                setIsLoading(true);
-                const response = await apiClient.get(`/api/groups/${id}`);
-                setGroup(response.data);
-                setEditCharter(response.data.charter || "");
-            } catch (error) {
-                console.error('Failed to fetch group:', error);
-                toast({
-                    title: "Error",
-                    description: "Failed to load charter",
-                    variant: "destructive",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         if (id) {
             fetchGroup();
         }
     }, [id, toast]);
+
+    // Fetch signing status when group changes
+    useEffect(() => {
+        if (group?.charter) {
+            fetchSigningStatus();
+        }
+    }, [group?.charter]);
 
     const handleEditStart = () => {
         setIsEditing(true);
@@ -241,6 +268,23 @@ export default function CharterDetail({
                                             Edit Charter
                                         </Button>
                                     )}
+                                    
+                                    {/* Sign Charter Button (only if current user hasn't signed) */}
+                                    {group.charter && signingStatus && !signingStatusLoading && (
+                                        (() => {
+                                            const currentUser = signingStatus.participants.find((p: any) => p.id === user?.id);
+                                            return currentUser && !currentUser.hasSigned;
+                                        })() && (
+                                            <Button
+                                                onClick={() => setShowSigningInterface(true)}
+                                                variant="outline"
+                                                className="bg-green-600 text-white px-6 py-3 rounded-2xl font-medium hover:bg-green-700 transition-all duration-300 shadow-lg"
+                                            >
+                                                <CheckCircle className="mr-2" size={18} />
+                                                Sign Charter
+                                            </Button>
+                                        )
+                                    )}
                                 </>
                             )}
                         </div>
@@ -329,8 +373,34 @@ export default function CharterDetail({
                             </CardContent>
                         </Card>
                     )}
+
+                    {/* Charter Signing Status */}
+                    {group.charter && (
+                        <CharterSigningStatus 
+                            groupId={group.id} 
+                            charterContent={group.charter} 
+                        />
+                    )}
                 </div>
             </div>
+
+            {/* Signing Interface Modal */}
+            {showSigningInterface && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <CharterSigningInterface
+                            groupId={group.id}
+                            charterData={{ charter: group.charter }}
+                            onSigningComplete={(groupId) => {
+                                setShowSigningInterface(false);
+                                // Refresh the group data to show updated signing status
+                                fetchGroup();
+                            }}
+                            onCancel={() => setShowSigningInterface(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

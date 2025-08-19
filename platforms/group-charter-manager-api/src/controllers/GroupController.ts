@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { GroupService } from "../services/GroupService";
+import { CharterSignatureService } from "../services/CharterSignatureService";
 
 export class GroupController {
     private groupService = new GroupService();
+    private charterSignatureService = new CharterSignatureService();
 
     async createGroup(req: Request, res: Response) {
         try {
@@ -251,24 +253,30 @@ export class GroupController {
         }
     }
 
-    /**
-     * Admin endpoint to ensure Cerberus monitoring is set up for all groups
-     */
-    async ensureCerberusInAllGroups(req: Request, res: Response) {
+    async getCharterSigningStatus(req: Request, res: Response) {
         try {
+            const { id } = req.params;
             const userId = (req as any).user?.id;
+            
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            // This is an admin-only operation - you might want to add more specific admin checks
-            console.log(`User ${userId} requested to set up Cerberus monitoring for all groups`);
-            
-            await this.groupService.ensureCerberusInAllGroups();
-            
-            res.json({ message: "Cerberus monitoring has been set up for all groups with charter requirements" });
+            const group = await this.groupService.getGroupById(id);
+            if (!group) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            // Check if user is a participant in the group
+            const isParticipant = group.participants?.some(p => p.id === userId);
+            if (!isParticipant) {
+                return res.status(403).json({ error: "Access denied - you must be a participant in this group" });
+            }
+
+            const signingStatus = await this.charterSignatureService.getGroupSigningStatus(id);
+            res.json(signingStatus);
         } catch (error) {
-            console.error("Error setting up Cerberus monitoring for all groups:", error);
+            console.error("Error getting charter signing status:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     }

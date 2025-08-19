@@ -26,6 +26,18 @@ export class GroupService {
     }
 
     async updateGroup(id: string, groupData: Partial<Group>): Promise<Group | null> {
+        // If updating the charter, we need to mark all existing signatures as invalid
+        // since the charter content has changed
+        if (groupData.charter !== undefined) {
+            // Get the current group to check if charter is being updated
+            const currentGroup = await this.getGroupById(id);
+            if (currentGroup && currentGroup.charter !== groupData.charter) {
+                // Charter content has changed, so all existing signatures are now invalid
+                // This will be handled by the CharterSignatureService when checking signing status
+                console.log(`Charter updated for group ${id}, existing signatures are now invalid`);
+            }
+        }
+        
         await this.groupRepository.update(id, groupData);
         return await this.getGroupById(id);
     }
