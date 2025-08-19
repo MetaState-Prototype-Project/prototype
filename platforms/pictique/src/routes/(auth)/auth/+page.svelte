@@ -5,11 +5,21 @@
 	import { Qr } from '$lib/ui';
 	import { apiClient, setAuthId, setAuthToken } from '$lib/utils';
 	import { onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { qrcode } from 'svelte-qrcode-action';
+	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
 
 	let qrData: string;
+	let isMobile = false;
+
+	function checkMobile() {
+		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
+	}
 
 	onMount(async () => {
+		checkMobile();
+		window.addEventListener('resize', checkMobile);
+
 		const { data } = await apiClient.get('/api/auth/offer');
 		qrData = data.uri;
 
@@ -32,60 +42,84 @@
 		}
 
 		watchEventStream(new URL(qrData).searchParams.get('session') as string);
+
+		onDestroy(() => {
+			window.removeEventListener('resize', checkMobile);
+		});
 	});
 </script>
 
-<div
-	class="align-center flex h-full w-full flex-col content-center items-center
-    justify-center"
->
-	<div class="mb-5 flex flex-col items-center gap-2">
+<div class="flex h-full w-full flex-col items-center justify-center p-4">
+	<div class="mb-5 flex flex-col items-center gap-2 text-center">
 		<img src="/images/Logo.svg" alt="logo" class="w-30" />
 		<p>Connect Socially in the Metastate</p>
 	</div>
+
 	<div
-		class="h-max-[600px] w-max-[400px] mb-5 flex flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
+		class="mb-5 flex w-full max-w-[400px] flex-col items-center gap-5 rounded-xl bg-[#F476481A] p-5"
 	>
-		<h2>Scan the QR code using your <b><u>eID App</u></b> to login</h2>
+		<h2>
+			{#if isMobileDevice()}
+				Login with your <b><u>eID Wallet</u></b>
+			{:else}
+				Scan the QR code using your <b><u>eID App</u></b> to login
+			{/if}
+		</h2>
 		{#if qrData}
-			<article
-				class="overflow-hidden rounded-2xl"
-				use:qrcode={{
-					data: qrData,
-					width: 250,
-					height: 250,
-					margin: 12,
-					type: 'canvas',
-					dotsOptions: {
-						type: 'rounded',
-						color: '#fff'
-					},
-					backgroundOptions: {
-						gradient: {
-							type: 'linear',
-							rotation: 50,
-							colorStops: [
-								{ offset: 0, color: '#4D44EF' },
-								{ offset: 0.65, color: '#F35B5B' },
-								{ offset: 1, color: '#F7A428' }
-							]
+			{#if isMobileDevice()}
+				<div class="flex flex-col items-center gap-4">
+					<a
+						href={getDeepLinkUrl(qrData)}
+						class="rounded-xl bg-gradient-to-r from-[#4D44EF] via-[#F35B5B] to-[#F7A428] px-8 py-4 text-lg font-semibold text-white transition-opacity hover:opacity-90"
+					>
+						Login with eID Wallet
+					</a>
+					<div class="max-w-xs text-center text-sm text-gray-600">
+						Click the button to open your eID wallet app
+					</div>
+				</div>
+			{:else}
+				<article
+					class="overflow-hidden rounded-2xl"
+					use:qrcode={{
+						data: qrData,
+						width: 250,
+						height: 250,
+						margin: 12,
+						type: 'canvas',
+						dotsOptions: {
+							type: 'rounded',
+							color: '#fff'
+						},
+						backgroundOptions: {
+							gradient: {
+								type: 'linear',
+								rotation: 50,
+								colorStops: [
+									{ offset: 0, color: '#4D44EF' },
+									{ offset: 0.65, color: '#F35B5B' },
+									{ offset: 1, color: '#F7A428' }
+								]
+							}
 						}
-					}
-				}}
-			></article>
-			<a href={qrData}>{qrData}</a>
+					}}
+				></article>
+			{/if}
 		{/if}
-		<p>
+
+		<p class="text-center">
 			<span class="mb-1 block font-bold text-gray-600">The code is valid for 60 seconds</span>
 			<span class="block font-light text-gray-600">Please refresh the page if it expires</span
 			>
 		</p>
-		<p class="w-[350px] bg-white/60 p-4 leading-4 text-black/60">
+
+		<p class="w-full rounded-md bg-white/60 p-4 text-sm leading-4 text-black/60">
 			You are entering Pictique - a social network built on the Web 3.0 Data Space (W3DS)
 			architecture. This system is designed around the principle of data-platform separation,
 			where all your personal content is stored in your own sovereign eVault, not on
 			centralised servers.
 		</p>
 	</div>
+
 	<W3dslogo />
 </div>

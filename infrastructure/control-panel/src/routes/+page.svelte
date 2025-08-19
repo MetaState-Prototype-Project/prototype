@@ -14,6 +14,59 @@
 	let error = $state<string | null>(null);
 	let mappedData = $state<any[]>([]);
 
+	// Track selected items
+	let selectedEVaults = $state<number[]>([]);
+	let selectedPlatforms = $state<number[]>([]);
+
+	// Platform data
+	const platforms = [
+		{
+			name: 'Blabsy',
+			url: 'blabsy.staging.metastate.foundation',
+			status: 'Active',
+			uptime: '24h'
+		},
+		{
+			name: 'Pictique',
+			url: 'pictique.staging.metastate.foundation',
+			status: 'Active',
+			uptime: '24h'
+		},
+		{
+			name: 'Group Charter',
+			url: 'charter.staging.metastate.foundation',
+			status: 'Active',
+			uptime: '24h'
+		},
+		{
+			name: 'Cerberus',
+			url: 'cerberus.staging.metastate.foundation',
+			status: 'Active',
+			uptime: '24h'
+		}
+	];
+
+	const mappedPlatformsData = platforms.map((platform) => ({
+		Name: {
+			type: 'text',
+			value: platform.name
+		},
+		Status: {
+			type: 'text',
+			value: platform.status
+		},
+		Uptime: {
+			type: 'text',
+			value: platform.uptime
+		},
+		URL: {
+			type: 'link',
+			value: platform.url,
+			link: `https://${platform.url}`,
+			external: true
+		}
+	}));
+
 	const handlePreviousPage = async () => {
 		alert('Previous btn clicked. Make a call to your server to fetch data.');
 	};
@@ -29,6 +82,36 @@
 		{ name: '2', href: '#' },
 		{ name: '3', href: '#' }
 	];
+
+	// Handle eVault selection changes
+	function handleEVaultSelectionChange(index: number, checked: boolean) {
+		if (checked) {
+			selectedEVaults = [...selectedEVaults, index];
+		} else {
+			selectedEVaults = selectedEVaults.filter((i) => i !== index);
+		}
+	}
+
+	// Handle platform selection changes
+	function handlePlatformSelectionChange(index: number, checked: boolean) {
+		if (checked) {
+			selectedPlatforms = [...selectedPlatforms, index];
+		} else {
+			selectedPlatforms = selectedPlatforms.filter((i) => i !== index);
+		}
+	}
+
+	// Navigate to monitoring with selected items
+	function goToMonitoring() {
+		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
+		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+
+		// Store selected data in sessionStorage to pass to monitoring page
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
+
+		goto('/monitoring');
+	}
 
 	const fetchEVaults = async () => {
 		try {
@@ -129,6 +212,7 @@
 				{handlePreviousPage}
 				{handleNextPage}
 				handleSelectedRow={handleEVaultRowClick}
+				onSelectionChange={handleEVaultSelectionChange}
 			/>
 		{/if}
 	</TableCard>
@@ -138,14 +222,26 @@
 			title="Platforms"
 			placeholder="Search Platforms"
 			bind:searchValue={platformsSearchQuery}
-			rightTitle="No platform selected. Select an platform to monitor logs"
+			rightTitle="No platform selected. Select a platform to monitor logs"
 		/>
 		<Table
 			class="mb-7"
-			tableData={mappedData}
+			tableData={mappedPlatformsData}
 			withSelection={true}
 			{handlePreviousPage}
 			{handleNextPage}
+			onSelectionChange={handlePlatformSelectionChange}
 		/>
 	</TableCard>
+
+	<!-- Start Monitoring Button -->
+	<div class="mt-8 flex justify-center">
+		<button
+			onclick={goToMonitoring}
+			disabled={selectedEVaults.length === 0 && selectedPlatforms.length === 0}
+			class="bg-primary hover:bg-primary-600 rounded-full px-8 py-3 text-lg font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			Start Monitoring
+		</button>
+	</div>
 </section>

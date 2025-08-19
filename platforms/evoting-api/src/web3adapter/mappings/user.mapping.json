@@ -1,32 +1,22 @@
 {
-    "entity": "User",
-    "ontology": "users",
-    "fields": {
-        "id": "id",
-        "handle": "handle",
-        "name": "name",
-        "description": "description",
+    "tableName": "users",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440000",
+    "ownerEnamePath": "ename",
+    "ownedJunctionTables": ["user_followers", "user_following"],
+    "localToUniversalMap": {
+        "handle": "username",
+        "name": "displayName",
+        "description": "bio",
         "avatarUrl": "avatarUrl",
         "bannerUrl": "bannerUrl",
         "ename": "ename",
         "isVerified": "isVerified",
         "isPrivate": "isPrivate",
-        "email": "email",
-        "emailVerified": "emailVerified",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",
-        "isArchived": "isArchived"
+        "isArchived": "isArchived",
+        "followers": "followers",
+        "following": "following"
     },
-    "relations": {
-        "polls": {
-            "type": "oneToMany",
-            "target": "Poll",
-            "foreignKey": "creatorId"
-        },
-        "votes": {
-            "type": "oneToMany",
-            "target": "Vote",
-            "foreignKey": "userId"
-        }
-    }
+    "readOnly": true
 }

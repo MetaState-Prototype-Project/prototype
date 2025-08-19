@@ -56,9 +56,10 @@ export class PlatformEVaultService {
      * Check if Cerberus platform eVault already exists
      */
     async checkPlatformEVaultExists(): Promise<boolean> {
-        const mappingRepository = AppDataSource.getRepository(UserEVaultMapping);
+        const mappingRepository =
+            AppDataSource.getRepository(UserEVaultMapping);
         const existingMapping = await mappingRepository.findOne({
-            where: { localUserId: "cerberus-platform" }
+            where: { localUserId: "cerberus-platform" },
         });
         return !!existingMapping;
     }
@@ -81,22 +82,27 @@ export class PlatformEVaultService {
 
         try {
             // Step 1: Get entropy from registry
-            const registryUrl = process.env.PUBLIC_REGISTRY_URL || "http://localhost:3000";
-            const { data: { token: registryEntropy } } = await axios.get(
-                new URL("/entropy", registryUrl).toString()
-            );
+            const registryUrl =
+                process.env.PUBLIC_REGISTRY_URL || "http://localhost:3000";
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(new URL("/entropy", registryUrl).toString());
 
             // Step 2: Provision eVault
-            const provisionerUrl = process.env.PUBLIC_PROVISIONER_URL || "http://localhost:3001";
-            const verificationId = process.env.DEMO_VERIFICATION_CODE || "d66b7138-538a-465f-a6ce-f6985854c3f4";
-            
+            const provisionerUrl =
+                process.env.PUBLIC_PROVISIONER_URL || "http://localhost:3001";
+            const verificationId =
+                process.env.DEMO_VERIFICATION_CODE ||
+                "d66b7138-538a-465f-a6ce-f6985854c3f4";
+
             const { data } = await axios.post(
                 new URL("/provision", provisionerUrl).toString(),
                 {
                     registryEntropy,
                     namespace: uuidv4(),
                     verificationId,
-                }
+                    publicKey: "0x00000000000000000000000000000000000000",
+                },
             );
 
             if (!data || data.success !== true) {
@@ -106,10 +112,14 @@ export class PlatformEVaultService {
             const { w3id, uri } = data;
 
             // Step 3: Create PlatformProfile in eVault
-            const userProfileId = await this.createPlatformProfileInEVault(w3id, uri);
+            const userProfileId = await this.createPlatformProfileInEVault(
+                w3id,
+                uri,
+            );
 
             // Step 4: Store mapping in database
-            const mappingRepository = AppDataSource.getRepository(UserEVaultMapping);
+            const mappingRepository =
+                AppDataSource.getRepository(UserEVaultMapping);
             const mapping = new UserEVaultMapping();
             mapping.localUserId = "cerberus-platform";
             mapping.evaultW3id = w3id;
@@ -118,16 +128,20 @@ export class PlatformEVaultService {
             mapping.userProfileData = {
                 platformName: "cerberus",
                 displayName: "Cerberus Platform",
-                description: "Cerberus - Secure messaging and group management platform",
-                version: "1.0.0"
+                description:
+                    "Cerberus - Secure messaging and group management platform",
+                version: "1.0.0",
             };
 
             await mappingRepository.save(mapping);
 
-            console.log("Platform eVault created successfully:", { w3id, uri, userProfileId });
+            console.log("Platform eVault created successfully:", {
+                w3id,
+                uri,
+                userProfileId,
+            });
 
             return { w3id, uri, userProfileId };
-
         } catch (error) {
             console.error("Failed to create platform eVault:", error);
             throw error;
@@ -139,9 +153,10 @@ export class PlatformEVaultService {
      */
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
-            const registryUrl = process.env.PUBLIC_REGISTRY_URL || "http://localhost:3000";
+            const registryUrl =
+                process.env.PUBLIC_REGISTRY_URL || "http://localhost:3000";
             const response = await axios.get(
-                new URL(`resolve?w3id=${w3id}`, registryUrl).toString()
+                new URL(`resolve?w3id=${w3id}`, registryUrl).toString(),
             );
             return new URL("/graphql", response.data.uri).toString();
         } catch (error) {
@@ -167,15 +182,16 @@ export class PlatformEVaultService {
     private async createPlatformProfileInEVault(
         w3id: string,
         uri: string,
-        maxRetries = 20
+        maxRetries = 20,
     ): Promise<string> {
         console.log("Creating PlatformProfile in eVault...");
-        
+
         const now = new Date().toISOString();
         const platformProfile: PlatformProfile = {
             platformName: "cerberus",
             displayName: "Cerberus Platform",
-            description: "Cerberus - Secure messaging and group management platform",
+            description:
+                "Cerberus - Secure messaging and group management platform",
             version: "1.0.0",
             ename: w3id,
             isActive: true,
@@ -189,7 +205,7 @@ export class PlatformEVaultService {
                 const client = await this.ensureClient(w3id);
 
                 console.log(
-                    `Attempting to create PlatformProfile in eVault (attempt ${attempt}/${maxRetries})`
+                    `Attempting to create PlatformProfile in eVault (attempt ${attempt}/${maxRetries})`,
                 );
 
                 const response = await client.request<MetaEnvelopeResponse>(
@@ -200,21 +216,26 @@ export class PlatformEVaultService {
                             payload: platformProfile,
                             acl: ["*"],
                         },
-                    }
+                    },
                 );
 
-                const userProfileId = response.storeMetaEnvelope.metaEnvelope.id;
-                console.log("PlatformProfile created successfully in eVault:", userProfileId);
+                const userProfileId =
+                    response.storeMetaEnvelope.metaEnvelope.id;
+                console.log(
+                    "PlatformProfile created successfully in eVault:",
+                    userProfileId,
+                );
                 return userProfileId;
-
             } catch (error) {
                 console.error(
                     `Failed to create PlatformProfile in eVault (attempt ${attempt}/${maxRetries}):`,
-                    error
+                    error,
                 );
 
                 if (attempt === maxRetries) {
-                    console.error("Max retries reached, giving up on PlatformProfile creation");
+                    console.error(
+                        "Max retries reached, giving up on PlatformProfile creation",
+                    );
                     throw error;
                 }
 
@@ -232,9 +253,10 @@ export class PlatformEVaultService {
      * Get platform eVault mapping
      */
     async getPlatformEVaultMapping(): Promise<UserEVaultMapping | null> {
-        const mappingRepository = AppDataSource.getRepository(UserEVaultMapping);
+        const mappingRepository =
+            AppDataSource.getRepository(UserEVaultMapping);
         return await mappingRepository.findOne({
-            where: { localUserId: "cerberus-platform" }
+            where: { localUserId: "cerberus-platform" },
         });
     }
 
@@ -257,36 +279,36 @@ export class PlatformEVaultService {
     /**
      * Update platform profile in eVault
      */
-    async updatePlatformProfile(updates: Partial<PlatformProfile>): Promise<void> {
+    async updatePlatformProfile(
+        updates: Partial<PlatformProfile>,
+    ): Promise<void> {
         const mapping = await this.getPlatformEVaultMapping();
         if (!mapping) {
             throw new Error("Platform eVault mapping not found");
         }
 
         const client = await this.ensureClient(mapping.evaultW3id);
-        
+
         // Get current profile data
         const currentData = mapping.userProfileData as PlatformProfile;
         const updatedData = {
             ...currentData,
             ...updates,
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
         };
 
         // Update in eVault
-        await client.request<MetaEnvelopeResponse>(
-            STORE_META_ENVELOPE,
-            {
-                input: {
-                    ontology: "550e8400-e29b-41d4-a716-446655440000",
-                    payload: updatedData,
-                    acl: ["*"],
-                },
-            }
-        );
+        await client.request<MetaEnvelopeResponse>(STORE_META_ENVELOPE, {
+            input: {
+                ontology: "550e8400-e29b-41d4-a716-446655440000",
+                payload: updatedData,
+                acl: ["*"],
+            },
+        });
 
         // Update local mapping
         mapping.userProfileData = updatedData;
         await AppDataSource.getRepository(UserEVaultMapping).save(mapping);
     }
-} 
+}
+

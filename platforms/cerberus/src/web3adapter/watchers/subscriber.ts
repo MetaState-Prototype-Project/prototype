@@ -59,6 +59,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
+            // Special handling for messages to ensure group and participants are loaded
+            if (tableName === "messages" && entity.group) {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const enrichedGroup = await groupRepository.findOne({
+                    where: { id: entity.group.id },
+                    relations: ["participants", "messages"]
+                });
+                if (enrichedGroup) {
+                    enrichedEntity.group = enrichedGroup;
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);

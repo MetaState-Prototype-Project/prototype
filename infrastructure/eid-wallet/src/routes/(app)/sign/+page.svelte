@@ -1,10 +1,11 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { onMount, getContext } from "svelte";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
 import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
+import { exists, signPayload } from "@auvo/tauri-plugin-crypto-hw-api";
+import { getContext, onMount } from "svelte";
 
 const globalState = getContext<() => GlobalState>("globalState")();
 
@@ -15,7 +16,14 @@ interface SigningData {
 }
 
 let signingData: SigningData | null = $state(null);
-let decodedData: any = $state(null);
+let decodedData: {
+    pollId: string;
+    voteData: {
+        optionId?: number;
+        ranks?: Record<string, number>;
+    };
+    userId: string;
+} | null = $state(null);
 let signingStatus: "pending" | "signing" | "success" | "error" =
     $state("pending");
 let errorMessage = $state("");
@@ -71,13 +79,34 @@ async function handleSign() {
         // For now, we'll simulate the signing process
         await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate signing delay
 
+        // check if default key pair exists
+        const keyExists = exists("default");
+
+        if (!keyExists) {
+            // this would only indicate that it is an old evault/wallet
+            // ask them to delete and make a new one maybe or some fallback
+            // behaviour if we need it
+            throw new Error("Default key pair does not exist");
+        }
+
         // Create the signed payload
-        const signedPayload = {
+        const signedPayload: {
+            sessionId: string;
+            publicKey: string; // Use eName as public key for now
+            message: string;
+            signature?: string;
+        } = {
             sessionId: signingData.session,
-            signature: "simulated_signature_" + Date.now(), // In real implementation, this would be the actual signature
             publicKey: vault.ename, // Use eName as public key for now
             message: messageToSign,
         };
+
+        const signature = await signPayload(
+            "default",
+            JSON.stringify(signedPayload),
+        );
+
+        signedPayload.signature = signature;
 
         // Send the signed payload to the redirect URI
         const response = await fetch(signingData.redirect_uri, {

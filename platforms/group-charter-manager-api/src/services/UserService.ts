@@ -24,12 +24,15 @@ export class UserService {
     async findOrCreateUser(
         ename: string
     ): Promise<{ user: User; token: string }> {
+        // Strip @ prefix from ename if present (database stores without @)
+        const cleanEname = ename.startsWith('@') ? ename.slice(1) : ename;
+        
         let user = await this.userRepository.findOne({
-            where: { ename },
+            where: { ename: cleanEname },
         });
 
         if (!user) {
-            user = await this.createBlankUser(ename);
+            user = await this.createBlankUser(cleanEname);
         }
 
         const token = signToken({ userId: user.id });
@@ -44,8 +47,18 @@ export class UserService {
     }
 
     async getUserByEname(ename: string): Promise<User | null> {
+        // Strip @ prefix from ename if present (database stores without @)
+        const cleanEname = ename.startsWith('@') ? ename.slice(1) : ename;
+        
         return await this.userRepository.findOne({ 
-            where: { ename },
+            where: { ename: cleanEname },
+            relations: ['followers', 'following']
+        });
+    }
+
+    async getUserByName(name: string): Promise<User | null> {
+        return await this.userRepository.findOne({ 
+            where: { name },
             relations: ['followers', 'following']
         });
     }

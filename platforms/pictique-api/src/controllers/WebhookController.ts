@@ -6,6 +6,7 @@ import { CommentService } from "../services/CommentService";
 import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
 import { User } from "database/entities/User";
 import { Chat } from "database/entities/Chat";
+import { Message } from "database/entities/Message";
 import { MessageService } from "../services/MessageService";
 import { Post } from "database/entities/Post";
 import axios from "axios";
@@ -247,6 +248,10 @@ export class WebhookController {
             } else if (mapping.tableName === "messages") {
                 console.log("messages");
                 console.log(local.data);
+                
+                // Check if this is a system message
+                const isSystemMessage = !local.data.sender || (typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
+                
                 let sender: User | null = null;
                 if (
                     local.data.sender &&
@@ -264,10 +269,23 @@ export class WebhookController {
                     chat = await this.chatService.findById(chatId);
                 }
 
-                if (!sender || !chat) {
-                    console.log(local.data);
-                    console.log("Missing sender or chat for message");
-                    return res.status(400).send();
+                // For system messages, we only need the chat, not the sender
+                if (isSystemMessage) {
+                    if (!chat) {
+                        console.log(local.data);
+                        console.log("Missing chat for system message");
+                        return res.status(400).send();
+                    }
+                    
+                    // System messages don't require a sender
+                    sender = null;
+                } else {
+                    // Regular messages need both sender and chat
+                    if (!sender || !chat) {
+                        console.log(local.data);
+                        console.log("Missing sender or chat for regular message");
+                        return res.status(400).send();
+                    }
                 }
 
                 if (localId) {
@@ -276,17 +294,29 @@ export class WebhookController {
                     if (!message) return res.status(500).send();
 
                     message.text = local.data.text as string;
-                    message.sender = sender;
+                    message.sender = sender || undefined;
                     message.chat = chat;
 
                     this.adapter.addToLockedIds(localId);
                     await this.messageService.messageRepository.save(message);
                 } else {
-                    const message = await this.chatService.sendMessage(
-                        chat.id,
-                        sender.id,
-                        local.data.text as string
-                    );
+                    let message: Message;
+                    
+                    if (isSystemMessage) {
+                        // Create system message directly using MessageService
+                        console.log("Creating system message");
+                        message = await this.messageService.createSystemMessage(
+                            chat.id,
+                            local.data.text as string
+                        );
+                    } else {
+                        // Create regular message using ChatService
+                        message = await this.chatService.sendMessage(
+                            chat.id,
+                            sender!.id, // We know sender is not null for regular messages
+                            local.data.text as string
+                        );
+                    }
 
                     this.adapter.addToLockedIds(message.id);
                     await this.adapter.mappingDb.storeMapping({

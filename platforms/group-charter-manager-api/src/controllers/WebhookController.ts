@@ -25,6 +25,8 @@ export class WebhookController {
                 tableName: req.body.data?.tableName
             });
 
+            console.log(req.body)
+
             if (process.env.ANCHR_URL) {
                 axios.post(
                     new URL("group-charter-manager", process.env.ANCHR_URL).toString(),

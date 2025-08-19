@@ -240,10 +240,6 @@ export function AddMembers({
                     selectedUsers
                 );
 
-                // Determine if this should be a direct or group chat
-                const isGroupChat = selectedUsers.length > 1;
-                const chatType = isGroupChat ? 'group' : 'direct';
-
                 // Get all participant IDs (including current user)
                 const participantIds = [
                     user.id,
@@ -251,9 +247,10 @@ export function AddMembers({
                 ];
 
                 console.log('Participant IDs:', participantIds);
-                console.log('Chat type:', chatType);
 
                 let chatName: string | undefined;
+                const isGroupChat = participantIds.length > 2;
+                
                 if (isGroupChat) {
                     // For group chats, use the custom name or create from selected users
                     chatName =
@@ -264,10 +261,10 @@ export function AddMembers({
                 }
 
                 console.log('Chat name:', chatName);
+                console.log('Is group chat:', isGroupChat);
 
                 // Create the new chat
                 const chatId = await createNewChat(
-                    chatType,
                     participantIds,
                     chatName
                 );
@@ -277,7 +274,6 @@ export function AddMembers({
                 // Set the new chat as current
                 setCurrentChat({
                     id: chatId,
-                    type: chatType,
                     participants: participantIds,
                     name: chatName,
                     owner: isGroupChat ? user.id : undefined,

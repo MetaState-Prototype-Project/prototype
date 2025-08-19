@@ -83,7 +83,9 @@ Cerberus is responsible for continuously monitoring group health, behavior compl
 
 ### Runtime Policy:
 Cerberus will operate on the following schedule:
-- **Interval:** \`[Once every 2 hours]\`
+- **Interval:** \`Every 2 hours\` (or \`Every 30 minutes\`, \`Every 1 day\`, etc.)
+
+**Note:** Only intervals specified in this Runtime Policy section will be used for Cerberus scheduling. Other timing requirements (like voting intervals) in other sections will not affect Cerberus.
 `;
 
 export default function CreateCharter() {

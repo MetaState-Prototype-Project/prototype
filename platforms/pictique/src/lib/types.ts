@@ -83,6 +83,7 @@ export type GroupInfo = {
 
 export type Chat = {
 	id: string;
+	name?: string; // Add the name property for group chats
 	avatar: string;
 	handle: string;
 	unread: boolean;
@@ -109,3 +110,17 @@ export type MessageType = {
 	name: string;
 	username: string;
 };
+
+export interface Message {
+	id: string;
+	text: string;
+	sender?: {
+		id: string;
+		name: string;
+		handle: string;
+		avatarUrl: string;
+	};
+	isSystemMessage: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
