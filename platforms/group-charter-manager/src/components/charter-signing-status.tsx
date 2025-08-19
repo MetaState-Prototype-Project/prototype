@@ -4,10 +4,8 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Circle, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/apiClient";
 import { useToast } from "@/hooks/use-toast";
-import { CharterSigningInterface } from "./charter-signing-interface";
 
 interface CharterSigningStatusProps {
     groupId: string;
@@ -31,7 +29,6 @@ interface SigningStatus {
 export function CharterSigningStatus({ groupId, charterContent }: CharterSigningStatusProps) {
     const [signingStatus, setSigningStatus] = useState<SigningStatus | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showSigningInterface, setShowSigningInterface] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -55,21 +52,13 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
         }
     };
 
-    const handleSigningComplete = async (groupId: string) => {
-        toast({
-            title: "Success",
-            description: "Charter signed successfully!",
-        });
-        setShowSigningInterface(false);
-        // Refresh the signing status
-        await fetchSigningStatus();
-    };
+
 
     if (loading) {
         return (
             <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
                 <CardHeader>
-                    <CardTitle>Users</CardTitle>
+                    <CardTitle>Members</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="animate-pulse space-y-3">
@@ -86,7 +75,7 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
         return (
             <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
                 <CardHeader>
-                    <CardTitle>Users</CardTitle>
+                    <CardTitle>Members</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-gray-500">Unable to load user information</p>
@@ -95,15 +84,13 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
         );
     }
 
-    const signedCount = signingStatus.participants.filter(p => p.hasSigned).length;
-    const totalCount = signingStatus.participants.length;
-    const allSigned = signedCount === totalCount;
+
 
     return (
         <>
             <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow">
                 <CardHeader>
-                    <CardTitle>Users</CardTitle>
+                    <CardTitle>Members</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
@@ -144,37 +131,9 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
                         ))}
                     </div>
 
-                    {signingStatus.signatures.length > 0 && (
-                        <div className="mt-6 pt-6 border-t">
-                            <h4 className="font-medium text-sm text-gray-700 mb-3">Recent Signatures</h4>
-                            <div className="space-y-2">
-                                {signingStatus.signatures.slice(-5).map((signature) => (
-                                    <div key={signature.id} className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle className="h-4 w-4 text-green-600" />
-                                        <span>
-                                            {signature.user?.name || signature.user?.ename || 'Unknown User'} 
-                                            signed on {new Date(signature.createdAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+
                 </CardContent>
             </Card>
-
-            {showSigningInterface && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <CharterSigningInterface
-                            groupId={groupId}
-                            charterData={{ charter: charterContent }}
-                            onSigningComplete={handleSigningComplete}
-                            onCancel={() => setShowSigningInterface(false)}
-                        />
-                    </div>
-                </div>
-            )}
         </>
     );
 } 

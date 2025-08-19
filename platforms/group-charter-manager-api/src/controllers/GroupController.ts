@@ -102,10 +102,11 @@ export class GroupController {
                 return res.status(404).json({ error: "Group not found" });
             }
 
-            // Check if user is a participant in the group
-            const isParticipant = group.participants?.some(p => p.id === userId);
-            if (!isParticipant) {
-                return res.status(403).json({ error: "Access denied - you must be a participant in this group" });
+            // Check if user is an admin or owner of the group
+            const isOwner = group.owner === userId;
+            const isAdmin = group.admins?.includes(userId);
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: "Access denied - only admins can edit the charter" });
             }
 
             const { charter } = req.body;
@@ -125,6 +126,25 @@ export class GroupController {
     async deleteGroup(req: Request, res: Response) {
         try {
             const { id } = req.params;
+            const userId = (req as any).user?.id;
+            
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const group = await this.groupService.getGroupById(id);
+            if (!group) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            // Check if user is owner or admin
+            const isOwner = group.owner === userId;
+            const isAdmin = group.admins?.includes(userId);
+            
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: "Access denied - only admins can delete groups" });
+            }
+
             const success = await this.groupService.deleteGroup(id);
             
             if (!success) {

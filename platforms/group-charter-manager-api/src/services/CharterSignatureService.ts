@@ -130,4 +130,13 @@ export class CharterSignatureService {
             }
         });
     }
+
+    // Delete all signatures for a group (when charter content changes)
+    async deleteAllSignaturesForGroup(groupId: string): Promise<void> {
+        const result = await this.signatureRepository.delete({
+            groupId
+        });
+        
+        console.log(`Deleted ${result.affected || 0} signatures for group ${groupId} due to charter content change`);
+    }
 } 

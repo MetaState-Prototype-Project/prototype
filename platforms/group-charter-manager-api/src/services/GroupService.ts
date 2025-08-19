@@ -2,11 +2,13 @@ import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
 import { User } from "../database/entities/User";
 import { MessageService } from "./MessageService";
+import { CharterSignatureService } from "./CharterSignatureService";
 
 export class GroupService {
     public groupRepository = AppDataSource.getRepository(Group);
     private userRepository = AppDataSource.getRepository(User);
     private messageService = new MessageService();
+    private charterSignatureService = new CharterSignatureService();
 
     async createGroup(groupData: Partial<Group>): Promise<Group> {
         const group = this.groupRepository.create(groupData);
@@ -26,15 +28,15 @@ export class GroupService {
     }
 
     async updateGroup(id: string, groupData: Partial<Group>): Promise<Group | null> {
-        // If updating the charter, we need to mark all existing signatures as invalid
+        // If updating the charter, we need to delete all existing signatures
         // since the charter content has changed
         if (groupData.charter !== undefined) {
             // Get the current group to check if charter is being updated
             const currentGroup = await this.getGroupById(id);
             if (currentGroup && currentGroup.charter !== groupData.charter) {
-                // Charter content has changed, so all existing signatures are now invalid
-                // This will be handled by the CharterSignatureService when checking signing status
-                console.log(`Charter updated for group ${id}, existing signatures are now invalid`);
+                // Charter content has changed, so delete all existing signatures
+                console.log(`Charter updated for group ${id}, deleting all existing signatures`);
+                await this.charterSignatureService.deleteAllSignaturesForGroup(id);
             }
         }
         

@@ -152,8 +152,8 @@ export default function CharterDetail({
         isEditing
     });
 
-    // Temporary: Always show edit button for testing
-    const showEditButton = true; // canEdit;
+    // Only show edit button for admins
+    const showEditButton = canEdit;
 
     if (isLoading) {
         return (
@@ -258,7 +258,7 @@ export default function CharterDetail({
                                 </>
                             ) : (
                                 <>
-                                    {/* Edit Charter Button (only for owner or admin) */}
+                                    {/* Edit Charter Button (only for admins) */}
                                     {showEditButton && (
                                         <Button
                                             onClick={handleEditStart}
@@ -282,6 +282,23 @@ export default function CharterDetail({
                                             >
                                                 <CheckCircle className="mr-2" size={18} />
                                                 Sign Charter
+                                            </Button>
+                                        )
+                                    )}
+                                    
+                                    {/* Disabled button for users who have already signed */}
+                                    {group.charter && signingStatus && !signingStatusLoading && (
+                                        (() => {
+                                            const currentUser = signingStatus.participants.find((p: any) => p.id === user?.id);
+                                            return currentUser && currentUser.hasSigned;
+                                        })() && (
+                                            <Button
+                                                disabled
+                                                variant="outline"
+                                                className="bg-green-50 text-green-600 border-green-600 cursor-not-allowed px-6 py-3 rounded-2xl font-medium"
+                                            >
+                                                <CheckCircle className="mr-2" size={18} />
+                                                Charter Signed
                                             </Button>
                                         )
                                     )}
@@ -318,12 +335,30 @@ export default function CharterDetail({
                                                        </ReactMarkdown>
                                                    </div>
                                                ) : (
-                                                   <p className="text-gray-500 italic">
-                                                       No charter content has been set for this group.
-                                                   </p>
+                                                   <div>
+                                                       <p className="text-gray-500 italic">
+                                                           No charter content has been set for this group.
+                                                       </p>
+                                                       {!canEdit && (
+                                                           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                               <p className="text-sm text-blue-700">
+                                                                   💡 Only admins can create the charter. Contact a group admin to get started.
+                                                               </p>
+                                                           </div>
+                                                       )}
+                                                   </div>
                                                )}
                                            </div>
                                        )}
+                                        
+                                        {/* Info message for non-admin users */}
+                                        {!canEdit && group.charter && (
+                                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <p className="text-sm text-blue-700">
+                                                    💡 Only admins can edit the charter. Contact a group admin if you need changes.
+                                                </p>
+                                            </div>
+                                        )}
                             </div>
                         </CardContent>
                     </Card>
@@ -339,12 +374,15 @@ export default function CharterDetail({
                             </h3>
                             <div className="space-y-3 text-sm">
                                 <div>
-                                    <span className="text-gray-600">Owner:</span>
-                                    <span className="ml-2 font-medium">{group.owner}</span>
-                                </div>
-                                <div>
                                     <span className="text-gray-600">Admins:</span>
-                                    <span className="ml-2 font-medium">{group.admins?.length || 0}</span>
+                                    <span className="ml-2 font-medium">
+                                        {group.participants && group.admins ? (
+                                            group.participants
+                                                .filter(participant => group.admins.includes(participant.id))
+                                                .map(participant => participant.name || participant.ename || 'Unknown')
+                                                .join(', ')
+                                        ) : 'None'}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="text-gray-600">Members:</span>
@@ -393,10 +431,29 @@ export default function CharterDetail({
                             charterData={{ charter: group.charter }}
                             onSigningComplete={(groupId) => {
                                 setShowSigningInterface(false);
-                                // Refresh the group data to show updated signing status
-                                fetchGroup();
+                                // Immediately update signing status without full refresh
+                                fetchSigningStatus();
                             }}
                             onCancel={() => setShowSigningInterface(false)}
+                            onSigningStatusUpdate={(participantId, hasSigned) => {
+                                // Immediately update the local signing status
+                                if (signingStatus) {
+                                    setSigningStatus(prev => {
+                                        if (!prev) return prev;
+                                        
+                                        const updatedParticipants = prev.participants.map(participant => 
+                                            participant.id === participantId 
+                                                ? { ...participant, hasSigned }
+                                                : participant
+                                        );
+                                        
+                                        return {
+                                            ...prev,
+                                            participants: updatedParticipants
+                                        };
+                                    });
+                                }
+                            }}
                         />
                     </div>
                 </div>

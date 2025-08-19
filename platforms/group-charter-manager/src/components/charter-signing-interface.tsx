@@ -16,9 +16,10 @@ interface CharterSigningInterfaceProps {
   charterData: any;
   onSigningComplete: (groupId: string) => void;
   onCancel: () => void;
+  onSigningStatusUpdate?: (participantId: string, hasSigned: boolean) => void;
 }
 
-export function CharterSigningInterface({ groupId, charterData, onSigningComplete, onCancel }: CharterSigningInterfaceProps) {
+export function CharterSigningInterface({ groupId, charterData, onSigningComplete, onCancel, onSigningStatusUpdate }: CharterSigningInterfaceProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
   const [status, setStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error">("pending");
@@ -89,6 +90,11 @@ export function CharterSigningInterface({ groupId, charterData, onSigningComplet
         
         if (data.type === "signed" && data.status === "completed") {
           setStatus("signed");
+          
+          // Immediately update the parent component's signing status
+          if (onSigningStatusUpdate && user?.id) {
+            onSigningStatusUpdate(user.id, true);
+          }
           
           toast({
             title: "Charter Signed!",
