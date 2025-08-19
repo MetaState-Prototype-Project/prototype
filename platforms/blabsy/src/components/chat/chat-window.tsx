@@ -149,7 +149,10 @@ export function ChatWindow(): JSX.Element {
                         otherParticipant &&
                         newParticipantsData[otherParticipant]
                     ) {
+                        console.log('ChatWindow: Setting otherUser:', newParticipantsData[otherParticipant]);
                         setOtherUser(newParticipantsData[otherParticipant]);
+                    } else {
+                        console.log('ChatWindow: Could not set otherUser. otherParticipant:', otherParticipant, 'userData:', otherParticipant ? newParticipantsData[otherParticipant] : 'undefined');
                     }
                 }
             } catch (error) {
@@ -209,13 +212,23 @@ export function ChatWindow(): JSX.Element {
                     <div className='flex h-fit items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
                         <div className='flex items-center gap-3'>
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                {otherUser?.photoURL ? (
+                                {currentChat.type === 'group' ? (
+                                    currentChat.photoURL ? (
+                                        <Image
+                                            src={currentChat.photoURL}
+                                            alt={currentChat.name || 'Group'}
+                                            width={40}
+                                            height={40}
+                                            className='object-cover'
+                                        />
+                                    ) : (
+                                        <UserIcon className='h-6 w-6' />
+                                    )
+                                ) : otherUser?.photoURL ? (
                                     <Image
                                         src={otherUser.photoURL}
                                         alt={
-                                            otherUser.name ||
-                                            otherUser.username ||
-                                            'User'
+                                            otherUser.name || otherUser.username || 'User'
                                         }
                                         width={40}
                                         height={40}
@@ -235,7 +248,9 @@ export function ChatWindow(): JSX.Element {
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
                                     {currentChat.type === 'direct'
-                                        ? 'Direct Message'
+                                        ? otherUser?.username 
+                                            ? `@${otherUser.username}`
+                                            : 'Direct Message'
                                         : `${currentChat.participants.length} participants`}
                                 </p>
                             </div>

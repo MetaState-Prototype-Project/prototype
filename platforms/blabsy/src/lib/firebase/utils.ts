@@ -405,35 +405,39 @@ export async function sendMessage(
     senderId: string,
     text: string
 ): Promise<void> {
-    const batch = writeBatch(db);
+    try {
+        const batch = writeBatch(db);
 
-    const messageId = doc(chatsCollection).id; // Generate a new ID
-    const messageRef = doc(chatMessagesCollection(chatId), messageId);
+        const messageId = doc(chatsCollection).id; // Generate a new ID
+        const messageRef = doc(chatMessagesCollection(chatId), messageId);
 
-    console.log('error4', chatsCollection, chatId);
-    const chatRef = doc(chatsCollection, chatId);
+        const chatRef = doc(chatsCollection, chatId);
 
-    const messageData: WithFieldValue<Message> = {
-        id: messageId,
-        chatId,
-        senderId,
-        text,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        readBy: [senderId]
-    };
-
-    batch.set(messageRef, messageData);
-    batch.update(chatRef, {
-        lastMessage: {
-            text,
+        const messageData: WithFieldValue<Message> = {
+            id: messageId,
+            chatId,
             senderId,
-            timestamp: serverTimestamp()
-        },
-        updatedAt: serverTimestamp()
-    });
+            text,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            readBy: [senderId]
+        };
 
-    await batch.commit();
+        batch.set(messageRef, messageData);
+        batch.update(chatRef, {
+            lastMessage: {
+                text,
+                senderId,
+                timestamp: serverTimestamp()
+            },
+            updatedAt: serverTimestamp()
+        });
+
+        await batch.commit();
+    } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+    }
 }
 
 export async function markMessageAsRead(
