@@ -26,14 +26,14 @@
 		getAppStoreLink = () => {
 			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
 			if (/android/i.test(userAgent)) {
-				return PUBLIC_PLAY_STORE_EID_WALLET;
+				return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
 			}
 
 			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-				return PUBLIC_APP_STORE_EID_WALLET;
+				return 'https://apps.apple.com/in/app/eid-for-w3ds/id6747748667';
 			}
 
-			return PUBLIC_PLAY_STORE_EID_WALLET;
+			return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
 		};
 
 		checkMobile();
