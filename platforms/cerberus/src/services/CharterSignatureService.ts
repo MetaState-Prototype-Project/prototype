@@ -165,6 +165,21 @@ export class CharterSignatureService {
                 return null;
             }
 
+            // Check if Cerberus is enabled for this group
+            const charterText = group.charter.toLowerCase();
+            
+            // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+            let watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+            if (!watchdogNameMatch) {
+                // Alternative: look for "Watchdog Name: Cerberus" on same line
+                watchdogNameMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+            }
+            
+            if (!watchdogNameMatch || watchdogNameMatch[1].trim() !== 'cerberus') {
+                console.log(`Cerberus not enabled for group ${groupId} - watchdog name is not "Cerberus"`);
+                return null;
+            }
+
             const currentSignatures = group.charterSignatures.length;
             const totalParticipants = group.participants.length;
 
@@ -222,6 +237,21 @@ export class CharterSignatureService {
         messageService: MessageService
     ): Promise<void> {
         try {
+            // Check if Cerberus is enabled for this group
+            const charterText = newCharter.toLowerCase();
+            
+            // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+            let watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+            if (!watchdogNameMatch) {
+                // Alternative: look for "Watchdog Name: Cerberus" on same line
+                watchdogNameMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+            }
+            
+            if (!watchdogNameMatch || watchdogNameMatch[1].trim() !== 'cerberus') {
+                console.log(`Cerberus not enabled for group ${groupId} - watchdog name is not "Cerberus"`);
+                return;
+            }
+
             // Set charter as inactive
             await this.groupRepository.update(groupId, { isCharterActive: false });
 
