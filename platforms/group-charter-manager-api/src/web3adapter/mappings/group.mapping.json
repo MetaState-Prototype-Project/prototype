@@ -10,6 +10,7 @@
         "admins": "users(admins),admins",
         "charter": "charter",
         "participants": "users(participants[].id),participantIds",
+        "charterSignatures": "charter_signatures(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     }

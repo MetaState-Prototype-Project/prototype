@@ -12,19 +12,25 @@ type UserFollowProps = {
 
 export function UserFollow({ type }: UserFollowProps): JSX.Element {
     const { user } = useUser();
-    const { name, username } = user;
-
+    
     const { data, loading } = useCollection(
         query(
             usersCollection,
             where(
                 type === 'following' ? 'followers' : 'following',
                 'array-contains',
-                user?.id
+                user?.id ?? 'null'
             )
         ),
-        { allowNull: true }
+        { allowNull: true, disabled: !user }
     );
+    
+    // Early return if user is not loaded yet
+    if (!user) {
+        return <div />; // Return empty div while loading
+    }
+    
+    const { name, username } = user;
 
     return (
         <>

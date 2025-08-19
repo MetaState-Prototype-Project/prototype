@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import cn from 'clsx';
 import { useModal } from '@lib/hooks/useModal';
 import { preventBubbling } from '@lib/utils';
+import { combineBase64Images } from '@lib/utils/image-utils';
 import { ImageModal } from '@components/modal/image-modal';
 import { Modal } from '@components/modal/modal';
 import { NextImage } from '@components/ui/next-image';
@@ -43,7 +44,7 @@ const postImageBorderRadius: Readonly<PostImageBorderRadius> = {
 export function ImagePreview({
     tweet,
     viewTweet,
-    previewCount,
+    previewCount: _previewCount, // Renamed to avoid unused variable warning
     imagesPreview,
     removeImage
 }: ImagePreviewProps): JSX.Element {
@@ -54,11 +55,19 @@ export function ImagePreview({
 
     const { open, openModal, closeModal } = useModal();
 
+    // Combine accidentally separated base64 images
+    const processedImages = useMemo(() => {
+        return combineBase64Images(imagesPreview);
+    }, [imagesPreview]);
+
+    // Update previewCount based on processed images
+    const actualPreviewCount = processedImages.length;
+
     useEffect(() => {
-        const imageData = imagesPreview[selectedIndex];
+        const imageData = processedImages[selectedIndex];
         setSelectedImage(imageData);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedIndex]);
+    }, [selectedIndex, processedImages]);
 
     const handleVideoStop = (): void => {
         if (videoRef.current) videoRef.current.pause();
@@ -75,9 +84,9 @@ export function ImagePreview({
         const nextIndex =
             type === 'prev'
                 ? selectedIndex === 0
-                    ? previewCount - 1
+                    ? actualPreviewCount - 1
                     : selectedIndex - 1
-                : selectedIndex === previewCount - 1
+                : selectedIndex === actualPreviewCount - 1
                 ? 0
                 : selectedIndex + 1;
 
@@ -108,15 +117,15 @@ export function ImagePreview({
                 <ImageModal
                     tweet={isTweet}
                     imageData={selectedImage as ImageData}
-                    previewCount={previewCount}
+                    previewCount={actualPreviewCount}
                     selectedIndex={selectedIndex}
                     handleNextIndex={handleNextIndex}
                 />
             </Modal>
             <AnimatePresence mode='popLayout'>
-                {imagesPreview.map(({ id, src, alt }, index) => {
+                {processedImages.map(({ id, src, alt }, index) => {
                     const isVideo =
-                        imagesPreview[index].type?.includes('video');
+                        processedImages[index].type?.includes('video');
 
                     return (
                         <motion.button
@@ -124,13 +133,13 @@ export function ImagePreview({
                             className={cn(
                                 'accent-tab group relative transition-shadow',
                                 isTweet
-                                    ? postImageBorderRadius[previewCount][index]
+                                    ? postImageBorderRadius[actualPreviewCount]?.[index] || 'rounded-2xl'
                                     : 'rounded-2xl',
                                 {
-                                    'col-span-2 row-span-2': previewCount === 1,
+                                    'col-span-2 row-span-2': actualPreviewCount === 1,
                                     'row-span-2':
-                                        previewCount === 2 ||
-                                        (index === 0 && previewCount === 3)
+                                        actualPreviewCount === 2 ||
+                                        (index === 0 && actualPreviewCount === 3)
                                 }
                             )}
                             {...variants}
@@ -159,8 +168,8 @@ export function ImagePreview({
                        hover:brightness-75 hover:duration-200`,
                                             isTweet
                                                 ? postImageBorderRadius[
-                                                      previewCount
-                                                  ][index]
+                                                      actualPreviewCount
+                                                  ]?.[index] || 'rounded-2xl'
                                                 : 'rounded-2xl'
                                         )}
                                         src={src}
@@ -175,11 +184,11 @@ export function ImagePreview({
                                     imgClassName={cn(
                                         isTweet
                                             ? postImageBorderRadius[
-                                                  previewCount
-                                              ][index]
+                                                  actualPreviewCount
+                                              ]?.[index] || 'rounded-2xl'
                                             : 'rounded-2xl'
                                     )}
-                                    previewCount={previewCount}
+                                    previewCount={actualPreviewCount}
                                     layout='fill'
                                     src={src}
                                     alt={alt}

@@ -9,6 +9,7 @@ import {
     JoinTable,
 } from "typeorm";
 import { Message } from "./Message";
+import { CharterSignature } from "./CharterSignature";
 
 @Entity()
 export class Group {
@@ -40,6 +41,9 @@ export class Group {
 
     @OneToMany(() => Message, (message) => message.group)
     messages!: Message[];
+
+    @OneToMany(() => CharterSignature, (signature) => signature.group)
+    charterSignatures!: CharterSignature[];
 
     @CreateDateColumn()
     createdAt!: Date;

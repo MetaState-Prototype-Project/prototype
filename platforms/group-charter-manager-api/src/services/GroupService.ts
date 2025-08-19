@@ -2,11 +2,13 @@ import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
 import { User } from "../database/entities/User";
 import { MessageService } from "./MessageService";
+import { CharterSignatureService } from "./CharterSignatureService";
 
 export class GroupService {
     public groupRepository = AppDataSource.getRepository(Group);
     private userRepository = AppDataSource.getRepository(User);
     private messageService = new MessageService();
+    private charterSignatureService = new CharterSignatureService();
 
     async createGroup(groupData: Partial<Group>): Promise<Group> {
         const group = this.groupRepository.create(groupData);
@@ -26,6 +28,18 @@ export class GroupService {
     }
 
     async updateGroup(id: string, groupData: Partial<Group>): Promise<Group | null> {
+        // If updating the charter, we need to delete all existing signatures
+        // since the charter content has changed
+        if (groupData.charter !== undefined) {
+            // Get the current group to check if charter is being updated
+            const currentGroup = await this.getGroupById(id);
+            if (currentGroup && currentGroup.charter !== groupData.charter) {
+                // Charter content has changed, so delete all existing signatures
+                console.log(`Charter updated for group ${id}, deleting all existing signatures`);
+                await this.charterSignatureService.deleteAllSignaturesForGroup(id);
+            }
+        }
+        
         await this.groupRepository.update(id, groupData);
         return await this.getGroupById(id);
     }
@@ -45,7 +59,7 @@ export class GroupService {
         });
     }
 
-    async getUserGroups(userId: string): Promise<Group[]> {
+    async getUserGroups(userId: string): Promise<any[]> {
         console.log("Getting groups for user:", userId);
         
         // First, let's get all groups and filter manually to debug
@@ -69,8 +83,27 @@ export class GroupService {
             return isUserParticipant && hasMinimumParticipants;
         });
         
-        console.log("User groups found (with minimum 3 participants):", userGroups.length);
-        return userGroups;
+        // Add signing status for each group
+        const groupsWithSigningStatus = await Promise.all(userGroups.map(async (group) => {
+            // Check if user has signed the charter (if one exists)
+            let hasSigned = false;
+            if (group.charter && group.charter.trim() !== '') {
+                try {
+                    hasSigned = await this.charterSignatureService.hasUserSignedCharter(group.id, userId, group.charter);
+                } catch (error) {
+                    console.error(`Error checking signing status for group ${group.id}:`, error);
+                    hasSigned = false;
+                }
+            }
+            
+            return {
+                ...group,
+                hasSigned
+            };
+        }));
+        
+        console.log("User groups found (with minimum 3 participants):", groupsWithSigningStatus.length);
+        return groupsWithSigningStatus;
     }
 
 

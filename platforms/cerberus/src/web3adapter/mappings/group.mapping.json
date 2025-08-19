@@ -10,8 +10,9 @@
         "admins": "users(admins),admins",
         "charter": "charter",
         "participants": "users(participants[].id),participantIds",
+        "charterSignatures": "charter_signature(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },
     "readOnly": true
-} 
+}

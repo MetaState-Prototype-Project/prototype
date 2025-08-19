@@ -24,6 +24,21 @@ export class CharterMonitoringService {
      */
     async processCharterChange(event: CharterChangeEvent): Promise<void> {
         try {
+            // Only process if the watchdog name is specifically set to "Cerberus"
+            const charterText = event.newCharter.toLowerCase();
+            
+            // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+            let watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+            if (!watchdogNameMatch) {
+                // Alternative: look for "Watchdog Name: Cerberus" on same line
+                watchdogNameMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+            }
+            
+            if (!watchdogNameMatch || watchdogNameMatch[1].trim() !== 'cerberus') {
+                console.log(`🔍 Cerberus not enabled for group: ${event.groupName} - watchdog name is not "Cerberus"`);
+                return;
+            }
+
             console.log(`🔍 Cerberus monitoring charter change in group: ${event.groupName}`);
 
             if (event.changeType === 'created') {
@@ -269,13 +284,51 @@ Just add a new charter with an Automated Watchdog Policy mentioning "Cerberus"!
      */
     private charterMentionsCerberus(charterContent: string): boolean {
         if (!charterContent) return false;
-        return charterContent.toLowerCase().includes('cerberus');
+        
+        // Check if the watchdog name is specifically set to "Cerberus"
+        const charterText = charterContent.toLowerCase();
+        
+        // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+        let watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+        if (!watchdogNameMatch) {
+            // Alternative: look for "Watchdog Name: Cerberus" on same line
+            watchdogNameMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+        }
+        
+        if (watchdogNameMatch) {
+            const watchdogName = watchdogNameMatch[1].trim();
+            return watchdogName === 'cerberus';
+        }
+        
+        // Fallback: check if "Watchdog Name: Cerberus" appears anywhere
+        return charterText.includes('watchdog name: cerberus');
     }
 
     /**
      * Send a fun periodic check-in message to groups with active charters
      */
     async sendPeriodicCheckIn(groupId: string, groupName: string): Promise<void> {
+        // Get the group to check if Cerberus is enabled
+        const group = await this.groupService.getGroupById(groupId);
+        if (!group || !group.charter) {
+            console.log(`🔍 No charter found for group: ${groupName} - skipping periodic check-in`);
+            return;
+        }
+        
+        const charterText = group.charter.toLowerCase();
+        
+        // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
+        let watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
+        if (!watchdogNameMatch) {
+            // Alternative: look for "Watchdog Name: Cerberus" on same line
+            watchdogNameMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
+        }
+        
+        if (!watchdogNameMatch || watchdogNameMatch[1].trim() !== 'cerberus') {
+            console.log(`🔍 Cerberus not enabled for group: ${groupName} - watchdog name is not "Cerberus"`);
+            return;
+        }
+
         const messageText = `🐕 **Cerberus Check-In!** 🐕
 
 Just dropping by to say hello! I'm still here, watching over your charter in ${groupName}.

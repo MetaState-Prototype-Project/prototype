@@ -47,6 +47,7 @@ export function ChatList(): JSX.Element {
             }
 
             if (Object.keys(newParticipantData).length > 0) {
+                console.log('ChatList: Fetched new participant data:', newParticipantData);
                 setParticipantData((prev) => ({
                     ...prev,
                     ...newParticipantData
@@ -55,7 +56,7 @@ export function ChatList(): JSX.Element {
         };
 
         void fetchParticipantData();
-    }, [chats, user, participantData]);
+    }, [chats, user]); // Removed participantData from dependencies
 
     if (loading) {
         console.log('ChatList: Loading state');
@@ -110,7 +111,19 @@ export function ChatList(): JSX.Element {
                             }`}
                         >
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                {participant?.photoURL ? (
+                                {chat.type === 'group' ? (
+                                    chat.photoURL ? (
+                                        <Image
+                                            src={chat.photoURL}
+                                            alt={chat.name || 'Group'}
+                                            width={40}
+                                            height={40}
+                                            className='object-cover'
+                                        />
+                                    ) : (
+                                        <UserIcon className='h-6 w-6' />
+                                    )
+                                ) : participant?.photoURL ? (
                                     <Image
                                         src={participant.photoURL}
                                         alt={
