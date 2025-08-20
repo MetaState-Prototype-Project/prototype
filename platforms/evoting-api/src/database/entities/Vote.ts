@@ -24,10 +24,21 @@ export type RankVoteData = {
 
 export type VoteData = NormalVoteData | PointVoteData | RankVoteData;
 
+export type BlindVoteData = {
+    mode: "blind";
+    commitment: string;
+    proof: string;
+    revealed: boolean;
+    actualVote?: number;
+    randomness?: string;
+    revealedAt?: Date;
+};
+
 export type VoteDataByMode =
     | { mode: "normal"; data: NormalVoteData }
     | { mode: "point"; data: PointVoteData }
-    | { mode: "rank"; data: RankVoteData };
+    | { mode: "rank"; data: RankVoteData }
+    | BlindVoteData;
 
 @Entity("votes")
 export class Vote {

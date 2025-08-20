@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Vote, CheckCircle } from "lucide-react";
+import { Vote, CheckCircle, Eye, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Poll } from "@shared/schema";
+import BlindVotingInterface from "./blind-voting-interface";
 
 interface VotingInterfaceProps {
   poll: Poll;
@@ -19,6 +20,9 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Check if this is a private poll that requires blind voting
+  const isPrivatePoll = poll.visibility === "private";
 
   const submitVoteMutation = useMutation({
     mutationFn: async (optionId: number) => {

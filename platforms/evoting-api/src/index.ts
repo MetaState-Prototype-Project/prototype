@@ -151,6 +151,12 @@ app.get("/api/polls/:id/votes", voteController.getVotesByPoll);
 app.get("/api/polls/:id/vote", authGuard, voteController.getUserVote);
 app.get("/api/polls/:id/results", voteController.getPollResults);
 
+// Blind voting routes
+app.post("/api/votes/blind", authGuard, voteController.submitBlindVote);
+app.post("/api/votes/blind/reveal", authGuard, voteController.revealBlindVote);
+app.get("/api/polls/:id/blind-tally", voteController.tallyBlindVotes);
+app.get("/api/polls/:id/blind-voting", voteController.getPollForBlindVoting);
+
 // Generic poll route (must come last to avoid conflicts with specific routes)
 app.get("/api/polls/:id", pollController.getPollById);
 
