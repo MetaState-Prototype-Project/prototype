@@ -59,6 +59,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
+            console.log("ENRICHING,", tableName)
+
+            // Special handling for charter signatures: always load the user and substitute at userId
+            if (tableName === "charter_signature" && entity.userId) {
+                const user = await AppDataSource.getRepository(
+                    "User"
+                ).findOne({ where: { id: entity.userId } });
+                if (user) {
+                    enrichedEntity.userId = user;
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
@@ -332,9 +344,11 @@ console.log("hmm?")
     private getRelationsForEntity(entityName: string): string[] {
         switch (entityName) {
             case "User":
-                return ["followers", "following", "groups"];
+                return ["followers", "following"];
             case "Group":
                 return ["participants"];
+            case "CharterSignature":
+                return ["user", "group"];
             default:
                 return [];
         }

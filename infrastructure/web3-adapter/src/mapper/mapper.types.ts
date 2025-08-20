@@ -33,6 +33,12 @@ export interface IMapping {
      * String to String mapping between what path maps to what global ontology
      */
     localToUniversalMap: Record<string, string>;
+
+    /**
+     * If true, this mapping will not trigger handleChange and will be treated as read-only.
+     * Useful for entities that should not be synced to eVaults.
+     */
+    readOnly?: boolean;
 }
 
 export interface IMappingConversionOptions {

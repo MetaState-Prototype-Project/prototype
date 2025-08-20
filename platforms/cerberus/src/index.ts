@@ -120,10 +120,84 @@ app.patch("/api/messages/:id/archive", authGuard, messageController.archiveMessa
 // Group messages routes
 app.get("/api/groups/:groupId/messages", authGuard, messageController.getGroupMessages.bind(messageController));
 
+// Admin routes
+app.get("/api/admin/intervals", authGuard, async (req, res) => {
+    try {
+        const { CerberusIntervalService } = await import("./services/CerberusIntervalService");
+        const intervalService = new CerberusIntervalService();
+        const intervals = intervalService.getIntervalsStatus();
+        res.json({ intervals });
+    } catch (error) {
+        console.error("Error getting interval status:", error);
+        res.status(500).json({ error: "Failed to get interval status" });
+    }
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Cerberus API running on port ${port}`);
 });
+
+// Initialize Cerberus intervals and periodic check-ins for groups with charters
+setTimeout(async () => {
+    try {
+        console.log("🐕 Starting Cerberus services...");
+        
+        // Import services after server is running
+        const { CharterMonitoringService } = await import("./services/CharterMonitoringService");
+        const { GroupService } = await import("./services/GroupService");
+        const { CerberusIntervalService } = await import("./services/CerberusIntervalService");
+        
+        const charterMonitoringService = new CharterMonitoringService();
+        const groupService = new GroupService();
+        const intervalService = new CerberusIntervalService();
+        
+        // Initialize Cerberus intervals for all groups with charters
+        await intervalService.initializeIntervals();
+        
+        // Send periodic check-ins every 24 hours (separate from charter-based intervals)
+        setInterval(async () => {
+            try {
+                const groups = await groupService.getAllGroups();
+                const groupsWithCharters = groups.filter(group => group.charter && group.charter.trim() !== '');
+                
+                console.log(`🐕 Sending periodic check-ins to ${groupsWithCharters.length} groups with charters...`);
+                
+                for (const group of groupsWithCharters) {
+                    try {
+                        await charterMonitoringService.sendPeriodicCheckIn(group.id, group.name);
+                        // Add a small delay between messages to avoid overwhelming the system
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (error) {
+                        console.error(`Error sending check-in to group ${group.name}:`, error);
+                    }
+                }
+                
+                console.log("✅ Periodic check-ins completed");
+            } catch (error) {
+                console.error("Error during periodic check-ins:", error);
+            }
+        }, 24 * 60 * 60 * 1000); // 24 hours
+        
+        console.log("✅ Cerberus services initialized");
+        
+        // Graceful shutdown cleanup
+        process.on('SIGTERM', () => {
+            console.log("🔄 Shutting down Cerberus services...");
+            intervalService.cleanup();
+            process.exit(0);
+        });
+        
+        process.on('SIGINT', () => {
+            console.log("🔄 Shutting down Cerberus services...");
+            intervalService.cleanup();
+            process.exit(0);
+        });
+        
+    } catch (error) {
+        console.error("❌ Failed to initialize Cerberus services:", error);
+    }
+}, 10000); // Wait 10 seconds after server starts
 
 // Export platform service for use in other parts of the application
 export { PlatformEVaultService }; 

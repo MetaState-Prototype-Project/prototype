@@ -67,6 +67,18 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
     );
   }
 
+  // For private polls, show the blind voting interface
+  if (isPrivatePoll) {
+    return (
+      <BlindVotingInterface
+        poll={poll}
+        userId={userId}
+        hasVoted={hasVoted}
+        onVoteSubmitted={onVoteSubmitted}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <RadioGroup

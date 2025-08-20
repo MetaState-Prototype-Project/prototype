@@ -16,8 +16,8 @@ export class Message {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
-    @ManyToOne(() => User)
-    sender!: User;
+    @ManyToOne(() => User, { nullable: true })
+    sender?: User; // Nullable for system messages
 
     @Column("text")
     text!: string;
@@ -27,6 +27,9 @@ export class Message {
 
     @OneToMany(() => MessageReadStatus, (status) => status.message)
     readStatuses!: MessageReadStatus[];
+
+    @Column({ default: false })
+    isSystemMessage!: boolean; // Flag to identify system messages
 
     @CreateDateColumn()
     createdAt!: Date;

@@ -5,6 +5,8 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     OneToMany,
+    ManyToMany,
+    JoinTable,
 } from "typeorm";
 import { Poll } from "./Poll";
 import { Vote } from "./Vote";
@@ -49,6 +51,22 @@ export class User {
 
     @OneToMany(() => Vote, (vote) => vote.user)
     votes!: Vote[];
+
+    @ManyToMany(() => User)
+    @JoinTable({
+        name: "user_followers",
+        joinColumn: { name: "user_id", referencedColumnName: "id" },
+        inverseJoinColumn: { name: "follower_id", referencedColumnName: "id" },
+    })
+    followers!: User[];
+
+    @ManyToMany(() => User)
+    @JoinTable({
+        name: "user_following",
+        joinColumn: { name: "user_id", referencedColumnName: "id" },
+        inverseJoinColumn: { name: "following_id", referencedColumnName: "id" },
+    })
+    following!: User[];
 
     @CreateDateColumn()
     createdAt!: Date;

@@ -24,6 +24,50 @@ export class MessageService {
             text: messageData.text,
             sender,
             group,
+            isSystemMessage: false,
+        });
+
+        return await this.messageRepository.save(message);
+    }
+
+    async createSystemMessage(messageData: {
+        text: string;
+        groupId: string;
+    }): Promise<Message> {
+        const group = await this.groupRepository.findOne({ where: { id: messageData.groupId } });
+
+        if (!group) {
+            throw new Error("Group not found");
+        }
+
+        // Add the system message prefix for web3-adapter compatibility
+        const prefixedText = `$$system-message$$ ${messageData.text}`;
+
+        const message = this.messageRepository.create({
+            text: prefixedText,
+            sender: null,
+            group,
+            isSystemMessage: true,
+        });
+
+        return await this.messageRepository.save(message);
+    }
+
+    async createSystemMessageWithoutPrefix(messageData: {
+        text: string;
+        groupId: string;
+    }): Promise<Message> {
+        const group = await this.groupRepository.findOne({ where: { id: messageData.groupId } });
+
+        if (!group) {
+            throw new Error("Group not found");
+        }
+
+        const message = this.messageRepository.create({
+            text: messageData.text,
+            sender: null,
+            group,
+            isSystemMessage: true,
         });
 
         return await this.messageRepository.save(message);

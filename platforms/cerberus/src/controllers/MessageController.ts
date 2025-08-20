@@ -78,7 +78,10 @@ export class MessageController {
                 return res.status(404).json({ error: "Message not found" });
             }
 
-            // Check if user is the sender
+            // Check if user is the sender (system messages cannot be edited)
+            if (!message.sender) {
+                return res.status(403).json({ error: "Access denied - system messages cannot be edited" });
+            }
             if (message.sender.id !== userId) {
                 return res.status(403).json({ error: "Access denied - you can only edit your own messages" });
             }
@@ -111,7 +114,10 @@ export class MessageController {
                 return res.status(404).json({ error: "Message not found" });
             }
 
-            // Check if user is the sender
+            // Check if user is the sender (system messages cannot be deleted)
+            if (!message.sender) {
+                return res.status(403).json({ error: "Access denied - system messages cannot be deleted" });
+            }
             if (message.sender.id !== userId) {
                 return res.status(403).json({ error: "Access denied - you can only delete your own messages" });
             }
@@ -158,7 +164,10 @@ export class MessageController {
                 return res.status(404).json({ error: "Message not found" });
             }
 
-            // Check if user is the sender
+            // Check if user is the sender (system messages cannot be archived)
+            if (!message.sender) {
+                return res.status(403).json({ error: "Access denied - system messages cannot be archived" });
+            }
             if (message.sender.id !== userId) {
                 return res.status(403).json({ error: "Access denied - you can only archive your own messages" });
             }

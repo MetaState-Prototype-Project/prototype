@@ -8,6 +8,7 @@ import LoginScreen from "./login-screen";
 interface User {
   id: string;
   ename: string;
+  name?: string;
   isVerified: boolean;
   isPrivate: boolean;
 }

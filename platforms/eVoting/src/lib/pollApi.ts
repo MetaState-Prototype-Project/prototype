@@ -8,6 +8,12 @@ export interface Poll {
   options: string[];
   deadline?: string | null;
   creatorId: string;
+  groupId?: string;
+  group?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
   creator?: {
     id: string;
     ename: string;
@@ -37,6 +43,18 @@ export interface CreatePollData {
   visibility: "public" | "private";
   options: string[];
   deadline?: string;
+  groupId: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  owner: string;
+  isPrivate: boolean;
+  visibility: "public" | "private" | "restricted";
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PollResults {
@@ -71,6 +89,12 @@ export const pollApi = {
   // Get user's polls
   getMyPolls: async (): Promise<Poll[]> => {
     const response = await apiClient.get("/api/polls/my");
+    return response.data;
+  },
+
+  // Get user's groups
+  getUserGroups: async (): Promise<Group[]> => {
+    const response = await apiClient.get("/api/groups/my");
     return response.data;
   },
 

@@ -262,43 +262,90 @@ export function manageLike(
     tweetId: string
 ) {
     return async (): Promise<void> => {
-        const batch = writeBatch(db);
-
-        const userStatsRef = doc(userStatsCollection(userId), 'stats');
+        console.log(`[DEBUG] Starting ${type} operation for user ${userId} on tweet ${tweetId}`);
+        
+        const userStatsRef = doc(userStatsCollection(userId));
         const tweetRef = doc(tweetsCollection, tweetId);
 
-        // Ensure stats document exists before updating
-        await ensureUserStatsExists(userId);
+        console.log(`[DEBUG] User stats ref: ${userStatsRef.path}`);
+        console.log(`[DEBUG] Tweet ref: ${tweetRef.path}`);
 
-        if (type === 'like') {
-            batch.update(tweetRef, {
-                userLikes: arrayUnion(userId),
-                updatedAt: serverTimestamp()
-            });
-            batch.set(
-                userStatsRef,
-                {
-                    likes: arrayUnion(tweetId),
+        try {
+            // Check if user stats document exists, create if it doesn't
+            const userStatsDoc = await getDoc(userStatsRef);
+            if (!userStatsDoc.exists()) {
+                console.log(`[DEBUG] User stats document doesn't exist, creating it...`);
+                await setDoc(userStatsRef, {
+                    likes: [],
+                    tweets: [],
                     updatedAt: serverTimestamp()
-                },
-                { merge: true }
-            );
-        } else {
-            batch.update(tweetRef, {
-                userLikes: arrayRemove(userId),
-                updatedAt: serverTimestamp()
-            });
-            batch.set(
-                userStatsRef,
-                {
-                    likes: arrayRemove(tweetId),
-                    updatedAt: serverTimestamp()
-                },
-                { merge: true }
-            );
+                });
+                console.log(`[DEBUG] User stats document created successfully`);
+            }
+
+            if (type === 'like') {
+                console.log(`[DEBUG] Adding like to tweet...`);
+                try {
+                    await updateDoc(tweetRef, {
+                        userLikes: arrayUnion(userId),
+                        updatedAt: serverTimestamp()
+                    });
+                    console.log(`[DEBUG] Tweet updated successfully`);
+                } catch (tweetError) {
+                    console.error(`[DEBUG] Error updating tweet:`, tweetError);
+                    throw tweetError;
+                }
+                
+                console.log(`[DEBUG] Adding tweet to user stats...`);
+                try {
+                    await setDoc(
+                        userStatsRef,
+                        {
+                            likes: arrayUnion(tweetId),
+                            updatedAt: serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                    console.log(`[DEBUG] User stats updated successfully`);
+                } catch (statsError) {
+                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    throw statsError;
+                }
+            } else {
+                console.log(`[DEBUG] Removing like from tweet...`);
+                try {
+                    await updateDoc(tweetRef, {
+                        userLikes: arrayRemove(userId),
+                        updatedAt: serverTimestamp()
+                    });
+                    console.log(`[DEBUG] Tweet updated successfully`);
+                } catch (tweetError) {
+                    console.error(`[DEBUG] Error updating tweet:`, tweetError);
+                    throw tweetError;
+                }
+                
+                console.log(`[DEBUG] Removing tweet from user stats...`);
+                try {
+                    await setDoc(
+                        userStatsRef,
+                        {
+                            likes: arrayRemove(tweetId),
+                            updatedAt: serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                    console.log(`[DEBUG] User stats updated successfully`);
+                } catch (statsError) {
+                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    throw statsError;
+                }
+            }
+            
+            console.log(`[DEBUG] Like operation completed successfully`);
+        } catch (error) {
+            console.error(`[DEBUG] Error in like operation:`, error);
+            throw error;
         }
-
-        await batch.commit();
     };
 }
 
@@ -330,21 +377,23 @@ export async function clearAllBookmarks(userId: string): Promise<void> {
 }
 
 export async function createChat(
-    type: 'direct' | 'group',
     participants: string[],
     name?: string,
     owner?: string,
     description?: string
 ): Promise<string> {
     const chatRef = doc(chatsCollection);
+    
+    // Derive type from participant count
+    const isGroup = participants.length > 2;
+    
     const chatData: WithFieldValue<Chat> = {
         id: chatRef.id,
-        type,
         participants,
         ...(name && { name }),
         ...(owner && { owner }),
         ...(description && { description }),
-        admins: type === 'group' ? (owner ? [owner] : []) : [],
+        admins: isGroup ? (owner ? [owner] : []) : [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
     };
@@ -358,35 +407,39 @@ export async function sendMessage(
     senderId: string,
     text: string
 ): Promise<void> {
-    const batch = writeBatch(db);
+    try {
+        const batch = writeBatch(db);
 
-    const messageId = doc(chatsCollection).id; // Generate a new ID
-    const messageRef = doc(chatMessagesCollection(chatId), messageId);
+        const messageId = doc(chatsCollection).id; // Generate a new ID
+        const messageRef = doc(chatMessagesCollection(chatId), messageId);
 
-    console.log('error4', chatsCollection, chatId);
-    const chatRef = doc(chatsCollection, chatId);
+        const chatRef = doc(chatsCollection, chatId);
 
-    const messageData: WithFieldValue<Message> = {
-        id: messageId,
-        chatId,
-        senderId,
-        text,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        readBy: [senderId]
-    };
-
-    batch.set(messageRef, messageData);
-    batch.update(chatRef, {
-        lastMessage: {
-            text,
+        const messageData: WithFieldValue<Message> = {
+            id: messageId,
+            chatId,
             senderId,
-            timestamp: serverTimestamp()
-        },
-        updatedAt: serverTimestamp()
-    });
+            text,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            readBy: [senderId]
+        };
 
-    await batch.commit();
+        batch.set(messageRef, messageData);
+        batch.update(chatRef, {
+            lastMessage: {
+                text,
+                senderId,
+                timestamp: serverTimestamp()
+            },
+            updatedAt: serverTimestamp()
+        });
+
+        await batch.commit();
+    } catch (error) {
+        console.error('Error sending message:', error);
+        throw error;
+    }
 }
 
 export async function markMessageAsRead(
@@ -478,7 +531,6 @@ export async function getOrCreateDirectChat(
     // Check if a direct chat already exists between these users
     const existingChatsQuery = query(
         chatsCollection,
-        where('type', '==', 'direct'),
         where('participants', 'array-contains', userId)
     );
 
@@ -486,14 +538,16 @@ export async function getOrCreateDirectChat(
 
     for (const doc of existingChats.docs) {
         const chat = doc.data();
-        if (chat.participants.includes(targetUserId)) return doc.id;
+        // Check if it's a direct chat (2 participants) and includes target user
+        if (chat.participants.length === 2 && chat.participants.includes(targetUserId)) {
+            return doc.id;
+        }
     }
 
     // If no existing chat, create a new one
     const newChatRef = doc(chatsCollection);
     const newChat: WithFieldValue<Chat> = {
         id: newChatRef.id,
-        type: 'direct',
         participants: [userId, targetUserId],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()

@@ -38,17 +38,28 @@ export function UserEditProfile({ hide }: UserEditProfileProps): JSX.Element {
     const { open, openModal, closeModal } = useModal();
 
     const [loading, setLoading] = useState(false);
-
-    const { bio, name, website, location, photoURL, coverPhotoURL } = user;
-
     const [editUserData, setEditUserData] = useState<EditableUserData>({
-        bio,
-        name,
-        website,
-        photoURL,
-        location,
-        coverPhotoURL
+        bio: null,
+        name: '',
+        website: null,
+        photoURL: '',
+        location: null,
+        coverPhotoURL: null
     });
+
+    // Update editUserData when user changes
+    useEffect(() => {
+        if (user) {
+            setEditUserData({
+                bio: user.bio,
+                name: user.name,
+                website: user.website,
+                photoURL: user.photoURL,
+                location: user.location,
+                coverPhotoURL: user.coverPhotoURL
+            });
+        }
+    }, [user]);
 
     const [userImages, setUserImages] = useState<UserImages>({
         photoURL: [],
@@ -57,6 +68,11 @@ export function UserEditProfile({ hide }: UserEditProfileProps): JSX.Element {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => cleanImage, []);
+
+    // Early return if user is not loaded yet
+    if (!user) {
+        return <div />; // Return empty div while loading
+    }
 
     const inputNameError = !editUserData.name?.trim()
         ? "Name can't be blank"
@@ -75,8 +91,8 @@ export function UserEditProfile({ hide }: UserEditProfileProps): JSX.Element {
 
         const newImages: Partial<Pick<User, 'photoURL' | 'coverPhotoURL'>> = {
             coverPhotoURL:
-                coverPhotoURL === editUserData.coverPhotoURL
-                    ? coverPhotoURL
+                user.coverPhotoURL === editUserData.coverPhotoURL
+                    ? user.coverPhotoURL
                     : newCoverPhotoURL?.[0].src ?? null,
             ...(newPhotoURL && { photoURL: newPhotoURL[0].src })
         };
@@ -174,12 +190,12 @@ export function UserEditProfile({ hide }: UserEditProfileProps): JSX.Element {
 
     const resetUserEditData = (): void =>
         setEditUserData({
-            bio,
-            name,
-            website,
-            photoURL,
-            location,
-            coverPhotoURL
+            bio: user.bio,
+            name: user.name,
+            website: user.website,
+            photoURL: user.photoURL,
+            location: user.location,
+            coverPhotoURL: user.coverPhotoURL
         });
 
     const handleChange =
@@ -237,7 +253,7 @@ export function UserEditProfile({ hide }: UserEditProfileProps): JSX.Element {
                 closeModal={closeModal}
             >
                 <EditProfileModal
-                    name={name}
+                    name={user.name}
                     loading={loading}
                     photoURL={editUserData.photoURL}
                     coverPhotoURL={editUserData.coverPhotoURL}

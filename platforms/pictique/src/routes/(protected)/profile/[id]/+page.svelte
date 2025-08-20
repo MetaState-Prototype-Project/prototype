@@ -18,6 +18,7 @@
 	let ownerProfile = $derived.by(async () => {
 		if (ownerId) {
 			const response = await apiClient.get<userProfile>(`/api/users/${ownerId}`);
+			console.log('Owner Profile:', response.data);
 			return response.data;
 		}
 	});
@@ -27,6 +28,7 @@
 			loading = true;
 			error = null;
 			const response = await apiClient.get<userProfile>(`/api/users/${profileId}`);
+			console.log('Fetched Profile:', response.data);
 			profile = response.data;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load profile';
