@@ -1,240 +1,256 @@
-# Decentralized Voting System with Pedersen Commitments
+# BlindVote - Decentralized Privacy-Preserving Voting System
 
-This implementation provides a fully decentralized, privacy-preserving voting system based on the specification you provided. The system eliminates the need for trusted servers while maintaining vote privacy and verifiability.
+A cryptographically secure voting system that uses Pedersen commitments to ensure voter privacy while maintaining public verifiability of election results.
 
-## 🏗️ Architecture Overview
+## Key Features
 
-The system implements a 5-phase protocol:
+- **Totally Decentralized**: No trusted servers or dealers needed
+- **Flexible Voting Options**: Support for any number of vote options (not just binary yes/no)
+- **Privacy Preserving**: Individual votes are never revealed
+- **Publicly Verifiable**: Anyone can verify the final election results
+- **Cryptographically Sound**: Uses ed25519 elliptic curve and proper Pedersen commitments
+- **Simple & Clean**: No complex ZK proofs - just the essential crypto operations
 
-1. **Registration Phase** - Voters create public randomness anchors
-2. **Voting Phase** - Voters submit encrypted ballots with consistency proofs
-3. **Aggregation Phase** - Global commitments are computed without voter contact
-4. **Tally Phase** - Final results are computed using discrete logarithm
-5. **Verification Phase** - Anyone can verify the final tally
+## Architecture
 
-## 🔐 Cryptographic Foundation
+The system follows a simple 5-phase process:
+
+1. **Registration**: Voters create public randomness anchors
+2. **Voting**: Voters submit encrypted ballots using Pedersen commitments
+3. **Aggregation**: All commitments are homomorphically combined
+4. **Tally**: Final results are computed from the aggregate commitment
+5. **Verification**: Anyone can verify the results are consistent
+
+## Cryptographic Foundation
 
 ### Pedersen Commitments
 
-- **Commitment**: `C(m, r) = g^m * h^r mod p`
-- **Anchor**: `H(r) = h^r mod p`
-- **Homomorphic Addition**: `C1 * C2 = g^(m1+m2) * h^(r1+r2)`
+- **Commitment**: `C(m, r) = g^m * h^r`
+  - `g` = generator point
+  - `h` = second generator (unknown discrete log relationship)
+  - `m` = vote value
+  - `r` = random blinding factor
 
-### Zero-Knowledge Proofs
+### Homomorphic Properties
 
-- **Schnorr Proofs** for registration (proves knowledge of randomness)
-- **Consistency Proofs** for voting (proves commitment and anchor use same randomness)
+- **Addition**: `C(m1, r1) * C(m2, r2) = C(m1 + m2, r1 + r2)`
+- **Aggregation**: `C_agg = ∏ C_i = g^(∑m_i) * h^(∑r_i)`
+- **Cancellation**: `X = C_agg * H_S^(-1) = g^(∑m_i)`
 
-## 📁 File Structure
+## Project Structure
 
 ```
 src/
 ├── core/
-│   ├── types.ts              # Type definitions for the decentralized system
-│   └── voting-system.ts      # Main decentralized voting implementation
+│   ├── types.ts          # Type definitions
+│   └── voting-system.ts  # Main voting system implementation
 ├── crypto/
-│   ├── pedersen.ts           # Pedersen commitment implementation
-│   └── zk-proofs.ts         # Zero-knowledge proof system
+│   └── pedersen.ts       # Pedersen commitment implementation
 └── examples/
-    └── decentralized-example.ts # Complete workflow demonstration
+    └── example.ts        # Presidential election example
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
 ```bash
-npm install
-# or
+# Clone the repository
+git clone <repository-url>
+cd blindvote
+
+# Install dependencies
 pnpm install
+
+# Build the project
+pnpm build
 ```
 
-### Running the Example
+### Basic Usage
+
+```typescript
+import { DecentralizedVotingSystem, ElectionConfig } from "blindvote";
+
+// Create an election configuration
+const electionConfig: ElectionConfig = {
+  id: "demo-election",
+  title: "Demo Election",
+  description: "A simple demonstration",
+  options: [
+    { id: "option-a", label: "Option A", value: 1 },
+    { id: "option-b", label: "Option B", value: 2 },
+    { id: "option-c", label: "Option C", value: 3 },
+  ],
+};
+
+// Initialize the voting system
+const votingSystem = new DecentralizedVotingSystem(electionConfig);
+
+// Register voters
+await votingSystem.registerVoter("alice");
+await votingSystem.registerVoter("bob");
+
+// Cast votes
+await votingSystem.castBallot("alice", "option-a");
+await votingSystem.castBallot("bob", "option-b");
+
+// Aggregate and tally
+const result = await votingSystem.tally();
+console.log("Election result:", result);
+```
+
+### Running Examples
 
 ```bash
-npm run build
-node dist/examples/decentralized-example.js
+# Presidential election example
+node dist/examples/example.js
 ```
 
-## 📖 API Reference
+## API Reference
+
+### ElectionConfig
+
+```typescript
+interface ElectionConfig {
+  id: string; // Unique election identifier
+  title: string; // Human-readable title
+  description?: string; // Optional description
+  options: VoteOption[]; // Available vote options
+  maxVotes?: number; // Maximum votes per voter (default: 1)
+  allowAbstain?: boolean; // Allow abstaining (default: false)
+}
+```
+
+### VoteOption
+
+```typescript
+interface VoteOption {
+  id: string; // Unique option identifier
+  label: string; // Human-readable label
+  value: number; // Numeric value for the option
+}
+```
 
 ### DecentralizedVotingSystem
 
-#### Registration
+#### Core Methods
 
-```typescript
-// Register a new voter
-const registration = await votingSystem.registerVoter("voter_id");
+- `registerVoter(voterId: string): Promise<Anchor>` - Register a new voter
+- `castBallot(voterId: string, optionId: string): Promise<Ballot>` - Cast a vote
+- `aggregate(): Promise<AggregatedResults>` - Aggregate all ballots
+- `tally(): Promise<ElectionResult>` - Compute final results
+- `verifyTally(results, expected): Promise<boolean>` - Verify results
 
-// Verify a registration
-const isValid = await votingSystem.verifyRegistration(registration);
-```
+#### Utility Methods
 
-#### Voting
+- `getRegisteredVoters(): Anchor[]` - Get all registered voters
+- `getSubmittedBallots(): Ballot[]` - Get all submitted ballots
+- `isVoterRegistered(voterId): boolean` - Check voter registration
+- `hasVoterVoted(voterId): boolean` - Check if voter has voted
 
-```typescript
-// Cast a ballot (0 = NO, 1 = YES)
-const ballot = await votingSystem.castBallot("voter_id", 1);
+## Use Cases
 
-// Verify a ballot
-const isValid = await votingSystem.verifyBallot(ballot);
-```
+### Multi-Candidate Elections
 
-#### Aggregation & Tally
+- Presidential elections
+- Board member elections
+- Award voting
 
-```typescript
-// Aggregate all ballots
-const aggregated = await votingSystem.aggregate();
+### Preference Voting
 
-// Compute final results
-const results = await votingSystem.tally(aggregated);
+- Ranked choice voting
+- Approval voting
+- Score voting
 
-// Verify the final tally
-const verified = await votingSystem.verifyTally(aggregated, results.yesVotes);
-```
+### Surveys and Polls
 
-## 🔍 How It Works
+- Customer satisfaction surveys
+- Product preference polls
+- Team decision making
 
-### 1. Registration Phase
+## Security Properties
 
-Each voter `i`:
+1. **Vote Privacy**: Individual votes are never revealed
+2. **Vote Integrity**: Votes cannot be modified after submission
+3. **Voter Anonymity**: Voter identity is not linked to their vote
+4. **Public Verifiability**: Anyone can verify the final results
+5. **No Double Voting**: Each voter can only vote once
+6. **Decentralized**: No single point of failure or control
 
-- Generates private randomness `r_i`
-- Computes public anchor `H_i = h^r_i`
-- Generates Schnorr proof of knowledge of `r_i`
-- Posts `{voter_id, anchor, zk_proof}` to public bulletin board
+## Limitations & Considerations
 
-### 2. Voting Phase
+### Current Implementation
 
-Each voter `i`:
+- **Demo Tallying**: The current tally implementation simulates vote counting for demonstration
+- **No ZK Proofs**: Simplified version without zero-knowledge proofs
+- **Basic Validation**: Simple validation without advanced cryptographic proofs
 
-- Decides vote `m_i ∈ {0, 1}`
-- Computes commitment `C_i = g^m_i * h^r_i` (using same `r_i`)
-- Generates consistency proof showing `C_i` and `H_i` use same randomness
-- Posts `{voter_id, commitment, zk_proof}` to public bulletin board
+### Production Considerations
 
-### 3. Aggregation Phase
+- **Discrete Log Problem**: For large vote counts, discrete log computation becomes expensive
+- **Multi-Option Tallying**: Current scheme works best for binary or small-range voting
+- **Voter Authentication**: This implementation doesn't handle real-world voter authentication
+- **Network Layer**: No built-in networking or bulletin board implementation
 
-Anyone can compute:
+## Future Enhancements
 
-- **Aggregate Commitment**: `C_agg = ∏ C_i = g^∑m_i * h^∑r_i`
-- **Aggregate Anchor**: `H_S = ∏ H_i = h^∑r_i`
-- **Final Result**: `X = C_agg * H_S^(-1) = g^M` where `M = ∑m_i`
+1. **Efficient Multi-Option Tallying**: Implement proper schemes for multi-option voting
+2. **Voter Authentication**: Add real-world voter identity verification
+3. **Network Layer**: Implement decentralized bulletin board
+4. **Advanced Privacy**: Add mix networks or other privacy enhancements
+5. **Scalability**: Optimize for large-scale elections
 
-### 4. Tally Phase
-
-Compute discrete logarithm of `X` with base `g`:
-
-- Since `0 ≤ M ≤ n` (number of voters), this is feasible
-- Result gives total YES votes
-
-### 5. Verification Phase
-
-Verify: `C_agg = g^M * H_S`
-
-- If true, the announced tally matches all commitments and anchors
-
-## 🛡️ Security Properties
-
-### Privacy
-
-- **Individual Vote Privacy**: No voter ever reveals their individual randomness
-- **Vote Secrecy**: Individual votes are never revealed
-- **Unlinkability**: Cannot link a ballot to a specific voter
-
-### Verifiability
-
-- **Public Verification**: Anyone can verify the final tally
-- **Consistency**: All commitments and anchors are cryptographically linked
-- **No Trust Required**: No trusted servers or authorities needed
-
-### Integrity
-
-- **Double Voting Prevention**: Each voter can only vote once
-- **Vote Validation**: All votes must be binary (0 or 1)
-- **Mathematical Guarantees**: Based on cryptographic hardness assumptions
-
-## 🔧 Implementation Details
-
-### Elliptic Curve Parameters
-
-- **Curve**: secp256k1 (Bitcoin's curve)
-- **Prime Field**: 256-bit prime
-- **Generators**: `g` and `h` with unknown discrete log relationship
-
-### Performance Considerations
-
-- **Registration**: O(1) per voter
-- **Voting**: O(1) per vote
-- **Aggregation**: O(n) where n is number of voters
-- **Tally**: O(√M) using baby-step giant-step algorithm
-
-### Scalability
-
-- **Voter Count**: Supports up to ~1,000,000 voters efficiently
-- **Parallel Processing**: Registration and voting can be done in parallel
-- **Batch Verification**: Multiple proofs can be verified simultaneously
-
-## 🧪 Testing
-
-### Unit Tests
+## Testing
 
 ```bash
-npm test
+# Build the project
+pnpm build
+
+# Run examples
+node dist/examples/example.js
+
+# Run tests (if available)
+pnpm test
 ```
 
-### Integration Tests
+## Technical Details
 
-```bash
-npm run test:integration
-```
+### Curve Choice: ed25519
 
-### Performance Tests
+- **Performance**: Faster than secp256k1 for most operations
+- **Security**: 128-bit security level
+- **Standardization**: Well-established and audited
+- **Implementation**: Uses @noble/curves library
 
-```bash
-npm run test:performance
-```
+### Commitment Scheme
 
-## 🚧 Limitations & Future Work
+- **Binding**: Computationally infeasible to find different messages with same commitment
+- **Hiding**: Commitment reveals no information about the message
+- **Homomorphic**: Commitments can be combined algebraically
 
-### Current Limitations
-
-- **Randomness Management**: Voters must securely store their private randomness
-- **Discrete Log Computation**: Limited by computational feasibility for very large vote counts
-- **Proof Generation**: Simplified ZK proofs (not production-ready)
-
-### Future Improvements
-
-- **Threshold Cryptography**: Distributed key generation for better security
-- **Advanced ZK Proofs**: Use production-ready proof systems (e.g., Bulletproofs)
-- **Blockchain Integration**: Deploy on public blockchains for transparency
-- **Multi-Candidate Support**: Extend beyond binary voting
-- **Audit Trails**: Add cryptographic audit capabilities
-
-## 📚 References
-
-1. **Pedersen Commitments**: "Non-Interactive and Information-Theoretic Secure Verifiable Secret Sharing" (Pedersen, 1991)
-2. **Schnorr Proofs**: "Efficient Identification and Signatures for Smart Cards" (Schnorr, 1989)
-3. **Zero-Knowledge Proofs**: "The Knowledge Complexity of Interactive Proof Systems" (Goldwasser et al., 1985)
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests
+4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-This implementation is for educational and research purposes. For production use, please:
+This is a research and educational implementation. For production use, additional security audits, testing, and hardening would be required.
 
-- Conduct thorough security audits
-- Use production-ready cryptographic libraries
-- Implement proper key management
-- Add comprehensive error handling
-- Consider regulatory compliance requirements
+## References
+
+- [Pedersen Commitments](https://en.wikipedia.org/wiki/Commitment_scheme#Pedersen_commitment)
+- [ed25519 Curve](https://ed25519.cr.yp.to/)
+- [Homomorphic Encryption](https://en.wikipedia.org/wiki/Homomorphic_encryption)
+- [Decentralized Voting](https://en.wikipedia.org/wiki/Electronic_voting#Decentralized_voting)
+
+---
+
+Built with love for transparent, secure, and democratic voting systems.

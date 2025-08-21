@@ -206,10 +206,14 @@ app.get("/api/polls/:id/vote", authGuard, voteController.getUserVote);
 app.get("/api/polls/:id/results", voteController.getPollResults);
 
 // Blind voting routes
-app.post("/api/votes/blind", authGuard, voteController.submitBlindVote);
-app.post("/api/votes/blind/reveal", authGuard, voteController.revealBlindVote);
+app.post("/api/blind-vote/session", voteController.createBlindVoteSession); // Public - create session
+app.post("/api/votes/blind", voteController.submitBlindVote); // Public - submit using session
+app.post("/api/blind-vote/register-voter", voteController.registerBlindVoteVoter); // Public - register voter
+app.get("/api/polls/:pollId/users/:userId/vote-status", voteController.checkUserVoteStatus); // Public - check vote status
+
 app.get("/api/polls/:id/blind-tally", voteController.tallyBlindVotes);
 app.get("/api/polls/:id/blind-voting", voteController.getPollForBlindVoting);
+app.get("/api/polls/:id/blind-vote-sse", voteController.blindVoteSSE); // SSE for real-time updates
 
 // Generic poll route (must come last to avoid conflicts with specific routes)
 app.get("/api/polls/:id", pollController.getPollById);

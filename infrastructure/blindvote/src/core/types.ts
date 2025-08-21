@@ -1,98 +1,74 @@
 /**
  * Type definitions for the decentralized privacy-preserving voting system
+ * Updated to use proper Ristretto255 types and ZK proof structures
  */
 
-// Import secp256k1 for proper point types
-import * as secp256k1 from "noble-secp256k1";
+import { RistrettoPoint } from '@noble/curves/ed25519.js';
 
 // Group element type for elliptic curve operations
-export type GroupElement = secp256k1.Point; // Use actual EC points instead of bigint
+export type GroupElement = InstanceType<typeof RistrettoPoint>;
 
-// Schnorr proof for registration
-export interface SchnorrProof {
-  challenge: bigint;
-  response: bigint;
-  commitment: GroupElement;
+// Vote option interface for flexible voting
+export interface VoteOption {
+  id: string;
+  label: string;
+  value: number; // Numeric value for the option
 }
 
-// Voter registration anchor
+// Election configuration
+export interface ElectionConfig {
+  id: string;
+  title: string;
+  description?: string;
+  options: VoteOption[];
+  maxVotes?: number; // Optional: allow multiple votes per voter
+  allowAbstain?: boolean; // Optional: allow abstaining
+}
+
+// Context for domain separation
+export type Ctx = { 
+  electionId: string; 
+  contestId: string; 
+  optionId?: string; 
+};
+
+// Voter registration anchor with ZK proof
 export interface Anchor {
-  voter_id: string;
-  anchor: GroupElement; // H_i = h^r_i
-  zk_proof: SchnorrProof;
+  voterId: string;
+  electionId: string;
+  contestId: string;
+  optionId: string;
+  H: Uint8Array; // enc(RistrettoPoint)
+  proofAnchor: { T: Uint8Array; s: Uint8Array };
 }
 
-// Vote ballot with commitment
+// Option ballot with commitment and proofs
+export interface OptionBallot {
+  optionId: string;
+  C: Uint8Array;
+  proofConsistency: any;
+  proofBit01: any;
+}
+
+// Vote ballot with commitments for all options
 export interface Ballot {
-  voter_id: string;
-  commitment: GroupElement; // C_i = g^m_i * h^r_i
-  zk_proof: ConsistencyProof;
-}
-
-// ZK proof showing consistency between commitment and anchor
-export interface ConsistencyProof {
-  // Proof that C_i and H_i use the same r_i
-  // AND that m_i is in {0, 1}
-  proofData: string;
-  publicInputs: GroupElement[];
+  voterId: string;
+  electionId: string;
+  contestId: string;
+  options: OptionBallot[]; // one per option, same order each time
+  proofOneHot: any;
 }
 
 // Aggregated results
 export interface AggregatedResults {
-  C_agg: GroupElement; // Aggregate commitment
-  H_S: GroupElement; // Aggregate anchor
-  X: GroupElement; // Final result: g^M
+  C_agg: Uint8Array; // Aggregate commitment
+  H_S: Uint8Array; // Aggregate anchor
+  X: Uint8Array; // Final result: g^M
 }
 
-// Election result
+// Election result - now supports multiple options
 export interface ElectionResult {
   totalVotes: number;
-  yesVotes: number;
-  noVotes: number;
+  optionResults: Record<string, number>; // Map of option ID to vote count
   proof: AggregatedResults;
-}
-
-// Legacy types for backward compatibility
-export interface VoteCommitment {
-  commitments: bigint[];
-  proof: ZKProof;
-  candidateCount: number;
-}
-
-export interface ZKProof {
-  // Simplified ZK proof structure
-  // In a real implementation, this would contain the actual proof data
-  proofData: string;
-  publicInputs: bigint[];
-}
-
-export interface VoteBlob {
-  commitment: VoteCommitment;
-  timestamp: Date;
-  signature?: string;
-}
-
-export interface VotePlain {
-  candidate: string;
-  timestamp: Date;
-}
-
-export interface AggregatedCommitments {
-  commitments: bigint[];
-  proof: ZKProof;
-  candidateCount: number;
-}
-
-export interface FinalTally {
-  results: number[];
-  proof: ZKProof;
-  candidateMapping: Record<string, number>;
-}
-
-export interface CandidateMapping {
-  [candidate: string]: number;
-}
-
-export interface VoteResult {
-  [candidate: string]: number;
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { Vote, UserX, Shield } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Vote, UserX, Shield } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { Poll } from "@shared/schema";
@@ -14,24 +14,102 @@ interface BlindVotingInterfaceProps {
 
 export default function BlindVotingInterface({ poll, userId, hasVoted, onVoteSubmitted }: BlindVotingInterfaceProps) {
   const [isQrVisible, setIsQrVisible] = useState(false);
+  const [deepLink, setDeepLink] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const { toast } = useToast();
 
-  // Create the deep link for the eID wallet
-  const createBlindVotingDeepLink = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_EID_WALLET_URL || "w3ds://";
-    const pollData = {
-      pollId: poll.id,
-      type: "blind-vote",
-      timestamp: Date.now()
-    };
-    
-    // Encode the poll data
-    const encodedData = btoa(JSON.stringify(pollData));
-    
-    return `${baseUrl}blind-vote?data=${encodedData}`;
+  const createBlindVotingDeepLink = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+      
+      // First, create a blind vote session
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7777';
+      const sessionResponse = await fetch(`${apiBaseUrl}/api/blind-vote/session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pollId: poll.id,
+          userId: userId
+        })
+      });
+
+      if (!sessionResponse.ok) {
+        throw new Error('Failed to create blind vote session');
+      }
+
+      const sessionData = await sessionResponse.json();
+      const { sessionId, platformUrl } = sessionData;
+
+      // Create the poll data for blind voting with session ID
+      const pollData = {
+        pollId: poll.id,
+        sessionId: sessionId,
+        type: "blind-vote",
+        timestamp: Date.now()
+      };
+      
+      // Encode the poll data
+      const encodedData = btoa(JSON.stringify(pollData));
+      
+      // Create the redirect URI where the signed vote will be sent
+      // Use the platformUrl from the session response
+      const redirectUri = `${platformUrl}/api/votes/blind`;
+      
+      // Format: w3ds://sign?session=<sessionId>&data=<base64Data>&redirect_uri=<redirectUri>&platform_url=<platformUrl>
+      const link = `w3ds://sign?session=${sessionId}&data=${encodedData}&redirect_uri=${encodeURIComponent(redirectUri)}&platform_url=${encodeURIComponent(platformUrl)}`;
+      
+      setDeepLink(link);
+    } catch (error) {
+      console.error('Error creating blind vote session:', error);
+      setError('Failed to create blind vote session');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deepLink = createBlindVotingDeepLink();
+  useEffect(() => {
+    if (isQrVisible && !deepLink) {
+      createBlindVotingDeepLink();
+    }
+  }, [isQrVisible]);
+
+  // Subscribe to SSE for real-time blind vote updates
+  useEffect(() => {
+    if (!poll?.id) return;
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7777';
+    const eventSource = new EventSource(`${apiBaseUrl}/api/polls/${poll.id}/blind-vote-sse`);
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('SSE message received:', data);
+        
+        if (data.type === 'blind_vote_submitted') {
+          // A blind vote was submitted, refresh the poll data
+          console.log('Blind vote submitted, refreshing poll data...');
+          // You can call a callback here to refresh the parent component
+          if (onVoteSubmitted) {
+            onVoteSubmitted();
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [poll?.id, onVoteSubmitted]);
 
   const handleShowQR = () => {
     setIsQrVisible(true);
