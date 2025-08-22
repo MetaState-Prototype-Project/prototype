@@ -38,16 +38,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         this.adapter = adapter;
     }
 
-    /**
-     * Called after entity is loaded.
-     */
-    afterLoad(entity: any) {
-        console.log("🔍 afterLoad triggered for entity:", {
-            type: entity?.constructor?.name,
-            id: entity?.id,
-            tableName: entity?.constructor?.name?.toLowerCase() + 's'
-        });
-    }
+   
 
     /**
      * Called before entity insertion.

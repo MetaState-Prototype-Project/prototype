@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import {
     ChartLine,
     ListOrdered,
     CircleUser,
+    Vote,
     Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,13 @@ export default function CreatePoll() {
 
     const watchedMode = watch("mode");
     const watchedVisibility = watch("visibility");
+
+    // Force simple voting when private visibility is selected
+    React.useEffect(() => {
+        if (watchedVisibility === "private" && watchedMode !== "normal") {
+            setValue("mode", "normal");
+        }
+    }, [watchedVisibility, watchedMode, setValue]);
 
     const addOption = () => {
         const newOptions = [...options, ""];

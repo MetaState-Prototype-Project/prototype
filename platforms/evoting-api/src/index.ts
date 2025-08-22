@@ -199,11 +199,24 @@ app.post("/api/polls", authGuard, pollController.createPoll);
 app.put("/api/polls/:id", authGuard, pollController.updatePoll);
 app.delete("/api/polls/:id", authGuard, pollController.deletePoll);
 
-// Vote routes (must come before generic poll routes to avoid conflicts)
-app.post("/api/votes", authGuard, voteController.createVote);
-app.get("/api/polls/:id/votes", voteController.getVotesByPoll);
-app.get("/api/polls/:id/vote", authGuard, voteController.getUserVote);
-app.get("/api/polls/:id/results", voteController.getPollResults);
+// Vote routes
+app.post("/api/votes", voteController.createVote.bind(voteController)); // Create normal/point/rank vote (old format)
+app.post("/api/votes/:pollId", voteController.createVote.bind(voteController)); // Create normal/point/rank vote (new format)
+app.get("/api/votes/:pollId", voteController.getVotesByPoll.bind(voteController)); // Get votes by poll
+app.get("/api/votes/:pollId/user/:userId", voteController.getUserVote.bind(voteController)); // Get user's vote
+app.get("/api/votes/:pollId/results", voteController.getPollResults.bind(voteController)); // Get poll results
+
+// Poll-specific vote endpoints (for frontend compatibility)
+app.get("/api/polls/:pollId/votes", voteController.getVotesByPoll.bind(voteController)); // Get votes for a poll
+app.get("/api/polls/:pollId/vote", voteController.getUserVote.bind(voteController)); // Get user's vote for a poll
+app.get("/api/polls/:pollId/results", voteController.getPollResults.bind(voteController)); // Get poll results
+app.get("/api/polls/:pollId/blind-tally", voteController.tallyBlindVotes.bind(voteController)); // Tally blind votes (frontend compatibility)
+
+// Blind voting routes
+app.post("/api/votes/:pollId/blind", voteController.submitBlindVote.bind(voteController)); // Submit blind vote
+app.post("/api/votes/:pollId/register", voteController.registerBlindVoteVoter.bind(voteController)); // Register voter
+app.post("/api/votes/:pollId/generate", voteController.generateVoteData.bind(voteController)); // Generate vote data for eID wallet
+app.get("/api/votes/:pollId/tally", voteController.tallyBlindVotes.bind(voteController)); // Tally blind votes
 
 // Generic poll route (must come last to avoid conflicts with specific routes)
 app.get("/api/polls/:id", pollController.getPollById);

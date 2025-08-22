@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Vote, CheckCircle } from "lucide-react";
+import { Vote, CheckCircle, Eye, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import type { Poll } from "@shared/schema";
+import { apiClient } from "@/lib/apiClient";
+import type { Poll } from "@/lib/pollApi";
+import BlindVotingInterface from "./blind-voting-interface";
 
 interface VotingInterfaceProps {
   poll: Poll;
@@ -17,40 +17,38 @@ interface VotingInterfaceProps {
 
 export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitted }: VotingInterfaceProps) {
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const submitVoteMutation = useMutation({
-    mutationFn: async (optionId: number) => {
-      return await apiRequest("POST", "/api/votes", {
+  // Check if this is a private poll that requires blind voting
+  const isPrivatePoll = poll.visibility === "private";
+
+  const handleSubmitVote = async () => {
+    if (selectedOption === null) return;
+    
+    try {
+      setIsSubmitting(true);
+      await apiClient.post("/api/votes", {
         pollId: poll.id,
         userId,
-        optionId,
+        voteData: [selectedOption.toString()], // Send as array of strings as expected by NormalVoteData
+        mode: "normal"
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/polls"] });
-      queryClient.invalidateQueries({ 
-        queryKey: ["/api/polls", poll.id, "vote-status", userId] 
-      });
+      
       toast({
         title: "Success!",
         description: "Your vote has been submitted",
       });
       onVoteSubmitted();
-    },
-    onError: (error: any) => {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to submit vote",
         variant: "destructive",
       });
-    },
-  });
-
-  const handleSubmitVote = () => {
-    if (selectedOption === null) return;
-    submitVoteMutation.mutate(selectedOption);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (hasVoted) {
@@ -63,6 +61,18 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
     );
   }
 
+  // For private polls, show the blind voting interface
+  if (isPrivatePoll) {
+    return (
+      <BlindVotingInterface
+        poll={poll}
+        userId={userId}
+        hasVoted={hasVoted}
+        onVoteSubmitted={onVoteSubmitted}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <RadioGroup
@@ -70,17 +80,17 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
         onValueChange={(value) => setSelectedOption(parseInt(value))}
         className="space-y-3"
       >
-        {(poll.options as Array<{id: number, text: string}>).map((option) => (
-          <div key={option.id} className="flex items-center space-x-2">
+        {poll.options.map((option, index) => (
+          <div key={index} className="flex items-center space-x-2">
             <RadioGroupItem
-              value={option.id.toString()}
-              id={`option-${option.id}`}
+              value={index.toString()}
+              id={`option-${index}`}
             />
             <Label
-              htmlFor={`option-${option.id}`}
+              htmlFor={`option-${index}`}
               className="flex-1 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
             >
-              <span className="font-medium text-gray-900">{option.text}</span>
+              <span className="font-medium text-gray-900">{option}</span>
             </Label>
           </div>
         ))}
@@ -88,10 +98,10 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
 
       <Button
         onClick={handleSubmitVote}
-        disabled={selectedOption === null || submitVoteMutation.isPending}
+        disabled={selectedOption === null || isSubmitting}
         className="w-full btn-primary"
       >
-        {submitVoteMutation.isPending ? (
+        {isSubmitting ? (
           <>
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             Submitting...

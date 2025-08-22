@@ -46,6 +46,21 @@
     let isSigningRequest = $state(false);
     let signingSuccess = $state(false);
 
+    // Blind voting specific state
+    let isBlindVotingRequest = $state(false);
+    let selectedBlindVoteOption = $state<number | null>(null);
+    let blindVoteError = $state<string | null>(null); // Add error state
+    let isSubmittingBlindVote = $state(false); // Add loading state
+    let blindVoteSuccess = $state(false); // Add success state
+
+    // Debug logging for selectedBlindVoteOption changes
+    $effect(() => {
+        console.log(
+            "🔍 DEBUG: selectedBlindVoteOption changed to:",
+            selectedBlindVoteOption,
+        );
+    });
+
     async function startScan() {
         let permissions = await checkPermissions()
             .then((permissions) => {
@@ -73,6 +88,51 @@
                     // Check if this is a signing request
                     if (res.content.startsWith("w3ds://sign")) {
                         handleSigningRequest(res.content);
+                    } else if (res.content.includes("/blind-vote")) {
+                        // This is a blind voting request via HTTP URL
+                        // Parse the URL and extract the data
+                        try {
+                            const url = new URL(res.content);
+                            const sessionId = url.searchParams.get("session");
+                            const base64Data = url.searchParams.get("data");
+                            const redirectUri =
+                                url.searchParams.get("redirect_uri");
+                            const platformUrl =
+                                url.searchParams.get("platform_url");
+
+                            if (
+                                sessionId &&
+                                base64Data &&
+                                redirectUri &&
+                                platformUrl
+                            ) {
+                                // Decode the base64 data
+                                const decodedString = atob(
+                                    decodeURIComponent(base64Data),
+                                );
+                                const decodedData = JSON.parse(decodedString);
+
+                                if (decodedData.type === "blind-vote") {
+                                    console.log(
+                                        "🔍 Detected blind voting request from HTTP URL",
+                                    );
+                                    // Call the existing function with the right parameters
+                                    handleBlindVotingRequest(
+                                        decodedData,
+                                        platformUrl,
+                                        redirectUri,
+                                    );
+                                    return;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error parsing blind voting HTTP URL:",
+                                error,
+                            );
+                        }
+                        // If parsing fails, fall back to auth request
+                        handleAuthRequest(res.content);
                     } else {
                         handleAuthRequest(res.content);
                     }
@@ -229,14 +289,39 @@
     function handleSigningRequest(content: string) {
         try {
             // Parse w3ds://sign URI scheme
-            // Format: w3ds://sign?session=<sessionId>&data=<base64Data>&redirect_uri=<redirectUri>
-            const url = new URL(content);
+            // Format: w3ds://sign?session=<sessionId>&data=<base64Data>&redirect_uri=<redirectUri>&platform_url=<platformUrl>
+
+            // Handle w3ds:// scheme by converting to a parseable format
+            let parseableContent = content;
+            if (content.startsWith("w3ds://")) {
+                parseableContent = content.replace(
+                    "w3ds://",
+                    "https://dummy.com/",
+                );
+            }
+
+            const url = new URL(parseableContent);
             signingSessionId = url.searchParams.get("session");
             const base64Data = url.searchParams.get("data");
             const redirectUri = url.searchParams.get("redirect_uri");
+            const platformUrl = url.searchParams.get("platform_url");
+
+            console.log("🔍 Parsed w3ds://sign URI:", {
+                session: signingSessionId,
+                data: base64Data,
+                redirect_uri: redirectUri,
+                platform_url: platformUrl,
+            });
+
+            console.log("🔍 Raw redirect_uri from QR:", redirectUri);
+            console.log("🔍 Raw platform_url from QR:", platformUrl);
 
             if (!signingSessionId || !base64Data || !redirectUri) {
-                console.error("Invalid signing request parameters");
+                console.error("Invalid signing request parameters:", {
+                    signingSessionId,
+                    base64Data,
+                    redirectUri,
+                });
                 return;
             }
 
@@ -246,7 +331,21 @@
             // Decode the base64 data
             try {
                 const decodedString = atob(base64Data);
-                signingData = JSON.parse(decodedString);
+                const decodedData = JSON.parse(decodedString);
+
+                // Check if this is a blind voting request
+                if (decodedData.type === "blind-vote") {
+                    console.log("🔍 Detected blind voting request");
+                    handleBlindVotingRequest(
+                        decodedData,
+                        platformUrl,
+                        redirectUri,
+                    );
+                    return;
+                }
+
+                // Regular signing request
+                signingData = decodedData;
 
                 // Debug logging
                 console.log("🔍 DEBUG: Decoded signing data:", signingData);
@@ -363,13 +462,359 @@
             setTimeout(() => {
                 signingSuccess = false;
                 startScan();
-            }, 2000);
+            }, 1500);
         } catch (error) {
             console.error("Error signing vote:", error);
-            // You could show an error message here
         } finally {
             loading = false;
         }
+    }
+
+    async function handleBlindVotingRequest(
+        blindVoteData: any,
+        platformUrl: string | null,
+        redirectUri: string | null,
+    ) {
+        try {
+            console.log("🔍 Handling blind voting request:", blindVoteData);
+            console.log("🔗 Platform URL:", platformUrl);
+
+            // Extract poll details from the blind vote data
+            const pollId = blindVoteData.pollId;
+            if (!pollId) {
+                throw new Error("No poll ID provided in blind vote data");
+            }
+
+            // Fetch poll details from the platform
+            const pollResponse = await fetch(
+                `${platformUrl}/api/polls/${pollId}`,
+            );
+            if (!pollResponse.ok) {
+                throw new Error("Failed to fetch poll details");
+            }
+
+            const pollDetails = await pollResponse.json();
+            console.log("📊 Poll details:", pollDetails);
+
+            // Store the data for the blind voting interface
+            signingData = {
+                pollId: pollId,
+                pollDetails: pollDetails,
+                redirect: redirectUri,
+                sessionId: blindVoteData.sessionId,
+                platform_url: platformUrl, // Add the platform URL for API calls
+            };
+
+            console.log("🔍 DEBUG: Stored signing data:", {
+                pollId,
+                redirect: redirectUri,
+                platform_url: platformUrl,
+            });
+
+            // Set up blind voting state
+            isBlindVotingRequest = true;
+            selectedBlindVoteOption = null;
+            signingDrawerOpen = true;
+            blindVoteError = null; // Clear any previous errors
+
+            console.log("✅ Blind voting request set up successfully");
+        } catch (error) {
+            console.error("❌ Error handling blind voting request:", error);
+        }
+    }
+
+    async function handleBlindVote() {
+        console.log("🔍 DEBUG: handleBlindVote called");
+        console.log(
+            "🔍 DEBUG: selectedBlindVoteOption:",
+            selectedBlindVoteOption,
+        );
+        console.log("🔍 DEBUG: signingData:", signingData);
+        console.log("🔍 DEBUG: isBlindVotingRequest:", isBlindVotingRequest);
+
+        // Clear any previous errors and start loading
+        blindVoteError = null;
+        isSubmittingBlindVote = true;
+
+        if (selectedBlindVoteOption === null || !signingData) {
+            const errorMsg = "No vote option selected or poll details missing";
+            console.error("❌ Validation failed:", errorMsg);
+            console.error(
+                "❌ selectedBlindVoteOption:",
+                selectedBlindVoteOption,
+            );
+            console.error(
+                "❌ selectedBlindVoteOption === null:",
+                selectedBlindVoteOption === null,
+            );
+            console.error("❌ signingData:", signingData);
+            blindVoteError = errorMsg;
+            isSubmittingBlindVote = false;
+            return;
+        }
+
+        try {
+            // Get the vault for user identification
+            const vault = await globalState.vaultController.vault;
+            if (!vault) {
+                throw new Error("No vault available for blind voting");
+            }
+
+            // Dynamically import the blindvote library
+            const { VotingSystem } = await import("blindvote");
+
+            // Use the user's W3ID as the voter ID (strip @ prefix if present)
+            const voterId = vault.ename?.startsWith("@")
+                ? vault.ename.slice(1)
+                : vault.ename;
+            console.log("🔍 DEBUG: Using voter ID:", voterId);
+
+            // Get platform URL for API calls
+            const platformUrl = signingData.platform_url;
+            if (!platformUrl) {
+                throw new Error("Platform URL not provided in signing data");
+            }
+
+            // Check if user has already voted before attempting registration
+            console.log("🔍 DEBUG: Checking if user has already voted...");
+            const voteStatusResponse = await axios.get(
+                `${platformUrl}/api/polls/${signingData.pollId}/vote?userId=${voterId}`,
+            );
+
+            console.log(
+                "🔍 DEBUG: Vote status response:",
+                voteStatusResponse.data,
+            );
+
+            // The API returns null if user hasn't voted, or a Vote object if they have
+            if (voteStatusResponse.data !== null) {
+                throw new Error(
+                    "You have already submitted a vote for this poll",
+                );
+            }
+
+            console.log(
+                "🔍 DEBUG: User has not voted yet, proceeding with registration",
+            );
+
+            // Register the voter on the backend first
+            console.log("🔍 DEBUG: Registering voter on backend:", voterId);
+            const registerResponse = await axios.post(
+                `${platformUrl}/api/votes/${signingData.pollId}/register`,
+                {
+                    voterId: voterId,
+                },
+            );
+
+            if (
+                registerResponse.status < 200 ||
+                registerResponse.status >= 300
+            ) {
+                throw new Error("Failed to register voter on backend");
+            }
+            console.log("🔍 DEBUG: Voter registered on backend successfully");
+
+            // Generate vote data locally using the blindvote library (PRIVACY PRESERVING)
+            console.log("🔍 DEBUG: Generating vote data locally...");
+
+            // Create ElectionConfig from poll details
+            const electionConfig = {
+                id: signingData.pollId,
+                title: signingData.pollDetails.title,
+                description: "",
+                options: signingData.pollDetails.options.map(
+                    (option: string, index: number) => `option_${index}`,
+                ),
+                maxVotes: 1,
+                allowAbstain: false,
+            };
+
+            console.log("🔍 DEBUG: Created electionConfig:", electionConfig);
+
+            // Create voting system and register voter locally
+            const votingSystem = new VotingSystem();
+            votingSystem.createElection(
+                signingData.pollId,
+                signingData.pollId,
+                electionConfig.options,
+            );
+
+            // Register the voter locally (this creates the voter's key pair and anchor)
+            console.log("🔍 DEBUG: Registering voter locally:", voterId);
+            votingSystem.registerVoter(
+                voterId,
+                signingData.pollId,
+                signingData.pollId,
+            );
+
+            // Generate vote data with the selected option (PRIVACY PRESERVING - only known locally)
+            const optionId = `option_${selectedBlindVoteOption}`;
+            console.log("🔍 DEBUG: Generating vote data for option:", optionId);
+
+            const voteData = votingSystem.generateVoteData(
+                voterId,
+                signingData.pollId,
+                signingData.pollId,
+                optionId,
+            );
+
+            // Extract commitments and anchors from the generated data
+            const commitments = voteData.commitments;
+            const anchors = voteData.anchors;
+
+            // Convert Uint8Array to hex strings for API transmission
+            const hexCommitments: Record<string, string> = {};
+            const hexAnchors: Record<string, string> = {};
+
+            for (const [optionId, commitment] of Object.entries(commitments)) {
+                hexCommitments[optionId] = Array.from(commitment)
+                    .map((b) => b.toString(16).padStart(2, "0"))
+                    .join("");
+            }
+
+            for (const [optionId, anchor] of Object.entries(anchors)) {
+                hexAnchors[optionId] = Array.from(anchor)
+                    .map((b) => b.toString(16).padStart(2, "0"))
+                    .join("");
+            }
+
+            // Store vote data locally for later revelation
+            // Convert BigInt values to strings for JSON serialization
+            const localVoteData = {
+                pollId: signingData.pollId,
+                optionId: `option_${selectedBlindVoteOption}`, // Use the correct option ID format
+                commitments: commitments,
+                anchors: anchors,
+                timestamp: new Date().toISOString(),
+            };
+
+            // Custom JSON serializer to handle BigInt values
+            const jsonString = JSON.stringify(localVoteData, (key, value) => {
+                if (typeof value === "bigint") {
+                    return value.toString();
+                }
+                return value;
+            });
+
+            localStorage.setItem(`blindVote_${signingData.pollId}`, jsonString);
+
+            // Submit to the API (PRIVACY PRESERVING - no chosenOptionId revealed)
+            const payload = {
+                pollId: signingData.pollId,
+                voterId: voterId,
+                // chosenOptionId is NOT sent - this preserves privacy!
+                commitments: hexCommitments,
+                anchors: hexAnchors,
+                sessionId: signingData.sessionId,
+                userW3id: vault?.ename || "",
+            };
+
+            console.log("🔍 DEBUG: Original commitments:", commitments);
+            console.log("🔍 DEBUG: Original anchors:", anchors);
+            console.log("🔍 DEBUG: Hex commitments:", hexCommitments);
+            console.log("🔍 DEBUG: Hex anchors:", hexAnchors);
+            console.log(
+                "🔗 Submitting blind vote to API:",
+                signingData.redirect,
+            );
+            console.log("📦 Payload:", payload);
+
+            // Convert BigInt values to strings for API submission
+            const apiPayload = JSON.stringify(payload, (key, value) => {
+                if (typeof value === "bigint") {
+                    return value.toString();
+                }
+                return value;
+            });
+
+            // Ensure we have a full URL for the redirect
+            // The redirect from frontend is a relative path like /api/votes/{pollId}/blind
+            // We need to combine it with the platform URL
+            console.log("🔍 DEBUG: Constructing redirect URL:");
+            console.log(
+                "🔍 DEBUG: signingData.redirect:",
+                signingData.redirect,
+            );
+            console.log(
+                "🔍 DEBUG: signingData.platform_url:",
+                signingData.platform_url,
+            );
+
+            const redirectUrl = signingData.redirect.startsWith("http")
+                ? signingData.redirect
+                : `${signingData.platform_url}${signingData.redirect}`;
+
+            console.log("🔍 DEBUG: Final redirect URL:", redirectUrl);
+            console.log("🔍 Submitting blind vote to:", redirectUrl);
+
+            const response = await axios.post(redirectUrl, apiPayload, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (response.status >= 200 && response.status < 300) {
+                console.log("✅ Blind vote submitted successfully");
+
+                // Set success state for proper UI feedback
+                blindVoteSuccess = true;
+
+                // Reset states gradually to avoid white screen
+                blindVoteError = null;
+                isSubmittingBlindVote = false;
+                blindVoteSuccess = true; // Set success state
+
+                // Close the signing drawer
+                signingDrawerOpen = false;
+
+                // Reset blind voting specific states
+                isBlindVotingRequest = false;
+                selectedBlindVoteOption = null;
+                signingData = null;
+
+                // Ensure we're back to scanning mode
+                setTimeout(() => {
+                    // Reset all drawer states to ensure camera view is shown
+                    codeScannedDrawerOpen = false;
+                    loggedInDrawerOpen = false;
+                    signingDrawerOpen = false;
+                    signingSuccess = false;
+                    blindVoteSuccess = false; // Reset success state
+
+                    // Start scanning again
+                    startScan();
+                }, 100); // Small delay to ensure state transitions complete
+            } else {
+                console.error("❌ Failed to submit blind vote");
+                blindVoteError =
+                    "Failed to submit blind vote. Please try again.";
+            }
+        } catch (error) {
+            console.error("❌ Error submitting blind vote:", error);
+            blindVoteError =
+                error instanceof Error
+                    ? error.message
+                    : "Unknown error occurred during blind voting";
+
+            // Make sure we're not stuck in loading state
+            isSubmittingBlindVote = false;
+
+            // Don't reset other states on error - let user see the error and retry
+        } finally {
+            // Always ensure loading state is reset
+            isSubmittingBlindVote = false;
+        }
+    }
+
+    function closeDrawer() {
+        codeScannedDrawerOpen = false;
+        loggedInDrawerOpen = false;
+        signingDrawerOpen = false;
+        signingSuccess = false;
+        isBlindVotingRequest = false;
+        selectedBlindVoteOption = null;
+        signingData = null;
+        signingSessionId = null;
     }
 
     onMount(async () => {
@@ -449,6 +894,16 @@
                     signingDrawerOpen = true;
                     console.log("Signing modal should now be open");
                 }
+            }
+            // Handle blind voting requests
+            if (data.type === "blind-vote") {
+                console.log("🔍 Blind voting request detected");
+                isBlindVotingRequest = true;
+                selectedBlindVoteOption = null;
+                signingData = data;
+                signingDrawerOpen = true;
+                blindVoteError = null; // Clear any previous errors
+                return;
             }
         }
 
@@ -667,7 +1122,11 @@
 
 <!-- signing confirmation drawer -->
 <Drawer
-    title={signingData?.pollId ? "Sign Vote" : "Sign Message"}
+    title={isBlindVotingRequest
+        ? "Blind Vote"
+        : signingData?.pollId
+          ? "Sign Vote"
+          : "Sign Message"}
     bind:isPaneOpen={signingDrawerOpen}
     class="flex flex-col gap-4 items-center justify-center"
 >
@@ -690,12 +1149,18 @@
     </div>
 
     <h4>
-        {signingData?.pollId ? "Sign Vote Request" : "Sign Message Request"}
+        {isBlindVotingRequest
+            ? "Blind Vote Request"
+            : signingData?.pollId
+              ? "Sign Vote Request"
+              : "Sign Message Request"}
     </h4>
     <p class="text-black-700">
-        {signingData?.pollId
-            ? "You're being asked to sign a vote for the following poll"
-            : "You're being asked to sign the following message"}
+        {isBlindVotingRequest
+            ? "You're being asked to submit a blind vote for the following poll"
+            : signingData?.pollId
+              ? "You're being asked to sign a vote for the following poll"
+              : "You're being asked to sign the following message"}
     </p>
 
     {#if signingData?.pollId && signingData?.voteData}
@@ -786,6 +1251,119 @@
                 {/if}
             </div>
         </div>
+    {:else if isBlindVotingRequest && signingData?.pollDetails}
+        <!-- Blind Voting UI -->
+        <div class="blind-voting-section">
+            <h3 class="text-lg font-semibold mb-4">Blind Voting</h3>
+
+            <!-- Error Display -->
+            {#if blindVoteError}
+                <div
+                    class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+                >
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg
+                                class="h-5 w-5 text-red-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">
+                                Error
+                            </h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                {blindVoteError}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
+            <!-- Poll Details -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 class="font-medium text-gray-900 mb-2">
+                    Poll: {signingData.pollDetails?.title || "Unknown"}
+                </h4>
+                <p class="text-sm text-gray-600">
+                    Creator: {signingData.pollDetails?.creatorName || "Unknown"}
+                </p>
+            </div>
+
+            <!-- Vote Options -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Select your vote:</label
+                >
+                {#each signingData.pollDetails?.options || [] as option, index}
+                    <label class="flex items-center mb-2">
+                        <input
+                            type="radio"
+                            name="blindVoteOption"
+                            value={index}
+                            bind:group={selectedBlindVoteOption}
+                            on:change={() => {
+                                console.log(
+                                    `🔍 Radio changed: index = ${index}, value = ${index}, selectedBlindVoteOption = ${selectedBlindVoteOption}`,
+                                );
+                                // Force the value to be a number
+                                selectedBlindVoteOption = Number(index);
+                            }}
+                            class="mr-2"
+                        />
+                        <span class="text-sm">{option}</span>
+                    </label>
+                {/each}
+            </div>
+
+            <!-- Submit Button -->
+            <button
+                on:click={() => {
+                    console.log(
+                        `🔍 Submit button clicked. selectedBlindVoteOption = ${selectedBlindVoteOption}, type = ${typeof selectedBlindVoteOption}`,
+                    );
+                    handleBlindVote();
+                }}
+                disabled={selectedBlindVoteOption === null ||
+                    isSubmittingBlindVote}
+                class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+                {#if isSubmittingBlindVote}
+                    <span class="flex items-center justify-center">
+                        <svg
+                            class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        Submitting...
+                    </span>
+                {:else}
+                    Submit Blind Vote
+                {/if}
+            </button>
+        </div>
     {:else}
         <!-- Generic Message Details -->
         <div class="bg-gray rounded-2xl w-full p-4 mt-4">
@@ -804,23 +1382,31 @@
     {/if}
 
     <div class="flex justify-center gap-3 items-center mt-4">
-        <Button.Action
-            variant="danger-soft"
-            class="w-full"
-            callback={() => {
-                signingDrawerOpen = false;
-                startScan();
-            }}
-        >
-            Decline
-        </Button.Action>
-        <Button.Action variant="solid" class="w-full" callback={handleSignVote}>
-            {loading
-                ? "Signing..."
-                : signingData?.pollId
-                  ? "Sign Vote"
-                  : "Sign Message"}
-        </Button.Action>
+        {#if !isBlindVotingRequest}
+            <Button.Action
+                variant="danger-soft"
+                class="w-full"
+                callback={() => {
+                    signingDrawerOpen = false;
+                    startScan();
+                }}
+            >
+                Decline
+            </Button.Action>
+        {/if}
+        {#if !isBlindVotingRequest}
+            <Button.Action
+                variant="solid"
+                class="w-full"
+                callback={handleSignVote}
+            >
+                {loading
+                    ? "Signing..."
+                    : signingData?.pollId
+                      ? "Sign Vote"
+                      : "Sign Message"}
+            </Button.Action>
+        {/if}
     </div>
 
     <div class="text-center mt-3">
@@ -846,14 +1432,18 @@
                 />
             </div>
             <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                {signingData?.pollId
-                    ? "Vote Signed Successfully!"
-                    : "Message Signed Successfully!"}
+                {isBlindVotingRequest
+                    ? "Blind Vote Submitted Successfully!"
+                    : signingData?.pollId
+                      ? "Vote Signed Successfully!"
+                      : "Message Signed Successfully!"}
             </h3>
             <p class="text-gray-600">
-                {signingData?.pollId
-                    ? "Your vote has been signed and submitted to the voting system."
-                    : "Your message has been signed and submitted successfully."}
+                {isBlindVotingRequest
+                    ? "Your blind vote has been submitted and is now hidden from the platform."
+                    : signingData?.pollId
+                      ? "Your vote has been signed and submitted to the voting system."
+                      : "Your message has been signed and submitted successfully."}
             </p>
 
             {#if redirect}
@@ -876,6 +1466,42 @@
                     </Button.Action>
                 </div>
             {/if}
+        </div>
+    </div>
+{/if}
+
+<!-- Blind Vote Success Message -->
+{#if blindVoteSuccess}
+    <div
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+        <div class="bg-white rounded-lg p-6 max-w-sm mx-4 text-center">
+            <div
+                class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+                <HugeiconsIcon
+                    size={32}
+                    icon={QrCodeIcon}
+                    color="var(--color-success)"
+                />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                Blind Vote Submitted Successfully!
+            </h3>
+            <p class="text-gray-600 mb-4">
+                Your blind vote has been submitted and is now hidden from the
+                platform.
+            </p>
+            <Button.Action
+                variant="solid"
+                size="sm"
+                callback={() => {
+                    blindVoteSuccess = false;
+                }}
+                class="w-full"
+            >
+                Continue
+            </Button.Action>
         </div>
     </div>
 {/if}

@@ -22,6 +22,7 @@
         "@auvo/tauri-plugin-crypto-hw-api": "^0.1.0",
         "@hugeicons/core-free-icons": "^1.0.13",
         "@hugeicons/svelte": "^1.0.2",
+        "@iconify/svelte": "^5.0.1",
         "@ngneat/falso": "^7.3.0",
         "@tailwindcss/container-queries": "^0.1.1",
         "@tauri-apps/api": "^2",
@@ -33,10 +34,12 @@
         "@veriff/incontext-sdk": "^2.4.0",
         "@veriff/js-sdk": "^1.5.1",
         "axios": "^1.6.7",
+        "blindvote": "workspace:*",
         "clsx": "^2.1.1",
         "dotenv": "^16.5.0",
         "flag-icons": "^7.3.2",
         "graphql-request": "^6.1.0",
+        "html5-qrcode": "^2.3.8",
         "import": "^0.0.6",
         "svelte-loading-spinners": "^0.3.6",
         "svelte-qrcode": "^1.0.1",
@@ -75,6 +78,7 @@
         "tailwindcss": "^4.0.14",
         "typescript": "~5.6.2",
         "vite": "^6.0.3",
+        "vite-plugin-node-polyfills": "^0.24.0",
         "vitest": "^3.0.9"
     }
 }

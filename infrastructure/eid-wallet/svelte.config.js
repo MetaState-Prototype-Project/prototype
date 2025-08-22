@@ -12,6 +12,9 @@ const config = {
         env: {
             dir: "../../",
         },
+        alias: {
+            blindvote: "../../infrastructure/blindvote/src"
+        }
     },
 };
 

@@ -2,7 +2,9 @@
 	import { TableCard, TableCardHeader } from '$lib/fragments';
 	import { Table } from '$lib/ui';
 	import { EVaultService } from '$lib/services/evaultService';
+	import { registryService } from '$lib/services/registry';
 	import type { EVault } from './api/evaults/+server';
+	import type { Platform } from '$lib/services/registry';
 	import { onMount } from 'svelte';
 	import { RefreshCw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
@@ -10,62 +12,39 @@
 	let evaultsSearchValue = $state('');
 	let platformsSearchQuery = $state('');
 	let evaults = $state<EVault[]>([]);
+	let platforms = $state<Platform[]>([]);
 	let isLoading = $state(true);
+	let platformsLoading = $state(true);
 	let error = $state<string | null>(null);
+	let platformsError = $state<string | null>(null);
 	let mappedData = $state<any[]>([]);
 
 	// Track selected items
 	let selectedEVaults = $state<number[]>([]);
 	let selectedPlatforms = $state<number[]>([]);
 
-	// Platform data
-	const platforms = [
-		{
-			name: 'Blabsy',
-			url: 'blabsy.staging.metastate.foundation',
-			status: 'Active',
-			uptime: '24h'
-		},
-		{
-			name: 'Pictique',
-			url: 'pictique.staging.metastate.foundation',
-			status: 'Active',
-			uptime: '24h'
-		},
-		{
-			name: 'Group Charter',
-			url: 'charter.staging.metastate.foundation',
-			status: 'Active',
-			uptime: '24h'
-		},
-		{
-			name: 'Cerberus',
-			url: 'cerberus.staging.metastate.foundation',
-			status: 'Active',
-			uptime: '24h'
-		}
-	];
-
-	const mappedPlatformsData = platforms.map((platform) => ({
-		Name: {
-			type: 'text',
-			value: platform.name
-		},
-		Status: {
-			type: 'text',
-			value: platform.status
-		},
-		Uptime: {
-			type: 'text',
-			value: platform.uptime
-		},
-		URL: {
-			type: 'link',
-			value: platform.url,
-			link: `https://${platform.url}`,
-			external: true
-		}
-	}));
+	const mappedPlatformsData = $derived(
+		platforms.map((platform) => ({
+			Name: {
+				type: 'text',
+				value: platform.name
+			},
+			Status: {
+				type: 'text',
+				value: platform.status
+			},
+			Uptime: {
+				type: 'text',
+				value: platform.uptime
+			},
+			URL: {
+				type: 'link',
+				value: platform.url,
+				link: platform.url,
+				external: true
+			}
+		}))
+	);
 
 	const handlePreviousPage = async () => {
 		alert('Previous btn clicked. Make a call to your server to fetch data.');
@@ -163,6 +142,20 @@
 		}
 	};
 
+	const fetchPlatforms = async () => {
+		try {
+			platformsLoading = true;
+			platformsError = null;
+			const data = await registryService.getPlatforms();
+			platforms = data;
+		} catch (err) {
+			platformsError = 'Failed to fetch platforms';
+			console.error('Error fetching platforms:', err);
+		} finally {
+			platformsLoading = false;
+		}
+	};
+
 	let currentSelectedEVaultIndex = $state(-1);
 
 	function handleEVaultRowClick(index: number) {
@@ -174,6 +167,7 @@
 
 	onMount(() => {
 		fetchEVaults();
+		fetchPlatforms();
 	});
 </script>
 
@@ -224,14 +218,34 @@
 			bind:searchValue={platformsSearchQuery}
 			rightTitle="No platform selected. Select a platform to monitor logs"
 		/>
-		<Table
-			class="mb-7"
-			tableData={mappedPlatformsData}
-			withSelection={true}
-			{handlePreviousPage}
-			{handleNextPage}
-			onSelectionChange={handlePlatformSelectionChange}
-		/>
+		{#if platformsLoading}
+			<div class="flex justify-center py-8">
+				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+			</div>
+		{:else if platformsError}
+			<div class="py-8 text-center text-red-500">
+				{platformsError}
+				<button
+					onclick={fetchPlatforms}
+					class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				>
+					Retry
+				</button>
+			</div>
+		{:else if platforms.length === 0}
+			<div class="py-8 text-center text-gray-500">
+				No platforms found. Make sure the registry service is running.
+			</div>
+		{:else}
+			<Table
+				class="mb-7"
+				tableData={mappedPlatformsData}
+				withSelection={true}
+				{handlePreviousPage}
+				{handleNextPage}
+				onSelectionChange={handlePlatformSelectionChange}
+			/>
+		{/if}
 	</TableCard>
 
 	<!-- Start Monitoring Button -->

@@ -10,6 +10,7 @@ import {
     Clock,
     Users,
     BarChart3,
+    Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -19,21 +20,35 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { pollApi, type Poll } from "@/lib/pollApi";
 import Link from "next/link";
+
+import BlindVotingInterface from "@/components/blind-voting-interface";
+import VotingInterface from "@/components/voting-interface";
 import { SigningInterface } from "@/components/signing-interface";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const pollId = id || null;
     const { toast } = useToast();
-    const { isAuthenticated, isLoading: authLoading } = useAuth();
-    const [selectedOption, setSelectedOption] = useState<number | null>(null);
+    const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+    const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
+    const [showMyVote, setShowMyVote] = useState(false); // For viewing private poll votes
+    const [showSigningInterface, setShowSigningInterface] = useState(false);
+
+    // Add missing variables for BlindVotingInterface
+    const [hasVoted, setHasVoted] = useState(false);
+    const [blindVoteResults, setBlindVoteResults] = useState<any>(null);
+    const [isLoadingBlindResults, setIsLoadingBlindResults] = useState(false);
+
+    // Add state variables for different voting modes
+    const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
+    const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
-    // Calculate total points for points-based voting
-    const totalPoints = Object.values(pointVotes).reduce((sum, points) => sum + (points || 0), 0);
+    // Calculate total points for point voting
+    const totalPoints = Object.values(pointVotes).reduce((sum, points) => sum + points, 0);
 
     // TODO: Redirect to login if not authenticated
     // useEffect(() => {
@@ -57,9 +72,33 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         }
     }, [pollId]);
 
-    const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showSigningInterface, setShowSigningInterface] = useState(false);
+    // Mock onVoteSubmitted function for blind voting
+    const onVoteSubmitted = () => {
+        setHasVoted(true);
+        // Refresh poll data after blind vote submission
+        fetchPoll();
+        // Also refresh blind vote results
+        fetchBlindVoteResults();
+    };
+
+    // Fetch blind vote results
+    const fetchBlindVoteResults = async () => {
+        if (!pollId || selectedPoll?.visibility !== "private") return;
+        
+        try {
+            setIsLoadingBlindResults(true);
+            const apiBaseUrl = process.env.NEXT_PUBLIC_EVOTING_BASE_URL || 'http://localhost:7777';
+            const response = await fetch(`${apiBaseUrl}/api/polls/${pollId}/blind-tally`);
+            if (response.ok) {
+                const results = await response.json();
+                setBlindVoteResults(results);
+            }
+        } catch (error) {
+            console.error("Failed to fetch blind vote results:", error);
+        } finally {
+            setIsLoadingBlindResults(false);
+        }
+    };
 
     // Fetch poll data
     const fetchPoll = async () => {
@@ -78,6 +117,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     useEffect(() => {
         fetchPoll();
     }, [pollId]);
+
+    // Fetch blind vote results when poll loads (for private polls)
+    useEffect(() => {
+        if (selectedPoll && selectedPoll.visibility === "private") {
+            fetchBlindVoteResults();
+        }
+    }, [selectedPoll]);
+
+    // Fetch blind vote results when poll expires (for private polls)
+    useEffect(() => {
+        if (selectedPoll && selectedPoll.visibility === "private" && timeRemaining === "Voting has ended") {
+            fetchBlindVoteResults();
+        }
+    }, [timeRemaining, selectedPoll]);
 
     // Check if voting is still allowed
     const isVotingAllowed =
@@ -145,12 +198,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch vote status and results
     const fetchVoteData = async () => {
-        if (!pollId) return;
+        if (!pollId || !user?.id) return;
         
         try {
             
             const [voteStatusData, resultsData] = await Promise.all([
-                pollApi.getUserVote(pollId),
+                pollApi.getUserVote(pollId, user.id),
                 pollApi.getPollResults(pollId)
             ]);
             setVoteStatus(voteStatusData);
@@ -162,7 +215,39 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     useEffect(() => {
         fetchVoteData();
-    }, [pollId]);
+    }, [pollId, user?.id]);
+
+
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
+            </div>
+        );
+    }
+
+    if (!selectedPoll) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-8">
+                <div className="text-center">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                        Vote Not Found
+                    </h1>
+                    <p className="text-gray-600 mb-4">
+                        The vote you're looking for doesn't exist or has been
+                        removed.
+                    </p>
+                    <Link href="/">
+                        <Button className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Home
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
@@ -195,36 +280,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         // Show signing interface instead of submitting directly
         setShowSigningInterface(true);
     };
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
-            </div>
-        );
-    }
-
-    if (!selectedPoll) {
-        return (
-            <div className="max-w-4xl mx-auto space-y-8">
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                        Vote Not Found
-                    </h1>
-                    <p className="text-gray-600 mb-4">
-                        The vote you're looking for doesn't exist or has been
-                        removed.
-                    </p>
-                    <Link href="/">
-                        <Button className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back to Home
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -360,26 +415,45 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         </div>
 
-                        {/* Show results with user's choice highlighted */}
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div className="flex items-center">
-                                <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                <div>
-                                    <p className="text-sm font-medium text-green-900">
-                                        You voted for:{" "}
-                                        {
-                                            selectedPoll.options[
-                                                parseInt(voteStatus.vote?.optionId || "0")
-                                            ]
-                                        }
-                                    </p>
-                                    <p className="text-sm text-green-700">
-                                        Here are the current results for this
-                                        poll.
-                                    </p>
+                        {/* Show results with user's choice highlighted - HIDE for private polls */}
+                        {selectedPoll.visibility !== "private" && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div className="flex items-center">
+                                    <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
+                                    <div>
+                                        <p className="text-sm font-medium text-green-900">
+                                            You voted for:{" "}
+                                            {
+                                                selectedPoll.options[
+                                                    parseInt(voteStatus.vote?.optionId || "0")
+                                                ]
+                                            }
+                                        </p>
+                                        <p className="text-sm text-green-700">
+                                            Here are the current results for this
+                                            poll.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* For private polls, show a different message */}
+                        {selectedPoll.visibility === "private" && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center">
+                                    <Shield className="text-blue-500 h-5 w-5 mr-2" />
+                                    <div>
+                                        <p className="text-sm font-medium text-blue-900">
+                                            Private Poll - Your vote is hidden
+                                        </p>
+                                        <p className="text-sm text-blue-700">
+                                            This is a private poll. Your individual vote remains hidden until revealed.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-6">
                             {/* Poll Statistics */}
@@ -445,7 +519,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                                                <div className="space-y-6">
                             {/* Final Results */}
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -453,10 +527,59 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     Final Results
                                 </h3>
                                 <div className="space-y-3">
-                                    {resultsData ? (
+                                    {/* For private polls, show blind vote results */}
+                                    {selectedPoll.visibility === "private" && blindVoteResults ? (
                                         <>
-
-                                            
+                                            {blindVoteResults.optionResults && blindVoteResults.optionResults.length > 0 ? (
+                                                blindVoteResults.optionResults.map((result, index) => {
+                                                    const isWinner = result.voteCount === Math.max(...blindVoteResults.optionResults.map(r => r.voteCount));
+                                                    const percentage = blindVoteResults.totalVotes > 0 ? (result.voteCount / blindVoteResults.totalVotes) * 100 : 0;
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className={`p-4 rounded-lg border ${
+                                                                isWinner 
+                                                                    ? 'bg-green-50 border-green-300' 
+                                                                    : 'bg-gray-50 border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="font-medium text-gray-900">
+                                                                        {result.optionText || `Option ${index + 1}`}
+                                                                    </span>
+                                                                    {isWinner && (
+                                                                        <Badge variant="success" className="bg-green-500 text-white">
+                                                                            🏆 Winner
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-sm text-gray-600">
+                                                                    {result.voteCount} votes ({percentage.toFixed(1)}%)
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div
+                                                                    className={`h-2 rounded-full ${
+                                                                        isWinner ? 'bg-green-500' : 'bg-red-500'
+                                                                    }`}
+                                                                    style={{
+                                                                        width: `${percentage}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-center py-8 text-gray-500">
+                                                    No blind vote results available.
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : resultsData ? (
+                                        <>
+                                            {/* For public polls, show regular results */}
                                             {resultsData.results && resultsData.results.length > 0 ? (
                                                 resultsData.results.map((result, index) => {
                                                     const isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes));
@@ -481,7 +604,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     )}
                                                                 </div>
                                                                 <span className="text-sm text-gray-600">
-                                                                                                                            {selectedPoll.mode === "rank"
+                                                                    {selectedPoll.mode === "rank"
                                                             ? `${result.votes} points` 
                                                             : `${result.votes} votes`} ({result.percentage.toFixed(1)}%)
                                                                 </span>
@@ -534,224 +657,278 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                 ) : (
                     <div className="space-y-6">
                         
-                        {/* Voting Interface based on poll mode */}
-                        {selectedPoll.mode === "normal" && (
-                            <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                    Select your choice:
-                                </h3>
-                                <RadioGroup
-                                    value={selectedOption?.toString()}
-                                    onValueChange={(value) =>
-                                        setSelectedOption(Number.parseInt(value))
-                                    }
-                                    disabled={!isVotingAllowed}
-                                >
-                                    <div className="space-y-3">
-                                        {selectedPoll.options.map((option, index) => (
-                                            <div
-                                                key={index}
-                                                className="flex items-center space-x-3"
-                                            >
-                                                <RadioGroupItem
-                                                    value={index.toString()}
-                                                    id={index.toString()}
-                                                    disabled={!isVotingAllowed}
-                                                />
-                                                <Label
-                                                    htmlFor={index.toString()}
-                                                    className={`text-base flex-1 py-2 ${
-                                                        isVotingAllowed
-                                                            ? "cursor-pointer"
-                                                            : "cursor-not-allowed opacity-50"
-                                                    }`}
-                                                >
-                                                    {option}
-                                                </Label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </RadioGroup>
-                            </div>
-                        )}
-
-                        {selectedPoll.mode === "point" && (
-                            <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">
-                                        Distribute your points
-                                    </h3>
-                                    <Button
-                                        onClick={() => setPointVotes({})}
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-red-600 border-red-300 hover:bg-red-50"
-                                    >
-                                        Reset Points
-                                    </Button>
-                                </div>
-                                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <p className="text-sm text-blue-800">
-                                        You have 100 points to distribute. Assign points to each option based on your preference.
-                                    </p>
-                                </div>
-                                <div className="space-y-4">
-                                    {selectedPoll.options.map((option, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex items-center space-x-4 p-4 border rounded-lg"
-                                        >
-                                            <div className="flex-1">
-                                                <Label className="text-base font-medium">
-                                                    {option}
-                                                </Label>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="100"
-                                                    value={pointVotes[index] || 0}
-                                                    onChange={(e) => {
-                                                        const value = parseInt(e.target.value) || 0;
-                                                        setPointVotes(prev => ({
-                                                            ...prev,
-                                                            [index]: value
-                                                        }));
-                                                    }}
-                                                    className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                    disabled={!isVotingAllowed}
-                                                />
-                                                <span className="text-sm text-gray-500">points</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm font-medium text-gray-700">
-                                                Total Points Used:
-                                            </span>
-                                            <span className={`text-sm font-bold ${
-                                                totalPoints === 100 ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                                {totalPoints}/100
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {selectedPoll.mode === "rank" && (
-                            <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">
-                                        {(() => {
-                                            const currentRank = Object.keys(rankVotes).length + 1;
-                                            const maxRanks = Math.min(selectedPoll.options.length, 3);
-                                            
-                                            if (currentRank > maxRanks) {
-                                                return "Ranking Complete";
+                        {/* Check if this is a private poll that requires blind voting */}
+                        {selectedPoll.visibility === "private" ? (
+                            <BlindVotingInterface
+                                poll={selectedPoll}
+                                userId={user?.id || ""}
+                                hasVoted={hasVoted}
+                                onVoteSubmitted={onVoteSubmitted}
+                            />
+                        ) : (
+                            <>
+                                {/* Regular Voting Interface based on poll mode */}
+                                {selectedPoll.mode === "normal" && (
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                            Select your choice:
+                                        </h3>
+                                        <RadioGroup
+                                            value={selectedOption?.toString()}
+                                            onValueChange={(value) =>
+                                                setSelectedOption(Number.parseInt(value))
                                             }
-                                            
-                                            const rankText = currentRank === 1 ? "1st" : currentRank === 2 ? "2nd" : currentRank === 3 ? "3rd" : `${currentRank}th`;
-                                            return `What's your ${rankText} choice?`;
-                                        })()}
-                                    </h3>
-                                    <Button
-                                        onClick={() => setRankVotes({})}
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-red-600 border-red-300 hover:bg-red-50"
-                                    >
-                                        Reset Ranking
-                                    </Button>
-                                </div>
-                                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                    <p className="text-sm text-green-800">
-                                        Select your choices one by one, starting with your most preferred option.
-                                    </p>
-                                </div>
-                                <RadioGroup
-                                    value={selectedOption?.toString()}
-                                    onValueChange={(value) => {
-                                        const optionIndex = parseInt(value);
-                                        const currentRank = Object.keys(rankVotes).length + 1;
-                                        setRankVotes(prev => ({
-                                            ...prev,
-                                            [currentRank]: optionIndex
-                                        }));
-                                        setSelectedOption(optionIndex);
-                                    }}
-                                    disabled={!isVotingAllowed}
-                                >
-                                    <div className="space-y-4">
-                                        {selectedPoll.options.map((option, index) => {
-                                            const isRanked = Object.values(rankVotes).includes(index);
-                                            const rank = Object.entries(rankVotes).find(([_, optionIndex]) => optionIndex === index)?.[0];
-                                            
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${
-                                                        isRanked ? 'bg-green-50 border-green-300' : ''
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center space-x-3">
-                                                        {!isRanked ? (
-                                                            <RadioGroupItem
-                                                                value={index.toString()}
-                                                                id={`rank-${index}`}
-                                                                disabled={!isVotingAllowed}
-                                                            />
-                                                        ) : (
-                                                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                                                                <span className="text-white text-xs font-bold">{rank}</span>
-                                                            </div>
-                                                        )}
+                                            disabled={!isVotingAllowed}
+                                        >
+                                            <div className="space-y-3">
+                                                {selectedPoll.options.map((option, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex items-center space-x-3"
+                                                    >
+                                                        <RadioGroupItem
+                                                            value={index.toString()}
+                                                            id={index.toString()}
+                                                            disabled={!isVotingAllowed}
+                                                        />
                                                         <Label
-                                                            htmlFor={`rank-${index}`}
-                                                            className={`font-medium text-gray-900 ${
-                                                                isRanked ? 'text-green-700' : ''
+                                                            htmlFor={index.toString()}
+                                                            className={`text-base flex-1 py-2 ${
+                                                                isVotingAllowed
+                                                                    ? "cursor-pointer"
+                                                                    : "cursor-not-allowed opacity-50"
                                                             }`}
                                                         >
                                                             {option}
                                                         </Label>
                                                     </div>
-                                                    {isRanked && (
-                                                        <Badge variant="secondary" className="ml-auto">
-                                                            {rank === "1" ? "1st Choice" : rank === "2" ? "2nd Choice" : rank === "3" ? "3rd Choice" : `${rank}th Choice`}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                                ))}
+                                            </div>
+                                        </RadioGroup>
                                     </div>
-                                </RadioGroup>
-                            </div>
-                        )}
-
-                        <div className="flex justify-center">
-                            <Button
-                                onClick={handleVoteSubmit}
-                                                                    disabled={
-                                        (selectedPoll.mode === "normal" && selectedOption === null) ||
-                                    
-                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                        isSubmitting ||
-                                        !isVotingAllowed
-                                    }
-                                className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                            >
-                                {isSubmitting ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                ) : (
-                                    <VoteIcon className="w-4 h-4 mr-2" />
                                 )}
-                                {!isVotingAllowed
-                                    ? "Voting Ended"
-                                    : "Sign & Submit Vote"}
-                            </Button>
+
+                                {selectedPoll.mode === "point" && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-semibold text-gray-900">
+                                                Distribute your points
+                                            </h3>
+                                            <Button
+                                                onClick={() => setPointVotes({})}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                            >
+                                                Reset Points
+                                            </Button>
+                                        </div>
+                                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <p className="text-sm text-blue-800">
+                                                You have 100 points to distribute. Assign points to each option based on your preference.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {selectedPoll.options.map((option, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center space-x-4 p-4 border rounded-lg"
+                                                >
+                                                    <div className="flex-1">
+                                                        <Label className="text-base font-medium">
+                                                            {option}
+                                                        </Label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={pointVotes[index] || 0}
+                                                            onChange={(e) => {
+                                                                const value = parseInt(e.target.value) || 0;
+                                                                setPointVotes(prev => ({
+                                                                    ...prev,
+                                                                    [index]: value
+                                                                }));
+                                                            }}
+                                                            className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
+                                                            disabled={!isVotingAllowed}
+                                                        />
+                                                        <span className="text-sm text-gray-500">points</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-sm font-medium text-gray-700">
+                                                        Total Points Used:
+                                                    </span>
+                                                    <span className={`text-sm font-bold ${
+                                                        totalPoints === 100 ? 'text-green-600' : 'text-red-600'
+                                                    }`}>
+                                                        {totalPoints}/100
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedPoll.mode === "rank" && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-semibold text-gray-900">
+                                                {(() => {
+                                                    const currentRank = Object.keys(rankVotes).length + 1;
+                                                    const maxRanks = Math.min(selectedPoll.options.length, 3);
+                                                    
+                                                    if (currentRank > maxRanks) {
+                                                        return "Ranking Complete";
+                                                    }
+                                                    
+                                                    const rankText = currentRank === 1 ? "1st" : currentRank === 2 ? "2nd" : currentRank === 3 ? "3rd" : `${currentRank}th`;
+                                                    return `What's your ${rankText} choice?`;
+                                                })()}
+                                            </h3>
+                                            <Button
+                                                onClick={() => setRankVotes({})}
+                                                variant="outline"
+                                                size="sm"
+                                                className="text-red-600 border-red-300 hover:bg-red-50"
+                                            >
+                                                Reset Rankings
+                                            </Button>
+                                        </div>
+                                        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                            <p className="text-sm text-green-800">
+                                                Rank your top 3 choices from most preferred (1) to least preferred (3).
+                                            </p>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {selectedPoll.options.map((option, index) => {
+                                                const rank = rankVotes[index];
+                                                const isRanked = rank !== undefined;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`flex items-center space-x-4 p-4 border rounded-lg ${
+                                                            isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <div className="flex-1">
+                                                            <Label className="text-base font-medium">
+                                                                {option}
+                                                            </Label>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <select
+                                                                value={rank || ""}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    if (value === "") {
+                                                                        const newRankVotes = { ...rankVotes };
+                                                                        delete newRankVotes[index];
+                                                                        setRankVotes(newRankVotes);
+                                                                    } else {
+                                                                        setRankVotes(prev => ({
+                                                                            ...prev,
+                                                                            [index]: parseInt(value)
+                                                                        }));
+                                                                    }
+                                                                }}
+                                                                className="px-3 py-2 border border-gray-300 rounded-md text-center"
+                                                                disabled={!isVotingAllowed}
+                                                            >
+                                                                <option value="">No rank</option>
+                                                                <option value="1">1st</option>
+                                                                <option value="2">2nd</option>
+                                                                <option value="3">3rd</option>
+                                                            </select>
+                                                            <span className="text-sm text-gray-500">rank</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-sm font-medium text-gray-700">
+                                                        Total Rankings Used:
+                                                    </span>
+                                                    <span className={`text-sm font-bold ${
+                                                        Object.keys(rankVotes).length === Math.min(selectedPoll.options.length, 3) ? 'text-green-600' : 'text-red-600'
+                                                    }`}>
+                                                        {Object.keys(rankVotes).length}/{Math.min(selectedPoll.options.length, 3)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Submit button for regular voting */}
+                                <div className="flex justify-center">
+                                    <Button
+                                        onClick={handleVoteSubmit}
+                                        disabled={
+                                            (selectedPoll.mode === "normal" && selectedOption === null) ||
+                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                            isSubmitting ||
+                                            !isVotingAllowed
+                                        }
+                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
+                                    >
+                                        {isSubmitting ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                        ) : (
+                                            <VoteIcon className="w-4 h-4 mr-2" />
+                                        )}
+                                        {!isVotingAllowed
+                                            ? "Voting Ended"
+                                            : "Submit Vote"}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Signing Interface Modal */}
+                {showSigningInterface && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full">
+                            <SigningInterface
+                                pollId={pollId!}
+                                voteData={
+                                    selectedPoll?.mode === "normal"
+                                        ? { optionId: selectedOption }
+                                        : selectedPoll?.mode === "rank"
+                                        ? { ranks: rankVotes }
+                                        : { points: pointVotes }
+                                }
+                                onSigningComplete={(voteId) => {
+                                    setShowSigningInterface(false);
+                                    
+                                    // Add a small delay to ensure backend has processed the vote
+                                    setTimeout(async () => {
+                                        try {
+                                            await fetchPoll();
+                                            await fetchVoteData();
+                                        } catch (error) {
+                                            console.error("Error during data refresh:", error);
+                                        }
+                                    }, 2000); // 2 second delay
+                                    
+                                    toast({
+                                        title: "Success!",
+                                        description: "Your vote has been signed and submitted.",
+                                    });
+                                }}
+                                onCancel={() => {
+                                    setShowSigningInterface(false);
+                                }}
+                            />
                         </div>
                     </div>
                 )}
@@ -811,41 +988,86 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         </div>
                     )}
 
-                {/* Signing Interface Modal */}
-                {showSigningInterface && (
+
+
+                {/* View My Vote Modal for Private Polls */}
+                {showMyVote && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-md w-full">
-                            <SigningInterface
-                                pollId={pollId!}
-                                voteData={
-                                    selectedPoll?.mode === "normal"
-                                        ? { optionId: selectedOption }
-                                        : selectedPoll?.mode === "rank"
-                                        ? { ranks: rankVotes }
-                                        : { points: pointVotes }
-                                }
-                                onSigningComplete={(voteId) => {
-                                    setShowSigningInterface(false);
-                                    
-                                    // Add a small delay to ensure backend has processed the vote
-                                    setTimeout(async () => {
-                                        try {
-                                            await fetchPoll();
-                                            await fetchVoteData();
-                                        } catch (error) {
-                                            console.error("Error during data refresh:", error);
-                                        }
-                                    }, 2000); // 2 second delay
-                                    
-                                    toast({
-                                        title: "Success!",
-                                        description: "Your vote has been signed and submitted.",
-                                    });
-                                }}
-                                onCancel={() => {
-                                    setShowSigningInterface(false);
-                                }}
-                            />
+                        <div className="bg-white rounded-lg max-w-md w-full p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                                    <Shield className="mr-2 h-5 w-5 text-blue-500" />
+                                    Your Private Vote
+                                </h3>
+                                <Button
+                                    onClick={() => setShowMyVote(false)}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </Button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <p className="text-sm text-blue-800">
+                                        This is your private vote choice. Only you can see this information.
+                                    </p>
+                                </div>
+                                
+                                {voteStatus?.vote && (
+                                    <div className="space-y-3">
+                                        <h4 className="font-medium text-gray-900">Poll: {selectedPoll?.title}</h4>
+                                        
+                                        {selectedPoll?.mode === "normal" && (
+                                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                <p className="text-sm text-green-800">
+                                                    <strong>Your choice:</strong> {selectedPoll.options[parseInt(voteStatus.vote.optionId || "0")]}
+                                                </p>
+                                            </div>
+                                        )}
+                                        
+                                        {selectedPoll?.mode === "point" && voteStatus.vote.points && (
+                                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                                <p className="text-sm text-purple-800 font-medium mb-2">Your point distribution:</p>
+                                                <div className="space-y-1">
+                                                    {Object.entries(voteStatus.vote.points).map(([index, points]) => (
+                                                        <div key={index} className="flex justify-between text-sm">
+                                                            <span>Option {parseInt(index) + 1}:</span>
+                                                            <span className="font-medium">{points} points</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {selectedPoll?.mode === "rank" && voteStatus.vote.ranks && (
+                                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                <p className="text-sm text-green-800 font-medium mb-2">Your ranking:</p>
+                                                <div className="space-y-1">
+                                                    {Object.entries(voteStatus.vote.ranks).map(([rank, index]) => (
+                                                        <div key={rank} className="flex justify-between text-sm">
+                                                            <span>{rank === "1" ? "1st" : rank === "2" ? "2nd" : rank === "3" ? "3rd" : `${rank}th`} choice:</span>
+                                                            <span className="font-medium">Option {parseInt(index) + 1}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        onClick={() => setShowMyVote(false)}
+                                        variant="outline"
+                                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                    >
+                                        Close
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

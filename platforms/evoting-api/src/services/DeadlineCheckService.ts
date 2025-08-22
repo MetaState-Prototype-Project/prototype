@@ -56,8 +56,22 @@ export class DeadlineCheckService {
         }
 
         try {
-            // Get the final results for this poll
-            const results = await this.voteService.getPollResults(poll.id);
+            // Get the final results for this poll using blind voting tally
+            let results;
+            try {
+                results = await this.voteService.tallyBlindVotes(poll.id);
+            } catch (error) {
+                console.log(`Poll ${poll.id} has no blind votes, using basic poll info`);
+                // If no blind votes, create basic results from poll options
+                results = {
+                    totalVotes: 0,
+                    optionResults: poll.options.map((option: string, index: number) => ({
+                        optionId: `option_${index}`,
+                        optionText: option,
+                        voteCount: 0
+                    }))
+                };
+            }
             
             // Create a comprehensive deadline message with results
             const deadlineMessage = this.createDeadlineMessageWithResults(poll, results);
@@ -86,7 +100,14 @@ export class DeadlineCheckService {
     private createDeadlineMessageWithResults(poll: Poll, results: any): string {
         let resultsText = '';
         
-        if (results && results.results) {
+        if (results && results.optionResults) {
+            resultsText = '\n\n📊 **Final Results:**\n';
+            results.optionResults.forEach((result: any, index: number) => {
+                const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
+                resultsText += `${emoji} ${result.optionText}: ${result.voteCount} votes\n`;
+            });
+        } else if (results && results.results) {
+            // Fallback for old format
             resultsText = '\n\n📊 **Final Results:**\n';
             results.results.forEach((result: any, index: number) => {
                 const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
