@@ -193,7 +193,7 @@ app.post("/api/groups/:id/admins", authGuard, groupController.addAdmins);
 app.delete("/api/groups/:id/admins/:userId", authGuard, groupController.removeAdmin);
 
 // Poll routes
-app.get("/api/polls", pollController.getAllPolls);
+app.get("/api/polls", authGuard, pollController.getAllPolls);
 app.get("/api/polls/my", authGuard, pollController.getPollsByCreator);
 app.post("/api/polls", authGuard, pollController.createPoll);
 app.put("/api/polls/:id", authGuard, pollController.updatePoll);

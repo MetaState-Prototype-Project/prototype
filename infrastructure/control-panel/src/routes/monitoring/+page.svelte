@@ -37,9 +37,20 @@
 
 		if (evaultsData) {
 			selectedEVaults = JSON.parse(evaultsData);
+			console.log('Loaded selectedEVaults from sessionStorage:', selectedEVaults);
 		}
 		if (platformsData) {
 			selectedPlatforms = JSON.parse(platformsData);
+			console.log('Loaded selectedPlatforms from sessionStorage:', selectedPlatforms);
+		}
+
+		// Check if any items are selected, if not show selection interface
+		if (
+			(!selectedEVaults || selectedEVaults.length === 0) &&
+			(!selectedPlatforms || selectedPlatforms.length === 0)
+		) {
+			// Don't redirect, just show empty state
+			return;
 		}
 
 		// Check if any items are selected, if not show selection interface
@@ -176,6 +187,8 @@
 	}
 
 	function handleFlowEvent(data: any) {
+		console.log('handleFlowEvent received:', data);
+
 		switch (data.type) {
 			case 'evault_sync_event':
 				handleEvaultSyncEvent(data);
@@ -196,9 +209,20 @@
 	}
 
 	function handleEvaultSyncEvent(data: any) {
+		console.log('handleEvaultSyncEvent received data:', data);
+		console.log('selectedEVaults:', selectedEVaults);
+		console.log('selectedPlatforms:', selectedPlatforms);
+
 		// Map the real data to visualization indices
 		const platformIndex = getPlatformIndex(data.platform);
 		const evaultIndex = getEvaultIndex(data.w3id);
+
+		console.log('Mapped indices:', {
+			platformIndex,
+			evaultIndex,
+			platform: data.platform,
+			w3id: data.w3id
+		});
 
 		// Step 1: Platform creates entry locally
 		currentFlowStep = 1;
@@ -477,8 +501,40 @@
 	}
 
 	function getEvaultIndex(w3id: string): number {
-		const index = selectedEVaults.findIndex((e) => e.evaultId === w3id || e.w3id === w3id);
-		return index >= 0 ? index : 0;
+		console.log('getEvaultIndex called with w3id:', w3id);
+		console.log('selectedEVaults:', selectedEVaults);
+
+		// Since evaultId is the same as w3id, prioritize that match
+		const index = selectedEVaults.findIndex((e) => {
+			const matches = e.evaultId === w3id;
+
+			if (matches) {
+				console.log('Found matching eVault by evaultId:', e);
+			}
+
+			return matches;
+		});
+
+		console.log('getEvaultIndex result:', {
+			w3id,
+			foundIndex: index,
+			selectedEVaultsLength: selectedEVaults.length
+		});
+
+		// If no match found, log all available evaultIds for debugging
+		if (index === -1) {
+			console.log('No match found for w3id:', w3id);
+			console.log('Available evaultIds:');
+			selectedEVaults.forEach((evault, i) => {
+				console.log(`eVault ${i}: evaultId = "${evault.evaultId}"`);
+			});
+
+			// Fall back to index 0 if no match found
+			console.log('Falling back to index 0');
+			return 0;
+		}
+
+		return index;
 	}
 </script>
 
