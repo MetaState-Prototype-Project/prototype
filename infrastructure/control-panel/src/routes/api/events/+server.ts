@@ -1,11 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { lokiService } from '$lib/services/loki';
 
 export const GET: RequestHandler = async () => {
 	const stream = new ReadableStream({
 		start(controller) {
 			let isConnected = true;
-			const timeouts: NodeJS.Timeout[] = [];
+			let stopStreaming: (() => void) | null = null;
 			
 			// Send initial connection message
 			if (isConnected) {
@@ -20,58 +21,107 @@ export const GET: RequestHandler = async () => {
 					} catch (error) {
 						console.log('Client disconnected, stopping stream');
 						isConnected = false;
+						if (stopStreaming) stopStreaming();
 					}
 				}
 			};
 
-			// Simulate the data flow sequence
-			const timeout1 = setTimeout(() => {
+			// Start streaming real logs from Loki
+			const startRealTimeLogs = async () => {
+				try {
+					stopStreaming = await lokiService.streamLogs(
+						'{app="web3-adapter"}',
+						(log) => {
+							// Parse the log entry to extract flow information
+							const flowEvent = lokiService.parseLogEntry(log);
+							
+							if (flowEvent) {
+								// Map the flow event to the expected format
+								const eventData = {
+									type: 'evault_sync_event',
+									timestamp: flowEvent.timestamp,
+									w3id: flowEvent.w3id,
+									platform: flowEvent.platform,
+									id: flowEvent.id,
+									tableName: flowEvent.tableName,
+									message: flowEvent.message,
+									// Extract platform and eVault indices for visualization
+									platformIndex: 0, // We'll need to map this based on actual platform names
+									evaultIndex: 0    // We'll need to map this based on actual eVault w3ids
+								};
+								
+								safeEnqueue(eventData);
+							}
+						}
+					);
+				} catch (error) {
+					console.error('Error starting Loki stream:', error);
+					// Fallback to mock data if Loki is not available
+					startMockData();
+				}
+			};
+
+			// Fallback mock data function
+			const startMockData = () => {
+				console.log('Using mock data as fallback');
+				
 				// Step 1: Platform 1 creates a message
-				safeEnqueue({
-					type: 'platform_message_created',
-					platformIndex: 1,
-					platformName: 'Pictique',
-					message: 'Creating new message in blob storage',
-					timestamp: new Date().toISOString()
-				});
-			}, 3000);
-			timeouts.push(timeout1);
+				const timeout1 = setTimeout(() => {
+					safeEnqueue({
+						type: 'platform_message_created',
+						platformIndex: 1,
+						platformName: 'Pictique',
+						message: 'Creating new message in blob storage',
+						timestamp: new Date().toISOString()
+					});
+				}, 3000);
 
-			const timeout2 = setTimeout(() => {
 				// Step 2: Request sent to eVault 0
-				safeEnqueue({
-					type: 'request_sent_to_evault',
-					platformIndex: 1,
-					evaultIndex: 0,
-					message: 'Request sent to eVault',
-					timestamp: new Date().toISOString()
-				});
-			}, 8000);
-			timeouts.push(timeout2);
+				const timeout2 = setTimeout(() => {
+					safeEnqueue({
+						type: 'request_sent_to_evault',
+						platformIndex: 1,
+						evaultIndex: 0,
+						message: 'Request sent to eVault',
+						timestamp: new Date().toISOString()
+					});
+				}, 8000);
 
-			const timeout3 = setTimeout(() => {
 				// Step 3: eVault 0 creates metaenvelope
-				const uuid = crypto.randomUUID();
-				safeEnqueue({
-					type: 'evault_metaenvelope_created',
-					evaultIndex: 0,
-					uuid: uuid,
-					message: `Created metaenvelope with ID: ${uuid}`,
-					timestamp: new Date().toISOString()
-				});
-			}, 13000);
-			timeouts.push(timeout3);
+				const timeout3 = setTimeout(() => {
+					const uuid = crypto.randomUUID();
+					safeEnqueue({
+						type: 'evault_metaenvelope_created',
+						evaultIndex: 0,
+						uuid: uuid,
+						message: `Created metaenvelope with ID: ${uuid}`,
+						timestamp: new Date().toISOString()
+					});
+				}, 13000);
 
-			const timeout4 = setTimeout(() => {
 				// Step 4: Notify all platforms through awareness protocol
-				safeEnqueue({
-					type: 'notify_platforms_awareness',
-					evaultIndex: 0,
-					message: 'Notifying platforms through awareness protocol',
-					timestamp: new Date().toISOString()
-				});
-			}, 18000);
-			timeouts.push(timeout4);
+				const timeout4 = setTimeout(() => {
+					safeEnqueue({
+						type: 'notify_platforms_awareness',
+						evaultIndex: 0,
+						message: 'Notifying platforms through awareness protocol',
+						timestamp: new Date().toISOString()
+					});
+				}, 18000);
+
+				// Cleanup function for mock timeouts
+				return () => {
+					clearTimeout(timeout1);
+					clearTimeout(timeout2);
+					clearTimeout(timeout3);
+					clearTimeout(timeout4);
+				};
+			};
+
+			// Try to start real-time logs, fallback to mock if needed
+			startRealTimeLogs().catch(() => {
+				startMockData();
+			});
 
 			// Keep connection alive with periodic heartbeats
 			const heartbeat = setInterval(() => {
@@ -82,6 +132,7 @@ export const GET: RequestHandler = async () => {
 						console.log('Client disconnected during heartbeat, stopping stream');
 						isConnected = false;
 						clearInterval(heartbeat);
+						if (stopStreaming) stopStreaming();
 					}
 				}
 			}, 30000);
@@ -89,7 +140,7 @@ export const GET: RequestHandler = async () => {
 			// Cleanup function
 			const cleanup = () => {
 				isConnected = false;
-				timeouts.forEach(timeout => clearTimeout(timeout));
+				if (stopStreaming) stopStreaming();
 				clearInterval(heartbeat);
 			};
 

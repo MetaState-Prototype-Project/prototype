@@ -312,17 +312,8 @@ export class Web3Adapter {
             return;
         }
         
-        console.log("We get here?");
-        // If we already have a mapping, use that global ID
 
-        logger.info({
-            message: "Handling change",
-            dataId: data.id,
-            tableName,
-            existingGlobalId,
-            participants,
-        });
-
+       
         if (existingGlobalId) {
             if (this.lockedIds.includes(existingGlobalId)) return;
             const global = await toGlobal({
@@ -340,11 +331,18 @@ export class Web3Adapter {
                 })
                 .catch(() => console.error("failed to sync update"));
 
+            logger.info({
+                tableName,
+                id: existingGlobalId,
+                platform: this.platform,
+                w3id: global.ownerEvault,
+            });
+
+
             return {
                 id: existingGlobalId,
                 w3id: global.ownerEvault as string,
-                data: global.data,
-                schemaId: this.mapping[tableName].schemaId,
+                schemaId: this.mapping[tableName].tableName,
             };
         }
 
@@ -383,6 +381,13 @@ export class Web3Adapter {
                 evault,
             );
         }
+
+        logger.info({
+            tableName,
+            id: globalId,
+            w3id: global.ownerEvault,
+            platform: this.platform 
+        });
 
         return {
             id: globalId,

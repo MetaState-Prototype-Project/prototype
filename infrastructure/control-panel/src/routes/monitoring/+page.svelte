@@ -46,11 +46,11 @@
 		const newNodes: Node[] = [];
 		let nodeId = 1;
 
-		// Add eVaults in one row at the top (y: 100)
+		// Add eVaults in a column on the left (x: 200, y: starting from 150)
 		selectedEVaults.forEach((evault, index) => {
 			newNodes.push({
 				id: `evault-${index + 1}`,
-				position: { x: 100 + index * 400, y: 100 },
+				position: { x: 200, y: 150 + index * 180 },
 				data: {
 					label: evault.evaultId || evault.name || 'eVault',
 					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
@@ -61,11 +61,11 @@
 			});
 		});
 
-		// Add platforms in one row at the bottom (y: 400)
+		// Add platforms in a column on the right (x: 800, y: starting from 150)
 		selectedPlatforms.forEach((platform, index) => {
 			newNodes.push({
 				id: `platform-${index + 1}`,
-				position: { x: 100 + index * 400, y: 400 },
+				position: { x: 800, y: 150 + index * 180 },
 				data: {
 					label: platform.name,
 					subLabel: platform.url,
@@ -125,6 +125,9 @@
 
 	function handleFlowEvent(data: any) {
 		switch (data.type) {
+			case 'evault_sync_event':
+				handleEvaultSyncEvent(data);
+				break;
 			case 'platform_message_created':
 				handlePlatformMessageCreated(data);
 				break;
@@ -138,6 +141,105 @@
 				handleNotifyPlatformsAwareness(data);
 				break;
 		}
+	}
+
+	function handleEvaultSyncEvent(data: any) {
+		// Map the real data to visualization indices
+		const platformIndex = getPlatformIndex(data.platform);
+		const evaultIndex = getEvaultIndex(data.w3id);
+
+		// Step 1: Platform creates entry locally
+		currentFlowStep = 1;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date(data.timestamp).toLocaleTimeString()}] ${data.platform}: Created ${data.tableName} entry locally`
+		];
+
+		// Highlight the platform
+		highlightNode(`platform-${platformIndex + 1}`);
+
+		// Step 2: After 1 second, show syncing to eVault
+		setTimeout(() => {
+			currentFlowStep = 2;
+			flowMessages = [
+				...flowMessages,
+				`[${new Date().toLocaleTimeString()}] ${data.message}`
+			];
+
+			// Clear old edges first
+			edges = [];
+
+			// Create arrow from platform to eVault
+			const platformId = `platform-${platformIndex + 1}`;
+			const evaultId = `evault-${evaultIndex + 1}`;
+
+			console.log('Creating edge from:', platformId, 'to:', evaultId);
+
+			const newEdge: Edge = {
+				id: `flow-${Date.now()}`,
+				source: platformId,
+				target: evaultId,
+				type: 'bezier',
+				animated: true,
+				style: 'stroke: #007BFF; stroke-width: 3; marker-end: url(#arrowhead-blue);',
+				label: `Syncing ${data.tableName}`
+			};
+
+			edges = [newEdge];
+
+			// Highlight the platform and eVault
+			highlightNode(platformId);
+			setTimeout(() => highlightNode(evaultId), 1000);
+
+			// Remove this edge after 3 seconds and then show awareness protocol
+			setTimeout(() => {
+				edges = edges.filter((edge) => edge.id !== newEdge.id);
+
+				// After sync completes, show the awareness protocol
+				setTimeout(() => {
+					handleAwarenessProtocol(evaultIndex, data);
+				}, 500);
+			}, 3000);
+		}, 1000);
+	}
+
+	function handleAwarenessProtocol(evaultIndex: number, data: any) {
+		currentFlowStep = 4;
+		flowMessages = [
+			...flowMessages,
+			`[${new Date().toLocaleTimeString()}] eVault ${evaultIndex + 1}: Notifying platforms through awareness protocol`
+		];
+
+		// Clear old edges first
+		edges = [];
+
+		// Create edges from eVault to all platforms
+		const evaultId = `evault-${evaultIndex + 1}`;
+		const newEdges: Edge[] = selectedPlatforms.map((platform, index) => ({
+			id: `awareness-${Date.now()}-${index}`,
+			source: evaultId,
+			target: `platform-${index + 1}`,
+			type: 'bezier',
+			animated: true,
+			style: 'stroke: #28a745; stroke-width: 3; marker-end: url(#arrowhead-green);',
+			label: 'Awareness Protocol'
+		}));
+
+		edges = newEdges;
+
+		// Remove all awareness edges after 5 seconds and show completion
+		setTimeout(() => {
+			edges = edges.filter((edge) => !edge.id.startsWith('awareness-'));
+
+			// Step 5: Show completion message
+			setTimeout(() => {
+				currentFlowStep = 5;
+				flowMessages = [
+					...flowMessages,
+					`[${new Date().toLocaleTimeString()}] All platforms notified successfully`
+				];
+			}, 500);
+		}, 5000);
 	}
 
 	function handlePlatformMessageCreated(data: any) {
@@ -298,6 +400,37 @@
 			eventSource = null;
 		}
 	}
+
+	// Helper functions to map real data to visualization indices
+	function getPlatformIndex(platformName: string): number {
+		// Try exact match first
+		let index = selectedPlatforms.findIndex((p) => p.name === platformName);
+
+		// If no exact match, try partial matching
+		if (index === -1) {
+			index = selectedPlatforms.findIndex(
+				(p) =>
+					p.name.toLowerCase().includes(platformName.toLowerCase()) ||
+					platformName.toLowerCase().includes(p.name.toLowerCase())
+			);
+		}
+
+		// If still no match, try matching by URL
+		if (index === -1) {
+			index = selectedPlatforms.findIndex(
+				(p) =>
+					p.url.toLowerCase().includes(platformName.toLowerCase()) ||
+					platformName.toLowerCase().includes(p.url.toLowerCase())
+			);
+		}
+
+		return index >= 0 ? index : 0;
+	}
+
+	function getEvaultIndex(w3id: string): number {
+		const index = selectedEVaults.findIndex((e) => e.evaultId === w3id || e.w3id === w3id);
+		return index >= 0 ? index : 0;
+	}
 </script>
 
 <section class="flex h-full w-full">
@@ -317,14 +450,16 @@
 						<div class="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
 						<span class="text-xs font-medium text-green-600">
 							{currentFlowStep === 1
-								? 'Platform creating message'
+								? 'Platform creating entry locally'
 								: currentFlowStep === 2
-									? 'Request sent to eVault'
+									? 'Syncing to eVault'
 									: currentFlowStep === 3
 										? 'eVault created metaenvelope'
 										: currentFlowStep === 4
-											? 'Notifying platforms'
-											: 'Complete'}
+											? 'Awareness Protocol'
+											: currentFlowStep === 5
+												? 'All platforms notified'
+												: 'Complete'}
 						</span>
 					</div>
 				{/if}
@@ -408,7 +543,7 @@
 
 	<!-- Flow Messages Panel -->
 	<div
-		class="w-[40%] cursor-pointer bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
+		class="flex h-full w-[40%] cursor-pointer flex-col bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
 		onclick={!sequenceStarted || currentFlowStep >= 4 ? startSequence : undefined}
 		class:cursor-pointer={!sequenceStarted || currentFlowStep >= 4}
 		class:cursor-default={sequenceStarted && currentFlowStep < 4}
@@ -420,19 +555,21 @@
 					Current Step: {currentFlowStep === 0
 						? 'Waiting...'
 						: currentFlowStep === 1
-							? 'Platform creating message'
+							? 'Platform creating entry locally'
 							: currentFlowStep === 2
-								? 'Request sent to eVault'
+								? 'Syncing to eVault'
 								: currentFlowStep === 3
 									? 'eVault created metaenvelope'
 									: currentFlowStep === 4
-										? 'Notifying platforms'
-										: 'Complete'}
+										? 'Awareness Protocol'
+										: currentFlowStep === 5
+											? 'All platforms notified'
+											: 'Complete'}
 				</div>
 			{/if}
 		</div>
 
-		<div class="max-h-96 space-y-2 overflow-y-auto">
+		<div class="flex-1 space-y-2 overflow-y-auto">
 			{#each flowMessages as message, i}
 				<div class="rounded bg-gray-50 p-2 font-mono text-sm">
 					{message}
