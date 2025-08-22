@@ -35,9 +35,8 @@ const createPollSchema = z.object({
         .min(2, "At least 2 options required"),
     deadline: z
         .string()
-        .optional()
+        .min(1, "Deadline is required")
         .refine((val) => {
-            if (!val) return true; // Allow empty deadline
             const date = new Date(val);
             return !Number.isNaN(date.getTime()) && date > new Date();
         }, "Deadline must be a valid future date"),
@@ -217,19 +216,73 @@ export default function CreatePoll() {
                 {/* Vote Deadline */}
                 <div>
                     <Label className="text-sm font-semibold text-gray-700">
-                        Vote Deadline (Optional)
+                        Vote Deadline
                     </Label>
                     <Input
                         {...register("deadline")}
                         type="datetime-local"
                         className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
+                        required
                     />
                     <p className="mt-1 text-sm text-gray-500">
-                        Leave empty for no deadline. Voting will be open indefinitely.
+                        Set a deadline for when voting will end.
                     </p>
                     {errors.deadline && (
                         <p className="mt-1 text-sm text-red-600">
                             {errors.deadline.message}
+                        </p>
+                    )}
+                </div>
+
+                {/* Vote Visibility */}
+                <div>
+                    <Label className="text-sm font-semibold text-gray-700">
+                        Vote Visibility
+                    </Label>
+                    <div className="mt-2 space-y-3">
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedVisibility === "public" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="public"
+                                {...register("visibility")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <Eye className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">Public</div>
+                                    <div className="text-sm opacity-90">Voters are public</div>
+                                </div>
+                            </div>
+                        </Label>
+
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                            watchedVisibility === "private" 
+                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : "border-gray-300 hover:border-gray-400"
+                        }`}>
+                            <input
+                                type="radio"
+                                value="private"
+                                {...register("visibility")}
+                                className="sr-only"
+                            />
+                            <div className="flex items-center">
+                                <UserX className="w-6 h-6 mr-3" />
+                                <div>
+                                    <div className="font-semibold">Private</div>
+                                    <div className="text-sm opacity-90">Voters are hidden</div>
+                                </div>
+                            </div>
+                        </Label>
+                    </div>
+                    {errors.visibility && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.visibility.message}
                         </p>
                     )}
                 </div>
@@ -263,6 +316,8 @@ export default function CreatePoll() {
                         <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
                             watchedMode === "point" 
                                 ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : watchedVisibility === "private"
+                                ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
                                 : "border-gray-300 hover:border-gray-400"
                         }`}>
                             <input
@@ -270,6 +325,7 @@ export default function CreatePoll() {
                                 value="point"
                                 {...register("mode")}
                                 className="sr-only"
+                                disabled={watchedVisibility === "private"}
                             />
                             <div className="flex items-center">
                                 <ChartLine className="w-6 h-6 mr-3" />
@@ -283,6 +339,8 @@ export default function CreatePoll() {
                         <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
                             watchedMode === "rank" 
                                 ? "border-(--crimson) bg-(--crimson) text-white" 
+                                : watchedVisibility === "private"
+                                ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
                                 : "border-gray-300 hover:border-gray-400"
                         }`}>
                             <input
@@ -290,6 +348,7 @@ export default function CreatePoll() {
                                 value="rank"
                                 {...register("mode")}
                                 className="sr-only"
+                                disabled={watchedVisibility === "private"}
                             />
                             <div className="flex items-center">
                                 <ListOrdered className="w-6 h-6 mr-3" />
@@ -361,59 +420,6 @@ export default function CreatePoll() {
                         </div>
                     </RadioGroup>
                     <p className="mt-2 text-sm text-gray-500">Coming soon - currently disabled</p>
-                </div>
-
-                {/* Vote Visibility */}
-                <div>
-                    <Label className="text-sm font-semibold text-gray-700">
-                        Vote Visibility
-                    </Label>
-                    <div className="mt-2 space-y-3">
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedVisibility === "public" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
-                                : "border-gray-300 hover:border-gray-400"
-                        }`}>
-                            <input
-                                type="radio"
-                                value="public"
-                                {...register("visibility")}
-                                className="sr-only"
-                            />
-                            <div className="flex items-center">
-                                <Eye className="w-6 h-6 mr-3" />
-                                <div>
-                                    <div className="font-semibold">Public</div>
-                                    <div className="text-sm opacity-90">Voters are public</div>
-                                </div>
-                            </div>
-                        </Label>
-
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedVisibility === "private" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
-                                : "border-gray-300 hover:border-gray-400"
-                        }`}>
-                            <input
-                                type="radio"
-                                value="private"
-                                {...register("visibility")}
-                                className="sr-only"
-                            />
-                            <div className="flex items-center">
-                                <UserX className="w-6 h-6 mr-3" />
-                                <div>
-                                    <div className="font-semibold">Private</div>
-                                    <div className="text-sm opacity-90">Voters are hidden</div>
-                                </div>
-                            </div>
-                        </Label>
-                    </div>
-                    {errors.visibility && (
-                        <p className="mt-1 text-sm text-red-600">
-                            {errors.visibility.message}
-                        </p>
-                    )}
                 </div>
 
                 {/* Vote Options */}

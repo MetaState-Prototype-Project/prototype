@@ -73,10 +73,31 @@ export interface SigningSession {
   expiresAt: string;
 }
 
+export interface PollsResponse {
+  polls: Poll[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const pollApi = {
-  // Get all polls
-  getAllPolls: async (): Promise<Poll[]> => {
-    const response = await apiClient.get("/api/polls");
+  // Get all polls with pagination
+  getAllPolls: async (page: number = 1, limit: number = 15, search?: string, sortField?: string, sortDirection?: "asc" | "desc"): Promise<PollsResponse> => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (search) {
+      params.append('search', search);
+    }
+    if (sortField) {
+      params.append('sortField', sortField);
+    }
+    if (sortDirection) {
+      params.append('sortDirection', sortDirection);
+    }
+    
+    const response = await apiClient.get(`/api/polls?${params.toString()}`);
     return response.data;
   },
 
@@ -133,7 +154,13 @@ export const pollApi = {
   // Get user's vote for a poll
   getUserVote: async (pollId: string, userId: string): Promise<{ hasVoted: boolean; vote: Vote | null }> => {
     const response = await apiClient.get(`/api/polls/${pollId}/vote?userId=${userId}`);
-    return response.data;
+    const vote = response.data;
+    
+    // Transform backend response (Vote | null) to frontend expected format
+    return {
+      hasVoted: !!vote,  // true if vote exists, false if null
+      vote: vote         // the actual vote object or null
+    };
   },
 
   // Get poll results

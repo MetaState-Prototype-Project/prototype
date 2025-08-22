@@ -15,11 +15,86 @@ export class PollService {
         this.messageService = new MessageService();
     }
 
-    async getAllPolls(): Promise<Poll[]> {
-        return await this.pollRepository.find({
+    async getAllPolls(page: number = 1, limit: number = 15, search?: string, sortField: string = "deadline", sortDirection: "asc" | "desc" = "asc"): Promise<{ polls: Poll[]; total: number; page: number; limit: number; totalPages: number }> {
+        // First, get all polls that match the search criteria (without pagination)
+        let whereClause: any = {};
+        if (search) {
+            whereClause = [
+                { title: { $regex: search, $options: 'i' } as any },
+                { creator: { name: { $regex: search, $options: 'i' } as any } }
+            ];
+        }
+
+        const [allPolls, total] = await this.pollRepository.findAndCount({
+            where: whereClause,
             relations: ["creator"],
-            order: { createdAt: "DESC" }
+            order: { 
+                createdAt: "DESC" // Most recent first as base order
+            }
         });
+
+        // Custom sorting based on sortField and sortDirection
+        const sortedPolls = allPolls.sort((a, b) => {
+            const now = new Date();
+            const aIsActive = !a.deadline || new Date(a.deadline) > now;
+            const bIsActive = !b.deadline || new Date(b.deadline) > now;
+            
+            // ALWAYS show active polls first, UNLESS sorting by status
+            if (sortField !== "status") {
+                if (aIsActive && !bIsActive) return -1;
+                if (!aIsActive && bIsActive) return 1;
+            }
+            
+            // If both are active or both are ended, apply the user's chosen sorting
+            let comparison = 0;
+            
+            switch (sortField) {
+                case "title":
+                    comparison = a.title.localeCompare(b.title);
+                    break;
+                case "mode":
+                    comparison = a.mode.localeCompare(b.mode);
+                    break;
+                case "visibility":
+                    comparison = a.visibility.localeCompare(b.visibility);
+                    break;
+                case "status":
+                    // When sorting by status, allow proper Active/Ended sorting
+                    if (aIsActive && !bIsActive) comparison = -1;
+                    else if (!aIsActive && bIsActive) comparison = 1;
+                    else comparison = 0;
+                    break;
+                case "votes":
+                    const aVotes = a.votes?.length || 0;
+                    const bVotes = b.votes?.length || 0;
+                    comparison = aVotes - bVotes;
+                    break;
+                case "deadline":
+                default:
+                    if (!a.deadline && !b.deadline) comparison = 0;
+                    else if (!a.deadline) comparison = 1;
+                    else if (!b.deadline) comparison = -1;
+                    else comparison = new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+                    break;
+            }
+            
+            // Apply sort direction
+            return sortDirection === "asc" ? comparison : -comparison;
+        });
+
+        // Now apply pagination to the sorted results
+        const skip = (page - 1) * limit;
+        const paginatedPolls = sortedPolls.slice(skip, skip + limit);
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            polls: paginatedPolls,
+            total,
+            page,
+            limit,
+            totalPages
+        };
     }
 
     async getPollById(id: string): Promise<Poll | null> {
