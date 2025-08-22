@@ -657,9 +657,10 @@
 
 		<!-- Flow Messages Panel -->
 		<div
-			class="flex h-full w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
+			class="flex w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
+			style="height: calc(100vh - 80px);"
 		>
-			<div class="mb-4">
+			<div class="mb-4 flex-shrink-0">
 				<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
 				<div class="mt-2 text-sm text-gray-600">
 					Current Step: {currentFlowStep === 0
@@ -678,7 +679,7 @@
 				</div>
 			</div>
 
-			<div class="flex-1 space-y-2 overflow-y-auto">
+			<div class="flex-1 space-y-2 overflow-y-auto pr-2">
 				{#each flowMessages as message, i}
 					<div class="rounded bg-gray-50 p-2 font-mono text-sm">
 						{message}
