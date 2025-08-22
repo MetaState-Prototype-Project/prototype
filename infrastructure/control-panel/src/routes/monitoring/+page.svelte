@@ -47,7 +47,6 @@
 			(!selectedEVaults || selectedEVaults.length === 0) &&
 			(!selectedPlatforms || selectedPlatforms.length === 0)
 		) {
-			// Don't redirect, just show empty state
 			return;
 		}
 
