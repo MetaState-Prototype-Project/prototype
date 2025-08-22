@@ -46,11 +46,48 @@
 		const newNodes: Node[] = [];
 		let nodeId = 1;
 
-		// Add eVaults in a column on the left (x: 200, y: starting from 150)
+		// Add service nodes at the top (x: 400, 600, 800, y: 50)
+		newNodes.push({
+			id: 'registry',
+			position: { x: 400, y: 50 },
+			data: {
+				label: 'Registry',
+				subLabel: 'Service',
+				type: 'service',
+				selected: false
+			},
+			type: 'vault'
+		});
+
+		newNodes.push({
+			id: 'ontology',
+			position: { x: 600, y: 50 },
+			data: {
+				label: 'Ontology Service',
+				subLabel: 'Service',
+				type: 'service',
+				selected: false
+			},
+			type: 'vault'
+		});
+
+		newNodes.push({
+			id: 'provisioner',
+			position: { x: 800, y: 50 },
+			data: {
+				label: 'eVault Provisioner',
+				subLabel: 'Service',
+				type: 'service',
+				selected: false
+			},
+			type: 'vault'
+		});
+
+		// Add eVaults in a column on the left (x: 200, y: starting from 500)
 		selectedEVaults.forEach((evault, index) => {
 			newNodes.push({
 				id: `evault-${index + 1}`,
-				position: { x: 200, y: 150 + index * 180 },
+				position: { x: 200, y: 500 + index * 180 },
 				data: {
 					label: evault.evaultId || evault.name || 'eVault',
 					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
@@ -61,11 +98,11 @@
 			});
 		});
 
-		// Add platforms in a column on the right (x: 800, y: starting from 150)
+		// Add platforms in a column on the right (x: 800, y: starting from 500)
 		selectedPlatforms.forEach((platform, index) => {
 			newNodes.push({
 				id: `platform-${index + 1}`,
-				position: { x: 800, y: 150 + index * 180 },
+				position: { x: 800, y: 500 + index * 180 },
 				data: {
 					label: platform.name,
 					subLabel: platform.url,
@@ -82,6 +119,13 @@
 
 		// Load SvelteFlow component
 		loadSvelteFlow();
+
+		// Start subscription immediately on mount
+		subscribeToEvents();
+
+		// Initialize sequence state to show we're ready
+		sequenceStarted = true;
+		currentFlowStep = 0;
 	});
 
 	async function loadSvelteFlow() {
@@ -378,13 +422,10 @@
 		// Don't clear flowMessages - keep old logs
 		edges = [];
 
-		// Close existing connection if any
-		if (eventSource) {
-			eventSource.close();
+		// Only start new SSE connection if one doesn't exist
+		if (!eventSource) {
+			subscribeToEvents();
 		}
-
-		// Start new SSE connection
-		subscribeToEvents();
 	}
 
 	// Function to reset the sequence
@@ -435,7 +476,7 @@
 
 <section class="flex h-full w-full">
 	<div class="bg-gray flex h-screen w-screen flex-col">
-		<div class="z-10 flex w-full items-center justify-between bg-white p-4 shadow-sm">
+		<div class="z-10 flex w-full items-center justify-between bg-white p-4">
 			<div>
 				<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
 				<p class="mt-1 text-sm text-gray-600">
@@ -543,30 +584,25 @@
 
 	<!-- Flow Messages Panel -->
 	<div
-		class="flex h-full w-[40%] cursor-pointer flex-col bg-white p-4 shadow-sm transition-colors hover:bg-gray-50"
-		onclick={!sequenceStarted || currentFlowStep >= 4 ? startSequence : undefined}
-		class:cursor-pointer={!sequenceStarted || currentFlowStep >= 4}
-		class:cursor-default={sequenceStarted && currentFlowStep < 4}
+		class="flex h-full w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
 	>
 		<div class="mb-4">
 			<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
-			{#if sequenceStarted}
-				<div class="mt-2 text-sm text-gray-600">
-					Current Step: {currentFlowStep === 0
-						? 'Waiting...'
-						: currentFlowStep === 1
-							? 'Platform creating entry locally'
-							: currentFlowStep === 2
-								? 'Syncing to eVault'
-								: currentFlowStep === 3
-									? 'eVault created metaenvelope'
-									: currentFlowStep === 4
-										? 'Awareness Protocol'
-										: currentFlowStep === 5
-											? 'All platforms notified'
-											: 'Complete'}
-				</div>
-			{/if}
+			<div class="mt-2 text-sm text-gray-600">
+				Current Step: {currentFlowStep === 0
+					? 'Waiting for events...'
+					: currentFlowStep === 1
+						? 'Platform creating entry locally'
+						: currentFlowStep === 2
+							? 'Syncing to eVault'
+							: currentFlowStep === 3
+								? 'eVault created metaenvelope'
+								: currentFlowStep === 4
+									? 'Awareness Protocol'
+									: currentFlowStep === 5
+										? 'All platforms notified'
+										: 'Complete'}
+			</div>
 		</div>
 
 		<div class="flex-1 space-y-2 overflow-y-auto">
@@ -616,5 +652,12 @@
 	/* Override the default edge path to be more curved */
 	:global(.svelte-flow__edge.default .svelte-flow__edge-path) {
 		stroke-dasharray: none !important;
+	}
+
+	/* Hide handles on service nodes */
+	:global(.svelte-flow__node[data-id='registry'] .svelte-flow__handle),
+	:global(.svelte-flow__node[data-id='ontology'] .svelte-flow__handle),
+	:global(.svelte-flow__node[data-id='provisioner'] .svelte-flow__handle) {
+		visibility: hidden !important;
 	}
 </style>
