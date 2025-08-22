@@ -1,10 +1,15 @@
 import { transport as pinoTransport } from "pino";
 import type { LokiOptions } from "pino-loki";
+import dotenv from "dotenv";
+import path from "path";
+
+const envPath = path.resolve(__dirname, "../../../../.env")
+dotenv.config({ path: envPath})
 
 export const transport = pinoTransport<LokiOptions>({
     target: "pino-loki",
     options: {
-        host: process.env.LOKI_URL || "http://localhost:3100",
+        host: process.env.LOKI_URL as string,
         labels: {
             app: "web3-adapter",
         },
