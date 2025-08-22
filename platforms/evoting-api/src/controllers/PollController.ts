@@ -23,7 +23,8 @@ export class PollController {
                 });
             }
 
-            const result = await this.pollService.getAllPolls(page, limit, search, sortField, sortDirection);
+            const userId = (req as any).user.id;
+            const result = await this.pollService.getAllPolls(page, limit, search, sortField, sortDirection, userId);
             res.json(result);
         } catch (error) {
             console.error("Error fetching polls:", error);

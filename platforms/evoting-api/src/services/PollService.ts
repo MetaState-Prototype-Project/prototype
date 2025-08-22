@@ -2,6 +2,7 @@ import { Repository } from "typeorm";
 import { AppDataSource } from "../database/data-source";
 import { Poll } from "../database/entities/Poll";
 import { User } from "../database/entities/User";
+import { Group } from "../database/entities/Group";
 import { MessageService } from "./MessageService";
 
 export class PollService {
@@ -15,7 +16,7 @@ export class PollService {
         this.messageService = new MessageService();
     }
 
-    async getAllPolls(page: number = 1, limit: number = 15, search?: string, sortField: string = "deadline", sortDirection: "asc" | "desc" = "asc"): Promise<{ polls: Poll[]; total: number; page: number; limit: number; totalPages: number }> {
+    async getAllPolls(page: number = 1, limit: number = 15, search?: string, sortField: string = "deadline", sortDirection: "asc" | "desc" = "asc", userId?: string): Promise<{ polls: Poll[]; total: number; page: number; limit: number; totalPages: number }> {
         // First, get all polls that match the search criteria (without pagination)
         let whereClause: any = {};
         if (search) {
@@ -23,6 +24,29 @@ export class PollService {
                 { title: { $regex: search, $options: 'i' } as any },
                 { creator: { name: { $regex: search, $options: 'i' } as any } }
             ];
+        }
+
+        // Get user's group memberships if userId is provided
+        let userGroupIds: string[] = [];
+        if (userId) {
+            const user = await this.userRepository.findOne({
+                where: { id: userId },
+                relations: ['followers', 'following'] // This will include group memberships
+            });
+            
+            if (user) {
+                // Get groups where user is a member, admin, or participant
+                const groupRepository = AppDataSource.getRepository(Group);
+                const userGroups = await groupRepository
+                    .createQueryBuilder('group')
+                    .leftJoin('group.members', 'member')
+                    .leftJoin('group.admins', 'admin')
+                    .leftJoin('group.participants', 'participant')
+                    .where('member.id = :userId OR admin.id = :userId OR participant.id = :userId', { userId })
+                    .getMany();
+                
+                userGroupIds = userGroups.map(group => group.id);
+            }
         }
 
         const [allPolls, total] = await this.pollRepository.findAndCount({
@@ -33,8 +57,25 @@ export class PollService {
             }
         });
 
+        // Filter polls based on user's group memberships
+        let filteredPolls = allPolls;
+        if (userId && userGroupIds.length > 0) {
+            filteredPolls = allPolls.filter(poll => {
+                // Show polls that:
+                // 1. Have no groupId (public polls)
+                // 2. Belong to groups where user is a member/admin/participant
+                // 3. Are created by the user themselves
+                return !poll.groupId || 
+                       userGroupIds.includes(poll.groupId) || 
+                       poll.creatorId === userId;
+            });
+        } else if (userId) {
+            // If user has no group memberships, only show their own polls and public polls
+            filteredPolls = allPolls.filter(poll => !poll.groupId || poll.creatorId === userId);
+        }
+
         // Custom sorting based on sortField and sortDirection
-        const sortedPolls = allPolls.sort((a, b) => {
+        const sortedPolls = filteredPolls.sort((a, b) => {
             const now = new Date();
             const aIsActive = !a.deadline || new Date(a.deadline) > now;
             const bIsActive = !b.deadline || new Date(b.deadline) > now;
@@ -86,11 +127,11 @@ export class PollService {
         const skip = (page - 1) * limit;
         const paginatedPolls = sortedPolls.slice(skip, skip + limit);
 
-        const totalPages = Math.ceil(total / limit);
+        const totalPages = Math.ceil(filteredPolls.length / limit);
 
         return {
             polls: paginatedPolls,
-            total,
+            total: filteredPolls.length,
             page,
             limit,
             totalPages
