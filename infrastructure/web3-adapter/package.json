@@ -16,6 +16,7 @@
     "dependencies": {
         "@types/node": "^24.0.0",
         "axios": "^1.6.7",
+        "dotenv": "^17.2.1",
         "evault-core": "workspace:*",
         "graphql-request": "^6.1.0",
         "pino": "^9.8.0",
