@@ -181,7 +181,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // For Message entities, only process if they are system messages
         if (tableName === "messages") {
             // Check if this is a system message (starts with $$system-message$$)
-            const isSystemMessage = data.content && typeof data.content === 'string' && data.content.startsWith('$$system-message$$');
+            const isSystemMessage = data.text && data.text.includes('$$system-message$$');
+
             
             if (!isSystemMessage) {
                 console.log("📝 Skipping non-system message:", data.id);
