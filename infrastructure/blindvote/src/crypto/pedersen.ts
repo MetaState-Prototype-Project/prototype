@@ -286,7 +286,16 @@ function addPoints(arr: any[]) {
  * Helper function to compare encodings
  */
 function encEq(A: any, B: any) { 
-  return Buffer.from(A.toRawBytes()).equals(Buffer.from(B.toRawBytes())); 
+  const bytesA = A.toRawBytes();
+  const bytesB = B.toRawBytes();
+  
+  if (bytesA.length !== bytesB.length) return false;
+  
+  for (let i = 0; i < bytesA.length; i++) {
+    if (bytesA[i] !== bytesB[i]) return false;
+  }
+  
+  return true;
 }
 
 export function verifyFinal(C_aggb: Uint8Array, H_Sb: Uint8Array, M: number): boolean {

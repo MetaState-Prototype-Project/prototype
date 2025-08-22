@@ -69,6 +69,10 @@
 		} else {
 			selectedEVaults = selectedEVaults.filter((i) => i !== index);
 		}
+
+		// Store selections immediately in sessionStorage
+		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
 	}
 
 	// Handle platform selection changes
@@ -78,6 +82,10 @@
 		} else {
 			selectedPlatforms = selectedPlatforms.filter((i) => i !== index);
 		}
+
+		// Store selections immediately in sessionStorage
+		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
 	}
 
 	// Navigate to monitoring with selected items
