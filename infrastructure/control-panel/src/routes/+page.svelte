@@ -247,15 +247,4 @@
 			/>
 		{/if}
 	</TableCard>
-
-	<!-- Start Monitoring Button -->
-	<div class="mt-8 flex justify-center">
-		<button
-			onclick={goToMonitoring}
-			disabled={selectedEVaults.length === 0 && selectedPlatforms.length === 0}
-			class="bg-primary hover:bg-primary-600 rounded-full px-8 py-3 text-lg font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-		>
-			Start Monitoring
-		</button>
-	</div>
 </section>

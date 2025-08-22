@@ -42,6 +42,15 @@
 			selectedPlatforms = JSON.parse(platformsData);
 		}
 
+		// Check if any items are selected, if not redirect back to home
+		if (
+			(!selectedEVaults || selectedEVaults.length === 0) &&
+			(!selectedPlatforms || selectedPlatforms.length === 0)
+		) {
+			goto('/');
+			return;
+		}
+
 		// Create nodes from selected items
 		const newNodes: Node[] = [];
 		let nodeId = 1;
