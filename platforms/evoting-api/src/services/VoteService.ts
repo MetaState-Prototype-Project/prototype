@@ -47,13 +47,15 @@ export class VoteService {
       const optionArray = optionId !== undefined ? [optionId.toString()] : [];
       typedData = { mode: "normal", data: optionArray };
     } else if (mode === "point") {
-      // Frontend sends { 0: 50, 1: 50 }, convert to [{ option: "0", points: 50 }, { option: "1", points: 50 }]
+      // Frontend sends { points: { 0: 50, 1: 50 } }, store it directly
       const pointsData = voteData as any;
-      const convertedData = Object.entries(pointsData).map(([index, points]) => ({
-        option: index,
-        points: points as number
-      }));
-      typedData = { mode: "point", data: convertedData };
+      if (pointsData.points && typeof pointsData.points === 'object') {
+        // Store the points object directly: { "0": 50, "1": 50 }
+        typedData = { mode: "point", data: pointsData.points };
+      } else {
+        // Fallback for direct object format
+        typedData = { mode: "point", data: pointsData };
+      }
     } else {
       // Frontend sends { 0: 1, 1: 2 }, convert to [{ option: "0", points: 1 }, { option: "1", points: 2 }]
       const ranksData = voteData as any;
@@ -132,13 +134,109 @@ export class VoteService {
         totalVotes,
         results
       };
+    } else if (poll.mode === "point") {
+      // Calculate point-based voting results
+      const optionPoints: Record<string, number> = {};
+      poll.options.forEach((option, index) => {
+        optionPoints[option] = 0;
+      });
+
+      votes.forEach((vote) => {
+        if (vote.data.mode === "point" && Array.isArray(vote.data.data)) {
+          // Handle the stored format: [{ option: "points", points: { "0": 100 } }]
+          vote.data.data.forEach((item: any) => {
+            if (item.option === "points" && item.points && typeof item.points === 'object') {
+              Object.entries(item.points).forEach(([optionIndex, points]) => {
+                const index = parseInt(optionIndex);
+                const option = poll.options[index];
+                if (option && typeof points === 'number') {
+                  optionPoints[option] += points;
+                }
+              });
+            }
+          });
+        }
+      });
+
+      const totalVotes = votes.length;
+      const results = poll.options.map((option, index) => {
+        const points = optionPoints[option] || 0;
+        const averagePoints = totalVotes > 0 ? points / totalVotes : 0;
+        return {
+          option,
+          totalPoints: points,
+          averagePoints: Math.round(averagePoints * 100) / 100,
+          votes: totalVotes
+        };
+      });
+
+      // Sort by total points (highest first)
+      results.sort((a, b) => b.totalPoints - a.totalPoints);
+
+      return {
+        pollId,
+        totalVotes,
+        mode: "point",
+        results
+      };
+    } else if (poll.mode === "rank") {
+      // Calculate rank-based voting results using Borda count
+      const optionScores: Record<string, number> = {};
+      poll.options.forEach((option, index) => {
+        optionScores[option] = 0;
+      });
+
+      votes.forEach(vote => {
+        if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
+          // Handle the stored format: [{ option: "ranks", points: { "0": 1, "1": 2, "2": 3 } }]
+          vote.data.data.forEach((item: any) => {
+            if (item.option === "ranks" && item.points && typeof item.points === 'object') {
+              // Sort by rank (lowest number = highest rank)
+              const sortedRankings = Object.entries(item.points).sort((a, b) => (a[1] as number) - (b[1] as number));
+              
+              sortedRankings.forEach((rankData, rankIndex) => {
+                const optionIndex = parseInt(rankData[0]);
+                const option = poll.options[optionIndex];
+                if (option) {
+                  // Borda count: first place gets n points, second gets n-1, etc.
+                  const points = poll.options.length - rankIndex;
+                  optionScores[option] += points;
+                }
+              });
+            }
+          });
+        }
+      });
+
+      const totalVotes = votes.length;
+      const results = poll.options.map((option, index) => {
+        const score = optionScores[option] || 0;
+        const averageScore = totalVotes > 0 ? score / totalVotes : 0;
+        return {
+          option,
+          totalScore: score,
+          averageScore: Math.round(averageScore * 100) / 100,
+          votes: totalVotes // All voters participated in ranking
+        };
+      });
+
+      // Sort by total score (highest first)
+      results.sort((a, b) => b.totalScore - a.totalScore);
+
+      return {
+        pollId,
+        totalVotes,
+        mode: "rank",
+        results
+      };
     }
 
-    // For other modes, return basic info
+    // Fallback for unknown modes
     return {
       pollId,
       totalVotes: votes.length,
-      mode: poll.mode
+      mode: poll.mode,
+      error: "Unsupported voting mode for results calculation"
     };
   }
 
@@ -275,9 +373,6 @@ export class VoteService {
       // Re-register voters and re-submit votes
       for (const vote of blindVotes) {
         const blindVoteData = vote.data as any;
-        console.log('🔍 Debug blindVoteData:', blindVoteData);
-        console.log('🔍 Debug blindVoteData.commitment:', blindVoteData.commitment);
-        console.log('🔍 Debug typeof commitment:', typeof blindVoteData.commitment);
         
         try {
           const voteData = JSON.parse(blindVoteData.commitment);

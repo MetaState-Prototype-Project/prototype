@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Vote, CheckCircle, Eye, UserX } from "lucide-react";
+import { Vote, CheckCircle, Eye, UserX, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -52,13 +52,59 @@ export default function VotingInterface({ poll, userId, hasVoted, onVoteSubmitte
   };
 
   if (hasVoted) {
-    return (
-      <div className="text-center py-8">
-        <CheckCircle className="text-green-500 h-16 w-16 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Already Voted</h3>
-        <p className="text-gray-600">You have already voted on this poll</p>
-      </div>
-    );
+    // Show different content based on poll type
+    if (isPrivatePoll) {
+      return (
+        <div className="text-center py-8">
+          <Shield className="text-blue-500 h-16 w-16 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Blind Vote Submitted</h3>
+          <p className="text-gray-600">Your private vote has been submitted successfully</p>
+          <p className="text-sm text-gray-500 mt-2">This is a blind vote - your choice remains hidden until revealed</p>
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Your vote cannot be revealed and you can check back for results once they are declared.
+            </p>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="space-y-6">
+          {/* Show that user has voted */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-900 mb-2">Vote Submitted</h3>
+                <p className="text-gray-600">You have already voted on this poll</p>
+                <p className="text-sm text-gray-500 mt-2">Results will be shown when the poll ends</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Show voting options with user's choice highlighted (grayed out, non-interactive) */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Voting Options:
+            </h3>
+            <div className="space-y-3">
+              {poll.options.map((option, index) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-3 p-3 border rounded-lg bg-gray-50 border-gray-200 opacity-60"
+                >
+                  <div className="flex-1">
+                    <Label className="text-base text-gray-500">
+                      {option}
+                    </Label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 
   // For private polls, show the blind voting interface

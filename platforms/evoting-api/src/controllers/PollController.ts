@@ -10,8 +10,21 @@ export class PollController {
 
     getAllPolls = async (req: Request, res: Response) => {
         try {
-            const polls = await this.pollService.getAllPolls();
-            res.json(polls);
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 15; // Default to 15
+            const search = req.query.search as string;
+            const sortField = req.query.sortField as string || "deadline";
+            const sortDirection = req.query.sortDirection as "asc" | "desc" || "asc";
+
+            // Validate pagination parameters
+            if (page < 1 || limit < 1 || limit > 100) {
+                return res.status(400).json({ 
+                    error: "Invalid pagination parameters. Page must be >= 1, limit must be between 1 and 100." 
+                });
+            }
+
+            const result = await this.pollService.getAllPolls(page, limit, search, sortField, sortDirection);
+            res.json(result);
         } catch (error) {
             console.error("Error fetching polls:", error);
             res.status(500).json({ error: "Failed to fetch polls" });
