@@ -303,15 +303,23 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         console.log(data, entity)
         if (!data.id) return;
         
-        // Special logging for Message entities to track group and admin data
+        // For Message entities, only process if they are system messages
         if (tableName === "messages") {
-            console.log("📝 Processing Message change:", {
+            // Check if this is a system message (starts with $$system-message$$)
+            const isSystemMessage = data.content && typeof data.content === 'string' && data.content.startsWith('$$system-message$$');
+            
+            if (!isSystemMessage) {
+                console.log("📝 Skipping non-system message:", data.id);
+                return;
+            }
+            
+            console.log("📝 Processing system message:", {
                 id: data.id,
                 hasGroup: !!data.group,
                 groupId: data.group?.id,
                 hasAdmins: !!data.group?.admins,
                 adminCount: data.group?.admins?.length || 0,
-                isSystemMessage: data.isSystemMessage
+                isSystemMessage: true
             });
         }
         
