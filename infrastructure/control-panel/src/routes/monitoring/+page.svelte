@@ -53,14 +53,6 @@
 			return;
 		}
 
-		// Check if any items are selected, if not show selection interface
-		if (
-			(!selectedEVaults || selectedEVaults.length === 0) &&
-			(!selectedPlatforms || selectedPlatforms.length === 0)
-		) {
-			return;
-		}
-
 		// Create nodes from selected items
 		const newNodes: Node[] = [];
 		let nodeId = 1;
@@ -223,6 +215,12 @@
 			platform: data.platform,
 			w3id: data.w3id
 		});
+
+		// Skip visualization if no matching eVault found
+		if (evaultIndex === -1) {
+			console.log('Skipping visualization - no matching eVault found');
+			return;
+		}
 
 		// Step 1: Platform creates entry locally
 		currentFlowStep = 1;
@@ -504,9 +502,13 @@
 		console.log('getEvaultIndex called with w3id:', w3id);
 		console.log('selectedEVaults:', selectedEVaults);
 
-		// Since evaultId is the same as w3id, prioritize that match
+		// Strip the @ symbol from w3id if present
+		const cleanW3id = w3id.replace('@', '');
+		console.log('Cleaned w3id:', cleanW3id);
+
+		// Since evaultId is the same as w3id (without @), prioritize that match
 		const index = selectedEVaults.findIndex((e) => {
-			const matches = e.evaultId === w3id;
+			const matches = e.evaultId === cleanW3id;
 
 			if (matches) {
 				console.log('Found matching eVault by evaultId:', e);
@@ -523,15 +525,15 @@
 
 		// If no match found, log all available evaultIds for debugging
 		if (index === -1) {
-			console.log('No match found for w3id:', w3id);
+			console.log('No match found for cleaned w3id:', cleanW3id);
 			console.log('Available evaultIds:');
 			selectedEVaults.forEach((evault, i) => {
 				console.log(`eVault ${i}: evaultId = "${evault.evaultId}"`);
 			});
 
-			// Fall back to index 0 if no match found
-			console.log('Falling back to index 0');
-			return 0;
+			// Return -1 to indicate no match found
+			console.log('No matching eVault found, skipping visualization');
+			return -1;
 		}
 
 		return index;
