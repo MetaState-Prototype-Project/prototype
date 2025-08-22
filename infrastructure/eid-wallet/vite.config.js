@@ -11,8 +11,8 @@ export default defineConfig(async () => ({
         tailwindcss(), 
         sveltekit(),
         nodePolyfills({
-            // Polyfill all Node.js core modules
-            include: ['buffer', 'crypto', 'stream', 'util'],
+            // Polyfill specific Node.js core modules
+            include: ['buffer', 'crypto'],
             // Polyfill globals
             globals: {
                 Buffer: true,
@@ -35,13 +35,30 @@ export default defineConfig(async () => ({
 
     // Handle workspace dependencies
     optimizeDeps: {
-        include: ['blindvote']
+        include: ['blindvote'],
+        esbuildOptions: {
+            // Node.js global to ES global conversion
+            define: {
+                global: 'globalThis',
+            },
+        },
     },
 
     // Handle Node.js modules in browser environment
     resolve: {
         alias: {
-            'noble-secp256k1': 'noble-secp256k1'
+            'noble-secp256k1': 'noble-secp256k1',
+            'blindvote': '../blindvote/src/index.ts'
+        }
+    },
+
+    // Build configuration
+    build: {
+        rollupOptions: {
+            external: [],
+        },
+        commonjsOptions: {
+            include: [/blindvote/, /node_modules/]
         }
     },
 

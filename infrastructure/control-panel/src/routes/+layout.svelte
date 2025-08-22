@@ -31,7 +31,25 @@
 					size="sm"
 					class="whitespace-nowrap"
 					variant="solid"
-					callback={() => goto('/monitoring')}>Start Monitoring</ButtonAction
+					callback={() => {
+						// Get selected items from the current page
+						const evaultsData = sessionStorage.getItem('selectedEVaults');
+						const platformsData = sessionStorage.getItem('selectedPlatforms');
+
+						// If no items selected, show alert
+						if (
+							(!evaultsData || JSON.parse(evaultsData).length === 0) &&
+							(!platformsData || JSON.parse(platformsData).length === 0)
+						) {
+							alert(
+								'Please select eVaults and/or platforms first before starting monitoring.'
+							);
+							return;
+						}
+
+						// Navigate to monitoring
+						goto('/monitoring');
+					}}>Start Monitoring</ButtonAction
 				>
 			</div>
 		{:else}

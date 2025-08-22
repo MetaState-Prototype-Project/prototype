@@ -42,12 +42,11 @@
 			selectedPlatforms = JSON.parse(platformsData);
 		}
 
-		// Check if any items are selected, if not redirect back to home
+		// Check if any items are selected, if not show selection interface
 		if (
 			(!selectedEVaults || selectedEVaults.length === 0) &&
 			(!selectedPlatforms || selectedPlatforms.length === 0)
 		) {
-			goto('/');
 			return;
 		}
 
@@ -483,69 +482,77 @@
 	}
 </script>
 
-<section class="flex h-full w-full">
-	<div class="bg-gray flex h-screen w-screen flex-col">
-		<div class="z-10 flex w-full items-center justify-between bg-white p-4">
-			<div>
-				<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
-				<p class="mt-1 text-sm text-gray-600">
-					Monitoring {selectedEVaults.length} eVault{selectedEVaults.length !== 1
-						? 's'
-						: ''} and {selectedPlatforms.length} platform{selectedPlatforms.length !== 1
-						? 's'
-						: ''}
-				</p>
-				{#if currentFlowStep > 0}
-					<div class="mt-2 flex items-center gap-2">
-						<div class="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
-						<span class="text-xs font-medium text-green-600">
-							{currentFlowStep === 1
-								? 'Platform creating entry locally'
-								: currentFlowStep === 2
-									? 'Syncing to eVault'
-									: currentFlowStep === 3
-										? 'eVault created metaenvelope'
-										: currentFlowStep === 4
-											? 'Awareness Protocol'
-											: currentFlowStep === 5
-												? 'All platforms notified'
-												: 'Complete'}
-						</span>
-					</div>
-				{/if}
-			</div>
-			<div class="flex gap-2">
-				<button
-					onclick={() => goto('/')}
-					class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-				>
-					← Back to Control Panel
-				</button>
-				<button
-					onclick={() => (isPaused = !isPaused)}
-					class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
-				>
-					{#if isPaused}
-						<HugeiconsIcon icon={PlayFreeIcons} size="20px" />
-					{:else}
-						<HugeiconsIcon icon={PauseFreeIcons} size="20px" />
-					{/if}
-					{isPaused ? 'Resume Live Feed' : 'Pause Live Feed'}
-				</button>
-			</div>
+{#if (!selectedEVaults || selectedEVaults.length === 0) && (!selectedPlatforms || selectedPlatforms.length === 0)}
+	<!-- No items selected - show selection interface -->
+	<div class="flex h-full w-full items-center justify-center">
+		<div class="text-center">
+			<h2 class="mb-4 text-2xl font-bold text-gray-900">No Items Selected</h2>
+			<p class="mb-6 text-gray-600">
+				Please select eVaults and/or platforms from the home page to start monitoring.
+			</p>
+			<button
+				onclick={() => goto('/')}
+				class="bg-primary hover:bg-primary-600 rounded-full px-8 py-3 text-lg font-semibold text-white transition-colors"
+			>
+				Back to Selection
+			</button>
 		</div>
-
-		{#if SvelteFlowComponent}
-			{#if selectedEVaults.length === 0 && selectedPlatforms.length === 0}
-				<div class="flex flex-grow items-center justify-center">
-					<div class="text-center">
-						<h3 class="mb-2 text-xl font-semibold text-gray-700">No Items Selected</h3>
-						<p class="text-gray-500">
-							Go back to the main page and select eVaults and platforms to monitor.
-						</p>
-					</div>
+	</div>
+{:else}
+	<section class="flex h-full w-full">
+		<div class="bg-gray flex h-screen w-screen flex-col">
+			<div class="z-10 flex w-full items-center justify-between bg-white p-4">
+				<div>
+					<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
+					<p class="mt-1 text-sm text-gray-600">
+						Monitoring {selectedEVaults.length} eVault{selectedEVaults.length !== 1
+							? 's'
+							: ''} and {selectedPlatforms.length} platform{selectedPlatforms.length !==
+						1
+							? 's'
+							: ''}
+					</p>
+					{#if currentFlowStep > 0}
+						<div class="mt-2 flex items-center gap-2">
+							<div class="h-3 w-3 animate-pulse rounded-full bg-green-500"></div>
+							<span class="text-xs font-medium text-green-600">
+								{currentFlowStep === 1
+									? 'Platform creating entry locally'
+									: currentFlowStep === 2
+										? 'Syncing to eVault'
+										: currentFlowStep === 3
+											? 'eVault created metaenvelope'
+											: currentFlowStep === 4
+												? 'Awareness Protocol'
+												: currentFlowStep === 5
+													? 'All platforms notified'
+													: 'Complete'}
+							</span>
+						</div>
+					{/if}
 				</div>
-			{:else}
+				<div class="flex gap-2">
+					<button
+						onclick={() => goto('/')}
+						class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+					>
+						← Back to Control Panel
+					</button>
+					<button
+						onclick={() => (isPaused = !isPaused)}
+						class="font-geist flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-md transition-colors hover:bg-gray-50"
+					>
+						{#if isPaused}
+							<HugeiconsIcon icon={PlayFreeIcons} size="20px" />
+						{:else}
+							<HugeiconsIcon icon={PauseFreeIcons} size="20px" />
+						{/if}
+						{isPaused ? 'Resume Live Feed' : 'Pause Live Feed'}
+					</button>
+				</div>
+			</div>
+
+			{#if SvelteFlowComponent}
 				<div class="flex-grow">
 					<SvelteFlow
 						bind:nodes
@@ -583,46 +590,46 @@
 						</svg>
 					</SvelteFlow>
 				</div>
-			{/if}
-		{:else}
-			<div class="flex flex-grow items-center justify-center text-gray-700">
-				Loading flow chart...
-			</div>
-		{/if}
-	</div>
-
-	<!-- Flow Messages Panel -->
-	<div
-		class="flex h-full w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
-	>
-		<div class="mb-4">
-			<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
-			<div class="mt-2 text-sm text-gray-600">
-				Current Step: {currentFlowStep === 0
-					? 'Waiting for events...'
-					: currentFlowStep === 1
-						? 'Platform creating entry locally'
-						: currentFlowStep === 2
-							? 'Syncing to eVault'
-							: currentFlowStep === 3
-								? 'eVault created metaenvelope'
-								: currentFlowStep === 4
-									? 'Awareness Protocol'
-									: currentFlowStep === 5
-										? 'All platforms notified'
-										: 'Complete'}
-			</div>
-		</div>
-
-		<div class="flex-1 space-y-2 overflow-y-auto">
-			{#each flowMessages as message, i}
-				<div class="rounded bg-gray-50 p-2 font-mono text-sm">
-					{message}
+			{:else}
+				<div class="flex flex-grow items-center justify-center text-gray-700">
+					Loading flow chart...
 				</div>
-			{/each}
+			{/if}
 		</div>
-	</div>
-</section>
+
+		<!-- Flow Messages Panel -->
+		<div
+			class="flex h-full w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
+		>
+			<div class="mb-4">
+				<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
+				<div class="mt-2 text-sm text-gray-600">
+					Current Step: {currentFlowStep === 0
+						? 'Waiting for events...'
+						: currentFlowStep === 1
+							? 'Platform creating entry locally'
+							: currentFlowStep === 2
+								? 'Syncing to eVault'
+								: currentFlowStep === 3
+									? 'eVault created metaenvelope'
+									: currentFlowStep === 4
+										? 'Awareness Protocol'
+										: currentFlowStep === 5
+											? 'All platforms notified'
+											: 'Complete'}
+				</div>
+			</div>
+
+			<div class="flex-1 space-y-2 overflow-y-auto">
+				{#each flowMessages as message, i}
+					<div class="rounded bg-gray-50 p-2 font-mono text-sm">
+						{message}
+					</div>
+				{/each}
+			</div>
+		</div>
+	</section>
+{/if}
 
 <style>
 	/*
