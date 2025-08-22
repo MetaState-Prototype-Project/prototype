@@ -88,6 +88,51 @@
                     // Check if this is a signing request
                     if (res.content.startsWith("w3ds://sign")) {
                         handleSigningRequest(res.content);
+                    } else if (res.content.includes("/blind-vote")) {
+                        // This is a blind voting request via HTTP URL
+                        // Parse the URL and extract the data
+                        try {
+                            const url = new URL(res.content);
+                            const sessionId = url.searchParams.get("session");
+                            const base64Data = url.searchParams.get("data");
+                            const redirectUri =
+                                url.searchParams.get("redirect_uri");
+                            const platformUrl =
+                                url.searchParams.get("platform_url");
+
+                            if (
+                                sessionId &&
+                                base64Data &&
+                                redirectUri &&
+                                platformUrl
+                            ) {
+                                // Decode the base64 data
+                                const decodedString = atob(
+                                    decodeURIComponent(base64Data),
+                                );
+                                const decodedData = JSON.parse(decodedString);
+
+                                if (decodedData.type === "blind-vote") {
+                                    console.log(
+                                        "🔍 Detected blind voting request from HTTP URL",
+                                    );
+                                    // Call the existing function with the right parameters
+                                    handleBlindVotingRequest(
+                                        decodedData,
+                                        platformUrl,
+                                        redirectUri,
+                                    );
+                                    return;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error parsing blind voting HTTP URL:",
+                                error,
+                            );
+                        }
+                        // If parsing fails, fall back to auth request
+                        handleAuthRequest(res.content);
                     } else {
                         handleAuthRequest(res.content);
                     }
@@ -245,14 +290,38 @@
         try {
             // Parse w3ds://sign URI scheme
             // Format: w3ds://sign?session=<sessionId>&data=<base64Data>&redirect_uri=<redirectUri>&platform_url=<platformUrl>
-            const url = new URL(content);
+
+            // Handle w3ds:// scheme by converting to a parseable format
+            let parseableContent = content;
+            if (content.startsWith("w3ds://")) {
+                parseableContent = content.replace(
+                    "w3ds://",
+                    "https://dummy.com/",
+                );
+            }
+
+            const url = new URL(parseableContent);
             signingSessionId = url.searchParams.get("session");
             const base64Data = url.searchParams.get("data");
             const redirectUri = url.searchParams.get("redirect_uri");
             const platformUrl = url.searchParams.get("platform_url");
 
+            console.log("🔍 Parsed w3ds://sign URI:", {
+                session: signingSessionId,
+                data: base64Data,
+                redirect_uri: redirectUri,
+                platform_url: platformUrl,
+            });
+
+            console.log("🔍 Raw redirect_uri from QR:", redirectUri);
+            console.log("🔍 Raw platform_url from QR:", platformUrl);
+
             if (!signingSessionId || !base64Data || !redirectUri) {
-                console.error("Invalid signing request parameters");
+                console.error("Invalid signing request parameters:", {
+                    signingSessionId,
+                    base64Data,
+                    redirectUri,
+                });
                 return;
             }
 
@@ -418,7 +487,7 @@
 
             // Fetch poll details from the platform
             const pollResponse = await fetch(
-                `${platformUrl}/api/polls/${pollId}/blind-voting`,
+                `${platformUrl}/api/polls/${pollId}`,
             );
             if (!pollResponse.ok) {
                 throw new Error("Failed to fetch poll details");
@@ -435,6 +504,12 @@
                 sessionId: blindVoteData.sessionId,
                 platform_url: platformUrl, // Add the platform URL for API calls
             };
+
+            console.log("🔍 DEBUG: Stored signing data:", {
+                pollId,
+                redirect: redirectUri,
+                platform_url: platformUrl,
+            });
 
             // Set up blind voting state
             isBlindVotingRequest = true;
@@ -486,7 +561,7 @@
             }
 
             // Dynamically import the blindvote library
-            const { DecentralizedVotingSystem } = await import("blindvote");
+            const { VotingSystem } = await import("blindvote");
 
             // Use the user's W3ID as the voter ID (strip @ prefix if present)
             const voterId = vault.ename?.startsWith("@")
@@ -503,10 +578,16 @@
             // Check if user has already voted before attempting registration
             console.log("🔍 DEBUG: Checking if user has already voted...");
             const voteStatusResponse = await axios.get(
-                `${platformUrl}/api/polls/${signingData.pollId}/users/${voterId}/vote-status`,
+                `${platformUrl}/api/polls/${signingData.pollId}/vote?userId=${voterId}`,
             );
 
-            if (voteStatusResponse.data.hasVoted) {
+            console.log(
+                "🔍 DEBUG: Vote status response:",
+                voteStatusResponse.data,
+            );
+
+            // The API returns null if user hasn't voted, or a Vote object if they have
+            if (voteStatusResponse.data !== null) {
                 throw new Error(
                     "You have already submitted a vote for this poll",
                 );
@@ -519,9 +600,8 @@
             // Register the voter on the backend first
             console.log("🔍 DEBUG: Registering voter on backend:", voterId);
             const registerResponse = await axios.post(
-                `${platformUrl}/api/blind-vote/register-voter`,
+                `${platformUrl}/api/votes/${signingData.pollId}/register`,
                 {
-                    pollId: signingData.pollId,
                     voterId: voterId,
                 },
             );
@@ -534,79 +614,82 @@
             }
             console.log("🔍 DEBUG: Voter registered on backend successfully");
 
+            // Generate vote data locally using the blindvote library (PRIVACY PRESERVING)
+            console.log("🔍 DEBUG: Generating vote data locally...");
+
             // Create ElectionConfig from poll details
             const electionConfig = {
                 id: signingData.pollId,
                 title: signingData.pollDetails.title,
                 description: "",
                 options: signingData.pollDetails.options.map(
-                    (option: string, index: number) => ({
-                        id: `option_${index}`,
-                        label: option,
-                        value: index,
-                    }),
+                    (option: string, index: number) => `option_${index}`,
                 ),
                 maxVotes: 1,
                 allowAbstain: false,
             };
 
-            console.log(`🔍 DEBUG: Created electionConfig:`);
-            console.log(
-                `🔍 DEBUG: - pollDetails.options:`,
-                signingData.pollDetails.options,
-            );
-            console.log(
-                `🔍 DEBUG: - electionConfig.options:`,
+            console.log("🔍 DEBUG: Created electionConfig:", electionConfig);
+
+            // Create voting system and register voter locally
+            const votingSystem = new VotingSystem();
+            votingSystem.createElection(
+                signingData.pollId,
+                signingData.pollId,
                 electionConfig.options,
             );
-            console.log(
-                `🔍 DEBUG: - Options mapping:`,
-                signingData.pollDetails.options.map(
-                    (opt, idx) => `${idx}: "${opt}" -> option_${idx}: ${idx}`,
-                ),
-            );
-
-            // Create real commitment using the new blindvote library
-            const votingSystem = new DecentralizedVotingSystem(electionConfig);
 
             // Register the voter locally (this creates the voter's key pair and anchor)
             console.log("🔍 DEBUG: Registering voter locally:", voterId);
-            const voter = await votingSystem.registerVoter(voterId);
-            console.log("🔍 DEBUG: Voter registered locally successfully");
-
-            // Cast the ballot with the selected option (0 = first option, 1 = second option, etc.)
-            const optionId = `option_${selectedBlindVoteOption}`; // Convert index to option ID format
-            console.log(`🔍 DEBUG: About to cast ballot:`);
-            console.log(
-                `🔍 DEBUG: - selectedBlindVoteOption (index): ${selectedBlindVoteOption}`,
-            );
-            console.log(`🔍 DEBUG: - optionId: ${optionId}`);
-            console.log(
-                `🔍 DEBUG: - poll options array:`,
-                signingData.pollDetails.options,
-            );
-            console.log(
-                `🔍 DEBUG: - selected option text: "${signingData.pollDetails.options[selectedBlindVoteOption]}"`,
+            votingSystem.registerVoter(
+                voterId,
+                signingData.pollId,
+                signingData.pollId,
             );
 
-            const ballot = await votingSystem.castBallot(voterId, optionId);
+            // Generate vote data with the selected option (PRIVACY PRESERVING - only known locally)
+            const optionId = `option_${selectedBlindVoteOption}`;
+            console.log("🔍 DEBUG: Generating vote data for option:", optionId);
 
-            // Extract commitment and proof from the ballot
-            const commitment = ballot.commitment;
-            const proof = ballot.zk_proof;
+            const voteData = votingSystem.generateVoteData(
+                voterId,
+                signingData.pollId,
+                signingData.pollId,
+                optionId,
+            );
+
+            // Extract commitments and anchors from the generated data
+            const commitments = voteData.commitments;
+            const anchors = voteData.anchors;
+
+            // Convert Uint8Array to hex strings for API transmission
+            const hexCommitments: Record<string, string> = {};
+            const hexAnchors: Record<string, string> = {};
+
+            for (const [optionId, commitment] of Object.entries(commitments)) {
+                hexCommitments[optionId] = Array.from(commitment)
+                    .map((b) => b.toString(16).padStart(2, "0"))
+                    .join("");
+            }
+
+            for (const [optionId, anchor] of Object.entries(anchors)) {
+                hexAnchors[optionId] = Array.from(anchor)
+                    .map((b) => b.toString(16).padStart(2, "0"))
+                    .join("");
+            }
 
             // Store vote data locally for later revelation
             // Convert BigInt values to strings for JSON serialization
-            const voteData = {
+            const localVoteData = {
                 pollId: signingData.pollId,
-                optionId: optionId, // Use the proper option ID format
-                commitment: commitment,
-                // Remove proof - new blindvote library doesn't generate ZK proofs
+                optionId: `option_${selectedBlindVoteOption}`, // Use the correct option ID format
+                commitments: commitments,
+                anchors: anchors,
                 timestamp: new Date().toISOString(),
             };
 
             // Custom JSON serializer to handle BigInt values
-            const jsonString = JSON.stringify(voteData, (key, value) => {
+            const jsonString = JSON.stringify(localVoteData, (key, value) => {
                 if (typeof value === "bigint") {
                     return value.toString();
                 }
@@ -615,16 +698,21 @@
 
             localStorage.setItem(`blindVote_${signingData.pollId}`, jsonString);
 
-            // Submit to the API
+            // Submit to the API (PRIVACY PRESERVING - no chosenOptionId revealed)
             const payload = {
                 pollId: signingData.pollId,
-                // Remove optionId - blind voting should not reveal the selected option
-                commitment: commitment,
-                // Remove proof - new blindvote library doesn't generate ZK proofs
+                voterId: voterId,
+                // chosenOptionId is NOT sent - this preserves privacy!
+                commitments: hexCommitments,
+                anchors: hexAnchors,
                 sessionId: signingData.sessionId,
                 userW3id: vault?.ename || "",
             };
 
+            console.log("🔍 DEBUG: Original commitments:", commitments);
+            console.log("🔍 DEBUG: Original anchors:", anchors);
+            console.log("🔍 DEBUG: Hex commitments:", hexCommitments);
+            console.log("🔍 DEBUG: Hex anchors:", hexAnchors);
             console.log(
                 "🔗 Submitting blind vote to API:",
                 signingData.redirect,
@@ -639,15 +727,31 @@
                 return value;
             });
 
-            const response = await axios.post(
+            // Ensure we have a full URL for the redirect
+            // The redirect from frontend is a relative path like /api/votes/{pollId}/blind
+            // We need to combine it with the platform URL
+            console.log("🔍 DEBUG: Constructing redirect URL:");
+            console.log(
+                "🔍 DEBUG: signingData.redirect:",
                 signingData.redirect,
-                apiPayload,
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                },
             );
+            console.log(
+                "🔍 DEBUG: signingData.platform_url:",
+                signingData.platform_url,
+            );
+
+            const redirectUrl = signingData.redirect.startsWith("http")
+                ? signingData.redirect
+                : `${signingData.platform_url}${signingData.redirect}`;
+
+            console.log("🔍 DEBUG: Final redirect URL:", redirectUrl);
+            console.log("🔍 Submitting blind vote to:", redirectUrl);
+
+            const response = await axios.post(redirectUrl, apiPayload, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
 
             if (response.status >= 200 && response.status < 300) {
                 console.log("✅ Blind vote submitted successfully");

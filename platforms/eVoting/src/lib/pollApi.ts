@@ -131,8 +131,8 @@ export const pollApi = {
   },
 
   // Get user's vote for a poll
-  getUserVote: async (pollId: string): Promise<{ hasVoted: boolean; vote: Vote | null }> => {
-    const response = await apiClient.get(`/api/polls/${pollId}/vote`);
+  getUserVote: async (pollId: string, userId: string): Promise<{ hasVoted: boolean; vote: Vote | null }> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/vote?userId=${userId}`);
     return response.data;
   },
 

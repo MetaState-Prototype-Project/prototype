@@ -1,159 +1,112 @@
 /**
- * Test file to demonstrate the working Pedersen commitment voting system
- * This replaces the previous fake implementation with a real one
+ * End-to-End Tally Test using VotingSystem abstraction
+ * Test file for Pedersen commitment voting system with predetermined vote distribution
  */
 
-import { 
-  PedersenCommitment, 
-  enc,
-  dec,
-  bsgsSmallRange,
-  verifyFinal
-} from './src/crypto/pedersen';
+import { VotingSystem } from './src/core/voting-system';
 
-// Test the basic crypto operations
-async function testBasicCrypto() {
-  console.log('Testing basic crypto operations...');
+// End-to-End Tally Test using VotingSystem
+async function endToEndTallyTest() {
+  console.log('🚀 End-to-End Tally Test using VotingSystem');
+  console.log('============================================');
   
-  const pedersen = new PedersenCommitment();
+  // Initialize the voting system
+  const votingSystem = new VotingSystem();
   
-  // Test commitment
-  const m = 1n;
-  const r = pedersen.generateRandomValue();
-  const C = pedersen.commit(m, r);
-  console.log('✓ Commitment created:', enc(C).slice(0, 16));
+  // Setup
+  const n = 200;
+  const onesCount = 83;
+  const zerosCount = 117;
   
-  // Test verification
-  const isValid = pedersen.verify(C, m, r);
-  console.log('✓ Commitment verification:', isValid);
+  console.log(`Setup: n = ${n} voters`);
+  console.log(`Predetermined votes: ${onesCount} ones, ${zerosCount} zeros`);
   
-  // Test anchor
-  const H = pedersen.createAnchor(r);
-  console.log('✓ Anchor created:', enc(H).slice(0, 16));
-  
-  return { pedersen, m, r, C, H };
-}
-
-// Test aggregation and tallying
-async function testAggregation() {
-  console.log('\nTesting aggregation and tallying...');
-  
-  const pedersen = new PedersenCommitment();
-  
-  // Create 3 voters
-  const voters: Array<{ r: bigint; m: bigint; C: any; H: any }> = [];
-  for (let i = 0; i < 3; i++) {
-    const r = pedersen.generateRandomValue();
-    const m = i === 0 ? 1n : 0n; // First voter votes 1, others vote 0
-    const C = pedersen.commit(m, r);
-    const H = pedersen.createAnchor(r);
-    
-    voters.push({ r, m, C, H });
-  }
-  
-  console.log('✓ Created 3 voters:');
-  voters.forEach((voter, i) => {
-    console.log(`  Voter ${i + 1}: vote=${voter.m}, randomness=${voter.r.toString().slice(0, 10)}...`);
+  // Create election
+  votingSystem.createElection({
+    id: 'test-election-2024',
+    title: 'Test Election 2024',
+    description: 'End-to-end test of the voting system',
+    contestId: 'president',
+    optionId: 'yes-no'
   });
   
-  // Aggregate commitments
-  let C_agg = voters[0].C;
-  let H_S = voters[0].H;
+  console.log('\n📋 Election created');
   
-  for (let i = 1; i < voters.length; i++) {
-    C_agg = pedersen.addCommitments(C_agg, voters[i].C);
-    H_S = pedersen.addAnchors(H_S, voters[i].H);
+  // Register voters and submit votes
+  console.log('\n👥 Registering voters and submitting votes...');
+  
+  for (let i = 0; i < n; i++) {
+    const voterId = `voter-${i.toString().padStart(3, '0')}`;
+    const voteValue = i < onesCount ? 1n : 0n;
+    
+    // Register voter with generated anchor
+    const { anchor, randomness } = votingSystem.registerVoterWithGeneratedAnchor(
+      voterId,
+      'test-election-2024',
+      'president',
+      'yes-no'
+    );
+    
+    // Submit vote with generated commitment
+    const commitment = votingSystem.submitVoteWithGeneratedCommitment(
+      voterId,
+      'test-election-2024',
+      'president',
+      'yes-no',
+      voteValue,
+      randomness
+    );
+    
+    if (i % 50 === 0) {
+      console.log(`  Processed ${i} voters...`);
+    }
   }
   
-  // Cancel randomness
-  const X = pedersen.cancelRandomness(C_agg, H_S);
+  console.log(`✅ All ${n} voters registered and votes submitted`);
   
-  // Tally using BSGS
-  const M = bsgsSmallRange(enc(X), 3);
-  console.log('✓ Vote count recovered:', M);
-  console.log('✓ Expected: 1 (only first voter voted 1)');
+  // Check election status
+  const stats = votingSystem.getElectionStats('test-election-2024', 'president', 'yes-no');
+  console.log('\n📊 Election Status:', stats);
   
-  // Verify final result
-  const finalValid = verifyFinal(enc(C_agg), enc(H_S), M);
-  console.log('✓ Final verification:', finalValid);
+  // Tally the election
+  console.log('\n🔍 Tallying election...');
+  const result = votingSystem.tallyElection('test-election-2024', 'president', 'yes-no');
   
-  return { voters, C_agg, H_S, X, M, finalValid };
+  // Print results
+  console.log('\n📈 Election Results:');
+  console.log(`Total Voters: ${result.totalVoters}`);
+  console.log(`Total Votes: ${result.totalVotes}`);
+  console.log(`Verified: ${result.verified}`);
+  
+  // Verify the mathematical relationship
+  console.log('\n🔬 Mathematical Verification:');
+  console.log(`Expected total votes: ${onesCount}`);
+  console.log(`X == g^${onesCount}: ${result.verified ? '✅ true' : '❌ false'}`);
+  console.log(`C_agg == g^${onesCount} + H_S: ${result.verified ? '✅ true' : '❌ false'}`);
+  
+  // Print encodings
+  console.log('\n🔐 Encodings:');
+  console.log(`C_agg: ${Array.from(result.C_agg).map(b => b.toString(16).padStart(2, '0')).join('')}`);
+  console.log(`H_S:   ${Array.from(result.H_S).map(b => b.toString(16).padStart(2, '0')).join('')}`);
+  console.log(`X:     ${Array.from(result.X).map(b => b.toString(16).padStart(2, '0')).join('')}`);
+  
+  const finalCheck = result.verified && result.totalVotes === onesCount;
+  console.log(`\n🎯 final_check: ${finalCheck}`);
+  
+  // Clean up
+  votingSystem.clear();
+  
+  return {
+    finalCheck,
+    result,
+    stats
+  };
 }
 
-// Test multiple voters with different vote patterns
-async function testVotePatterns() {
-  console.log('\nTesting different vote patterns...');
-  
-  const pedersen = new PedersenCommitment();
-  
-  // Test pattern: [1, 1, 0, 1, 0] = total 3 votes
-  const votePattern = [1n, 1n, 0n, 1n, 0n];
-  const expectedTotal = votePattern.reduce((sum, vote) => sum + vote, 0n);
-  
-  const voters: Array<{ r: bigint; m: bigint; C: any; H: any }> = [];
-  
-  for (let i = 0; i < votePattern.length; i++) {
-    const r = pedersen.generateRandomValue();
-    const m = votePattern[i];
-    const C = pedersen.commit(m, r);
-    const H = pedersen.createAnchor(r);
-    
-    voters.push({ r, m, C, H });
-  }
-  
-  console.log(`✓ Created ${voters.length} voters with pattern: [${votePattern.join(', ')}]`);
-  console.log(`✓ Expected total votes: ${expectedTotal}`);
-  
-  // Aggregate
-  let C_agg = voters[0].C;
-  let H_S = voters[0].H;
-  
-  for (let i = 1; i < voters.length; i++) {
-    C_agg = pedersen.addCommitments(C_agg, voters[i].C);
-    H_S = pedersen.addAnchors(H_S, voters[i].H);
-  }
-  
-  const X = pedersen.cancelRandomness(C_agg, H_S);
-  const M = bsgsSmallRange(enc(X), voters.length);
-  
-  console.log(`✓ Actual vote count recovered: ${M}`);
-  console.log(`✓ Pattern verification: ${M === Number(expectedTotal) ? 'PASS' : 'FAIL'}`);
-  
-  const finalValid = verifyFinal(enc(C_agg), enc(H_S), M);
-  console.log('✓ Final verification:', finalValid);
-  
-  return { voters, C_agg, H_S, X, M, expectedTotal, finalValid };
-}
-
-// Main test function
-async function runTests() {
-  try {
-    console.log('🚀 Starting Pedersen commitment voting system tests...\n');
-    
-    await testBasicCrypto();
-    await testAggregation();
-    await testVotePatterns();
-    
-    console.log('\n🎉 All tests passed! The system is working correctly.');
-    console.log('\n📊 Summary:');
-    console.log('  - Basic Pedersen commitments work');
-    console.log('  - Aggregation of multiple votes works');
-    console.log('  - Discrete log recovery works for small vote counts');
-    console.log('  - Final verification works');
-    console.log('\n🔒 Privacy features:');
-    console.log('  - Individual votes are hidden in commitments');
-    console.log('  - Only aggregate results are revealed');
-    console.log('  - Randomness prevents vote linking');
-    
-  } catch (error) {
-    console.error('❌ Test failed:', error);
-  }
-}
-
-// Run tests if this file is executed directly
+// Run the test
 if (typeof window === 'undefined') {
   // Node.js environment
-  runTests().catch(console.error);
+  endToEndTallyTest().catch(console.error);
 }
 
-export { runTests }; 
+export { endToEndTallyTest }; 

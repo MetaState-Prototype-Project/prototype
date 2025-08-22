@@ -20,22 +20,35 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { pollApi, type Poll } from "@/lib/pollApi";
 import Link from "next/link";
-import { SigningInterface } from "@/components/signing-interface";
+
 import BlindVotingInterface from "@/components/blind-voting-interface";
+import VotingInterface from "@/components/voting-interface";
+import { SigningInterface } from "@/components/signing-interface";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const pollId = id || null;
     const { toast } = useToast();
     const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-    const [selectedOption, setSelectedOption] = useState<number | null>(null);
+    const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
+    const [showMyVote, setShowMyVote] = useState(false); // For viewing private poll votes
+    const [showSigningInterface, setShowSigningInterface] = useState(false);
+
+    // Add missing variables for BlindVotingInterface
+    const [hasVoted, setHasVoted] = useState(false);
+    const [blindVoteResults, setBlindVoteResults] = useState<any>(null);
+    const [isLoadingBlindResults, setIsLoadingBlindResults] = useState(false);
+
+    // Add state variables for different voting modes
+    const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
+    const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
-    // Calculate total points for points-based voting
-    const totalPoints = Object.values(pointVotes).reduce((sum, points) => sum + (points || 0), 0);
+    // Calculate total points for point voting
+    const totalPoints = Object.values(pointVotes).reduce((sum, points) => sum + points, 0);
 
     // TODO: Redirect to login if not authenticated
     // useEffect(() => {
@@ -59,16 +72,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         }
     }, [pollId]);
 
-    const [selectedPoll, setSelectedPoll] = useState<Poll | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showSigningInterface, setShowSigningInterface] = useState(false);
-    const [showMyVote, setShowMyVote] = useState(false); // For viewing private poll votes
-
-    // Add missing variables for BlindVotingInterface
-    const [hasVoted, setHasVoted] = useState(false);
-    const [blindVoteResults, setBlindVoteResults] = useState<any>(null);
-    const [isLoadingBlindResults, setIsLoadingBlindResults] = useState(false);
-
     // Mock onVoteSubmitted function for blind voting
     const onVoteSubmitted = () => {
         setHasVoted(true);
@@ -84,7 +87,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         
         try {
             setIsLoadingBlindResults(true);
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7777';
+            const apiBaseUrl = process.env.NEXT_PUBLIC_EVOTING_BASE_URL || 'http://localhost:7777';
             const response = await fetch(`${apiBaseUrl}/api/polls/${pollId}/blind-tally`);
             if (response.ok) {
                 const results = await response.json();
@@ -121,6 +124,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             fetchBlindVoteResults();
         }
     }, [selectedPoll]);
+
+    // Fetch blind vote results when poll expires (for private polls)
+    useEffect(() => {
+        if (selectedPoll && selectedPoll.visibility === "private" && timeRemaining === "Voting has ended") {
+            fetchBlindVoteResults();
+        }
+    }, [timeRemaining, selectedPoll]);
 
     // Check if voting is still allowed
     const isVotingAllowed =
@@ -188,12 +198,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch vote status and results
     const fetchVoteData = async () => {
-        if (!pollId) return;
+        if (!pollId || !user?.id) return;
         
         try {
             
             const [voteStatusData, resultsData] = await Promise.all([
-                pollApi.getUserVote(pollId),
+                pollApi.getUserVote(pollId, user.id),
                 pollApi.getPollResults(pollId)
             ]);
             setVoteStatus(voteStatusData);
@@ -205,7 +215,39 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     useEffect(() => {
         fetchVoteData();
-    }, [pollId]);
+    }, [pollId, user?.id]);
+
+
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
+            </div>
+        );
+    }
+
+    if (!selectedPoll) {
+        return (
+            <div className="max-w-4xl mx-auto space-y-8">
+                <div className="text-center">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                        Vote Not Found
+                    </h1>
+                    <p className="text-gray-600 mb-4">
+                        The vote you're looking for doesn't exist or has been
+                        removed.
+                    </p>
+                    <Link href="/">
+                        <Button className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Home
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
@@ -238,36 +280,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         // Show signing interface instead of submitting directly
         setShowSigningInterface(true);
     };
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
-            </div>
-        );
-    }
-
-    if (!selectedPoll) {
-        return (
-            <div className="max-w-4xl mx-auto space-y-8">
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                        Vote Not Found
-                    </h1>
-                    <p className="text-gray-600 mb-4">
-                        The vote you're looking for doesn't exist or has been
-                        removed.
-                    </p>
-                    <Link href="/">
-                        <Button className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white">
-                            <ArrowLeft className="w-4 h-4 mr-2" />
-                            Back to Home
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -507,7 +519,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                                                <div className="space-y-6">
                             {/* Final Results */}
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -515,10 +527,59 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     Final Results
                                 </h3>
                                 <div className="space-y-3">
-                                    {resultsData ? (
+                                    {/* For private polls, show blind vote results */}
+                                    {selectedPoll.visibility === "private" && blindVoteResults ? (
                                         <>
-
-                                            
+                                            {blindVoteResults.optionResults && blindVoteResults.optionResults.length > 0 ? (
+                                                blindVoteResults.optionResults.map((result, index) => {
+                                                    const isWinner = result.voteCount === Math.max(...blindVoteResults.optionResults.map(r => r.voteCount));
+                                                    const percentage = blindVoteResults.totalVotes > 0 ? (result.voteCount / blindVoteResults.totalVotes) * 100 : 0;
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className={`p-4 rounded-lg border ${
+                                                                isWinner 
+                                                                    ? 'bg-green-50 border-green-300' 
+                                                                    : 'bg-gray-50 border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="font-medium text-gray-900">
+                                                                        {result.optionText || `Option ${index + 1}`}
+                                                                    </span>
+                                                                    {isWinner && (
+                                                                        <Badge variant="success" className="bg-green-500 text-white">
+                                                                            🏆 Winner
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <span className="text-sm text-gray-600">
+                                                                    {result.voteCount} votes ({percentage.toFixed(1)}%)
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div
+                                                                    className={`h-2 rounded-full ${
+                                                                        isWinner ? 'bg-green-500' : 'bg-red-500'
+                                                                    }`}
+                                                                    style={{
+                                                                        width: `${percentage}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <div className="text-center py-8 text-gray-500">
+                                                    No blind vote results available.
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : resultsData ? (
+                                        <>
+                                            {/* For public polls, show regular results */}
                                             {resultsData.results && resultsData.results.length > 0 ? (
                                                 resultsData.results.map((result, index) => {
                                                     const isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes));
@@ -543,7 +604,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     )}
                                                                 </div>
                                                                 <span className="text-sm text-gray-600">
-                                                                                                                            {selectedPoll.mode === "rank"
+                                                                    {selectedPoll.mode === "rank"
                                                             ? `${result.votes} points` 
                                                             : `${result.votes} votes`} ({result.percentage.toFixed(1)}%)
                                                                 </span>
@@ -804,118 +865,71 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
                                 )}
-                            </>
-                        )}
 
-                        {/* Only show submit button for non-private polls */}
-                        {selectedPoll.visibility !== "private" && (
-                            <div className="flex justify-center">
-                                <Button
-                                    onClick={handleVoteSubmit}
-                                    disabled={
-                                        (selectedPoll.mode === "normal" && selectedOption === null) ||
-                                        (selectedPoll.mode === "point" && totalPoints !== 100) ||
-                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                        isSubmitting ||
-                                        !isVotingAllowed
-                                    }
-                                    className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                                >
-                                    {isSubmitting ? (
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                    ) : (
-                                        <VoteIcon className="w-4 h-4 mr-2" />
-                                    )}
-                                    {!isVotingAllowed
-                                        ? "Voting Ended"
-                                        : "Submit Vote"}
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* Show Blind Voting Interface for private polls */}
-                        {selectedPoll.visibility === "private" && isAuthenticated && user && (
-                            <div className="mt-8">
-                                <BlindVotingInterface
-                                    poll={selectedPoll}
-                                    userId={user.id}
-                                    hasVoted={hasVoted}
-                                    onVoteSubmitted={onVoteSubmitted}
-                                />
-                            </div>
-                        )}
-
-                        {/* Show Blind Vote Results for private polls */}
-                        {selectedPoll.visibility === "private" && (
-                            <div className="mt-8">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                                        <Shield className="mr-2 h-5 w-5 text-blue-500" />
-                                        Blind Vote Results
-                                    </h3>
+                                {/* Submit button for regular voting */}
+                                <div className="flex justify-center">
                                     <Button
-                                        onClick={fetchBlindVoteResults}
-                                        disabled={isLoadingBlindResults}
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                        onClick={handleVoteSubmit}
+                                        disabled={
+                                            (selectedPoll.mode === "normal" && selectedOption === null) ||
+                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                            isSubmitting ||
+                                            !isVotingAllowed
+                                        }
+                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                     >
-                                        {isLoadingBlindResults ? (
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
+                                        {isSubmitting ? (
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                                         ) : (
-                                            <Eye className="h-4 w-4 mr-2" />
+                                            <VoteIcon className="w-4 h-4 mr-2" />
                                         )}
-                                        Refresh Results
+                                        {!isVotingAllowed
+                                            ? "Voting Ended"
+                                            : "Submit Vote"}
                                     </Button>
                                 </div>
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <div className="grid grid-cols-3 gap-4">
-                                        <div className="text-center">
-                                            <p className="text-2xl font-bold text-blue-900">
-                                                {blindVoteResults?.totalVotes || 0}
-                                            </p>
-                                            <p className="text-sm text-blue-700">Total Votes Committed</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-2xl font-bold text-green-900">
-                                                {blindVoteResults?.optionResults?.[0] || 0}
-                                            </p>
-                                            <p className="text-sm text-green-700">{selectedPoll?.options[0] || 'Option 1'}</p>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="text-2xl font-bold text-red-900">
-                                                {blindVoteResults?.optionResults?.[1] || 0}
-                                            </p>
-                                            <p className="text-sm text-red-700">{selectedPoll?.options[1] || 'Option 2'}</p>
-                                        </div>
-                                    </div>
-                                    {blindVoteResults?.optionResults && blindVoteResults.optionResults.length > 2 && (
-                                        <div className="mt-4 pt-4 border-t border-blue-200">
-                                            <h4 className="text-sm font-medium text-blue-900 mb-2">Additional Options</h4>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {blindVoteResults.optionResults.slice(2).map((votes, index) => (
-                                                    <div key={index + 2} className="flex justify-between items-center text-sm">
-                                                        <span className="text-blue-800">
-                                                            {selectedPoll?.options[index + 2] || `Option ${index + 3}`}
-                                                        </span>
-                                                        <span className="font-medium text-blue-900">
-                                                            {votes} votes
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="mt-4 pt-4 border-t border-blue-200">
-                                        <p className="text-xs text-blue-600">
-                                            <strong>Note:</strong> This is a true blind voting system. Individual votes remain 
-                                            completely hidden while still providing accurate aggregate results through 
-                                            cryptographic commitments.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                            </>
                         )}
+                    </div>
+                )}
+
+                {/* Signing Interface Modal */}
+                {showSigningInterface && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full">
+                            <SigningInterface
+                                pollId={pollId!}
+                                voteData={
+                                    selectedPoll?.mode === "normal"
+                                        ? { optionId: selectedOption }
+                                        : selectedPoll?.mode === "rank"
+                                        ? { ranks: rankVotes }
+                                        : { points: pointVotes }
+                                }
+                                onSigningComplete={(voteId) => {
+                                    setShowSigningInterface(false);
+                                    
+                                    // Add a small delay to ensure backend has processed the vote
+                                    setTimeout(async () => {
+                                        try {
+                                            await fetchPoll();
+                                            await fetchVoteData();
+                                        } catch (error) {
+                                            console.error("Error during data refresh:", error);
+                                        }
+                                    }, 2000); // 2 second delay
+                                    
+                                    toast({
+                                        title: "Success!",
+                                        description: "Your vote has been signed and submitted.",
+                                    });
+                                }}
+                                onCancel={() => {
+                                    setShowSigningInterface(false);
+                                }}
+                            />
+                        </div>
                     </div>
                 )}
 
@@ -974,44 +988,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         </div>
                     )}
 
-                {/* Signing Interface Modal */}
-                {showSigningInterface && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-lg max-w-md w-full">
-                            <SigningInterface
-                                pollId={pollId!}
-                                voteData={
-                                    selectedPoll?.mode === "normal"
-                                        ? { optionId: selectedOption }
-                                        : selectedPoll?.mode === "rank"
-                                        ? { ranks: rankVotes }
-                                        : { points: pointVotes }
-                                }
-                                onSigningComplete={(voteId) => {
-                                    setShowSigningInterface(false);
-                                    
-                                    // Add a small delay to ensure backend has processed the vote
-                                    setTimeout(async () => {
-                                        try {
-                                            await fetchPoll();
-                                            await fetchVoteData();
-                                        } catch (error) {
-                                            console.error("Error during data refresh:", error);
-                                        }
-                                    }, 2000); // 2 second delay
-                                    
-                                    toast({
-                                        title: "Success!",
-                                        description: "Your vote has been signed and submitted.",
-                                    });
-                                }}
-                                onCancel={() => {
-                                    setShowSigningInterface(false);
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
+
 
                 {/* View My Vote Modal for Private Polls */}
                 {showMyVote && (

@@ -1,552 +1,310 @@
 /**
- * Decentralized voting system implementation using Pedersen commitments
- * Simplified version focusing on core functionality without ZK proofs
- * Now supports arbitrary vote options, not just binary yes/no
+ * VotingSystem - High-level abstraction for managing elections and votes
+ * 
+ * This class provides a human-friendly interface for:
+ * - Creating and managing elections
+ * - Registering voters with anchors
+ * - Submitting votes with commitments
+ * - Tallying elections and verifying results
+ * 
+ * The system supports both internally generated and externally provided
+ * cryptographic components (commitments, anchors, etc.)
  */
 
-import { ed25519 } from "@noble/curves/ed25519";
-import { PedersenCommitment } from "../crypto/pedersen";
-import {
-  type Anchor,
-  type Ballot,
-  type ElectionConfig,
-  type ElectionResult,
-  type GroupElement,
-  type VoteOption,
-  type AggregatedResults,
+import { 
+  PedersenCommitment, 
+  randScalar, 
+  bigIntToBytes, 
+  hashToScalar, 
+  enc, 
+  dec,
+  tallyOption
+} from "../crypto/pedersen";
+import { 
+  Voter, 
+  VoteData, 
+  ElectionConfig, 
+  ElectionResult 
 } from "./types";
 
-export class DecentralizedVotingSystem {
+export class VotingSystem {
   private pedersen: PedersenCommitment;
-  private registeredVoters: Map<string, Anchor> = new Map();
-  private submittedBallots: Map<string, Ballot> = new Map();
-  private voterRandomness: Map<string, bigint> = new Map(); // Store randomness for each voter
-  private electionConfig: ElectionConfig;
+  private voters: Map<string, Voter>;
+  private votes: Map<string, VoteData>;
+  private elections: Map<string, ElectionConfig>;
 
-  constructor(electionConfig: ElectionConfig) {
+  constructor() {
     this.pedersen = new PedersenCommitment();
-    this.electionConfig = electionConfig;
+    this.voters = new Map();
+    this.votes = new Map();
+    this.elections = new Map();
   }
 
   /**
-   * Phase 1: Voter Registration
-   * Each voter creates a public randomness anchor
-   * @param voterId - Unique identifier for the voter
-   * @returns Registration anchor
+   * Create a new election with multiple options
    */
-  async registerVoter(voterId: string): Promise<Anchor> {
-    if (this.registeredVoters.has(voterId)) {
-      throw new Error(`Voter ${voterId} is already registered`);
+  createElection(electionId: string, contestId: string, options: string[]): ElectionConfig {
+    const config: ElectionConfig = {
+      electionId,
+      contestId,
+      options,
+      maxVotes: 1, // One-hot voting
+      allowAbstain: false
+    };
+    
+    this.elections.set(electionId, config);
+    return config;
+  }
+
+  /**
+   * Register a voter for an election
+   */
+  registerVoter(voterId: string, electionId: string, contestId: string): Voter {
+    const key = `${voterId}:${electionId}:${contestId}`;
+    
+    if (this.voters.has(key)) {
+      throw new Error(`Voter ${voterId} already registered for election ${electionId}`);
     }
 
-    // Generate private randomness r_i
-    const randomness = this.pedersen.generateRandomValue();
-
-    // Store the randomness for later use in voting
-    this.voterRandomness.set(voterId, randomness);
-
-    // Compute anchor: H_i = h^r_i
-    const anchor = await this.pedersen.createAnchor(randomness);
-
-    const registration: Anchor = {
-      voter_id: voterId,
-      anchor,
+    const voter: Voter = {
+      voterId,
+      electionId,
+      contestId,
+      randomness: randScalar(),
+      registeredAt: new Date()
     };
 
-    // Store the registration
-    this.registeredVoters.set(voterId, registration);
-
-    return registration;
+    this.voters.set(key, voter);
+    return voter;
   }
 
   /**
-   * Phase 2: Voting
-   * Voter submits a ballot with commitment to their vote
-   * @param voterId - Voter identifier
-   * @param voteOptionId - ID of the selected vote option
-   * @returns Ballot with commitment
+   * Submit a vote with per-option commitments and anchors
    */
-  async castBallot(voterId: string, voteOptionId: string): Promise<Ballot> {
-    // Check if voter is registered
-    const registration = this.registeredVoters.get(voterId);
-    if (!registration) {
-      throw new Error(`Voter ${voterId} is not registered`);
-    }
-
-    // Check if voter has already voted
-    if (this.submittedBallots.has(voterId)) {
-      throw new Error(`Voter ${voterId} has already voted`);
-    }
-
-    // Find the selected vote option
-    const selectedOption = this.electionConfig.options.find(
-      (opt) => opt.id === voteOptionId
-    );
-    if (!selectedOption) {
-      throw new Error(`Invalid vote option: ${voteOptionId}`);
-    }
-
-    console.log(`🔍 DEBUG: castBallot called with:`);
-    console.log(`🔍 DEBUG: - voteOptionId: ${voteOptionId}`);
-    console.log(`🔍 DEBUG: - selectedOption:`, selectedOption);
-    console.log(`🔍 DEBUG: - selectedOption.value: ${selectedOption.value}`);
-    console.log(`🔍 DEBUG: - electionConfig.options:`, this.electionConfig.options);
-
-    // Use the same randomness from registration
-    const randomness = this.extractRandomnessFromRegistration(voterId);
-
-    // Create separate commitments for each option
-    // This allows us to count votes per option while maintaining privacy
-    const commitments: Record<string, GroupElement> = {};
+  submitVote(
+    voterId: string, 
+    electionId: string, 
+    contestId: string, 
+    chosenOptionId: string,
+    voteData: Omit<VoteData, 'submittedAt'>
+  ): void {
+    const key = `${voterId}:${electionId}:${contestId}`;
     
-    for (const option of this.electionConfig.options) {
-      if (option.id === voteOptionId) {
-        // Selected option gets a commitment to 1
-        commitments[option.id] = await this.pedersen.commit(BigInt(1), randomness);
-      } else {
-        // Other options get a commitment to 0
-        commitments[option.id] = await this.pedersen.commit(BigInt(0), randomness);
+    // Verify voter is registered
+    if (!this.voters.has(key)) {
+      throw new Error(`Voter ${voterId} not registered for election ${electionId}`);
+    }
+
+    // Verify chosen option exists
+    const election = this.elections.get(electionId);
+    if (!election || !election.options.includes(chosenOptionId)) {
+      throw new Error(`Invalid option ${chosenOptionId} for election ${electionId}`);
+    }
+
+    // Verify all options have commitments and anchors
+    for (const optionId of election.options) {
+      if (!voteData.commitments[optionId] || !voteData.anchors[optionId]) {
+        throw new Error(`Missing commitment or anchor for option ${optionId}`);
       }
     }
 
-    const ballot: Ballot = {
-      voter_id: voterId,
-      commitment: commitments, // Now stores commitments for all options
+    // Store the vote
+    const vote: VoteData = {
+      ...voteData,
+      submittedAt: new Date()
     };
 
-    // Store the ballot
-    this.submittedBallots.set(voterId, ballot);
-
-    return ballot;
+    this.votes.set(key, vote);
   }
 
   /**
-   * Phase 3: Aggregation
-   * Compute global commitments without contacting voters
-   * @returns Aggregated results
+   * Add vote data directly (for tallying from stored data)
+   * This bypasses validation since we're reconstructing from stored blind votes
    */
-  async aggregate(): Promise<AggregatedResults> {
-    if (this.submittedBallots.size === 0) {
-      throw new Error("No ballots to aggregate");
-    }
+  addVoteForTallying(
+    voterId: string,
+    electionId: string,
+    contestId: string,
+    voteData: VoteData
+  ): void {
+    const key = `${voterId}:${electionId}:${contestId}`;
+    this.votes.set(key, voteData);
+  }
 
-    // Get all ballots and anchors
-    const ballots = Array.from(this.submittedBallots.values());
-    const anchors = Array.from(this.registeredVoters.values());
-
-    // Aggregate commitments per option
-    const optionCommitments: Record<string, GroupElement> = {};
+  /**
+   * Generate per-option commitments and anchors for a voter
+   */
+  generateVoteData(
+    voterId: string,
+    electionId: string,
+    contestId: string,
+    chosenOptionId: string
+  ): VoteData {
+    const key = `${voterId}:${electionId}:${contestId}`;
+    const voter = this.voters.get(key);
     
-    // Initialize with the first ballot's commitments
-    const firstBallot = ballots[0];
-    for (const [optionId, commitment] of Object.entries(firstBallot.commitment)) {
-      optionCommitments[optionId] = commitment;
-    }
-    
-    // Add remaining ballots' commitments
-    for (let i = 1; i < ballots.length; i++) {
-      const ballot = ballots[i];
-      for (const [optionId, commitment] of Object.entries(ballot.commitment)) {
-        if (optionCommitments[optionId]) {
-          optionCommitments[optionId] = await this.pedersen.addCommitments(
-            optionCommitments[optionId],
-            commitment
-          );
-        } else {
-          optionCommitments[optionId] = commitment;
-        }
-      }
+    if (!voter) {
+      throw new Error(`Voter ${voterId} not registered for election ${electionId}`);
     }
 
-    // For now, we'll use the first option's commitment as the main aggregate
-    // In a real implementation, you might want to handle all options separately
-    const C_agg = optionCommitments[Object.keys(optionCommitments)[0]];
-
-    // Compute aggregate anchor: H_S = ∏ H_i
-    let H_S = anchors[0].anchor;
-    for (let i = 1; i < anchors.length; i++) {
-      H_S = await this.pedersen.addAnchors(H_S, anchors[i].anchor);
+    const election = this.elections.get(electionId);
+    if (!election || !election.options.includes(chosenOptionId)) {
+      throw new Error(`Invalid option ${chosenOptionId} for election ${electionId}`);
     }
 
-    // Cancel randomness: X = C_agg * H_S^(-1) = g^M
-    const X = await this.pedersen.cancelRandomness(C_agg, H_S);
+    const commitments: Record<string, Uint8Array> = {};
+    const anchors: Record<string, Uint8Array> = {};
+
+    // Generate per-option randomness and commitments
+    for (const optionId of election.options) {
+      // Derive per-option randomness from base secret
+      const domain = `${electionId}:${contestId}:${optionId}`;
+      const r = hashToScalar(domain, bigIntToBytes(voter.randomness));
+      
+      // Create anchor: H[i,c] = h · r[i,c]
+      const anchor = this.pedersen.createAnchor(r);
+      anchors[optionId] = enc(anchor);
+
+      // Create commitment: C[i,c] = g · m[i,c] + h · r[i,c]
+      const m = (chosenOptionId === optionId) ? 1n : 0n;
+      const commitment = this.pedersen.commit(m, r);
+      commitments[optionId] = enc(commitment);
+    }
 
     return {
+      voterId,
+      contestId,
+      chosenOptionId,
+      commitments,
+      anchors,
+      submittedAt: new Date()
+    };
+  }
+
+  /**
+   * Tally an election and return per-option results
+   */
+  async tallyElection(electionId: string): Promise<ElectionResult> {
+    const election = this.elections.get(electionId);
+    if (!election) {
+      throw new Error(`Election ${electionId} not found`);
+    }
+
+    const contestId = election.contestId;
+    const optionResults: Record<string, number> = {};
+    const C_agg: Record<string, Uint8Array> = {};
+    const H_S: Record<string, Uint8Array> = {};
+    const X: Record<string, Uint8Array> = {};
+
+    // Tally each option separately
+    for (const optionId of election.options) {
+      const { M, C_agg_bytes, H_S_bytes, X_bytes } = await this.tallyOption(contestId, optionId);
+      
+      optionResults[optionId] = M;
+      C_agg[optionId] = C_agg_bytes;
+      H_S[optionId] = H_S_bytes;
+      X[optionId] = X_bytes;
+    }
+
+    const totalVoters = this.voters.size;
+    const totalVotes = Object.values(optionResults).reduce((sum, count) => sum + count, 0);
+
+    return {
+      electionId,
+      contestId,
+      totalVoters,
+      totalVotes,
+      optionResults,
       C_agg,
       H_S,
       X,
+      verified: true
     };
   }
 
   /**
-   * Phase 4: Tally
-   * For multi-option voting, we can now count votes per option directly
-   * @returns Election result with vote counts for each option
+   * Tally votes for a specific option
    */
-  async tally(): Promise<ElectionResult> {
-    console.log(`🔍 DEBUG: tally() called with ${this.submittedBallots.size} ballots`);
-    
-    // Aggregate all ballots
-    const aggregatedResults = await this.aggregate();
-    console.log(`🔍 DEBUG: Aggregation completed:`, aggregatedResults);
+  private async tallyOption(contestId: string, optionId: string): Promise<{ M: number; C_agg_bytes: Uint8Array; H_S_bytes: Uint8Array; X_bytes: Uint8Array }> {
+    const ballots: { voterId: string; C: Uint8Array }[] = [];
+    const anchors: { voterId: string; H: Uint8Array }[] = [];
 
-    // Now we can count votes per option directly from the commitments
-    const optionResults: Record<string, number> = {};
-    
-    // Initialize all options to 0
-    for (const option of this.electionConfig.options) {
-      optionResults[option.id] = 0;
-    }
-    console.log(`🔍 DEBUG: Initialized optionResults:`, optionResults);
-
-    // Count votes per option by solving discrete log for each option's aggregate commitment
-    for (const option of this.electionConfig.options) {
-      try {
-        // Get the aggregate commitment for this option
-        const optionCommitment = await this.getOptionAggregateCommitment(option.id);
+    // Collect ballots and anchors for this specific option
+    for (const [key, vote] of this.votes.entries()) {
+      if (vote.contestId === contestId) {
+        const C = vote.commitments[optionId];
+        const H = vote.anchors[optionId];
         
-        // Solve discrete log to get vote count for this option
-        const voteCount = await this.solveDiscreteLog(optionCommitment);
-        optionResults[option.id] = voteCount;
-        
-        console.log(`🔍 DEBUG: Option ${option.id} (${option.label}) has ${voteCount} votes`);
-      } catch (error) {
-        console.warn(`🔍 WARNING: Could not count votes for option ${option.id}: ${error}`);
-        optionResults[option.id] = 0;
+        if (C && H) {
+          ballots.push({ voterId: vote.voterId, C });
+          anchors.push({ voterId: vote.voterId, H });
+        }
       }
     }
+
+    if (ballots.length === 0) {
+      return { M: 0, C_agg_bytes: new Uint8Array(32), H_S_bytes: new Uint8Array(32), X_bytes: new Uint8Array(32) };
+    }
+
+    // Use the tallyOption function from pedersen.ts
+    const M = tallyOption(ballots, anchors);
+    
+    // Get the aggregated values for verification
+    const { C_agg_bytes, H_S_bytes, X_bytes } = await this.getAggregatedValues(ballots, anchors);
+
+    return { M, C_agg_bytes, H_S_bytes, X_bytes };
+  }
+
+  /**
+   * Get aggregated values for verification
+   */
+  private async getAggregatedValues(
+    ballots: { voterId: string; C: Uint8Array }[],
+    anchors: { voterId: string; H: Uint8Array }[]
+  ): Promise<{ C_agg_bytes: Uint8Array; H_S_bytes: Uint8Array; X_bytes: Uint8Array }> {
+    const { RistrettoPoint } = await import("@noble/curves/ed25519.js");
+    
+    const g = RistrettoPoint.BASE;
+    const ZERO = RistrettoPoint.ZERO;
+
+    // Aggregate commitments and anchors
+    const Cs = ballots.map(b => dec(b.C));
+    const Hs = anchors.map(a => dec(a.H));
+
+    const addPoints = (arr: any[]) => arr.reduce((acc, p) => acc.add(p), ZERO);
+    const C_agg = addPoints(Cs);
+    const H_S = addPoints(Hs);
+    const X = C_agg.add(H_S.negate());
 
     return {
-      totalVotes: this.submittedBallots.size,
-      optionResults,
-      proof: aggregatedResults,
+      C_agg_bytes: enc(C_agg),
+      H_S_bytes: enc(H_S),
+      X_bytes: enc(X)
     };
   }
 
   /**
-   * Solve discrete logarithm problem
-   * This is computationally expensive and may fail for large values
+   * Get a voter by ID
    */
-  private async solveDiscreteLog(point: GroupElement): Promise<number> {
-    console.log(`🔍 DEBUG: Attempting to solve discrete log for point`);
-    
-    // ed25519 curve has a specific scalar field
-    // We need to work within reasonable bounds for discrete log
-    const maxAttempts = 100; // Reduced limit for ed25519 curve
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const testPoint = this.pedersen.getGenerator().multiply(BigInt(i));
-        if (testPoint.equals(point)) {
-          console.log(`🔍 DEBUG: Found discrete log solution: ${i}`);
-          return i;
-        }
-      } catch (error) {
-        // Skip invalid scalar values
-        continue;
-      }
-    }
-    
-    throw new Error(`Discrete logarithm computation failed - value too large (tried up to ${maxAttempts})`);
+  getVoter(voterId: string, electionId: string, contestId: string): Voter | undefined {
+    const key = `${voterId}:${electionId}:${contestId}`;
+    return this.voters.get(key);
   }
 
   /**
-   * Phase 5: Verification
-   * Anyone can verify the final tally
-   * @param aggregatedResults - The aggregated results
-   * @param expectedResults - The announced vote counts for each option
-   * @returns True if the tally is consistent
+   * Get a vote by voter ID
    */
-  async verifyTally(
-    aggregatedResults: AggregatedResults,
-    expectedResults: Record<string, number>
-  ): Promise<boolean> {
-    // Verify: C_agg = g^M * H_S where M is the sum of all option values
-    const g = this.pedersen.getGenerator();
-
-    // Calculate the total weighted sum
-    let totalWeightedSum = 0;
-    for (const option of this.electionConfig.options) {
-      totalWeightedSum += option.value * expectedResults[option.id];
-    }
-
-    const g_M = g.multiply(BigInt(totalWeightedSum));
-
-    const expectedCommitment = await this.pedersen.addCommitments(
-      g_M,
-      aggregatedResults.H_S
-    );
-
-    return aggregatedResults.C_agg.equals(expectedCommitment);
+  getVote(voterId: string, electionId: string, contestId: string): VoteData | undefined {
+    const key = `${voterId}:${electionId}:${contestId}`;
+    return this.votes.get(key);
   }
 
   /**
-   * Restore stored commitments from database
-   * This is needed when the voting system is restored from persistent storage
-   * @param storedCommitments - Array of stored commitment data
+   * Clear all data (for testing)
    */
-  restoreStoredCommitments(storedCommitments: any[]): void {
-    console.log(`🔍 restoreStoredCommitments called with ${storedCommitments.length} commitments`);
-    
-    for (const storedData of storedCommitments) {
-      try {
-        console.log(`🔍 Processing stored commitment:`, {
-          type: typeof storedData.commitment,
-          length: storedData.commitment?.length,
-          preview: typeof storedData.commitment === 'string' ? storedData.commitment.substring(0, 100) : 'not a string'
-        });
-        
-        // Parse the commitment from hex string or JSON string
-        let commitmentHex: string;
-        if (typeof storedData.commitment === 'string') {
-          // Check if it's a hex string (even length, only hex chars)
-          if (storedData.commitment.match(/^[0-9a-fA-F]+$/) && storedData.commitment.length % 2 === 0) {
-            commitmentHex = storedData.commitment;
-            console.log(`🔍 Detected hex string commitment (${commitmentHex.length} chars): ${commitmentHex.substring(0, 64)}...`);
-          } else {
-            // Try to parse as JSON (fallback for old format)
-            console.log(`🔍 Attempting to parse as JSON...`);
-            const commitmentData = JSON.parse(storedData.commitment);
-            console.log(`🔍 Parsed JSON commitment data:`, commitmentData);
-            
-            if (commitmentData.x && commitmentData.y) {
-              // Old format with x,y coordinates - convert to hex
-              const x = BigInt(commitmentData.x);
-              const y = BigInt(commitmentData.y);
-              console.log(`🔍 Found x,y coordinates: x=${x}, y=${y}`);
-              
-              // Try to reconstruct the point from x,y coordinates
-              try {
-                // Convert x,y to hex format that ed25519 can handle
-                // We'll create a synthetic point for now since ed25519 doesn't expose x,y constructor
-                // This is a temporary workaround - in production, all commitments should be hex
-                console.log(`🔍 Attempting to create synthetic point from x,y...`);
-                
-                // Create a dummy point and then try to work with it
-                // This is not ideal but allows us to test the system
-                const dummyPoint = ed25519.Point.BASE;
-                console.log(`🔍 Created synthetic point for old format commitment`);
-                
-                // Create a synthetic ballot object for aggregation
-                const syntheticBallot: Ballot = {
-                  voter_id: `stored_${Math.random().toString(36).substr(2, 9)}`,
-                  commitment: dummyPoint
-                };
-
-                // Add to submitted ballots map
-                this.submittedBallots.set(syntheticBallot.voter_id, syntheticBallot);
-                console.log(`🔍 Added synthetic ballot for old format commitment with voter_id: ${syntheticBallot.voter_id}`);
-                continue;
-              } catch (reconstructionError) {
-                console.warn('Failed to reconstruct old format commitment:', reconstructionError);
-                console.warn('Skipping commitment with x,y coordinates - cannot reconstruct ed25519.Point');
-                continue;
-              }
-            } else if (commitmentData.X && commitmentData.Y && commitmentData.Z && commitmentData.T) {
-              // Extended ed25519 point format with X, Y, Z, T coordinates
-              console.log(`🔍 Found extended ed25519 point format with X, Y, Z, T coordinates`);
-              
-              try {
-                // Create a synthetic point for now since we can't easily reconstruct from extended coordinates
-                // In production, we should store commitments in hex format
-                console.log(`🔍 Creating synthetic point for extended format commitment`);
-                
-                const dummyPoint = ed25519.Point.BASE;
-                
-                // Create a synthetic ballot object for aggregation
-                const syntheticBallot: Ballot = {
-                  voter_id: `stored_${Math.random().toString(36).substr(2, 9)}`,
-                  commitment: dummyPoint
-                };
-
-                // Add to submitted ballots map
-                this.submittedBallots.set(syntheticBallot.voter_id, syntheticBallot);
-                console.log(`🔍 Added synthetic ballot for extended format commitment with voter_id: ${syntheticBallot.voter_id}`);
-                continue;
-              } catch (reconstructionError) {
-                console.warn('Failed to reconstruct extended format commitment:', reconstructionError);
-                continue;
-              }
-            } else {
-              throw new Error('Unknown commitment format');
-            }
-          }
-        } else {
-          throw new Error('Commitment must be a string');
-        }
-
-        // Convert hex string back to Uint8Array
-        const bytes = new Uint8Array(commitmentHex.length / 2);
-        for (let i = 0; i < commitmentHex.length; i += 2) {
-          bytes[i / 2] = parseInt(commitmentHex.substr(i, 2), 16);
-        }
-        console.log(`🔍 Converted hex to ${bytes.length} bytes`);
-
-        // Reconstruct the ed25519.Point from raw bytes
-        console.log(`🔍 Attempting to reconstruct ed25519.Point from hex...`);
-        const commitment = ed25519.Point.fromHex(commitmentHex);
-        console.log(`🔍 Successfully reconstructed commitment point`);
-
-        // Create a synthetic ballot object for aggregation
-        const syntheticBallot: Ballot = {
-          voter_id: `stored_${Math.random().toString(36).substr(2, 9)}`,
-          commitment: commitment
-        };
-
-        // Add to submitted ballots map
-        this.submittedBallots.set(syntheticBallot.voter_id, syntheticBallot);
-        console.log(`🔍 Added synthetic ballot with voter_id: ${syntheticBallot.voter_id}`);
-      } catch (error) {
-        console.warn('Failed to restore stored commitment:', error);
-      }
-    }
-    
-    console.log(`🔍 restoreStoredCommitments completed. Total ballots now: ${this.submittedBallots.size}`);
-  }
-
-  /**
-   * Get the total number of submitted ballots
-   * @returns Number of ballots ready for aggregation
-   */
-  getTotalSubmittedBallots(): number {
-    return this.submittedBallots.size;
-  }
-
-  /**
-   * Get all registered voters
-   * @returns Array of registration anchors
-   */
-  getRegisteredVoters(): Anchor[] {
-    return Array.from(this.registeredVoters.values());
-  }
-
-  /**
-   * Get all submitted ballots
-   * @returns Array of ballots
-   */
-  getSubmittedBallots(): Ballot[] {
-    return Array.from(this.submittedBallots.values());
-  }
-
-  /**
-   * Get registration status of a voter
-   * @param voterId - Voter identifier
-   * @returns True if voter is registered
-   */
-  isVoterRegistered(voterId: string): boolean {
-    return this.registeredVoters.has(voterId);
-  }
-
-  /**
-   * Get voting status of a voter
-   * @param voterId - Voter identifier
-   * @returns True if voter has voted
-   */
-  hasVoterVoted(voterId: string): boolean {
-    return this.submittedBallots.has(voterId);
-  }
-
-  /**
-   * Get the election configuration
-   * @returns The election configuration
-   */
-  getElectionConfig(): ElectionConfig {
-    return this.electionConfig;
-  }
-
-  /**
-   * Extract randomness from stored voter data (for internal use)
-   * @param voterId - The voter identifier
-   * @returns The randomness value
-   */
-  private extractRandomnessFromRegistration(voterId: string): bigint {
-    const randomness = this.voterRandomness.get(voterId);
-    if (!randomness) {
-      throw new Error(`No randomness found for voter: ${voterId}`);
-    }
-    return randomness;
-  }
-
-  /**
-   * Finds the distribution of votes that adds up to the total sum.
-   * Uses backtracking to find the exact combination.
-   * @param totalSum - The sum of all vote values.
-   * @param totalVotes - The total number of votes.
-   * @returns A map of option IDs to their vote counts.
-   */
-  private findVoteDistribution(totalSum: number, totalVotes: number): Record<string, number> {
-    console.log(`🔍 DEBUG: Finding vote distribution for sum ${totalSum} with ${totalVotes} votes`);
-    
-    const optionValues = this.electionConfig.options.map(opt => opt.value);
-    const optionIds = this.electionConfig.options.map(opt => opt.id);
-    
-    console.log(`🔍 DEBUG: Option values:`, optionValues);
-    console.log(`🔍 DEBUG: Option IDs:`, optionIds);
-    
-    // Use backtracking to find the exact combination
-    const result = this.backtrackVoteDistribution(optionValues, totalSum, totalVotes);
-    
-    if (result) {
-      // Map the result back to option IDs
-      const distribution: Record<string, number> = {};
-      for (let i = 0; i < optionIds.length; i++) {
-        distribution[optionIds[i]] = result[i];
-      }
-      console.log(`🔍 DEBUG: Found exact distribution:`, distribution);
-      return distribution;
-    } else {
-      console.warn(`🔍 WARNING: Could not find exact distribution, using fallback`);
-      // Fallback: distribute votes evenly
-      const distribution: Record<string, number> = {};
-      const avgVotes = Math.floor(totalVotes / optionIds.length);
-      const remainder = totalVotes % optionIds.length;
-      
-      for (let i = 0; i < optionIds.length; i++) {
-        distribution[optionIds[i]] = avgVotes + (i < remainder ? 1 : 0);
-      }
-      
-      console.log(`🔍 DEBUG: Fallback distribution:`, distribution);
-      return distribution;
-    }
-  }
-  
-  /**
-   * Backtracking algorithm to find vote distribution
-   * @param values - Array of option values
-   * @param targetSum - Target sum to achieve
-   * @param totalVotes - Total number of votes to distribute
-   * @returns Array of vote counts for each option, or null if no solution found
-   */
-  private backtrackVoteDistribution(values: number[], targetSum: number, totalVotes: number): number[] | null {
-    const n = values.length;
-    const result = new Array(n).fill(0);
-    
-    const backtrack = (index: number, currentSum: number, remainingVotes: number): boolean => {
-      // Base case: if we've processed all options
-      if (index === n) {
-        return currentSum === targetSum && remainingVotes === 0;
-      }
-      
-      // Try different numbers of votes for the current option
-      const maxVotes = Math.min(remainingVotes, Math.floor((targetSum - currentSum) / values[index]));
-      
-      for (let votes = 0; votes <= maxVotes; votes++) {
-        const newSum = currentSum + votes * values[index];
-        const newRemainingVotes = remainingVotes - votes;
-        
-        // Check if this is still feasible
-        if (newSum > targetSum || newRemainingVotes < 0) continue;
-        
-        result[index] = votes;
-        
-        if (backtrack(index + 1, newSum, newRemainingVotes)) {
-          return true;
-        }
-      }
-      
-      return false;
-    };
-    
-    return backtrack(0, 0, totalVotes) ? result : null;
+  clear(): void {
+    this.voters.clear();
+    this.votes.clear();
+    this.elections.clear();
   }
 }

@@ -12,10 +12,28 @@
  * - Public bulletin board architecture
  */
 
-// Core system
-export * from "./core/types";
-export * from "./core/voting-system";
+// Export the core voting system
+export { VotingSystem } from "./core/voting-system";
 
-// Cryptographic primitives - only export the main class and types
-export { PedersenCommitment, GroupElement, ScalarType, Ctx } from "./crypto/pedersen";
-export { randScalar, bigIntToBytes, hashToScalar, enc, dec, bsgsSmallRange, verifyFinal } from "./crypto/pedersen";
+// Export types
+export type { 
+  Voter, 
+  VoteData, 
+  ElectionConfig, 
+  ElectionResult 
+} from "./core/types";
+
+// Export crypto utilities
+export { 
+  PedersenCommitment,
+  randScalar,
+  bigIntToBytes,
+  hashToScalar,
+  enc,
+  dec,
+  tallyOption,
+  bsgsSmallRange
+} from "./crypto/pedersen";
+
+// Export RistrettoPoint for identity element access
+export { RistrettoPoint } from "@noble/curves/ed25519.js";

@@ -25,6 +25,7 @@ export interface SigningResult {
     success: boolean;
     error?: string;
     voteId?: string;
+    voteResult?: any; // For blind voting results
 }
 
 export class SigningService {
@@ -140,12 +141,39 @@ export class SigningService {
                 return { success: false, error: "Message verification failed" };
             }
             
-            // Submit the actual vote
-            const vote = await this.getVoteService().createVote({
-                pollId: session.pollId,
-                userId: session.userId,
-                ...session.voteData
-            });
+            // Check if this is a blind vote or regular vote by looking at the poll
+            const pollService = new (await import('./PollService')).PollService();
+            const poll = await pollService.getPollById(session.pollId);
+            
+            if (!poll) {
+                return { success: false, error: "Poll not found" };
+            }
+            
+            let voteResult;
+            
+            if (poll.visibility === "private") {
+                // Blind voting - submit using blind vote method
+                voteResult = await this.getVoteService().submitBlindVote(
+                    session.pollId,
+                    session.userId,
+                    {
+                        chosenOptionId: session.voteData.optionId || 'option_0',
+                        commitments: session.voteData.commitments || {},
+                        anchors: session.voteData.anchors || {}
+                    }
+                );
+            } else {
+                // Regular voting - submit using regular vote method
+                const mode = session.voteData.optionId !== undefined ? "normal" : 
+                           session.voteData.points ? "point" : "rank";
+                
+                voteResult = await this.getVoteService().createVote(
+                    session.pollId,
+                    session.userId,
+                    session.voteData,
+                    mode
+                );
+            }
             
             // Update session status
             session.status = "completed";
@@ -156,13 +184,13 @@ export class SigningService {
             this.notifySubscribers(sessionId, {
                 type: "signed",
                 status: "completed",
-                voteId: vote.id,
+                voteResult,
                 sessionId
             });
             
             return { 
                 success: true, 
-                voteId: vote.id 
+                voteResult
             };
             
         } catch (error) {

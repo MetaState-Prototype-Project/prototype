@@ -17,12 +17,11 @@ export interface VoteOption {
 
 // Election configuration
 export interface ElectionConfig {
-  id: string;
-  title: string;
-  description?: string;
-  options: VoteOption[];
-  maxVotes?: number; // Optional: allow multiple votes per voter
-  allowAbstain?: boolean; // Optional: allow abstaining
+  electionId: string;
+  contestId: string;
+  options: string[]; // Array of option IDs
+  maxVotes: number;
+  allowAbstain: boolean;
 }
 
 // Context for domain separation
@@ -66,9 +65,32 @@ export interface AggregatedResults {
   X: Uint8Array; // Final result: g^M
 }
 
-// Election result - now supports multiple options
+export interface Voter {
+  voterId: string;
+  electionId: string;
+  contestId: string;
+  randomness: bigint;
+  registeredAt: Date;
+}
+
+export interface VoteData {
+  voterId: string;
+  contestId: string;
+  chosenOptionId: string; // Which option the voter actually chose
+  commitments: Record<string, Uint8Array>; // optionId -> commitment bytes
+  anchors: Record<string, Uint8Array>;     // optionId -> anchor bytes
+  submittedAt: Date;
+}
+
+// Election result - updated to match VotingSystem expectations
 export interface ElectionResult {
+  electionId: string;
+  contestId: string;
+  totalVoters: number;
   totalVotes: number;
-  optionResults: Record<string, number>; // Map of option ID to vote count
-  proof: AggregatedResults;
+  optionResults: Record<string, number>; // optionId -> vote count
+  C_agg: Record<string, Uint8Array>;    // optionId -> aggregated commitment
+  H_S: Record<string, Uint8Array>;      // optionId -> aggregated anchor
+  X: Record<string, Uint8Array>;        // optionId -> randomness cancelled result
+  verified: boolean;
 }

@@ -1,739 +1,459 @@
 import { Repository } from "typeorm";
 import { AppDataSource } from "../database/data-source";
-import { Vote, VoteDataByMode } from "../database/entities/Vote";
+import { Vote, VoteDataByMode, NormalVoteData, PointVoteData, RankVoteData } from "../database/entities/Vote";
 import { Poll } from "../database/entities/Poll";
 import { User } from "../database/entities/User";
-import { PollVotingState } from "../database/entities/PollVotingState";
-import { DecentralizedVotingSystem, ElectionConfig, VoteOption } from "blindvote";
+import { VotingSystem, VoteData } from 'blindvote';
 
 export class VoteService {
-    private voteRepository: Repository<Vote>;
-    private pollRepository: Repository<Poll>;
-    private userRepository: Repository<User>;
-    private pollVotingStateRepository: Repository<PollVotingState>;
+  private voteRepository: Repository<Vote>;
+  private pollRepository: Repository<Poll>;
+  private userRepository: Repository<User>;
+  
+  // Store VotingSystem instances per poll
+  private votingSystems = new Map<string, VotingSystem>();
 
-    constructor() {
-        this.voteRepository = AppDataSource.getRepository(Vote);
-        this.pollRepository = AppDataSource.getRepository(Poll);
-        this.userRepository = AppDataSource.getRepository(User);
-        this.pollVotingStateRepository = AppDataSource.getRepository(PollVotingState);
+  constructor() {
+    this.voteRepository = AppDataSource.getRepository(Vote);
+    this.pollRepository = AppDataSource.getRepository(Poll);
+    this.userRepository = AppDataSource.getRepository(User);
+  }
+
+  // ===== NON-BLIND VOTING METHODS (for normal/point/rank modes) =====
+
+  async createVote(pollId: string, userId: string, voteData: VoteData, mode: "normal" | "point" | "rank" = "normal"): Promise<Vote> {
+    const poll = await this.pollRepository.findOne({
+      where: { id: pollId }
+    });
+
+    if (!poll) {
+      throw new Error('Poll not found');
     }
 
-    /**
-     * Create an ElectionConfig from a Poll
-     */
-    private createElectionConfig(poll: Poll): ElectionConfig {
-        const options: VoteOption[] = poll.options.map((option, index) => ({
-            id: `option_${index}`,
-            label: option,
-            value: index // Use index as value for simplicity
-        }));
+    // Check if user has already voted
+    const existingVote = await this.voteRepository.findOne({
+      where: { pollId, userId }
+    });
 
+    if (existingVote) {
+      throw new Error('User has already voted on this poll');
+    }
+
+    // Create vote with appropriate mode and proper typing
+    let typedData: VoteDataByMode;
+    if (mode === "normal") {
+      // Frontend sends { optionId: 0 }, convert to ["0"]
+      const optionId = (voteData as any).optionId;
+      const optionArray = optionId !== undefined ? [optionId.toString()] : [];
+      typedData = { mode: "normal", data: optionArray };
+    } else if (mode === "point") {
+      // Frontend sends { 0: 50, 1: 50 }, convert to [{ option: "0", points: 50 }, { option: "1", points: 50 }]
+      const pointsData = voteData as any;
+      const convertedData = Object.entries(pointsData).map(([index, points]) => ({
+        option: index,
+        points: points as number
+      }));
+      typedData = { mode: "point", data: convertedData };
+    } else {
+      // Frontend sends { 0: 1, 1: 2 }, convert to [{ option: "0", points: 1 }, { option: "1", points: 2 }]
+      const ranksData = voteData as any;
+      const convertedData = Object.entries(ranksData).map(([index, rank]) => ({
+        option: index,
+        points: rank as number
+      }));
+      typedData = { mode: "rank", data: convertedData };
+    }
+
+    const vote = this.voteRepository.create({
+      pollId,
+      userId,
+      voterId: userId, // For non-blind voting, voterId is the same as userId
+      data: typedData
+    });
+
+    return await this.voteRepository.save(vote);
+  }
+
+  async getVotesByPoll(pollId: string): Promise<Vote[]> {
+    return await this.voteRepository.find({
+      where: { pollId },
+      relations: ['user']
+    });
+  }
+
+  async getUserVote(pollId: string, userId: string): Promise<Vote | null> {
+    return await this.voteRepository.findOne({
+      where: { pollId, userId }
+    });
+  }
+
+  async getPollResults(pollId: string): Promise<any> {
+    const poll = await this.pollRepository.findOne({
+      where: { id: pollId }
+    });
+
+    if (!poll) {
+      throw new Error('Poll not found');
+    }
+
+    const votes = await this.getVotesByPoll(pollId);
+    
+    if (poll.mode === "normal") {
+      // Count votes for each option
+      const optionCounts: Record<string, number> = {};
+      poll.options.forEach((option, index) => {
+        optionCounts[option] = 0;
+      });
+
+      votes.forEach(vote => {
+        if (vote.data.mode === "normal" && Array.isArray(vote.data.data)) {
+          vote.data.data.forEach(optionIndex => {
+            const option = poll.options[parseInt(optionIndex)];
+            if (option) {
+              optionCounts[option]++;
+            }
+          });
+        }
+      });
+
+      const totalVotes = votes.length;
+      const results = poll.options.map((option, index) => {
+        const votes = optionCounts[option] || 0;
+        const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
         return {
-            id: poll.id,
-            title: poll.title,
-            description: "", // Poll doesn't have description field
-            options,
-            maxVotes: 1, // One vote per voter
-            allowAbstain: false
+          option,
+          votes,
+          percentage
         };
+      });
+
+      return {
+        pollId,
+        totalVotes,
+        results
+      };
     }
 
-    /**
-     * Submit a blind vote using the new blindvote library
-     */
-    async submitBlindVote(pollId: string, userId: string, commitment: any, proof: any, optionIndex?: number): Promise<Vote> {
-        console.log(`🔍 Submitting blind vote for poll ${pollId} by user ${userId}`);
+    // For other modes, return basic info
+    return {
+      pollId,
+      totalVotes: votes.length,
+      mode: poll.mode
+    };
+  }
+
+  // ===== BLIND VOTING METHODS =====
+
+  private getVotingSystemForPoll(pollId: string): VotingSystem {
+    if (!this.votingSystems.has(pollId)) {
+      this.votingSystems.set(pollId, new VotingSystem());
+    }
+    return this.votingSystems.get(pollId)!;
+  }
+
+  async submitBlindVote(pollId: string, voterId: string, voteData: any) {
+    try {
+      const votingSystem = this.getVotingSystemForPoll(pollId);
+      
+      // Get poll to find options
+      const poll = await this.pollRepository.findOne({
+        where: { id: pollId }
+      });
+
+      if (!poll) {
+        throw new Error('Poll not found');
+      }
+
+      // Create election if it doesn't exist
+      try {
+        const options = poll.options.map((opt: string, index: number) => `option_${index}`);
+        votingSystem.createElection(pollId, pollId, options);
+      } catch (error) {
+        // Election might already exist, that's ok
+      }
+
+      // Register voter if not already registered
+      try {
+        votingSystem.registerVoter(voterId, pollId, pollId);
+      } catch (error) {
+        // Voter might already be registered, that's ok
+      }
+
+      // Extract per-option commitments and anchors from voteData
+      const { commitments, anchors } = voteData;
+
+      // Validate that we have commitments and anchors for all options
+      const optionIds = poll.options.map((opt: string, index: number) => `option_${index}`);
+      for (const optionId of optionIds) {
+        if (!commitments[optionId] || !anchors[optionId]) {
+          throw new Error(`Missing commitment or anchor for option ${optionId}`);
+        }
+      }
+
+      // Convert hex strings back to Uint8Array for storage
+      const processedCommitments: Record<string, Uint8Array> = {};
+      const processedAnchors: Record<string, Uint8Array> = {};
+
+      for (const optionId of optionIds) {
+        processedCommitments[optionId] = new Uint8Array(
+          commitments[optionId].match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []
+        );
+        processedAnchors[optionId] = new Uint8Array(
+          anchors[optionId].match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []
+        );
+      }
+
+      // Note: We don't call votingSystem.submitVote because we don't have chosenOptionId
+      // This preserves privacy - the backend never knows which option was chosen
+
+      // Store in database for persistence
+      const blindVoteData: VoteDataByMode = {
+        mode: "blind" as const,
+        commitment: JSON.stringify({ commitments, anchors }), // NO chosenOptionId - that would break privacy!
+        proof: "per_option_commitments",
+        revealed: false
+      };
+
+      // For blind voting, look up the user by their ename (W3ID)
+      const user = await this.userRepository.findOne({ where: { ename: voterId } });
+      if (!user) {
+        throw new Error(`User with ename ${voterId} not found. User must exist before submitting blind vote.`);
+      }
+
+      const vote = this.voteRepository.create({
+        poll: { id: pollId },
+        user: { id: user.id },
+        voterId,
+        data: blindVoteData
+      });
+
+      await this.voteRepository.save(vote);
+
+      return { success: true, message: 'Blind vote submitted successfully' };
+
+    } catch (error) {
+      console.error('❌ Error in submitBlindVote:', error);
+      throw error;
+    }
+  }
+
+  async tallyBlindVotes(pollId: string) {
+    try {
+      const votingSystem = this.getVotingSystemForPoll(pollId);
+      
+      // Get poll details
+      const poll = await this.pollRepository.findOne({
+        where: { id: pollId }
+      });
+
+      if (!poll) {
+        throw new Error('Poll not found');
+      }
+
+      // Get all votes for this poll
+      const votes = await this.voteRepository.find({
+        where: { poll: { id: pollId } },
+        relations: ['user']
+      });
+
+      // Filter for blind votes
+      const blindVotes = votes.filter(vote => 
+        vote.data.mode === 'blind'
+      );
+
+      console.log(`🔍 Tallying ${blindVotes.length} blind votes for poll ${pollId}`);
+
+      // Rebuild the VotingSystem state from database
+      const options = poll.options.map((opt: string, index: number) => `option_${index}`);
+      
+      try {
+        votingSystem.createElection(pollId, pollId, options);
+      } catch (error) {
+        // Election might already exist
+      }
+
+      // Re-register voters and re-submit votes
+      for (const vote of blindVotes) {
+        const blindVoteData = vote.data as any;
+        console.log('🔍 Debug blindVoteData:', blindVoteData);
+        console.log('🔍 Debug blindVoteData.commitment:', blindVoteData.commitment);
+        console.log('🔍 Debug typeof commitment:', typeof blindVoteData.commitment);
         
-        const poll = await this.pollRepository.findOne({
-            where: { id: pollId }
-        });
+        try {
+          const voteData = JSON.parse(blindVoteData.commitment);
+          const { commitments, anchors } = voteData; // NO chosenOptionId!
+          const voterId = vote.voterId;
 
-        if (!poll) {
-            throw new Error("Poll not found");
-        }
+          try {
+            votingSystem.registerVoter(voterId, pollId, pollId);
+          } catch (error) {
+            // Voter might already be registered, that's ok
+          }
 
-        if (poll.visibility !== "private") {
-            throw new Error("Blind voting only allowed for private polls");
-        }
-        
-        // Check if user has already voted
-        const existingVote = await this.voteRepository.findOne({
-            where: { poll: { id: pollId }, user: { id: userId } }
-        });
+          // Convert hex strings back to Uint8Array
+          const processedCommitments: Record<string, Uint8Array> = {};
+          const processedAnchors: Record<string, Uint8Array> = {};
 
-        if (existingVote) {
-            throw new Error('User has already voted in this poll');
-        }
+          for (const optionId of options) {
+            processedCommitments[optionId] = new Uint8Array(
+              commitments[optionId].match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []
+            );
+            processedAnchors[optionId] = new Uint8Array(
+              anchors[optionId].match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []
+            );
+          }
 
-        // Convert commitment to string if it's an object
-        let commitmentString = commitment;
-        if (typeof commitment === 'object' && commitment !== null) {
-            // Store the commitment as raw bytes instead of JSON string
-            // This allows us to properly reconstruct the ed25519.Point later
-            if (commitment.toRawBytes) {
-                // Convert to hex string for storage
-                const rawBytes = commitment.toRawBytes();
-                commitmentString = Array.from(rawBytes as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
-                console.log(`🔍 Storing commitment as hex string (${commitmentString.length} chars): ${commitmentString.substring(0, 64)}...`);
-            } else {
-                // Fallback to JSON if no toRawBytes method
-                commitmentString = JSON.stringify(commitment);
-                console.log(`🔍 Storing commitment as JSON (fallback): ${commitmentString.substring(0, 100)}...`);
-            }
-            console.log(`🔍 Converted commitment object to hex string: ${commitmentString}`);
-        }
-
-        const blindVoteData = {
-            mode: "blind" as const,
-            commitment: commitmentString,
-            proof: proof,
-            // Remove optionIndex - blind voting should not reveal the selected option
+          // Directly add the vote data to VotingSystem without revealing the chosen option
+          // We use 'unknown' as chosenOptionId since we don't know and shouldn't know it
+          const voteDataWithTimestamp: VoteData = {
+            voterId,
+            contestId: pollId,
+            chosenOptionId: 'unknown', // We don't know the real choice - that's the point!
+            commitments: processedCommitments,
+            anchors: processedAnchors,
             submittedAt: new Date()
-        };
+          };
 
-        const vote = this.voteRepository.create({
-            poll: { id: pollId },
-            user: { id: userId },
-            voterId: userId,
-            data: blindVoteData
-        });
-
-        const savedVote = await this.voteRepository.save(vote);
-        console.log(`✅ Blind vote saved with ID: ${savedVote.id}`);
-
-        // Update PollVotingState with the commitment data
-        try {
-            console.log(`🔍 Attempting to update PollVotingState for poll ${pollId}`);
-            
-            let votingState = await this.pollVotingStateRepository.findOne({
-                where: { pollId }
-            });
-            
-            if (!votingState) {
-                // Create new voting state for this poll
-                votingState = this.pollVotingStateRepository.create({
-                    pollId,
-                    registeredVoters: [],
-                    voterAnchors: [],
-                    commitments: [],
-                    proofs: []
-                });
-                console.log(`🔍 Created new PollVotingState for poll ${pollId}`);
-            } else {
-                // Ensure arrays are initialized for existing voting state
-                if (!votingState.commitments) {
-                    votingState.commitments = [];
-                }
-                if (!votingState.voterAnchors) {
-                    votingState.voterAnchors = [];
-                }
-                if (!votingState.proofs) {
-                    votingState.proofs = [];
-                }
-                if (!votingState.registeredVoters) {
-                    votingState.registeredVoters = [];
-                }
-            }
-
-            const commitmentData = {
-                commitment: commitmentString,
-                proof: proof
-                // Removed optionIndex and userId to maintain privacy
-            };
-
-            console.log(`🔍 About to add commitment data:`, commitmentData);
-            console.log(`🔍 Commitments array before push:`, votingState.commitments);
-            votingState.commitments.push(commitmentData);
-            console.log(`🔍 Commitments array after push:`, votingState.commitments);
-
-            await this.pollVotingStateRepository.save(votingState);
-            console.log(`✅ Successfully updated PollVotingState for poll ${pollId} with commitment from user ${userId}`);
+          // Store the vote directly in the voting system (bypass submitVote to avoid chosenOptionId validation)
+          votingSystem.addVoteForTallying(voterId, pollId, pollId, voteDataWithTimestamp);
         } catch (error) {
-            console.error(`❌ Error updating PollVotingState:`, error);
-            // Don't fail the vote submission if this fails
+          console.error('❌ Error parsing blind vote data:', error);
+          console.error('❌ Raw blindVoteData:', blindVoteData);
+          throw error;
         }
+      }
 
-        return savedVote;
+      // Now tally the election
+      const electionResult = await votingSystem.tallyElection(pollId);
+
+      console.log(`✅ Tallying completed for poll ${pollId}`);
+      console.log(`📊 Results:`, electionResult.optionResults);
+
+      // Convert the result to the expected format
+      const optionResults = poll.options.map((option: string, index: number) => ({
+        optionId: `option_${index}`,
+        optionText: option,
+        voteCount: electionResult.optionResults[`option_${index}`] || 0
+      }));
+
+      const totalVoteCount = Object.values(electionResult.optionResults).reduce((sum, count) => sum + count, 0);
+
+      return {
+        pollId,
+        totalVotes: totalVoteCount,
+        optionResults,
+        verified: electionResult.verified,
+        cryptographicProof: {
+          C_agg: electionResult.C_agg,
+          H_S: electionResult.H_S,
+          X: electionResult.X
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error in tallyBlindVotes:', error);
+      throw error;
     }
+  }
 
-    /**
-     * Tally blind votes using the new blindvote library
-     */
-    async tallyBlindVotes(pollId: string): Promise<{ 
-        totalVotes: number; 
-        committedVotes: number; 
-        results: Array<{ option: string; votes: number }>;
-        optionResults: number[]; 
-        aggregatedCommitment: string; 
-        cryptographicProof: any 
-    }> {
-        console.log(`🔍 Tallying blind votes for poll ${pollId}`);
-        
-        const poll = await this.pollRepository.findOne({
-            where: { id: pollId }
-        });
+  async registerBlindVoteVoter(pollId: string, voterId: string) {
+    try {
+      const votingSystem = this.getVotingSystemForPoll(pollId);
+      
+      // Get poll details  
+      const poll = await this.pollRepository.findOne({
+        where: { id: pollId }
+      });
 
-        if (!poll) {
-            throw new Error("Poll not found");
-        }
+      if (!poll) {
+        throw new Error('Poll not found');
+      }
 
-        if (poll.visibility !== "private") {
-            throw new Error("Blind voting only allowed for private polls");
-        }
+      // Create election if it doesn't exist
+      try {
+        const options = poll.options.map((opt: string, index: number) => `option_${index}`);
+        votingSystem.createElection(pollId, pollId, options);
+      } catch (error) {
+        // Election might already exist
+      }
 
-        // Count committed votes
-        const committedVotes = await this.voteRepository.count({
-            where: { poll: { id: pollId } }
-        });
-
-        console.log(`🔍 Found ${committedVotes} committed votes for poll ${pollId}`);
-
-        if (committedVotes === 0) {
-            return {
-                totalVotes: 0,
-                committedVotes: 0,
-                results: [],
-                optionResults: new Array(poll.options.length).fill(0),
-                aggregatedCommitment: "no_votes",
-                cryptographicProof: null
-            };
-        }
-
-        // Load the voting state
-        let votingState = await this.pollVotingStateRepository.findOne({
-            where: { pollId }
-        });
-
-        if (!votingState) {
-            console.log(`⚠️ No PollVotingState found for poll ${pollId}, creating new one`);
-            votingState = this.pollVotingStateRepository.create({
-                pollId,
-                registeredVoters: [],
-                voterAnchors: [],
-                commitments: [],
-                proofs: []
-            });
-            await this.pollVotingStateRepository.save(votingState);
-        }
-
-        // Ensure arrays are initialized
-        if (!votingState.commitments) votingState.commitments = [];
-        if (!votingState.voterAnchors) votingState.voterAnchors = [];
-        if (!votingState.proofs) votingState.proofs = [];
-        if (!votingState.registeredVoters) votingState.registeredVoters = [];
-
-        console.log(`🔍 Using PollVotingState ${votingState.id} with ${votingState.commitments.length} commitments`);
-
-        try {
-            // Create election config from the poll
-            const electionConfig = this.createElectionConfig(poll);
-            const votingSystem = new DecentralizedVotingSystem(electionConfig);
-            
-            // Restore the voting system state from our database
-            await this.restorePollVotingState(votingSystem, pollId);
-
-            // Now use the proper tally method to get the actual vote counts
-            const electionResult = await votingSystem.tally();
-            console.log(`🔍 Election result:`, electionResult);
-
-            // Convert the option results to an array
-            const optionResults = poll.options.map((_, index) => {
-                const optionId = `option_${index}`;
-                return electionResult.optionResults[optionId] || 0;
-            });
-
-            console.log(`🔍 Cryptographic tallying complete: ${optionResults.join(', ')} votes across ${poll.options.length} options`);
-
-            return {
-                totalVotes: committedVotes,
-                committedVotes,
-                results: poll.options.map((option, index) => ({
-                    option,
-                    votes: optionResults[index] || 0
-                })),
-                optionResults,
-                aggregatedCommitment: electionResult.proof.C_agg.toString(),
-                cryptographicProof: {
-                    method: "pedersen_commitment_aggregation",
-                    aggregatedCommitment: electionResult.proof.C_agg.toString(),
-                    totalCommitments: votingState.commitments.length,
-                    electionResult: {
-                        totalVotes: electionResult.totalVotes,
-                        optionResults: electionResult.optionResults
-                    }
-                }
-            };
-        } catch (error) {
-            console.error(`❌ Error during cryptographic tallying:`, error);
-            
-            // Fallback: return basic counts based on stored commitments
-            const optionResults = new Array(poll.options.length).fill(0);
-            
-            console.log(`🔍 Fallback tallying: ${optionResults.join(', ')} votes across ${poll.options.length} options`);
-            
-            return {
-                totalVotes: committedVotes,
-                committedVotes,
-                results: poll.options.map((option, index) => ({
-                    option,
-                    votes: optionResults[index] || 0
-                })),
-                optionResults,
-                aggregatedCommitment: "tallying_failed_fallback",
-                cryptographicProof: {
-                    method: "fallback_counting",
-                    note: "Cryptographic tallying failed, using fallback"
-                }
-            };
-        }
-    }
-
-    /**
-     * Register a voter for blind voting in the backend's voting system
-     * @param pollId - The poll ID
-     * @param voterId - The voter's W3ID (without @ prefix)
-     * @returns The registration anchor
-     */
-    async registerBlindVoteVoter(pollId: string, voterId: string): Promise<any> {
-        try {
-            // Get the poll first
-            const poll = await this.pollRepository.findOne({
-                where: { id: pollId }
-            });
-
-            if (!poll) {
-                throw new Error("Poll not found");
-            }
-
-            // Check if voter is already registered for this poll
-            let votingState = await this.pollVotingStateRepository.findOne({
-                where: { pollId }
-            });
-
-            if (!votingState) {
-                // Create new voting state for this poll
-                votingState = this.pollVotingStateRepository.create({
-                    pollId,
-                    registeredVoters: [],
-                    voterAnchors: [],
-                    commitments: [],
-                    proofs: []
-                });
-            }
-
-            // If voter is already registered but hasn't voted, allow re-registration
-            // (This handles cases where the app was restarted and state was lost)
-            if (votingState.registeredVoters.includes(voterId)) {
-                console.log(`Voter ${voterId} already registered for poll ${pollId}, checking if they can vote`);
-                
-                // Check if they've already submitted a vote
-                const existingVote = await this.voteRepository.findOne({
-                    where: {
-                        poll: { id: pollId },
-                        user: { id: voterId }
-                    }
-                });
-                
-                if (existingVote) {
-                    throw new Error(`Voter ${voterId} has already submitted a vote for poll ${pollId}`);
-                }
-                
-                console.log(`Voter ${voterId} is registered but hasn't voted yet, allowing them to proceed`);
-                // Don't remove the old registration - just let them use it
-            }
-
-            // Create election config and voting system
-            const electionConfig = this.createElectionConfig(poll);
-            const votingSystem = new DecentralizedVotingSystem(electionConfig);
-            
-            // Create a NEW instance for this specific poll
-            // const votingSystem = new DecentralizedVotingSystem(); // This line is removed as it's now global
-            
-            // Restore poll state from database
-            await this.restorePollVotingState(votingSystem, pollId);
-            
-            // Check if voter is already registered in the voting system
-            if (!votingSystem.isVoterRegistered(voterId)) {
-                // Register the voter only if they're not already registered
-                const registration = await votingSystem.registerVoter(voterId);
-                
-                // Add voter to the registered voters list
-                votingState.registeredVoters.push(voterId);
-                if (!votingState.voterAnchors) votingState.voterAnchors = [];
-                
-                // Convert BigInt values to strings for database storage
-                const serializedRegistration = this.serializeForDatabase(registration);
-                votingState.voterAnchors.push(serializedRegistration);
-                
-                // Save the updated state back to database
-                await this.pollVotingStateRepository.save(votingState);
-                
-                return registration;
-            } else {
-                console.log(`Voter ${voterId} is already registered in voting system, returning existing registration`);
-                // Return a mock registration object since they're already registered
-                return {
-                    voter_id: voterId,
-                    anchor: null, // We don't need to return the actual anchor
-                    randomness: null
-                };
-            }
-        } catch (error) {
-            console.error("Error registering blind vote voter:", error);
-            throw error;
-        }
-    }
-
-    /**
-     * Restore the voting system state from the database
-     */
-    private async restorePollVotingState(votingSystem: DecentralizedVotingSystem, pollId: string): Promise<void> {
-        console.log(`🔍 Restoring voting state for poll ${pollId}`);
-        
-        const votingState = await this.pollVotingStateRepository.findOne({
-            where: { pollId }
-        });
-
-        if (!votingState) {
-            console.log(`🔍 No existing voting state found for poll ${pollId}, creating new one`);
-            return;
-        }
-
-        // Restore registered voters
-        if (votingState.registeredVoters && votingState.registeredVoters.length > 0) {
-            console.log(`🔍 Restoring ${votingState.registeredVoters.length} registered voters`);
-            for (const voterId of votingState.registeredVoters) {
-                try {
-                    // Check if voter is already registered before trying to register them
-                    if (!votingSystem.isVoterRegistered(voterId)) {
-                        await votingSystem.registerVoter(voterId);
-                        console.log(`Restored voter ${voterId} for poll ${pollId}`);
-                    } else {
-                        console.log(`Voter ${voterId} already registered in voting system, skipping registration`);
-                    }
-                } catch (error) {
-                    console.warn(`Failed to restore voter ${voterId}:`, error);
-                }
-            }
-        }
-
-        // Restore stored commitments using the new method
-        if (votingState.commitments && votingState.commitments.length > 0) {
-            console.log(`🔍 Adding ${votingState.commitments.length} stored commitments to voting system`);
-            votingSystem.restoreStoredCommitments(votingState.commitments);
-        }
-    }
-
-    /**
-     * Save voting system state to database for a specific poll
-     */
-    private async savePollVotingState(votingSystem: any, pollId: string): Promise<void> {
-        try {
-            // Get the existing voting state
-            const votingState = await this.pollVotingStateRepository.findOne({
-                where: { pollId }
-            });
-
-            if (!votingState) {
-                console.log(`⚠️ No voting state found for poll ${pollId} during save`);
-                return; // Don't create new state here - let submitBlindVote handle it
-            }
-
-            // Extract current state from the voting system
-            // Note: This is a simplified approach - in a real implementation,
-            // you'd need to expose methods to get the internal state
-            const registeredVoters = votingState.registeredVoters || [];
-            
-            // Update the voting state
-            votingState.registeredVoters = registeredVoters;
-            
-            await this.pollVotingStateRepository.save(votingState);
-            console.log(`Saved voting system state for poll ${pollId}`);
-            
-        } catch (error) {
-            console.error("Error saving poll voting state:", error);
-        }
-    }
-
-    /**
-     * Check if a user has already submitted a vote for a specific poll
-     * @param pollId - The poll ID
-     * @param userId - The user ID
-     * @returns True if user has already voted, false otherwise
-     */
-    async hasUserVoted(pollId: string, userId: string): Promise<boolean> {
-        const existingVote = await this.voteRepository.findOne({
-            where: {
-                poll: { id: pollId },
-                user: { id: userId }
-            }
-        });
-        
-        return !!existingVote;
-    }
-
-    /**
-     * Get user by ID (for w3id validation)
-     * @param userId - The user ID
-     * @returns The user or null if not found
-     */
-    async getUserById(userId: string): Promise<any> {
-        return await this.userRepository.findOne({
-            where: { id: userId }
-        });
-    }
-
-    /**
-     * Get poll for blind voting
-     */
-    async getPollForBlindVoting(pollId: string): Promise<any> {
-        const poll = await this.pollRepository.findOne({
-            where: { id: pollId },
-            relations: ['creator'] // Only load the creator relation which exists
-        });
-
-        if (!poll) {
-            throw new Error("Poll not found");
-        }
-
-        console.log(`🔍 DEBUG: getPollForBlindVoting returning poll:`);
-        console.log(`🔍 DEBUG: - poll.options array:`, poll.options);
-        console.log(`🔍 DEBUG: - poll.options.length:`, poll.options.length);
-        console.log(`🔍 DEBUG: - poll.options with indices:`, poll.options.map((opt, idx) => `${idx}: "${opt}"`));
-
-        return poll;
-    }
-
-    // Add missing methods that VoteController expects
-
-    /**
-     * Create a regular vote (non-blind)
-     */
-    async createVote(data: { pollId: string; userId: string; optionId?: string; points?: number; ranks?: number[] }): Promise<Vote> {
-        const { pollId, userId, optionId, points, ranks } = data;
-
-        // Check if user has already voted
-        const existingVote = await this.voteRepository.findOne({
-            where: { poll: { id: pollId }, user: { id: userId } }
-        });
-
-        if (existingVote) {
-            throw new Error('User has already voted on this poll');
-        }
-
-        // Check if poll exists
-        const poll = await this.pollRepository.findOne({
-            where: { id: pollId }
-        });
-
-        if (!poll) {
-            throw new Error('Poll not found');
-        }
-
-        // Check if user exists
-        const user = await this.userRepository.findOne({
-            where: { id: userId }
-        });
-
-        if (!user) {
-            throw new Error('User not found');
-        }
-
-        let voteData: VoteDataByMode;
-
-        if (poll.mode === "rank" && ranks) {
-            // For rank mode, create array of { option, points } where points = rank (1 = top pick, 2 = next, etc.)
-            const rankedOptions = ranks.map((rankIndex, rankPosition) => ({
-                option: poll.options[rankIndex],
-                points: rankPosition + 1 // 1 = top pick, 2 = next, etc.
-            })).filter(item => item.option);
-            voteData = { mode: "rank", data: rankedOptions };
-        } else if (poll.mode === "point" && points !== undefined) {
-            // For point mode, create array with option and points
-            const optionIndex = parseInt(optionId || "0");
-            if (optionIndex >= 0 && optionIndex < poll.options.length) {
-                voteData = { 
-                    mode: "point", 
-                    data: [{ option: poll.options[optionIndex], points }] 
-                };
-            } else {
-                throw new Error('Invalid option selected');
-            }
-        } else if (optionId !== undefined) {
-            // For normal mode, create array with selected option
-            const optionIndex = parseInt(optionId);
-            if (optionIndex >= 0 && optionIndex < poll.options.length) {
-                voteData = { mode: "normal", data: [poll.options[optionIndex]] };
-            } else {
-                throw new Error('Invalid option selected');
-            }
+      // Register voter (or get existing registration)
+      try {
+        votingSystem.registerVoter(voterId, pollId, pollId);
+      } catch (error: any) {
+        // If voter is already registered, that's fine - they can still vote
+        if (error.message.includes('already registered')) {
+          console.log(`Voter ${voterId} already registered for poll ${pollId}, proceeding...`);
         } else {
-            throw new Error('Invalid vote data for poll mode');
+          // Re-throw other errors
+          throw error;
         }
+      }
 
-        const vote = this.voteRepository.create({
-            poll: { id: pollId },
-            user: { id: userId },
-            voterId: userId,
-            data: voteData
-        });
+      return { 
+        success: true, 
+        message: 'Voter registered successfully'
+      };
 
-        return await this.voteRepository.save(vote);
+    } catch (error) {
+      console.error('❌ Error in registerBlindVoteVoter:', error);
+      throw error;
     }
+  }
 
-    /**
-     * Get all votes for a specific poll
-     */
-    async getVotesByPoll(pollId: string): Promise<Vote[]> {
-        return await this.voteRepository.find({
-            where: { poll: { id: pollId } },
-            relations: ['user', 'poll']
-        });
+  // Generate vote data for a voter (used by eID wallet)
+  async generateVoteData(pollId: string, voterId: string, chosenOptionId: string) {
+    try {
+      const votingSystem = this.getVotingSystemForPoll(pollId);
+      
+      // Get poll details
+      const poll = await this.pollRepository.findOne({
+        where: { id: pollId }
+      });
+
+      if (!poll) {
+        throw new Error('Poll not found');
+      }
+
+      // Ensure voter is registered
+      try {
+        votingSystem.registerVoter(voterId, pollId, pollId);
+      } catch (error) {
+        // Voter might already be registered
+      }
+
+      // Generate vote data
+      const voteData = votingSystem.generateVoteData(voterId, pollId, pollId, chosenOptionId);
+
+      // Convert Uint8Array to hex strings for transmission
+      const commitments: Record<string, string> = {};
+      const anchors: Record<string, string> = {};
+
+      for (const [optionId, commitment] of Object.entries(voteData.commitments)) {
+        commitments[optionId] = Array.from(commitment).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      for (const [optionId, anchor] of Object.entries(voteData.anchors)) {
+        anchors[optionId] = Array.from(anchor).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      return {
+        pollId,
+        voterId,
+        chosenOptionId,
+        commitments,
+        anchors,
+        options: poll.options.map((opt: string, index: number) => ({ 
+          id: `option_${index}`, 
+          text: opt 
+        }))
+      };
+
+    } catch (error) {
+      console.error('❌ Error in generateVoteData:', error);
+      throw error;
     }
+  }
+}
 
-    /**
-     * Get a specific user's vote for a poll
-     */
-    async getUserVote(pollId: string, userId: string): Promise<Vote | null> {
-        return await this.voteRepository.findOne({
-            where: { poll: { id: pollId }, user: { id: userId } },
-            relations: ['user', 'poll']
-        });
-    }
-
-    /**
-     * Get poll results (aggregated)
-     */
-    async getPollResults(pollId: string): Promise<any> {
-        const poll = await this.pollRepository.findOne({
-            where: { id: pollId }
-        });
-
-        if (!poll) {
-            throw new Error('Poll not found');
-        }
-
-        const votes = await this.voteRepository.find({
-            where: { poll: { id: pollId } },
-            relations: ['user']
-        });
-
-        if (poll.visibility === "private") {
-            // For private polls, return blind vote results
-            return await this.tallyBlindVotes(pollId);
-        }
-
-        // For public polls, return regular results
-        const results: any = {
-            totalVotes: votes.length,
-            results: [],
-            optionResults: []
-        };
-
-        if (poll.mode === "normal") {
-            // Count votes per option
-            const optionCounts = new Map<string, number>();
-            poll.options.forEach(option => optionCounts.set(option, 0));
-
-            votes.forEach(vote => {
-                if (vote.data.mode === "normal") {
-                    // For normal mode, data is an array of selected options
-                    vote.data.data.forEach(selectedOption => {
-                        if (poll.options.includes(selectedOption)) {
-                            optionCounts.set(selectedOption, (optionCounts.get(selectedOption) || 0) + 1);
-                        }
-                    });
-                }
-            });
-
-            results.optionResults = Array.from(optionCounts.entries()).map(([option, count]) => ({
-                option,
-                count
-            }));
-        } else if (poll.mode === "rank") {
-            // Calculate ranked voting results
-            results.optionResults = poll.options.map(option => ({
-                option,
-                averageRank: 0,
-                totalVotes: 0
-            }));
-
-            votes.forEach(vote => {
-                if (vote.data.mode === "rank") {
-                    // For rank mode, data is an array of { option, points } where points = rank
-                    vote.data.data.forEach(({ option, points }) => {
-                        const optionIndex = poll.options.indexOf(option);
-                        if (optionIndex >= 0 && optionIndex < results.optionResults.length) {
-                            results.optionResults[optionIndex].totalVotes++;
-                            results.optionResults[optionIndex].averageRank += points; // points = rank (1 = best)
-                        }
-                    });
-                }
-            });
-
-            results.optionResults.forEach((result: any) => {
-                if (result.totalVotes > 0) {
-                    result.averageRank = result.averageRank / result.totalVotes;
-                }
-            });
-        } else if (poll.mode === "point") {
-            // Calculate points-based results
-            results.optionResults = poll.options.map(option => ({
-                option,
-                totalPoints: 0,
-                averagePoints: 0,
-                totalVotes: 0
-            }));
-
-            votes.forEach(vote => {
-                if (vote.data.mode === "point") {
-                    // For point mode, data is an array of { option, points }
-                    vote.data.data.forEach(({ option, points }) => {
-                        const optionIndex = poll.options.indexOf(option);
-                        if (optionIndex >= 0 && optionIndex < results.optionResults.length) {
-                            results.optionResults[optionIndex].totalPoints += points;
-                            results.optionResults[optionIndex].totalVotes++;
-                        }
-                    });
-                }
-            });
-
-            results.optionResults.forEach((result: any) => {
-                if (result.totalVotes > 0) {
-                    result.averagePoints = result.totalPoints / result.totalVotes;
-                }
-            });
-        }
-
-        return results;
-    }
-
-    /**
-     * Serialize objects containing BigInt values to strings for database storage.
-     * This is necessary because TypeORM cannot serialize BigInt values to JSON.
-     */
-    private serializeForDatabase(obj: any): any {
-        if (obj === null || obj === undefined) {
-            return obj;
-        }
-        
-        if (typeof obj === 'bigint') {
-            return obj.toString();
-        }
-        
-        if (typeof obj === 'object') {
-            if (Array.isArray(obj)) {
-                return obj.map(item => this.serializeForDatabase(item));
-            } else {
-                const serialized: any = {};
-                for (const [key, value] of Object.entries(obj)) {
-                    serialized[key] = this.serializeForDatabase(value);
-                }
-                return serialized;
-            }
-        }
-        
-        return obj;
-    }
-} 
+export default new VoteService(); 

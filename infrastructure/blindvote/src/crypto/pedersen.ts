@@ -4,12 +4,16 @@
  * Based on the AI Expert specification
  */
 
-import { sha512 } from '@noble/hashes/sha2.js';
-import {
-  RistrettoPoint,
-} from '@noble/curves/ed25519.js';
+import { RistrettoPoint } from '@noble/curves/ed25519.js';
 import { hmac } from '@noble/hashes/hmac';
-import { randomBytes } from 'node:crypto';
+import { sha512 } from '@noble/hashes/sha2.js';
+
+// Browser-compatible random bytes
+function getRandomBytes(length: number): Uint8Array {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return array;
+}
 
 // Type definitions
 export type GroupElement = InstanceType<typeof RistrettoPoint>;
@@ -28,7 +32,7 @@ export function randScalar(): bigint {
   const q = RistrettoPoint.Fn.ORDER;
   let x: bigint;
   do {
-    x = bytesToBigInt(randomBytes(64)) % q;
+    x = bytesToBigInt(getRandomBytes(64)) % q;
   } while (x === 0n || x >= q);
   return x;
 }
@@ -205,10 +209,15 @@ export function bsgsSmallRange(Xb: Uint8Array, nMax: number): number {
   const X = dec(Xb);
   const m = Math.ceil(Math.sqrt(nMax + 1));
   
+  // Check for M=0 case first
+  if (X.equals(RistrettoPoint.ZERO)) {
+    return 0;
+  }
+  
   // baby steps: table[g^j] = j
   const table = new Map<string, number>();
-  let P = RistrettoPoint.ZERO;
-  for (let j = 0; j < m; j++) {
+  let P = g; // Start with g^1, not g^0
+  for (let j = 1; j <= m; j++) {
     table.set(enc(P).toString(), j);
     P = P.add(g);
   }
@@ -228,6 +237,56 @@ export function bsgsSmallRange(Xb: Uint8Array, nMax: number): number {
   }
   
   throw new Error('small-range DL not found (bad inputs)');
+}
+
+/**
+ * Tally votes for a single option using Crypto Daddy's algorithm
+ */
+export function tallyOption(
+  ballots: { voterId: string; C: Uint8Array }[],
+  anchors: { voterId: string; H: Uint8Array }[]
+): number {
+  // only anchors for voters who actually cast
+  const present = new Set(ballots.map(b => b.voterId));
+  const Cs = ballots.map(b => dec(b.C));
+  const Hs = anchors.filter(a => present.has(a.voterId)).map(a => dec(a.H));
+  
+  if (Cs.length !== Hs.length) {
+    throw new Error('anchor/ballot mismatch for this option');
+  }
+
+  const C_agg = addPoints(Cs);
+  const H_S = addPoints(Hs);
+  const X = C_agg.add(H_S.negate());     // X = g · M
+
+  const nMax = Cs.length;                    // votes in this contest
+  const M = bsgsSmallRange(enc(X), nMax);   // Encode X before passing to bsgsSmallRange
+
+  // must pass - handle M=0 case specially
+  let expectedC_agg;
+  if (M === 0) {
+    expectedC_agg = H_S; // For M=0: C_agg = H_S (no g component)
+  } else {
+    expectedC_agg = g.multiply(BigInt(M)).add(H_S); // For M>0: C_agg = g^M + H_S
+  }
+  
+  const ok = encEq(C_agg, expectedC_agg);
+  if (!ok) throw new Error('final check failed');
+  return M;
+}
+
+/**
+ * Helper function to add points
+ */
+function addPoints(arr: any[]) { 
+  return arr.reduce((acc, p) => acc.add(p), RistrettoPoint.ZERO); 
+}
+
+/**
+ * Helper function to compare encodings
+ */
+function encEq(A: any, B: any) { 
+  return Buffer.from(A.toRawBytes()).equals(Buffer.from(B.toRawBytes())); 
 }
 
 export function verifyFinal(C_aggb: Uint8Array, H_Sb: Uint8Array, M: number): boolean {
