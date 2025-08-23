@@ -92,8 +92,15 @@ export class WebhookController {
                 axios.post(new URL("blabsy", process.env.ANCHR_URL).toString(), req.body)
             }
 
-            if (adapter.lockedIds.includes(id)) return;
-            console.log("processing -- not skipped");
+            // Early duplicate check
+            if (adapter.lockedIds.includes(id)) {
+                console.log(`Webhook skipped - ID ${id} already locked`);
+                return res.status(200).json({ success: true, skipped: true });
+            }
+
+            console.log(`Processing webhook for ID: ${id}`);
+            
+            // Lock the global ID immediately to prevent duplicates
             adapter.addToLockedIds(id);
 
             const mapping = Object.values(adapter.mapping).find(
@@ -105,16 +112,17 @@ export class WebhookController {
             const local = await adapter.fromGlobal({ data, mapping });
 
             console.log(local);
-            //
+            
             // Get the local ID from the mapping database
             const localId = await adapter.mappingDb.getLocalId(id);
 
             if (localId) {
-                console.log("LOCAL, updating");
+                console.log(`LOCAL, updating - ID: ${id}, LocalID: ${localId}`);
+                // Lock local ID early to prevent duplicate processing
                 adapter.addToLockedIds(localId);
                 await this.updateRecord(tableName, localId, local.data);
             } else {
-                console.log("NOT LOCAL, creating");
+                console.log(`NOT LOCAL, creating - ID: ${id}`);
                 await this.createRecord(tableName, local.data, req.body.id);
             }
 

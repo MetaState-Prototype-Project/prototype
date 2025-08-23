@@ -51,8 +51,12 @@ export class PollController {
 
     createPoll = async (req: Request, res: Response) => {
         try {
+            console.log('🔍 Full request body:', req.body);
             const { title, mode, visibility, options, deadline, groupId } = req.body;
             const creatorId = (req as any).user.id;
+            
+            console.log('🔍 Extracted data:', { title, mode, visibility, options, deadline, groupId, creatorId });
+            console.log('🔍 groupId type:', typeof groupId, 'value:', groupId);
 
             // groupId is optional - only required for system messages
 
@@ -66,6 +70,7 @@ export class PollController {
                 groupId
             });
 
+            console.log('🔍 Created poll:', poll);
             res.status(201).json(poll);
         } catch (error) {
             console.error("Error creating poll:", error);

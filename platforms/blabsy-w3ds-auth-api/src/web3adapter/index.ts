@@ -104,4 +104,23 @@ export class Web3Adapter {
             console.log(`Successfully restarted watcher for ${collectionName}`);
         }
     }
+
+    // Method to get stats from all watchers
+    getWatcherStats(): Record<string, { processed: number; processing: number }> {
+        const stats: Record<string, { processed: number; processing: number }> = {};
+        for (const [name, watcher] of this.watchers.entries()) {
+            stats[name] = watcher.getStats();
+        }
+        return stats;
+    }
+
+    // Method to clear processed IDs from all watchers
+    clearAllProcessedIds(): void {
+        console.log("Clearing processed IDs from all watchers...");
+        for (const [name, watcher] of this.watchers.entries()) {
+            console.log(`Clearing processed IDs for ${name}...`);
+            watcher.clearProcessedIds();
+        }
+        console.log("All processed IDs cleared");
+    }
 }

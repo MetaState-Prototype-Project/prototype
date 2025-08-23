@@ -17,6 +17,13 @@ export class FirestoreWatcher {
     private retryCount = 0;
     private readonly maxRetries: number = 3;
     private readonly retryDelay: number = 1000; // 1 second
+    
+    // Track processed document IDs to prevent duplicates
+    private processedIds = new Set<string>();
+    private processingIds = new Set<string>();
+    
+    // Clean up old processed IDs periodically to prevent memory leaks
+    private cleanupInterval: NodeJS.Timeout | null = null;
 
     constructor(
         private readonly collection:
@@ -63,6 +70,9 @@ export class FirestoreWatcher {
             );
 
             console.log(`Successfully started watcher for ${collectionPath}`);
+            
+            // Start cleanup interval to prevent memory leaks
+            this.startCleanupInterval();
         } catch (error) {
             console.error(
                 `Failed to start watcher for ${collectionPath}:`,
@@ -84,6 +94,37 @@ export class FirestoreWatcher {
             this.unsubscribe = null;
             console.log(`Successfully stopped watcher for ${collectionPath}`);
         }
+        
+        // Stop cleanup interval
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
+
+    private startCleanupInterval(): void {
+        // Clean up processed IDs every 5 minutes to prevent memory leaks
+        this.cleanupInterval = setInterval(() => {
+            const beforeSize = this.processedIds.size;
+            this.processedIds.clear();
+            const afterSize = this.processedIds.size;
+            console.log(`Cleaned up processed IDs: ${beforeSize} -> ${afterSize}`);
+        }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    // Method to manually clear processed IDs (useful for debugging)
+    clearProcessedIds(): void {
+        const beforeSize = this.processedIds.size;
+        this.processedIds.clear();
+        console.log(`Manually cleared processed IDs: ${beforeSize} -> 0`);
+    }
+
+    // Method to get current stats for debugging
+    getStats(): { processed: number; processing: number } {
+        return {
+            processed: this.processedIds.size,
+            processing: this.processingIds.size
+        };
     }
 
     private async handleError(error: any): Promise<void> {
@@ -112,30 +153,51 @@ export class FirestoreWatcher {
 
         for (const change of changes) {
             const doc = change.doc;
+            const docId = doc.id;
             const data = doc.data();
 
             try {
                 switch (change.type) {
                     case "added":
                     case "modified":
-                        setTimeout(() => {
-                            console.log(
-                                `${collectionPath} - processing - ${doc.id}`
-                            );
-                            if (adapter.lockedIds.includes(doc.id)) return;
-                            this.handleCreateOrUpdate(doc, data);
-                        }, 2_000);
+                        // Check if already processed or currently processing
+                        if (this.processedIds.has(docId) || this.processingIds.has(docId)) {
+                            console.log(`${collectionPath} - skipping duplicate/processing - ${docId}`);
+                            continue;
+                        }
+                        
+                        // Check if locked in adapter
+                        if (adapter.lockedIds.includes(docId)) {
+                            console.log(`${collectionPath} - skipping locked - ${docId}`);
+                            continue;
+                        }
+
+                        // Mark as currently processing
+                        this.processingIds.add(docId);
+                        
+                        // Process immediately without setTimeout to prevent race conditions
+                        console.log(`${collectionPath} - processing - ${docId}`);
+                        await this.handleCreateOrUpdate(doc, data);
+                        
+                        // Mark as processed and remove from processing
+                        this.processedIds.add(docId);
+                        this.processingIds.delete(docId);
                         break;
+                        
                     case "removed":
-                        console.log(`Document removed: ${doc.id}`);
-                        // Handle document removal if needed
+                        console.log(`Document removed: ${docId}`);
+                        // Remove from processed IDs when document is deleted
+                        this.processedIds.delete(docId);
+                        this.processingIds.delete(docId);
                         break;
                 }
             } catch (error) {
                 console.error(
-                    `Error processing ${change.type} for document ${doc.id}:`,
+                    `Error processing ${change.type} for document ${docId}:`,
                     error
                 );
+                // Remove from processing IDs on error
+                this.processingIds.delete(docId);
                 // Continue processing other changes even if one fails
             }
         }

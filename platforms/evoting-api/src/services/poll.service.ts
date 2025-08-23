@@ -61,20 +61,31 @@ export class PollService {
         visibility: "public" | "private",
         options: string[],
         deadline?: Date,
+        groupId?: string,
     ): Promise<Poll> {
+        console.log('🔍 poll.service.createPoll called with:', { title, mode, visibility, options, deadline, groupId });
+        
         if (options.length < 2) {
             throw new Error("At least two options are required");
         }
 
-        const poll = this.pollRepository.create({
+        const pollData = {
             title,
             mode,
             visibility,
             options,
             deadline: deadline ?? null,
-        });
+            groupId: groupId ?? null,
+        };
+        console.log('🔍 Creating poll entity with data:', pollData);
 
-        return await this.pollRepository.save(poll);
+        const poll = this.pollRepository.create(pollData);
+        console.log('🔍 Poll entity created:', poll);
+
+        const savedPoll = await this.pollRepository.save(poll);
+        console.log('🔍 Poll saved to database:', savedPoll);
+        
+        return savedPoll;
     }
 
     // Get a poll by ID
