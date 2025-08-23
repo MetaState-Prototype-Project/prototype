@@ -16,6 +16,13 @@
         requestPermissions,
         scan,
     } from "@tauri-apps/plugin-barcode-scanner";
+    import {
+        exists,
+        generate,
+        getPublicKey,
+        signPayload,
+        // verifySignature
+    } from "@auvo/tauri-plugin-crypto-hw-api";
     import axios from "axios";
     import { getContext, onDestroy, onMount } from "svelte";
     import type { SVGAttributes } from "svelte/elements";
@@ -401,15 +408,40 @@
                 });
             }
 
-            // In a real implementation, you would use the vault's signing capabilities
-            // For now, we'll simulate the signing process
-            await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate signing delay
+            // 🔐 REAL CRYPTOGRAPHIC SIGNING using Tauri crypto plugin
+            console.log("🔐 Starting cryptographic signing process...");
 
-            // Create the signed payload
+            // Check if crypto hardware exists
+            const cryptoExists = await exists("default");
+            if (!cryptoExists) {
+                throw new Error("Cryptographic hardware not available");
+            }
+
+            // Generate default key if it doesn't exist
+            try {
+                await generate("default");
+                console.log("✅ Default key generated/verified");
+            } catch (error) {
+                console.log(
+                    "Default key already exists or generation failed:",
+                    error,
+                );
+            }
+
+            // Get the public key
+            const publicKey = await getPublicKey("default");
+            console.log("🔑 Public key retrieved:", publicKey);
+
+            // Sign the message payload
+            console.log("✍️ Signing message:", messageToSign);
+            const signature = await signPayload("default", messageToSign);
+            console.log("✅ Message signed successfully");
+
+            // Create the signed payload with real signature
             const signedPayload = {
                 sessionId: signingSessionId,
-                signature: "simulated_signature_" + Date.now(), // In real implementation, this would be the actual signature
-                publicKey: vault?.ename || "unknown_public_key", // Use eName as public key for now
+                signature: signature,
+                publicKey: vault?.ename || "unknown_public_key", // Use eName as public key
                 message: messageToSign,
             };
 
@@ -558,6 +590,36 @@
             const vault = await globalState.vaultController.vault;
             if (!vault) {
                 throw new Error("No vault available for blind voting");
+            }
+
+            // 🔐 Get the real public key for voter identification
+            let voterPublicKey: string;
+            try {
+                const cryptoExists = await exists("default");
+                if (!cryptoExists) {
+                    throw new Error("Cryptographic hardware not available");
+                }
+
+                // Generate default key if it doesn't exist
+                try {
+                    await generate("default");
+                    console.log(
+                        "✅ Default key generated/verified for blind voting",
+                    );
+                } catch (edit) {
+                    console.log(
+                        "Default key already exists or generation failed:",
+                        edit,
+                    );
+                }
+
+                // Get the public key
+                voterPublicKey = await getPublicKey("default");
+                console.log("🔑 Voter public key retrieved:", voterPublicKey);
+            } catch (error) {
+                console.error("Failed to get cryptographic public key:", error);
+                // Fallback to ename if crypto fails
+                voterPublicKey = vault.ename || "unknown_public_key";
             }
 
             // Dynamically import the blindvote library

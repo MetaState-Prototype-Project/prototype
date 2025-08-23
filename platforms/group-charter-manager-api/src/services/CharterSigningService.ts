@@ -114,6 +114,37 @@ export class CharterSigningService {
             throw new Error("Invalid signature data");
         }
 
+        // 🔐 SECURITY ASSERTION: Verify that the publicKey matches the user's ename who created the session
+        try {
+            const { UserService } = await import('./UserService');
+            const userService = new UserService();
+            const user = await userService.getUserById(session.userId);
+            
+            if (!user) {
+                throw new Error("User not found for session");
+            }
+
+            // Strip @ prefix from both enames before comparison
+            const cleanPublicKey = publicKey.replace(/^@/, '');
+            const cleanUserEname = user.ename.replace(/^@/, '');
+            
+            if (cleanPublicKey !== cleanUserEname) {
+                console.error(`🔒 SECURITY VIOLATION: publicKey mismatch!`, {
+                    publicKey,
+                    userEname: user.ename,
+                    cleanPublicKey,
+                    cleanUserEname,
+                    sessionUserId: session.userId
+                });
+                throw new Error("Public key does not match the user who created this signing session");
+            }
+            
+            console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);
+        } catch (error) {
+            console.error("Error during public key verification:", error);
+            throw new Error("Failed to verify public key: " + (error instanceof Error ? error.message : "Unknown error"));
+        }
+
         // Record the signature in the database
         try {
             await this.signatureService.recordSignature(
