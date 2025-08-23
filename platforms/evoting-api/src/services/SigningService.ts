@@ -128,6 +128,37 @@ export class SigningService {
         }
         
         try {
+            // 🔐 SECURITY ASSERTION: Verify that the publicKey matches the user's ename who created the session
+            try {
+                const { UserService } = await import('./UserService');
+                const userService = new UserService();
+                const user = await userService.getUserById(session.userId);
+                
+                if (!user) {
+                    return { success: false, error: "User not found for session" };
+                }
+
+                // Strip @ prefix from both enames before comparison
+                const cleanPublicKey = publicKey.replace(/^@/, '');
+                const cleanUserEname = user.ename.replace(/^@/, '');
+                
+                if (cleanPublicKey !== cleanUserEname) {
+                    console.error(`🔒 SECURITY VIOLATION: publicKey mismatch!`, {
+                        publicKey,
+                        userEname: user.ename,
+                        cleanPublicKey,
+                        cleanUserEname,
+                        sessionUserId: session.userId
+                    });
+                    return { success: false, error: "Public key does not match the user who created this signing session" };
+                }
+                
+                console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);
+            } catch (error) {
+                console.error("Error during public key verification:", error);
+                return { success: false, error: "Failed to verify public key: " + (error instanceof Error ? error.message : "Unknown error") };
+            }
+
             // Verify the signature (basic verification for now)
             // In production, you'd want proper cryptographic verification
             const expectedMessage = JSON.stringify({
