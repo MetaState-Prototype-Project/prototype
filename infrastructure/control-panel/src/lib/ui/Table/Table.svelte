@@ -69,6 +69,7 @@
 		sortOrder?: 'asc' | 'desc';
 		onSelectionChange?: (index: number, checked: boolean) => void;
 		onSelectAllChange?: (checked: boolean) => void;
+		selectedIndices?: number[]; // Array of selected row indices
 	}
 
 	let {
@@ -92,6 +93,7 @@
 		sortOrder,
 		onSelectionChange,
 		onSelectAllChange,
+		selectedIndices = [],
 		...restProps
 	}: ITableProps = $props();
 
@@ -99,6 +101,25 @@
 
 	let checkAll = $state(false);
 	let checkItems = $derived<boolean[]>(tableData.map(() => false));
+
+	// Sync checkbox states with selectedIndices prop
+	$effect(() => {
+		if (selectedIndices && selectedIndices.length > 0) {
+			// Update individual checkboxes based on selectedIndices
+			checkItems.forEach((_, index) => {
+				checkItems[index] = selectedIndices.includes(index);
+			});
+
+			// Update header checkbox state
+			checkAll = selectedIndices.length === tableData.length;
+		} else {
+			// Clear all selections
+			checkItems.forEach((_, index) => {
+				checkItems[index] = false;
+			});
+			checkAll = false;
+		}
+	});
 
 	function toggleCheckAll(checked: boolean) {
 		checkAll = checked;

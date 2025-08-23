@@ -262,6 +262,7 @@
 				handleSelectedRow={handleEVaultRowClick}
 				onSelectionChange={handleEVaultSelectionChange}
 				onSelectAllChange={handleSelectAllEVaults}
+				selectedIndices={selectedEVaults}
 			/>
 		{/if}
 	</TableCard>
@@ -304,6 +305,7 @@
 				{handleNextPage}
 				onSelectionChange={handlePlatformSelectionChange}
 				onSelectAllChange={handleSelectAllPlatforms}
+				selectedIndices={selectedPlatforms}
 			/>
 		{/if}
 	</TableCard>
