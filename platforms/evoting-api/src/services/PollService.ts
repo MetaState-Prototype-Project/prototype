@@ -29,24 +29,18 @@ export class PollService {
         // Get user's group memberships if userId is provided
         let userGroupIds: string[] = [];
         if (userId) {
-            const user = await this.userRepository.findOne({
-                where: { id: userId },
-                relations: ['followers', 'following'] // This will include group memberships
-            });
+            // Get groups where user is a member, admin, or participant
+            const groupRepository = AppDataSource.getRepository(Group);
+            const userGroups = await groupRepository
+                .createQueryBuilder('group')
+                .leftJoin('group.members', 'member')
+                .leftJoin('group.admins', 'admin')
+                .leftJoin('group.participants', 'participant')
+                .where('member.id = :userId OR admin.id = :userId OR participant.id = :userId', { userId })
+                .getMany();
             
-            if (user) {
-                // Get groups where user is a member, admin, or participant
-                const groupRepository = AppDataSource.getRepository(Group);
-                const userGroups = await groupRepository
-                    .createQueryBuilder('group')
-                    .leftJoin('group.members', 'member')
-                    .leftJoin('group.admins', 'admin')
-                    .leftJoin('group.participants', 'participant')
-                    .where('member.id = :userId OR admin.id = :userId OR participant.id = :userId', { userId })
-                    .getMany();
-                
-                userGroupIds = userGroups.map(group => group.id);
-            }
+            userGroupIds = userGroups.map(group => group.id);
+            console.log(`User ${userId} is member/admin/participant in groups:`, userGroupIds);
         }
 
         const [allPolls, total] = await this.pollRepository.findAndCount({

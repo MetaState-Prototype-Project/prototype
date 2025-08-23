@@ -21,21 +21,54 @@ export class UserService {
         return await this.userRepository.save(user);
     }
 
-    async findOrCreateUser(
+    async findUserByEname(
         ename: string
     ): Promise<{ user: User; token: string }> {
-        // Strip @ prefix from ename if present (database stores without @)
-        const cleanEname = ename.startsWith('@') ? ename.slice(1) : ename;
+        let user: User | null = null;
         
-        let user = await this.userRepository.findOne({
-            where: { ename: cleanEname },
+        console.log(`🔍 Looking for user with ename: '${ename}'`);
+        
+        // Try to find user with the exact ename as provided
+        user = await this.userRepository.findOne({
+            where: { ename: ename },
         });
-
+        
+        if (user) {
+            console.log(`✅ Found user with exact ename: '${ename}'`);
+        } else {
+            // If not found and ename starts with @, try without @
+            if (ename.startsWith('@')) {
+                const enameWithoutAt = ename.slice(1);
+                console.log(`🔍 Trying without @ prefix: '${enameWithoutAt}'`);
+                user = await this.userRepository.findOne({
+                    where: { ename: enameWithoutAt },
+                });
+                if (user) {
+                    console.log(`✅ Found user without @ prefix: '${enameWithoutAt}'`);
+                }
+            }
+            
+            // If not found and ename doesn't start with @, try with @
+            if (!user && !ename.startsWith('@')) {
+                const enameWithAt = `@${ename}`;
+                console.log(`🔍 Trying with @ prefix: '${enameWithAt}'`);
+                user = await this.userRepository.findOne({
+                    where: { ename: enameWithAt },
+                });
+                if (user) {
+                    console.log(`✅ Found user with @ prefix: '${enameWithAt}'`);
+                }
+            }
+        }
+        
+        // If still no user found, throw an error - never create new users
         if (!user) {
-            user = await this.createBlankUser(cleanEname);
+            console.log(`❌ No user found for ename: '${ename}' (tried with/without @ prefix)`);
+            throw new Error(`User with ename '${ename}' not found. Cannot create new users automatically.`);
         }
 
         const token = signToken({ userId: user.id });
+        console.log(`🎉 Successfully authenticated user: ${user.ename} (ID: ${user.id})`);
         return { user, token };
     }
 
