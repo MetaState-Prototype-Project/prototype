@@ -135,23 +135,6 @@ export default function CreatePoll() {
                 const localDate = new Date(data.deadline);
                 // Convert to UTC ISO string
                 utcDeadline = localDate.toISOString();
-                
-                // Show user the timezone conversion for transparency
-                const localTime = localDate.toLocaleString();
-                const utcTime = new Date(utcDeadline).toLocaleString('en-US', { timeZone: 'UTC' });
-                
-                console.log('🕐 Deadline conversion:', {
-                    local: data.deadline,
-                    localTime,
-                    utc: utcDeadline,
-                    utcTime
-                });
-                
-                toast({
-                    title: "Timezone Converted",
-                    description: `Local: ${localTime} → UTC: ${utcTime}`,
-                    duration: 3000,
-                });
             }
 
             await pollApi.createPoll({
