@@ -157,32 +157,71 @@ export class VoteService {
       };
     } else if (poll.mode === "point") {
       // Calculate point-based voting results
+      console.log('=== POINTS-BASED VOTING DEBUG ===');
+      console.log('Poll ID:', pollId);
+      console.log('Poll options:', poll.options);
+      console.log('Total votes to process:', votes.length);
+      
       const optionPoints: Record<string, number> = {};
       poll.options.forEach((option, index) => {
         optionPoints[option] = 0;
+        console.log(`Initialized option ${index}: "${option}" with 0 points`);
       });
 
-      votes.forEach((vote) => {
-        if (vote.data.mode === "point" && Array.isArray(vote.data.data)) {
-          // Handle the stored format: [{ option: "points", points: { "0": 100 } }]
-          vote.data.data.forEach((item: any) => {
-            if (item.option === "points" && item.points && typeof item.points === 'object') {
-              Object.entries(item.points).forEach(([optionIndex, points]) => {
-                const index = parseInt(optionIndex);
-                const option = poll.options[index];
-                if (option && typeof points === 'number') {
-                  optionPoints[option] += points;
-                }
-              });
-            }
-          });
+      votes.forEach((vote, voteIndex) => {
+        console.log(`\n--- Processing Vote ${voteIndex + 1} ---`);
+        console.log('Vote ID:', vote.id);
+        console.log('Vote data:', JSON.stringify(vote.data, null, 2));
+        console.log('Vote data type:', typeof vote.data);
+        console.log('Vote data.mode:', (vote.data as any).mode);
+        console.log('Vote data.data:', (vote.data as any).data);
+        console.log('Vote data.data type:', typeof (vote.data as any).data);
+        console.log('Is vote.data.data array?', Array.isArray((vote.data as any).data));
+        
+        if (vote.data.mode === "point") {
+          console.log('✅ This is a point vote, processing...');
+          
+          // Handle the actual stored format: {"0": 10, "1": 10, "2": 50, "3": 20, "5": 10}
+          if (typeof vote.data.data === 'object' && !Array.isArray(vote.data.data)) {
+            console.log('✅ Processing direct object format vote data');
+            console.log('Points object entries:', Object.entries(vote.data.data));
+            
+            Object.entries(vote.data.data).forEach(([optionIndex, points]) => {
+              const index = parseInt(optionIndex);
+              const option = poll.options[index];
+              console.log(`Processing optionIndex: "${optionIndex}" -> parsed index: ${index}`);
+              console.log(`Option at index ${index}:`, option);
+              console.log(`Points value:`, points, `(type: ${typeof points})`);
+              
+              if (option && typeof points === 'number') {
+                const oldPoints = optionPoints[option];
+                optionPoints[option] += points;
+                console.log(`✅ Option "${option}" gets ${points} points: ${oldPoints} + ${points} = ${optionPoints[option]}`);
+              } else {
+                console.log(`❌ Skipping invalid option "${optionIndex}" or points ${points}`);
+                console.log(`  - option exists: ${!!option}`);
+                console.log(`  - points is number: ${typeof points === 'number'}`);
+              }
+            });
+          } else {
+            console.log('❌ Unexpected data format for point vote');
+            console.log('  - Expected: object and not array');
+            console.log('  - Got: type =', typeof vote.data.data, ', isArray =', Array.isArray(vote.data.data));
+          }
+        } else {
+          console.log('❌ This is NOT a point vote, skipping');
         }
       });
 
       const totalVotes = votes.length;
+      console.log('\n=== FINAL CALCULATION ===');
+      console.log('Total votes:', totalVotes);
+      console.log('Final optionPoints object:', optionPoints);
+      
       const results = poll.options.map((option, index) => {
         const points = optionPoints[option] || 0;
         const averagePoints = totalVotes > 0 ? points / totalVotes : 0;
+        console.log(`Option "${option}": ${points} total points, ${averagePoints} average points`);
         return {
           option,
           totalPoints: points,
@@ -193,6 +232,8 @@ export class VoteService {
 
       // Sort by total points (highest first)
       results.sort((a, b) => b.totalPoints - a.totalPoints);
+      console.log('\n=== FINAL RESULTS ===');
+      console.log('Sorted results:', JSON.stringify(results, null, 2));
 
       return {
         pollId,
