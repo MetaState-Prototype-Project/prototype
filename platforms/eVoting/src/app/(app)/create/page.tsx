@@ -128,13 +128,39 @@ export default function CreatePoll() {
     const onSubmit = async (data: CreatePollForm) => {
         setIsSubmitting(true);
         try {
+            // Convert local deadline to UTC before sending to backend
+            let utcDeadline: string | undefined;
+            if (data.deadline) {
+                // Create a Date object from the local datetime-local input
+                const localDate = new Date(data.deadline);
+                // Convert to UTC ISO string
+                utcDeadline = localDate.toISOString();
+                
+                // Show user the timezone conversion for transparency
+                const localTime = localDate.toLocaleString();
+                const utcTime = new Date(utcDeadline).toLocaleString('en-US', { timeZone: 'UTC' });
+                
+                console.log('🕐 Deadline conversion:', {
+                    local: data.deadline,
+                    localTime,
+                    utc: utcDeadline,
+                    utcTime
+                });
+                
+                toast({
+                    title: "Timezone Converted",
+                    description: `Local: ${localTime} → UTC: ${utcTime}`,
+                    duration: 3000,
+                });
+            }
+
             await pollApi.createPoll({
                 title: data.title,
                 mode: data.mode,
                 visibility: data.visibility,
                 groupId: data.groupId,
                 options: data.options.filter(option => option.trim() !== ""),
-                deadline: data.deadline || undefined
+                deadline: utcDeadline
             });
             
             toast({
@@ -225,7 +251,8 @@ export default function CreatePoll() {
                         required
                     />
                     <p className="mt-1 text-sm text-gray-500">
-                        Set a deadline for when voting will end.
+                        Set a deadline for when voting will end. 
+                        <span className="text-blue-600 font-medium"> Note: Times are automatically converted to UTC for accurate backend processing.</span>
                     </p>
                     {errors.deadline && (
                         <p className="mt-1 text-sm text-red-600">
