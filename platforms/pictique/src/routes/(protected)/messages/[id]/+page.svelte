@@ -12,6 +12,22 @@
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
 
+	// Function to remove duplicate messages by ID
+	function removeDuplicateMessages(
+		messagesArray: Record<string, unknown>[]
+	): Record<string, unknown>[] {
+		const seen = new Set<string>();
+		return messagesArray.filter((msg) => {
+			const id = msg.id as string;
+			if (seen.has(id)) {
+				console.log(`Removing duplicate message with ID: ${id}`);
+				return false;
+			}
+			seen.add(id);
+			return true;
+		});
+	}
+
 	function scrollToBottom() {
 		if (messagesContainer) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -38,11 +54,17 @@
 		};
 
 		eventSource.onmessage = (e) => {
-			const data = JSON.parse(e.data);
-			console.log('messages', data);
-			addMessages(data);
-			// Use setTimeout to ensure DOM has updated
-			setTimeout(scrollToBottom, 0);
+			try {
+				const data = JSON.parse(e.data);
+				console.log('📨 SSE message received:', data);
+				console.log('Current messages count before adding:', messages.length);
+				addMessages(data);
+				console.log('Messages count after adding:', messages.length);
+				// Use setTimeout to ensure DOM has updated
+				setTimeout(scrollToBottom, 0);
+			} catch (error) {
+				console.error('Error parsing SSE message:', error);
+			}
 		};
 	}
 
@@ -112,7 +134,18 @@
 			};
 		});
 
-		messages = messages.concat(processedMessages);
+		// Prevent duplicate messages by checking IDs
+		const existingIds = new Set(messages.map((msg) => msg.id));
+		const uniqueNewMessages = processedMessages.filter((msg) => !existingIds.has(msg.id));
+
+		if (uniqueNewMessages.length > 0) {
+			console.log(`Adding ${uniqueNewMessages.length} new unique messages`);
+			const newMessagesArray = messages.concat(uniqueNewMessages);
+			// Final safety check to remove any duplicates
+			messages = removeDuplicateMessages(newMessagesArray);
+		} else {
+			console.log('No new unique messages to add');
+		}
 	}
 
 	onMount(async () => {
@@ -124,7 +157,7 @@
 
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
-		{#each messages as msg (msg.id)}
+		{#each removeDuplicateMessages(messages) as msg (msg.id)}
 			<ChatMessage
 				isOwn={msg.isOwn as boolean}
 				userImgSrc={msg.userImgSrc as string}
