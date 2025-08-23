@@ -88,6 +88,48 @@
 		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
 	}
 
+	// Handle select all eVaults
+	function handleSelectAllEVaults(checked: boolean) {
+		if (checked) {
+			// Select all eVaults
+			selectedEVaults = Array.from({ length: evaults.length }, (_, i) => i);
+		} else {
+			// Deselect all eVaults
+			selectedEVaults = [];
+		}
+
+		// Store selections immediately in sessionStorage
+		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
+	}
+
+	// Handle select all platforms
+	function handleSelectAllPlatforms(checked: boolean) {
+		if (checked) {
+			// Select all platforms
+			selectedPlatforms = Array.from({ length: platforms.length }, (_, i) => i);
+		} else {
+			// Deselect all platforms
+			selectedPlatforms = [];
+		}
+
+		// Store selections immediately in sessionStorage
+		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
+	}
+
+	// Clear eVault selection
+	function clearEVaultSelection() {
+		selectedEVaults = [];
+		sessionStorage.removeItem('selectedEVaults');
+	}
+
+	// Clear platform selection
+	function clearPlatformSelection() {
+		selectedPlatforms = [];
+		sessionStorage.removeItem('selectedPlatforms');
+	}
+
 	// Navigate to monitoring with selected items
 	function goToMonitoring() {
 		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
@@ -185,7 +227,11 @@
 			title="eVaults"
 			placeholder="Search eVaults"
 			bind:searchValue={evaultsSearchValue}
-			rightTitle="Monitoring all eVault pods across Kubernetes clusters"
+			rightTitle={selectedEVaults.length > 0
+				? `${selectedEVaults.length} eVault${selectedEVaults.length === 1 ? '' : 's'} selected`
+				: 'Monitoring all eVault pods across Kubernetes clusters'}
+			showClearSelection={selectedEVaults.length > 0}
+			onClearSelection={clearEVaultSelection}
 		/>
 
 		{#if isLoading}
@@ -215,6 +261,7 @@
 				{handleNextPage}
 				handleSelectedRow={handleEVaultRowClick}
 				onSelectionChange={handleEVaultSelectionChange}
+				onSelectAllChange={handleSelectAllEVaults}
 			/>
 		{/if}
 	</TableCard>
@@ -224,7 +271,11 @@
 			title="Platforms"
 			placeholder="Search Platforms"
 			bind:searchValue={platformsSearchQuery}
-			rightTitle="No platform selected. Select a platform to monitor logs"
+			rightTitle={selectedPlatforms.length > 0
+				? `${selectedPlatforms.length} platform${selectedPlatforms.length === 1 ? '' : 's'} selected`
+				: 'No platform selected. Select a platform to monitor logs'}
+			showClearSelection={selectedPlatforms.length > 0}
+			onClearSelection={clearPlatformSelection}
 		/>
 		{#if platformsLoading}
 			<div class="flex justify-center py-8">
@@ -252,6 +303,7 @@
 				{handlePreviousPage}
 				{handleNextPage}
 				onSelectionChange={handlePlatformSelectionChange}
+				onSelectAllChange={handleSelectAllPlatforms}
 			/>
 		{/if}
 	</TableCard>
