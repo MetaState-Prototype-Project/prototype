@@ -22,7 +22,7 @@ interface CharterSigningInterfaceProps {
 export function CharterSigningInterface({ groupId, charterData, onSigningComplete, onCancel, onSigningStatusUpdate }: CharterSigningInterfaceProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
-  const [status, setStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error">("pending");
+  const [status, setStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error" | "security_violation">("pending");
   const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutes in seconds
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const { toast } = useToast();
@@ -106,6 +106,13 @@ export function CharterSigningInterface({ groupId, charterData, onSigningComplet
           toast({
             title: "Session Expired",
             description: "The signing session has expired. Please try again.",
+            variant: "destructive",
+          });
+        } else if (data.type === "security_violation") {
+          setStatus("security_violation");
+          toast({
+            title: "eName Verification Failed",
+            description: "eName verification failed. Please check your eID.",
             variant: "destructive",
           });
         } else {
@@ -249,6 +256,31 @@ export function CharterSigningInterface({ groupId, charterData, onSigningComplet
               Your charter has been securely signed. 
             </p>
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (status === "security_violation") {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            eName verification failed
+          </CardTitle>
+          <CardDescription>
+            eName verification failed
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <div className="bg-red-50 p-4 rounded-lg">
+            <p className="text-red-800 text-sm">
+              eName Mismatch: It appears that you are trying to sign with the wrong eName. 
+              Please make sure you are signing with the right eID linked to this account.
+            </p>
+          </div>
+          <Button onClick={onCancel} variant="secondary">Close</Button>
         </CardContent>
       </Card>
     );
