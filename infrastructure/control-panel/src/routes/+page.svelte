@@ -90,32 +90,44 @@
 
 	// Handle select all eVaults
 	function handleSelectAllEVaults(checked: boolean) {
+		console.log('🎯 handleSelectAllEVaults called with:', checked);
+		console.log('evaults.length:', evaults.length);
+
 		if (checked) {
 			// Select all eVaults
 			selectedEVaults = Array.from({ length: evaults.length }, (_, i) => i);
+			console.log('✅ Selected all eVaults, selectedEVaults:', selectedEVaults);
 		} else {
 			// Deselect all eVaults
 			selectedEVaults = [];
+			console.log('❌ Deselected all eVaults, selectedEVaults:', selectedEVaults);
 		}
 
 		// Store selections immediately in sessionStorage
 		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
 		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
+		console.log('💾 Stored in sessionStorage:', selectedEVaultData);
 	}
 
 	// Handle select all platforms
 	function handleSelectAllPlatforms(checked: boolean) {
+		console.log('🎯 handleSelectAllPlatforms called with:', checked);
+		console.log('platforms.length:', platforms.length);
+
 		if (checked) {
 			// Select all platforms
 			selectedPlatforms = Array.from({ length: platforms.length }, (_, i) => i);
+			console.log('✅ Selected all platforms, selectedPlatforms:', selectedPlatforms);
 		} else {
 			// Deselect all platforms
 			selectedPlatforms = [];
+			console.log('❌ Deselected all platforms, selectedPlatforms:', selectedPlatforms);
 		}
 
 		// Store selections immediately in sessionStorage
 		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
 		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
+		console.log('💾 Stored in sessionStorage:', selectedPlatformData);
 	}
 
 	// Clear eVault selection

@@ -100,25 +100,43 @@
 	selectedRow = undefined;
 
 	let checkAll = $state(false);
-	let checkItems = $derived<boolean[]>(tableData.map(() => false));
+	let checkItems = $state<boolean[]>(tableData.map(() => false));
+
+	// Update checkItems when tableData changes
+	$effect(() => {
+		checkItems = tableData.map(() => false);
+	});
 
 	// Sync checkbox states with selectedIndices prop
 	$effect(() => {
+		console.log('🔄 Table sync effect triggered');
+		console.log('selectedIndices:', selectedIndices);
+		console.log('tableData.length:', tableData.length);
+		console.log('Current checkItems:', checkItems);
+
 		if (selectedIndices && selectedIndices.length > 0) {
+			console.log('📝 Updating checkboxes for selected indices');
 			// Update individual checkboxes based on selectedIndices
 			checkItems.forEach((_, index) => {
-				checkItems[index] = selectedIndices.includes(index);
+				const shouldBeChecked = selectedIndices.includes(index);
+				checkItems[index] = shouldBeChecked;
+				console.log(`Checkbox ${index}: ${shouldBeChecked ? '✅' : '❌'}`);
 			});
 
 			// Update header checkbox state
 			checkAll = selectedIndices.length === tableData.length;
+			console.log('Header checkbox (checkAll):', checkAll);
 		} else {
+			console.log('🧹 Clearing all selections');
 			// Clear all selections
 			checkItems.forEach((_, index) => {
 				checkItems[index] = false;
 			});
 			checkAll = false;
 		}
+
+		console.log('Final checkItems:', checkItems);
+		console.log('Final checkAll:', checkAll);
 	});
 
 	function toggleCheckAll(checked: boolean) {
