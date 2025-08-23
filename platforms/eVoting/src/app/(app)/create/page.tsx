@@ -235,7 +235,6 @@ export default function CreatePoll() {
                     />
                     <p className="mt-1 text-sm text-gray-500">
                         Set a deadline for when voting will end. 
-                        <span className="text-blue-600 font-medium"> Note: Times are automatically converted to UTC for accurate backend processing.</span>
                     </p>
                     {errors.deadline && (
                         <p className="mt-1 text-sm text-red-600">
