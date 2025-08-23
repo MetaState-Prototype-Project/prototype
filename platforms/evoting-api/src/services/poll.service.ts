@@ -159,8 +159,9 @@ export class PollService {
         }
 
         const vote = this.voteRepository.create({
-            poll,
-            voterId: user.id,
+            pollId,
+            userId: user.id,
+            voterId: user.ename, // Use ename for consistency with other vote creation methods
             data,
         });
 

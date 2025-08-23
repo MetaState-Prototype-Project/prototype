@@ -66,10 +66,16 @@ export class VoteService {
       typedData = { mode: "rank", data: convertedData };
     }
 
+    // Get the user to get their ename for voterId
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
     const vote = this.voteRepository.create({
       pollId,
       userId,
-      voterId: userId, // For non-blind voting, voterId is the same as userId
+      voterId: user.ename, // Use the user's ename as voterId for consistency with blind voting
       data: typedData
     });
 
@@ -84,9 +90,24 @@ export class VoteService {
   }
 
   async getUserVote(pollId: string, userId: string): Promise<Vote | null> {
-    return await this.voteRepository.findOne({
+    // First try to find by userId (for normal votes)
+    let vote = await this.voteRepository.findOne({
       where: { pollId, userId }
     });
+
+    // If no vote found by userId, check if this is a blind vote
+    // For blind votes, we need to get the user's ename and check voterId
+    if (!vote) {
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user) {
+        // Check for blind vote by voterId (ename)
+        vote = await this.voteRepository.findOne({
+          where: { pollId, voterId: user.ename }
+        });
+      }
+    }
+
+    return vote;
   }
 
   async getPollResults(pollId: string): Promise<any> {
