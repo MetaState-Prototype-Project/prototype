@@ -71,7 +71,7 @@ export class MessageService {
 
         const voteUrl = `${process.env.PUBLIC_EVOTING_URL || 'http://localhost:3000'}/${voteId}`;
         return await this.createSystemMessage({
-            text: `eVoting Platform: New vote created!\n\n"${voteTitle}"\n\nVote ID: ${voteId}\n\nCreated by: ${creatorName}${deadlineText}\n\n<a href="${voteUrl}">Cast your vote here</a>`,
+            text: `eVoting Platform: New vote created!\n\n"${voteTitle}"\n\nVote ID: ${voteId}\n\nCreated by: ${creatorName}${deadlineText}\n\n<a href="${voteUrl}" target="_blank">Cast your vote here</a>`,
             groupId,
             voteId,
         });
