@@ -9,7 +9,7 @@ export class VotingObservation {
     @Column("uuid")
     groupId!: string;
 
-    @Column("uuid")
+    @Column("uuid", { nullable: true })
     owner!: string;
 
     @ManyToOne(() => User)

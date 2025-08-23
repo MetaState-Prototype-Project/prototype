@@ -148,6 +148,8 @@ export class PollService {
         creatorId: string;
         groupId?: string; // Optional groupId for system messages
     }): Promise<Poll> {
+        console.log('🔍 PollService.createPoll called with:', pollData);
+        
         const creator = await this.userRepository.findOne({
             where: { id: pollData.creatorId }
         });
@@ -156,17 +158,23 @@ export class PollService {
             throw new Error("Creator not found");
         }
 
-        const poll = this.pollRepository.create({
+        const pollDataForEntity = {
             title: pollData.title,
             mode: pollData.mode as "normal" | "point" | "rank",
             visibility: pollData.visibility as "public" | "private",
             options: pollData.options,
             deadline: pollData.deadline ? new Date(pollData.deadline) : null,
             creator,
-            creatorId: pollData.creatorId
-        });
+            creatorId: pollData.creatorId,
+            groupId: pollData.groupId || null
+        };
+        console.log('🔍 Creating poll entity with data:', pollDataForEntity);
+
+        const poll = this.pollRepository.create(pollDataForEntity);
+        console.log('🔍 Poll entity created:', poll);
 
         const savedPoll = await this.pollRepository.save(poll);
+        console.log('🔍 Poll saved to database:', savedPoll);
 
         // Create a system message about the new vote
         if (pollData.groupId) {

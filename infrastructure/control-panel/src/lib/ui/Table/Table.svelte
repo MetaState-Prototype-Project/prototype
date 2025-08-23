@@ -68,6 +68,7 @@
 		sortBy?: string;
 		sortOrder?: 'asc' | 'desc';
 		onSelectionChange?: (index: number, checked: boolean) => void;
+		onSelectAllChange?: (checked: boolean) => void;
 	}
 
 	let {
@@ -90,6 +91,7 @@
 		sortBy,
 		sortOrder,
 		onSelectionChange,
+		onSelectAllChange,
 		...restProps
 	}: ITableProps = $props();
 
@@ -100,7 +102,17 @@
 
 	function toggleCheckAll(checked: boolean) {
 		checkAll = checked;
-		checkItems = checkItems.map(() => checked);
+
+		// Call the onSelectAllChange callback if provided
+		if (onSelectAllChange) {
+			onSelectAllChange(checked);
+		}
+
+		// Update all individual checkboxes without calling onSelectionChange for each
+		// since onSelectAllChange already handles the bulk selection
+		for (let i = 0; i < tableData.length; i++) {
+			checkItems[i] = checked;
+		}
 	}
 
 	function toggleCheckItem(i: number, checked: boolean) {

@@ -6,7 +6,7 @@ import path from "path";
 import { AuthController } from "./controllers/AuthController";
 import { initializeApp, cert, applicationDefault } from "firebase-admin/app";
 import { Web3Adapter } from "./web3adapter";
-import { WebhookController } from "./controllers/WebhookController";
+import { WebhookController, adapter } from "./controllers/WebhookController";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -46,6 +46,35 @@ app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.post("/api/webhook", webhookController.handleWebhook);
+
+// Debug endpoints for monitoring duplicate prevention
+app.get("/api/debug/watcher-stats", (req, res) => {
+    try {
+        const stats = web3Adapter.getWatcherStats();
+        res.json({ success: true, stats });
+    } catch (error) {
+        res.status(500).json({ success: false, error: "Failed to get watcher stats" });
+    }
+});
+
+app.post("/api/debug/clear-processed-ids", (req, res) => {
+    try {
+        web3Adapter.clearAllProcessedIds();
+        res.json({ success: true, message: "All processed IDs cleared" });
+    } catch (error) {
+        res.status(500).json({ success: false, error: "Failed to clear processed IDs" });
+    }
+});
+
+app.get("/api/debug/locked-ids", (req, res) => {
+    try {
+        // Access locked IDs from the exported adapter
+        const lockedIds = adapter.lockedIds || [];
+        res.json({ success: true, lockedIds, count: lockedIds.length });
+    } catch (error) {
+        res.status(500).json({ success: false, error: "Failed to get locked IDs" });
+    }
+});
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {

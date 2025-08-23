@@ -14,7 +14,11 @@ export class PollController {
     constructor(private readonly pollService: PollService) {}
 
     async createPoll(req: Request, res: Response) {
-        const { title, mode, visibility, options, deadline } = req.body;
+        console.log('🔍 Full request body:', req.body);
+        const { title, mode, visibility, options, deadline, groupId } = req.body;
+        console.log('🔍 Extracted data:', { title, mode, visibility, options, deadline, groupId });
+        console.log('🔍 groupId type:', typeof groupId, 'value:', groupId);
+        
         if (!title || !mode || !visibility || !options) {
             return res.status(400).json({ error: "Missing required fields" });
         }
@@ -36,9 +40,12 @@ export class PollController {
                 visibility,
                 options,
                 deadline ? new Date(deadline) : undefined,
+                groupId,
             );
+            console.log('🔍 Created poll:', poll);
             res.status(201).json(poll);
         } catch (err: unknown) {
+            console.error('❌ Error creating poll:', err);
             res.status(400).json({ error: (err as Error).message });
         }
     }
