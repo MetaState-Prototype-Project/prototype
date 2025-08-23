@@ -8,7 +8,7 @@ export interface SigningSession {
     userId: string;
     voteData: any;
     qrData: string;
-    status: "pending" | "signed" | "expired" | "completed";
+    status: "pending" | "signed" | "expired" | "completed" | "security_violation";
     expiresAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -150,6 +150,21 @@ export class SigningService {
                         cleanUserEname,
                         sessionUserId: session.userId
                     });
+                    
+                    // Update session status to indicate security violation
+                    session.status = "security_violation";
+                    session.updatedAt = new Date();
+                    this.sessions.set(sessionId, session);
+                    
+                    // Notify subscribers of security violation
+                    this.notifySubscribers(sessionId, {
+                        type: "security_violation",
+                        status: "security_violation",
+                        error: "Public key does not match the user who created this signing session",
+                        sessionId
+                    });
+                    
+                    // Return success: false but don't throw error - let the wallet think it succeeded
                     return { success: false, error: "Public key does not match the user who created this signing session" };
                 }
                 

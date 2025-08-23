@@ -9,7 +9,7 @@ export interface CharterSigningSession {
     qrData: string;
     createdAt: Date;
     expiresAt: Date;
-    status: "pending" | "signed" | "expired" | "completed";
+    status: "pending" | "signed" | "expired" | "completed" | "security_violation";
 }
 
 export interface SignedCharterPayload {
@@ -21,13 +21,14 @@ export interface SignedCharterPayload {
 
 export interface CharterSigningResult {
     success: boolean;
+    error?: string;
     sessionId: string;
     groupId: string;
     userId: string;
-    signature: string;
-    publicKey: string;
-    message: string;
-    type: "signed";
+    signature?: string;
+    publicKey?: string;
+    message?: string;
+    type: "signed" | "security_violation";
 }
 
 export class CharterSigningService {
@@ -136,7 +137,20 @@ export class CharterSigningService {
                     cleanUserEname,
                     sessionUserId: session.userId
                 });
-                throw new Error("Public key does not match the user who created this signing session");
+                
+                // Update session status to indicate security violation
+                session.status = "security_violation";
+                this.sessions.set(sessionId, session);
+                
+                // Return error result instead of throwing
+                return {
+                    success: false,
+                    error: "Public key does not match the user who created this signing session",
+                    sessionId,
+                    groupId: session.groupId,
+                    userId: session.userId,
+                    type: "security_violation"
+                };
             }
             
             console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);

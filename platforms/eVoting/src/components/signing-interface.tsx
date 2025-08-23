@@ -22,7 +22,7 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
   const { SVG } = useQRCode();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
-  const [status, setStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error">("pending");
+  const [status, setStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error" | "security_violation">("pending");
   const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutes in seconds
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const { toast } = useToast();
@@ -100,6 +100,13 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
             description: "The signing session has expired. Please try again.",
             variant: "destructive",
           });
+        } else if (data.type === "security_violation") {
+          setStatus("security_violation");
+          toast({
+            title: "Security Violation",
+            description: data.error || "Public key verification failed",
+            variant: "destructive",
+          });
         } else {
         }
       } catch (error) {
@@ -135,16 +142,16 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
   // Cleanup SSE connection
   useEffect(() => {
     return () => {
-      // Only close SSE connection if signing is not complete
-      if (eventSource && status !== "signed") {
+      // Only close SSE connection if signing is not complete or if there's a security violation
+      if (eventSource && status !== "signed" && status !== "security_violation") {
         eventSource.close();
       }
     };
   }, [eventSource, status]);
 
-  // Additional cleanup when signing is complete
+  // Additional cleanup when signing is complete or security violation occurs
   useEffect(() => {
-    if (status === "signed" && eventSource) {
+    if ((status === "signed" || status === "security_violation") && eventSource) {
       eventSource.close();
     }
   }, [status, eventSource]);
@@ -216,6 +223,33 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
           </Button>
           <Button onClick={onCancel} variant="secondary">
             Cancel
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (status === "security_violation") {
+    return (
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            Security Violation
+          </CardTitle>
+                  <CardDescription>
+          eName verification failed
+        </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <div className="bg-red-50 p-4 rounded-lg">
+            <p className="text-red-800 text-sm">
+              eName Mismatch: It appears that you are trying to sign with the wrong eName. 
+              Please make sure you are signing with the right eID linked to this account.
+            </p>
+          </div>
+          <Button onClick={onCancel} variant="secondary">
+            Close
           </Button>
         </CardContent>
       </Card>

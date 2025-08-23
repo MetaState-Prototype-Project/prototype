@@ -123,9 +123,12 @@ export class SigningController {
                     voteId: result.voteId
                 });
             } else {
-                res.status(400).json({ 
+                // Always send 200 response to the wallet, even for security violations
+                // This prevents the wallet from thinking the request failed
+                res.status(200).json({ 
                     success: false, 
-                    error: result.error 
+                    error: result.error,
+                    message: "Request processed but vote not submitted due to verification failure"
                 });
             }
         } catch (error) {

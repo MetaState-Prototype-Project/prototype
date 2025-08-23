@@ -140,11 +140,21 @@ export class CharterSigningController {
                 message
             );
 
-            res.json({
-                success: true,
-                message: "Signature verified and charter signed",
-                data: result
-            });
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: "Signature verified and charter signed",
+                    data: result
+                });
+            } else {
+                // Always send 200 response to the wallet, even for security violations
+                // This prevents the wallet from thinking the request failed
+                res.status(200).json({
+                    success: false,
+                    error: result.error,
+                    message: "Request processed but charter not signed due to verification failure"
+                });
+            }
 
         } catch (error) {
             console.error("Error processing signed payload:", error);
