@@ -94,6 +94,10 @@ export class CharterSigningController {
                         res.write(`data: ${JSON.stringify({ type: "expired" })}\n\n`);
                         clearInterval(interval);
                         res.end();
+                    } else if (session.status === "security_violation") {
+                        res.write(`data: ${JSON.stringify({ type: "security_violation" })}\n\n`);
+                        clearInterval(interval);
+                        res.end();
                     }
                 } else {
                     res.write(`data: ${JSON.stringify({ type: "error", message: "Session not found" })}\n\n`);
