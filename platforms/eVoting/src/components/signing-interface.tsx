@@ -295,7 +295,7 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
           </div>
           
           <Badge variant="secondary" className="text-xs">
-            Session: {sessionId?.substring(0, 8)}...
+            Poll ID: {pollId}
           </Badge>
         </div>
 
