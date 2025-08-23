@@ -106,8 +106,8 @@ export function ChatList(): JSX.Element {
                             onClick={() => setCurrentChat(chat)}
                             className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
                                 currentChat?.id === chat.id
-                                    ? 'bg-primary text-white'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary'
+                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800'
                             }`}
                         >
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
@@ -193,8 +193,8 @@ function ChatListItem({
     return (
         <button
             type='button'
-            className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                isSelected ? 'bg-gray-100 dark:bg-gray-800' : ''
+            className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                isSelected ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary' : ''
             }`}
             onClick={onClick}
         >
