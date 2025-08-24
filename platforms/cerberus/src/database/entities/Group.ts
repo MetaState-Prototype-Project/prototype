@@ -28,6 +28,9 @@ export class Group {
     @Column("simple-array", { nullable: true })
     admins!: string[];
 
+    @Column({ nullable: true})
+    ename!: string
+
     @Column({ type: "text", nullable: true })
     charter!: string; // Markdown content for the group charter
 

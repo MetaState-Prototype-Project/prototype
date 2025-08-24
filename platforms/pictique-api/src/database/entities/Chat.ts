@@ -30,6 +30,9 @@ export class Chat {
     })
     participants!: User[];
 
+    @Column({ nullable: true })
+    ename!: string;
+
     @CreateDateColumn()
     createdAt!: Date;
 

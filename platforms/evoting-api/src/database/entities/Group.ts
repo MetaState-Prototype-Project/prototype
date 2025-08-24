@@ -58,6 +58,9 @@ export class Group {
     })
     participants!: User[];
 
+    @Column({ nullable: true})
+    ename: string
+
     @Column({ nullable: true })
     avatarUrl!: string;
 
