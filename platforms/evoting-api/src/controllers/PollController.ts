@@ -74,6 +74,14 @@ export class PollController {
             res.status(201).json(poll);
         } catch (error) {
             console.error("Error creating poll:", error);
+            
+            // Handle specific charter validation error
+            if (error instanceof Error && error.message === "Only chartered groups can create polls") {
+                return res.status(400).json({ 
+                    error: "Only chartered groups can create polls. Please select a group with a charter." 
+                });
+            }
+            
             res.status(500).json({ error: "Failed to create poll" });
         }
     };

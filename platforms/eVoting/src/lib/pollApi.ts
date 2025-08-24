@@ -53,6 +53,7 @@ export interface Group {
   owner: string;
   isPrivate: boolean;
   visibility: "public" | "private" | "restricted";
+  charter?: string; // Markdown content for the group charter
   createdAt: string;
   updatedAt: string;
 }
