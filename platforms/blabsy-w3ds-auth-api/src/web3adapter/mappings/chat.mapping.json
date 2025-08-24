@@ -1,11 +1,12 @@
 {
     "tableName": "chat",
     "schemaId": "550e8400-e29b-41d4-a716-446655440003",
-    "participants": "user(participants[])",
+    "participants": "ename||user(participants[])",
     "ownerEnamePath": "users(participants[])",
     "localToUniversalMap": {
         "name": "name",
         "type": "type",
+        "ename": "ename",
         "admins": "user(admins),admins",
         "participants": "user(participants[]),participantIds",
         "lastMessage": "lastMessageId",

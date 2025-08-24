@@ -150,6 +150,8 @@ export class WebhookController {
                     group.owner = local.data.owner as string;
                     group.admins = adminIds.map(id => ({ id } as User));
                     group.participants = participants;
+                    group.charter = local.data.charter as string;
+                    group.ename = local.data.ename as string
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
@@ -162,9 +164,8 @@ export class WebhookController {
                         local.data.owner as string,
                         adminIds,
                         participants.map(p => p.id),
-                        local.data.charter as string | undefined
+                        local.data.charter as string | undefined,
                     );
-
                     console.log("Created group with ID:", group.id);
                     console.log(group)
                     this.adapter.addToLockedIds(group.id);

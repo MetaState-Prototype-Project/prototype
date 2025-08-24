@@ -40,22 +40,10 @@ export class GroupService {
     }
 
     async getUserGroups(userId: string): Promise<Group[]> {
-        console.log("Getting groups for user:", userId);
-        
-        // First, let's get all groups and filter manually to debug
         const allGroups = await this.groupRepository.find({
             relations: ['participants']
         });
-        
-        console.log("All groups found:", allGroups.length);
-        allGroups.forEach(group => {
-            console.log(`Group ${group.id} (${group.name}):`, {
-                participants: group.participants?.map(p => p.id) || [],
-                hasUser: group.participants?.some(p => p.id === userId) || false
-            });
-        });
 
-        // Filter groups where user is a participant
         const userGroups = allGroups.filter(group => 
             group.participants?.some(participant => participant.id === userId)
         );

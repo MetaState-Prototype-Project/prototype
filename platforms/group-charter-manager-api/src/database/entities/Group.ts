@@ -31,6 +31,9 @@ export class Group {
     @Column({ type: "text", nullable: true })
     charter!: string; // Markdown content for the group charter
 
+    @Column({ nullable: true })
+    ename!: string
+
     @ManyToMany("User")
     @JoinTable({
         name: "group_participants",

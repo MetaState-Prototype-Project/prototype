@@ -8,11 +8,13 @@ import { MessageService } from "./MessageService";
 export class PollService {
     private pollRepository: Repository<Poll>;
     private userRepository: Repository<User>;
+    private groupRepository: Repository<Group>;
     private messageService: MessageService;
 
     constructor() {
         this.pollRepository = AppDataSource.getRepository(Poll);
         this.userRepository = AppDataSource.getRepository(User);
+        this.groupRepository = AppDataSource.getRepository(Group);
         this.messageService = new MessageService();
     }
 
@@ -30,8 +32,7 @@ export class PollService {
         let userGroupIds: string[] = [];
         if (userId) {
             // Get groups where user is a member, admin, or participant
-            const groupRepository = AppDataSource.getRepository(Group);
-            const userGroups = await groupRepository
+            const userGroups = await this.groupRepository
                 .createQueryBuilder('group')
                 .leftJoin('group.members', 'member')
                 .leftJoin('group.admins', 'admin')
@@ -156,6 +157,21 @@ export class PollService {
 
         if (!creator) {
             throw new Error("Creator not found");
+        }
+
+        // If a groupId is provided, validate that the group is chartered
+        if (pollData.groupId) {
+            const group = await this.groupRepository.findOne({
+                where: { id: pollData.groupId }
+            });
+
+            if (!group) {
+                throw new Error("Group not found");
+            }
+
+            if (!group.charter || group.charter.trim() === "") {
+                throw new Error("Only chartered groups can create polls");
+            }
         }
 
         const pollDataForEntity = {

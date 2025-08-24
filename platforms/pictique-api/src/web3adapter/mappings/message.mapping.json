@@ -1,7 +1,7 @@
 {
     "tableName": "messages",
     "schemaId": "550e8400-e29b-41d4-a716-446655440004",
-    "ownerEnamePath": "users(sender.ename)",
+    "ownerEnamePath": "chats(chat.ename)||users(sender.ename)",
     "localToUniversalMap": {
         "chat": "chats(chat.id),chatId",
         "text": "content",

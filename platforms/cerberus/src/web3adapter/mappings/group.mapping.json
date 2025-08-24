@@ -12,7 +12,8 @@
         "participants": "users(participants[].id),participantIds",
         "charterSignatures": "charter_signature(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
-        "updatedAt": "updatedAt"
+        "updatedAt": "updatedAt",
+        "ename": "ename"
     },
     "readOnly": true
 }

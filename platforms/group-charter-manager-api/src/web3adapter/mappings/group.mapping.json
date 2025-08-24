@@ -1,7 +1,7 @@
 {
     "tableName": "groups",
     "schemaId": "550e8400-e29b-41d4-a716-446655440003",
-    "ownerEnamePath": "users(participants[].ename)",
+    "ownerEnamePath": "ename||users(participants[].ename)",
     "ownedJunctionTables": [],
     "localToUniversalMap": {
         "name": "name",
@@ -12,6 +12,7 @@
         "participants": "users(participants[].id),participantIds",
         "charterSignatures": "charter_signatures(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
-        "updatedAt": "updatedAt"
+        "updatedAt": "updatedAt",
+        "ename": "ename"
     }
 }

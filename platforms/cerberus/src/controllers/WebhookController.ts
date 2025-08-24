@@ -154,6 +154,7 @@ export class WebhookController {
                     group.owner = local.data.owner as string;
                     group.admins = admins;
                     group.participants = participants;
+                    group.ename = local.data.ename as string;
                     
                     // Only update charter if new data is provided, preserve existing if not
                     if (newCharter !== undefined && newCharter !== null) {
@@ -187,6 +188,7 @@ export class WebhookController {
                         admins,
                         participants: participants,
                         charter: local.data.charter as string,
+                        ename: local.data.ename as string
                     });
 
                     console.log("Created group with ID:", group.id);

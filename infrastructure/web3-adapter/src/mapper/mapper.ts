@@ -33,6 +33,18 @@ export function getValueByPath(obj: Record<string, any>, path: string): any {
     }, obj);
 }
 
+/**
+ * Extracts the owner eVault from data using the specified path(s).
+ * Supports fallback paths using the || operator.
+ * 
+ * @param data - The data object to extract from
+ * @param ownerEnamePath - The path(s) to extract from. Can be:
+ *   - Single path: "owner.ename"
+ *   - Fallback paths: "path1||path2" (tries path1 first, then path2)
+ *   - Table references: "users(owner.ename)"
+ *   - Fallback with table refs: "users(owner.ename)||users(creator.ename)"
+ * @returns The owner eVault identifier or null if not found
+ */
 async function extractOwnerEvault(
     data: Record<string, unknown>,
     ownerEnamePath: string,
@@ -40,6 +52,49 @@ async function extractOwnerEvault(
     if (!ownerEnamePath || ownerEnamePath === "null") {
         return null;
     }
+
+    // Check if the path contains fallback operator (||)
+    if (ownerEnamePath.includes("||")) {
+        const paths = ownerEnamePath.split("||").map(path => path.trim()).filter(path => path.length > 0);
+        
+        if (paths.length < 2) {
+            console.warn("Invalid fallback path format. Expected 'path1||path2' but got:", ownerEnamePath);
+            return null;
+        }
+        
+        console.log(`Processing fallback paths for owner eVault: [${paths.join(", ")}]`);
+        
+        // Try each path in order until one succeeds
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            console.log(`Trying fallback path ${i + 1}/${paths.length}: ${path}`);
+            
+            const result = await extractOwnerEvaultSinglePath(data, path);
+            if (result !== null) {
+                console.log(`✅ Owner eVault found using fallback path ${i + 1}: ${path}`);
+                return result;
+            } else {
+                console.log(`❌ Fallback path ${i + 1} failed: ${path}`);
+            }
+        }
+        
+        // If all paths fail, return null
+        console.log("❌ All fallback paths failed for owner eVault");
+        return null;
+    }
+
+    // Single path - use existing logic
+    return await extractOwnerEvaultSinglePath(data, ownerEnamePath);
+}
+
+/**
+ * Helper function to extract owner eVault from a single path.
+ * This is the original implementation logic for single paths.
+ */
+async function extractOwnerEvaultSinglePath(
+    data: Record<string, unknown>,
+    ownerEnamePath: string,
+): Promise<string | null> {
     if (!ownerEnamePath.includes("(")) {
         return (data[ownerEnamePath] as string) || null;
     }
@@ -49,9 +104,12 @@ async function extractOwnerEvault(
     let value = getValueByPath(data, fieldPath);
     if (Array.isArray(value)) return value[0];
     console.log("OWNER PATH", value);
-    if (value.includes("(") && value.includes(")")) {
+    
+    // Check if value is a string before calling .includes()
+    if (typeof value === "string" && value.includes("(") && value.includes(")")) {
         value = value.split("(")[1].split(")")[0];
     }
+    
     return (value as string) || null;
 }
 

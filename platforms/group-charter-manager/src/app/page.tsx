@@ -45,6 +45,7 @@ interface Group {
     admins: string[];
     participants: any[];
     charter?: string;
+    ename?: string; // eVault identifier (w3id)
     hasSigned?: boolean; // Add signing status field
     createdAt: string;
     updatedAt: string;
@@ -229,6 +230,11 @@ export default function Dashboard() {
                                             <h3 className="font-semibold text-gray-900 mb-1">
                                                 {group.name || 'Unnamed Group'}
                                             </h3>
+                                            {group.ename && (
+                                                <p className="text-xs text-gray-500 font-mono mb-1">
+                                                    {group.ename}
+                                                </p>
+                                            )}
                                                 <div className="text-sm text-gray-600 space-y-1">
                                                     {hasCharter ? (
                                                         hasSigned ? (

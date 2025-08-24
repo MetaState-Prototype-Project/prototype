@@ -29,7 +29,10 @@ const createPollSchema = z.object({
     title: z.string().min(1, "Poll title is required"),
     mode: z.enum(["normal", "point", "rank"]),
     visibility: z.enum(["public", "private"]),
-    groupId: z.string().min(1, "Please select a group"),
+    groupId: z.string().min(1, "Please select a group").refine((val) => {
+        // This will be validated in the onSubmit function with the actual groups data
+        return true;
+    }, "Please select a valid group"),
     options: z
         .array(z.string().min(1, "Option cannot be empty"))
         .min(2, "At least 2 options required"),
@@ -70,13 +73,28 @@ export default function CreatePoll() {
         },
     });
 
+    // Helper function to sort groups: chartered first, then by name
+    const sortGroupsByCharterStatus = (groups: Group[]) => {
+        return [...groups].sort((a, b) => {
+            const aChartered = a.charter && a.charter.trim() !== "";
+            const bChartered = b.charter && b.charter.trim() !== "";
+            
+            if (aChartered && !bChartered) return -1;
+            if (!aChartered && bChartered) return 1;
+            
+            // If both have same charter status, sort by name
+            return a.name.localeCompare(b.name);
+        });
+    };
+
     // Fetch user's groups on component mount
     useEffect(() => {
         const fetchGroups = async () => {
             try {
                 const userGroups = await pollApi.getUserGroups();
-                // Ensure groups is always an array
-                setGroups(Array.isArray(userGroups) ? userGroups : []);
+                // Ensure groups is always an array and sort by charter status
+                const sortedGroups = Array.isArray(userGroups) ? sortGroupsByCharterStatus(userGroups) : [];
+                setGroups(sortedGroups);
             } catch (error) {
                 console.error("Failed to fetch groups:", error);
                 setGroups([]); // Set empty array on error
@@ -128,6 +146,26 @@ export default function CreatePoll() {
     const onSubmit = async (data: CreatePollForm) => {
         setIsSubmitting(true);
         try {
+            // Validate that the selected group is chartered
+            const selectedGroup = groups.find(group => group.id === data.groupId);
+            if (!selectedGroup) {
+                toast({
+                    title: "Error",
+                    description: "Please select a valid group",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            if (!selectedGroup.charter || selectedGroup.charter.trim() === "") {
+                toast({
+                    title: "Error",
+                    description: "Only chartered groups can create polls. Please select a group with a charter.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             // Convert local deadline to UTC before sending to backend
             let utcDeadline: string | undefined;
             if (data.deadline) {
@@ -152,11 +190,18 @@ export default function CreatePoll() {
             });
             
             router.push("/");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create poll:", error);
+            
+            // Show specific error message from backend if available
+            let errorMessage = "Failed to create poll. Please try again.";
+            if (error?.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            }
+            
             toast({
                 title: "Error",
-                description: "Failed to create poll. Please try again.",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {
@@ -197,6 +242,15 @@ export default function CreatePoll() {
                     <Label className="text-sm font-semibold text-gray-700">
                         Group
                     </Label>
+                    {!isLoadingGroups && groups.length > 0 && (
+                        <div className="mt-1 mb-2 text-xs text-gray-600">
+                            {(() => {
+                                const charteredCount = groups.filter(group => group.charter && group.charter.trim() !== "").length;
+                                const totalCount = groups.length;
+                                return `${charteredCount} of ${totalCount} groups are chartered`;
+                            })()}
+                        </div>
+                    )}
                     <Select onValueChange={(value) => setValue("groupId", value)}>
                         <SelectTrigger className="w-full mt-2">
                             <SelectValue placeholder="Select a group" />
@@ -207,14 +261,66 @@ export default function CreatePoll() {
                             ) : !Array.isArray(groups) || groups.length === 0 ? (
                                 <SelectItem value="no-groups" disabled>No groups found. Create one!</SelectItem>
                             ) : (
-                                groups.map((group) => (
-                                    <SelectItem key={group.id} value={group.id}>
-                                        {group.name}
-                                    </SelectItem>
-                                ))
+                                (() => {
+                                    const charteredGroups = groups.filter(group => group.charter && group.charter.trim() !== "");
+                                    const nonCharteredGroups = groups.filter(group => !group.charter || group.charter.trim() === "");
+                                    
+                                    return (
+                                        <>
+                                            {/* Chartered Groups */}
+                                            {charteredGroups.length > 0 && (
+                                                <>
+                                                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                                                        Chartered Groups
+                                                    </div>
+                                                    {charteredGroups.map((group) => (
+                                                        <SelectItem 
+                                                            key={group.id} 
+                                                            value={group.id}
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span>{group.name}</span>
+                                                                <span className="text-xs text-green-600 ml-2">
+                                                                    ✓ Chartered
+                                                                </span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </>
+                                            )}
+                                            
+                                            {/* Non-Chartered Groups */}
+                                            {nonCharteredGroups.length > 0 && (
+                                                <>
+                                                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                                                        Non-Chartered Groups
+                                                    </div>
+                                                    {nonCharteredGroups.map((group) => (
+                                                        <SelectItem 
+                                                            key={group.id} 
+                                                            value={group.id}
+                                                            disabled
+                                                            className="opacity-60 cursor-not-allowed"
+                                                        >
+                                                            <div className="flex items-center justify-between w-full">
+                                                                <span>{group.name}</span>
+                                                                <span className="text-xs text-gray-500 ml-2">
+                                                                    (Not chartered)
+                                                                </span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                })()
                             )}
                         </SelectContent>
                     </Select>
+                    <p className="mt-1 text-sm text-gray-500">
+                        Only chartered groups can create polls. Groups without a charter will be disabled.
+                    </p>
                     {errors.groupId && (
                         <p className="mt-1 text-sm text-red-600">
                             {errors.groupId.message}
