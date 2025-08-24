@@ -209,7 +209,6 @@ export class WebhookController {
                     local.data.participants &&
                     Array.isArray(local.data.participants)
                 ) {
-                    console.log(local);
                     const participantPromises = local.data.participants.map(
                         async (ref: string) => {
                             if (ref && typeof ref === "string") {
@@ -230,6 +229,7 @@ export class WebhookController {
 
                     chat.name = local.data.name as string;
                     chat.participants = participants;
+                    chat.ename = local.data.ename as string;
 
                     this.adapter.addToLockedIds(localId);
                     await this.chatService.chatRepository.save(chat);

@@ -6,6 +6,7 @@
     "localToUniversalMap": {
         "name": "name",
         "type": "type",
+        "ename": "ename",
         "admins": "user(admins),admins",
         "participants": "user(participants[]),participantIds",
         "lastMessage": "lastMessageId",

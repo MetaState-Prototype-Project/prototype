@@ -46,6 +46,7 @@ type Chat = {
     type: "direct" | "group";  // Always set by webhook based on participant count
     name?: string;
     participants: string[];
+    ename?: string; // eVault identifier (w3id)
     createdAt: Timestamp;
     updatedAt: Timestamp;
     lastMessage?: {
@@ -111,7 +112,12 @@ export class WebhookController {
 
             const local = await adapter.fromGlobal({ data, mapping });
 
-            console.log(local);
+            console.log("Webhook data received:", { 
+                globalId: id, 
+                tableName, 
+                hasEname: !!local.data.ename,
+                ename: local.data.ename 
+            });
             
             // Get the local ID from the mapping database
             const localId = await adapter.mappingDb.getLocalId(id);
@@ -285,10 +291,16 @@ export class WebhookController {
         // Derive type from participant count
         const type = participants.length > 2 ? "group" : "direct";
         
+        // Log ename processing for debugging
+        if (data.ename) {
+            console.log(`Processing chat with ename: ${data.ename}`);
+        }
+        
         return {
             type,
             name: data.name,
             participants,
+            ename: data.ename || null, // Include eVault identifier if available
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
                 : now,

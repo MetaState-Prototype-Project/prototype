@@ -44,7 +44,7 @@ export class GroupService {
         isPrivate: boolean = false,
         visibility: "public" | "private" | "restricted" = "public",
         avatarUrl?: string,
-        bannerUrl?: string
+        bannerUrl?: string,
     ): Promise<Group> {
         const members = await this.userRepository.findBy({
             id: In(memberIds),
