@@ -9,27 +9,21 @@
 	let cacheStatus: { lastUpdated: number; isStale: boolean; itemCount: number };
 
 	onMount(async () => {
-		console.log('Component mounted, starting to load eVaults...');
 		try {
 			loading = true;
-			console.log('Loading state set to true');
 			await loadEVaults();
 			cacheStatus = EVaultService.getCacheStatus();
-			console.log('Loaded eVaults:', evaults.length, 'items');
 		} catch (err) {
 			error = 'Failed to load eVaults';
 			console.error('Error in onMount:', err);
 		} finally {
 			loading = false;
-			console.log('Loading state set to false');
 		}
 	});
 
 	async function loadEVaults() {
-		console.log('loadEVaults called');
 		try {
 			evaults = await EVaultService.getEVaults();
-			console.log('EVaultService returned:', evaults.length, 'items');
 			cacheStatus = EVaultService.getCacheStatus();
 		} catch (err) {
 			console.error('Error loading eVaults:', err);

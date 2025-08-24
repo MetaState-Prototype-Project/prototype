@@ -53,9 +53,19 @@ class CacheService {
 
   async getCachedEVaults(): Promise<EVault[]> {
     if (typeof window !== 'undefined') {
-      // In browser, return null to indicate we need to fetch from server
-      // This prevents showing "No eVaults found" prematurely
-      return null as any;
+      // In browser, try to get from localStorage as a simple cache
+      try {
+        const cached = localStorage.getItem('evault-cache');
+        if (cached) {
+          const data = JSON.parse(cached);
+          if (data.evaults && Array.isArray(data.evaults)) {
+            return data.evaults;
+          }
+        }
+      } catch (error) {
+        console.log('No localStorage cache available');
+      }
+      return [];
     }
     
     await this.init();
@@ -77,7 +87,18 @@ class CacheService {
 
   async updateCache(evaults: EVault[]): Promise<void> {
     if (typeof window !== 'undefined') {
-      return; // No-op in browser
+      // In browser, save to localStorage
+      try {
+        const cacheData = {
+          evaults,
+          lastUpdated: Date.now(),
+          isStale: false
+        };
+        localStorage.setItem('evault-cache', JSON.stringify(cacheData));
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+      return;
     }
     
     await this.init();
@@ -105,6 +126,20 @@ class CacheService {
 
   getCacheStatus(): { lastUpdated: number; isStale: boolean; itemCount: number } {
     if (typeof window !== 'undefined') {
+      // In browser, get from localStorage
+      try {
+        const cached = localStorage.getItem('evault-cache');
+        if (cached) {
+          const data = JSON.parse(cached);
+          return {
+            lastUpdated: data.lastUpdated || 0,
+            isStale: data.isStale || false,
+            itemCount: data.evaults?.length || 0
+          };
+        }
+      } catch (error) {
+        console.log('No localStorage cache available');
+      }
       return { lastUpdated: 0, isStale: true, itemCount: 0 };
     }
     
@@ -121,7 +156,13 @@ class CacheService {
 
   async clearCache(): Promise<void> {
     if (typeof window !== 'undefined') {
-      return; // No-op in browser
+      // In browser, clear localStorage
+      try {
+        localStorage.removeItem('evault-cache');
+      } catch (error) {
+        console.error('Failed to clear localStorage cache:', error);
+      }
+      return;
     }
     
     await this.init();
