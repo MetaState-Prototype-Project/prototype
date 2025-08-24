@@ -416,8 +416,11 @@ console.log("hmm?")
             console.log("Waiting 20 seconds before syncing updated group data...");
             setTimeout(async () => {
                 try {
-                    // Fetch the updated group entity to trigger handleChange
-                    const updatedGroup = await groupRepository.findOne({ where: { id: group.id } });
+                    // Fetch the updated group entity with relations to trigger handleChange
+                    const updatedGroup = await groupRepository.findOne({ 
+                        where: { id: group.id },
+                        relations: this.getRelationsForEntity("Group")
+                    });
                     if (updatedGroup) {
                         console.log("Triggering handleChange for updated group with ename after timeout");
                         await this.handleChange(updatedGroup, "groups");
