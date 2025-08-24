@@ -4,140 +4,219 @@
 	import type { EVault } from '../../routes/api/evaults/+server';
 
 	let evaults: EVault[] = [];
-	let loading = false;
-	let cacheStatus: any = null;
-	let lastRefresh = '';
+	let loading = true;
+	let error: string | null = null;
+	let cacheStatus: { lastUpdated: number; isStale: boolean; itemCount: number };
 
-	// Load eVaults on component mount
 	onMount(async () => {
-		await loadEVaults();
-		// Get cache status for debugging
-		cacheStatus = EVaultService.getCacheStatus();
+		try {
+			await loadEVaults();
+			cacheStatus = EVaultService.getCacheStatus();
+		} catch (err) {
+			error = 'Failed to load eVaults';
+			console.error(err);
+		} finally {
+			loading = false;
+		}
 	});
 
 	async function loadEVaults() {
-		loading = true;
 		try {
-			// This will return cached data immediately and refresh in background
 			evaults = await EVaultService.getEVaults();
-			lastRefresh = new Date().toLocaleTimeString();
-		} catch (error) {
-			console.error('Failed to load eVaults:', error);
-		} finally {
-			loading = false;
+			cacheStatus = EVaultService.getCacheStatus();
+		} catch (err) {
+			console.error('Error loading eVaults:', err);
+			throw err;
 		}
 	}
 
 	async function forceRefresh() {
-		loading = true;
 		try {
-			// Force refresh and get fresh data
+			loading = true;
 			evaults = await EVaultService.forceRefresh();
-			lastRefresh = new Date().toLocaleTimeString();
-			// Update cache status
 			cacheStatus = EVaultService.getCacheStatus();
-		} catch (error) {
-			console.error('Failed to force refresh:', error);
+		} catch (err) {
+			error = 'Failed to refresh eVaults';
+			console.error(err);
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function clearCache() {
-		await EVaultService.clearCache();
-		cacheStatus = EVaultService.getCacheStatus();
-		// Reload data
-		await loadEVaults();
+		try {
+			await EVaultService.clearCache();
+			evaults = [];
+			cacheStatus = EVaultService.getCacheStatus();
+		} catch (err) {
+			console.error('Error clearing cache:', err);
+		}
+	}
+
+	function formatTimestamp(timestamp: number): string {
+		if (timestamp === 0) return 'Never';
+		return new Date(timestamp).toLocaleString();
 	}
 </script>
 
 <div class="p-6">
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold">eVault Control Panel</h1>
-		<div class="flex gap-2">
+	<div class="mb-6">
+		<h1 class="mb-4 text-2xl font-bold text-gray-900">eVault Management</h1>
+
+		<!-- Cache Status -->
+		<div class="mb-4 rounded-lg bg-gray-50 p-4">
+			<h3 class="mb-2 text-sm font-medium text-gray-700">Cache Status</h3>
+			<div class="grid grid-cols-3 gap-4 text-sm">
+				<div>
+					<span class="text-gray-500">Last Updated:</span>
+					<span class="ml-2 font-mono"
+						>{formatTimestamp(cacheStatus?.lastUpdated || 0)}</span
+					>
+				</div>
+				<div>
+					<span class="text-gray-500">Status:</span>
+					<span
+						class="ml-2 {cacheStatus?.isStale
+							? 'text-orange-600'
+							: 'text-green-600'} font-medium"
+					>
+						{cacheStatus?.isStale ? 'Stale' : 'Fresh'}
+					</span>
+				</div>
+				<div>
+					<span class="text-gray-500">Items:</span>
+					<span class="ml-2 font-mono">{cacheStatus?.itemCount || 0}</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Action Buttons -->
+		<div class="mb-6 flex gap-3">
 			<button
 				on:click={loadEVaults}
 				disabled={loading}
-				class="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
+				class="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
 			>
 				{loading ? 'Loading...' : 'Refresh'}
 			</button>
+
 			<button
 				on:click={forceRefresh}
 				disabled={loading}
-				class="rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600 disabled:opacity-50"
+				class="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
 			>
 				Force Refresh
 			</button>
+
 			<button
 				on:click={clearCache}
-				class="rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+				class="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
 			>
 				Clear Cache
 			</button>
 		</div>
 	</div>
 
-	<!-- Cache Status -->
-	{#if cacheStatus}
-		<div class="mb-6 rounded-lg bg-gray-100 p-4">
-			<h3 class="mb-2 font-semibold">Cache Status</h3>
-			<div class="grid grid-cols-3 gap-4 text-sm">
-				<div>
-					<strong>Last Updated:</strong><br />
-					{new Date(cacheStatus.lastUpdated).toLocaleString()}
-				</div>
-				<div>
-					<strong>Status:</strong><br />
-					<span
-						class="rounded px-2 py-1 text-xs {cacheStatus.isStale
-							? 'bg-yellow-200 text-yellow-800'
-							: 'bg-green-200 text-green-800'}"
-					>
-						{cacheStatus.isStale ? 'Stale' : 'Fresh'}
-					</span>
-				</div>
-				<div>
-					<strong>Cached Items:</strong><br />
-					{cacheStatus.count} eVaults
-				</div>
-			</div>
+	<!-- Error Display -->
+	{#if error}
+		<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+			{error}
 		</div>
 	{/if}
 
-	<!-- Last Refresh Info -->
-	{#if lastRefresh}
-		<div class="mb-4 text-sm text-gray-600">
-			Last refresh: {lastRefresh}
+	<!-- Loading State -->
+	{#if loading}
+		<div class="py-8 text-center">
+			<div
+				class="inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"
+			></div>
+			<p class="mt-2 text-gray-600">Loading eVaults...</p>
 		</div>
-	{/if}
-
-	<!-- eVault List -->
-	<div class="grid gap-4">
-		{#if evaults.length === 0}
-			<div class="py-8 text-center text-gray-500">
-				{loading ? 'Loading eVaults...' : 'No eVaults found'}
-			</div>
-		{:else}
-			{#each evaults as evault}
-				<div class="rounded-lg border p-4 transition-shadow hover:shadow-md">
-					<h3 class="text-lg font-semibold">{evault.name || 'Unnamed eVault'}</h3>
-					<div class="mt-2 text-sm text-gray-600">
-						<strong>Namespace:</strong>
-						{evault.namespace}<br />
-						<strong>Pod:</strong>
-						{evault.podName}<br />
-						<strong>Status:</strong>
-						<span
-							class="rounded px-2 py-1 text-xs {evault.status === 'Running'
-								? 'bg-green-200 text-green-800'
-								: 'bg-red-200 text-red-800'}"
+	{:else if evaults.length === 0}
+		<!-- Empty State -->
+		<div class="py-8 text-center">
+			<p class="text-gray-500">No eVaults found</p>
+			<p class="mt-1 text-sm text-gray-400">
+				Try refreshing or check your Kubernetes connection
+			</p>
+		</div>
+	{:else}
+		<!-- eVault List -->
+		<div class="overflow-hidden rounded-lg bg-white shadow">
+			<table class="min-w-full divide-y divide-gray-200">
+				<thead class="bg-gray-50">
+					<tr>
+						<th
+							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 						>
-							{evault.status}
-						</span>
-					</div>
-				</div>
-			{/each}
-		{/if}
-	</div>
+							Name
+						</th>
+						<th
+							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+						>
+							Namespace
+						</th>
+						<th
+							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+						>
+							Status
+						</th>
+						<th
+							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+						>
+							Age
+						</th>
+						<th
+							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+						>
+							Service URL
+						</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-200 bg-white">
+					{#each evaults as evault}
+						<tr class="hover:bg-gray-50">
+							<td
+								class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900"
+							>
+								{evault.name}
+							</td>
+							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+								{evault.namespace}
+							</td>
+							<td class="whitespace-nowrap px-6 py-4">
+								<span
+									class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {evault.status ===
+									'Running'
+										? 'bg-green-100 text-green-800'
+										: evault.status === 'Pending'
+											? 'bg-yellow-100 text-yellow-800'
+											: 'bg-red-100 text-red-800'}"
+								>
+									{evault.status}
+								</span>
+							</td>
+							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+								{evault.age || 'Unknown'}
+							</td>
+							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+								{#if evault.serviceUrl}
+									<a
+										href={evault.serviceUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 underline hover:text-blue-800"
+									>
+										{evault.serviceUrl}
+									</a>
+								{:else}
+									<span class="text-gray-400">No external access</span>
+								{/if}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 </div>

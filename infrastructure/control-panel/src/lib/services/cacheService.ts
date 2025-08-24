@@ -20,95 +20,116 @@ const defaultData: CacheData = {
 };
 
 class CacheService {
-  private db: Low<CacheData>;
+  private db: Low<CacheData> | null = null;
   private isInitialized = false;
 
   constructor() {
-    // Initialize LowDB with JSON file adapter
-    const adapter = new JSONFile<CacheData>(CACHE_FILE);
-    this.db = new Low(adapter, defaultData);
-  }
-
-  /**
-   * Initialize the cache service
-   */
-  async init(): Promise<void> {
-    if (this.isInitialized) return;
-    
-    try {
-      await this.db.read();
-      this.isInitialized = true;
-      console.log('Cache service initialized');
-    } catch (error) {
-      console.warn('Cache file not found, using default data');
-      this.db.data = defaultData;
-      await this.db.write();
-      this.isInitialized = true;
+    // Only initialize on the server side
+    if (typeof window === 'undefined') {
+      this.init();
     }
   }
 
-  /**
-   * Get cached eVaults (fast, returns immediately)
-   */
+  private async init() {
+    if (this.isInitialized) return;
+    
+    try {
+      // Initialize LowDB with JSON file adapter
+      const adapter = new JSONFile<CacheData>(CACHE_FILE);
+      this.db = new Low(adapter, defaultData);
+      
+      // Load existing data or create default
+      await this.db.read();
+      if (!this.db.data) {
+        this.db.data = defaultData;
+        await this.db.write();
+      }
+      
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize cache service:', error);
+    }
+  }
+
   async getCachedEVaults(): Promise<EVault[]> {
+    if (typeof window !== 'undefined') {
+      // In browser, return empty array - caching only works on server
+      return [];
+    }
+    
     await this.init();
-    return this.db.data.evaults;
+    return this.db?.data?.evaults || [];
   }
 
-  /**
-   * Check if cache is stale (older than 5 minutes)
-   */
-  isCacheStale(): boolean {
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-    return this.db.data.lastUpdated < fiveMinutesAgo;
+  async isCacheStale(): Promise<boolean> {
+    if (typeof window !== 'undefined') {
+      return true; // Always stale in browser
+    }
+    
+    await this.init();
+    const lastUpdated = this.db?.data?.lastUpdated || 0;
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+    
+    return (now - lastUpdated) > fiveMinutes;
   }
 
-  /**
-   * Update cache with fresh data
-   */
   async updateCache(evaults: EVault[]): Promise<void> {
+    if (typeof window !== 'undefined') {
+      return; // No-op in browser
+    }
+    
     await this.init();
-    
-    this.db.data = {
-      evaults,
-      lastUpdated: Date.now(),
-      isStale: false
-    };
-    
-    await this.db.write();
-    console.log(`Cache updated with ${evaults.length} eVaults`);
+    if (this.db) {
+      this.db.data = {
+        evaults,
+        lastUpdated: Date.now(),
+        isStale: false
+      };
+      await this.db.write();
+    }
   }
 
-  /**
-   * Mark cache as stale (force refresh on next request)
-   */
   async markStale(): Promise<void> {
+    if (typeof window !== 'undefined') {
+      return; // No-op in browser
+    }
+    
     await this.init();
-    this.db.data.isStale = true;
-    await this.db.write();
+    if (this.db && this.db.data) {
+      this.db.data.isStale = true;
+      await this.db.write();
+    }
   }
 
-  /**
-   * Get cache status
-   */
-  getCacheStatus(): { lastUpdated: number; isStale: boolean; count: number } {
+  getCacheStatus(): { lastUpdated: number; isStale: boolean; itemCount: number } {
+    if (typeof window !== 'undefined') {
+      return { lastUpdated: 0, isStale: true, itemCount: 0 };
+    }
+    
+    if (!this.db?.data) {
+      return { lastUpdated: 0, isStale: true, itemCount: 0 };
+    }
+    
     return {
       lastUpdated: this.db.data.lastUpdated,
       isStale: this.db.data.isStale,
-      count: this.db.data.evaults.length
+      itemCount: this.db.data.evaults.length
     };
   }
 
-  /**
-   * Clear cache
-   */
   async clearCache(): Promise<void> {
+    if (typeof window !== 'undefined') {
+      return; // No-op in browser
+    }
+    
     await this.init();
-    this.db.data = defaultData;
-    await this.db.write();
-    console.log('Cache cleared');
+    if (this.db) {
+      this.db.data = defaultData;
+      await this.db.write();
+    }
   }
 }
 
-// Export singleton instance
+// Export a singleton instance
 export const cacheService = new CacheService();
