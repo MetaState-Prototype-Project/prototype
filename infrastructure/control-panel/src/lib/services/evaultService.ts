@@ -3,34 +3,31 @@ import { cacheService } from './cacheService';
 
 export class EVaultService {
   /**
-   * Get eVaults with stale-while-revalidate caching
-   * Returns cached data immediately, refreshes in background if stale
+   * Get eVaults - load from cache first, then fetch fresh data
    */
   static async getEVaults(): Promise<EVault[]> {
-    // In browser, always fetch from server since caching doesn't work here
-    if (typeof window !== 'undefined') {
-      return this.fetchEVaultsDirectly();
+    // First, try to get cached data (fast)
+    let cachedData: EVault[] = [];
+    try {
+      cachedData = await cacheService.getCachedEVaults();
+    } catch (error) {
+      console.log('No cached data available');
     }
-    
-    // On server, use caching
-    const isStale = await cacheService.isCacheStale();
-    
-    if (isStale) {
-      // Cache is stale, refresh in background
-      this.refreshCacheInBackground();
-    }
-    
-    // Return cached data immediately (even if stale)
-    return await cacheService.getCachedEVaults();
+
+    // Fire off fresh request in background (don't wait for it)
+    this.fetchFreshDataInBackground();
+
+    // Return cached data immediately (even if empty)
+    return cachedData;
   }
 
   /**
-   * Force refresh the cache with fresh data
+   * Force refresh - get fresh data and update cache
    */
   static async forceRefresh(): Promise<EVault[]> {
-    const evaults = await this.fetchEVaultsDirectly();
-    await cacheService.updateCache(evaults);
-    return evaults;
+    const freshData = await this.fetchEVaultsDirectly();
+    await cacheService.updateCache(freshData);
+    return freshData;
   }
 
   /**
@@ -48,21 +45,19 @@ export class EVaultService {
   }
 
   /**
-   * Refresh cache in background (non-blocking)
+   * Fetch fresh data in background and update cache
    */
-  private static async refreshCacheInBackground(): Promise<void> {
+  private static async fetchFreshDataInBackground(): Promise<void> {
     try {
-      const evaults = await this.fetchEVaultsDirectly();
-      await cacheService.updateCache(evaults);
+      const freshData = await this.fetchEVaultsDirectly();
+      await cacheService.updateCache(freshData);
     } catch (error) {
-      console.error('Background cache refresh failed:', error);
-      // Mark cache as stale so next request will try again
-      await cacheService.markStale();
+      console.error('Background refresh failed:', error);
     }
   }
 
   /**
-   * Fetch eVaults directly from Kubernetes API
+   * Fetch eVaults directly from API
    */
   private static async fetchEVaultsDirectly(): Promise<EVault[]> {
     try {
@@ -70,7 +65,9 @@ export class EVaultService {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return await response.json();
+      const data = await response.json();
+      // The backend returns { evaults: [...] }
+      return data.evaults || [];
     } catch (error) {
       console.error('Failed to fetch eVaults:', error);
       throw error;
