@@ -158,12 +158,26 @@
 		try {
 			isLoading = true;
 			error = null;
+			console.log('🔍 Fetching eVaults...');
 			const data = await EVaultService.getEVaults();
-			evaults = data;
+			console.log('📦 Data received:', data);
+			console.log('📊 Data type:', typeof data);
+			console.log('📊 Is array:', Array.isArray(data));
+
+			// Ensure data is an array
+			if (Array.isArray(data)) {
+				evaults = data;
+				console.log('✅ eVaults set:', evaults.length, 'items');
+			} else {
+				console.error('❌ Expected array but got:', typeof data, data);
+				evaults = [];
+				error = 'Invalid data format received from server';
+				return;
+			}
 
 			// Map the data after fetching
 			try {
-				const mapped = data.map((evault) => {
+				const mapped = evaults.map((evault) => {
 					const mapped = {
 						eName: {
 							type: 'text',
@@ -190,17 +204,19 @@
 				});
 
 				mappedData = mapped;
+				console.log('✅ Data mapped successfully:', mappedData.length, 'items');
 			} catch (mappingError) {
-				console.error('Error mapping data:', mappingError);
+				console.error('❌ Error mapping data:', mappingError);
 				error =
 					'Error mapping data: ' +
 					(mappingError instanceof Error ? mappingError.message : String(mappingError));
 			}
 		} catch (err) {
 			error = 'Failed to fetch eVaults';
-			console.error('Error fetching eVaults:', err);
+			console.error('❌ Error fetching eVaults:', err);
 		} finally {
 			isLoading = false;
+			console.log('🏁 Fetch completed, loading set to false');
 		}
 	};
 
