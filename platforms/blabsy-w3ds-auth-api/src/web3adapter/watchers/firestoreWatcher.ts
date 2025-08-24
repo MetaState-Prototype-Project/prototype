@@ -5,6 +5,7 @@ import {
     CollectionReference,
     CollectionGroup,
 } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import path from "path";
 import dotenv from "dotenv";
 import { adapter } from "../../controllers/WebhookController";
@@ -13,6 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export class FirestoreWatcher {
     private unsubscribe: (() => void) | null = null;
     private adapter = adapter;
+    private db: FirebaseFirestore.Firestore;
     private isProcessing = false;
     private retryCount = 0;
     private readonly maxRetries: number = 3;
@@ -29,7 +31,9 @@ export class FirestoreWatcher {
         private readonly collection:
             | CollectionReference<DocumentData>
             | CollectionGroup<DocumentData>
-    ) {}
+    ) {
+        this.db = getFirestore();
+    }
 
     async start(): Promise<void> {
         const collectionPath =
@@ -214,11 +218,69 @@ export class FirestoreWatcher {
 
         const tableName = tableNameRaw.slice(0, tableNameRaw.length - 1);
 
+        // If this is a message, fetch and attach the full chat details
+        let enrichedData: DocumentData & { id: string; chat?: DocumentData } = { ...data, id: doc.id };
+        
+        console.log("----------------")
+        console.log("----------------")
+        console.log("----------------")
+        console.log("tableName", tableName)
+        console.log("----------------")
+        console.log("----------------")
+        console.log("----------------")
+        console.log("----------------")
+        
+        if (tableName === "message" && data.chatId) {
+
+            try {
+                console.log(`Fetching chat details for message ${doc.id} in chat ${data.chatId}`);
+                const chatDoc = await this.getChatDetails(data.chatId);
+                if (chatDoc) {
+                    enrichedData = {
+                        ...enrichedData,
+                        chat: chatDoc
+                    };
+                    console.log(`✅ Chat details attached to message ${doc.id}`);
+                } else {
+                    console.log(`⚠️ Chat not found for message ${doc.id} in chat ${data.chatId}`);
+                }
+            } catch (error) {
+                console.error(`❌ Error fetching chat details for message ${doc.id}:`, error);
+                // Continue processing even if chat fetch fails
+            }
+        }
+
         await this.adapter
             .handleChange({
-                data: { ...data, id: doc.id },
+                data: enrichedData,
                 tableName,
             })
             .catch((e) => console.error(e));
+    }
+
+    /**
+     * Fetches the full chat details for a given chat ID
+     */
+    private async getChatDetails(chatId: string): Promise<DocumentData | null> {
+        try {
+            // Fetch the chat document using the class's Firestore instance
+            const chatDoc = await this.db.collection("chats").doc(chatId).get();
+            
+            if (chatDoc.exists) {
+                const chatData = chatDoc.data();
+                if (chatData) {
+                    // Add the chat ID to the data
+                    return {
+                        ...chatData,
+                        id: chatId
+                    };
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.error(`Error fetching chat details for chat ${chatId}:`, error);
+            return null;
+        }
     }
 }
