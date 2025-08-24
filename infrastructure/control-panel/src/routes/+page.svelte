@@ -127,20 +127,15 @@
 		}
 	};
 
-	const tableHeadings = ['eName', 'Uptime', 'IP', 'URI'];
-
-	const pages = [
-		{ name: '1', href: '#' },
-		{ name: '2', href: '#' },
-		{ name: '3', href: '#' }
-	];
-
 	// Handle eVault selection changes
 	function handleEVaultSelectionChange(index: number, checked: boolean) {
+		// Convert page-relative index to global index
+		const globalIndex = (currentPage - 1) * itemsPerPage + index;
+
 		if (checked) {
-			selectedEVaults = [...selectedEVaults, index];
+			selectedEVaults = [...selectedEVaults, globalIndex];
 		} else {
-			selectedEVaults = selectedEVaults.filter((i) => i !== index);
+			selectedEVaults = selectedEVaults.filter((i) => i !== globalIndex);
 		}
 
 		// Store selections immediately in sessionStorage
@@ -332,7 +327,7 @@
 				bind:searchValue={evaultsSearchValue}
 				rightTitle={selectedEVaults.length > 0
 					? `${selectedEVaults.length} eVault${selectedEVaults.length === 1 ? '' : 's'} selected`
-					: 'Monitoring all eVault pods across Kubernetes clusters'}
+					: ''}
 				showClearSelection={selectedEVaults.length > 0}
 				onClearSelection={clearEVaultSelection}
 			/>
@@ -359,14 +354,22 @@
 			{:else}
 				<Table
 					class="mb-4"
-					tableData={mappedEVaultsData}
+					tableData={mappedEVaultsData()}
 					withSelection={true}
-					{handlePreviousPage}
-					{handleNextPage}
+					withPagination={false}
 					handleSelectedRow={handleEVaultRowClick}
 					onSelectionChange={handleEVaultSelectionChange}
 					onSelectAllChange={handleSelectAllEVaults}
-					selectedIndices={selectedEVaults}
+					selectedIndices={selectedEVaults
+						.map((globalIndex) => {
+							const pageStart = (currentPage - 1) * itemsPerPage;
+							const pageEnd = pageStart + itemsPerPage;
+							if (globalIndex >= pageStart && globalIndex < pageEnd) {
+								return globalIndex - pageStart;
+							}
+							return -1; // Not on current page
+						})
+						.filter((index) => index !== -1)}
 				/>
 
 				<!-- Pagination Info -->
@@ -408,7 +411,7 @@
 				bind:searchValue={platformsSearchQuery}
 				rightTitle={selectedPlatforms.length > 0
 					? `${selectedPlatforms.length} platform${selectedPlatforms.length === 1 ? '' : 's'} selected`
-					: 'No platform selected. Select a platform to monitor logs'}
+					: ''}
 				showClearSelection={selectedPlatforms.length > 0}
 				onClearSelection={clearPlatformSelection}
 			/>
@@ -433,8 +436,9 @@
 			{:else}
 				<Table
 					class="mb-4"
-					tableData={mappedPlatformsData}
+					tableData={mappedPlatformsData()}
 					withSelection={true}
+					withPagination={false}
 					onSelectionChange={handlePlatformSelectionChange}
 					onSelectAllChange={handleSelectAllPlatforms}
 					selectedIndices={selectedPlatforms}
