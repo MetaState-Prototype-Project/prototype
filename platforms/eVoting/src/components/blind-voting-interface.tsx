@@ -128,13 +128,65 @@ export default function BlindVotingInterface({ poll, userId, hasVoted, onVoteSub
   // Use the real-time vote status from SSE if available, fallback to prop
   const currentHasVoted = voteStatus?.hasVoted ?? hasVoted;
 
+  console.log('🔍 BlindVotingInterface Debug:', {
+    hasVoted: hasVoted,
+    voteStatus: voteStatus,
+    currentHasVoted: currentHasVoted,
+    pollId: poll.id
+  });
+
   if (currentHasVoted) {
     return (
-      <div className="text-center py-8">
-        <CheckCircle className="text-green-500 h-16 w-16 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Blind Vote Submitted</h3>
-        <p className="text-gray-600">Your private vote has been submitted successfully</p>
-        <p className="text-sm text-gray-500 mt-2">The vote will remain hidden until revealed</p>
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <CheckCircle className="text-green-500 h-16 w-16 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Blind Vote Submitted</h3>
+          <p className="text-gray-600">Your private vote has been submitted successfully</p>
+          <p className="text-sm text-gray-500 mt-2">The vote will remain hidden until revealed</p>
+        </div>
+
+        {/* Reveal Vote Section */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="text-center mb-4">
+            <Shield className="text-blue-600 h-8 w-8 mx-auto mb-2" />
+            <h4 className="text-lg font-semibold text-blue-900">Reveal Your Vote</h4>
+            <p className="text-blue-700 text-sm">
+              Use this QR code to reveal your vote choice when you're ready
+            </p>
+          </div>
+
+          {/* Reveal QR Code */}
+          <div className="text-center space-y-4">
+            <div className="inline-block">
+              <QRCodeSVG
+                value={`w3ds://reveal?pollId=${poll.id}`}
+                size={150}
+                level="M"
+                includeMargin={true}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <p className="text-sm text-blue-600">
+                Scan this QR code with your eID wallet to reveal your vote
+              </p>
+              <p className="text-xs text-blue-500">
+                Poll ID: {poll.id}
+              </p>
+            </div>
+          </div>
+
+                      {/* Instructions */}
+            <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
+                <h5 className="font-medium text-blue-900 mb-2">How to Reveal:</h5>
+                <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
+                    <li>Scan the reveal QR code with your eID wallet</li>
+                    <li>Confirm your identity in the wallet</li>
+                    <li>Your vote choice will be revealed locally</li>
+                    <li>Your vote remains completely private and anonymous</li>
+                </ol>
+            </div>
+        </div>
       </div>
     );
   }

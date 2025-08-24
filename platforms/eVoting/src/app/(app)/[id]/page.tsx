@@ -208,6 +208,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             ]);
             setVoteStatus(voteStatusData);
             setResultsData(resultsData);
+            
+            // Update hasVoted state based on the fetched vote status
+            if (voteStatusData && voteStatusData.hasVoted) {
+                setHasVoted(true);
+            }
         } catch (error) {
             console.error("Failed to fetch vote data:", error);
         }
@@ -216,6 +221,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     useEffect(() => {
         fetchVoteData();
     }, [pollId, user?.id]);
+
+    // Sync hasVoted state with voteStatus when it changes
+    useEffect(() => {
+        if (voteStatus) {
+            setHasVoted(voteStatus.hasVoted);
+        }
+    }, [voteStatus]);
 
 
 
@@ -744,17 +756,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </div>
                             </div>
                         ) : (
-                            // For private polls, show simple message
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div className="flex items-center">
-                                    <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-green-900 mb-2">Vote Submitted</h3>
-                                        <p className="text-gray-600">You have already voted on this poll</p>
-                                        <p className="text-sm text-gray-500 mt-2">Results will be shown when the poll ends</p>
-                                    </div>
-                                </div>
-                            </div>
+                            // For private polls, show BlindVotingInterface (which handles both voting and reveal)
+                            <BlindVotingInterface
+                                poll={selectedPoll}
+                                userId={user?.id || ""}
+                                hasVoted={hasVoted}
+                                onVoteSubmitted={onVoteSubmitted}
+                            />
                         )}
                     </>
                 ) : (
