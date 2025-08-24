@@ -129,13 +129,32 @@
 
 	// Handle eVault selection changes
 	function handleEVaultSelectionChange(index: number, checked: boolean) {
-		// Convert page-relative index to global index
-		const globalIndex = (currentPage - 1) * itemsPerPage + index;
+		// Get the filtered eVaults to work with the current search results
+		const filtered = filteredEVaults();
+
+		// Convert page-relative index to filtered array index
+		const filteredIndex = (currentPage - 1) * itemsPerPage + index;
+
+		// Get the actual eVault from the filtered results
+		const selectedEVault = filtered[filteredIndex];
+
+		if (!selectedEVault) {
+			console.error('Selected eVault not found in filtered results');
+			return;
+		}
+
+		// Find the index of this eVault in the original evaults array
+		const originalIndex = evaults.findIndex((e) => e.evaultId === selectedEVault.evaultId);
+
+		if (originalIndex === -1) {
+			console.error('Selected eVault not found in original evaults array');
+			return;
+		}
 
 		if (checked) {
-			selectedEVaults = [...selectedEVaults, globalIndex];
+			selectedEVaults = [...selectedEVaults, originalIndex];
 		} else {
-			selectedEVaults = selectedEVaults.filter((i) => i !== globalIndex);
+			selectedEVaults = selectedEVaults.filter((i) => i !== originalIndex);
 		}
 
 		// Store selections immediately in sessionStorage
@@ -159,12 +178,21 @@
 	// Handle select all eVaults
 	function handleSelectAllEVaults(checked: boolean) {
 		console.log('🎯 handleSelectAllEVaults called with:', checked);
-		console.log('evaults.length:', evaults.length);
+
+		// Get the filtered eVaults to work with the current search results
+		const filtered = filteredEVaults();
+		console.log('filtered eVaults length:', filtered.length);
 
 		if (checked) {
-			// Select all eVaults
-			selectedEVaults = Array.from({ length: evaults.length }, (_, i) => i);
-			console.log('✅ Selected all eVaults, selectedEVaults:', selectedEVaults);
+			// Select all filtered eVaults by finding their indices in the original array
+			const filteredIndices = filtered
+				.map((filteredEVault) => {
+					return evaults.findIndex((e) => e.evaultId === filteredEVault.evaultId);
+				})
+				.filter((index) => index !== -1);
+
+			selectedEVaults = filteredIndices;
+			console.log('✅ Selected all filtered eVaults, selectedEVaults:', selectedEVaults);
 		} else {
 			// Deselect all eVaults
 			selectedEVaults = [];
