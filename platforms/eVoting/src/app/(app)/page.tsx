@@ -155,6 +155,11 @@ export default function Home() {
                                             </th>
                                             <th 
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                                            >
+                                                Group
+                                            </th>
+                                            <th 
+                                                className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("status")}
                                             >
                                                 Status {getSortIcon("status")}
@@ -195,6 +200,15 @@ export default function Home() {
                                                                 <><UserX className="w-3 h-3 mr-1" />Private</>
                                                             )}
                                                         </Badge>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        {poll.group ? (
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {poll.group.name}
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">No group</span>
+                                                        )}
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <Badge variant={isActive ? "success" : "warning"}>

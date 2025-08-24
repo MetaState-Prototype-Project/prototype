@@ -3,12 +3,14 @@ import { AppDataSource } from "../database/data-source";
 import { Vote, VoteDataByMode, NormalVoteData, PointVoteData, RankVoteData } from "../database/entities/Vote";
 import { Poll } from "../database/entities/Poll";
 import { User } from "../database/entities/User";
+import { Group } from "../database/entities/Group";
 import { VotingSystem, VoteData } from 'blindvote';
 
 export class VoteService {
   private voteRepository: Repository<Vote>;
   private pollRepository: Repository<Poll>;
   private userRepository: Repository<User>;
+  private groupRepository: Repository<Group>;
   
   // Store VotingSystem instances per poll
   private votingSystems = new Map<string, VotingSystem>();
@@ -17,11 +19,50 @@ export class VoteService {
     this.voteRepository = AppDataSource.getRepository(Vote);
     this.pollRepository = AppDataSource.getRepository(Poll);
     this.userRepository = AppDataSource.getRepository(User);
+    this.groupRepository = AppDataSource.getRepository(Group);
+  }
+
+  /**
+   * Check if a user can vote on a poll based on group membership
+   */
+  private async canUserVote(pollId: string, userId: string): Promise<boolean> {
+    const poll = await this.pollRepository.findOne({
+      where: { id: pollId },
+      relations: ['creator']
+    });
+
+    if (!poll) {
+      throw new Error('Poll not found');
+    }
+
+    // If poll has no group, it's a public poll - anyone can vote
+    if (!poll.groupId) {
+      return true;
+    }
+
+    // If poll has a group, check if user is a member, admin, or participant
+    const group = await this.groupRepository
+      .createQueryBuilder('group')
+      .leftJoin('group.members', 'member')
+      .leftJoin('group.admins', 'admin')
+      .leftJoin('group.participants', 'participant')
+      .where('group.id = :groupId', { groupId: poll.groupId })
+      .andWhere('(member.id = :userId OR admin.id = :userId OR participant.id = :userId)', { userId })
+      .getOne();
+
+    if (!group) {
+      throw new Error('User is not a member, admin, or participant of the group associated with this poll');
+    }
+
+    return true;
   }
 
   // ===== NON-BLIND VOTING METHODS (for normal/point/rank modes) =====
 
   async createVote(pollId: string, userId: string, voteData: VoteData, mode: "normal" | "point" | "rank" = "normal"): Promise<Vote> {
+    // First check if user can vote on this poll
+    await this.canUserVote(pollId, userId);
+
     const poll = await this.pollRepository.findOne({
       where: { id: pollId }
     });
@@ -313,6 +354,15 @@ export class VoteService {
 
   async submitBlindVote(pollId: string, voterId: string, voteData: any) {
     try {
+      // First check if user can vote on this poll (group membership check)
+      const user = await this.userRepository.findOne({ where: { ename: voterId } });
+      if (!user) {
+        throw new Error(`User with ename ${voterId} not found. User must exist before submitting blind vote.`);
+      }
+
+      // Check group membership using the existing method
+      await this.canUserVote(pollId, user.id);
+
       const votingSystem = this.getVotingSystemForPoll(pollId);
       
       // Get poll to find options
@@ -374,12 +424,7 @@ export class VoteService {
         revealed: false
       };
 
-      // For blind voting, look up the user by their ename (W3ID)
-      const user = await this.userRepository.findOne({ where: { ename: voterId } });
-      if (!user) {
-        throw new Error(`User with ename ${voterId} not found. User must exist before submitting blind vote.`);
-      }
-
+      // User is already fetched from the group membership check above
       const vote = this.voteRepository.create({
         poll: { id: pollId },
         user: { id: user.id },
@@ -515,6 +560,15 @@ export class VoteService {
 
   async registerBlindVoteVoter(pollId: string, voterId: string) {
     try {
+      // First check if user can vote on this poll (group membership check)
+      const user = await this.userRepository.findOne({ where: { ename: voterId } });
+      if (!user) {
+        throw new Error(`User with ename ${voterId} not found. User must exist before registering for blind voting.`);
+      }
+
+      // Check group membership using the existing method
+      await this.canUserVote(pollId, user.id);
+
       const votingSystem = this.getVotingSystemForPoll(pollId);
       
       // Get poll details  
@@ -561,6 +615,15 @@ export class VoteService {
   // Generate vote data for a voter (used by eID wallet)
   async generateVoteData(pollId: string, voterId: string, chosenOptionId: string) {
     try {
+      // First check if user can vote on this poll (group membership check)
+      const user = await this.userRepository.findOne({ where: { ename: voterId } });
+      if (!user) {
+        throw new Error(`User with ename ${voterId} not found. User must exist before generating vote data.`);
+      }
+
+      // Check group membership using the existing method
+      await this.canUserVote(pollId, user.id);
+
       const votingSystem = this.getVotingSystemForPoll(pollId);
       
       // Get poll details

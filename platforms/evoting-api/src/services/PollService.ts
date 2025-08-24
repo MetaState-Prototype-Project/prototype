@@ -52,10 +52,24 @@ export class PollService {
             }
         });
 
+        // Get group information for polls that have groupId
+        const pollsWithGroups = await Promise.all(
+            allPolls.map(async (poll) => {
+                if (poll.groupId) {
+                    const group = await this.groupRepository.findOne({
+                        where: { id: poll.groupId },
+                        select: ['id', 'name', 'description']
+                    });
+                    return { ...poll, group };
+                }
+                return poll;
+            })
+        );
+
         // Filter polls based on user's group memberships
-        let filteredPolls = allPolls;
+        let filteredPolls = pollsWithGroups;
         if (userId && userGroupIds.length > 0) {
-            filteredPolls = allPolls.filter(poll => {
+            filteredPolls = filteredPolls.filter(poll => {
                 // Show polls that:
                 // 1. Have no groupId (public polls)
                 // 2. Belong to groups where user is a member/admin/participant
@@ -66,7 +80,7 @@ export class PollService {
             });
         } else if (userId) {
             // If user has no group memberships, only show their own polls and public polls
-            filteredPolls = allPolls.filter(poll => !poll.groupId || poll.creatorId === userId);
+            filteredPolls = filteredPolls.filter(poll => !poll.groupId || poll.creatorId === userId);
         }
 
         // Custom sorting based on sortField and sortDirection
@@ -138,6 +152,47 @@ export class PollService {
             where: { id },
             relations: ["creator"]
         });
+    }
+
+    /**
+     * Get poll by ID with group information and check if user can access it
+     */
+    async getPollByIdWithAccessCheck(id: string, userId?: string): Promise<Poll | null> {
+        const poll = await this.pollRepository.findOne({
+            where: { id },
+            relations: ["creator"]
+        });
+
+        if (!poll) {
+            return null;
+        }
+
+        // If poll has no group, it's public - anyone can access
+        if (!poll.groupId) {
+            return poll;
+        }
+
+        // If no userId provided, don't show group polls
+        if (!userId) {
+            return null;
+        }
+
+        // Check if user is a member, admin, or participant of the group
+        const group = await this.groupRepository
+            .createQueryBuilder('group')
+            .leftJoin('group.members', 'member')
+            .leftJoin('group.admins', 'admin')
+            .leftJoin('group.participants', 'participant')
+            .where('group.id = :groupId', { groupId: poll.groupId })
+            .andWhere('(member.id = :userId OR admin.id = :userId OR participant.id = :userId)', { userId })
+            .getOne();
+
+        // If user is not in the group, don't show the poll
+        if (!group) {
+            return null;
+        }
+
+        return poll;
     }
 
     async createPoll(pollData: {
