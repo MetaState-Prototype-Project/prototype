@@ -412,6 +412,21 @@ console.log("hmm?")
             
             console.log("Group updated with ename:", evaultResult.w3id);
             
+            // Wait 20 seconds before triggering handleChange to allow eVault to stabilize
+            console.log("Waiting 20 seconds before syncing updated group data...");
+            setTimeout(async () => {
+                try {
+                    // Fetch the updated group entity to trigger handleChange
+                    const updatedGroup = await groupRepository.findOne({ where: { id: group.id } });
+                    if (updatedGroup) {
+                        console.log("Triggering handleChange for updated group with ename after timeout");
+                        await this.handleChange(updatedGroup, "groups");
+                    }
+                } catch (error) {
+                    console.error("Error triggering handleChange after timeout for group:", group.id, error);
+                }
+            }, 20000); // 20 seconds timeout
+            
         } catch (error: any) {
             console.error("Error creating eVault for group:", group.id, error);
             throw error; // Re-throw to be caught by the caller
