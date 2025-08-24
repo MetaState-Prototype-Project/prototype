@@ -53,8 +53,9 @@ class CacheService {
 
   async getCachedEVaults(): Promise<EVault[]> {
     if (typeof window !== 'undefined') {
-      // In browser, return empty array - caching only works on server
-      return [];
+      // In browser, return null to indicate we need to fetch from server
+      // This prevents showing "No eVaults found" prematurely
+      return null as any;
     }
     
     await this.init();
