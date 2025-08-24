@@ -35,11 +35,12 @@ export class PollController {
     getPollById = async (req: Request, res: Response) => {
         try {
             const { id } = req.params;
+            const userId = (req as any).user?.id; // Get user ID from auth middleware
 
-            const poll = await this.pollService.getPollById(id);
+            const poll = await this.pollService.getPollByIdWithAccessCheck(id, userId);
 
             if (!poll) {
-                return res.status(404).json({ error: "Poll not found" });
+                return res.status(404).json({ error: "Poll not found or access denied" });
             }
 
             res.json(poll);
