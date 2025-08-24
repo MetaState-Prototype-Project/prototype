@@ -143,4 +143,89 @@ export class VoteController {
             res.status(500).json({ error: error.message });
         }
     }
+
+
+
+    // Monitor vote status for private polls via SSE
+    async monitorVoteStatus(req: Request, res: Response) {
+        const { pollId, userId } = req.params;
+        
+        if (!pollId || !userId) {
+            return res.status(400).json({ error: "Poll ID and User ID required" });
+        }
+
+        // Set SSE headers
+        res.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control"
+        });
+
+        // Send initial connection message
+        res.write("data: " + JSON.stringify({ 
+            type: "connected", 
+            pollId, 
+            userId,
+            message: "Connected to vote status stream" 
+        }) + "\n\n");
+
+        // Initial vote status check
+        try {
+            const vote = await this.voteService.getUserVote(pollId, userId);
+            const hasVoted = !!vote;
+            
+            res.write("data: " + JSON.stringify({ 
+                type: "vote_status", 
+                pollId, 
+                userId,
+                hasVoted,
+                vote: hasVoted ? vote : null,
+                timestamp: new Date().toISOString()
+            }) + "\n\n");
+        } catch (error) {
+            console.error("Error checking initial vote status:", error);
+            res.write("data: " + JSON.stringify({ 
+                type: "error", 
+                pollId, 
+                userId,
+                error: "Failed to check vote status",
+                timestamp: new Date().toISOString()
+            }) + "\n\n");
+        }
+
+        // Set up polling to check vote status every 2 seconds
+        const pollInterval = setInterval(async () => {
+            try {
+                const vote = await this.voteService.getUserVote(pollId, userId);
+                const hasVoted = !!vote;
+                
+                res.write("data: " + JSON.stringify({ 
+                    type: "vote_status", 
+                    pollId, 
+                    userId,
+                    hasVoted,
+                    vote: hasVoted ? vote : null,
+                    timestamp: new Date().toISOString()
+                }) + "\n\n");
+            } catch (error) {
+                console.error("Error polling vote status:", error);
+                // Don't send error events continuously, just log them
+            }
+        }, 2000);
+
+        // Handle client disconnect
+        req.on("close", () => {
+            clearInterval(pollInterval);
+            res.end();
+        });
+
+        // Handle errors
+        req.on("error", (error) => {
+            console.error("SSE Error:", error);
+            clearInterval(pollInterval);
+            res.end();
+        });
+    }
 } 

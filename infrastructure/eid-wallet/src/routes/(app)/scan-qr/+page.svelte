@@ -60,6 +60,14 @@
     let isSubmittingBlindVote = $state(false); // Add loading state
     let blindVoteSuccess = $state(false); // Add success state
 
+    // Reveal vote specific state
+    let isRevealRequest = $state(false);
+    let revealPollId = $state<string | null>(null);
+    let revealError = $state<string | null>(null);
+    let isRevealingVote = $state(false);
+    let revealSuccess = $state(false);
+    let revealedVoteData = $state<any>(null);
+
     // Debug logging for selectedBlindVoteOption changes
     $effect(() => {
         console.log(
@@ -95,6 +103,8 @@
                     // Check if this is a signing request
                     if (res.content.startsWith("w3ds://sign")) {
                         handleSigningRequest(res.content);
+                    } else if (res.content.startsWith("w3ds://reveal")) {
+                        handleRevealRequest(res.content);
                     } else if (res.content.includes("/blind-vote")) {
                         // This is a blind voting request via HTTP URL
                         // Parse the URL and extract the data
@@ -373,6 +383,43 @@
             signingDrawerOpen = true;
         } catch (error) {
             console.error("Error parsing signing request:", error);
+        }
+    }
+
+    function handleRevealRequest(content: string) {
+        try {
+            // Parse w3ds://reveal URI scheme
+            // Format: w3ds://reveal?pollId=<pollId>
+
+            // Handle w3ds:// scheme by converting to a parseable format
+            let parseableContent = content;
+            if (content.startsWith("w3ds://")) {
+                parseableContent = content.replace(
+                    "w3ds://",
+                    "https://dummy.com/",
+                );
+            }
+
+            const url = new URL(parseableContent);
+            const pollId = url.searchParams.get("pollId");
+
+            console.log("🔍 Parsed w3ds://reveal URI:", {
+                pollId: pollId,
+            });
+
+            if (!pollId) {
+                console.error("Invalid reveal request parameters:", {
+                    pollId,
+                });
+                return;
+            }
+
+            revealPollId = pollId;
+            isRevealRequest = true;
+            // Don't open the code scanned drawer - we want the reveal drawer
+            // codeScannedDrawerOpen = true;
+        } catch (error) {
+            console.error("Error parsing reveal request:", error);
         }
     }
 
@@ -744,7 +791,11 @@
             // Convert BigInt values to strings for JSON serialization
             const localVoteData = {
                 pollId: signingData.pollId,
+                voterId: voterId, // Store voterId for ownership verification
                 optionId: `option_${selectedBlindVoteOption}`, // Use the correct option ID format
+                chosenOption: selectedBlindVoteOption, // Store the actual chosen option number
+                optionText:
+                    signingData.pollDetails.options[selectedBlindVoteOption], // Store the actual option text
                 commitments: commitments,
                 anchors: anchors,
                 timestamp: new Date().toISOString(),
@@ -1038,6 +1089,170 @@
     onDestroy(async () => {
         await cancelScan();
     });
+
+    async function handleRevealVote() {
+        if (!revealPollId) return;
+
+        try {
+            isRevealingVote = true;
+            revealError = null;
+
+            // Get the vault for identification
+            const vault = await globalState.vaultController.vault;
+            if (!vault) {
+                throw new Error("No vault available for revealing vote");
+            }
+
+            // Get the locally stored blind vote data for this poll
+            const storedVoteKey = `blindVote_${revealPollId}`;
+            console.log(
+                "🔍 Debug: Looking for localStorage key:",
+                storedVoteKey,
+            );
+
+            const storedVoteData = localStorage.getItem(storedVoteKey);
+            console.log("🔍 Debug: Raw storedVoteData:", storedVoteData);
+            console.log(
+                "🔍 Debug: storedVoteData type:",
+                typeof storedVoteData,
+            );
+            console.log(
+                "🔍 Debug: storedVoteData length:",
+                storedVoteData?.length,
+            );
+
+            if (!storedVoteData) {
+                throw new Error(
+                    "No blind vote found for this poll. Make sure you submitted a blind vote first.",
+                );
+            }
+
+            try {
+                console.log("🔍 Debug: Attempting to parse JSON...");
+                const parsedVoteData = JSON.parse(storedVoteData);
+                console.log(
+                    "🔍 Debug: Successfully parsed vote data:",
+                    parsedVoteData,
+                );
+                console.log(
+                    "🔍 Debug: parsedVoteData type:",
+                    typeof parsedVoteData,
+                );
+                console.log(
+                    "🔍 Debug: parsedVoteData keys:",
+                    Object.keys(parsedVoteData),
+                );
+
+                // Check if this is the user's own vote
+                console.log(
+                    "🔍 Debug: Comparing voterId:",
+                    parsedVoteData.voterId,
+                    "with vault.ename:",
+                    vault.ename,
+                );
+
+                // Strip @ prefix from both values for comparison
+                const storedVoterId =
+                    parsedVoteData.voterId?.replace(/^@/, "") || "";
+                const currentVoterId = vault.ename?.replace(/^@/, "") || "";
+
+                console.log(
+                    "🔍 Debug: After stripping @ - storedVoterId:",
+                    storedVoterId,
+                    "currentVoterId:",
+                    currentVoterId,
+                );
+
+                if (storedVoterId !== currentVoterId) {
+                    throw new Error("This blind vote does not belong to you.");
+                }
+
+                // Get the chosen option from the stored data
+                console.log(
+                    "🔍 Debug: Looking for chosen option in:",
+                    parsedVoteData,
+                );
+                console.log(
+                    "🔍 Debug: parsedVoteData.optionText:",
+                    parsedVoteData.optionText,
+                );
+                console.log(
+                    "🔍 Debug: parsedVoteData.chosenOption:",
+                    parsedVoteData.chosenOption,
+                );
+                console.log(
+                    "🔍 Debug: parsedVoteData.optionId:",
+                    parsedVoteData.optionId,
+                );
+
+                const chosenOption =
+                    parsedVoteData.optionText ||
+                    `Option ${parsedVoteData.chosenOption + 1}` ||
+                    "Unknown option";
+
+                console.log("🔍 Debug: Final chosenOption:", chosenOption);
+
+                revealedVoteData = {
+                    chosenOption: chosenOption,
+                    pollId: revealPollId,
+                    voterId: vault.ename,
+                };
+
+                console.log("✅ Vote revealed successfully from local storage");
+                console.log("🔍 Debug: Setting revealSuccess to true");
+                console.log(
+                    "🔍 Debug: Final revealedVoteData:",
+                    revealedVoteData,
+                );
+                revealSuccess = true;
+
+                // Don't close the drawer - let it show the revealed vote
+                // The drawer content will change to show the success state
+            } catch (parseError: any) {
+                console.error("❌ JSON Parse Error Details:", parseError);
+                console.error("❌ Parse Error Message:", parseError.message);
+                console.error("❌ Parse Error Stack:", parseError.stack);
+                console.error(
+                    "❌ Raw data that failed to parse:",
+                    storedVoteData,
+                );
+
+                // Try to identify what went wrong
+                if (storedVoteData && typeof storedVoteData === "string") {
+                    try {
+                        // Try to find where the JSON breaks
+                        const firstBrace = storedVoteData.indexOf("{");
+                        const lastBrace = storedVoteData.lastIndexOf("}");
+                        console.log("🔍 Debug: First brace at:", firstBrace);
+                        console.log("🔍 Debug: Last brace at:", lastBrace);
+                        if (firstBrace !== -1 && lastBrace !== -1) {
+                            console.log(
+                                "🔍 Debug: Substring to check:",
+                                storedVoteData.substring(
+                                    firstBrace,
+                                    lastBrace + 1,
+                                ),
+                            );
+                        }
+                    } catch (debugError) {
+                        console.error(
+                            "❌ Debug parsing also failed:",
+                            debugError,
+                        );
+                    }
+                }
+
+                throw new Error(
+                    "Failed to parse stored vote data. The vote may be corrupted.",
+                );
+            }
+        } catch (error: any) {
+            console.error("❌ Error revealing vote:", error);
+            revealError = error.message || "Failed to reveal vote";
+        } finally {
+            isRevealingVote = false;
+        }
+    }
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
@@ -1398,6 +1613,103 @@
     </div>
 </Drawer>
 
+<!-- Reveal Vote Drawer -->
+<Drawer
+    title={revealSuccess ? "Vote Revealed" : "Reveal Blind Vote"}
+    bind:isPaneOpen={isRevealRequest}
+    class="flex flex-col gap-4 items-center justify-center"
+>
+    {#if revealSuccess && revealedVoteData}
+        <div class="bg-white rounded-lg p-4 border border-green-200">
+            <p class="text-lg font-semibold text-green-900">
+                You voted for: <span class="text-blue-600"
+                    >{revealedVoteData.chosenOption}</span
+                >
+            </p>
+            <p class="text-sm text-green-600 mt-2">
+                Poll ID: {revealedVoteData.pollId}
+            </p>
+        </div>
+
+        <div class="flex justify-center mt-6 w-full">
+            <Button.Action
+                variant="solid"
+                class="w-full"
+                callback={() => {
+                    // Go back in history instead of potentially causing white screen
+                    window.history.back();
+                }}
+            >
+                Okay
+            </Button.Action>
+        </div>
+    {:else}
+        <!-- Show reveal form content -->
+        <div
+            class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
+        >
+            <div
+                class="bg-white h-[16px] w-[200px] -rotate-45 absolute top-1"
+            ></div>
+            <div
+                class="bg-white h-[16px] w-[200px] -rotate-45 absolute bottom-1"
+            ></div>
+            <HugeiconsIcon
+                size={40}
+                className="z-10"
+                icon={QrCodeIcon}
+                strokeWidth={1.5}
+                color="var(--color-primary)"
+            />
+        </div>
+
+        <h4>Reveal Your Blind Vote</h4>
+        <p class="text-black-700 text-center">
+            You're about to reveal your blind vote for poll: {revealPollId}
+        </p>
+
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <p class="text-sm text-blue-800 text-center">
+                <strong>Note:</strong> Revealing your vote will show your choice
+                locally in this wallet. This action cannot be undone.
+            </p>
+        </div>
+
+        {#if revealError}
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                <p class="text-sm text-red-800 text-center">
+                    {revealError}
+                </p>
+            </div>
+        {/if}
+
+        <div class="flex justify-center gap-3 items-center mt-4 w-full">
+            <Button.Action
+                variant="danger-soft"
+                class="w-full"
+                callback={() => {
+                    // Go back in history instead of potentially causing white screen
+                    window.history.back();
+                }}
+            >
+                Cancel
+            </Button.Action>
+            <Button.Action
+                variant="solid"
+                class="w-full"
+                callback={handleRevealVote}
+                disabled={isRevealingVote}
+            >
+                {#if isRevealingVote}
+                    Revealing...
+                {:else}
+                    Reveal Vote
+                {/if}
+            </Button.Action>
+        </div>
+    {/if}
+</Drawer>
+
 <!-- Success message -->
 {#if signingSuccess}
     <div
@@ -1422,7 +1734,7 @@
             </h3>
             <p class="text-gray-600">
                 {isBlindVotingRequest
-                    ? "Your blind vote has been submitted and is now hidden from the platform."
+                    ? "Your blind vote has been submitted and is now completely hidden using cryptographic commitments."
                     : signingData?.pollId
                       ? "Your vote has been signed and submitted to the voting system."
                       : "Your message has been signed and submitted successfully."}
@@ -1448,42 +1760,6 @@
                     </Button.Action>
                 </div>
             {/if}
-        </div>
-    </div>
-{/if}
-
-<!-- Blind Vote Success Message -->
-{#if blindVoteSuccess}
-    <div
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    >
-        <div class="bg-white rounded-lg p-6 max-w-sm mx-4 text-center">
-            <div
-                class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"
-            >
-                <HugeiconsIcon
-                    size={32}
-                    icon={QrCodeIcon}
-                    color="var(--color-success)"
-                />
-            </div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                Blind Vote Submitted Successfully!
-            </h3>
-            <p class="text-gray-600 mb-4">
-                Your blind vote has been submitted and is now hidden from the
-                platform.
-            </p>
-            <Button.Action
-                variant="solid"
-                size="sm"
-                callback={() => {
-                    blindVoteSuccess = false;
-                }}
-                class="w-full"
-            >
-                Continue
-            </Button.Action>
         </div>
     </div>
 {/if}

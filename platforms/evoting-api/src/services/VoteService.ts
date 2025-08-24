@@ -611,6 +611,8 @@ export class VoteService {
       throw error;
     }
   }
+
+  
 }
 
 export default new VoteService(); 

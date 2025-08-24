@@ -150,7 +150,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
         const updateTimeRemaining = () => {
             const now = new Date().getTime();
-            const deadline = new Date(selectedPoll.deadline).getTime();
+            const deadline = new Date(selectedPoll.deadline!).getTime();
             const difference = deadline - now;
 
             if (difference > 0) {
@@ -208,6 +208,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             ]);
             setVoteStatus(voteStatusData);
             setResultsData(resultsData);
+            
+            // Update hasVoted state based on the fetched vote status
+            if (voteStatusData && voteStatusData.hasVoted) {
+                setHasVoted(true);
+            }
         } catch (error) {
             console.error("Failed to fetch vote data:", error);
         }
@@ -216,6 +221,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     useEffect(() => {
         fetchVoteData();
     }, [pollId, user?.id]);
+
+    // Sync hasVoted state with voteStatus when it changes
+    useEffect(() => {
+        if (voteStatus) {
+            setHasVoted(voteStatus.hasVoted);
+        }
+    }, [voteStatus]);
 
 
 
@@ -292,10 +304,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                 </Link>
                 <Badge
                     variant={
-                        selectedPoll.mode === "public" ? "default" : "secondary"
+                        selectedPoll.visibility === "public" ? "default" : "secondary"
                     }
                 >
-                    {selectedPoll.mode === "public" ? (
+                    {selectedPoll.visibility === "public" ? (
                         <>
                             <Eye className="w-3 h-3 mr-1" />
                             Public
@@ -583,17 +595,175 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                 ) : voteStatus?.hasVoted === true ? (
                     // Show voting interface for active polls where user has already voted
                     <>
-                        {/* Show that user has voted */}
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div className="flex items-center">
-                                <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
+                        {/* Show that user has voted with detailed vote information for public polls */}
+                        {selectedPoll.visibility === "public" ? (
+                            <div className="space-y-6">
+                                {/* Show that user has voted with detailed vote information */}
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <div className="flex items-center mb-3">
+                                        <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-green-900">Your Vote Details</h3>
+                                            <p className="text-sm text-green-700">
+                                                Your vote has been submitted. Results will be shown when the poll ends.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Display vote details based on mode */}
+                                    {(() => {
+                                        const voteData = voteStatus?.vote?.data;
+                                        if (!voteData) return null;
+                                        
+                                        if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                            // Simple vote - show selected options
+                                            const selectedOptions = voteData.data.map(index => selectedPoll.options[parseInt(index)]).filter(Boolean);
+                                            return (
+                                                <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                    <p className="text-sm font-medium text-green-800 mb-2">Selected Options:</p>
+                                                    <div className="space-y-1">
+                                                        {selectedOptions.map((option, i) => (
+                                                            <div key={i} className="flex items-center space-x-2">
+                                                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                                                <span className="text-sm text-green-700">{option}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                            // Point vote - show point distribution
+                                            const pointEntries = Object.entries(voteData.data);
+                                            return (
+                                                <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                    <p className="text-sm font-medium text-green-800 mb-2">Your Point Distribution:</p>
+                                                    <div className="space-y-2">
+                                                        {pointEntries.map(([optionIndex, points]) => {
+                                                            const option = selectedPoll.options[parseInt(optionIndex)];
+                                                            return (
+                                                                <div key={optionIndex} className="flex items-center justify-between">
+                                                                    <span className="text-sm text-green-700">{option}</span>
+                                                                    <span className="text-sm font-medium text-green-800 bg-green-100 px-2 py-1 rounded">
+                                                                        {points} points
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div className="mt-2 pt-2 border-t border-green-200">
+                                                        <span className="text-xs text-green-600">
+                                                            Total: {Object.values(voteData.data).reduce((sum: number, points: any) => sum + points, 0)} points
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                            // Rank vote - show ranking
+                                            const rankData = voteData.data[0]?.points;
+                                            if (rankData && typeof rankData === "object") {
+                                                const sortedRanks = Object.entries(rankData)
+                                                    .sort(([,a], [,b]) => (a as number) - (b as number))
+                                                    .map(([optionIndex, rank]) => ({
+                                                        option: selectedPoll.options[parseInt(optionIndex)],
+                                                        rank: rank as number
+                                                    }));
+                                                
+                                                return (
+                                                    <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                        <p className="text-sm font-medium text-green-800 mb-2">Your Ranking:</p>
+                                                        <div className="space-y-2">
+                                                            {sortedRanks.map((item, i) => (
+                                                                <div key={i} className="flex items-center justify-between">
+                                                                    <span className="text-sm text-green-700">{item.option}</span>
+                                                                    <span className="text-sm font-medium text-green-800 bg-green-100 px-2 py-1 rounded">
+                                                                        {item.rank === 1 ? '1st' : item.rank === 2 ? '2nd' : item.rank === 3 ? '3rd' : `${item.rank}th`} choice
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                        return null;
+                                    })()}
+                                </div>
+
+                                {/* Show voting options with user's choice highlighted */}
                                 <div>
-                                    <h3 className="text-lg font-semibold text-green-900 mb-2">Vote Submitted</h3>
-                                    <p className="text-gray-600">You have already voted on this poll</p>
-                                    <p className="text-sm text-gray-500 mt-2">Results will be shown when the poll ends</p>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                        Voting Options:
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {selectedPoll.options.map((option, index) => {
+                                            const isUserChoice = (() => {
+                                                const voteData = voteStatus?.vote?.data;
+                                                if (!voteData) return false;
+                                                
+                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                    return voteData.data.includes(index.toString());
+                                                } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                    return voteData.data[index] > 0;
+                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                    const rankData = voteData.data[0]?.points;
+                                                    return rankData && rankData[index];
+                                                }
+                                                return false;
+                                            })();
+                                            
+                                            const userChoiceDetails = (() => {
+                                                const voteData = voteStatus?.vote?.data;
+                                                if (!voteData) return null;
+                                                
+                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                    return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
+                                                } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                    const points = voteData.data[index];
+                                                    return points > 0 ? `← You gave ${points} points` : null;
+                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                    const rankData = voteData.data[0]?.points;
+                                                    const rank = rankData?.[index];
+                                                    return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                }
+                                                return null;
+                                            })();
+                                            
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className={`flex items-center space-x-3 p-3 border rounded-lg ${
+                                                        isUserChoice 
+                                                            ? 'bg-green-50 border-green-200' 
+                                                            : 'bg-gray-50 border-gray-200 opacity-60'
+                                                    }`}
+                                                >
+                                                    <div className="flex-1">
+                                                        <Label className={`text-base ${
+                                                            isUserChoice ? 'text-green-900 font-medium' : 'text-gray-500'
+                                                        }`}>
+                                                            {option}
+                                                        </Label>
+                                                        {userChoiceDetails && (
+                                                            <div className="mt-1 text-sm text-green-600">
+                                                                <span className="font-medium">{userChoiceDetails}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            // For private polls, show BlindVotingInterface (which handles both voting and reveal)
+                            <BlindVotingInterface
+                                poll={selectedPoll}
+                                userId={user?.id || ""}
+                                hasVoted={hasVoted}
+                                onVoteSubmitted={onVoteSubmitted}
+                            />
+                        )}
                     </>
                 ) : (
                     <div className="space-y-6">
@@ -611,31 +781,98 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 {/* For public polls, show different interface based on voting status */}
                                 {hasVoted ? (
                                     <div className="space-y-6">
-                                        {/* Show that user has voted */}
+                                        {/* Show that user has voted with detailed vote information */}
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                            <div className="flex items-center">
+                                            <div className="flex items-center mb-3">
                                                 <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                                 <div>
-                                                    <p className="text-sm font-medium text-green-900">
-                                                        You voted for:{" "}
-                                                        {
-                                                            (() => {
-                                                                if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
-                                                                    const optionIndex = parseInt(voteStatus.vote.data.data[0] || "0");
-                                                                    return selectedPoll.options[optionIndex] || "Unknown option";
-                                                                }
-                                                                return "Unknown option";
-                                                            })()
-                                                        }
-                                                    </p>
+                                                    <h3 className="text-lg font-semibold text-green-900">Your Vote Details</h3>
                                                     <p className="text-sm text-green-700">
                                                         Your vote has been submitted. Results will be shown when the poll ends.
                                                     </p>
                                                 </div>
                                             </div>
+                                            
+                                            {/* Display vote details based on mode */}
+                                            {(() => {
+                                                const voteData = voteStatus?.vote?.data;
+                                                if (!voteData) return null;
+                                                
+                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                    // Simple vote - show selected options
+                                                    const selectedOptions = voteData.data.map(index => selectedPoll.options[parseInt(index)]).filter(Boolean);
+                                                    return (
+                                                        <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                            <p className="text-sm font-medium text-green-800 mb-2">Selected Options:</p>
+                                                            <div className="space-y-1">
+                                                                {selectedOptions.map((option, i) => (
+                                                                    <div key={i} className="flex items-center space-x-2">
+                                                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                                                        <span className="text-sm text-green-700">{option}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                    // Point vote - show point distribution
+                                                    const pointEntries = Object.entries(voteData.data);
+                                                    return (
+                                                        <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                            <p className="text-sm font-medium text-green-800 mb-2">Your Point Distribution:</p>
+                                                            <div className="space-y-2">
+                                                                {pointEntries.map(([optionIndex, points]) => {
+                                                                    const option = selectedPoll.options[parseInt(optionIndex)];
+                                                                    return (
+                                                                        <div key={optionIndex} className="flex items-center justify-between">
+                                                                            <span className="text-sm text-green-700">{option}</span>
+                                                                            <span className="text-sm font-medium text-green-800 bg-green-100 px-2 py-1 rounded">
+                                                                                {points} points
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            <div className="mt-2 pt-2 border-t border-green-200">
+                                                                <span className="text-xs text-green-600">
+                                                                    Total: {Object.values(voteData.data).reduce((sum: number, points: any) => sum + points, 0)} points
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                    // Rank vote - show ranking
+                                                    const rankData = voteData.data[0]?.points;
+                                                    if (rankData && typeof rankData === "object") {
+                                                        const sortedRanks = Object.entries(rankData)
+                                                            .sort(([,a], [,b]) => (a as number) - (b as number))
+                                                            .map(([optionIndex, rank]) => ({
+                                                                option: selectedPoll.options[parseInt(optionIndex)],
+                                                                rank: rank as number
+                                                            }));
+                                                        
+                                                        return (
+                                                            <div className="bg-white rounded-lg p-3 border border-green-200">
+                                                                <p className="text-sm font-medium text-green-800 mb-2">Your Ranking:</p>
+                                                                <div className="space-y-2">
+                                                                    {sortedRanks.map((item, i) => (
+                                                                        <div key={i} className="flex items-center justify-between">
+                                                                            <span className="text-sm text-green-700">{item.option}</span>
+                                                                            <span className="text-sm font-medium text-green-800 bg-green-100 px-2 py-1 rounded">
+                                                                                {item.rank === 1 ? '1st' : item.rank === 2 ? '2nd' : item.rank === 3 ? '3rd' : `${item.rank}th`} choice
+                                                                            </span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
 
-                                        {/* Show voting options with user's choice highlighted (grayed out, no results) */}
+                                        {/* Show voting options with user's choice highlighted */}
                                         <div>
                                             <h3 className="text-lg font-semibold text-gray-900 mb-4">
                                                 Voting Options:
@@ -643,10 +880,35 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             <div className="space-y-3">
                                                 {selectedPoll.options.map((option, index) => {
                                                     const isUserChoice = (() => {
-                                                        if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
-                                                            return voteStatus.vote.data.data.includes(index.toString());
+                                                        const voteData = voteStatus?.vote?.data;
+                                                        if (!voteData) return false;
+                                                        
+                                                        if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                            return voteData.data.includes(index.toString());
+                                                        } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                            return voteData.data[index] > 0;
+                                                        } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                            const rankData = voteData.data[0]?.points;
+                                                            return rankData && rankData[index];
                                                         }
                                                         return false;
+                                                    })();
+                                                    
+                                                    const userChoiceDetails = (() => {
+                                                        const voteData = voteStatus?.vote?.data;
+                                                        if (!voteData) return null;
+                                                        
+                                                        if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                            return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
+                                                        } else if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                            const points = voteData.data[index];
+                                                            return points > 0 ? `← You gave ${points} points` : null;
+                                                        } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                            const rankData = voteData.data[0]?.points;
+                                                            const rank = rankData?.[index];
+                                                            return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                        }
+                                                        return null;
                                                     })();
                                                     
                                                     return (
@@ -664,9 +926,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 }`}>
                                                                     {option}
                                                                 </Label>
-                                                                {isUserChoice && (
+                                                                {userChoiceDetails && (
                                                                     <div className="mt-1 text-sm text-green-600">
-                                                                        <span className="font-medium">← You voted for this option</span>
+                                                                        <span className="font-medium">{userChoiceDetails}</span>
                                                                     </div>
                                                                 )}
                                                             </div>
