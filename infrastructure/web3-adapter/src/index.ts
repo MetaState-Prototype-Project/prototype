@@ -37,6 +37,7 @@ export async function spinUpEVault(
                 registryEntropy,
                 namespace,
                 verificationId: finalVerificationCode,
+                publicKey: "0x0000000000000000000000000000000000000000"
             },
         );
 

@@ -32,6 +32,7 @@ interface Group {
     admins: string[];
     participants: any[];
     charter?: string;
+    ename?: string; // eVault identifier (w3id)
     createdAt: string;
     updatedAt: string;
 }
@@ -212,6 +213,11 @@ export default function CharterDetail({
                                 <h2 className="text-3xl font-bold text-gray-800 mb-2">
                                     {group.name || 'Unnamed Group'}
                                 </h2>
+                                {group.ename && (
+                                    <div className="text-xs text-gray-500 font-mono mb-2">
+                                        {group.ename}
+                                    </div>
+                                )}
                                 <div className="text-gray-600 mb-2">
                                     Group Charter
                                 </div>

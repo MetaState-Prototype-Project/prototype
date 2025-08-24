@@ -150,6 +150,7 @@ export class WebhookController {
                     group.owner = local.data.owner as string;
                     group.admins = adminIds.map(id => ({ id } as User));
                     group.participants = participants;
+                    group.charter = local.data.charter as string;
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);

@@ -7,6 +7,7 @@ import {
     ObjectLiteral,
 } from "typeorm";
 import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
+import { createGroupEVault } from "../../../../../infrastructure/web3-adapter/src/index";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
@@ -177,6 +178,20 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             
             if (fullEntity) {
                 console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
+                
+                // Check if this is a Group entity and if charter was just added (not updated)
+                if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
+                    // Check if this group doesn't have an ename yet (meaning eVault wasn't created)
+                    if (!fullEntity.ename) {
+                        console.log("Group just got chartered, spinning up eVault for group:", fullEntity.id);
+                        
+                        // Fire and forget eVault creation
+                        this.spinUpGroupEVault(fullEntity).catch(error => {
+                            console.error("Failed to create eVault for group:", fullEntity.id, error);
+                        });
+                    }
+                }
+                
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
@@ -351,6 +366,55 @@ console.log("hmm?")
                 return ["user", "group"];
             default:
                 return [];
+        }
+    }
+
+    /**
+     * Spin up eVault for a newly chartered group
+     */
+    private async spinUpGroupEVault(group: any): Promise<void> {
+        try {
+            console.log("Starting eVault creation for group:", group.id);
+            
+            // Get environment variables for eVault creation
+            const registryUrl = process.env.PUBLIC_REGISTRY_URL;
+            const provisionerUrl = process.env.PUBLIC_PROVISIONER_URL;
+            
+            if (!registryUrl || !provisionerUrl) {
+                throw new Error("Missing required environment variables for eVault creation");
+            }
+            
+            // Prepare group data for eVault creation
+            const groupData = {
+                name: group.name || "Unnamed Group",
+                avatar: group.avatarUrl,
+                description: group.description,
+                members: group.participants?.map((p: any) => p.id) || [],
+                admins: group.admins || [],
+                owner: group.owner,
+                charter: group.charter
+            };
+            
+            console.log("Creating eVault with data:", groupData);
+            
+            // Create the eVault (this is the long-running operation)
+            const evaultResult = await createGroupEVault(
+                registryUrl,
+                provisionerUrl,
+                groupData
+            );
+            
+            console.log("eVault created successfully:", evaultResult);
+            
+            // Update the group with the ename (w3id)
+            const groupRepository = AppDataSource.getRepository("Group");
+            await groupRepository.update(group.id, { ename: evaultResult.w3id });
+            
+            console.log("Group updated with ename:", evaultResult.w3id);
+            
+        } catch (error: any) {
+            console.error("Error creating eVault for group:", group.id, error);
+            throw error; // Re-throw to be caught by the caller
         }
     }
 
