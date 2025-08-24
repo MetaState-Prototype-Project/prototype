@@ -7,7 +7,12 @@ export class EVaultService {
    * Returns cached data immediately, refreshes in background if stale
    */
   static async getEVaults(): Promise<EVault[]> {
-    // Check if cache is stale
+    // In browser, always fetch from server since caching doesn't work here
+    if (typeof window !== 'undefined') {
+      return this.fetchEVaultsDirectly();
+    }
+    
+    // On server, use caching
     const isStale = await cacheService.isCacheStale();
     
     if (isStale) {
