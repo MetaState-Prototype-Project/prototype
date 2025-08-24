@@ -9,6 +9,7 @@
         "owner": "owner",
         "admins": "users(admins[].id),adminIds",
         "charter": "charter",
+        "ename": "ename",
         "participants": "users(participants[].id),participantIds",
         "members": "users(members[].id),memberIds",
         "isPrivate": "isPrivate",

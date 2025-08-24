@@ -8,6 +8,7 @@
         "type": "type",
         "participants": "users(participants[].id),participantIds",
         "createdAt": "createdAt",
-        "updatedAt": "updatedAt"
+        "updatedAt": "updatedAt",
+        "ename": "ename"
     }
 }
