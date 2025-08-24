@@ -19,12 +19,81 @@
 	let platformsError = $state<string | null>(null);
 	let mappedData = $state<any[]>([]);
 
+	// Pagination for eVaults
+	let currentPage = $state(1);
+	let itemsPerPage = $state(10);
+	let totalPages = $state(1);
+
 	// Track selected items
 	let selectedEVaults = $state<number[]>([]);
 	let selectedPlatforms = $state<number[]>([]);
 
-	const mappedPlatformsData = $derived(
-		platforms.map((platform) => ({
+	// Filtered data for search
+	let filteredEVaults = $derived(() => {
+		if (!evaultsSearchValue.trim()) return evaults;
+		return evaults.filter(
+			(evault) =>
+				evault.name.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.evaultId.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.namespace.toLowerCase().includes(evaultsSearchValue.toLowerCase())
+		);
+	});
+
+	let filteredPlatforms = $derived(() => {
+		if (!platformsSearchQuery.trim()) return platforms;
+		return platforms.filter(
+			(platform) =>
+				platform.name.toLowerCase().includes(platformsSearchQuery.toLowerCase()) ||
+				platform.status.toLowerCase().includes(platformsSearchQuery.toLowerCase())
+		);
+	});
+
+	// Paginated eVaults
+	let paginatedEVaults = $derived(() => {
+		const startIndex = (currentPage - 1) * itemsPerPage;
+		const endIndex = startIndex + itemsPerPage;
+		const filtered = filteredEVaults();
+		return filtered.slice(startIndex, endIndex);
+	});
+
+	// Update total pages when filtered data changes
+	$effect(() => {
+		const filtered = filteredEVaults();
+		totalPages = Math.ceil(filtered.length / itemsPerPage);
+		if (currentPage > totalPages && totalPages > 0) {
+			currentPage = totalPages;
+		}
+	});
+
+	// Mapped data for eVaults table
+	let mappedEVaultsData = $derived(() => {
+		const paginated = paginatedEVaults();
+		return paginated.map((evault) => ({
+			eName: {
+				type: 'text',
+				value: evault.evaultId,
+				className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
+			},
+			Uptime: {
+				type: 'text',
+				value: evault.age
+			},
+			IP: {
+				type: 'text',
+				value: evault.ip
+			},
+			URI: {
+				type: 'link',
+				value: evault.serviceUrl || 'N/A',
+				link: evault.serviceUrl || '#',
+				external: true
+			}
+		}));
+	});
+
+	const mappedPlatformsData = $derived(() => {
+		const filtered = filteredPlatforms();
+		return filtered.map((platform) => ({
 			Name: {
 				type: 'text',
 				value: platform.name
@@ -43,15 +112,19 @@
 				link: platform.url,
 				external: true
 			}
-		}))
-	);
+		}));
+	});
 
 	const handlePreviousPage = async () => {
-		alert('Previous btn clicked. Make a call to your server to fetch data.');
+		if (currentPage > 1) {
+			currentPage--;
+		}
 	};
 
 	const handleNextPage = async () => {
-		alert('Next btn clicked. Make a call to your server to fetch data.');
+		if (currentPage < totalPages) {
+			currentPage++;
+		}
 	};
 
 	const tableHeadings = ['eName', 'Uptime', 'IP', 'URI'];
@@ -249,92 +322,124 @@
 	});
 </script>
 
-<section class="flex flex-col gap-7">
-	<TableCard>
-		<TableCardHeader
-			title="eVaults"
-			placeholder="Search eVaults"
-			bind:searchValue={evaultsSearchValue}
-			rightTitle={selectedEVaults.length > 0
-				? `${selectedEVaults.length} eVault${selectedEVaults.length === 1 ? '' : 's'} selected`
-				: 'Monitoring all eVault pods across Kubernetes clusters'}
-			showClearSelection={selectedEVaults.length > 0}
-			onClearSelection={clearEVaultSelection}
-		/>
-
-		{#if isLoading}
-			<div class="flex justify-center py-8">
-				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			</div>
-		{:else if error}
-			<div class="py-8 text-center text-red-500">
-				{error}
-				<button
-					onclick={fetchEVaults}
-					class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-				>
-					Retry
-				</button>
-			</div>
-		{:else if evaults.length === 0}
-			<div class="py-8 text-center text-gray-500">
-				No eVault pods found. Make sure kubectl is configured and eVault pods are running.
-			</div>
-		{:else}
-			<Table
-				class="mb-7"
-				tableData={mappedData}
-				withSelection={true}
-				{handlePreviousPage}
-				{handleNextPage}
-				handleSelectedRow={handleEVaultRowClick}
-				onSelectionChange={handleEVaultSelectionChange}
-				onSelectAllChange={handleSelectAllEVaults}
-				selectedIndices={selectedEVaults}
+<section class="flex gap-7">
+	<!-- Left Column: eVaults -->
+	<div class="flex-1">
+		<TableCard>
+			<TableCardHeader
+				title="eVaults"
+				placeholder="Search eVaults"
+				bind:searchValue={evaultsSearchValue}
+				rightTitle={selectedEVaults.length > 0
+					? `${selectedEVaults.length} eVault${selectedEVaults.length === 1 ? '' : 's'} selected`
+					: 'Monitoring all eVault pods across Kubernetes clusters'}
+				showClearSelection={selectedEVaults.length > 0}
+				onClearSelection={clearEVaultSelection}
 			/>
-		{/if}
-	</TableCard>
 
-	<TableCard>
-		<TableCardHeader
-			title="Platforms"
-			placeholder="Search Platforms"
-			bind:searchValue={platformsSearchQuery}
-			rightTitle={selectedPlatforms.length > 0
-				? `${selectedPlatforms.length} platform${selectedPlatforms.length === 1 ? '' : 's'} selected`
-				: 'No platform selected. Select a platform to monitor logs'}
-			showClearSelection={selectedPlatforms.length > 0}
-			onClearSelection={clearPlatformSelection}
-		/>
-		{#if platformsLoading}
-			<div class="flex justify-center py-8">
-				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-			</div>
-		{:else if platformsError}
-			<div class="py-8 text-center text-red-500">
-				{platformsError}
-				<button
-					onclick={fetchPlatforms}
-					class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-				>
-					Retry
-				</button>
-			</div>
-		{:else if platforms.length === 0}
-			<div class="py-8 text-center text-gray-500">
-				No platforms found. Make sure the registry service is running.
-			</div>
-		{:else}
-			<Table
-				class="mb-7"
-				tableData={mappedPlatformsData}
-				withSelection={true}
-				{handlePreviousPage}
-				{handleNextPage}
-				onSelectionChange={handlePlatformSelectionChange}
-				onSelectAllChange={handleSelectAllPlatforms}
-				selectedIndices={selectedPlatforms}
+			{#if isLoading}
+				<div class="flex justify-center py-8">
+					<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+				</div>
+			{:else if error}
+				<div class="py-8 text-center text-red-500">
+					{error}
+					<button
+						onclick={fetchEVaults}
+						class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+					>
+						Retry
+					</button>
+				</div>
+			{:else if evaults.length === 0}
+				<div class="py-8 text-center text-gray-500">
+					No eVault pods found. Make sure kubectl is configured and eVault pods are
+					running.
+				</div>
+			{:else}
+				<Table
+					class="mb-4"
+					tableData={mappedEVaultsData}
+					withSelection={true}
+					{handlePreviousPage}
+					{handleNextPage}
+					handleSelectedRow={handleEVaultRowClick}
+					onSelectionChange={handleEVaultSelectionChange}
+					onSelectAllChange={handleSelectAllEVaults}
+					selectedIndices={selectedEVaults}
+				/>
+
+				<!-- Pagination Info -->
+				<div class="mb-4 flex items-center justify-between text-sm text-gray-600">
+					<div>
+						Showing {(currentPage - 1) * itemsPerPage + 1} - {Math.min(
+							currentPage * itemsPerPage,
+							filteredEVaults().length
+						)} of {filteredEVaults().length} eVaults
+					</div>
+					<div class="flex gap-2">
+						<button
+							onclick={handlePreviousPage}
+							disabled={currentPage <= 1}
+							class="rounded border px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Previous
+						</button>
+						<span class="px-3 py-1">Page {currentPage} of {totalPages}</span>
+						<button
+							onclick={handleNextPage}
+							disabled={currentPage >= totalPages}
+							class="rounded border px-3 py-1 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Next
+						</button>
+					</div>
+				</div>
+			{/if}
+		</TableCard>
+	</div>
+
+	<!-- Right Column: Platforms -->
+	<div class="flex-1">
+		<TableCard>
+			<TableCardHeader
+				title="Platforms"
+				placeholder="Search Platforms"
+				bind:searchValue={platformsSearchQuery}
+				rightTitle={selectedPlatforms.length > 0
+					? `${selectedPlatforms.length} platform${selectedPlatforms.length === 1 ? '' : 's'} selected`
+					: 'No platform selected. Select a platform to monitor logs'}
+				showClearSelection={selectedPlatforms.length > 0}
+				onClearSelection={clearPlatformSelection}
 			/>
-		{/if}
-	</TableCard>
+			{#if platformsLoading}
+				<div class="flex justify-center py-8">
+					<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+				</div>
+			{:else if platformsError}
+				<div class="py-8 text-center text-red-500">
+					{platformsError}
+					<button
+						onclick={fetchPlatforms}
+						class="ml-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+					>
+						Retry
+					</button>
+				</div>
+			{:else if platforms.length === 0}
+				<div class="py-8 text-center text-gray-500">
+					No platforms found. Make sure the registry service is running.
+				</div>
+			{:else}
+				<Table
+					class="mb-4"
+					tableData={mappedPlatformsData}
+					withSelection={true}
+					onSelectionChange={handlePlatformSelectionChange}
+					onSelectAllChange={handleSelectAllPlatforms}
+					selectedIndices={selectedPlatforms}
+				/>
+			{/if}
+		</TableCard>
+	</div>
 </section>
