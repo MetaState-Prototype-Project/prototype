@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Vote, UserX, Shield } from 'lucide-react';
+import { Vote, UserX, Shield, CheckCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import type { Poll } from "@shared/schema";
+import type { Poll } from "@/lib/pollApi";
 
 interface BlindVotingInterfaceProps {
   poll: Poll;
@@ -17,7 +17,61 @@ export default function BlindVotingInterface({ poll, userId, hasVoted, onVoteSub
   const [deepLink, setDeepLink] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const { toast } = useToast();
+
+  // SSE connection for real-time vote status updates
+  useEffect(() => {
+    if (!poll.id || !userId) return;
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_EVOTING_BASE_URL || 'http://localhost:7777';
+    const eventSource = new EventSource(`${apiBaseUrl}/api/votes/${poll.id}/status/${userId}`);
+
+    eventSource.onopen = () => {
+      console.log('🔗 Connected to vote status SSE stream');
+      setIsConnected(true);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 Vote status update:', data);
+
+        if (data.type === 'connected') {
+          console.log('✅ SSE connection established');
+        } else if (data.type === 'vote_status') {
+          setVoteStatus({
+            hasVoted: data.hasVoted,
+            vote: data.vote
+          });
+
+          // If user just voted, trigger the callback
+          if (data.hasVoted && !hasVoted) {
+            console.log('🎉 Vote detected via SSE!');
+            onVoteSubmitted();
+          }
+        } else if (data.type === 'error') {
+          console.error('❌ SSE Error:', data.error);
+          setError(data.error);
+        }
+      } catch (error) {
+        console.error('❌ Error parsing SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('❌ SSE connection error:', error);
+      setIsConnected(false);
+    };
+
+    // Cleanup on unmount
+    return () => {
+      console.log('🔌 Disconnecting from vote status SSE stream');
+      eventSource.close();
+      setIsConnected(false);
+    };
+  }, [poll.id, userId, hasVoted, onVoteSubmitted]);
 
   const createBlindVotingDeepLink = async () => {
     try {
@@ -71,13 +125,13 @@ export default function BlindVotingInterface({ poll, userId, hasVoted, onVoteSub
     }
   }, []);
 
-  // Note: SSE subscription removed as it's not needed for the new blind voting system
-  // The eID wallet handles the voting process locally and submits directly to the API
+  // Use the real-time vote status from SSE if available, fallback to prop
+  const currentHasVoted = voteStatus?.hasVoted ?? hasVoted;
 
-  if (hasVoted) {
+  if (currentHasVoted) {
     return (
       <div className="text-center py-8">
-        <Shield className="text-blue-500 h-16 w-16 mx-auto mb-4" />
+        <CheckCircle className="text-green-500 h-16 w-16 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-gray-900 mb-2">Blind Vote Submitted</h3>
         <p className="text-gray-600">Your private vote has been submitted successfully</p>
         <p className="text-sm text-gray-500 mt-2">The vote will remain hidden until revealed</p>

@@ -221,6 +221,9 @@ app.get("/api/votes/:pollId/tally", voteController.tallyBlindVotes.bind(voteCont
 // Generic poll route (must come last to avoid conflicts with specific routes)
 app.get("/api/polls/:id", pollController.getPollById);
 
+// Vote status monitoring via SSE (for private polls) - Public endpoint for real-time updates
+app.get("/api/votes/:pollId/status/:userId", voteController.monitorVoteStatus.bind(voteController)); // Monitor vote status via SSE
+
 // Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
