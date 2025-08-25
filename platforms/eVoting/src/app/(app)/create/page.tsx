@@ -82,8 +82,10 @@ export default function CreatePoll() {
             if (aChartered && !bChartered) return -1;
             if (!aChartered && bChartered) return 1;
             
-            // If both have same charter status, sort by name
-            return a.name.localeCompare(b.name);
+            // If both have same charter status, sort by name (with null safety)
+            const aName = a.name || "";
+            const bName = b.name || "";
+            return aName.localeCompare(bName);
         });
     };
 
