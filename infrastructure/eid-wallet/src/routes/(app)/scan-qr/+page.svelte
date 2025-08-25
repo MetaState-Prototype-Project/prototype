@@ -374,13 +374,14 @@
                     "🔍 DEBUG: Is poll request?",
                     !!(signingData?.pollId && signingData?.voteData),
                 );
+
+                // Only set signing modal for regular signing requests (not blind voting)
+                isSigningRequest = true;
+                signingDrawerOpen = true;
             } catch (error) {
                 console.error("Error decoding signing data:", error);
                 return;
             }
-
-            isSigningRequest = true;
-            signingDrawerOpen = true;
         } catch (error) {
             console.error("Error parsing signing request:", error);
         }
@@ -597,6 +598,15 @@
             blindVoteError = null; // Clear any previous errors
 
             console.log("✅ Blind voting request set up successfully");
+            console.log("🔍 DEBUG: State after setup:");
+            console.log("  - isBlindVotingRequest:", isBlindVotingRequest);
+            console.log("  - signingDrawerOpen:", signingDrawerOpen);
+            console.log("  - signingData:", signingData);
+            console.log("  - signingData.pollId:", signingData?.pollId);
+            console.log(
+                "  - signingData.pollDetails:",
+                !!signingData?.pollDetails,
+            );
         } catch (error) {
             console.error("❌ Error handling blind voting request:", error);
         }
@@ -953,7 +963,7 @@
         console.log("Scan QR page mounted, checking for deep link data...");
 
         // Function to handle deep link data
-        function handleDeepLinkData(data: any) {
+        async function handleDeepLinkData(data: any) {
             console.log("Handling deep link data:", data);
             console.log("Data type:", data.type);
             console.log("Platform:", data.platform);
@@ -999,24 +1009,91 @@
                         const decodedString = atob(base64Data);
                         signingData = JSON.parse(decodedString);
                         console.log("Decoded signing data:", signingData);
+
+                        // Check if this is actually a blind voting request
+                        if (signingData.type === "blind-vote") {
+                            console.log(
+                                "🔍 Blind voting request detected in sign deep link",
+                            );
+
+                            // Set up blind voting state
+                            isBlindVotingRequest = true;
+                            selectedBlindVoteOption = null;
+                            signingDrawerOpen = true;
+                            blindVoteError = null;
+
+                            // Extract platform URL from the data
+                            const platformUrl =
+                                signingData.platformUrl ||
+                                "http://192.168.0.225:7777";
+
+                            // Set up signingData for blind voting UI
+                            signingData = {
+                                pollId: signingData.pollId,
+                                sessionId: signingData.sessionId,
+                                platform_url: platformUrl,
+                                redirect: redirectUri, // Add the redirect URI from the deep link
+                                // We'll need to fetch poll details, but for now set a placeholder
+                                pollDetails: {
+                                    title: "Loading poll details...",
+                                    creatorName: "Loading...",
+                                    options: ["Loading..."],
+                                },
+                            };
+
+                            // Fetch poll details in the background
+                            try {
+                                const pollResponse = await fetch(
+                                    `${platformUrl}/api/polls/${signingData.pollId}`,
+                                );
+                                if (pollResponse.ok) {
+                                    const pollDetails =
+                                        await pollResponse.json();
+                                    signingData.pollDetails = pollDetails;
+                                    console.log(
+                                        "✅ Poll details fetched:",
+                                        pollDetails,
+                                    );
+                                }
+                            } catch (error) {
+                                console.error(
+                                    "Failed to fetch poll details:",
+                                    error,
+                                );
+                                blindVoteError = "Failed to load poll details";
+                            }
+
+                            return;
+                        }
+
+                        // Regular signing request
+                        isSigningRequest = true;
+                        signingDrawerOpen = true;
+                        console.log("Signing modal should now be open");
                     } catch (error) {
                         console.error("Error decoding signing data:", error);
                         return;
                     }
-                    isSigningRequest = true;
-                    signingDrawerOpen = true;
-                    console.log("Signing modal should now be open");
                 }
-            }
-            // Handle blind voting requests
-            if (data.type === "blind-vote") {
-                console.log("🔍 Blind voting request detected");
-                isBlindVotingRequest = true;
-                selectedBlindVoteOption = null;
-                signingData = data;
-                signingDrawerOpen = true;
-                blindVoteError = null; // Clear any previous errors
-                return;
+            } else if (data.type === "reveal") {
+                console.log("Handling reveal deep link");
+                // Handle reveal deep link
+                const pollId = data.pollId;
+
+                if (pollId) {
+                    console.log("🔍 Reveal request for poll:", pollId);
+
+                    // Set up reveal state
+                    revealPollId = pollId;
+                    isRevealRequest = true;
+
+                    console.log("✅ Reveal request set up successfully");
+                    console.log("🔍 DEBUG: State after setup:");
+                    console.log("  - revealPollId:", revealPollId);
+                    console.log("  - isRevealRequest:", isRevealRequest);
+                } else {
+                    console.error("Missing pollId in reveal request");
+                }
             }
         }
 
@@ -1032,7 +1109,7 @@
             try {
                 const data = JSON.parse(deepLinkData);
                 console.log("Parsed deep link data:", data);
-                handleDeepLinkData(data);
+                await handleDeepLinkData(data);
                 // Clear both storage keys to be safe
                 sessionStorage.removeItem("deepLinkData");
                 sessionStorage.removeItem("pendingDeepLink");
@@ -1048,40 +1125,36 @@
         }
 
         // Listen for deep link events when already on the page
-        const handleAuthEvent = (event: CustomEvent) => {
+        const handleAuthEvent = async (event: CustomEvent) => {
             console.log("Received deepLinkAuth event:", event.detail);
-            handleDeepLinkData({
+            await handleDeepLinkData({
                 type: "auth",
                 ...event.detail,
             });
         };
 
-        const handleSignEvent = (event: CustomEvent) => {
+        const handleSignEvent = async (event: CustomEvent) => {
             console.log("Received deepLinkSign event:", event.detail);
-            handleDeepLinkData({
+            await handleDeepLinkData({
                 type: "sign",
                 ...event.detail,
             });
         };
 
-        window.addEventListener(
-            "deepLinkAuth",
-            handleAuthEvent as EventListener,
+        window.addEventListener("deepLinkAuth", (event) =>
+            handleAuthEvent(event as CustomEvent),
         );
-        window.addEventListener(
-            "deepLinkSign",
-            handleSignEvent as EventListener,
+        window.addEventListener("deepLinkSign", (event) =>
+            handleSignEvent(event as CustomEvent),
         );
 
         // Cleanup event listeners
         onDestroy(() => {
-            window.removeEventListener(
-                "deepLinkAuth",
-                handleAuthEvent as EventListener,
+            window.removeEventListener("deepLinkAuth", (event) =>
+                handleAuthEvent(event as CustomEvent),
             );
-            window.removeEventListener(
-                "deepLinkSign",
-                handleSignEvent as EventListener,
+            window.removeEventListener("deepLinkSign", (event) =>
+                handleSignEvent(event as CustomEvent),
             );
         });
     });
