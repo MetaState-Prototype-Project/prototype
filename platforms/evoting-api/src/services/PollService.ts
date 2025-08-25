@@ -172,22 +172,6 @@ export class PollService {
             return poll;
         }
 
-
-        // Check if user is a member, admin, or participant of the group
-        const group = await this.groupRepository
-            .createQueryBuilder('group')
-            .leftJoin('group.members', 'member')
-            .leftJoin('group.admins', 'admin')
-            .leftJoin('group.participants', 'participant')
-            .where('group.id = :groupId', { groupId: poll.groupId })
-            .andWhere('(member.id = :userId OR admin.id = :userId OR participant.id = :userId)', { userId })
-            .getOne();
-
-        // If user is not in the group, don't show the poll
-        if (!group) {
-            return null;
-        }
-
         return poll;
     }
 
