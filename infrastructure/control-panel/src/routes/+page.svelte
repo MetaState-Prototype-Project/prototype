@@ -25,8 +25,9 @@
 	let totalPages = $state(1);
 
 	// Track selected items
-	let selectedEVaults = $state<number[]>([]);
-	let selectedPlatforms = $state<number[]>([]);
+	// Selection state - store unique identifiers instead of indices
+	let selectedEVaults = $state<string[]>([]);
+	let selectedPlatforms = $state<string[]>([]);
 
 	// Filtered data for search
 	let filteredEVaults = $derived(() => {
@@ -129,49 +130,53 @@
 
 	// Handle eVault selection changes
 	function handleEVaultSelectionChange(index: number, checked: boolean) {
-		// Get the filtered eVaults to work with the current search results
-		const filtered = filteredEVaults();
+		// Get the paginated eVaults to work with the current page
+		const paginated = paginatedEVaults();
 
-		// Convert page-relative index to filtered array index
-		const filteredIndex = (currentPage - 1) * itemsPerPage + index;
-
-		// Get the actual eVault from the filtered results
-		const selectedEVault = filtered[filteredIndex];
+		// Get the actual eVault from the paginated results
+		const selectedEVault = paginated[index];
 
 		if (!selectedEVault) {
-			console.error('Selected eVault not found in filtered results');
-			return;
-		}
-
-		// Find the index of this eVault in the original evaults array
-		const originalIndex = evaults.findIndex((e) => e.evaultId === selectedEVault.evaultId);
-
-		if (originalIndex === -1) {
-			console.error('Selected eVault not found in original evaults array');
+			console.error('Selected eVault not found in paginated results');
 			return;
 		}
 
 		if (checked) {
-			selectedEVaults = [...selectedEVaults, originalIndex];
+			selectedEVaults = [...selectedEVaults, selectedEVault.evaultId];
 		} else {
-			selectedEVaults = selectedEVaults.filter((i) => i !== originalIndex);
+			selectedEVaults = selectedEVaults.filter((id) => id !== selectedEVault.evaultId);
 		}
 
 		// Store selections immediately in sessionStorage
-		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
+		const selectedEVaultData = selectedEVaults
+			.map((id) => evaults.find((e) => e.evaultId === id))
+			.filter(Boolean);
 		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
 	}
 
 	// Handle platform selection changes
 	function handlePlatformSelectionChange(index: number, checked: boolean) {
+		// Get the filtered platforms to work with the current search results
+		const filtered = filteredPlatforms();
+
+		// Get the actual platform from the filtered results
+		const selectedPlatform = filtered[index];
+
+		if (!selectedPlatform) {
+			console.error('Selected platform not found in filtered results');
+			return;
+		}
+
 		if (checked) {
-			selectedPlatforms = [...selectedPlatforms, index];
+			selectedPlatforms = [...selectedPlatforms, selectedPlatform.name];
 		} else {
-			selectedPlatforms = selectedPlatforms.filter((i) => i !== index);
+			selectedPlatforms = selectedPlatforms.filter((name) => name !== selectedPlatform.name);
 		}
 
 		// Store selections immediately in sessionStorage
-		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+		const selectedPlatformData = selectedPlatforms
+			.map((name) => platforms.find((p) => p.name === name))
+			.filter(Boolean);
 		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
 	}
 
@@ -184,14 +189,8 @@
 		console.log('filtered eVaults length:', filtered.length);
 
 		if (checked) {
-			// Select all filtered eVaults by finding their indices in the original array
-			const filteredIndices = filtered
-				.map((filteredEVault) => {
-					return evaults.findIndex((e) => e.evaultId === filteredEVault.evaultId);
-				})
-				.filter((index) => index !== -1);
-
-			selectedEVaults = filteredIndices;
+			// Select all filtered eVaults by their evaultId
+			selectedEVaults = filtered.map((evault) => evault.evaultId);
 			console.log('✅ Selected all filtered eVaults, selectedEVaults:', selectedEVaults);
 		} else {
 			// Deselect all eVaults
@@ -200,7 +199,9 @@
 		}
 
 		// Store selections immediately in sessionStorage
-		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
+		const selectedEVaultData = selectedEVaults
+			.map((id) => evaults.find((e) => e.evaultId === id))
+			.filter(Boolean);
 		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
 		console.log('💾 Stored in sessionStorage:', selectedEVaultData);
 	}
@@ -208,12 +209,18 @@
 	// Handle select all platforms
 	function handleSelectAllPlatforms(checked: boolean) {
 		console.log('🎯 handleSelectAllPlatforms called with:', checked);
-		console.log('platforms.length:', platforms.length);
+
+		// Get the filtered platforms to work with the current search results
+		const filtered = filteredPlatforms();
+		console.log('filtered platforms length:', filtered.length);
 
 		if (checked) {
-			// Select all platforms
-			selectedPlatforms = Array.from({ length: platforms.length }, (_, i) => i);
-			console.log('✅ Selected all platforms, selectedPlatforms:', selectedPlatforms);
+			// Select all filtered platforms by their name
+			selectedPlatforms = filtered.map((platform) => platform.name);
+			console.log(
+				'✅ Selected all filtered platforms, selectedPlatforms:',
+				selectedPlatforms
+			);
 		} else {
 			// Deselect all platforms
 			selectedPlatforms = [];
@@ -221,7 +228,9 @@
 		}
 
 		// Store selections immediately in sessionStorage
-		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+		const selectedPlatformData = selectedPlatforms
+			.map((name) => platforms.find((p) => p.name === name))
+			.filter(Boolean);
 		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
 		console.log('💾 Stored in sessionStorage:', selectedPlatformData);
 	}
@@ -240,8 +249,12 @@
 
 	// Navigate to monitoring with selected items
 	function goToMonitoring() {
-		const selectedEVaultData = selectedEVaults.map((i) => evaults[i]);
-		const selectedPlatformData = selectedPlatforms.map((i) => platforms[i]);
+		const selectedEVaultData = selectedEVaults
+			.map((id) => evaults.find((e) => e.evaultId === id))
+			.filter(Boolean);
+		const selectedPlatformData = selectedPlatforms
+			.map((name) => platforms.find((p) => p.name === name))
+			.filter(Boolean);
 
 		// Store selected data in sessionStorage to pass to monitoring page
 		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
@@ -333,7 +346,8 @@
 	let currentSelectedEVaultIndex = $state(-1);
 
 	function handleEVaultRowClick(index: number) {
-		const evault = evaults[index];
+		const paginated = paginatedEVaults();
+		const evault = paginated[index];
 		if (evault) {
 			goto(`/monitoring/${evault.namespace}/${evault.name}`);
 		}
@@ -388,15 +402,10 @@
 					handleSelectedRow={handleEVaultRowClick}
 					onSelectionChange={handleEVaultSelectionChange}
 					onSelectAllChange={handleSelectAllEVaults}
-					selectedIndices={selectedEVaults
-						.map((globalIndex) => {
-							const pageStart = (currentPage - 1) * itemsPerPage;
-							const pageEnd = pageStart + itemsPerPage;
-							if (globalIndex >= pageStart && globalIndex < pageEnd) {
-								return globalIndex - pageStart;
-							}
-							return -1; // Not on current page
-						})
+					selectedIndices={paginatedEVaults()
+						.map((evault, index) =>
+							selectedEVaults.includes(evault.evaultId) ? index : -1
+						)
 						.filter((index) => index !== -1)}
 				/>
 
@@ -469,7 +478,11 @@
 					withPagination={false}
 					onSelectionChange={handlePlatformSelectionChange}
 					onSelectAllChange={handleSelectAllPlatforms}
-					selectedIndices={selectedPlatforms}
+					selectedIndices={filteredPlatforms()
+						.map((platform, index) =>
+							selectedPlatforms.includes(platform.name) ? index : -1
+						)
+						.filter((index) => index !== -1)}
 				/>
 			{/if}
 		</TableCard>
