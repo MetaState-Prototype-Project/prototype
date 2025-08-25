@@ -7,4 +7,8 @@ export function isMobileDevice(): boolean {
 
 export function getDeepLinkUrl(qrData: string): string {
   return qrData;
+}
+
+export function createRevealDeepLink(pollId: string): string {
+  return `w3ds://reveal?pollId=${pollId}`;
 } 

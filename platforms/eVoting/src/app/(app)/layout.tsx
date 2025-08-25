@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
+// Deeplink handling for reveal functionality
+declare global {
+    interface WindowEventMap {
+        deepLinkReveal: CustomEvent<{ pollId: string }>;
+    }
+}
+
 export default function AppLayout({
     children,
 }: Readonly<{
@@ -21,6 +28,29 @@ export default function AppLayout({
 }>) {
     const { logout } = useAuth();
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+    const router = useRouter();
+
+    // Handle deeplink reveal requests
+    useEffect(() => {
+        const handleDeepLinkReveal = (event: CustomEvent<{ pollId: string }>) => {
+            console.log("🔍 Deep link reveal request received:", event.detail);
+            const { pollId } = event.detail;
+            
+            // Navigate to the poll page to show reveal interface
+            router.push(`/${pollId}`);
+            
+            // Store the reveal request in sessionStorage for the poll page to pick up
+            sessionStorage.setItem("revealRequest", JSON.stringify({ pollId, timestamp: Date.now() }));
+        };
+
+        // Listen for deeplink reveal events
+        window.addEventListener("deepLinkReveal", handleDeepLinkReveal as EventListener);
+
+        // Cleanup
+        return () => {
+            window.removeEventListener("deepLinkReveal", handleDeepLinkReveal as EventListener);
+        };
+    }, [router]);
 
     return (
         <ProtectedRoute>
