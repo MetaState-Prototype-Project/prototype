@@ -172,10 +172,6 @@ export class PollService {
             return poll;
         }
 
-        // If no userId provided, don't show group polls
-        if (!userId) {
-            return null;
-        }
 
         // Check if user is a member, admin, or participant of the group
         const group = await this.groupRepository
