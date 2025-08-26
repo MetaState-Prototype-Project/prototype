@@ -44,11 +44,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called before entity insertion.
      */
     beforeInsert(event: InsertEvent<any>) {
-        console.log("🔍 beforeInsert triggered:", {
-            tableName: event.metadata.tableName,
-            target: typeof event.metadata.target === 'function' ? event.metadata.target.name : event.metadata.target,
-            hasEntity: !!event.entity
-        });
+ 
     }
 
     async enrichEntity(entity: any, tableName: string, tableTarget: any) {
@@ -246,11 +242,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             }
         } else {
             console.log("❌ No entity ID found in update event");
-            console.log("🔍 Event details:", {
-                entity: event.entity,
-                databaseEntity: event.databaseEntity,
-                metadata: event.metadata
-            });
         }
         
         this.handleChange(
@@ -286,7 +277,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        console.log("yoho")
         // Check if this is a junction table
         if (tableName === "group_participants") return;
         
@@ -300,7 +290,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
-        console.log(data, entity)
         if (!data.id) return;
         
         // For Message entities, only process if they are system messages
