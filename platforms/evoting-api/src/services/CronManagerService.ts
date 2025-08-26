@@ -36,11 +36,11 @@ export class CronManagerService {
     }
 
     /**
-     * Start the deadline check cron job (runs every 10 minutes)
+     * Start the deadline check cron job (runs every 5 minutes)
      */
     private startDeadlineCheckJob(): void {
-        // Schedule: every 10 minutes at 0, 10, 20, 30, 40, 50 seconds
-        this.deadlineCheckJob = cron.schedule('*/10 * * * *', async () => {
+        // Schedule: every 5 minutes at 0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55
+        this.deadlineCheckJob = cron.schedule('*/5 * * * *', async () => {
             console.log(`[${new Date().toISOString()}] Running deadline check cron job...`);
             
             try {

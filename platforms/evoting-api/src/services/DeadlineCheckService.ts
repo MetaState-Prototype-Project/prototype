@@ -17,12 +17,14 @@ export class DeadlineCheckService {
 
     /**
      * Check for polls with deadlines that have passed and send system messages
-     * This method is designed to be called by a cron job every 10 minutes
+     * This method is designed to be called by a cron job every 5 minutes
      */
     async checkExpiredPolls(): Promise<void> {
         const now = new Date();
         
         try {
+            console.log(`[${now.toISOString()}] 🔍 Checking for expired polls...`);
+            
             // Find all polls with deadlines that have passed and haven't had deadline messages sent yet
             const expiredPolls = await this.pollRepository
                 .createQueryBuilder("poll")
@@ -32,7 +34,12 @@ export class DeadlineCheckService {
                 .andWhere("poll.deadline IS NOT NULL")
                 .getMany();
 
-            console.log(`Found ${expiredPolls.length} expired polls that need deadline messages`);
+            console.log(`[${now.toISOString()}] 📊 Found ${expiredPolls.length} expired polls that need deadline messages`);
+            
+            if (expiredPolls.length === 0) {
+                console.log(`[${now.toISOString()}] ✅ No expired polls found, nothing to process`);
+                return;
+            }
 
             for (const poll of expiredPolls) {
                 try {
@@ -56,25 +63,15 @@ export class DeadlineCheckService {
         }
 
         try {
-            // Get the final results for this poll using blind voting tally
-            let results;
-            try {
-                results = await this.voteService.tallyBlindVotes(poll.id);
-            } catch (error) {
-                console.log(`Poll ${poll.id} has no blind votes, using basic poll info`);
-                // If no blind votes, create basic results from poll options
-                results = {
-                    totalVotes: 0,
-                    optionResults: poll.options.map((option: string, index: number) => ({
-                        optionId: `option_${index}`,
-                        optionText: option,
-                        voteCount: 0
-                    }))
-                };
-            }
+            // Create a simple deadline message similar to poll creation message
+            const deadlineMessage = this.createSimpleDeadlineMessage(poll);
             
-            // Create a comprehensive deadline message with results
-            const deadlineMessage = this.createDeadlineMessageWithResults(poll, results);
+            // Log the exact message that's about to be sent
+            console.log(`[${new Date().toISOString()}] 📤 About to send deadline message for poll "${poll.title}" (${poll.id}):`);
+            console.log(`📝 Message content:`);
+            console.log(`---`);
+            console.log(deadlineMessage);
+            console.log(`---`);
             
             // Send the system message
             await this.messageService.createSystemMessage({
@@ -95,27 +92,11 @@ export class DeadlineCheckService {
     }
 
     /**
-     * Create a comprehensive deadline message with voting results
+     * Create a simple deadline message similar to poll creation message
      */
-    private createDeadlineMessageWithResults(poll: Poll, results: any): string {
-        let resultsText = '';
-        
-        if (results && results.optionResults) {
-            resultsText = '\n\n📊 **Final Results:**\n';
-            results.optionResults.forEach((result: any, index: number) => {
-                const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
-                resultsText += `${emoji} ${result.optionText}: ${result.voteCount} votes\n`;
-            });
-        } else if (results && results.results) {
-            // Fallback for old format
-            resultsText = '\n\n📊 **Final Results:**\n';
-            results.results.forEach((result: any, index: number) => {
-                const emoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '•';
-                resultsText += `${emoji} ${result.option}: ${result.votes} votes (${result.percentage.toFixed(1)}%)\n`;
-            });
-        }
-
-        return `🗳️ **Vote Results Are In!**\n\n"${poll.title}"\n\nVote ID: ${poll.id}\n\nCreated by: ${poll.creator.name}${resultsText}\n\nThis vote has ended. The results are final!`;
+    private createSimpleDeadlineMessage(poll: Poll): string {
+        const voteUrl = `${process.env.PUBLIC_EVOTING_URL || 'http://localhost:3000'}/${poll.id}`;
+        return `eVoting Platform: Vote results are in!\n\n"${poll.title}"\n\nVote ID: ${poll.id}\n\nCreated by: ${poll.creator.name}\n\n<a href="${voteUrl}" target="_blank">View results here</a>`;
     }
 
     /**
@@ -128,25 +109,26 @@ export class DeadlineCheckService {
     }> {
         const now = new Date();
         
-        const totalExpired = await this.pollRepository.count({
-            where: {
-                deadline: { $lt: now } as any
-            }
-        });
+        // Use proper TypeORM syntax instead of MongoDB syntax
+        const totalExpired = await this.pollRepository
+            .createQueryBuilder("poll")
+            .where("poll.deadline < :now", { now })
+            .andWhere("poll.deadline IS NOT NULL")
+            .getCount();
 
-        const messagesSent = await this.pollRepository.count({
-            where: {
-                deadline: { $lt: now } as any,
-                deadlineMessageSent: true
-            }
-        });
+        const messagesSent = await this.pollRepository
+            .createQueryBuilder("poll")
+            .where("poll.deadline < :now", { now })
+            .andWhere("poll.deadline IS NOT NULL")
+            .andWhere("poll.deadlineMessageSent = :sent", { sent: true })
+            .getCount();
 
-        const pendingMessages = await this.pollRepository.count({
-            where: {
-                deadline: { $lt: now } as any,
-                deadlineMessageSent: false
-            }
-        });
+        const pendingMessages = await this.pollRepository
+            .createQueryBuilder("poll")
+            .where("poll.deadline < :now", { now })
+            .andWhere("poll.deadline IS NOT NULL")
+            .andWhere("poll.deadlineMessageSent = :sent", { sent: false })
+            .getCount();
 
         return {
             totalExpired,

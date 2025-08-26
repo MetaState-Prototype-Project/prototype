@@ -61,6 +61,8 @@ export interface Group {
 export interface PollResults {
   poll: Poll;
   totalVotes: number;
+  totalEligibleVoters?: number;
+  turnout?: number;
   results: {
     option: string;
     votes: number;

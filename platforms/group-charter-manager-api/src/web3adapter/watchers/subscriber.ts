@@ -242,7 +242,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        console.log("yoho")
         // Check if this is a junction table
         if (tableName === "group_participants") return;
         

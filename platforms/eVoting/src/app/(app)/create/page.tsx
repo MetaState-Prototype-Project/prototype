@@ -34,7 +34,10 @@ const createPollSchema = z.object({
         return true;
     }, "Please select a valid group"),
     options: z
-        .array(z.string().min(1, "Option cannot be empty"))
+        .array(z.string()
+            .min(1, "Option cannot be empty")
+            .refine((val) => !val.includes(','), "Commas are not allowed in option text")
+        )
         .min(2, "At least 2 options required"),
     deadline: z
         .string()
@@ -139,6 +142,16 @@ export default function CreatePoll() {
     };
 
     const updateOption = (index: number, value: string) => {
+        // Prevent commas in option text
+        if (value.includes(',')) {
+            toast({
+                title: "Invalid Option",
+                description: "Commas are not allowed in option text as they can break the voting system.",
+                variant: "destructive",
+            });
+            return;
+        }
+        
         const newOptions = [...options];
         newOptions[index] = value;
         setOptions(newOptions);

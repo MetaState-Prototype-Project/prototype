@@ -33,6 +33,15 @@ AppDataSource.initialize()
         } catch (error) {
             console.error("Failed to initialize SigningController:", error);
         }
+
+        // Start cron jobs after database is ready
+        try {
+            const cronManager = new CronManagerService();
+            cronManager.startAllJobs();
+            console.log("Cron jobs started successfully");
+        } catch (error) {
+            console.error("Failed to start cron jobs:", error);
+        }
     })
     .catch((error: unknown) => {
         console.error("Error during initialization:", error);
