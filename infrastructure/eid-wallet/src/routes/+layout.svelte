@@ -1,6 +1,6 @@
 <script lang="ts">
     import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-    import { onMount, setContext, getContext } from "svelte";
+    import { onMount, setContext, getContext, onDestroy } from "svelte";
     import "../app.css";
     import { onNavigate, goto } from "$app/navigation";
     import { GlobalState } from "$lib/global/state";
@@ -15,6 +15,7 @@
     let showSplashScreen = $state(false);
     let previousRoute = null;
     let navigationStack: string[] = [];
+    let globalDeepLinkHandler: ((event: Event) => void) | undefined;
 
     setContext("globalState", () => globalState);
 
@@ -63,6 +64,40 @@
                     handleDeepLink(urls[0]);
                 }
             });
+
+            // Set up global event listener for deep links that arrive when app is already open
+            // This ensures deep links work even if the scan-qr page isn't mounted yet
+            globalDeepLinkHandler = (event: Event) => {
+                const customEvent = event as CustomEvent;
+                console.log(
+                    "Global deep link event received:",
+                    customEvent.detail,
+                );
+
+                // Check if we're already on the scan page
+                if (window.location.pathname === "/scan-qr") {
+                    // We're already on the scan page, dispatch the event directly
+                    console.log(
+                        "Already on scan page, dispatching event directly",
+                    );
+                    const directEvent = new CustomEvent("deepLinkReceived", {
+                        detail: customEvent.detail,
+                    });
+                    window.dispatchEvent(directEvent);
+                } else {
+                    // Store the deep link data and navigate to scan page
+                    console.log(
+                        "Not on scan page, storing data and navigating",
+                    );
+                    sessionStorage.setItem(
+                        "deepLinkData",
+                        JSON.stringify(customEvent.detail),
+                    );
+                    goto("/scan-qr");
+                }
+            };
+
+            window.addEventListener("deepLinkReceived", globalDeepLinkHandler);
         } catch (error) {
             console.error("Failed to initialize deep link listener:", error);
         }
@@ -135,14 +170,26 @@
                                     const vault =
                                         await globalState.vaultController.vault;
                                     if (vault) {
-                                        // User is authenticated, go to scan page
+                                        // User is authenticated, dispatch event and navigate to scan page
                                         console.log(
-                                            "User authenticated, navigating to scan-qr",
+                                            "User authenticated, dispatching deep link event and navigating to scan-qr",
                                         );
+
+                                        // Dispatch a custom event that the scan page can listen to
+                                        const deepLinkEvent = new CustomEvent(
+                                            "deepLinkReceived",
+                                            {
+                                                detail: deepLinkData,
+                                            },
+                                        );
+                                        window.dispatchEvent(deepLinkEvent);
+
+                                        // Also store in sessionStorage as backup
                                         sessionStorage.setItem(
                                             "deepLinkData",
                                             JSON.stringify(deepLinkData),
                                         );
+
                                         goto("/scan-qr");
                                         return;
                                     }
@@ -204,14 +251,26 @@
                                     const vault =
                                         await globalState.vaultController.vault;
                                     if (vault) {
-                                        // User is authenticated, go to scan page
+                                        // User is authenticated, dispatch event and navigate to scan page
                                         console.log(
-                                            "User authenticated, navigating to scan-qr",
+                                            "User authenticated, dispatching deep link event and navigating to scan-qr",
                                         );
+
+                                        // Dispatch a custom event that the scan page can listen to
+                                        const deepLinkEvent = new CustomEvent(
+                                            "deepLinkReceived",
+                                            {
+                                                detail: deepLinkData,
+                                            },
+                                        );
+                                        window.dispatchEvent(deepLinkEvent);
+
+                                        // Also store in sessionStorage as backup
                                         sessionStorage.setItem(
                                             "deepLinkData",
                                             JSON.stringify(deepLinkData),
                                         );
+
                                         goto("/scan-qr");
                                         return;
                                     }
@@ -262,14 +321,26 @@
                                     const vault =
                                         await globalState.vaultController.vault;
                                     if (vault) {
-                                        // User is authenticated, go to scan page
+                                        // User is authenticated, dispatch event and navigate to scan page
                                         console.log(
-                                            "User authenticated, navigating to scan-qr for reveal",
+                                            "User authenticated, dispatching deep link event and navigating to scan-qr for reveal",
                                         );
+
+                                        // Dispatch a custom event that the scan page can listen to
+                                        const deepLinkEvent = new CustomEvent(
+                                            "deepLinkReceived",
+                                            {
+                                                detail: deepLinkData,
+                                            },
+                                        );
+                                        window.dispatchEvent(deepLinkEvent);
+
+                                        // Also store in sessionStorage as backup
                                         sessionStorage.setItem(
                                             "deepLinkData",
                                             JSON.stringify(deepLinkData),
                                         );
+
                                         goto("/scan-qr");
                                         return;
                                     }
@@ -309,6 +380,16 @@
         await Promise.all([loadData(), ensureMinimumDelay()]);
 
         showSplashScreen = false;
+    });
+
+    // Cleanup global event listeners
+    onDestroy(() => {
+        if (typeof globalDeepLinkHandler !== "undefined") {
+            window.removeEventListener(
+                "deepLinkReceived",
+                globalDeepLinkHandler,
+            );
+        }
     });
 
     const safeAreaTop = $derived.by(
