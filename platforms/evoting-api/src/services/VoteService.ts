@@ -162,6 +162,12 @@ export class VoteService {
 
     const votes = await this.getVotesByPoll(pollId);
     
+    // Get group member count for voting turnout calculation
+    let totalEligibleVoters = 0;
+    if (poll.groupId) {
+      totalEligibleVoters = await this.getGroupMemberCount(poll.groupId);
+    }
+    
     if (poll.mode === "normal") {
       // Count votes for each option
       const optionCounts: Record<string, number> = {};
@@ -194,6 +200,8 @@ export class VoteService {
       return {
         pollId,
         totalVotes,
+        totalEligibleVoters,
+        turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
         results
       };
     } else if (poll.mode === "point") {
@@ -279,58 +287,22 @@ export class VoteService {
       return {
         pollId,
         totalVotes,
+        totalEligibleVoters,
+        turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
         mode: "point",
         results
       };
     } else if (poll.mode === "rank") {
-      // Calculate rank-based voting results using Borda count
-      const optionScores: Record<string, number> = {};
-      poll.options.forEach((option, index) => {
-        optionScores[option] = 0;
-      });
-
-      votes.forEach(vote => {
-        if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
-          // Handle the stored format: [{ option: "ranks", points: { "0": 1, "1": 2, "2": 3 } }]
-          vote.data.data.forEach((item: any) => {
-            if (item.option === "ranks" && item.points && typeof item.points === 'object') {
-              // Sort by rank (lowest number = highest rank)
-              const sortedRankings = Object.entries(item.points).sort((a, b) => (a[1] as number) - (b[1] as number));
-              
-              sortedRankings.forEach((rankData, rankIndex) => {
-                const optionIndex = parseInt(rankData[0]);
-                const option = poll.options[optionIndex];
-                if (option) {
-                  // Borda count: first place gets n points, second gets n-1, etc.
-                  const points = poll.options.length - rankIndex;
-                  optionScores[option] += points;
-                }
-              });
-            }
-          });
-        }
-      });
-
-      const totalVotes = votes.length;
-      const results = poll.options.map((option, index) => {
-        const score = optionScores[option] || 0;
-        const averageScore = totalVotes > 0 ? score / totalVotes : 0;
-        return {
-          option,
-          totalScore: score,
-          averageScore: Math.round(averageScore * 100) / 100,
-          votes: totalVotes // All voters participated in ranking
-        };
-      });
-
-      // Sort by total score (highest first)
-      results.sort((a, b) => b.totalScore - a.totalScore);
-
+      // Calculate rank-based voting results using Instant Runoff Voting (IRV)
+      const irvResult = this.tallyIRV(votes, poll.options);
+      
       return {
         pollId,
-        totalVotes,
+        totalVotes: votes.length,
+        totalEligibleVoters,
+        turnout: totalEligibleVoters > 0 ? (votes.length / totalEligibleVoters) * 100 : 0,
         mode: "rank",
-        results
+        irvResult
       };
     }
 
@@ -338,6 +310,8 @@ export class VoteService {
     return {
       pollId,
       totalVotes: votes.length,
+      totalEligibleVoters,
+      turnout: totalEligibleVoters > 0 ? (votes.length / totalEligibleVoters) * 100 : 0,
       mode: poll.mode,
       error: "Unsupported voting mode for results calculation"
     };
@@ -540,9 +514,17 @@ export class VoteService {
 
       const totalVoteCount = Object.values(electionResult.optionResults).reduce((sum, count) => sum + count, 0);
 
+      // Get group member count for voting turnout calculation
+      let totalEligibleVoters = 0;
+      if (poll.groupId) {
+        totalEligibleVoters = await this.getGroupMemberCount(poll.groupId);
+      }
+
       return {
         pollId,
         totalVotes: totalVoteCount,
+        totalEligibleVoters,
+        turnout: totalEligibleVoters > 0 ? (totalVoteCount / totalEligibleVoters) * 100 : 0,
         optionResults,
         verified: electionResult.verified,
         cryptographicProof: {
@@ -675,7 +657,302 @@ export class VoteService {
     }
   }
 
-  
+  // ===== IRV TALLYING METHODS =====
+
+  /**
+   * Tally Instant Runoff Voting (IRV) for ranked choice votes
+   */
+  private tallyIRV(votes: Vote[], options: string[]): any {
+    // Parse and validate ballots
+    const validBallots: Array<{ ballotId: string; ranking: number[] }> = [];
+    const rejectedReasons: Array<{ ballotId: string; reason: string }> = [];
+    
+    for (const vote of votes) {
+      try {
+        if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
+          // Handle the stored format: [{ option: "ranks", points: { "0": 1, "1": 2, "2": 3 } }]
+          const rankData = vote.data.data.find((item: any) => 
+            item.option === "ranks" && item.points && typeof item.points === 'object'
+          );
+          
+          if (rankData && rankData.points && typeof rankData.points === 'object') {
+            const ranking = this.parseBallot(rankData.points as Record<string, number>);
+            if (ranking) {
+              validBallots.push({ ballotId: vote.id, ranking });
+            }
+          }
+        }
+      } catch (error) {
+        rejectedReasons.push({ 
+          ballotId: vote.id, 
+          reason: error instanceof Error ? error.message : 'Invalid ballot format' 
+        });
+      }
+    }
+
+    const rejectedBallots = rejectedReasons.length;
+    
+    // Handle edge case: no valid ballots
+    if (validBallots.length === 0) {
+      return {
+        winnerIndex: null,
+        winnerOption: undefined,
+        rounds: [],
+        rejectedBallots,
+        rejectedReasons
+      };
+    }
+
+    // Determine number of candidates from valid ballots
+    const maxCandidateIndex = Math.max(
+      ...validBallots.flatMap(b => b.ranking)
+    );
+    const numCandidates = maxCandidateIndex + 1;
+
+    // Handle edge case: only one candidate
+    if (numCandidates === 1) {
+      return {
+        winnerIndex: 0,
+        winnerOption: options[0],
+        rounds: [{
+          round: 1,
+          active: [0],
+          counts: { 0: validBallots.length },
+          eliminated: null,
+          exhausted: 0
+        }],
+        rejectedBallots,
+        rejectedReasons
+      };
+    }
+
+    // Initialize IRV process
+    let activeCandidates = Array.from({ length: numCandidates }, (_, i) => i);
+    let currentBallots: Array<{ ballotId: string; ranking: number[]; currentChoice: number | undefined }> = 
+      validBallots.map(b => ({ ...b, currentChoice: b.ranking[0] }));
+    const rounds: any[] = [];
+    let round = 1;
+
+    while (true) {
+      // Count votes for current round
+      const counts: Record<number, number> = {};
+      let exhausted = 0;
+      
+      for (const ballot of currentBallots) {
+        if (ballot.currentChoice !== undefined && activeCandidates.includes(ballot.currentChoice)) {
+          counts[ballot.currentChoice] = (counts[ballot.currentChoice] || 0) + 1;
+        } else {
+          exhausted++;
+        }
+      }
+
+      const activeVotes = validBallots.length - exhausted;
+      const majorityThreshold = Math.floor(activeVotes / 2) + 1;
+
+      // Check for winner
+      let winner: number | null = null;
+      for (const [candidate, count] of Object.entries(counts)) {
+        if (count > majorityThreshold) {
+          winner = parseInt(candidate);
+          break;
+        }
+      }
+
+      // Record this round
+      rounds.push({
+        round,
+        active: [...activeCandidates],
+        counts: { ...counts },
+        eliminated: null,
+        exhausted
+      });
+
+      // If we have a winner, stop
+      if (winner !== null) {
+        return {
+          winnerIndex: winner,
+          winnerOption: options[winner],
+          rounds,
+          rejectedBallots,
+          rejectedReasons
+        };
+      }
+
+      // If only one candidate remains, they win
+      if (activeCandidates.length === 1) {
+        return {
+          winnerIndex: activeCandidates[0],
+          winnerOption: options[activeCandidates[0]],
+          rounds,
+          rejectedBallots,
+          rejectedReasons
+        };
+      }
+
+      // If no active candidates have votes, no winner
+      if (activeVotes === 0) {
+        return {
+          winnerIndex: null,
+          winnerOption: undefined,
+          rounds,
+          rejectedBallots,
+          rejectedReasons
+        };
+      }
+
+      // Find candidate to eliminate
+      const candidateToEliminate = this.findCandidateToEliminate(counts, activeCandidates, rounds);
+      
+      // Update active candidates
+      activeCandidates = activeCandidates.filter(c => c !== candidateToEliminate);
+      
+      // Update ballots for next round
+      currentBallots = currentBallots.map(ballot => {
+        if (ballot.currentChoice === candidateToEliminate) {
+          // Find next ranked active candidate
+          const nextChoice = ballot.ranking.find(c => activeCandidates.includes(c));
+          return { ...ballot, currentChoice: nextChoice };
+        }
+        return ballot;
+      });
+
+      // Mark elimination in the round
+      rounds[rounds.length - 1].eliminated = candidateToEliminate;
+      
+      round++;
+    }
+  }
+
+  /**
+   * Parse ballot points into ranking array
+   */
+  private parseBallot(points: Record<string, number>): number[] {
+    if (!points || typeof points !== 'object') {
+      throw new Error('Invalid points object');
+    }
+
+    // Validate and collect rankings
+    const rankings: Array<{ candidate: number; rank: number }> = [];
+    const seenRanks = new Set<number>();
+
+    for (const [candidateStr, rank] of Object.entries(points)) {
+      const candidate = parseInt(candidateStr);
+      const rankNum = parseInt(rank.toString());
+
+      // Validation checks
+      if (isNaN(candidate) || isNaN(rankNum)) {
+        throw new Error('Non-integer candidate or rank values');
+      }
+      
+      if (candidate < 0) {
+        throw new Error('Negative candidate index');
+      }
+      
+      if (rankNum < 1) {
+        throw new Error('Rank must be at least 1');
+      }
+      
+      if (seenRanks.has(rankNum)) {
+        throw new Error('Duplicate rank values');
+      }
+
+      seenRanks.add(rankNum);
+      rankings.push({ candidate, rank: rankNum });
+    }
+
+    // Sort by rank and return candidate indices
+    return rankings
+      .sort((a, b) => a.rank - b.rank)
+      .map(r => r.candidate);
+  }
+
+  /**
+   * Find candidate to eliminate using tie-breaking rules
+   */
+  private findCandidateToEliminate(
+    counts: Record<number, number>, 
+    activeCandidates: number[], 
+    rounds: any[]
+  ): number {
+    // Find candidates with lowest vote count
+    let minVotes = Infinity;
+    let candidatesWithMinVotes: number[] = [];
+
+    for (const candidate of activeCandidates) {
+      const votes = counts[candidate] || 0;
+      if (votes < minVotes) {
+        minVotes = votes;
+        candidatesWithMinVotes = [candidate];
+      } else if (votes === minVotes) {
+        candidatesWithMinVotes.push(candidate);
+      }
+    }
+
+    // If only one candidate with minimum votes, eliminate them
+    if (candidatesWithMinVotes.length === 1) {
+      return candidatesWithMinVotes[0];
+    }
+
+    // Tie-breaker 1: Fewest first-choice appearances in round 1
+    const round1Counts = rounds[0]?.counts || {};
+    let minFirstChoice = Infinity;
+    let candidatesWithMinFirstChoice: number[] = [];
+
+    for (const candidate of candidatesWithMinVotes) {
+      const firstChoiceVotes = round1Counts[candidate] || 0;
+      if (firstChoiceVotes < minFirstChoice) {
+        minFirstChoice = firstChoiceVotes;
+        candidatesWithMinFirstChoice = [candidate];
+      } else if (firstChoiceVotes === minFirstChoice) {
+        candidatesWithMinFirstChoice.push(candidate);
+      }
+    }
+
+    // If only one candidate with minimum first-choice votes, eliminate them
+    if (candidatesWithMinFirstChoice.length === 1) {
+      return candidatesWithMinFirstChoice[0];
+    }
+
+    // Tie-breaker 2: Lowest index
+    return Math.min(...candidatesWithMinFirstChoice);
+  }
+
+  /**
+   * Get the total number of members in a group for voting turnout calculation
+   */
+  private async getGroupMemberCount(groupId: string): Promise<number> {
+    try {
+      const group = await this.groupRepository
+        .createQueryBuilder('group')
+        .leftJoinAndSelect('group.members', 'member')
+        .leftJoinAndSelect('group.admins', 'admin')
+        .leftJoinAndSelect('group.participants', 'participant')
+        .where('group.id = :groupId', { groupId })
+        .getOne();
+
+      if (!group) {
+        return 0;
+      }
+
+      // Remove duplicates (someone might be both member and admin)
+      const uniqueMemberIds = new Set<string>();
+      
+      if (group.members) {
+        group.members.forEach(member => uniqueMemberIds.add(member.id));
+      }
+      if (group.admins) {
+        group.admins.forEach(admin => uniqueMemberIds.add(admin.id));
+      }
+      if (group.participants) {
+        group.participants.forEach(participant => uniqueMemberIds.add(participant.id));
+      }
+
+      return uniqueMemberIds.size;
+    } catch (error) {
+      console.error('Error getting group member count:', error);
+      return 0;
+    }
+  }
 }
 
 export default new VoteService(); 

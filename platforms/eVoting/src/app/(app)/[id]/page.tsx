@@ -132,6 +132,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         }
     }, [timeRemaining, selectedPoll]);
 
+    // Re-fetch results when poll expires (for all poll types)
+    useEffect(() => {
+        if (selectedPoll && timeRemaining === "Voting has ended") {
+            // Re-fetch fresh results when deadline expires
+            fetchVoteData();
+        }
+    }, [timeRemaining, selectedPoll]);
+
     // Check if voting is still allowed
     const isVotingAllowed =
         selectedPoll &&
@@ -356,6 +364,26 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <BarChart3 className="mr-2 h-5 w-5" />
                                         Final Results
                                     </h3>
+                                    
+                                    {/* Voting Turnout Information */}
+                                    {blindVoteResults?.totalEligibleVoters && (
+                                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-2">
+                                                    <Users className="h-4 w-4 text-blue-600" />
+                                                    <span className="text-sm font-medium text-blue-900">Voting Turnout</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-lg font-bold text-blue-900">
+                                                        {blindVoteResults.turnout?.toFixed(1) || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-600">
+                                                        {blindVoteResults.totalVotes || 0} of {blindVoteResults.totalEligibleVoters} eligible voters
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="space-y-3">
                                         {blindVoteResults?.optionResults && blindVoteResults.optionResults.length > 0 ? (
                                             blindVoteResults.optionResults.map((result, index) => {
@@ -415,6 +443,26 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <BarChart3 className="mr-2 h-5 w-5" />
                                         Final Results
                                     </h3>
+                                    
+                                    {/* Voting Turnout Information */}
+                                    {resultsData?.totalEligibleVoters && (
+                                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-2">
+                                                    <Users className="h-4 w-4 text-blue-600" />
+                                                    <span className="text-sm font-medium text-blue-900">Voting Turnout</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-lg font-bold text-blue-900">
+                                                        {resultsData.turnout?.toFixed(1) || 0}%
+                                                    </div>
+                                                    <div className="text-xs text-blue-600">
+                                                        {resultsData.totalVotes || 0} of {resultsData.totalEligibleVoters} eligible voters
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="space-y-3">
                                         {resultsData?.results && resultsData.results.length > 0 ? (
                                             resultsData.results.map((result, index) => {
