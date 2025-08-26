@@ -180,16 +180,38 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 
                 // Check if this is a Group entity and if charter was just added (not updated)
+                console.log("🔍 Checking eVault conditions for entity:", {
+                    entityName,
+                    isGroup: entityName === "Group",
+                    hasCharter: !!fullEntity.charter,
+                    charterContent: fullEntity.charter,
+                    charterTrimmed: fullEntity.charter ? fullEntity.charter.trim() : null,
+                    charterNotEmpty: fullEntity.charter ? fullEntity.charter.trim() !== "" : false,
+                    hasEname: !!fullEntity.ename,
+                    enameValue: fullEntity.ename
+                });
+                
                 if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
+                    console.log("✅ Group entity with charter detected");
+                    
                     // Check if this group doesn't have an ename yet (meaning eVault wasn't created)
                     if (!fullEntity.ename) {
-                        console.log("Group just got chartered, spinning up eVault for group:", fullEntity.id);
+                        console.log("🎯 eVault creation conditions met! Group:", fullEntity.id, "needs eVault");
                         
                         // Fire and forget eVault creation
                         this.spinUpGroupEVault(fullEntity).catch(error => {
                             console.error("Failed to create eVault for group:", fullEntity.id, error);
                         });
+                    } else {
+                        console.log("⚠️ Group already has ename, skipping eVault creation:", fullEntity.ename);
                     }
+                } else {
+                    console.log("❌ eVault conditions not met:", {
+                        isGroup: entityName === "Group",
+                        hasCharter: !!fullEntity.charter,
+                        charterNotEmpty: fullEntity.charter ? fullEntity.charter.trim() !== "" : false,
+                        hasEname: !!fullEntity.ename
+                    });
                 }
                 
                 entity = (await this.enrichEntity(
