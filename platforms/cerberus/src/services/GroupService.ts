@@ -20,8 +20,18 @@ export class GroupService {
     }
 
     async updateGroup(id: string, groupData: Partial<Group>): Promise<Group | null> {
-        await this.groupRepository.update(id, groupData);
-        return await this.getGroupById(id);
+        // Get the current group, merge the data, and save it to trigger ORM events
+        const currentGroup = await this.getGroupById(id);
+        if (!currentGroup) {
+            throw new Error("Group not found");
+        }
+        
+        // Merge the new data with the existing group
+        Object.assign(currentGroup, groupData);
+        
+        // Save the merged group to trigger ORM subscribers
+        const updatedGroup = await this.groupRepository.save(currentGroup);
+        return updatedGroup;
     }
 
     async saveGroup(group: Group): Promise<Group> {

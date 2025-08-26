@@ -253,7 +253,11 @@ export class CharterSignatureService {
             }
 
             // Set charter as inactive
-            await this.groupRepository.update(groupId, { isCharterActive: false });
+            const group = await this.groupRepository.findOne({ where: { id: groupId } });
+            if (group) {
+                group.isCharterActive = false;
+                await this.groupRepository.save(group);
+            }
 
             // Delete all existing signatures
             await this.signatureRepository.delete({ groupId });

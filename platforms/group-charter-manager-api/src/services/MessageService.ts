@@ -108,8 +108,18 @@ export class MessageService {
      * Update a message
      */
     async updateMessage(id: string, messageData: Partial<Message>): Promise<Message | null> {
-        await this.messageRepository.update(id, messageData);
-        return await this.getMessageById(id);
+        // Get the current message, merge the data, and save it to trigger ORM events
+        const currentMessage = await this.getMessageById(id);
+        if (!currentMessage) {
+            throw new Error("Message not found");
+        }
+        
+        // Merge the new data with the existing message
+        Object.assign(currentMessage, messageData);
+        
+        // Save the merged message to trigger ORM subscribers
+        const updatedMessage = await this.messageRepository.save(currentMessage);
+        return updatedMessage;
     }
 
     /**
@@ -124,7 +134,16 @@ export class MessageService {
      * Archive a message
      */
     async archiveMessage(id: string): Promise<Message | null> {
-        await this.messageRepository.update(id, { isArchived: true });
-        return await this.getMessageById(id);
+        // Get the current message, set archived flag, and save it to trigger ORM events
+        const currentMessage = await this.getMessageById(id);
+        if (!currentMessage) {
+            throw new Error("Message not found");
+        }
+        
+        currentMessage.isArchived = true;
+        
+        // Save the updated message to trigger ORM subscribers
+        const archivedMessage = await this.messageRepository.save(currentMessage);
+        return archivedMessage;
     }
 } 

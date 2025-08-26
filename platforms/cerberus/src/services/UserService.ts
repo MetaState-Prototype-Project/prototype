@@ -51,8 +51,18 @@ export class UserService {
     }
 
     async updateUser(id: string, userData: Partial<User>): Promise<User | null> {
-        await this.userRepository.update(id, userData);
-        return await this.getUserById(id);
+        // Get the current user, merge the data, and save it to trigger ORM events
+        const currentUser = await this.getUserById(id);
+        if (!currentUser) {
+            throw new Error("User not found");
+        }
+        
+        // Merge the new data with the existing user
+        Object.assign(currentUser, userData);
+        
+        // Save the merged user to trigger ORM subscribers
+        const updatedUser = await this.userRepository.save(currentUser);
+        return updatedUser;
     }
 
     async saveUser(user: User): Promise<User> {

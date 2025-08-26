@@ -89,8 +89,18 @@ export class MessageService {
     }
 
     async updateMessage(id: string, messageData: Partial<Message>): Promise<Message | null> {
-        await this.messageRepository.update(id, messageData);
-        return await this.getMessageById(id);
+        // Get the current message, merge the data, and save it to trigger ORM events
+        const currentMessage = await this.getMessageById(id);
+        if (!currentMessage) {
+            throw new Error("Message not found");
+        }
+        
+        // Merge the new data with the existing message
+        Object.assign(currentMessage, messageData);
+        
+        // Save the merged message to trigger ORM subscribers
+        const updatedMessage = await this.messageRepository.save(currentMessage);
+        return updatedMessage;
     }
 
     async deleteMessage(id: string): Promise<boolean> {
@@ -99,15 +109,26 @@ export class MessageService {
     }
 
     async getUserMessages(userId: string): Promise<Message[]> {
-        return await this.messageRepository.find({
+        const messages = await this.messageRepository.find({
             where: { sender: { id: userId } },
             relations: ['sender', 'group'],
             order: { createdAt: 'DESC' }
         });
+        
+        return messages;
     }
 
     async archiveMessage(id: string): Promise<Message | null> {
-        await this.messageRepository.update(id, { isArchived: true });
-        return await this.getMessageById(id);
+        // Get the current message, set archived flag, and save it to trigger ORM events
+        const currentMessage = await this.getMessageById(id);
+        if (!currentMessage) {
+            throw new Error("Message not found");
+        }
+        
+        currentMessage.isArchived = true;
+        
+        // Save the updated message to trigger ORM subscribers
+        const archivedMessage = await this.messageRepository.save(currentMessage);
+        return archivedMessage;
     }
 } 
