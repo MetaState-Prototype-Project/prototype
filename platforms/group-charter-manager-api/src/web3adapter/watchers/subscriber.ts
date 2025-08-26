@@ -180,7 +180,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 
                 // Check if this is a Group entity and if charter was just added (not updated)
-                if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
+                if (entityName.toLocaleLowerCase() === "group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
                     // Check if this group doesn't have an ename yet (meaning eVault wasn't created)
                     if (!fullEntity.ename) {
                         console.log("Group just got chartered, spinning up eVault for group:", fullEntity.id);
