@@ -63,11 +63,25 @@ export interface PollResults {
   totalVotes: number;
   totalEligibleVoters?: number;
   turnout?: number;
+  mode?: "normal" | "point" | "rank";
   results: {
     option: string;
     votes: number;
     percentage: number;
+    // Additional fields for different voting modes
+    totalPoints?: number;
+    averagePoints?: number;
+    isWinner?: boolean;
+    finalRound?: number;
   }[];
+  // Detailed IRV info for rank mode
+  irvDetails?: {
+    winnerIndex: number | null;
+    winnerOption?: string;
+    rounds: any[];
+    rejectedBallots: number;
+    rejectedReasons: any[];
+  };
 }
 
 export interface SigningSession {

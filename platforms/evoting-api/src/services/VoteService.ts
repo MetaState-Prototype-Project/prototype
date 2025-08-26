@@ -296,13 +296,56 @@ export class VoteService {
       // Calculate rank-based voting results using Instant Runoff Voting (IRV)
       const irvResult = this.tallyIRV(votes, poll.options);
       
+      // Convert IRV results to the same format as other voting modes for consistent frontend rendering
+      let results;
+      if (irvResult.winnerIndex !== null) {
+        // Create results array with winner first, then others in order
+        results = poll.options.map((option, index) => {
+          if (index === irvResult.winnerIndex) {
+            return {
+              option,
+              votes: votes.length, // All votes contributed to the winner
+              percentage: 100, // Winner gets 100% in final round
+              isWinner: true,
+              finalRound: irvResult.rounds.length
+            };
+          } else {
+            return {
+              option,
+              votes: 0, // Eliminated candidates get 0 votes in final round
+              percentage: 0,
+              isWinner: false,
+              finalRound: irvResult.rounds.length
+            };
+          }
+        });
+        
+        // Sort: winner first, then by original option order
+        results.sort((a, b) => {
+          if (a.isWinner && !b.isWinner) return -1;
+          if (!a.isWinner && b.isWinner) return 1;
+          return poll.options.indexOf(a.option) - poll.options.indexOf(b.option);
+        });
+      } else {
+        // No winner determined, show all options with 0 votes
+        results = poll.options.map((option, index) => ({
+          option,
+          votes: 0,
+          percentage: 0,
+          isWinner: false,
+          finalRound: irvResult.rounds.length
+        }));
+      }
+      
       return {
         pollId,
         totalVotes: votes.length,
         totalEligibleVoters,
         turnout: totalEligibleVoters > 0 ? (votes.length / totalEligibleVoters) * 100 : 0,
         mode: "rank",
-        irvResult
+        results,
+        // Keep the detailed IRV info for advanced users who need it
+        irvDetails: irvResult
       };
     }
 
@@ -725,6 +768,22 @@ export class VoteService {
         rejectedReasons
       };
     }
+    
+    // Check for initial tie (all candidates have same first-choice votes)
+    const firstRoundCounts: Record<number, number> = {};
+    validBallots.forEach(ballot => {
+      const firstChoice = ballot.ranking[0];
+      if (firstChoice !== undefined) {
+        firstRoundCounts[firstChoice] = (firstRoundCounts[firstChoice] || 0) + 1;
+      }
+    });
+    
+    const firstChoiceValues = Object.values(firstRoundCounts);
+    const allSame = firstChoiceValues.length > 0 && firstChoiceValues.every(v => v === firstChoiceValues[0]);
+    
+    if (allSame && firstChoiceValues.length > 1) {
+      console.warn(`⚠️ IRV Initial Tie: All candidates have the same number of first-choice votes (${firstChoiceValues[0]}). This will result in arbitrary elimination.`);
+    }
 
     // Initialize IRV process
     let activeCandidates = Array.from({ length: numCandidates }, (_, i) => i);
@@ -745,6 +804,11 @@ export class VoteService {
           exhausted++;
         }
       }
+      
+      // Log round details for debugging
+      console.log(`[IRV Round ${round}] Vote counts:`, counts);
+      console.log(`[IRV Round ${round}] Active candidates:`, activeCandidates.map(i => `${i}:${options[i]}`));
+      console.log(`[IRV Round ${round}] Exhausted ballots:`, exhausted);
 
       const activeVotes = validBallots.length - exhausted;
       const majorityThreshold = Math.floor(activeVotes / 2) + 1;
@@ -802,6 +866,8 @@ export class VoteService {
 
       // Find candidate to eliminate
       const candidateToEliminate = this.findCandidateToEliminate(counts, activeCandidates, rounds);
+      
+      console.log(`[IRV Round ${round}] Eliminating candidate ${candidateToEliminate} (${options[candidateToEliminate]})`);
       
       // Update active candidates
       activeCandidates = activeCandidates.filter(c => c !== candidateToEliminate);
@@ -913,7 +979,9 @@ export class VoteService {
       return candidatesWithMinFirstChoice[0];
     }
 
-    // Tie-breaker 2: Lowest index
+    // Tie-breaker 2: Lowest index (arbitrary but deterministic)
+    // TODO: Consider implementing coin flip or other fair tie-breaking for production
+    console.warn(`⚠️ IRV Tie detected: Multiple candidates tied for elimination. Using arbitrary index-based tie-breaker.`);
     return Math.min(...candidatesWithMinFirstChoice);
   }
 

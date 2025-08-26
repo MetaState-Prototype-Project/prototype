@@ -477,12 +477,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     isWinner = result.totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints));
                                                     percentage = resultsData.totalVotes > 0 ? (result.totalPoints / resultsData.results.reduce((sum, r) => sum + r.totalPoints, 0)) * 100 : 0;
                                                 } else if (resultsData.mode === "rank") {
-                                                    // Rank-based voting: show percentage only
-                                                    displayValue = `${result.totalScore} points`;
-                                                    isWinner = result.totalScore === Math.max(...resultsData.results.map(r => r.totalScore));
-                                                    percentage = resultsData.totalVotes > 0 ? (result.totalScore / resultsData.results.reduce((sum, r) => sum + r.totalScore, 0)) * 100 : 0;
-                                                    // For rank voting, just show the percentage in the display
-                                                    displayValue = `${percentage.toFixed(1)}%`;
+                                                    // Rank-based voting: show winner status instead of misleading vote counts
+                                                    displayValue = result.isWinner ? "🏆 Winner" : "Eliminated";
+                                                    isWinner = result.isWinner || false; // Use the isWinner flag from backend
+                                                    percentage = result.percentage || 0; // Use the percentage from backend
+                                                    
+                                                    // Check if there might have been a tie situation
+                                                    if (resultsData.irvDetails && resultsData.irvDetails.rounds.length > 1) {
+                                                        // If multiple rounds, there might have been ties
+                                                        console.log(`[IRV Debug] Poll had ${resultsData.irvDetails.rounds.length} rounds, check console for tie warnings`);
+                                                    }
                                                 } else {
                                                     // Normal voting: show votes and percentage
                                                     displayValue = `${result.votes} votes`;
@@ -511,7 +515,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 )}
                                                             </div>
                                                             <span className="text-sm text-gray-600">
-                                                                {displayValue} ({percentage.toFixed(1)}%)
+                                                                {resultsData.mode === "rank" ? displayValue : `${displayValue} (${percentage.toFixed(1)}%)`}
                                                             </span>
                                                         </div>
                                                         <div className="w-full bg-gray-200 rounded-full h-2">
