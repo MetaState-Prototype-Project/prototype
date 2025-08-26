@@ -403,7 +403,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <span className="font-medium text-gray-900">
                                                                     {result.optionText || `Option ${index + 1}`}
                                                                 </span>
-                                                                {isWinner && (
+                                                                {result.isTied && (
+                                                                    <Badge variant="success" className="bg-blue-500 text-white">
+                                                                        🏆 Tied
+                                                                    </Badge>
+                                                                )}
+                                                                {isWinner && !result.isTied && (
                                                                     <Badge variant="success" className="bg-green-500 text-white">
                                                                         🏆 Winner
                                                                     </Badge>
@@ -416,7 +421,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                                             <div
                                                                 className={`h-2 rounded-full ${
-                                                                    isWinner ? 'bg-green-500' : 'bg-red-500'
+                                                                    result.isTied ? 'bg-blue-500' : isWinner ? 'bg-green-500' : 'bg-red-500'
                                                                 }`}
                                                                 style={{
                                                                     width: `${percentage}%`,
@@ -478,8 +483,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     percentage = resultsData.totalVotes > 0 ? (result.totalPoints / resultsData.results.reduce((sum, r) => sum + r.totalPoints, 0)) * 100 : 0;
                                                 } else if (resultsData.mode === "rank") {
                                                     // Rank-based voting: show winner status instead of misleading vote counts
-                                                    displayValue = result.isWinner ? "🏆 Winner" : "Eliminated";
-                                                    isWinner = result.isWinner || false; // Use the isWinner flag from backend
+                                                    if (result.isTied) {
+                                                        displayValue = "🏆 Tied Winner";
+                                                    } else if (result.isWinner) {
+                                                        displayValue = "🏆 Winner";
+                                                    } else {
+                                                        displayValue = "Eliminated";
+                                                    }
+                                                    isWinner = result.isWinner || result.isTied || false; // Both winners and tied winners are "winners"
                                                     percentage = result.percentage || 0; // Use the percentage from backend
                                                     
                                                     // Check if there might have been a tie situation
@@ -508,7 +519,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <span className="font-medium text-gray-900">
                                                                     {result.option}
                                                                 </span>
-                                                                {isWinner && (
+                                                                {result.isTied && (
+                                                                    <Badge variant="success" className="bg-blue-500 text-white">
+                                                                        🏆 Tied
+                                                                    </Badge>
+                                                                )}
+                                                                {isWinner && !result.isTied && (
                                                                     <Badge variant="success" className="bg-green-500 text-white">
                                                                         🏆 Winner
                                                                     </Badge>
@@ -521,7 +537,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                                             <div
                                                                 className={`h-2 rounded-full ${
-                                                                    isWinner ? 'bg-green-500' : 'bg-red-500'
+                                                                    result.isTied ? 'bg-blue-500' : isWinner ? 'bg-green-500' : 'bg-red-500'
                                                                 }`}
                                                                 style={{
                                                                     width: `${percentage}%`,

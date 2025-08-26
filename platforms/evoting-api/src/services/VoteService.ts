@@ -298,8 +298,28 @@ export class VoteService {
       
       // Convert IRV results to the same format as other voting modes for consistent frontend rendering
       let results;
-      if (irvResult.winnerIndex !== null) {
-        // Create results array with winner first, then others in order
+      if (irvResult.isTie) {
+        // Handle tie situation - mark tied candidates as winners
+        results = poll.options.map((option, index) => {
+          const isTiedWinner = irvResult.tiedCandidates && irvResult.tiedCandidates.includes(index);
+          return {
+            option,
+            votes: isTiedWinner ? votes.length : 0, // Tied winners share all votes
+            percentage: isTiedWinner ? (100 / (irvResult.tiedCandidates?.length || 1)) : 0, // Split percentage among tied winners
+            isWinner: isTiedWinner,
+            isTied: isTiedWinner,
+            finalRound: irvResult.rounds.length
+          };
+        });
+        
+        // Sort: tied winners first, then by original option order
+        results.sort((a, b) => {
+          if (a.isWinner && !b.isWinner) return -1;
+          if (!a.isWinner && b.isWinner) return 1;
+          return poll.options.indexOf(a.option) - poll.options.indexOf(b.option);
+        });
+      } else if (irvResult.winnerIndex !== null) {
+        // Single winner case
         results = poll.options.map((option, index) => {
           if (index === irvResult.winnerIndex) {
             return {
@@ -327,7 +347,7 @@ export class VoteService {
           return poll.options.indexOf(a.option) - poll.options.indexOf(b.option);
         });
       } else {
-        // No winner determined, show all options with 0 votes
+        // No winner determined (exhausted), show all options with 0 votes
         results = poll.options.map((option, index) => ({
           option,
           votes: 0,
@@ -782,7 +802,7 @@ export class VoteService {
     const allSame = firstChoiceValues.length > 0 && firstChoiceValues.every(v => v === firstChoiceValues[0]);
     
     if (allSame && firstChoiceValues.length > 1) {
-      console.warn(`⚠️ IRV Initial Tie: All candidates have the same number of first-choice votes (${firstChoiceValues[0]}). This will result in arbitrary elimination.`);
+      console.log(`ℹ️ IRV Initial Tie: All candidates have the same number of first-choice votes (${firstChoiceValues[0]}). Will declare a tie.`);
     }
 
     // Initialize IRV process
@@ -841,6 +861,24 @@ export class VoteService {
           rejectedReasons
         };
       }
+      
+      // Check for tie (all remaining candidates have same votes)
+      const voteCounts = activeCandidates.map(c => counts[c] || 0);
+      const allSameVotes = voteCounts.length > 0 && voteCounts.every(v => v === voteCounts[0]);
+      
+      if (allSameVotes && activeCandidates.length > 1) {
+        console.log(`ℹ️ IRV Tie detected: All remaining candidates have ${voteCounts[0]} votes. Declaring tie.`);
+        return {
+          winnerIndex: null,
+          winnerOption: undefined,
+          tiedCandidates: activeCandidates,
+          tiedOptions: activeCandidates.map(i => options[i]),
+          rounds,
+          rejectedBallots,
+          rejectedReasons,
+          isTie: true
+        };
+      }
 
       // If only one candidate remains, they win
       if (activeCandidates.length === 1) {
@@ -860,7 +898,9 @@ export class VoteService {
           winnerOption: undefined,
           rounds,
           rejectedBallots,
-          rejectedReasons
+          rejectedReasons,
+          isTie: false,
+          exhausted: true
         };
       }
 

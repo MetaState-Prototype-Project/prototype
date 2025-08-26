@@ -72,6 +72,7 @@ export interface PollResults {
     totalPoints?: number;
     averagePoints?: number;
     isWinner?: boolean;
+    isTied?: boolean;
     finalRound?: number;
   }[];
   // Detailed IRV info for rank mode
