@@ -179,18 +179,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             if (fullEntity) {
                 console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 
-                // Check if this is a Group entity and if charter was just added (not updated)
-                console.log("🔍 Checking eVault conditions for entity:", {
-                    entityName,
-                    isGroup: entityName === "Group",
-                    hasCharter: !!fullEntity.charter,
-                    charterContent: fullEntity.charter,
-                    charterTrimmed: fullEntity.charter ? fullEntity.charter.trim() : null,
-                    charterNotEmpty: fullEntity.charter ? fullEntity.charter.trim() !== "" : false,
-                    hasEname: !!fullEntity.ename,
-                    enameValue: fullEntity.ename
-                });
-                
                 if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
                     console.log("✅ Group entity with charter detected");
                     
