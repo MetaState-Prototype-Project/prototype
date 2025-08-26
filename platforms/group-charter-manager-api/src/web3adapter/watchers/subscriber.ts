@@ -179,6 +179,17 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             if (fullEntity) {
                 console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 
+                // Debug: Log the exact entity we're working with
+                console.log("🔍 Full entity details:", {
+                    id: fullEntity.id,
+                    name: fullEntity.name,
+                    charter: fullEntity.charter,
+                    ename: fullEntity.ename,
+                    entityName: entityName,
+                    isGroup: entityName === "Group"
+                });
+                
+                // Check eVault creation BEFORE enriching the entity
                 if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
                     console.log("✅ Group entity with charter detected");
                     
@@ -202,11 +213,27 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     });
                 }
                 
+                // Debug: Log the entity BEFORE enrichment
+                console.log("🔍 Entity BEFORE enrichment:", {
+                    id: fullEntity.id,
+                    charter: fullEntity.charter,
+                    ename: fullEntity.ename,
+                    tableName: event.metadata.tableName
+                });
+                
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
                     event.metadata.target
                 )) as ObjectLiteral;
+                
+                // Debug: Log the entity AFTER enrichment
+                console.log("🔍 Entity AFTER enrichment:", {
+                    id: entity.id,
+                    charter: entity.charter,
+                    ename: entity.ename,
+                    tableName: event.metadata.tableName
+                });
             } else {
                 console.log("❌ Could not load full entity for ID:", entityId);
             }
