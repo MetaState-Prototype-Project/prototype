@@ -60,8 +60,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
-            console.log("ENRICHING,", tableName)
-
             // Special handling for charter signatures: always load the user and substitute at userId
             if (tableName === "charter_signature" && entity.userId) {
                 const user = await AppDataSource.getRepository(
@@ -83,7 +81,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
-        console.log("afterInsert?")
         let entity = event.entity;
         if (entity) {
             entity = (await this.enrichEntity(
@@ -105,62 +102,36 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called before entity update.
      */
     beforeUpdate(event: UpdateEvent<any>) {
-        // Handle any pre-update processing if needed
+        // Capture the entity ID before the update happens
+        const entityId = event.entity?.id || event.databaseEntity?.id;
+        if (entityId) {
+            // Store the ID temporarily for afterUpdate to use
+            (this as any).lastUpdateEntityId = entityId;
+        } else {
+            console.log("⚠️ beforeUpdate: Could not capture entity ID");
+        }
     }
 
     /**
      * Called after entity update.
      */
     async afterUpdate(event: UpdateEvent<any>) {
-        console.log("🔍 afterUpdate triggered:", {
-            hasEntity: !!event.entity,
-            entityId: event.entity?.id,
-            databaseEntity: event.databaseEntity?.id,
-            tableName: event.metadata.tableName,
-            target: event.metadata.target
-        });
-
         // For updates, we need to reload the full entity since event.entity only contains changed fields
         let entity = event.entity;
         
         // Try different ways to get the entity ID
         let entityId = event.entity?.id || event.databaseEntity?.id;
         
-        if (!entityId && event.entity) {
-            // If we have the entity but no ID, try to extract it from the entity object
-            const entityKeys = Object.keys(event.entity);
-            console.log("🔍 Entity keys:", entityKeys);
-            
-            // Look for common ID field names
-            entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
+        // Use the entity ID captured in beforeUpdate
+        if (!entityId && (this as any).lastUpdateEntityId) {
+            entityId = (this as any).lastUpdateEntityId;
+            // Clear it after use
+            delete (this as any).lastUpdateEntityId;
         }
         
-        // If still no ID, try to find the entity by matching the changed data
-        if (!entityId && event.entity) {
-            try {
-                console.log("🔍 Trying to find entity by matching changed data...");
-                const repository = AppDataSource.getRepository(event.metadata.target);
-                const changedData = event.entity;
-                
-                // For Group entities, try to find by charter content
-                if (changedData.charter) {
-                    console.log("🔍 Looking for group with charter content...");
-                    const matchingEntity = await repository.findOne({
-                        where: { charter: changedData.charter },
-                        select: ['id']
-                    });
-                    
-                    if (matchingEntity) {
-                        entityId = matchingEntity.id;
-                        console.log("🔍 Found entity by charter match:", entityId);
-                    }
-                }
-            } catch (error) {
-                console.log("❌ Error finding entity by changed data:", error);
-            }
+        if (!entityId) {
+            return; // Skip processing this event
         }
-        
-        console.log("🔍 Final entityId:", entityId);
         
         if (entityId) {
             // Reload the full entity from the database
@@ -169,81 +140,33 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 ? event.metadata.target.name 
                 : event.metadata.target;
             
-            console.log("🔍 Reloading entity:", { entityId, entityName });
-            
             const fullEntity = await repository.findOne({
                 where: { id: entityId },
                 relations: this.getRelationsForEntity(entityName)
             });
             
             if (fullEntity) {
-                console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
-                
-                // Debug: Log the exact entity we're working with
-                console.log("🔍 Full entity details:", {
-                    id: fullEntity.id,
-                    name: fullEntity.name,
-                    charter: fullEntity.charter,
-                    ename: fullEntity.ename,
-                    entityName: entityName,
-                    isGroup: entityName === "Group"
-                });
-                
                 // Check eVault creation BEFORE enriching the entity
                 if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
-                    console.log("✅ Group entity with charter detected");
-                    
                     // Check if this group doesn't have an ename yet (meaning eVault wasn't created)
                     if (!fullEntity.ename) {
-                        console.log("🎯 eVault creation conditions met! Group:", fullEntity.id, "needs eVault");
-                        
                         // Fire and forget eVault creation
                         this.spinUpGroupEVault(fullEntity).catch(error => {
                             console.error("Failed to create eVault for group:", fullEntity.id, error);
                         });
-                    } else {
-                        console.log("⚠️ Group already has ename, skipping eVault creation:", fullEntity.ename);
                     }
-                } else {
-                    console.log("❌ eVault conditions not met:", {
-                        isGroup: entityName === "Group",
-                        hasCharter: !!fullEntity.charter,
-                        charterNotEmpty: fullEntity.charter ? fullEntity.charter.trim() !== "" : false,
-                        hasEname: !!fullEntity.ename
-                    });
                 }
-                
-                // Debug: Log the entity BEFORE enrichment
-                console.log("🔍 Entity BEFORE enrichment:", {
-                    id: fullEntity.id,
-                    charter: fullEntity.charter,
-                    ename: fullEntity.ename,
-                    tableName: event.metadata.tableName
-                });
                 
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
                     event.metadata.target
                 )) as ObjectLiteral;
-                
-                // Debug: Log the entity AFTER enrichment
-                console.log("🔍 Entity AFTER enrichment:", {
-                    id: entity.id,
-                    charter: entity.charter,
-                    ename: entity.ename,
-                    tableName: event.metadata.tableName
-                });
             } else {
                 console.log("❌ Could not load full entity for ID:", entityId);
             }
         } else {
             console.log("❌ No entity ID found in update event");
-            console.log("🔍 Event details:", {
-                entity: event.entity,
-                databaseEntity: event.databaseEntity,
-                metadata: event.metadata
-            });
         }
         
         this.handleChange(
@@ -292,9 +215,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
-        console.log(data, entity)
         if (!data.id) return;
-console.log("hmm?")
 
         try {
             setTimeout(async () => {
@@ -442,9 +363,13 @@ console.log("hmm?")
             
             console.log("eVault created successfully:", evaultResult);
             
-            // Update the group with the ename (w3id)
+            // Update the group with the ename (w3id) - use save() to trigger ORM events
             const groupRepository = AppDataSource.getRepository("Group");
-            await groupRepository.update(group.id, { ename: evaultResult.w3id });
+            const groupToUpdate = await groupRepository.findOne({ where: { id: group.id } });
+            if (groupToUpdate) {
+                groupToUpdate.ename = evaultResult.w3id;
+                await groupRepository.save(groupToUpdate);
+            }
             
             console.log("Group updated with ename:", evaultResult.w3id);
             
