@@ -65,34 +65,8 @@ export class UserController {
             // Validate sort parameter
             const validSortOptions = ["relevance", "name", "verified", "newest"];
             const sortOption = validSortOptions.includes(sort as string) ? sort as string : "relevance";
-
-            // Get users and count in parallel
-            const [users, total] = await Promise.all([
-                this.userService.searchUsers(q, pageNum, limitNum, verifiedOnly, sortOption),
-                this.userService.getSearchUsersCount(q, verifiedOnly)
-            ]);
-
-            // Calculate pagination metadata
-            const totalPages = Math.ceil(total / limitNum);
-            const hasNextPage = pageNum < totalPages;
-            const hasPrevPage = pageNum > 1;
-
-            res.json({
-                users,
-                pagination: {
-                    page: pageNum,
-                    limit: limitNum,
-                    total,
-                    totalPages,
-                    hasNextPage,
-                    hasPrevPage
-                },
-                searchInfo: {
-                    query: q,
-                    verifiedOnly,
-                    sortBy: sortOption
-                }
-            });
+            const users = await this.userService.searchUsers(q, pageNum, limitNum, verifiedOnly, sortOption);
+            res.json(users);
         } catch (error) {
             console.error("Error searching users:", error);
             res.status(500).json({ error: "Internal server error" });
@@ -131,6 +105,44 @@ export class UserController {
             res.json({ popularSearches });
         } catch (error) {
             console.error("Error getting popular searches:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    searchByEnameOrName = async (req: Request, res: Response) => {
+        try {
+            const { q, page = "1", limit = "10", verified } = req.query;
+
+            if (!q || typeof q !== "string") {
+                return res
+                    .status(400)
+                    .json({ error: "Search query is required" });
+            }
+
+            // Validate search query length
+            if (q.trim().length < 2) {
+                return res
+                    .status(400)
+                    .json({ error: "Search query must be at least 2 characters long" });
+            }
+
+            // Parse and validate pagination parameters
+            const pageNum = parseInt(page as string) || 1;
+            const limitNum = Math.min(parseInt(limit as string) || 10, 50); // Cap at 50 results
+            
+            if (pageNum < 1 || limitNum < 1) {
+                return res
+                    .status(400)
+                    .json({ error: "Invalid pagination parameters" });
+            }
+            
+            // Parse verified filter
+            const verifiedOnly = verified === "true";
+
+            const users = await this.userService.searchUsersByEnameOrName(q, pageNum, limitNum, verifiedOnly);
+            res.json(users);
+        } catch (error) {
+            console.error("Error searching users by ename or name:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     };
