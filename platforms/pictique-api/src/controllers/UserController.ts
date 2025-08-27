@@ -65,7 +65,6 @@ export class UserController {
             // Validate sort parameter
             const validSortOptions = ["relevance", "name", "verified", "newest"];
             const sortOption = validSortOptions.includes(sort as string) ? sort as string : "relevance";
-
             const users = await this.userService.searchUsers(q, pageNum, limitNum, verifiedOnly, sortOption);
             res.json(users);
         } catch (error) {
