@@ -2,7 +2,7 @@ import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
 import { Post } from "../database/entities/Post";
 import { signToken } from "../utils/jwt";
-import { Like } from "typeorm";
+import { Like, Raw } from "typeorm";
 
 export class UserService {
     userRepository = AppDataSource.getRepository(User);
@@ -38,24 +38,158 @@ export class UserService {
         return await this.userRepository.findOneBy({ id });
     }
 
-    searchUsers = async (query: string) => {
-        const searchQuery = query;
+    searchUsers = async (
+        query: string, 
+        page: number = 1, 
+        limit: number = 10, 
+        verifiedOnly: boolean = false,
+        sortBy: string = "relevance"
+    ) => {
+        // Sanitize and trim the search query
+        const searchQuery = query.trim();
+        
+        // Return empty array if query is too short or empty
+        if (searchQuery.length < 2) {
+            return [];
+        }
 
-        return this.userRepository.find({
-            where: [
-                { name: Like(`%${searchQuery}%`) },
-                { ename: Like(`%${searchQuery}%`) },
-            ],
-            select: {
-                id: true,
-                handle: true,
-                name: true,
-                description: true,
-                avatarUrl: true,
-                isVerified: true,
-            },
-            take: 10,
-        });
+        // Validate pagination parameters
+        if (page < 1 || limit < 1 || limit > 100) {
+            return [];
+        }
+
+        // Use query builder for more complex queries
+        const queryBuilder = this.userRepository
+            .createQueryBuilder("user")
+            .select([
+                "user.id",
+                "user.handle",
+                "user.name", 
+                "user.description",
+                "user.avatarUrl",
+                "user.isVerified"
+            ])
+            .where(
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.name ILIKE :fuzzyQuery OR user.ename ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
+                { 
+                    query: `%${searchQuery}%`,
+                    fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
+                }
+            );
+
+        // Add verified filter if requested
+        if (verifiedOnly) {
+            queryBuilder.andWhere("user.isVerified = :verified", { verified: true });
+        }
+
+        // Add additional filters for better results
+        queryBuilder.andWhere("user.isArchived = :archived", { archived: false });
+
+        // Apply sorting based on sortBy parameter
+        switch (sortBy) {
+            case "name":
+                queryBuilder.orderBy("user.name", "ASC");
+                break;
+            case "verified":
+                queryBuilder.orderBy("user.isVerified", "DESC").addOrderBy("user.name", "ASC");
+                break;
+            case "newest":
+                queryBuilder.orderBy("user.createdAt", "DESC");
+                break;
+            case "relevance":
+            default:
+                // Default relevance sorting: verified first, then by name
+                queryBuilder.orderBy("user.isVerified", "DESC").addOrderBy("user.name", "ASC");
+                break;
+        }
+
+        return queryBuilder
+            .skip((page - 1) * limit)
+            .take(limit)
+            .getMany();
+    };
+
+    getSearchUsersCount = async (
+        query: string,
+        verifiedOnly: boolean = false
+    ) => {
+        // Sanitize and trim the search query
+        const searchQuery = query.trim();
+        
+        // Return 0 if query is too short or empty
+        if (searchQuery.length < 2) {
+            return 0;
+        }
+
+        // Use query builder for count
+        const queryBuilder = this.userRepository
+            .createQueryBuilder("user")
+            .where(
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.name ILIKE :fuzzyQuery OR user.ename ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
+                { 
+                    query: `%${searchQuery}%`,
+                    fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
+                }
+            );
+
+        // Add verified filter if requested
+        if (verifiedOnly) {
+            queryBuilder.andWhere("user.isVerified = :verified", { verified: true });
+        }
+
+        // Add additional filters for consistency
+        queryBuilder.andWhere("user.isArchived = :archived", { archived: false });
+
+        return queryBuilder.getCount();
+    };
+
+    getSearchSuggestions = async (query: string, limit: number = 5) => {
+        // Sanitize and trim the search query
+        const searchQuery = query.trim();
+        
+        // Return empty array if query is too short
+        if (searchQuery.length < 1) {
+            return [];
+        }
+
+        // Use query builder for suggestions
+        const queryBuilder = this.userRepository
+            .createQueryBuilder("user")
+            .select([
+                "user.id",
+                "user.handle",
+                "user.name",
+                "user.ename"
+            ])
+            .where(
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query",
+                { query: `%${searchQuery}%` }
+            )
+            .andWhere("user.isArchived = :archived", { archived: false })
+            .orderBy("user.isVerified", "DESC")
+            .addOrderBy("user.name", "ASC")
+            .take(limit);
+
+        return queryBuilder.getMany();
+    };
+
+    getPopularSearches = async (limit: number = 10) => {
+        // This could be enhanced with actual search analytics in the future
+        // For now, return some sample popular searches based on verified users
+        return this.userRepository
+            .createQueryBuilder("user")
+            .select([
+                "user.id",
+                "user.handle",
+                "user.name",
+                "user.ename"
+            ])
+            .where("user.isVerified = :verified", { verified: true })
+            .andWhere("user.isArchived = :archived", { archived: false })
+            .andWhere("user.name IS NOT NULL")
+            .orderBy("user.name", "ASC")
+            .take(limit)
+            .getMany();
     };
 
     followUser = async (followerId: string, followingId: string) => {
