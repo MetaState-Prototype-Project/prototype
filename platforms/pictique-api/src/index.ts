@@ -128,6 +128,8 @@ app.get(
 // User routes
 app.get("/api/users", userController.currentUser);
 app.get("/api/users/search", userController.search);
+app.get("/api/users/suggestions", userController.getSearchSuggestions);
+app.get("/api/users/popular", userController.getPopularSearches);
 app.post("/api/users/:id/follow", authGuard, userController.follow);
 app.get("/api/users/:id", authGuard, userController.getProfileById);
 app.patch("/api/users", authGuard, userController.updateProfile);

@@ -34,7 +34,7 @@ export class UserController {
 
     search = async (req: Request, res: Response) => {
         try {
-            const { q } = req.query;
+            const { q, page = "1", limit = "10", verified, sort = "relevance" } = req.query;
 
             if (!q || typeof q !== "string") {
                 return res
@@ -42,10 +42,95 @@ export class UserController {
                     .json({ error: "Search query is required" });
             }
 
-            const users = await this.userService.searchUsers(q);
-            res.json(users);
+            // Validate search query length
+            if (q.trim().length < 2) {
+                return res
+                    .status(400)
+                    .json({ error: "Search query must be at least 2 characters long" });
+            }
+
+            // Parse and validate pagination parameters
+            const pageNum = parseInt(page as string) || 1;
+            const limitNum = Math.min(parseInt(limit as string) || 10, 50); // Cap at 50 results
+            
+            if (pageNum < 1 || limitNum < 1) {
+                return res
+                    .status(400)
+                    .json({ error: "Invalid pagination parameters" });
+            }
+            
+            // Parse verified filter
+            const verifiedOnly = verified === "true";
+
+            // Validate sort parameter
+            const validSortOptions = ["relevance", "name", "verified", "newest"];
+            const sortOption = validSortOptions.includes(sort as string) ? sort as string : "relevance";
+
+            // Get users and count in parallel
+            const [users, total] = await Promise.all([
+                this.userService.searchUsers(q, pageNum, limitNum, verifiedOnly, sortOption),
+                this.userService.getSearchUsersCount(q, verifiedOnly)
+            ]);
+
+            // Calculate pagination metadata
+            const totalPages = Math.ceil(total / limitNum);
+            const hasNextPage = pageNum < totalPages;
+            const hasPrevPage = pageNum > 1;
+
+            res.json({
+                users,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages,
+                    hasNextPage,
+                    hasPrevPage
+                },
+                searchInfo: {
+                    query: q,
+                    verifiedOnly,
+                    sortBy: sortOption
+                }
+            });
         } catch (error) {
             console.error("Error searching users:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    getSearchSuggestions = async (req: Request, res: Response) => {
+        try {
+            const { q, limit = "5" } = req.query;
+
+            if (!q || typeof q !== "string") {
+                return res
+                    .status(400)
+                    .json({ error: "Search query is required" });
+            }
+
+            // Parse limit parameter
+            const limitNum = Math.min(parseInt(limit as string) || 5, 20); // Cap at 20 suggestions
+
+            const suggestions = await this.userService.getSearchSuggestions(q, limitNum);
+            res.json({ suggestions });
+        } catch (error) {
+            console.error("Error getting search suggestions:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    getPopularSearches = async (req: Request, res: Response) => {
+        try {
+            const { limit = "10" } = req.query;
+
+            // Parse limit parameter
+            const limitNum = Math.min(parseInt(limit as string) || 10, 50); // Cap at 50 results
+
+            const popularSearches = await this.userService.getPopularSearches(limitNum);
+            res.json({ popularSearches });
+        } catch (error) {
+            console.error("Error getting popular searches:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     };
