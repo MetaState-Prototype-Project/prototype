@@ -58,21 +58,37 @@ export class UserService {
             return [];
         }
 
-        // Use query builder for more complex queries
+        // Use query builder for more complex queries with relevance scoring
         const queryBuilder = this.userRepository
             .createQueryBuilder("user")
             .select([
                 "user.id",
                 "user.handle",
                 "user.name", 
+                "user.ename",
                 "user.description",
                 "user.avatarUrl",
                 "user.isVerified"
             ])
+            .addSelect(`
+                CASE 
+                    WHEN user.ename ILIKE :exactQuery THEN 100
+                    WHEN user.name ILIKE :exactQuery THEN 90
+                    WHEN user.handle ILIKE :exactQuery THEN 80
+                    WHEN user.ename ILIKE :query THEN 70
+                    WHEN user.name ILIKE :query THEN 60
+                    WHEN user.handle ILIKE :query THEN 50
+                    WHEN user.description ILIKE :query THEN 30
+                    WHEN user.ename ILIKE :fuzzyQuery THEN 40
+                    WHEN user.name ILIKE :fuzzyQuery THEN 35
+                    WHEN user.handle ILIKE :fuzzyQuery THEN 30
+                    ELSE 0
+                END`, 'relevance_score')
             .where(
-                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.name ILIKE :fuzzyQuery OR user.ename ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
                 { 
                     query: `%${searchQuery}%`,
+                    exactQuery: searchQuery, // Exact match for highest priority
                     fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
                 }
             );
@@ -98,8 +114,10 @@ export class UserService {
                 break;
             case "relevance":
             default:
-                // Default relevance sorting: verified first, then by name
-                queryBuilder.orderBy("user.isVerified", "DESC").addOrderBy("user.name", "ASC");
+                // Default relevance sorting: relevance score first, then verified status, then by name
+                queryBuilder.orderBy("relevance_score", "DESC")
+                    .addOrderBy("user.isVerified", "DESC")
+                    .addOrderBy("user.name", "ASC");
                 break;
         }
 
@@ -121,13 +139,14 @@ export class UserService {
             return 0;
         }
 
-        // Use query builder for count
+        // Use query builder for count with same search logic
         const queryBuilder = this.userRepository
             .createQueryBuilder("user")
             .where(
-                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.name ILIKE :fuzzyQuery OR user.ename ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.description ILIKE :query OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
                 { 
                     query: `%${searchQuery}%`,
+                    exactQuery: searchQuery, // Exact match for highest priority
                     fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
                 }
             );
@@ -152,7 +171,7 @@ export class UserService {
             return [];
         }
 
-        // Use query builder for suggestions
+        // Use query builder for suggestions with relevance scoring
         const queryBuilder = this.userRepository
             .createQueryBuilder("user")
             .select([
@@ -161,16 +180,136 @@ export class UserService {
                 "user.name",
                 "user.ename"
             ])
+            .addSelect(`
+                CASE 
+                    WHEN user.ename ILIKE :exactQuery THEN 100
+                    WHEN user.name ILIKE :exactQuery THEN 90
+                    WHEN user.ename ILIKE :query THEN 70
+                    WHEN user.name ILIKE :query THEN 60
+                    WHEN user.handle ILIKE :query THEN 50
+                    WHEN user.ename ILIKE :fuzzyQuery THEN 40
+                    WHEN user.name ILIKE :fuzzyQuery THEN 35
+                    WHEN user.handle ILIKE :fuzzyQuery THEN 30
+                    ELSE 0
+                END`, 'relevance_score')
             .where(
-                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query",
-                { query: `%${searchQuery}%` }
+                "user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery",
+                { 
+                    query: `%${searchQuery}%`,
+                    exactQuery: searchQuery, // Exact match for highest priority
+                    fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
+                }
             )
             .andWhere("user.isArchived = :archived", { archived: false })
-            .orderBy("user.isVerified", "DESC")
+            .orderBy("relevance_score", "DESC")
+            .addOrderBy("user.isVerified", "DESC")
             .addOrderBy("user.name", "ASC")
             .take(limit);
 
         return queryBuilder.getMany();
+    };
+
+    searchUsersByEnameOrName = async (
+        query: string,
+        page: number = 1,
+        limit: number = 10,
+        verifiedOnly: boolean = false
+    ) => {
+        // Sanitize and trim the search query
+        const searchQuery = query.trim();
+        
+        // Return empty array if query is too short or empty
+        if (searchQuery.length < 2) {
+            return [];
+        }
+
+        // Validate pagination parameters
+        if (page < 1 || limit < 1 || limit > 100) {
+            return [];
+        }
+
+        // Specialized search focusing only on ename and name with high priority
+        const queryBuilder = this.userRepository
+            .createQueryBuilder("user")
+            .select([
+                "user.id",
+                "user.handle",
+                "user.name", 
+                "user.ename",
+                "user.description",
+                "user.avatarUrl",
+                "user.isVerified"
+            ])
+            .addSelect(`
+                CASE 
+                    WHEN user.ename ILIKE :exactQuery THEN 100
+                    WHEN user.name ILIKE :exactQuery THEN 95
+                    WHEN user.ename ILIKE :query THEN 80
+                    WHEN user.name ILIKE :query THEN 75
+                    WHEN user.ename ILIKE :fuzzyQuery THEN 60
+                    WHEN user.name ILIKE :fuzzyQuery THEN 55
+                    ELSE 0
+                END`, 'relevance_score')
+            .where(
+                "user.ename ILIKE :query OR user.name ILIKE :query OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery",
+                { 
+                    query: `%${searchQuery}%`,
+                    exactQuery: searchQuery, // Exact match for highest priority
+                    fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
+                }
+            );
+
+        // Add verified filter if requested
+        if (verifiedOnly) {
+            queryBuilder.andWhere("user.isVerified = :verified", { verified: true });
+        }
+
+        // Add additional filters for better results
+        queryBuilder.andWhere("user.isArchived = :archived", { archived: false });
+
+        // Order by relevance score (ename and name matches first)
+        return queryBuilder
+            .orderBy("relevance_score", "DESC")
+            .addOrderBy("user.isVerified", "DESC")
+            .addOrderBy("user.name", "ASC")
+            .skip((page - 1) * limit)
+            .take(limit)
+            .getMany();
+    };
+
+    getSearchUsersByEnameOrNameCount = async (
+        query: string,
+        verifiedOnly: boolean = false
+    ) => {
+        // Sanitize and trim the search query
+        const searchQuery = query.trim();
+        
+        // Return 0 if query is too short or empty
+        if (searchQuery.length < 2) {
+            return 0;
+        }
+
+        // Use query builder for count with same specialized search logic
+        const queryBuilder = this.userRepository
+            .createQueryBuilder("user")
+            .where(
+                "user.ename ILIKE :query OR user.name ILIKE :query OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery",
+                { 
+                    query: `%${searchQuery}%`,
+                    exactQuery: searchQuery, // Exact match for highest priority
+                    fuzzyQuery: `%${searchQuery.split('').join('%')}%` // Fuzzy search with wildcards between characters
+                }
+            );
+
+        // Add verified filter if requested
+        if (verifiedOnly) {
+            queryBuilder.andWhere("user.isVerified = :verified", { verified: true });
+        }
+
+        // Add additional filters for consistency
+        queryBuilder.andWhere("user.isArchived = :archived", { archived: false });
+
+        return queryBuilder.getCount();
     };
 
     getPopularSearches = async (limit: number = 10) => {
