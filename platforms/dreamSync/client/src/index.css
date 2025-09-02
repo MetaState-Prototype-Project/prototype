@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Override default select item highlighting with our soft gradient theme */
+[data-radix-collection-item][data-highlighted] {
+  background: linear-gradient(to right, rgb(219 234 254 / 0.6), rgb(233 213 255 / 0.6)) !important;
+  color: inherit !important;
+}
+
+[data-radix-collection-item]:focus {
+  background: linear-gradient(to right, rgb(219 234 254 / 0.6), rgb(233 213 255 / 0.6)) !important;
+  color: inherit !important;
+}
+
+/* More specific targeting for Select component */
+[data-radix-select-item][data-highlighted] {
+  background: linear-gradient(to right, rgb(219 234 254 / 0.6), rgb(233 213 255 / 0.6)) !important;
+  color: inherit !important;
+}
+
+[data-radix-select-item]:focus {
+  background: linear-gradient(to right, rgb(219 234 254 / 0.6), rgb(233 213 255 / 0.6)) !important;
+  color: inherit !important;
+}
+
+/* Additional overrides for any remaining green highlights */
+.select-item-highlighted {
+  background: linear-gradient(to right, rgb(219 234 254 / 0.6), rgb(233 213 255 / 0.6)) !important;
+  color: inherit !important;
+}
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(220, 90%, 56%);
+  --primary-foreground: hsl(210, 100%, 98%);
+  --secondary: hsl(326, 78%, 59%);
+  --secondary-foreground: hsl(210, 100%, 98%);
+  --accent: hsl(156, 73%, 59%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(249, 95%, 65%);
+  --primary-foreground: hsl(210, 100%, 98%);
+  --secondary: hsl(326, 78%, 59%);
+  --secondary-foreground: hsl(210, 100%, 98%);
+  --accent: hsl(156, 73%, 59%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(220, 90%, 56%) 0%, hsl(255, 90%, 60%) 40%, hsl(270, 90%, 65%) 100%);
+}
+
+.btn-dreamy {
+  background: linear-gradient(135deg, hsl(220, 90%, 56%) 0%, hsl(255, 90%, 60%) 40%, hsl(270, 90%, 65%) 100%);
+  color: white;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.btn-dreamy:hover {
+  background: linear-gradient(135deg, hsl(220, 90%, 48%) 0%, hsl(255, 90%, 52%) 40%, hsl(270, 90%, 57%) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.25);
+}
+
+/* Custom gradient backgrounds */
+.gradient-secondary {
+  background: linear-gradient(135deg, hsl(326, 78%, 59%) 0%, hsl(156, 73%, 59%) 100%);
+}
+
+/* Custom yellow gradient colors for new items */
+.bg-yellow-25 {
+  background-color: hsl(60, 100%, 97%);
+}
+
+.via-yellow-25 {
+  --tw-gradient-to: hsl(60, 100%, 97%);
+}
+
+/* Custom animations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Profile completion progress bar styling */
+.progress-bar {
+  background: linear-gradient(90deg, hsl(249, 95%, 65%) 0%, hsl(326, 78%, 59%) 100%);
+}
+
+/* Table row spacing - using page background for visible gaps */
+.matches-table {
+  border-spacing: 0 2px;
+  border-collapse: separate;
+}
+
+.matches-table tbody tr {
+  background-color: white;
+}
+
+
+
+
+
+/* Custom dropdown overrides for consistent styling */
+[data-radix-popper-content-wrapper] .bg-popover {
+  background: white !important;
+}
+
+[data-radix-popper-content-wrapper] .text-popover-foreground:hover {  
+  background: linear-gradient(to right, hsl(220, 90%, 96%), hsl(270, 90%, 96%)) !important;
+  color: hsl(var(--foreground)) !important;
+}
