@@ -98,7 +98,7 @@ export function LoginMain(): JSX.Element {
                                 </a>
                                 <div className="text-center mt-4">
                                 <p className="text-sm text-gray-500">
-                                <span className="mb-1 block font-bold text-gray-600">The button is valid for 60 seconds</span>
+                                <span className="mb-1 block font-bold text-gray-400">The button is valid for 60 seconds</span>
                                     <span className="block font-light text-gray-600">Please refresh the page if it expires</span
                                     >
                                 </p>
@@ -106,7 +106,7 @@ export function LoginMain(): JSX.Element {
                             </div>
                         ) : (
                             <div className='flex flex-col gap-4 items-center'>
-                                <p className="text-gray-600">
+                                <p className="text-gray-400">
                                     Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
                                 </p>
                             <div className='p-2 rounded-md bg-white w-fit'>
