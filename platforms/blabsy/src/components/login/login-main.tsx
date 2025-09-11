@@ -74,14 +74,14 @@ export function LoginMain(): JSX.Element {
                     useSkeleton
                 />
             </div>
-            <div className='flex flex-col items-center justify-between gap-6 p-8 lg:items-start lg:justify-center min-h-screen'>
+            <div className='flex flex-col items-center justify-between gap-6 p-8 lg:items-center lg:justify-center min-h-screen'>
                 <div className='flex max-w-xs flex-col gap-4 font-twitter-chirp-extended lg:max-w-none lg:gap-16'>
-                    <h1 className='text-3xl before:content-["See_what’s_happening_in_the_world_right_now."] lg:text-6xl lg:before:content-["Happening_now"]'>
+                    <h1 className='text-center text-3xl before:content-["See_what’s_happening_in_the_world_right_now."] lg:text-6xl lg:before:content-["Happening_now"]'>
                         <span className='sr-only'>
                             See what’s happening in the world right now.
                         </span>
                     </h1>
-                    <h2 className='hidden text-xl lg:block lg:text-3xl'>
+                    <h2 className='hidden text-center text-xl lg:block lg:text-3xl'>
                         Join Blabsy today.
                     </h2>
                     <div>
@@ -122,17 +122,17 @@ export function LoginMain(): JSX.Element {
                             </div>
                         )}
                     </div>
-                    <div className='absolute right-0 rotate-90 top-1/2'>
+                    {/* <div className='absolute right-0 rotate-90 top-1/2'>
                         <Image
                             src='/assets/w3dslogo.svg'
                             alt='W3DS logo'
                             width={100}
                             height={20}
                         />
-                    </div>
+                    </div> */}
                 </div>
                 <div className='flex max-w-lg flex-col gap-6 [&_button]:py-2 bg-white/20 p-4 rounded-lg'>
-                    <div className='grid gap-3 font-bold text-white/80'>
+                    <div className='grid gap-3 text-center font-bold text-white/70'>
                         You are entering Blabsy - a social network built on the
                         Web 3.0 Data Space (W3DS) architecture. This system is
                         designed around the principle of data-platform
