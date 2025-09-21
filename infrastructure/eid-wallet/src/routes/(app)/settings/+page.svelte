@@ -126,7 +126,7 @@
             on:click={handleVersionTap}
             disabled={isRetrying}
         >
-            Version v0.2.1.2
+            Version v0.2.2.0
         </button>
 
         {#if retryMessage}

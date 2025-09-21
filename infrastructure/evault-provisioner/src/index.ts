@@ -127,6 +127,7 @@ app.post(
                         "This verification ID has already been used"
                     );
             }
+            await verificationService.findByIdAndUpdate(verificationId, { linkedEName: w3id });
             const evaultId = await new W3IDBuilder().withGlobal(true).build();
             const uri = await provisionEVault(
                 w3id,

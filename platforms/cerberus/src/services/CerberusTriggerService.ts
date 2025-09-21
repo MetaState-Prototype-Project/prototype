@@ -51,30 +51,43 @@ export class CerberusTriggerService {
      */
     async isCerberusEnabled(groupId: string): Promise<boolean> {
         try {
+            console.log(`🔍 Checking if Cerberus is enabled for group: ${groupId}`);
             const group = await this.groupService.getGroupById(groupId);
             if (!group || !group.charter) {
+                console.log(`🔍 Group or charter not found: group=${!!group}, charter=${!!group?.charter}`);
                 return false;
             }
             
+            console.log(`🔍 Group found with charter length: ${group.charter.length}`);
+            
             // Check if the watchdog name is specifically set to "Cerberus"
             const charterText = group.charter.toLowerCase();
+            console.log(`🔍 Charter text (first 200 chars): ${charterText.substring(0, 200)}...`);
             
             // Look for "Watchdog Name:" followed by "**Cerberus**" on next line (handles markdown)
             const watchdogNameMatch = charterText.match(/watchdog name:\s*\n\s*\*\*([^*]+)\*\*/);
             if (watchdogNameMatch) {
                 const watchdogName = watchdogNameMatch[1].trim();
-                return watchdogName === 'cerberus';
+                console.log(`🔍 Found watchdog name (multi-line): "${watchdogName}"`);
+                const result = watchdogName === 'cerberus';
+                console.log(`🔍 Multi-line match result: ${result}`);
+                return result;
             }
             
             // Alternative: look for "Watchdog Name: Cerberus" on same line
             const sameLineMatch = charterText.match(/watchdog name:\s*([^\n\r]+)/);
             if (sameLineMatch) {
                 const watchdogName = sameLineMatch[1].trim();
-                return watchdogName === 'cerberus';
+                console.log(`🔍 Found watchdog name (same-line): "${watchdogName}"`);
+                const result = watchdogName === 'cerberus';
+                console.log(`🔍 Same-line match result: ${result}`);
+                return result;
             }
             
             // Fallback: check if "Watchdog Name: Cerberus" appears anywhere
-            return charterText.includes('watchdog name: cerberus');
+            const fallbackResult = charterText.includes('watchdog name: cerberus');
+            console.log(`🔍 Fallback check result: ${fallbackResult}`);
+            return fallbackResult;
         } catch (error) {
             console.error("Error checking if Cerberus is enabled for group:", error);
             return false;
@@ -124,8 +137,14 @@ export class CerberusTriggerService {
      */
     async processCharterChange(groupId: string, groupName: string, oldCharter: string | undefined, newCharter: string): Promise<void> {
         try {
+            console.log(`🔍 Processing charter change for group: ${groupId} (${groupName})`);
+            console.log(`🔍 Old charter: ${oldCharter ? 'exists' : 'none'}`);
+            console.log(`🔍 New charter: ${newCharter ? 'exists' : 'none'}`);
+            
             // Check if Cerberus is enabled for this group
             const cerberusEnabled = await this.isCerberusEnabled(groupId);
+            console.log(`🔍 Cerberus enabled check result: ${cerberusEnabled}`);
+            
             if (!cerberusEnabled) {
                 console.log(`Cerberus not enabled for group ${groupId} - skipping charter change processing`);
                 return;
@@ -141,6 +160,8 @@ export class CerberusTriggerService {
                 changeType = 'updated';
             }
 
+            console.log(`🔍 Change type determined: ${changeType}`);
+
             // Create a system message about the charter change
             const changeMessage = `$$system-message$$ Cerberus: Group charter has been ${changeType}. ${
                 changeType === 'created' ? 'New charter is now in effect.' :
@@ -148,14 +169,19 @@ export class CerberusTriggerService {
                 'Charter has been updated and new rules are now in effect.'
             }`;
 
-            await this.messageService.createSystemMessageWithoutPrefix({
+            console.log(`🔍 Creating system message: ${changeMessage.substring(0, 100)}...`);
+
+            const systemMessage = await this.messageService.createSystemMessageWithoutPrefix({
                 text: changeMessage,
                 groupId: groupId,
             });
 
+            console.log(`✅ System message created successfully with ID: ${systemMessage.id}`);
+
             // If charter was updated, also handle signature invalidation and detailed analysis
             if (changeType === 'updated' && oldCharter && newCharter) {
                 try {
+                    console.log(`🔍 Handling charter update with signature invalidation...`);
                     // Import CharterSignatureService dynamically to avoid circular dependencies
                     const { CharterSignatureService } = await import('./CharterSignatureService');
                     const charterSignatureService = new CharterSignatureService();
@@ -166,6 +192,7 @@ export class CerberusTriggerService {
                         newCharter,
                         this.messageService
                     );
+                    console.log(`✅ Charter signature invalidation completed`);
                 } catch (error) {
                     console.error("Error handling charter signature invalidation:", error);
                 }
