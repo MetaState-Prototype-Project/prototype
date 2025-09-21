@@ -104,28 +104,44 @@ export class VaultController {
     }
 
     /**
-     * Resolve eVault endpoint from registry
+     * Resolve eVault endpoint from registry with retry logic
      */
     private async resolveEndpoint(w3id: string): Promise<string> {
-        try {
-            const response = await axios.get(
-                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
-            );
-            return new URL("/graphql", response.data.uri).toString();
-        } catch (error) {
-            console.error("Error resolving eVault endpoint:", error);
-            throw new Error("Failed to resolve eVault endpoint");
+        const maxRetries = 5;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+            try {
+                const response = await axios.get(
+                    new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
+                );
+                return new URL("/graphql", response.data.uri).toString();
+            } catch (error) {
+                retryCount++;
+                console.error(`Error resolving eVault endpoint (attempt ${retryCount}/${maxRetries}):`, error);
+
+                if (retryCount >= maxRetries) {
+                    throw new Error("Failed to resolve eVault endpoint after all retries");
+                }
+
+                // Wait before retrying (exponential backoff)
+                const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
+                console.log(`Waiting ${delay}ms before resolve retry...`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
         }
+
+        throw new Error("Failed to resolve eVault endpoint");
     }
 
     /**
-     * Ensure we have a valid GraphQL client
+     * Create a new GraphQL client every time
      */
     private async ensureClient(w3id: string): Promise<GraphQLClient> {
-        if (!this.#endpoint || !this.#client) {
-            this.#endpoint = await this.resolveEndpoint(w3id);
-            this.#client = new GraphQLClient(this.#endpoint);
-        }
+        this.#endpoint = await this.resolveEndpoint(w3id);
+        this.#client = new GraphQLClient(this.#endpoint, {
+            timeout: 3000, // 3 second timeout for GraphQL requests
+        });
         return this.#client;
     }
 
@@ -211,13 +227,14 @@ export class VaultController {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
                         // Set loading status
-                        this.profileCreationStatus = "loading";
                         // Get user data for display name
                         const userData = await this.#userController.user;
                         const displayName =
                             userData?.name || resolvedUser?.ename;
 
                         try {
+                            if (this.profileCreationStatus === "success")  return
+                            this.profileCreationStatus = "loading";
                             await this.createUserProfileInEVault(
                                 resolvedUser?.ename as string,
                                 displayName as string,
@@ -240,6 +257,8 @@ export class VaultController {
         else if (vault?.ename) {
             this.#store.set("vault", vault);
 
+
+            if (this.profileCreationStatus === "success")  return
             // Set loading status
             this.profileCreationStatus = "loading";
 

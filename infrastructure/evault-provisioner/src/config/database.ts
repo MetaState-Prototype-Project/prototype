@@ -8,7 +8,7 @@ dotenv.config({ path: join(__dirname, "../../../../.env") })
 
 export const AppDataSource = new DataSource({
     type: "postgres",
-    url: process.env.PROVISIONER_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/evault",
+    url: process.env.PROVISIONER_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/provisioner",
     logging: process.env.NODE_ENV !== "production",
     entities: [Verification],
     migrations: [join(__dirname, "../migrations/*.{ts,js}")],

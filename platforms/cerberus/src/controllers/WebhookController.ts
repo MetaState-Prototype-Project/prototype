@@ -171,13 +171,24 @@ export class WebhookController {
                         console.log("Charter change detected, notifying Cerberus...");
                         console.log("Old charter:", oldCharter ? "exists" : "none");
                         console.log("New charter:", newCharter ? "exists" : "none");
+                        console.log("🔍 About to call processCharterChange...");
                         
-                        await this.cerberusTriggerService.processCharterChange(
-                            group.id,
-                            group.name,
-                            oldCharter,
-                            newCharter
-                        );
+                        try {
+                            await this.cerberusTriggerService.processCharterChange(
+                                group.id,
+                                group.name,
+                                oldCharter,
+                                newCharter
+                            );
+                            console.log("✅ processCharterChange completed successfully");
+                        } catch (error) {
+                            console.error("❌ Error in processCharterChange:", error);
+                        }
+                    } else {
+                        console.log("No charter change detected, skipping Cerberus notification");
+                        console.log("newCharter !== undefined:", newCharter !== undefined);
+                        console.log("newCharter !== null:", newCharter !== null);
+                        console.log("oldCharter !== newCharter:", oldCharter !== newCharter);
                     }
                 } else {
                     console.log("Creating new group");
@@ -203,12 +214,21 @@ export class WebhookController {
                     // Check if new group has a charter and send Cerberus welcome message
                     if (group.charter) {
                         console.log("New group with charter detected, sending Cerberus welcome...");
-                        await this.cerberusTriggerService.processCharterChange(
-                            group.id,
-                            group.name,
-                            undefined, // No old charter for new groups
-                            group.charter
-                        );
+                        console.log("🔍 About to call processCharterChange for new group...");
+                        
+                        try {
+                            await this.cerberusTriggerService.processCharterChange(
+                                group.id,
+                                group.name,
+                                undefined, // No old charter for new groups
+                                group.charter
+                            );
+                            console.log("✅ processCharterChange for new group completed successfully");
+                        } catch (error) {
+                            console.error("❌ Error in processCharterChange for new group:", error);
+                        }
+                    } else {
+                        console.log("New group has no charter, skipping Cerberus welcome");
                     }
                 }
             } else if (mapping.tableName === "messages") {
