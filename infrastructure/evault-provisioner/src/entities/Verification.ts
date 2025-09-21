@@ -29,6 +29,9 @@ export class Verification {
     @Column({ default: false })
     consumed!: boolean;
 
+    @Column({ nullable: true })
+    linkedEName!: string;
+
     @CreateDateColumn()
     createdAt!: Date;
 

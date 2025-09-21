@@ -118,6 +118,7 @@ export class VerificationController {
 
         // Create new verification
         app.post("/verification", async (req: Request, res: Response) => {
+            console.log("creating new session")
             const { referenceId } = req.body;
 
             if (referenceId) {
@@ -193,9 +194,11 @@ export class VerificationController {
                 const body = req.body;
                 console.log(body);
                 const id = body.vendorData;
+                let w3id: string | null = null
 
                 const verification =
                     await this.verificationService.findById(id);
+                console.log("ID", id)
                 if (!verification) {
                     return res
                         .status(404)
@@ -227,10 +230,10 @@ export class VerificationController {
                             });
                         console.log("matched", verificationMatch);
                         if (verificationMatch) {
-                            approved = false;
-                            status = "declined";
+                            status = "duplicate";
                             reason =
                                 "Document already used to create an eVault";
+                            w3id = verificationMatch.linkedEName
                         }
                     }
                     console.log(body.data.verification.document);
@@ -248,6 +251,7 @@ export class VerificationController {
                 eventEmitter.emit(id, {
                     reason,
                     status,
+                    w3id,
                     person: body.data.verification.person ?? null,
                     document: body.data.verification.document,
                 });
