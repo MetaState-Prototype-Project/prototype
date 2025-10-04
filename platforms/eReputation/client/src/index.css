@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(240, 10%, 20%);
+  --muted: hsl(210, 40%, 98%);
+  --muted-foreground: hsl(215, 16%, 47%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(240, 10%, 20%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(240, 10%, 20%);
+  --border: hsl(214, 32%, 91%);
+  --input: hsl(214, 32%, 91%);
+  --primary: #4C3F54;
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(210, 40%, 96%);
+  --secondary-foreground: hsl(222, 47%, 11%);
+  --accent: hsl(210, 40%, 96%);
+  --accent-foreground: hsl(222, 47%, 11%);
+  --destructive: #D13525;
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --ring: #4C3F54;
+  --radius: 0.5rem;
+
+  /* Custom eReputation colors - Exact hex values */
+  --fig: #4C3F54;
+  --apple-red: #D13525;
+  --swiss-cheese: #F2C057;
+  --basil: #486824;
+  
+  /* Solid color variants for modals - equivalent to fig with opacity but as solid colors */
+  --fig-20: #f5f4f6;
+  --fig-10: #faf9fb;
+  --fig-30: #e8e6ea;
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: #4C3F54;
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: 76 63 84 / 0.2;
+  --secondary-foreground: 76 63 84;
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: #D13525;
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: #4C3F54;
+  --radius: 0.5rem;
+
+  /* Custom eReputation colors for dark mode - Exact hex values */
+  --fig: #4C3F54;
+  --apple-red: #D13525;
+  --swiss-cheese: #F2C057;
+  --basil: #486824;
+  
+  /* Solid color variants for modals in dark mode */
+  --fig-20: #2d2633;
+  --fig-10: #1a1620;
+  --fig-30: #3d3442;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-fig {
+    background-color: var(--fig);
+  }
+  
+  .bg-apple-red {
+    background-color: var(--apple-red);
+  }
+  
+  .bg-swiss-cheese {
+    background-color: var(--swiss-cheese);
+  }
+  
+  .bg-basil {
+    background-color: var(--basil);
+  }
+  
+  .text-fig {
+    color: var(--fig);
+  }
+  
+  .text-apple-red {
+    color: var(--apple-red);
+  }
+  
+  .text-swiss-cheese {
+    color: var(--swiss-cheese);
+  }
+  
+  .text-basil {
+    color: var(--basil);
+  }
+  
+  .border-fig {
+    border-color: var(--fig);
+  }
+  
+  .border-apple-red {
+    border-color: var(--apple-red);
+  }
+  
+  .border-swiss-cheese {
+    border-color: var(--swiss-cheese);
+  }
+  
+  .border-basil {
+    border-color: var(--basil);
+  }
+}
+
+/* Custom animations for the score circle */
+@keyframes draw {
+  0% {
+    stroke-dashoffset: 314;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawArc {
+  0% {
+    stroke-dasharray: 0 314;
+  }
+  100% {
+    stroke-dasharray: 314 0;
+  }
+}
