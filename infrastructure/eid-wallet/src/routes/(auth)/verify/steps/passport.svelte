@@ -115,27 +115,30 @@ async function captureImage() {
             const dataUrl = canvas1.toDataURL("image/png");
             DocFront.set(dataUrl);
             loading = true;
-            await axios.post(
-                new URL(
-                    `/verification/${$verificaitonId}/media`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-                {
-                    img: dataUrl,
-                    type: "document-front",
-                },
-            );
+            try {
+                await axios.post(
+                    new URL(
+                        `/verification/${$verificaitonId}/media`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        img: dataUrl,
+                        type: "document-front",
+                    },
+                );
+            } catch (err) {
+                console.error("Failed to upload front image:", err);
+                error = "Failed to upload image. Please try again.";
+                loading = false;
+                return;
+            }
             loading = false;
             image1Captured.set(true);
 
-            // If passport, skip back image and go to selfie
-            if ($documentType === "passport") {
-                for (const track of stream.getTracks()) {
-                    track.stop();
-                }
-                verifStep.set(2); // Go to selfie
-            } else {
-                image = 2; // Go to back image capture
+            // Don't stop camera - keep it running for retake or back photo
+            if ($documentType !== "passport") {
+                image = 2; // Go to back image capture for non-passport documents
+                console.log("Switched to back image capture, image =", image);
             }
         }
     } else if (image === 2) {
@@ -148,22 +151,28 @@ async function captureImage() {
             const dataUrl = canvas2.toDataURL("image/png");
             DocBack.set(dataUrl);
             loading = true;
-            await axios.post(
-                new URL(
-                    `/verification/${$verificaitonId}/media`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-                {
-                    img: dataUrl,
-                    type: "document-back",
-                },
-            );
+            try {
+                await axios.post(
+                    new URL(
+                        `/verification/${$verificaitonId}/media`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        img: dataUrl,
+                        type: "document-back",
+                    },
+                );
+            } catch (err) {
+                console.error("Failed to upload back image:", err);
+                error = "Failed to upload image. Please try again.";
+                loading = false;
+                return;
+            }
             loading = false;
             image2Captured.set(true);
-            for (const track of stream.getTracks()) {
-                track.stop();
-            }
-            verifStep.set(2); // Go to selfie
+            console.log("Back image captured");
+            // Don't stop camera - keep it running for retake option
+            // Camera will be stopped when navigating away or on component cleanup
         }
     }
 }
@@ -182,16 +191,37 @@ function retakeImages() {
     }
     DocFront.set(null);
     DocBack.set(null);
+    // Camera is still running, ready to capture again
+}
+
+function stopCamera() {
+    if (stream) {
+        for (const track of stream.getTracks()) {
+            track.stop();
+        }
+    }
+}
+
+function continueToSelfie() {
+    stopCamera();
+    verifStep.set(2);
 }
 
 onMount(() => {
     requestCameraPermission();
+
+    // Cleanup camera when component unmounts
+    return () => {
+        stopCamera();
+    };
 });
 </script>
 
 <div>
     {#if error}
-        <div>{error}</div>
+        <div class="bg-red-500/20 border border-red-500 rounded-lg p-3 mb-4 text-red-200 text-sm">
+            {error}
+        </div>
     {/if}
     <div class="flex flex-col h-[90vh]">
         <div class="flex flex-col items-center gap-1">
@@ -231,59 +261,117 @@ onMount(() => {
             <canvas bind:this={canvas2} class="hidden"></canvas>
 
             <!-- Preview thumbnails -->
-            <div class="flex w-full justify-center gap-2 mb-4">
-                {#if $DocFront}
-                    <img
-                        class="h-[100px] w-full max-w-[177px] object-cover rounded-md"
-                        src={$DocFront}
-                        alt="Document Front"
-                    />
-                {:else}
-                    <div
-                        class="div flex h-[100px] w-full max-w-[177px] items-center justify-center rounded-md border-2 border-gray-600 bg-gray-700"
-                    >
-                        <h2 class="text-sm">Document Front</h2>
-                    </div>
-                {/if}
-
-                {#if $documentType !== "passport"}
-                    {#if $DocBack}
-                        <img
-                            class="h-[100px] w-full max-w-[177px] object-cover rounded-md"
-                            src={$DocBack}
-                            alt="Document Back"
-                        />
+            {#if $documentType === "passport"}
+                <!-- Passport only needs one preview -->
+                <div class="flex w-full justify-center gap-3 mb-6">
+                    {#if $DocFront}
+                        <div class="relative h-[120px] w-full max-w-[200px] rounded-lg overflow-hidden border-2 border-purple-500 shadow-lg">
+                            <img
+                                class="h-full w-full object-cover"
+                                src={$DocFront}
+                                alt="Passport Photo Page"
+                            />
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                                <p class="text-xs text-white font-medium">Photo Page</p>
+                            </div>
+                        </div>
                     {:else}
                         <div
-                            class="div flex h-[100px] w-full max-w-[177px] items-center justify-center rounded-md border-2 border-gray-600 bg-gray-700"
+                            class="flex h-[120px] w-full max-w-[200px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-500 bg-gray-800/50 transition-colors hover:border-gray-400"
                         >
-                            <h2 class="text-sm">Document Back</h2>
+                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <p class="text-sm text-gray-400 font-medium">Photo Page</p>
                         </div>
                     {/if}
-                {/if}
-            </div>
+                </div>
+            {:else}
+                <!-- Other documents need front and back -->
+                <div class="flex w-full justify-center gap-3 mb-6">
+                    {#if $DocFront}
+                        <div class="relative h-[120px] w-full max-w-[177px] rounded-lg overflow-hidden border-2 border-purple-500 shadow-lg">
+                            <img
+                                class="h-full w-full object-cover"
+                                src={$DocFront}
+                                alt="Document Front"
+                            />
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                                <p class="text-xs text-white font-medium">Front</p>
+                            </div>
+                        </div>
+                    {:else}
+                        <div
+                            class="flex h-[120px] w-full max-w-[177px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-500 bg-gray-800/50 transition-colors hover:border-gray-400"
+                        >
+                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <p class="text-sm text-gray-400 font-medium">Front</p>
+                        </div>
+                    {/if}
 
-            <div class="text-center text-xs text-white mb-4">
+                    {#if $DocBack}
+                        <div class="relative h-[120px] w-full max-w-[177px] rounded-lg overflow-hidden border-2 border-purple-500 shadow-lg">
+                            <img
+                                class="h-full w-full object-cover"
+                                src={$DocBack}
+                                alt="Document Back"
+                            />
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                                <p class="text-xs text-white font-medium">Back</p>
+                            </div>
+                        </div>
+                    {:else}
+                        <div
+                            class="flex h-[120px] w-full max-w-[177px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-500 bg-gray-800/50 transition-colors hover:border-gray-400"
+                        >
+                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <p class="text-sm text-gray-400 font-medium">Back</p>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
+
+            <div class="text-center text-xs text-gray-400 mb-4 px-4">
                 Accepted documents: Driver's License, Residence Permit, Passport, ID Card.
             </div>
 
             {#if ($documentType !== "passport" && $image1Captured && $image2Captured) || ($documentType === "passport" && $image1Captured)}
-                <!-- svelte-ignore a11y-click-events-have-key-events -->
-                <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-                <h2
-                    class="cursor-pointer rounded border-2 border-brand-green px-4 py-2 text-center font-medium text-brand-green_dark hover:border-green-200 mb-4"
-                    on:click={retakeImages}
+                <!-- All photos captured - show retake option -->
+                <div class="flex w-full gap-3">
+                    <ButtonAction
+                        color="alternative"
+                        callback={retakeImages}
+                        class="w-1/3 flex items-center justify-center"
+                    >
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Retake
+                    </ButtonAction>
+                    <ButtonAction
+                        disabled={loading}
+                        callback={continueToSelfie}
+                        class="flex-1"
+                        color="primary"
+                    >Continue to Selfie</ButtonAction
+                    >
+                </div>
+            {:else}
+                <!-- Still capturing photos -->
+                <ButtonAction
+                    disabled={loading}
+                    callback={captureImage}
+                    class="w-full"
+                    >{loading ? "Processing..." : image === 1 ? "Take Photo" : "Take Back Photo"}</ButtonAction
                 >
-                    Retake
-                </h2>
             {/if}
-
-            <ButtonAction
-                disabled={loading}
-                callback={captureImage}
-                class="w-full"
-                >{loading ? "Processing..." : ($documentType === "passport" && image === 2) || image === 3 ? "Done" : "Take Photo"}</ButtonAction
-            >
         </div>
     </div>
 </div>

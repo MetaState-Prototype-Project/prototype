@@ -355,11 +355,11 @@
     <Drawer bind:isPaneOpen={showVeriffModal}>
         <div class="overflow-y-scroll">
             {#if $verifStep === 0}
-                <DocumentType></DocumentType>
+                <DocumentType />
             {:else if $verifStep === 1}
-                <Passport></Passport>
+                <Passport />
             {:else if $verifStep === 2}
-                <Selfie></Selfie>
+                <Selfie />
             {:else if loading}
                 <div class="my-20">
                     <div
