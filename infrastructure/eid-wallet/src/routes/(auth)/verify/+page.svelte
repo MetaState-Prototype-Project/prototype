@@ -14,10 +14,12 @@
     import { getContext, onMount } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
     import { v4 as uuidv4 } from "uuid";
+    import DocumentType from "./steps/document-type.svelte";
     import Passport from "./steps/passport.svelte";
     import Selfie from "./steps/selfie.svelte";
     import {
         DocFront,
+        DocBack,
         Selfie as SelfiePic,
         reason,
         status,
@@ -100,7 +102,7 @@
     let document: Document;
     let loading = $state(false);
     let keyManager: KeyManager | null = $state(null);
-    let websocketData: any = $state(null); // Store websocket data for duplicate case
+    let websocketData: { w3id?: string } | null = $state(null); // Store websocket data for duplicate case
     let hardwareKeySupported = $state(false);
     let hardwareKeyCheckComplete = $state(false);
 
@@ -135,9 +137,10 @@
             websocketData = data; // Store the full websocket data
             if (data.status === "resubmission_requested") {
                 DocFront.set(null);
+                DocBack.set(null);
                 SelfiePic.set(null);
             }
-            verifStep.set(2);
+            verifStep.set(3);
         };
     }
 
@@ -182,8 +185,12 @@
             await initializeKeyManager();
         }
 
+        if (!keyManager) {
+            throw new Error("Key manager not initialized");
+        }
+
         try {
-            const res = await keyManager!.generate("default");
+            const res = await keyManager.generate("default");
             console.log("Key generation result:", res);
             return res;
         } catch (e) {
@@ -197,8 +204,12 @@
             await initializeKeyManager();
         }
 
+        if (!keyManager) {
+            throw new Error("Key manager not initialized");
+        }
+
         try {
-            const res = await keyManager!.getPublicKey("default");
+            const res = await keyManager.getPublicKey("default");
             console.log("Public key retrieved:", res);
             return res;
         } catch (e) {
@@ -218,9 +229,11 @@
 
         // Initialize key manager and check if default key pair exists
         await initializeKeyManager();
-        const keyExists = await keyManager!.exists("default");
-        if (!keyExists) {
-            await generateApplicationKeyPair();
+        if (keyManager) {
+            const keyExists = await keyManager.exists("default");
+            if (!keyExists) {
+                await generateApplicationKeyPair();
+            }
         }
 
         handleContinue = async () => {
@@ -342,8 +355,10 @@
     <Drawer bind:isPaneOpen={showVeriffModal}>
         <div class="overflow-y-scroll">
             {#if $verifStep === 0}
-                <Passport></Passport>
+                <DocumentType></DocumentType>
             {:else if $verifStep === 1}
+                <Passport></Passport>
+            {:else if $verifStep === 2}
                 <Selfie></Selfie>
             {:else if loading}
                 <div class="my-20">
