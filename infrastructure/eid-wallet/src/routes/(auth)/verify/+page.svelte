@@ -322,8 +322,8 @@
     <section>
         <Hero title="Verify your account">
             {#snippet subtitle()}
-                Get your passport ready. You’ll be directed to present your
-                passport and take a quick selfie.
+                Get any ID ready. You’ll be directed to present your
+                ID and take a quick selfie.
             {/snippet}
         </Hero>
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
