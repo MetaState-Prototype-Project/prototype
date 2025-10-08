@@ -244,13 +244,18 @@
             loading = true;
             globalState.userController.user = {
                 name: capitalize(
-                    `${person.firstName.value} ${person.lastName.value}`,
+                    `${person.firstName.value} ${person.lastName.value ?? ""}`,
                 ),
                 "Date of Birth": new Date(
                     person.dateOfBirth.value,
                 ).toDateString(),
-                "ID submitted": `Passport - ${person.nationality.value}`,
-                "Passport Number": document.number.value,
+                "ID submitted":
+                    document.type.value === "passport"
+                        ? `Passport - ${document.country.value}`
+                        : document.type.value === "drivers_license"
+                          ? `Driving License - ${document.country.value}`
+                          : `ID Card - ${document.country.value}`,
+                "Document Number": document.number.value,
             };
             globalState.userController.document = {
                 "Valid From": new Date(document.validFrom.value).toDateString(),
@@ -322,8 +327,8 @@
     <section>
         <Hero title="Verify your account">
             {#snippet subtitle()}
-                Get any ID ready. You’ll be directed to present your
-                ID and take a quick selfie.
+                Get any ID ready. You’ll be directed to present your ID and take
+                a quick selfie.
             {/snippet}
         </Hero>
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
