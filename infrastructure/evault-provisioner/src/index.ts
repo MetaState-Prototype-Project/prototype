@@ -11,6 +11,7 @@ import cors from "cors";
 import { AppDataSource } from "./config/database";
 import { VerificationService } from "./services/VerificationService";
 import { VerificationController } from "./controllers/VerificationController";
+import { NotificationController } from "./controllers/NotificationController";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -48,6 +49,7 @@ const verificationService = new VerificationService(
     AppDataSource.getRepository("Verification")
 );
 const verificationController = new VerificationController(verificationService);
+const notificationController = new NotificationController();
 
 interface ProvisionRequest {
     registryEntropy: string;
@@ -170,6 +172,9 @@ app.post(
 
 // Register verification routes
 verificationController.registerRoutes(app);
+
+// Register notification routes
+notificationController.registerRoutes(app);
 
 // Start the server
 const start = async () => {

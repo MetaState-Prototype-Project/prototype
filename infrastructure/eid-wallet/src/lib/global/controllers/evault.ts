@@ -3,6 +3,7 @@ import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import type { UserController } from "./user";
+import NotificationService from "../../services/NotificationService";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -47,10 +48,12 @@ export class VaultController {
     #endpoint: string | null = null;
     #userController: UserController;
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
+    #notificationService: NotificationService;
 
     constructor(store: Store, userController: UserController) {
         this.#store = store;
         this.#userController = userController;
+        this.#notificationService = NotificationService.getInstance();
     }
 
     /**
@@ -69,6 +72,24 @@ export class VaultController {
         | "success"
         | "failed") {
         this.#profileCreationStatus = status;
+    }
+
+    /**
+     * Register device for notifications
+     */
+    private async registerDeviceForNotifications(eName: string): Promise<void> {
+        try {
+            console.log(`Registering device for notifications with eName: ${eName}`);
+            const success = await this.#notificationService.registerDevice(eName);
+            if (success) {
+                console.log("Device registered successfully for notifications");
+            } else {
+                console.warn("Failed to register device for notifications");
+            }
+        } catch (error) {
+            console.error("Error registering device for notifications:", error);
+            // Don't throw error - device registration failure shouldn't break vault setup
+        }
     }
 
     /**
@@ -226,6 +247,10 @@ export class VaultController {
                 .then(async (resolvedUser) => {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
+                        
+                        // Register device for notifications
+                        await this.registerDeviceForNotifications(resolvedUser.ename);
+                        
                         // Set loading status
                         // Get user data for display name
                         const userData = await this.#userController.user;
@@ -257,6 +282,8 @@ export class VaultController {
         else if (vault?.ename) {
             this.#store.set("vault", vault);
 
+            // Register device for notifications
+            this.registerDeviceForNotifications(vault.ename);
 
             if (this.profileCreationStatus === "success")  return
             // Set loading status
