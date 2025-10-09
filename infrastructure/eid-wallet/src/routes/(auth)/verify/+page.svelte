@@ -14,10 +14,12 @@
     import { getContext, onMount } from "svelte";
     import { Shadow } from "svelte-loading-spinners";
     import { v4 as uuidv4 } from "uuid";
+    import DocumentType from "./steps/document-type.svelte";
     import Passport from "./steps/passport.svelte";
     import Selfie from "./steps/selfie.svelte";
     import {
         DocFront,
+        DocBack,
         Selfie as SelfiePic,
         reason,
         status,
@@ -100,7 +102,7 @@
     let document: Document;
     let loading = $state(false);
     let keyManager: KeyManager | null = $state(null);
-    let websocketData: any = $state(null); // Store websocket data for duplicate case
+    let websocketData: { w3id?: string } | null = $state(null); // Store websocket data for duplicate case
     let hardwareKeySupported = $state(false);
     let hardwareKeyCheckComplete = $state(false);
 
@@ -135,9 +137,10 @@
             websocketData = data; // Store the full websocket data
             if (data.status === "resubmission_requested") {
                 DocFront.set(null);
+                DocBack.set(null);
                 SelfiePic.set(null);
             }
-            verifStep.set(2);
+            verifStep.set(3);
         };
     }
 
@@ -182,8 +185,12 @@
             await initializeKeyManager();
         }
 
+        if (!keyManager) {
+            throw new Error("Key manager not initialized");
+        }
+
         try {
-            const res = await keyManager!.generate("default");
+            const res = await keyManager.generate("default");
             console.log("Key generation result:", res);
             return res;
         } catch (e) {
@@ -197,8 +204,12 @@
             await initializeKeyManager();
         }
 
+        if (!keyManager) {
+            throw new Error("Key manager not initialized");
+        }
+
         try {
-            const res = await keyManager!.getPublicKey("default");
+            const res = await keyManager.getPublicKey("default");
             console.log("Public key retrieved:", res);
             return res;
         } catch (e) {
@@ -218,9 +229,11 @@
 
         // Initialize key manager and check if default key pair exists
         await initializeKeyManager();
-        const keyExists = await keyManager!.exists("default");
-        if (!keyExists) {
-            await generateApplicationKeyPair();
+        if (keyManager) {
+            const keyExists = await keyManager.exists("default");
+            if (!keyExists) {
+                await generateApplicationKeyPair();
+            }
         }
 
         handleContinue = async () => {
@@ -231,13 +244,18 @@
             loading = true;
             globalState.userController.user = {
                 name: capitalize(
-                    `${person.firstName.value} ${person.lastName.value}`,
+                    `${person.firstName.value} ${person.lastName.value ?? ""}`,
                 ),
                 "Date of Birth": new Date(
                     person.dateOfBirth.value,
                 ).toDateString(),
-                "ID submitted": `Passport - ${person.nationality.value}`,
-                "Passport Number": document.number.value,
+                "ID submitted":
+                    document.type.value === "passport"
+                        ? `Passport - ${document.country.value}`
+                        : document.type.value === "drivers_license"
+                          ? `Driving License - ${document.country.value}`
+                          : `ID Card - ${document.country.value}`,
+                "Document Number": document.number.value,
             };
             globalState.userController.document = {
                 "Valid From": new Date(document.validFrom.value).toDateString(),
@@ -309,8 +327,8 @@
     <section>
         <Hero title="Verify your account">
             {#snippet subtitle()}
-                Get your passport ready. You’ll be directed to present your
-                passport and take a quick selfie.
+                Get any ID ready. You’ll be directed to present your ID and take
+                a quick selfie.
             {/snippet}
         </Hero>
         <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
@@ -342,9 +360,11 @@
     <Drawer bind:isPaneOpen={showVeriffModal}>
         <div class="overflow-y-scroll">
             {#if $verifStep === 0}
-                <Passport></Passport>
+                <DocumentType />
             {:else if $verifStep === 1}
-                <Selfie></Selfie>
+                <Passport />
+            {:else if $verifStep === 2}
+                <Selfie />
             {:else if loading}
                 <div class="my-20">
                     <div

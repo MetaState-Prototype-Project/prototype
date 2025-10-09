@@ -32,6 +32,18 @@ export class Verification {
     @Column({ nullable: true })
     linkedEName!: string;
 
+    @Column({ nullable: true })
+    deviceId!: string;
+
+    @Column({ nullable: true })
+    platform!: string;
+
+    @Column({ nullable: true })
+    fcmToken!: string;
+
+    @Column({ default: true })
+    deviceActive!: boolean;
+
     @CreateDateColumn()
     createdAt!: Date;
 
