@@ -16,13 +16,8 @@
         requestPermissions,
         scan,
     } from "@tauri-apps/plugin-barcode-scanner";
-    import {
-        exists,
-        generate,
-        getPublicKey,
-        signPayload,
-        // verifySignature
-    } from "@auvo/tauri-plugin-crypto-hw-api";
+
+    import { KeyManagerFactory } from "$lib/crypto/KeyManagerFactory";
     import axios from "axios";
     import { getContext, onDestroy, onMount } from "svelte";
     import type { SVGAttributes } from "svelte/elements";
@@ -167,7 +162,52 @@
         if (!vault || !redirect) return;
 
         try {
-            await axios.post(redirect, { ename: vault.ename, session });
+            // Get the appropriate key manager for authentication
+            const keyManager = await KeyManagerFactory.getKeyManagerForContext(
+                vault.ename,
+                "signing",
+            );
+
+            // Ensure the key exists
+            if (!(await keyManager.exists(vault.ename))) {
+                await keyManager.generate(vault.ename);
+            }
+
+            // Get the W3ID (public key)
+            const w3idResult = await keyManager.getPublicKey(vault.ename);
+            if (!w3idResult) {
+                throw new Error("Failed to get W3ID");
+            }
+
+            // Create the session payload to sign
+            const sessionPayload = JSON.stringify({
+                session: session,
+                ename: vault.ename,
+                timestamp: Date.now(),
+            });
+
+            // Sign the session payload
+            const signature = await keyManager.signPayload(
+                vault.ename,
+                sessionPayload,
+            );
+
+            // Create the auth payload with W3ID and signature
+            const authPayload = {
+                ename: vault.ename,
+                session: session,
+                w3id: w3idResult,
+                signature: signature,
+            };
+
+            console.log("🔐 Auth payload with signature:", {
+                ename: authPayload.ename,
+                session: authPayload.session,
+                w3id: authPayload.w3id,
+                signatureLength: authPayload.signature.length,
+            });
+
+            await axios.post(redirect, authPayload);
             codeScannedDrawerOpen = false;
 
             // Check if this was from a deep link
@@ -435,6 +475,23 @@
                 throw new Error("No vault available for signing");
             }
 
+            // Get the appropriate key manager for signing
+            const keyManager = await KeyManagerFactory.getKeyManagerForContext(
+                vault.ename,
+                "signing",
+            );
+
+            // Ensure the key exists
+            if (!(await keyManager.exists(vault.ename))) {
+                await keyManager.generate(vault.ename);
+            }
+
+            // Get the W3ID (public key)
+            const w3idResult = await keyManager.getPublicKey(vault.ename);
+            if (!w3idResult) {
+                throw new Error("Failed to get W3ID");
+            }
+
             // Create the message to sign based on type
             let messageToSign: string;
 
@@ -444,7 +501,8 @@
                     pollId: signingData.pollId,
                     voteData: signingData.voteData,
                     userId: signingData.userId,
-                    // Removed timestamp since backend doesn't verify it
+                    sessionId: signingSessionId,
+                    timestamp: Date.now(),
                 });
             } else {
                 // Generic signature request
@@ -455,40 +513,23 @@
                 });
             }
 
-            // 🔐 REAL CRYPTOGRAPHIC SIGNING using Tauri crypto plugin
-            console.log("🔐 Starting cryptographic signing process...");
-
-            // Check if crypto hardware exists
-            const cryptoExists = await exists("default");
-            if (!cryptoExists) {
-                throw new Error("Cryptographic hardware not available");
-            }
-
-            // Generate default key if it doesn't exist
-            try {
-                await generate("default");
-                console.log("✅ Default key generated/verified");
-            } catch (error) {
-                console.log(
-                    "Default key already exists or generation failed:",
-                    error,
-                );
-            }
-
-            // Get the public key
-            const publicKey = await getPublicKey("default");
-            console.log("🔑 Public key retrieved:", publicKey);
-
-            // Sign the message payload
+            // 🔐 REAL CRYPTOGRAPHIC SIGNING using KeyManager factory
+            console.log(
+                "🔐 Starting cryptographic signing process with KeyManager...",
+            );
             console.log("✍️ Signing message:", messageToSign);
-            const signature = await signPayload("default", messageToSign);
+
+            const signature = await keyManager.signPayload(
+                vault.ename,
+                messageToSign,
+            );
             console.log("✅ Message signed successfully");
 
-            // Create the signed payload with real signature
+            // Create the signed payload with real signature and W3ID
             const signedPayload = {
                 sessionId: signingSessionId,
                 signature: signature,
-                publicKey: vault?.ename || "unknown_public_key", // Use eName as public key
+                w3id: w3idResult,
                 message: messageToSign,
             };
 
@@ -644,33 +685,32 @@
                 throw new Error("No vault available for blind voting");
             }
 
-            // 🔐 Get the real public key for voter identification
+            // 🔐 Get the real public key for voter identification using KeyManager
             let voterPublicKey: string;
             try {
-                const cryptoExists = await exists("default");
-                if (!cryptoExists) {
-                    throw new Error("Cryptographic hardware not available");
+                // Get the appropriate key manager for blind voting
+                const keyManager =
+                    await KeyManagerFactory.getKeyManagerForContext(
+                        vault.ename,
+                        "signing",
+                    );
+
+                // Ensure the key exists
+                if (!(await keyManager.exists(vault.ename))) {
+                    await keyManager.generate(vault.ename);
                 }
 
-                // Generate default key if it doesn't exist
-                try {
-                    await generate("default");
-                    console.log(
-                        "✅ Default key generated/verified for blind voting",
-                    );
-                } catch (edit) {
-                    console.log(
-                        "Default key already exists or generation failed:",
-                        edit,
-                    );
+                // Get the W3ID (public key)
+                const w3idResult = await keyManager.getPublicKey(vault.ename);
+                if (!w3idResult) {
+                    throw new Error("Failed to get W3ID");
                 }
+                voterPublicKey = w3idResult;
 
-                // Get the public key
-                voterPublicKey = await getPublicKey("default");
-                console.log("🔑 Voter public key retrieved:", voterPublicKey);
+                console.log("🔑 Voter W3ID retrieved:", voterPublicKey);
             } catch (error) {
-                console.error("Failed to get cryptographic public key:", error);
-                // Fallback to ename if crypto fails
+                console.error("Failed to get W3ID using KeyManager:", error);
+                // Fallback to ename if KeyManager fails
                 voterPublicKey = vault.ename || "unknown_public_key";
             }
 
