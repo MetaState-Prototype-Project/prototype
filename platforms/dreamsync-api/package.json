@@ -22,6 +22,7 @@
         "graphql-request": "^6.1.0",
         "jsonwebtoken": "^9.0.2",
         "node-cron": "^3.0.3",
+        "openai": "^4.104.0",
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.24",

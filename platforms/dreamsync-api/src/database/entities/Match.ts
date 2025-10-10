@@ -1,0 +1,86 @@
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    ManyToOne,
+    JoinColumn,
+    OneToMany,
+} from "typeorm";
+import { User } from "./User";
+import { Wishlist } from "./Wishlist";
+
+export enum MatchType {
+    PRIVATE = "private",
+    GROUP = "group"
+}
+
+export enum MatchStatus {
+    PENDING = "pending",
+    ACCEPTED = "accepted",
+    DECLINED = "declined",
+    EXPIRED = "expired"
+}
+
+@Entity("matches")
+export class Match {
+    @PrimaryGeneratedColumn("uuid")
+    id: string;
+
+    @Column({ type: "enum", enum: MatchType })
+    type: MatchType;
+
+    @Column({ type: "enum", enum: MatchStatus, default: MatchStatus.PENDING })
+    status: MatchStatus;
+
+    @Column({ type: "text" })
+    reason: string; // AI-generated explanation for the match
+
+    @Column({ type: "jsonb" })
+    matchData: {
+        confidence: number; // 0-1 confidence score
+        matchedWants: string[]; // What user A wants that user B can provide
+        matchedOffers: string[]; // What user B offers that user A wants
+        suggestedActivities?: string[];
+        aiAnalysis?: string;
+    };
+
+    @ManyToOne(() => User, { onDelete: "CASCADE" })
+    @JoinColumn({ name: "userAId" })
+    userA: User;
+
+    @Column({ type: "uuid" })
+    userAId: string;
+
+    @ManyToOne(() => User, { onDelete: "CASCADE" })
+    @JoinColumn({ name: "userBId" })
+    userB: User;
+
+    @Column({ type: "uuid" })
+    userBId: string;
+
+    @ManyToOne(() => Wishlist, (wishlist) => wishlist.matches, { onDelete: "CASCADE" })
+    @JoinColumn({ name: "wishlistId" })
+    wishlist: Wishlist;
+
+    @Column({ type: "uuid" })
+    wishlistId: string;
+
+    @Column({ type: "timestamp", nullable: true })
+    expiresAt: Date;
+
+    @Column({ type: "jsonb", nullable: true })
+    metadata: {
+        aiModel?: string;
+        aiVersion?: string;
+        processingTime?: number;
+        previousMatches?: string[]; // IDs of previous matches between these users
+    };
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+}

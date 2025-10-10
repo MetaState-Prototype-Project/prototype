@@ -16,7 +16,7 @@ export const adapter = new Web3Adapter({
     schemasPath: path.resolve(__dirname, "../mappings/"),
     dbPath: path.resolve(process.env.DREAMSYNC_MAPPING_DB_PATH as string),
     registryUrl: process.env.PUBLIC_REGISTRY_URL as string,
-    platform: process.env.PUBLIC_DREAMSYNC_BASE_URL as string,
+    platform: process.env.VITE_DREAMSYNC_BASE_URL as string,
 });
 
 // Map of junction tables to their parent entities

@@ -44,7 +44,7 @@ export class AuthController {
     getOffer = async (req: Request, res: Response) => {
         const url = new URL(
             "/api/auth",
-            process.env.PUBLIC_DREAMSYNC_BASE_URL,
+            process.env.VITE_DREAMSYNC_BASE_URL,
         ).toString();
         const sessionId = uuidv4();
         const offer = `w3ds://auth?redirect=${url}&session=${sessionId}&platform=dreamsync`;
@@ -73,10 +73,6 @@ export class AuthController {
                     message: "User must be created via eVault webhook before authentication" 
                 });
             }
-
-            // TODO: Verify signature if w3id and signature are provided
-            // For now, we'll accept the authentication without signature verification
-            // This should be implemented to verify the signature against the session data
 
             const token = signToken({ userId: user.id });
 

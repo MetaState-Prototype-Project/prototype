@@ -8,6 +8,7 @@ import {
     ManyToMany,
     JoinTable,
 } from "typeorm";
+import { Wishlist } from "./Wishlist";
 
 @Entity("users")
 export class User {
@@ -59,6 +60,9 @@ export class User {
         inverseJoinColumn: { name: "following_id", referencedColumnName: "id" },
     })
     following!: User[];
+
+    @OneToMany(() => Wishlist, (wishlist) => wishlist.user)
+    wishlists: Wishlist[];
 
     @CreateDateColumn()
     createdAt!: Date;
