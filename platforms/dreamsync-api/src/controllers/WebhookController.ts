@@ -1,19 +1,26 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
+import { MessageService } from "../services/MessageService";
+import { ConsentService } from "../services/ConsentService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
+import { Message } from "../database/entities/Message";
 import axios from "axios";
 
 export class WebhookController {
     userService: UserService;
     groupService: GroupService;
+    messageService: MessageService;
+    consentService: ConsentService;
     adapter: typeof adapter;
 
     constructor() {
         this.userService = new UserService();
         this.groupService = new GroupService();
+        this.messageService = new MessageService();
+        this.consentService = new ConsentService();
         this.adapter = adapter;
     }
 
@@ -174,6 +181,98 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for group:", group.id, "->", req.body.id);
+                }
+            } else if (mapping.tableName === "messages") {
+                console.log("Processing message with data:", local.data);
+
+                // Extract sender and group from the message data
+                let sender: User | null = null;
+                let group: Group | null = null;
+
+                if (local.data.sender && typeof local.data.sender === "string") {
+                    const senderId = local.data.sender.split("(")[1].split(")")[0];
+                    sender = await this.userService.getUserById(senderId);
+                }
+
+                if (local.data.group && typeof local.data.group === "string") {
+                    const groupId = local.data.group.split("(")[1].split(")")[0];
+                    group = await this.groupService.getGroupById(groupId);
+                }
+
+                // Check if this is a system message (no sender required)
+                const isSystemMessage = local.data.isSystemMessage === true || 
+                                     (local.data.text && typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
+
+                if (!group) {
+                    console.error("Group not found for message");
+                    return res.status(500).send();
+                }
+
+                // For system messages, sender can be null
+                if (!isSystemMessage && !sender) {
+                    console.error("Sender not found for non-system message");
+                    return res.status(500).send();
+                }
+
+                if (localId) {
+                    console.log("Updating existing message with localId:", localId);
+                    const message = await this.messageService.getMessageById(localId);
+                    if (!message) {
+                        console.error("Message not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    // For system messages, ensure the prefix is preserved
+                    if (isSystemMessage && !(local.data.text as string).startsWith('$$system-message$$')) {
+                        message.text = `$$system-message$$ ${local.data.text as string}`;
+                    } else {
+                        message.text = local.data.text as string;
+                    }
+                    message.sender = sender || undefined;
+                    message.group = group;
+                    message.isSystemMessage = isSystemMessage as boolean;
+
+                    this.adapter.addToLockedIds(localId);
+                    await this.messageService.messageRepository.save(message);
+                    console.log("Updated message:", message.id);
+                } else {
+                    console.log("Creating new message");
+                    let message: Message;
+                    
+                    if (isSystemMessage) {
+                        message = await this.messageService.createSystemMessageWithoutPrefix({
+                            text: local.data.text as string,
+                            groupId: group.id,
+                        });
+                    } else {
+                        message = await this.messageService.createMessage({
+                            text: local.data.text as string,
+                            senderId: sender!.id, // We know sender exists for non-system messages
+                            groupId: group.id,
+                        });
+                    }
+
+                    console.log("Created message with ID:", message.id);
+                    this.adapter.addToLockedIds(message.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: message.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Stored mapping for message:", message.id, "->", req.body.id);
+
+                    // Check if this is a consent response (non-system message with "yes")
+                    if (!isSystemMessage && message.text && message.text.toLowerCase().includes('yes')) {
+                        console.log("🤝 WEBHOOK: Processing potential consent response");
+                        try {
+                            await this.consentService.processConsentResponse(
+                                message.text,
+                                message.sender!.id,
+                                message.group.id
+                            );
+                        } catch (error) {
+                            console.error("Error processing consent response in webhook:", error);
+                        }
+                    }
                 }
             }
             res.status(200).send();

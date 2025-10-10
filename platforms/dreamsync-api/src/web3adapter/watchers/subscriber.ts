@@ -34,7 +34,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     private adapter: Web3Adapter;
 
     constructor() {
-        console.log("🚀 PostgresSubscriber constructor called - subscriber is being instantiated");
+        console.log("🚀 PostgresSubscriber constructor called - subscriber is being instantiated (updated)");
         this.adapter = adapter;
     }
 

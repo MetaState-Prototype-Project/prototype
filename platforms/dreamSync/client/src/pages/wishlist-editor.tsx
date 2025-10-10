@@ -143,7 +143,7 @@ export default function WishlistEditor() {
             <Sparkles className="w-8 h-8 text-blue-400" />
           </div>
           <p className="text-lg text-gray-300">
-            Welcome back, <span className="font-semibold text-white">{user?.ename}</span>!
+            Welcome back, <span className="font-semibold text-white">{user?.name}</span>!
           </p>
           <p className="text-sm text-gray-400 mt-2">
             {existingWishlist ? 'Edit your wishlist' : 'Create and share your dreams, goals, and what you can offer to the world'}

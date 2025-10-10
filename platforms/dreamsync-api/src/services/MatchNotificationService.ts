@@ -120,19 +120,24 @@ Match Details:
 Current User (receiving message): ${currentUser.ename || currentUser.name || "Unknown"}
 Other User (being matched with): ${otherUser.ename || otherUser.name || "Unknown"}
 
-IMPORTANT: When referencing users in your message, use the format {ename} where ename is their username (e.g., {john.doe} or {alice_smith}).
+IMPORTANT: 
+1. When referencing users in your message, use the format {Name} where Name is their display name (e.g., {John Doe} or {Alice Smith})
+2. Determine if this is a GROUP activity (chess, sports, group projects, events) or PERSONAL connection (babysitting, tutoring, personal services)
+3. Mention whether this could become a group interest or is a personal connection
 
 Write a professional message TO ${currentUser.name || currentUser.ename} that:
 1. Is concise and to the point (under 150 words)
 2. Explains the match reason clearly
 3. Mentions specific suggested activities
 4. Uses professional tone
-5. References users using {ename} format
-6. Encourages connection professionally
-7. Includes "Consider checking out their Blabsy and Pictique profiles" with proper HTML links
-8. Ends with "Best regards, DreamSync"
+5. References users using {Name} format (display names, not usernames)
+6. Indicates if this is a group activity or personal connection
+7. Encourages connection professionally
+8. Includes "Consider checking out their Blabsy and Pictique profiles" with proper HTML links
+9. Ends with "Best regards, DreamSync"
+10. Includes "Reply 'yes' to this message if you'd like to connect with {Name}"
 
-Example: "We found a potential match between you and {alice_smith} based on your shared interest in web development. Consider checking out their <a href='alice_smith'>Blabsy</a> and <a href='alice_smith'>Pictique</a> profiles to learn more about their work."
+Example: "We found a potential match between you and {Alice Smith} based on your shared interest in web development. This could be a great group collaboration opportunity. Consider checking out their <a href='alice_smith'>Blabsy</a> and <a href='alice_smith'>Pictique</a> profiles to learn more about their work. Reply 'yes' to this message if you'd like to connect with {Alice Smith}."
             `.trim();
 
             const response = await this.openai.chat.completions.create({
@@ -167,7 +172,7 @@ Example: "We found a potential match between you and {alice_smith} based on your
             const currentUser = userA.id === userId ? userA : userB;
             const otherUser = userA.id === userId ? userB : userA;
             
-            const fallbackMessage = `We found a potential match between you and {${otherUser.ename || "user2"}} based on your wishlist compatibility.
+            const fallbackMessage = `We found a potential match between you and {${otherUser.name || otherUser.ename || "user2"}} based on your wishlist compatibility.
 
 ${match.reason}
 
@@ -175,7 +180,7 @@ Suggested activities: ${match.matchData.suggestedActivities?.join(", ") || "Conn
 
 Consider checking out their <a href='placeholder'>Blabsy</a> and <a href='placeholder'>Pictique</a> profiles to learn more about their work.
 
-This could be a valuable professional connection. Consider reaching out to explore collaboration opportunities.
+Reply 'yes' to this message if you'd like to connect with {${otherUser.name || otherUser.ename || "user2"}}.
 
 Best regards,
 DreamSync`;
@@ -200,31 +205,31 @@ ${processedFallback}
         
         let processedMessage = message;
         
-        // Replace {userA.ename} with plain text name (only if it's not the current user)
-        if (userA.ename && userA.id !== userId) {
+        // Replace {userA.name} with plain text name (only if it's not the current user)
+        if (userA.name && userA.id !== userId) {
             processedMessage = processedMessage.replace(
-                new RegExp(`\\{${userA.ename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
-                userA.name || userA.ename
+                new RegExp(`\\{${userA.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
+                userA.name
             );
-        } else if (userA.ename && userA.id === userId) {
+        } else if (userA.name && userA.id === userId) {
             // If it's the current user, just show their name without link
             processedMessage = processedMessage.replace(
-                new RegExp(`\\{${userA.ename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
-                userA.name || userA.ename
+                new RegExp(`\\{${userA.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
+                userA.name
             );
         }
         
-        // Replace {userB.ename} with plain text name (only if it's not the current user)
-        if (userB.ename && userB.id !== userId) {
+        // Replace {userB.name} with plain text name (only if it's not the current user)
+        if (userB.name && userB.id !== userId) {
             processedMessage = processedMessage.replace(
-                new RegExp(`\\{${userB.ename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
-                userB.name || userB.ename
+                new RegExp(`\\{${userB.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
+                userB.name
             );
-        } else if (userB.ename && userB.id === userId) {
+        } else if (userB.name && userB.id === userId) {
             // If it's the current user, just show their name without link
             processedMessage = processedMessage.replace(
-                new RegExp(`\\{${userB.ename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
-                userB.name || userB.ename
+                new RegExp(`\\{${userB.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'),
+                userB.name
             );
         }
         
@@ -349,6 +354,13 @@ ${processedFallback}
     async processMatch(match: Match): Promise<void> {
         try {
             console.log(`🔄 Processing match: ${match.id}`);
+            
+            // Mark match as inactive by default until both users consent
+            const matchRepository = AppDataSource.getRepository(Match);
+            match.isActive = false;
+            match.userAConsent = false;
+            match.userBConsent = false;
+            await matchRepository.save(match);
             
             // Send notifications to both users
             await this.sendMatchNotification(match);
