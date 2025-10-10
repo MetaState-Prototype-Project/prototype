@@ -71,8 +71,8 @@ export function ImageModal({
                 key === 'ArrowLeft'
                     ? handleNextIndex('prev')
                     : key === 'ArrowRight'
-                        ? handleNextIndex('next')
-                        : null;
+                    ? handleNextIndex('next')
+                    : null;
 
             if (callback) callback();
         };
@@ -103,9 +103,7 @@ export function ImageModal({
                     <motion.div
                         className='mx-auto'
                         {...backdrop}
-                        exit={
-                            tweet ? (backdrop.exit as any) : undefined
-                        }
+                        exit={tweet ? (backdrop.exit as any) : undefined}
                         transition={{ duration: 0.15 }}
                     >
                         <Loading iconClassName='w-20 h-20' />

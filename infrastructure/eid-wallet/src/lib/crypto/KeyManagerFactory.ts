@@ -1,7 +1,7 @@
-import type { KeyManager, KeyManagerConfig } from './types';
-import { HardwareKeyManager } from './HardwareKeyManager';
-import { SoftwareKeyManager } from './SoftwareKeyManager';
-import { KeyManagerError, KeyManagerErrorCodes } from './types';
+import type { KeyManager, KeyManagerConfig } from "./types";
+import { HardwareKeyManager } from "./HardwareKeyManager";
+import { SoftwareKeyManager } from "./SoftwareKeyManager";
+import { KeyManagerError, KeyManagerErrorCodes } from "./types";
 
 /**
  * Factory class to create appropriate key managers based on context
@@ -21,7 +21,7 @@ export class KeyManagerFactory {
 
         // If in pre-verification mode, always use software keys
         if (config.preVerificationMode) {
-            console.log('Using software key manager for pre-verification mode');
+            console.log("Using software key manager for pre-verification mode");
             return this.getSoftwareKeyManager();
         }
 
@@ -30,10 +30,12 @@ export class KeyManagerFactory {
             const hardwareManager = this.getHardwareKeyManager();
             // Test if hardware is available by checking if we can call exists
             await hardwareManager.exists(config.keyId);
-            console.log('Using hardware key manager');
+            console.log("Using hardware key manager");
             return hardwareManager;
         } catch (error) {
-            console.log('Hardware key manager not available, falling back to software');
+            console.log(
+                "Hardware key manager not available, falling back to software",
+            );
             return this.getSoftwareKeyManager();
         }
     }
@@ -65,10 +67,10 @@ export class KeyManagerFactory {
         try {
             const hardwareManager = this.getHardwareKeyManager();
             // Try to check if a test key exists to verify hardware availability
-            await hardwareManager.exists('test-hardware-check');
+            await hardwareManager.exists("test-hardware-check");
             return true;
         } catch (error) {
-            console.log('Hardware key manager not available:', error);
+            console.log("Hardware key manager not available:", error);
             return false;
         }
     }
@@ -78,12 +80,12 @@ export class KeyManagerFactory {
      */
     static async getKeyManagerForContext(
         keyId: string,
-        context: 'onboarding' | 'signing' | 'verification' | 'pre-verification'
+        context: "onboarding" | "signing" | "verification" | "pre-verification",
     ): Promise<KeyManager> {
         const config: KeyManagerConfig = {
             keyId,
-            useHardware: context !== 'pre-verification',
-            preVerificationMode: context === 'pre-verification',
+            useHardware: context !== "pre-verification",
+            preVerificationMode: context === "pre-verification",
         };
 
         return this.getKeyManager(config);

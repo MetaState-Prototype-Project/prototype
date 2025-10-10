@@ -86,8 +86,8 @@ export function ImagePreview({
                     ? actualPreviewCount - 1
                     : selectedIndex - 1
                 : selectedIndex === actualPreviewCount - 1
-                    ? 0
-                    : selectedIndex + 1;
+                ? 0
+                : selectedIndex + 1;
 
         setSelectedIndex(nextIndex);
     };
@@ -132,13 +132,17 @@ export function ImagePreview({
                             className={cn(
                                 'accent-tab group relative transition-shadow',
                                 isTweet
-                                    ? postImageBorderRadius[actualPreviewCount]?.[index] || 'rounded-2xl'
+                                    ? postImageBorderRadius[
+                                          actualPreviewCount
+                                      ]?.[index] || 'rounded-2xl'
                                     : 'rounded-2xl',
                                 {
-                                    'col-span-2 row-span-2': actualPreviewCount === 1,
+                                    'col-span-2 row-span-2':
+                                        actualPreviewCount === 1,
                                     'row-span-2':
                                         actualPreviewCount === 2 ||
-                                        (index === 0 && actualPreviewCount === 3)
+                                        (index === 0 &&
+                                            actualPreviewCount === 3)
                                 }
                             )}
                             {...variants}
@@ -167,8 +171,8 @@ export function ImagePreview({
                        hover:brightness-75 hover:duration-200`,
                                             isTweet
                                                 ? postImageBorderRadius[
-                                                actualPreviewCount
-                                                ]?.[index] || 'rounded-2xl'
+                                                      actualPreviewCount
+                                                  ]?.[index] || 'rounded-2xl'
                                                 : 'rounded-2xl'
                                         )}
                                         src={src}
@@ -183,8 +187,8 @@ export function ImagePreview({
                                     imgClassName={cn(
                                         isTweet
                                             ? postImageBorderRadius[
-                                            actualPreviewCount
-                                            ]?.[index] || 'rounded-2xl'
+                                                  actualPreviewCount
+                                              ]?.[index] || 'rounded-2xl'
                                             : 'rounded-2xl'
                                     )}
                                     previewCount={actualPreviewCount}

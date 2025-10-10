@@ -7,10 +7,7 @@ type LoadingProps = {
     iconClassName?: string;
 };
 
-export const Loading: FC<LoadingProps> = ({
-    className,
-    iconClassName
-}) => {
+export const Loading: FC<LoadingProps> = ({ className, iconClassName }) => {
     return (
         <i className={cn('flex justify-center', className ?? 'p-4')}>
             <CustomIcon

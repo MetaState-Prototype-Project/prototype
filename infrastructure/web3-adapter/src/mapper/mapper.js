@@ -14,7 +14,9 @@ function getValueByPath(obj, path) {
         }
         // If there's a field path after [], map through the array
         if (fieldPath) {
-            return array.map((item) => getValueByPath(item, fieldPath.slice(1))); // Remove the leading dot
+            return array.map((item) =>
+                getValueByPath(item, fieldPath.slice(1)),
+            ); // Remove the leading dot
         }
         return array;
     }
@@ -22,8 +24,7 @@ function getValueByPath(obj, path) {
     const parts = path.split(".");
     // biome-ignore lint/suspicious/noExplicitAny: <explanation>
     return parts.reduce((acc, part) => {
-        if (acc === null || acc === undefined)
-            return undefined;
+        if (acc === null || acc === undefined) return undefined;
         return acc[part];
     }, obj);
 }
@@ -45,22 +46,33 @@ async function extractOwnerEvault(data, ownerEnamePath) {
     }
     // Check if the path contains fallback operator (||)
     if (ownerEnamePath.includes("||")) {
-        const paths = ownerEnamePath.split("||").map(path => path.trim()).filter(path => path.length > 0);
+        const paths = ownerEnamePath
+            .split("||")
+            .map((path) => path.trim())
+            .filter((path) => path.length > 0);
         if (paths.length < 2) {
-            console.warn("Invalid fallback path format. Expected 'path1||path2' but got:", ownerEnamePath);
+            console.warn(
+                "Invalid fallback path format. Expected 'path1||path2' but got:",
+                ownerEnamePath,
+            );
             return null;
         }
-        console.log(`Processing fallback paths for owner eVault: [${paths.join(", ")}]`);
+        console.log(
+            `Processing fallback paths for owner eVault: [${paths.join(", ")}]`,
+        );
         // Try each path in order until one succeeds
         for (let i = 0; i < paths.length; i++) {
             const path = paths[i];
-            console.log(`Trying fallback path ${i + 1}/${paths.length}: ${path}`);
+            console.log(
+                `Trying fallback path ${i + 1}/${paths.length}: ${path}`,
+            );
             const result = await extractOwnerEvaultSinglePath(data, path);
             if (result !== null) {
-                console.log(`✅ Owner eVault found using fallback path ${i + 1}: ${path}`);
+                console.log(
+                    `✅ Owner eVault found using fallback path ${i + 1}: ${path}`,
+                );
                 return result;
-            }
-            else {
+            } else {
                 console.log(`❌ Fallback path ${i + 1} failed: ${path}`);
             }
         }
@@ -82,18 +94,23 @@ async function extractOwnerEvaultSinglePath(data, ownerEnamePath) {
     const [_, fieldPathRaw] = ownerEnamePath.split("(");
     const fieldPath = fieldPathRaw.replace(")", "");
     let value = getValueByPath(data, fieldPath);
-    if (Array.isArray(value))
-        return value[0];
+    if (Array.isArray(value)) return value[0];
     console.log("OWNER PATH", value);
     // Check if value is a string before calling .includes()
-    if (typeof value === "string" && value.includes("(") && value.includes(")")) {
+    if (
+        typeof value === "string" &&
+        value.includes("(") &&
+        value.includes(")")
+    ) {
         value = value.split("(")[1].split(")")[0];
     }
     return value || null;
 }
-async function fromGlobal({ data, mapping, mappingStore, }) {
+async function fromGlobal({ data, mapping, mappingStore }) {
     const result = {};
-    for (const [localKey, globalPathRaw] of Object.entries(mapping.localToUniversalMap)) {
+    for (const [localKey, globalPathRaw] of Object.entries(
+        mapping.localToUniversalMap,
+    )) {
         let value;
         const targetKey = localKey;
         let tableRef = null;
@@ -103,42 +120,43 @@ async function fromGlobal({ data, mapping, mappingStore, }) {
             if (outerFn === "date") {
                 const calcMatch = innerExpr.match(/^calc\((.+)\)$/);
                 if (calcMatch) {
-                    const calcResult = evaluateCalcExpression(calcMatch[1], data);
+                    const calcResult = evaluateCalcExpression(
+                        calcMatch[1],
+                        data,
+                    );
                     value =
                         calcResult !== undefined
                             ? new Date(calcResult).toISOString()
                             : undefined;
-                }
-                else {
+                } else {
                     const rawVal = getValueByPath(data, innerExpr);
                     if (typeof rawVal === "number") {
                         value = new Date(rawVal).toISOString();
-                    }
-                    else if (rawVal?._seconds) {
+                    } else if (rawVal?._seconds) {
                         // Handle Firebase v8 timestamp format
                         value = new Date(rawVal._seconds * 1000).toISOString();
-                    }
-                    else if (rawVal?.seconds) {
+                    } else if (rawVal?.seconds) {
                         // Handle Firebase v9+ timestamp format
                         value = new Date(rawVal.seconds * 1000).toISOString();
-                    }
-                    else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                    } else if (
+                        rawVal?.toDate &&
+                        typeof rawVal.toDate === "function"
+                    ) {
                         // Handle Firebase Timestamp objects
                         value = rawVal.toDate().toISOString();
-                    }
-                    else if (rawVal instanceof Date) {
+                    } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
-                    }
-                    else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                    } else if (
+                        typeof rawVal === "string" &&
+                        rawVal.includes("UTC")
+                    ) {
                         // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
                         value = new Date(rawVal).toISOString();
-                    }
-                    else {
+                    } else {
                         value = undefined;
                     }
                 }
-            }
-            else if (outerFn === "calc") {
+            } else if (outerFn === "calc") {
                 value = evaluateCalcExpression(innerExpr, data);
             }
             result[targetKey] = value;
@@ -154,12 +172,13 @@ async function fromGlobal({ data, mapping, mappingStore, }) {
         value = getValueByPath(data, pathRef);
         if (tableRef) {
             if (Array.isArray(value)) {
-                value = await Promise.all(value.map(async (v) => {
-                    const localId = await mappingStore.getLocalId(v);
-                    return localId ? `${tableRef}(${localId})` : null;
-                }));
-            }
-            else {
+                value = await Promise.all(
+                    value.map(async (v) => {
+                        const localId = await mappingStore.getLocalId(v);
+                        return localId ? `${tableRef}(${localId})` : null;
+                    }),
+                );
+            } else {
                 value = await mappingStore.getLocalId(value);
                 value = value ? `${tableRef}(${value})` : null;
             }
@@ -170,9 +189,11 @@ async function fromGlobal({ data, mapping, mappingStore, }) {
         data: result,
     };
 }
-function evaluateCalcExpression(expr, 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-context) {
+function evaluateCalcExpression(
+    expr,
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    context,
+) {
     const tokens = expr
         .split(/[^\w.]+/)
         .map((t) => t.trim())
@@ -181,19 +202,23 @@ context) {
     for (const token of tokens) {
         const value = getValueByPath(context, token);
         if (typeof value !== "undefined") {
-            resolvedExpr = resolvedExpr.replace(new RegExp(`\\b${token.replace(".", "\\.")}\\b`, "g"), value);
+            resolvedExpr = resolvedExpr.replace(
+                new RegExp(`\\b${token.replace(".", "\\.")}\\b`, "g"),
+                value,
+            );
         }
     }
     try {
         return Function(`use strict"; return (${resolvedExpr})`)();
-    }
-    catch {
+    } catch {
         return undefined;
     }
 }
-async function toGlobal({ data, mapping, mappingStore, }) {
+async function toGlobal({ data, mapping, mappingStore }) {
     const result = {};
-    for (const [localKey, globalPathRaw] of Object.entries(mapping.localToUniversalMap)) {
+    for (const [localKey, globalPathRaw] of Object.entries(
+        mapping.localToUniversalMap,
+    )) {
         // biome-ignore lint/suspicious/noExplicitAny: <explanation>
         let value;
         let targetKey = globalPathRaw;
@@ -219,42 +244,43 @@ async function toGlobal({ data, mapping, mappingStore, }) {
             if (outerFn === "date") {
                 const calcMatch = innerExpr.match(/^calc\((.+)\)$/);
                 if (calcMatch) {
-                    const calcResult = evaluateCalcExpression(calcMatch[1], data);
+                    const calcResult = evaluateCalcExpression(
+                        calcMatch[1],
+                        data,
+                    );
                     value =
                         calcResult !== undefined
                             ? new Date(calcResult).toISOString()
                             : undefined;
-                }
-                else {
+                } else {
                     const rawVal = getValueByPath(data, innerExpr);
                     if (typeof rawVal === "number") {
                         value = new Date(rawVal).toISOString();
-                    }
-                    else if (rawVal?._seconds) {
+                    } else if (rawVal?._seconds) {
                         // Handle Firebase v8 timestamp format
                         value = new Date(rawVal._seconds * 1000).toISOString();
-                    }
-                    else if (rawVal?.seconds) {
+                    } else if (rawVal?.seconds) {
                         // Handle Firebase v9+ timestamp format
                         value = new Date(rawVal.seconds * 1000).toISOString();
-                    }
-                    else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                    } else if (
+                        rawVal?.toDate &&
+                        typeof rawVal.toDate === "function"
+                    ) {
                         // Handle Firebase Timestamp objects
                         value = rawVal.toDate().toISOString();
-                    }
-                    else if (rawVal instanceof Date) {
+                    } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
-                    }
-                    else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                    } else if (
+                        typeof rawVal === "string" &&
+                        rawVal.includes("UTC")
+                    ) {
                         // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
                         value = new Date(rawVal).toISOString();
-                    }
-                    else {
+                    } else {
                         value = undefined;
                     }
                 }
-            }
-            else if (outerFn === "calc") {
+            } else if (outerFn === "calc") {
                 value = evaluateCalcExpression(innerExpr, data);
             }
             result[targetKey] = value;
@@ -268,16 +294,13 @@ async function toGlobal({ data, mapping, mappingStore, }) {
                 value = Array.isArray(refValue)
                     ? refValue.map((v) => `@${v}`)
                     : [];
-            }
-            else {
+            } else {
                 value = refValue ? `@${refValue}` : undefined;
             }
             result[targetKey] = value;
             continue;
         }
-        let pathRef = globalPathRaw.includes(",")
-            ? globalPathRaw
-            : localKey;
+        let pathRef = globalPathRaw.includes(",") ? globalPathRaw : localKey;
         let tableRef = null;
         if (globalPathRaw.includes("(") && globalPathRaw.includes(")")) {
             pathRef = globalPathRaw.split("(")[1].split(")")[0];
@@ -289,9 +312,13 @@ async function toGlobal({ data, mapping, mappingStore, }) {
         value = getValueByPath(data, pathRef);
         if (tableRef) {
             if (Array.isArray(value)) {
-                value = await Promise.all(value.map(async (v) => (await mappingStore.getGlobalId(v)) ?? undefined));
-            }
-            else {
+                value = await Promise.all(
+                    value.map(
+                        async (v) =>
+                            (await mappingStore.getGlobalId(v)) ?? undefined,
+                    ),
+                );
+            } else {
                 value = (await mappingStore.getGlobalId(value)) ?? undefined;
             }
         }

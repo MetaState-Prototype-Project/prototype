@@ -1,198 +1,193 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import {
-        PUBLIC_PROVISIONER_URL,
-        PUBLIC_REGISTRY_URL,
-    } from "$env/static/public";
-    import { Hero } from "$lib/fragments";
-    import { GlobalState } from "$lib/global";
-    import { ButtonAction, Drawer } from "$lib/ui";
-    import { capitalize } from "$lib/utils";
-    import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
-    import * as falso from "@ngneat/falso";
-    import axios from "axios";
-    import { getContext, onMount } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import { v4 as uuidv4 } from "uuid";
+import { goto } from "$app/navigation";
+import {
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_REGISTRY_URL,
+} from "$env/static/public";
+import { Hero } from "$lib/fragments";
+import { GlobalState } from "$lib/global";
+import { ButtonAction, Drawer } from "$lib/ui";
+import { capitalize } from "$lib/utils";
+import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
+import * as falso from "@ngneat/falso";
+import axios from "axios";
+import { getContext, onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import { v4 as uuidv4 } from "uuid";
 
-    let isPaneOpen = $state(false);
-    let preVerified = $state(false);
-    let loading = $state(false);
-    let verificationId = $state("");
-    let demoName = $state("");
-    let verificationSuccess = $state(false);
-    let keyManager: KeyManager | null = $state(null);
+let isPaneOpen = $state(false);
+let preVerified = $state(false);
+let loading = $state(false);
+let verificationId = $state("");
+let demoName = $state("");
+let verificationSuccess = $state(false);
+let keyManager: KeyManager | null = $state(null);
 
-    const handleGetStarted = async () => {
-        //get started functionality
-        isPaneOpen = true;
-        preVerified = false;
-    };
+const handleGetStarted = async () => {
+    //get started functionality
+    isPaneOpen = true;
+    preVerified = false;
+};
 
-    const handlePreVerified = () => {
-        isPaneOpen = true;
-        preVerified = true;
-    };
+const handlePreVerified = () => {
+    isPaneOpen = true;
+    preVerified = true;
+};
 
-    function generatePassportNumber() {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const randomLetters = () =>
-            letters.charAt(Math.floor(Math.random() * letters.length)) +
-            letters.charAt(Math.floor(Math.random() * letters.length));
-        const randomDigits = () =>
-            String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
+function generatePassportNumber() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const randomLetters = () =>
+        letters.charAt(Math.floor(Math.random() * letters.length)) +
+        letters.charAt(Math.floor(Math.random() * letters.length));
+    const randomDigits = () =>
+        String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
 
-        return randomLetters() + randomDigits();
+    return randomLetters() + randomDigits();
+}
+
+// Initialize key manager based on context
+async function initializeKeyManager() {
+    try {
+        const context = preVerified ? "pre-verification" : "onboarding";
+        keyManager = await KeyManagerFactory.getKeyManagerForContext(
+            "default",
+            context,
+        );
+        console.log(`Key manager initialized: ${keyManager.getType()}`);
+        return keyManager;
+    } catch (error) {
+        console.error("Failed to initialize key manager:", error);
+        throw error;
+    }
+}
+
+async function generateApplicationKeyPair() {
+    if (!keyManager) {
+        await initializeKeyManager();
     }
 
-    // Initialize key manager based on context
-    async function initializeKeyManager() {
-        try {
-            const context = preVerified ? "pre-verification" : "onboarding";
-            keyManager = await KeyManagerFactory.getKeyManagerForContext(
-                "default",
-                context,
-            );
-            console.log(`Key manager initialized: ${keyManager.getType()}`);
-            return keyManager;
-        } catch (error) {
-            console.error("Failed to initialize key manager:", error);
-            throw error;
-        }
+    try {
+        const res = await keyManager!.generate("default");
+        console.log("Key generation result:", res);
+        return res;
+    } catch (e) {
+        console.error("Key generation failed:", e);
+        throw e;
+    }
+}
+
+async function getApplicationPublicKey() {
+    if (!keyManager) {
+        await initializeKeyManager();
     }
 
-    async function generateApplicationKeyPair() {
-        if (!keyManager) {
-            await initializeKeyManager();
-        }
-
-        try {
-            const res = await keyManager!.generate("default");
-            console.log("Key generation result:", res);
-            return res;
-        } catch (e) {
-            console.error("Key generation failed:", e);
-            throw e;
-        }
+    try {
+        const res = await keyManager!.getPublicKey("default");
+        console.log("Public key retrieved:", res);
+        return res;
+    } catch (e) {
+        console.error("Public key retrieval failed:", e);
+        throw e;
     }
+}
 
-    async function getApplicationPublicKey() {
-        if (!keyManager) {
-            await initializeKeyManager();
+const handleNext = async () => {
+    //handle next functionlity
+    goto("/verify");
+};
+
+let globalState: GlobalState;
+let handleContinue: () => Promise<void> | void;
+let handleFinalSubmit: () => Promise<void> | void;
+let ename: string;
+let uri: string;
+
+let error: string | null = $state(null);
+
+onMount(async () => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    // handle verification logic + sec user data in the store
+
+    // Don't initialize key manager here - wait until user chooses their path
+
+    handleContinue = async () => {
+        loading = true;
+        error = null;
+
+        // Initialize key manager for pre-verification context
+        await initializeKeyManager();
+        const keyExists = await keyManager!.exists("default");
+        if (!keyExists) {
+            await generateApplicationKeyPair();
         }
 
-        try {
-            const res = await keyManager!.getPublicKey("default");
-            console.log("Public key retrieved:", res);
-            return res;
-        } catch (e) {
-            console.error("Public key retrieval failed:", e);
-            throw e;
-        }
-    }
+        const {
+            data: { token: registryEntropy },
+        } = await axios.get(
+            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+        );
 
-    const handleNext = async () => {
-        //handle next functionlity
-        goto("/verify");
-    };
-
-    let globalState: GlobalState;
-    let handleContinue: () => Promise<void> | void;
-    let handleFinalSubmit: () => Promise<void> | void;
-    let ename: string;
-    let uri: string;
-
-    let error: string | null = $state(null);
-
-    onMount(async () => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        // handle verification logic + sec user data in the store
-
-        // Don't initialize key manager here - wait until user chooses their path
-
-        handleContinue = async () => {
-            loading = true;
-            error = null;
-
-            // Initialize key manager for pre-verification context
-            await initializeKeyManager();
-            const keyExists = await keyManager!.exists("default");
-            if (!keyExists) {
-                await generateApplicationKeyPair();
-            }
-
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-
-            const { data } = await axios
-                .post(
-                    new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                    {
-                        registryEntropy,
-                        namespace: uuidv4(),
-                        verificationId,
-                        publicKey: await getApplicationPublicKey(),
-                    },
-                )
-                .catch(() => {
-                    loading = false;
-                    console.log("caught");
-                    preVerified = false;
-                    verificationId = "";
-                    error = "Wrong pre-verificaiton code";
-                    setTimeout(() => {
-                        error = null;
-                    }, 6_000);
-                    return { data: null };
-                });
-            if (!data) return;
-
-            // If verification is successful, show demo name input
-            if (data.success === true) {
+        const { data } = await axios
+            .post(new URL("/provision", PUBLIC_PROVISIONER_URL).toString(), {
+                registryEntropy,
+                namespace: uuidv4(),
+                verificationId,
+                publicKey: await getApplicationPublicKey(),
+            })
+            .catch(() => {
                 loading = false;
-                verificationSuccess = true;
-                uri = data.uri;
-                ename = data.w3id;
-            }
+                console.log("caught");
+                preVerified = false;
+                verificationId = "";
+                error = "Wrong pre-verificaiton code";
+                setTimeout(() => {
+                    error = null;
+                }, 6_000);
+                return { data: null };
+            });
+        if (!data) return;
+
+        // If verification is successful, show demo name input
+        if (data.success === true) {
+            loading = false;
+            verificationSuccess = true;
+            uri = data.uri;
+            ename = data.w3id;
+        }
+    };
+
+    // New function to handle final submission with demo name
+    handleFinalSubmit = async () => {
+        loading = true;
+
+        const tenYearsLater = new Date();
+        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+        globalState.userController.user = {
+            name:
+                demoName ||
+                capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
+            "Date of Birth": new Date().toDateString(),
+            "ID submitted": `Passport - ${falso.randCountryCode()}`,
+            "Passport Number": generatePassportNumber(),
+        };
+        globalState.userController.isFake = true;
+        globalState.userController.document = {
+            "Valid From": new Date(Date.now()).toDateString(),
+            "Valid Until": tenYearsLater.toDateString(),
+            "Verified On": new Date().toDateString(),
         };
 
-        // New function to handle final submission with demo name
-        handleFinalSubmit = async () => {
-            loading = true;
-
-            const tenYearsLater = new Date();
-            tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-            globalState.userController.user = {
-                name:
-                    demoName ||
-                    capitalize(
-                        `${falso.randFirstName()} ${falso.randLastName()}`,
-                    ),
-                "Date of Birth": new Date().toDateString(),
-                "ID submitted": `Passport - ${falso.randCountryCode()}`,
-                "Passport Number": generatePassportNumber(),
-            };
-            globalState.userController.isFake = true;
-            globalState.userController.document = {
-                "Valid From": new Date(Date.now()).toDateString(),
-                "Valid Until": tenYearsLater.toDateString(),
-                "Verified On": new Date().toDateString(),
-            };
-
-            // Set vault in controller - this will trigger profile creation with retry logic
-            globalState.vaultController.vault = {
-                uri,
-                ename,
-            };
-
-            setTimeout(() => {
-                goto("/register");
-            }, 10_000);
+        // Set vault in controller - this will trigger profile creation with retry logic
+        globalState.vaultController.vault = {
+            uri,
+            ename,
         };
-    });
+
+        setTimeout(() => {
+            goto("/register");
+        }, 10_000);
+    };
+});
 </script>
 
 <main

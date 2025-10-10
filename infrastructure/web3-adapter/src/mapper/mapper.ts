@@ -36,7 +36,7 @@ export function getValueByPath(obj: Record<string, any>, path: string): any {
 /**
  * Extracts the owner eVault from data using the specified path(s).
  * Supports fallback paths using the || operator.
- * 
+ *
  * @param data - The data object to extract from
  * @param ownerEnamePath - The path(s) to extract from. Can be:
  *   - Single path: "owner.ename"
@@ -55,29 +55,41 @@ async function extractOwnerEvault(
 
     // Check if the path contains fallback operator (||)
     if (ownerEnamePath.includes("||")) {
-        const paths = ownerEnamePath.split("||").map(path => path.trim()).filter(path => path.length > 0);
-        
+        const paths = ownerEnamePath
+            .split("||")
+            .map((path) => path.trim())
+            .filter((path) => path.length > 0);
+
         if (paths.length < 2) {
-            console.warn("Invalid fallback path format. Expected 'path1||path2' but got:", ownerEnamePath);
+            console.warn(
+                "Invalid fallback path format. Expected 'path1||path2' but got:",
+                ownerEnamePath,
+            );
             return null;
         }
-        
-        console.log(`Processing fallback paths for owner eVault: [${paths.join(", ")}]`);
-        
+
+        console.log(
+            `Processing fallback paths for owner eVault: [${paths.join(", ")}]`,
+        );
+
         // Try each path in order until one succeeds
         for (let i = 0; i < paths.length; i++) {
             const path = paths[i];
-            console.log(`Trying fallback path ${i + 1}/${paths.length}: ${path}`);
-            
+            console.log(
+                `Trying fallback path ${i + 1}/${paths.length}: ${path}`,
+            );
+
             const result = await extractOwnerEvaultSinglePath(data, path);
             if (result !== null) {
-                console.log(`✅ Owner eVault found using fallback path ${i + 1}: ${path}`);
+                console.log(
+                    `✅ Owner eVault found using fallback path ${i + 1}: ${path}`,
+                );
                 return result;
             } else {
                 console.log(`❌ Fallback path ${i + 1} failed: ${path}`);
             }
         }
-        
+
         // If all paths fail, return null
         console.log("❌ All fallback paths failed for owner eVault");
         return null;
@@ -104,12 +116,16 @@ async function extractOwnerEvaultSinglePath(
     let value = getValueByPath(data, fieldPath);
     if (Array.isArray(value)) return value[0];
     console.log("OWNER PATH", value);
-    
+
     // Check if value is a string before calling .includes()
-    if (typeof value === "string" && value.includes("(") && value.includes(")")) {
+    if (
+        typeof value === "string" &&
+        value.includes("(") &&
+        value.includes(")")
+    ) {
         value = value.split("(")[1].split(")")[0];
     }
-    
+
     return (value as string) || null;
 }
 
@@ -152,12 +168,18 @@ export async function fromGlobal({
                     } else if (rawVal?.seconds) {
                         // Handle Firebase v9+ timestamp format
                         value = new Date(rawVal.seconds * 1000).toISOString();
-                    } else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                    } else if (
+                        rawVal?.toDate &&
+                        typeof rawVal.toDate === "function"
+                    ) {
                         // Handle Firebase Timestamp objects
                         value = rawVal.toDate().toISOString();
                     } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
-                    } else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                    } else if (
+                        typeof rawVal === "string" &&
+                        rawVal.includes("UTC")
+                    ) {
                         // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
                         value = new Date(rawVal).toISOString();
                     } else {
@@ -290,12 +312,18 @@ export async function toGlobal({
                     } else if (rawVal?.seconds) {
                         // Handle Firebase v9+ timestamp format
                         value = new Date(rawVal.seconds * 1000).toISOString();
-                    } else if (rawVal?.toDate && typeof rawVal.toDate === 'function') {
+                    } else if (
+                        rawVal?.toDate &&
+                        typeof rawVal.toDate === "function"
+                    ) {
                         // Handle Firebase Timestamp objects
                         value = rawVal.toDate().toISOString();
                     } else if (rawVal instanceof Date) {
                         value = rawVal.toISOString();
-                    } else if (typeof rawVal === 'string' && rawVal.includes('UTC')) {
+                    } else if (
+                        typeof rawVal === "string" &&
+                        rawVal.includes("UTC")
+                    ) {
                         // Handle Firebase timestamp strings like "August 18, 2025 at 10:03:19 AM UTC+5:30"
                         value = new Date(rawVal).toISOString();
                     } else {

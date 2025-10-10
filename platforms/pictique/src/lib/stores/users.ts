@@ -25,14 +25,16 @@ export const searchUsers = async (query: string) => {
 		searchError.set(null);
 		// Convert query to lowercase for case-insensitive search
 		const lowercaseQuery = query.toLowerCase();
-		const response = await apiClient.get(`/api/users/search?q=${encodeURIComponent(lowercaseQuery)}`);
-		
+		const response = await apiClient.get(
+			`/api/users/search?q=${encodeURIComponent(lowercaseQuery)}`
+		);
+
 		// Filter results to only show users whose names match the query
 		// This ensures we only search by name, not username or ename
-		const filteredResults = response.data.filter((user: any) => 
-			user.name && user.name.toLowerCase().includes(lowercaseQuery)
+		const filteredResults = response.data.filter(
+			(user: any) => user.name && user.name.toLowerCase().includes(lowercaseQuery)
 		);
-		
+
 		searchResults.set(filteredResults);
 	} catch (err) {
 		searchError.set(err instanceof Error ? err.message : 'Failed to search users');

@@ -22,10 +22,7 @@ const Icons: Record<string, React.ComponentType<IconProps>> = {
     TriangleIcon
 };
 
-export function CustomIcon({
-    iconName,
-    className
-}: CustomIconProps) {
+export function CustomIcon({ iconName, className }: CustomIconProps) {
     const Icon = Icons[iconName];
 
     return <Icon className={className ?? 'h-6 w-6'} />;

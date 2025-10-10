@@ -32,25 +32,32 @@ function MessageItem({
     userData?: User | null;
 }): JSX.Element {
     // Check if this is a system message
-    const isSystemMessage = !message.senderId || message.text.startsWith('$$system-message$$');
+    const isSystemMessage =
+        !message.senderId || message.text.startsWith('$$system-message$$');
     // Remove the prefix for display
-    const displayText = isSystemMessage && message.text.startsWith('$$system-message$$')
-        ? message.text.replace('$$system-message$$', '').trim()
-        : message.text;
-
-
+    const displayText =
+        isSystemMessage && message.text.startsWith('$$system-message$$')
+            ? message.text.replace('$$system-message$$', '').trim()
+            : message.text;
 
     if (isSystemMessage) {
         return (
-            <div className="flex w-full justify-center my-4">
-                <div className="max-w-[80%] text-center">
-                    <div className="inline-block rounded-[10px] bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-left">
-                            <div dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
+            <div className='flex w-full justify-center my-4'>
+                <div className='max-w-[80%] text-center'>
+                    <div className='inline-block rounded-[10px] bg-gray-100 dark:bg-gray-800 px-4 py-2'>
+                        <div className='text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-left'>
+                            <div
+                                dangerouslySetInnerHTML={{
+                                    __html: displayText.replace(
+                                        /<a href="([^"]+)">([^<]+)<\/a>/g,
+                                        '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                                    )
+                                }}
+                            />
                         </div>
                     </div>
                     {showTime && message.createdAt?.toDate && (
-                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        <p className='mt-1 text-xs text-gray-400 dark:text-gray-500'>
                             {formatDistanceToNow(message.createdAt.toDate(), {
                                 addSuffix: true
                             })}
@@ -63,12 +70,14 @@ function MessageItem({
 
     return (
         <div
-            className={`flex w-full ${isOwnMessage ? 'justify-end' : 'justify-start'
-                }`}
+            className={`flex w-full ${
+                isOwnMessage ? 'justify-end' : 'justify-start'
+            }`}
         >
             <div
-                className={`flex max-w-[70%] ${isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'
-                    } gap-1`}
+                className={`flex max-w-[70%] ${
+                    isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'
+                } gap-1`}
             >
                 {/* User Avatar and Name - Above the message */}
                 {!isOwnMessage && showUserInfo && (
@@ -98,16 +107,26 @@ function MessageItem({
 
                 {/* Message Bubble */}
                 <div
-                    className={`rounded-2xl px-4 py-2 ${isOwnMessage
-                        ? 'bg-[#333399] text-white'
-                        : 'bg-[#6600ff] text-white'
-                        } ${!isOwnMessage ? 'ml-8' : ''}`}
+                    className={`rounded-2xl px-4 py-2 ${
+                        isOwnMessage
+                            ? 'bg-[#333399] text-white'
+                            : 'bg-[#6600ff] text-white'
+                    } ${!isOwnMessage ? 'ml-8' : ''}`}
                 >
-                    <div className='break-words whitespace-pre-wrap' dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
+                    <div
+                        className='break-words whitespace-pre-wrap'
+                        dangerouslySetInnerHTML={{
+                            __html: displayText.replace(
+                                /<a href="([^"]+)">([^<]+)<\/a>/g,
+                                '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                            )
+                        }}
+                    />
                     {showTime && message.createdAt?.toDate && (
                         <p
-                            className={`mt-1 text-xs ${isOwnMessage ? 'text-white/70' : 'text-white/70'
-                                }`}
+                            className={`mt-1 text-xs ${
+                                isOwnMessage ? 'text-white/70' : 'text-white/70'
+                            }`}
                         >
                             {formatDistanceToNow(message.createdAt.toDate(), {
                                 addSuffix: true
@@ -176,10 +195,20 @@ export function ChatWindow(): JSX.Element {
                         otherParticipant &&
                         newParticipantsData[otherParticipant]
                     ) {
-                        console.log('ChatWindow: Setting otherUser:', newParticipantsData[otherParticipant]);
+                        console.log(
+                            'ChatWindow: Setting otherUser:',
+                            newParticipantsData[otherParticipant]
+                        );
                         setOtherUser(newParticipantsData[otherParticipant]);
                     } else {
-                        console.log('ChatWindow: Could not set otherUser. otherParticipant:', otherParticipant, 'userData:', otherParticipant ? newParticipantsData[otherParticipant] : 'undefined');
+                        console.log(
+                            'ChatWindow: Could not set otherUser. otherParticipant:',
+                            otherParticipant,
+                            'userData:',
+                            otherParticipant
+                                ? newParticipantsData[otherParticipant]
+                                : 'undefined'
+                        );
                     }
                 }
             } catch (error) {
@@ -229,7 +258,7 @@ export function ChatWindow(): JSX.Element {
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) { }
+        } catch (error) {}
     };
 
     return (
@@ -255,7 +284,9 @@ export function ChatWindow(): JSX.Element {
                                     <Image
                                         src={otherUser.photoURL}
                                         alt={
-                                            otherUser.name || otherUser.username || 'User'
+                                            otherUser.name ||
+                                            otherUser.username ||
+                                            'User'
                                         }
                                         width={40}
                                         height={40}
@@ -269,8 +300,8 @@ export function ChatWindow(): JSX.Element {
                                 <p className='font-medium'>
                                     {getChatType(currentChat) === 'direct'
                                         ? otherUser?.name ||
-                                        otherUser?.username ||
-                                        otherParticipant
+                                          otherUser?.username ||
+                                          otherParticipant
                                         : currentChat.name}
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
@@ -326,18 +357,19 @@ export function ChatWindow(): JSX.Element {
                                         const showTime =
                                             !nextMessage ||
                                             nextMessage.senderId !==
-                                            message.senderId;
+                                                message.senderId;
 
                                         // Show user info if:
                                         // 1. It's a group chat AND
                                         // 2. Previous message is from different sender OR doesn't exist OR
                                         // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
-                                            getChatType(currentChat) === 'group' &&
+                                            getChatType(currentChat) ===
+                                                'group' &&
                                             !isOwnMessage &&
                                             (!prevMessage ||
                                                 prevMessage.senderId !==
-                                                message.senderId ||
+                                                    message.senderId ||
                                                 (prevMessage.createdAt
                                                     ?.toDate &&
                                                     message.createdAt?.toDate &&
@@ -345,11 +377,11 @@ export function ChatWindow(): JSX.Element {
                                                         prevMessage.createdAt
                                                             .toDate()
                                                             .getTime() -
-                                                        message.createdAt
-                                                            .toDate()
-                                                            .getTime()
+                                                            message.createdAt
+                                                                .toDate()
+                                                                .getTime()
                                                     ) >
-                                                    5 * 60 * 1000));
+                                                        5 * 60 * 1000));
 
                                         const userData = message.senderId
                                             ? participantsData[message.senderId]
