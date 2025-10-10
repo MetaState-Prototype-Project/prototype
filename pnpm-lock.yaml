@@ -871,6 +871,9 @@ importers:
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
+      web3-adapter:
+        specifier: workspace:*
+        version: link:../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
