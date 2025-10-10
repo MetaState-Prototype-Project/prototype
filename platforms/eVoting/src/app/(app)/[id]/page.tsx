@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { pollApi, type Poll } from "@/lib/pollApi";
+import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption } from "@/lib/pollApi";
 import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
@@ -38,7 +38,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Add missing variables for BlindVotingInterface
     const [hasVoted, setHasVoted] = useState(false);
-    const [blindVoteResults, setBlindVoteResults] = useState<any>(null);
+    const [blindVoteResults, setBlindVoteResults] = useState<BlindVoteResults | null>(null);
     const [isLoadingBlindResults, setIsLoadingBlindResults] = useState(false);
 
     // Add state variables for different voting modes
@@ -199,7 +199,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     }, [selectedPoll?.deadline, pollExists]);
 
     const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
-    const [resultsData, setResultsData] = useState<any>(null);
+    const [resultsData, setResultsData] = useState<PollResults | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Fetch vote status and results
@@ -384,8 +384,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     )}
                                     <div className="space-y-3">
                                         {blindVoteResults?.optionResults && blindVoteResults.optionResults.length > 0 ? (
-                                            blindVoteResults.optionResults.map((result: any, index: number) => {
-                                                const isWinner = result.voteCount === Math.max(...blindVoteResults.optionResults.map((r: any) => r.voteCount));
+                                            blindVoteResults.optionResults.map((result, index) => {
+                                                const isWinner = result.voteCount === Math.max(...blindVoteResults.optionResults.map(r => r.voteCount));
                                                 const percentage = blindVoteResults.totalVotes > 0 ? (result.voteCount / blindVoteResults.totalVotes) * 100 : 0;
                                                 return (
                                                     <div
@@ -466,7 +466,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     )}
                                     <div className="space-y-3">
                                         {resultsData?.results && resultsData.results.length > 0 ? (
-                                            resultsData.results.map((result: any, index: number) => {
+                                            resultsData.results.map((result, index) => {
                                                 // Handle different voting modes
                                                 let displayValue: string;
                                                 let isWinner: boolean;
@@ -475,8 +475,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 if (resultsData.mode === "point") {
                                                     // Point-based voting: show total points and average
                                                     displayValue = `${result.totalPoints} points (avg: ${result.averagePoints})`;
-                                                    isWinner = result.totalPoints === Math.max(...resultsData.results.map((r: any) => r.totalPoints));
-                                                    percentage = resultsData.totalVotes > 0 ? (result.totalPoints / resultsData.results.reduce((sum: number, r: any) => sum + r.totalPoints, 0)) * 100 : 0;
+                                                    isWinner = result.totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
+                                                    percentage = resultsData.totalVotes > 0 ? ((result.totalPoints || 0) / resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0)) * 100 : 0;
                                                 } else if (resultsData.mode === "rank") {
                                                     // Rank-based voting: show winner status instead of misleading vote counts
                                                     if (result.isTied) {
@@ -497,7 +497,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 } else {
                                                     // Normal voting: show votes and percentage
                                                     displayValue = `${result.votes} votes`;
-                                                    isWinner = result.votes === Math.max(...resultsData.results.map((r: any) => r.votes));
+                                                    isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes));
                                                     percentage = resultsData.totalVotes > 0 ? (result.votes / resultsData.totalVotes) * 100 : 0;
                                                 }
 
@@ -565,8 +565,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 const optionIndex = parseInt(voteStatus.vote.data.data[0] || "0");
                                                                 return selectedPoll.options[optionIndex] || "Unknown option";
                                                             } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                                const pointData = voteStatus.vote.data.data;
-                                                                const totalPoints = pointData.reduce((sum: number, item: any) => sum + (item.points || 0), 0);
+                                                                const pointData = voteStatus.vote.data.data as PointVoteData[];
+                                                                const totalPoints = pointData.reduce((sum, item) => sum + (item.points || 0), 0);
                                                                 return `distributed ${totalPoints} points across options`;
                                                             } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
                                                                 const rankData = voteStatus.vote.data.data;
@@ -600,12 +600,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
                                                     return voteStatus.vote.data.data.includes(index.toString());
                                                 } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const pointData = voteStatus.vote.data.data;
-                                                    const optionPoints = pointData.find((item: any) => item.option === index.toString())?.points || 0;
+                                                    const pointData = voteStatus.vote.data.data as PointVoteData[];
+                                                    const optionPoints = pointData.find(item => item.option === index.toString())?.points || 0;
                                                     return optionPoints > 0;
                                                 } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const rankData = voteStatus.vote.data.data;
-                                                    return rankData.some((item: any) => item.option === index.toString());
+                                                    const rankData = voteStatus.vote.data.data as PointVoteData[];
+                                                    return rankData.some(item => item.option === index.toString());
                                                 }
                                                 return false;
                                             })();
@@ -614,12 +614,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
                                                     return voteStatus.vote.data.data.includes(index.toString()) ? "← You voted for this option" : null;
                                                 } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const pointData = voteStatus.vote.data.data;
-                                                    const optionPoints = pointData.find((item: any) => item.option === index.toString())?.points || 0;
+                                                    const pointData = voteStatus.vote.data.data as PointVoteData[];
+                                                    const optionPoints = pointData.find(item => item.option === index.toString())?.points || 0;
                                                     return optionPoints > 0 ? `← You gave ${optionPoints} points` : null;
                                                 } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const rankData = voteStatus.vote.data.data;
-                                                    const optionRank = rankData.find((item: any) => item.option === index.toString())?.points;
+                                                    const rankData = voteStatus.vote.data.data as PointVoteData[];
+                                                    const optionRank = rankData.find(item => item.option === index.toString())?.points;
                                                     return optionRank ? `← You ranked this ${optionRank}${optionRank === 1 ? 'st' : optionRank === 2 ? 'nd' : optionRank === 3 ? 'rd' : 'th'}` : null;
                                                 }
                                                 return null;
@@ -677,12 +677,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
                                             // Simple vote - show selected options
-                                            const selectedOptions = voteData.data.map((index: any) => selectedPoll.options[parseInt(index)]).filter(Boolean);
+                                            const selectedOptions = (voteData.data as string[]).map(index => selectedPoll.options[parseInt(index)]).filter(Boolean);
                                             return (
                                                 <div className="bg-white rounded-lg p-3 border border-green-200">
                                                     <p className="text-sm font-medium text-green-800 mb-2">Selected Options:</p>
                                                     <div className="space-y-1">
-                                                        {selectedOptions.map((option: any, i: number) => (
+                                                        {selectedOptions.map((option, i) => (
                                                             <div key={i} className="flex items-center space-x-2">
                                                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                                                 <span className="text-sm text-green-700">{option}</span>
@@ -693,12 +693,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             );
                                         } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                             // Point vote - show point distribution
-                                            const pointEntries = Object.entries(voteData.data);
+                                            const pointEntries = Object.entries(voteData.data as Record<string, number>);
                                             return (
                                                 <div className="bg-white rounded-lg p-3 border border-green-200">
                                                     <p className="text-sm font-medium text-green-800 mb-2">Your Point Distribution:</p>
                                                     <div className="space-y-2">
-                                                        {pointEntries.map(([optionIndex, points]: [string, any]) => {
+                                                        {pointEntries.map(([optionIndex, points]) => {
                                                             const option = selectedPoll.options[parseInt(optionIndex)];
                                                             return (
                                                                 <div key={optionIndex} className="flex items-center justify-between">
@@ -858,12 +858,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                                 if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
                                                     // Simple vote - show selected options
-                                                    const selectedOptions = voteData.data.map((index: any) => selectedPoll.options[parseInt(index)]).filter(Boolean);
+                                                    const selectedOptions = (voteData.data as string[]).map(index => selectedPoll.options[parseInt(index)]).filter(Boolean);
                                                     return (
                                                         <div className="bg-white rounded-lg p-3 border border-green-200">
                                                             <p className="text-sm font-medium text-green-800 mb-2">Selected Options:</p>
                                                             <div className="space-y-1">
-                                                                {selectedOptions.map((option: any, i: number) => (
+                                                                {selectedOptions.map((option, i) => (
                                                                     <div key={i} className="flex items-center space-x-2">
                                                                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                                                         <span className="text-sm text-green-700">{option}</span>
@@ -874,12 +874,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     );
                                                 } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                                     // Point vote - show point distribution
-                                                    const pointEntries = Object.entries(voteData.data);
+                                                    const pointEntries = Object.entries(voteData.data as Record<string, number>);
                                                     return (
                                                         <div className="bg-white rounded-lg p-3 border border-green-200">
                                                             <p className="text-sm font-medium text-green-800 mb-2">Your Point Distribution:</p>
                                                             <div className="space-y-2">
-                                                                {pointEntries.map(([optionIndex, points]: [string, any]) => {
+                                                                {pointEntries.map(([optionIndex, points]) => {
                                                                     const option = selectedPoll.options[parseInt(optionIndex)];
                                                                     return (
                                                                         <div key={optionIndex} className="flex items-center justify-between">
@@ -1283,7 +1283,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </h3>
                             <div className="space-y-2">
                                 {resultsData.voterDetails.map(
-                                    (voter: any, index: number) => (
+                                    (voter, index) => (
                                         <div
                                             key={index}
                                             className="flex items-center p-3 bg-gray-50 rounded-lg"
@@ -1367,7 +1367,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                                                 <p className="text-sm text-purple-800 font-medium mb-2">Your point distribution:</p>
                                                 <div className="space-y-1">
-                                                    {Object.entries(voteStatus.vote.points).map(([index, points]: [string, any]) => (
+                                                    {Object.entries(voteStatus.vote.points as Record<string, number>).map(([index, points]) => (
                                                         <div key={index} className="flex justify-between text-sm">
                                                             <span>Option {parseInt(index) + 1}:</span>
                                                             <span className="font-medium">{points} points</span>
@@ -1381,10 +1381,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                                 <p className="text-sm text-green-800 font-medium mb-2">Your ranking:</p>
                                                 <div className="space-y-1">
-                                                    {Object.entries(voteStatus.vote.ranks).map(([rank, index]: [string, any]) => (
+                                                    {Object.entries(voteStatus.vote.ranks as Record<string, string>).map(([rank, index]) => (
                                                         <div key={rank} className="flex justify-between text-sm">
                                                             <span>{rank === "1" ? "1st" : rank === "2" ? "2nd" : rank === "3" ? "3rd" : `${rank}th`} choice:</span>
-                                                            <span className="font-medium">Option {parseInt(index as string) + 1}</span>
+                                                            <span className="font-medium">Option {parseInt(index) + 1}</span>
                                                         </div>
                                                     ))}
                                                 </div>
