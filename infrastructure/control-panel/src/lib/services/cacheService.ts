@@ -1,5 +1,3 @@
-import { Low } from 'lowdb'
-import { JSONFile } from 'lowdb/node'
 import type { EVault } from '../../routes/api/evaults/+server';
 
 // Define the cache data structure
@@ -20,7 +18,7 @@ const defaultData: CacheData = {
 };
 
 class CacheService {
-  private db: Low<CacheData> | null = null;
+  private db: any | null = null;
   private isInitialized = false;
 
   constructor() {
@@ -34,6 +32,10 @@ class CacheService {
     if (this.isInitialized) return;
     
     try {
+      // Dynamically import lowdb only on server
+      const { Low } = await import('lowdb');
+      const { JSONFile } = await import('lowdb/node');
+      
       // Initialize LowDB with JSON file adapter
       const adapter = new JSONFile<CacheData>(CACHE_FILE);
       this.db = new Low(adapter, defaultData);
