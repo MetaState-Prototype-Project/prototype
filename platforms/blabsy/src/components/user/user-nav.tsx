@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import cn from 'clsx';
 import { variants } from '@components/user/user-header';
 import { UserNavLink } from './user-nav-link';

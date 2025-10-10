@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import React from 'react';
 import cn from 'clsx';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { formatNumber } from '@lib/date';
 import { preventBubbling } from '@lib/utils';
 import { useTrends } from '@lib/api/trends';
@@ -9,9 +10,8 @@ import { HeroIcon } from '@components/ui/hero-icon';
 import { Button } from '@components/ui/button';
 import { ToolTip } from '@components/ui/tooltip';
 import { Loading } from '@components/ui/loading';
-import type { MotionProps } from 'framer-motion';
 
-export const variants: MotionProps = {
+export const variants = {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     transition: { duration: 0.8 }
@@ -21,7 +21,7 @@ type AsideTrendsProps = {
     inTrendsPage?: boolean;
 };
 
-export function AsideTrends({ inTrendsPage }: AsideTrendsProps): JSX.Element {
+export function AsideTrends({ inTrendsPage }: AsideTrendsProps) {
     const { data, loading } = useTrends(1, inTrendsPage ? 100 : 10, {
         refreshInterval: 30000
     });
@@ -32,18 +32,20 @@ export function AsideTrends({ inTrendsPage }: AsideTrendsProps): JSX.Element {
         <section
             className={cn(
                 !inTrendsPage &&
-                    'hover-animation rounded-2xl bg-main-sidebar-background'
+                'hover-animation rounded-2xl bg-main-sidebar-background'
             )}
         >
             {loading ? (
                 <Loading />
             ) : trends ? (
                 <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
                     className={cn(
                         'inner:px-4 inner:py-3',
                         inTrendsPage && 'mt-0.5'
                     )}
-                    {...variants}
                 >
                     {!inTrendsPage && (
                         <h2 className='text-xl font-extrabold'>

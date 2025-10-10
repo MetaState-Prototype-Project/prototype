@@ -1,4 +1,5 @@
 import cn from 'clsx';
+import React, { FC } from 'react';
 import { CustomIcon } from './custom-icon';
 
 type LoadingProps = {
@@ -6,10 +7,10 @@ type LoadingProps = {
     iconClassName?: string;
 };
 
-export function Loading({
+export const Loading: FC<LoadingProps> = ({
     className,
     iconClassName
-}: LoadingProps): JSX.Element {
+}) => {
     return (
         <i className={cn('flex justify-center', className ?? 'p-4')}>
             <CustomIcon
@@ -18,4 +19,4 @@ export function Loading({
             />
         </i>
     );
-}
+};

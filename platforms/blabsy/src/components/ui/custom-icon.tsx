@@ -1,4 +1,5 @@
 import cn from 'clsx';
+import React from 'react';
 
 type IconName = keyof typeof Icons;
 
@@ -10,7 +11,7 @@ type CustomIconProps = IconProps & {
     iconName: IconName;
 };
 
-const Icons = {
+const Icons: Record<string, React.ComponentType<IconProps>> = {
     PinIcon,
     AppleIcon,
     PinOffIcon,
@@ -24,13 +25,13 @@ const Icons = {
 export function CustomIcon({
     iconName,
     className
-}: CustomIconProps): JSX.Element {
+}: CustomIconProps) {
     const Icon = Icons[iconName];
 
     return <Icon className={className ?? 'h-6 w-6'} />;
 }
 
-function TwitterIcon({ className }: IconProps): JSX.Element {
+function TwitterIcon({ className }: IconProps) {
     return (
         // <svg className={cn('fill-current', className)} viewBox='0 0 24 24'>
         //     <g>
@@ -60,7 +61,7 @@ function TwitterIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function FeatherIcon({ className }: IconProps): JSX.Element {
+function FeatherIcon({ className }: IconProps) {
     return (
         <svg
             className={cn('fill-current', className)}
@@ -74,7 +75,7 @@ function FeatherIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function SpinnerIcon({ className }: IconProps): JSX.Element {
+function SpinnerIcon({ className }: IconProps) {
     return (
         <svg
             className={cn('animate-spin', className)}
@@ -99,7 +100,7 @@ function SpinnerIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function GoogleIcon({ className }: IconProps): JSX.Element {
+function GoogleIcon({ className }: IconProps) {
     return (
         <svg
             className={className}
@@ -130,7 +131,7 @@ function GoogleIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function AppleIcon({ className }: IconProps): JSX.Element {
+function AppleIcon({ className }: IconProps) {
     return (
         <svg className={className} viewBox='0 0 24 24'>
             <g>
@@ -140,7 +141,7 @@ function AppleIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function TriangleIcon({ className }: IconProps): JSX.Element {
+function TriangleIcon({ className }: IconProps) {
     return (
         <svg className={className} viewBox='0 0 24 24' aria-hidden='true'>
             <g>
@@ -150,7 +151,7 @@ function TriangleIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function PinIcon({ className }: IconProps): JSX.Element {
+function PinIcon({ className }: IconProps) {
     return (
         <svg
             className={className}
@@ -172,7 +173,7 @@ function PinIcon({ className }: IconProps): JSX.Element {
     );
 }
 
-function PinOffIcon({ className }: IconProps): JSX.Element {
+function PinOffIcon({ className }: IconProps) {
     return (
         <svg
             className={className}
