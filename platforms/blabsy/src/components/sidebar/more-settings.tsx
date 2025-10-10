@@ -2,12 +2,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Menu } from '@headlessui/react';
 import cn from 'clsx';
 import { useModal } from '@lib/hooks/useModal';
-import { preventBubbling } from '@lib/utils';
 import { Modal } from '@components/modal/modal';
 import { DisplayModal } from '@components/modal/display-modal';
 import { HeroIcon } from '@components/ui/hero-icon';
 import { Button } from '@components/ui/button';
-import { MenuLink } from './menu-link';
 import type { Variants } from 'motion/react';
 
 export const variants: Variants = {
@@ -42,7 +40,7 @@ export function MoreSettings(): JSX.Element {
                    group-focus-visible:ring-[#878a8c] dark:group-hover:bg-dark-primary/10 dark:group-focus-visible:ring-white
                    xl:pr-5`,
                                     open &&
-                                        'bg-light-primary/10 dark:bg-dark-primary/10'
+                                    'bg-light-primary/10 dark:bg-dark-primary/10'
                                 )}
                             >
                                 <HeroIcon
@@ -96,7 +94,7 @@ export function MoreSettings(): JSX.Element {
                                                 className={cn(
                                                     'flex w-full gap-3 rounded-none rounded-b-md p-4 duration-200',
                                                     active &&
-                                                        'bg-main-sidebar-background'
+                                                    'bg-main-sidebar-background'
                                                 )}
                                                 onClick={openModal}
                                             >

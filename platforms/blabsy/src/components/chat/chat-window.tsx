@@ -70,14 +70,12 @@ function MessageItem({
 
     return (
         <div
-            className={`flex w-full ${
-                isOwnMessage ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex w-full ${isOwnMessage ? 'justify-end' : 'justify-start'
+                }`}
         >
             <div
-                className={`flex max-w-[70%] ${
-                    isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'
-                } gap-1`}
+                className={`flex max-w-[70%] ${isOwnMessage ? 'flex-col items-end' : 'flex-col items-start'
+                    } gap-1`}
             >
                 {/* User Avatar and Name - Above the message */}
                 {!isOwnMessage && showUserInfo && (
@@ -107,11 +105,10 @@ function MessageItem({
 
                 {/* Message Bubble */}
                 <div
-                    className={`rounded-2xl px-4 py-2 ${
-                        isOwnMessage
+                    className={`rounded-2xl px-4 py-2 ${isOwnMessage
                             ? 'bg-[#333399] text-white'
                             : 'bg-[#6600ff] text-white'
-                    } ${!isOwnMessage ? 'ml-8' : ''}`}
+                        } ${!isOwnMessage ? 'ml-8' : ''}`}
                 >
                     <div
                         className='break-words whitespace-pre-wrap'
@@ -124,9 +121,8 @@ function MessageItem({
                     />
                     {showTime && message.createdAt?.toDate && (
                         <p
-                            className={`mt-1 text-xs ${
-                                isOwnMessage ? 'text-white/70' : 'text-white/70'
-                            }`}
+                            className={`mt-1 text-xs ${isOwnMessage ? 'text-white/70' : 'text-white/70'
+                                }`}
                         >
                             {formatDistanceToNow(message.createdAt.toDate(), {
                                 addSuffix: true
@@ -258,7 +254,9 @@ export function ChatWindow(): JSX.Element {
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to send message:', error);
+        }
     };
 
     return (
@@ -300,8 +298,8 @@ export function ChatWindow(): JSX.Element {
                                 <p className='font-medium'>
                                     {getChatType(currentChat) === 'direct'
                                         ? otherUser?.name ||
-                                          otherUser?.username ||
-                                          otherParticipant
+                                        otherUser?.username ||
+                                        otherParticipant
                                         : currentChat.name}
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
@@ -357,7 +355,7 @@ export function ChatWindow(): JSX.Element {
                                         const showTime =
                                             !nextMessage ||
                                             nextMessage.senderId !==
-                                                message.senderId;
+                                            message.senderId;
 
                                         // Show user info if:
                                         // 1. It's a group chat AND
@@ -365,11 +363,11 @@ export function ChatWindow(): JSX.Element {
                                         // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
                                             getChatType(currentChat) ===
-                                                'group' &&
+                                            'group' &&
                                             !isOwnMessage &&
                                             (!prevMessage ||
                                                 prevMessage.senderId !==
-                                                    message.senderId ||
+                                                message.senderId ||
                                                 (prevMessage.createdAt
                                                     ?.toDate &&
                                                     message.createdAt?.toDate &&
@@ -377,11 +375,11 @@ export function ChatWindow(): JSX.Element {
                                                         prevMessage.createdAt
                                                             .toDate()
                                                             .getTime() -
-                                                            message.createdAt
-                                                                .toDate()
-                                                                .getTime()
+                                                        message.createdAt
+                                                            .toDate()
+                                                            .getTime()
                                                     ) >
-                                                        5 * 60 * 1000));
+                                                    5 * 60 * 1000));
 
                                         const userData = message.senderId
                                             ? participantsData[message.senderId]
