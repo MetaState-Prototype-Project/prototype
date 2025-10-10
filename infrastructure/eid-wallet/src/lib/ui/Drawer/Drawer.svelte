@@ -27,6 +27,7 @@
     //     isPaneOpen = false;
     // };
 
+    // Initialize pane only once when element is available
     $effect(() => {
         if (!drawerElem) return;
         pane = new CupertinoPane(drawerElem, {
@@ -44,13 +45,18 @@
             initialBreak: "bottom",
         });
 
+        return () => pane?.destroy();
+    });
+
+    // Handle open/close state separately
+    $effect(() => {
+        if (!pane) return;
+
         if (isPaneOpen) {
             pane.present({ animate: true });
         } else {
             pane.destroy({ animate: true });
         }
-
-        return () => pane.destroy();
     });
 </script>
 

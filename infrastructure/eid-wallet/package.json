@@ -1,6 +1,6 @@
 {
     "name": "eid-wallet",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "description": "",
     "type": "module",
     "scripts": {
@@ -29,6 +29,7 @@
         "@tauri-apps/plugin-barcode-scanner": "^2.2.0",
         "@tauri-apps/plugin-biometric": "^2.2.0",
         "@tauri-apps/plugin-deep-link": "^2.4.1",
+        "@tauri-apps/plugin-notification": "^2.3.1",
         "@tauri-apps/plugin-opener": "^2",
         "@tauri-apps/plugin-store": "^2.2.0",
         "@veriff/incontext-sdk": "^2.4.0",
