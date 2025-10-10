@@ -3,6 +3,7 @@ import { AppDataSource } from "../database/data-source";
 import { Wishlist } from "../database/entities/Wishlist";
 import { Match, MatchType, MatchStatus } from "../database/entities/Match";
 import { Repository } from "typeorm";
+import { MatchNotificationService } from "./MatchNotificationService";
 
 export interface MatchResult {
     confidence: number;
@@ -18,6 +19,7 @@ export class AIMatchingService {
     private openai: OpenAI;
     private wishlistRepository: Repository<Wishlist>;
     private matchRepository: Repository<Match>;
+    private notificationService: MatchNotificationService;
 
     constructor() {
         this.openai = new OpenAI({
@@ -25,6 +27,7 @@ export class AIMatchingService {
         });
         this.wishlistRepository = AppDataSource.getRepository(Wishlist);
         this.matchRepository = AppDataSource.getRepository(Match);
+        this.notificationService = new MatchNotificationService();
     }
 
     async findMatches(): Promise<void> {
@@ -93,6 +96,77 @@ export class AIMatchingService {
         }
 
         console.log(`🎉 AI matching process completed! Created ${totalMatches} matches from ${totalProcessed} comparisons`);
+        
+        // Process any existing matches that haven't been messaged yet
+        await this.processUnmessagedMatches();
+    }
+
+    /**
+     * Find and process matches that haven't been messaged yet
+     */
+    async processUnmessagedMatches(): Promise<void> {
+        try {
+            console.log("📨 Checking for unmessaged matches...");
+            
+            // Get all matches that haven't been messaged yet
+            const unmessagedMatches = await this.getUnmessagedMatches();
+            
+            if (unmessagedMatches.length === 0) {
+                console.log("✅ No unmessaged matches found");
+                return;
+            }
+            
+            console.log(`📨 Found ${unmessagedMatches.length} unmessaged matches, processing notifications...`);
+            
+            let processedCount = 0;
+            for (const match of unmessagedMatches) {
+                try {
+                    await this.notificationService.processMatch(match);
+                    processedCount++;
+                    console.log(`✅ Processed notification for match: ${match.id} (${processedCount}/${unmessagedMatches.length})`);
+                } catch (error) {
+                    console.error(`❌ Error processing notification for match ${match.id}:`, error);
+                }
+            }
+            
+            console.log(`🎉 Processed ${processedCount} unmessaged match notifications`);
+        } catch (error) {
+            console.error("Error processing unmessaged matches:", error);
+        }
+    }
+
+    /**
+     * Get all matches that haven't been messaged yet
+     */
+    private async getUnmessagedMatches(): Promise<Match[]> {
+        try {
+            const dreamsyncUser = await this.notificationService.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("Cannot check unmessaged matches: DreamSync user not found");
+                return [];
+            }
+
+            // Get all matches
+            const allMatches = await this.matchRepository.find({
+                relations: ["userA", "userB"],
+                order: { createdAt: "DESC" }
+            });
+
+            // Filter out matches that have already been messaged
+            const unmessagedMatches: Match[] = [];
+            
+            for (const match of allMatches) {
+                const hasBeenMessaged = await this.notificationService.hasNotificationBeenSent(match);
+                if (!hasBeenMessaged) {
+                    unmessagedMatches.push(match);
+                }
+            }
+
+            return unmessagedMatches;
+        } catch (error) {
+            console.error("Error getting unmessaged matches:", error);
+            return [];
+        }
     }
 
     private async getWishlistsForMatching(): Promise<Wishlist[]> {
@@ -212,7 +286,26 @@ Only suggest matches with confidence > 0.7 for meaningful connections.
             }
         });
 
-        await this.matchRepository.save(match);
+        const savedMatch = await this.matchRepository.save(match);
+        
+        // Load the match with user relations for notification processing
+        const matchWithRelations = await this.matchRepository.findOne({
+            where: { id: savedMatch.id },
+            relations: ["userA", "userB"]
+        });
+        
+        if (!matchWithRelations) {
+            console.error("Failed to load match with relations:", savedMatch.id);
+            return;
+        }
+        
+        // Send notifications to both users
+        try {
+            await this.notificationService.processMatch(matchWithRelations);
+        } catch (error) {
+            console.error("Error sending match notifications:", error);
+            // Don't fail the match creation if notifications fail
+        }
     }
 
     async getMatchesForUser(userId: string): Promise<Match[]> {

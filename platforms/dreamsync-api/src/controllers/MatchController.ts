@@ -28,6 +28,25 @@ export class MatchController {
         }
     };
 
+    processUnmessagedMatches = async (req: Request, res: Response) => {
+        try {
+            console.log("📨 Manual processing of unmessaged matches triggered");
+            await this.aiMatchingService.processUnmessagedMatches();
+            res.json({ 
+                success: true, 
+                message: "Unmessaged matches processing completed successfully",
+                timestamp: new Date().toISOString()
+            });
+        } catch (error: any) {
+            console.error("Error processing unmessaged matches:", error);
+            res.status(500).json({ 
+                success: false, 
+                error: "Failed to process unmessaged matches",
+                details: error.message 
+            });
+        }
+    };
+
     getMatchingStats = async (req: Request, res: Response) => {
         try {
             const stats = await this.aiMatchingService.getMatchingStats();

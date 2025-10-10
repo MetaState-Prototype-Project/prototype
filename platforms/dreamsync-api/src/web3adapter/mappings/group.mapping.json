@@ -19,5 +19,5 @@
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },
-    "readOnly": true
+    "readOnly": false
 }

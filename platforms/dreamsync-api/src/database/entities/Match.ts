@@ -34,6 +34,15 @@ export class Match {
     @Column({ type: "enum", enum: MatchStatus, default: MatchStatus.PENDING })
     status: MatchStatus;
 
+    @Column({ default: false })
+    isActive: boolean; // Match is only active when both users consent
+
+    @Column({ default: false })
+    userAConsent: boolean; // User A has given consent
+
+    @Column({ default: false })
+    userBConsent: boolean; // User B has given consent
+
     @Column({ type: "text" })
     reason: string; // AI-generated explanation for the match
 

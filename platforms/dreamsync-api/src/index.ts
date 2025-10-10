@@ -12,6 +12,7 @@ import { MatchController } from "./controllers/MatchController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { MatchingJob } from "./services/MatchingJob";
+import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -23,6 +24,23 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
+        
+        // Initialize platform eVault for DreamSync
+        try {
+            const platformService = PlatformEVaultService.getInstance();
+            const exists = await platformService.checkPlatformEVaultExists();
+            
+            if (!exists) {
+                console.log("🔧 Creating platform eVault for DreamSync...");
+                const result = await platformService.createPlatformEVault();
+                console.log(`✅ Platform eVault created successfully: ${result.w3id}`);
+            } else {
+                console.log("✅ Platform eVault already exists for DreamSync");
+            }
+        } catch (error) {
+            console.error("❌ Failed to initialize platform eVault:", error);
+            // Don't exit the process, just log the error
+        }
         
         // Start AI matching job
         const matchingJob = new MatchingJob();
@@ -99,9 +117,13 @@ app.delete("/api/wishlists/:id", authGuard, wishlistController.deleteWishlist);
 app.get("/api/matches", authGuard, matchController.getUserMatches);
 app.patch("/api/matches/:id", authGuard, matchController.updateMatchStatus);
 app.post("/api/matches/trigger", matchController.triggerMatching); // Manual trigger (no auth required for admin use)
+app.post("/api/matches/process-unmessaged", matchController.processUnmessagedMatches); // Process unmessaged matches (no auth required for admin use)
 app.get("/api/matches/stats", matchController.getMatchingStats); // Matching statistics
 
 // Start server
 app.listen(port, () => {
     console.log(`DreamSync API server running on port ${port}`);
 });
+
+// Export platform service for use in other parts of the application
+export { PlatformEVaultService };

@@ -8,7 +8,7 @@
         "dev": "nodemon --exec \"npx ts-node\" src/index.ts",
         "build": "tsc",
         "typeorm": "typeorm-ts-node-commonjs",
-        "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/migration -d src/database/data-source.ts",
+        "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
         "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
         "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
     },

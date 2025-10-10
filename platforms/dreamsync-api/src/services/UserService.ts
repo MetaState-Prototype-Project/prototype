@@ -45,6 +45,15 @@ export class UserService {
         return this.getUserById(id);
     }
 
+    async searchUsers(query: string): Promise<User[]> {
+        return this.userRepository
+            .createQueryBuilder("user")
+            .where("user.name ILIKE :query", { query: `%${query}%` })
+            .orWhere("user.handle ILIKE :query", { query: `%${query}%` })
+            .orWhere("user.ename ILIKE :query", { query: `%${query}%` })
+            .getMany();
+    }
+
     async deleteUser(id: string): Promise<void> {
         await this.userRepository.delete(id);
     }
