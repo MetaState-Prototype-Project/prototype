@@ -148,27 +148,27 @@
 				<thead class="bg-gray-50">
 					<tr>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
 							Name
 						</th>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
 							Namespace
 						</th>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
 							Status
 						</th>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
 							Age
 						</th>
 						<th
-							class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
 							Service URL
 						</th>
@@ -178,14 +178,14 @@
 					{#each evaults as evault}
 						<tr class="hover:bg-gray-50">
 							<td
-								class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900"
+								class="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900"
 							>
 								{evault.name}
 							</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
 								{evault.namespace}
 							</td>
-							<td class="whitespace-nowrap px-6 py-4">
+							<td class="px-6 py-4 whitespace-nowrap">
 								<span
 									class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {evault.status ===
 									'Running'
@@ -197,10 +197,10 @@
 									{evault.status}
 								</span>
 							</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
 								{evault.age || 'Unknown'}
 							</td>
-							<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
 								{#if evault.serviceUrl}
 									<a
 										href={evault.serviceUrl}

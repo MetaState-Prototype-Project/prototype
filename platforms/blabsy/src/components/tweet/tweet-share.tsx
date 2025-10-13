@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import cn from 'clsx';
 import { Popover } from '@headlessui/react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@lib/context/auth-context';
 import { manageBookmark } from '@lib/firebase/utils';

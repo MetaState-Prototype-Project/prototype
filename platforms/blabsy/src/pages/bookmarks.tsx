@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { orderBy, query } from 'firebase/firestore';
 import { useAuth } from '@lib/context/auth-context';

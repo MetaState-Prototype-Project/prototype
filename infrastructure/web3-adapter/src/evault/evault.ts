@@ -129,7 +129,7 @@ export class EVaultClient {
     private endpoints: Map<string, string> = new Map();
     private tokenInfo: TokenInfo | null = null;
     private isDisposed = false;
-    
+
     // Health check tracking
     private healthCheckFailures: Map<string, number> = new Map();
     private lastHealthCheck: Map<string, number> = new Map();
@@ -256,10 +256,13 @@ export class EVaultClient {
 
     private async resolveEndpoint(w3id: string): Promise<string> {
         try {
-            const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`
-            console.log("fetching endpoint for :", enrichedW3id)
+            const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`;
+            console.log("fetching endpoint for :", enrichedW3id);
             const response = await fetch(
-                new URL(`/resolve?w3id=${enrichedW3id}`, this.registryUrl).toString(),
+                new URL(
+                    `/resolve?w3id=${enrichedW3id}`,
+                    this.registryUrl,
+                ).toString(),
             );
 
             if (!response.ok) {
@@ -283,13 +286,21 @@ export class EVaultClient {
         if (this.clients.has(w3id)) {
             const client = this.clients.get(w3id)!;
             const endpoint = this.endpoints.get(w3id)!;
-            
+
             // Check if the cached endpoint is still healthy
             if (await this.isEndpointHealthy(w3id, endpoint)) {
-                console.log('reusing existing client for w3id:', w3id, 'endpoint:', endpoint);
+                console.log(
+                    "reusing existing client for w3id:",
+                    w3id,
+                    "endpoint:",
+                    endpoint,
+                );
                 return client;
             } else {
-                console.log('cached endpoint is unhealthy, removing and re-resolving for w3id:', w3id);
+                console.log(
+                    "cached endpoint is unhealthy, removing and re-resolving for w3id:",
+                    w3id,
+                );
                 this.removeCachedClient(w3id);
             }
         }
@@ -309,71 +320,90 @@ export class EVaultClient {
         // Cache the client and endpoint for this specific w3id
         this.clients.set(w3id, client);
         this.endpoints.set(w3id, endpoint);
-        
+
         // Initialize health check tracking
         this.healthCheckFailures.set(w3id, 0);
         this.lastHealthCheck.set(w3id, Date.now());
-        
-        console.log('created new client for w3id:', w3id, 'endpoint:', endpoint);
+
+        console.log(
+            "created new client for w3id:",
+            w3id,
+            "endpoint:",
+            endpoint,
+        );
         return client;
     }
 
     /**
      * Check if a cached endpoint is still healthy
      */
-    private async isEndpointHealthy(w3id: string, endpoint: string): Promise<boolean> {
+    private async isEndpointHealthy(
+        w3id: string,
+        endpoint: string,
+    ): Promise<boolean> {
         try {
             // Extract base URL from GraphQL endpoint
-            const baseUrl = endpoint.replace('/graphql', '');
-            
+            const baseUrl = endpoint.replace("/graphql", "");
+
             // Check if we should perform health check (avoid too frequent checks)
             const now = Date.now();
             const lastCheck = this.lastHealthCheck.get(w3id) || 0;
             const timeSinceLastCheck = now - lastCheck;
-            
+
             // Only check every 30 seconds to avoid performance impact
             if (timeSinceLastCheck < 30000) {
                 return true; // Assume healthy if checked recently
             }
-            
+
             // Perform health check on the whois endpoint
             const healthCheckUrl = `${baseUrl}/whois`;
-            console.log(`Health checking endpoint for ${w3id}: ${healthCheckUrl}`);
-            
+            console.log(
+                `Health checking endpoint for ${w3id}: ${healthCheckUrl}`,
+            );
+
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.HEALTH_CHECK_TIMEOUT);
-            
+            const timeoutId = setTimeout(
+                () => controller.abort(),
+                CONFIG.HEALTH_CHECK_TIMEOUT,
+            );
+
             const response = await fetch(healthCheckUrl, {
-                method: 'HEAD',
+                method: "HEAD",
                 signal: controller.signal,
             });
-            
+
             clearTimeout(timeoutId);
-            
+
             if (response.ok) {
                 // Reset failure count on success
                 this.healthCheckFailures.set(w3id, 0);
                 this.lastHealthCheck.set(w3id, now);
                 return true;
             } else {
-                throw new Error(`Health check failed with status: ${response.status}`);
+                throw new Error(
+                    `Health check failed with status: ${response.status}`,
+                );
             }
-            
         } catch (error) {
-            console.log(`Health check failed for ${w3id}:`, error instanceof Error ? error.message : 'Unknown error');
-            
+            console.log(
+                `Health check failed for ${w3id}:`,
+                error instanceof Error ? error.message : "Unknown error",
+            );
+
             // Increment failure count
             const currentFailures = this.healthCheckFailures.get(w3id) || 0;
             const newFailures = currentFailures + 1;
             this.healthCheckFailures.set(w3id, newFailures);
             this.lastHealthCheck.set(w3id, Date.now());
-            
+
             // If we've had too many consecutive failures, mark as unhealthy
             if (newFailures >= CONFIG.MAX_HEALTH_CHECK_FAILURES) {
-                console.log(`Endpoint for ${w3id} marked as unhealthy after ${newFailures} consecutive failures`);
+                console.log(
+                    `Endpoint for ${w3id} marked as unhealthy after ${newFailures} consecutive failures`,
+                );
                 return false;
             }
-            
+
             // Still allow some failures before marking as unhealthy
             return true;
         }
@@ -395,12 +425,14 @@ export class EVaultClient {
      */
     private async withTimeout<T>(
         w3id: string,
-        operation: () => Promise<T>
+        operation: () => Promise<T>,
     ): Promise<T> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
-            console.log(`GraphQL request timeout for ${w3id}, marking endpoint as unhealthy`);
+            console.log(
+                `GraphQL request timeout for ${w3id}, marking endpoint as unhealthy`,
+            );
             this.removeCachedClient(w3id);
         }, CONFIG.GRAPHQL_TIMEOUT);
 
@@ -410,11 +442,13 @@ export class EVaultClient {
             return result;
         } catch (error) {
             clearTimeout(timeoutId);
-            
-            if (error instanceof Error && error.name === 'AbortError') {
-                throw new Error(`Request timeout after ${CONFIG.GRAPHQL_TIMEOUT}ms`);
+
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new Error(
+                    `Request timeout after ${CONFIG.GRAPHQL_TIMEOUT}ms`,
+                );
             }
-            
+
             throw error;
         }
     }
@@ -437,33 +471,38 @@ export class EVaultClient {
 
         // Force health check by clearing last check time
         this.lastHealthCheck.set(w3id, 0);
-        
+
         const isHealthy = await this.isEndpointHealthy(w3id, endpoint);
-        
+
         if (!isHealthy) {
-            console.log(`Forced health check failed for ${w3id}, removing cached client`);
+            console.log(
+                `Forced health check failed for ${w3id}, removing cached client`,
+            );
             this.removeCachedClient(w3id);
         }
-        
+
         return isHealthy;
     }
 
     /**
      * Get health status for all cached endpoints
      */
-    public getHealthStatus(): Record<string, {
-        endpoint: string;
-        failures: number;
-        lastCheck: number;
-        isHealthy: boolean;
-    }> {
+    public getHealthStatus(): Record<
+        string,
+        {
+            endpoint: string;
+            failures: number;
+            lastCheck: number;
+            isHealthy: boolean;
+        }
+    > {
         const status: Record<string, any> = {};
-        
+
         for (const [w3id, endpoint] of this.endpoints) {
             const failures = this.healthCheckFailures.get(w3id) || 0;
             const lastCheck = this.lastHealthCheck.get(w3id) || 0;
             const isHealthy = failures < CONFIG.MAX_HEALTH_CHECK_FAILURES;
-            
+
             status[w3id] = {
                 endpoint,
                 failures,
@@ -471,7 +510,7 @@ export class EVaultClient {
                 isHealthy,
             };
         }
-        
+
         return status;
     }
 
@@ -479,7 +518,7 @@ export class EVaultClient {
      * Clear all cached clients (useful for testing or forcing fresh connections)
      */
     public clearCache(): void {
-        console.log('Clearing all cached clients and endpoints');
+        console.log("Clearing all cached clients and endpoints");
         this.clients.clear();
         this.endpoints.clear();
         this.healthCheckFailures.clear();
@@ -493,7 +532,7 @@ export class EVaultClient {
             });
             if (!client) return v4();
 
-            console.log("sending to eVault: ", envelope.w3id)
+            console.log("sending to eVault: ", envelope.w3id);
             console.log("sending payload", envelope);
 
             const response = await this.withTimeout(envelope.w3id, () =>
@@ -503,7 +542,7 @@ export class EVaultClient {
                         payload: envelope.data,
                         acl: ["*"],
                     },
-                })
+                }),
             ).catch(() => null);
 
             if (!response) return v4();

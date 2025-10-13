@@ -4,7 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { CerberusTriggerService } from "../services/CerberusTriggerService";
 import { CharterSignatureService } from "../services/CharterSignatureService";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
+import { Web3Adapter } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";

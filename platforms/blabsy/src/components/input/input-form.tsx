@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import TextArea from 'react-textarea-autosize';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useModal } from '@lib/hooks/useModal';
 import { Modal } from '@components/modal/modal';
 import { ActionModal } from '@components/modal/action-modal';
@@ -13,7 +13,7 @@ import type {
     KeyboardEvent,
     ClipboardEvent
 } from 'react';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 
 type InputFormProps = {
     modal?: boolean;

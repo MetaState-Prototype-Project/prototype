@@ -8,4 +8,6 @@ export const Selfie = writable<string | null>();
 export const verificaitonId = writable<string | null>();
 export const status = writable<string>();
 export const reason = writable<string>();
-export const documentType = writable<"passport" | "id" | "permit" | "dl" | null>(null);
+export const documentType = writable<
+    "passport" | "id" | "permit" | "dl" | null
+>(null);

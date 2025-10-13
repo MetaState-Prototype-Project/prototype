@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { useAuth } from '@lib/context/auth-context';
 import { useModal } from '@lib/hooks/useModal';
@@ -15,7 +15,7 @@ import { TweetActions } from './tweet-actions';
 import { TweetStatus } from './tweet-status';
 import { TweetStats } from './tweet-stats';
 import { TweetDate } from './tweet-date';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 import type { Tweet } from '@lib/types/tweet';
 import type { User } from '@lib/types/user';
 

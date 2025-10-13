@@ -79,8 +79,11 @@ export class VaultController {
      */
     private async registerDeviceForNotifications(eName: string): Promise<void> {
         try {
-            console.log(`Registering device for notifications with eName: ${eName}`);
-            const success = await this.#notificationService.registerDevice(eName);
+            console.log(
+                `Registering device for notifications with eName: ${eName}`,
+            );
+            const success =
+                await this.#notificationService.registerDevice(eName);
             if (success) {
                 console.log("Device registered successfully for notifications");
             } else {
@@ -134,19 +137,30 @@ export class VaultController {
         while (retryCount < maxRetries) {
             try {
                 const response = await axios.get(
-                    new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
+                    new URL(
+                        `resolve?w3id=${w3id}`,
+                        PUBLIC_REGISTRY_URL,
+                    ).toString(),
                 );
                 return new URL("/graphql", response.data.uri).toString();
             } catch (error) {
                 retryCount++;
-                console.error(`Error resolving eVault endpoint (attempt ${retryCount}/${maxRetries}):`, error);
+                console.error(
+                    `Error resolving eVault endpoint (attempt ${retryCount}/${maxRetries}):`,
+                    error,
+                );
 
                 if (retryCount >= maxRetries) {
-                    throw new Error("Failed to resolve eVault endpoint after all retries");
+                    throw new Error(
+                        "Failed to resolve eVault endpoint after all retries",
+                    );
                 }
 
                 // Wait before retrying (exponential backoff)
-                const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
+                const delay = Math.min(
+                    1000 * Math.pow(2, retryCount - 1),
+                    10000,
+                );
                 console.log(`Waiting ${delay}ms before resolve retry...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
@@ -247,10 +261,12 @@ export class VaultController {
                 .then(async (resolvedUser) => {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
-                        
+
                         // Register device for notifications
-                        await this.registerDeviceForNotifications(resolvedUser.ename);
-                        
+                        await this.registerDeviceForNotifications(
+                            resolvedUser.ename,
+                        );
+
                         // Set loading status
                         // Get user data for display name
                         const userData = await this.#userController.user;
@@ -258,7 +274,8 @@ export class VaultController {
                             userData?.name || resolvedUser?.ename;
 
                         try {
-                            if (this.profileCreationStatus === "success")  return
+                            if (this.profileCreationStatus === "success")
+                                return;
                             this.profileCreationStatus = "loading";
                             await this.createUserProfileInEVault(
                                 resolvedUser?.ename as string,
@@ -285,7 +302,7 @@ export class VaultController {
             // Register device for notifications
             this.registerDeviceForNotifications(vault.ename);
 
-            if (this.profileCreationStatus === "success")  return
+            if (this.profileCreationStatus === "success") return;
             // Set loading status
             this.profileCreationStatus = "loading";
 

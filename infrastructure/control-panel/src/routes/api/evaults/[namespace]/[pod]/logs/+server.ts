@@ -15,10 +15,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			await execAsync(`kubectl get namespace ${namespace}`);
 		} catch (namespaceError: any) {
 			if (namespaceError.stderr?.includes('not found')) {
-				return json({ 
-					error: `Namespace '${namespace}' not found. The eVault may have been deleted or terminated.`, 
-					logs: [] 
-				}, { status: 404 });
+				return json(
+					{
+						error: `Namespace '${namespace}' not found. The eVault may have been deleted or terminated.`,
+						logs: []
+					},
+					{ status: 404 }
+				);
 			}
 			throw namespaceError;
 		}
@@ -28,10 +31,13 @@ export const GET: RequestHandler = async ({ params, url }) => {
 			await execAsync(`kubectl get pod ${pod} -n ${namespace}`);
 		} catch (podError: any) {
 			if (podError.stderr?.includes('not found')) {
-				return json({ 
-					error: `Pod '${pod}' not found in namespace '${namespace}'. The pod may have been deleted or terminated.`, 
-					logs: [] 
-				}, { status: 404 });
+				return json(
+					{
+						error: `Pod '${pod}' not found in namespace '${namespace}'. The pod may have been deleted or terminated.`,
+						logs: []
+					},
+					{ status: 404 }
+				);
 			}
 			throw podError;
 		}
@@ -48,18 +54,24 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		return json({ logs });
 	} catch (error: any) {
 		console.error('Error fetching logs:', error);
-		
+
 		// Handle specific kubectl errors
 		if (error.stderr?.includes('not found')) {
-			return json({ 
-				error: 'Resource not found. The eVault or pod may have been deleted.', 
-				logs: [] 
-			}, { status: 404 });
+			return json(
+				{
+					error: 'Resource not found. The eVault or pod may have been deleted.',
+					logs: []
+				},
+				{ status: 404 }
+			);
 		}
-		
-		return json({ 
-			error: 'Failed to fetch logs. Please check if the eVault is still running.', 
-			logs: [] 
-		}, { status: 500 });
+
+		return json(
+			{
+				error: 'Failed to fetch logs. Please check if the eVault is still running.',
+				logs: []
+			},
+			{ status: 500 }
+		);
 	}
 };

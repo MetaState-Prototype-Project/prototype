@@ -1,12 +1,12 @@
 import { useRouter } from 'next/router';
 import { doc } from 'firebase/firestore';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { useDocument } from '@lib/hooks/useDocument';
 import { useUser } from '@lib/context/user-context';
 import { isPlural } from '@lib/utils';
 import { userStatsCollection } from '@lib/firebase/collections';
 import { UserName } from './user-name';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 
 export const variants: Variants = {
     initial: { opacity: 0 },

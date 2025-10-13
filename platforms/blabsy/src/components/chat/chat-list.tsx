@@ -47,7 +47,10 @@ export function ChatList(): JSX.Element {
             }
 
             if (Object.keys(newParticipantData).length > 0) {
-                console.log('ChatList: Fetched new participant data:', newParticipantData);
+                console.log(
+                    'ChatList: Fetched new participant data:',
+                    newParticipantData
+                );
                 setParticipantData((prev) => ({
                     ...prev,
                     ...newParticipantData
@@ -194,7 +197,9 @@ function ChatListItem({
         <button
             type='button'
             className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                isSelected ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary' : ''
+                isSelected
+                    ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary'
+                    : ''
             }`}
             onClick={onClick}
         >

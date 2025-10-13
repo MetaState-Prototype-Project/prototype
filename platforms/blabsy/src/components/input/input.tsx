@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef, useId } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { toast } from 'react-hot-toast';
 import { addDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,7 +20,7 @@ import { ImagePreview } from './image-preview';
 import { InputOptions } from './input-options';
 import type { ReactNode, FormEvent, ChangeEvent, ClipboardEvent } from 'react';
 import type { WithFieldValue } from 'firebase/firestore';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 import type { User } from '@lib/types/user';
 import type { Tweet } from '@lib/types/tweet';
 import type { FilesWithId, ImagesPreview, ImageData } from '@lib/types/file';

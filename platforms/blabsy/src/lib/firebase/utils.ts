@@ -262,8 +262,10 @@ export function manageLike(
     tweetId: string
 ) {
     return async (): Promise<void> => {
-        console.log(`[DEBUG] Starting ${type} operation for user ${userId} on tweet ${tweetId}`);
-        
+        console.log(
+            `[DEBUG] Starting ${type} operation for user ${userId} on tweet ${tweetId}`
+        );
+
         const userStatsRef = doc(userStatsCollection(userId));
         const tweetRef = doc(tweetsCollection, tweetId);
 
@@ -274,7 +276,9 @@ export function manageLike(
             // Check if user stats document exists, create if it doesn't
             const userStatsDoc = await getDoc(userStatsRef);
             if (!userStatsDoc.exists()) {
-                console.log(`[DEBUG] User stats document doesn't exist, creating it...`);
+                console.log(
+                    `[DEBUG] User stats document doesn't exist, creating it...`
+                );
                 await setDoc(userStatsRef, {
                     likes: [],
                     tweets: [],
@@ -295,7 +299,7 @@ export function manageLike(
                     console.error(`[DEBUG] Error updating tweet:`, tweetError);
                     throw tweetError;
                 }
-                
+
                 console.log(`[DEBUG] Adding tweet to user stats...`);
                 try {
                     await setDoc(
@@ -308,7 +312,10 @@ export function manageLike(
                     );
                     console.log(`[DEBUG] User stats updated successfully`);
                 } catch (statsError) {
-                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    console.error(
+                        `[DEBUG] Error updating user stats:`,
+                        statsError
+                    );
                     throw statsError;
                 }
             } else {
@@ -323,7 +330,7 @@ export function manageLike(
                     console.error(`[DEBUG] Error updating tweet:`, tweetError);
                     throw tweetError;
                 }
-                
+
                 console.log(`[DEBUG] Removing tweet from user stats...`);
                 try {
                     await setDoc(
@@ -336,11 +343,14 @@ export function manageLike(
                     );
                     console.log(`[DEBUG] User stats updated successfully`);
                 } catch (statsError) {
-                    console.error(`[DEBUG] Error updating user stats:`, statsError);
+                    console.error(
+                        `[DEBUG] Error updating user stats:`,
+                        statsError
+                    );
                     throw statsError;
                 }
             }
-            
+
             console.log(`[DEBUG] Like operation completed successfully`);
         } catch (error) {
             console.error(`[DEBUG] Error in like operation:`, error);
@@ -383,10 +393,10 @@ export async function createChat(
     description?: string
 ): Promise<string> {
     const chatRef = doc(chatsCollection);
-    
+
     // Derive type from participant count
     const isGroup = participants.length > 2;
-    
+
     const chatData: WithFieldValue<Chat> = {
         id: chatRef.id,
         participants,
@@ -539,7 +549,10 @@ export async function getOrCreateDirectChat(
     for (const doc of existingChats.docs) {
         const chat = doc.data();
         // Check if it's a direct chat (2 participants) and includes target user
-        if (chat.participants.length === 2 && chat.participants.includes(targetUserId)) {
+        if (
+            chat.participants.length === 2 &&
+            chat.participants.includes(targetUserId)
+        ) {
             return doc.id;
         }
     }

@@ -92,12 +92,15 @@ export function AuthContextProvider({
         const { id } = user;
 
         const unsubscribeUser = onSnapshot(
-            doc(usersCollection, id), 
+            doc(usersCollection, id),
             (doc) => {
                 setUser(doc.data() as User);
             },
             (error) => {
-                console.error('[DEBUG] Error in user document listener:', error);
+                console.error(
+                    '[DEBUG] Error in user document listener:',
+                    error
+                );
                 // Don't throw here, just log the error
             }
         );

@@ -268,7 +268,7 @@
 >
 	<TableHead class="sticky top-0 h-[var(--table-header-height)] bg-white">
 		{#if withSelection}
-			<TableHeadCell class="wide:px-5 w-[48px] min-w-[48px] max-w-[48px] rounded-l-2xl p-4">
+			<TableHeadCell class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
 				<Checkbox checked={checkAll} onchange={(e) => toggleCheckAll(e as boolean)} />
 			</TableHeadCell>
 		{/if}
@@ -310,11 +310,11 @@
 							handleSelectedRow && handleSelectedRow(i);
 						}
 					}}
-					class="hover:bg-gray w-full select-none bg-white
+					class="hover:bg-gray w-full bg-white select-none
                         {selectedRow === i && 'bg-gray!'}"
 				>
 					{#if withSelection}
-						<th class="wide:px-5 w-[48px] min-w-[48px] max-w-[48px] rounded-l-2xl p-4">
+						<th class="wide:px-5 w-[48px] max-w-[48px] min-w-[48px] rounded-l-2xl p-4">
 							<Checkbox
 								checked={checkItems[i]}
 								onchange={(e) => toggleCheckItem(i, e as boolean)}
@@ -376,7 +376,7 @@
 
 {#snippet BodyCell(data: Record<string, TableCell>, field: string, i: number)}
 	<TableBodyCell
-		class="wide:text-base font-roboto text-black-700 overflow-hidden text-ellipsis p-2 text-xs font-normal
+		class="wide:text-base font-roboto text-black-700 overflow-hidden p-2 text-xs font-normal text-ellipsis
             {i === 0 && !withSelection && 'rounded-s-2xl pl-6'}
             {i === Object.keys(data).length - 1 && 'rounded-e-2xl'}
         "

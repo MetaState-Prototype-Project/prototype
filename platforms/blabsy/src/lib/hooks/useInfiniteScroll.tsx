@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { query, limit } from 'firebase/firestore';
 import { getCollectionCount } from '@lib/firebase/utils';
 import { Loading } from '@components/ui/loading';
