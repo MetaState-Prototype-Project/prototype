@@ -7,10 +7,12 @@ export const GET: RequestHandler = async () => {
 		start(controller) {
 			let isConnected = true;
 			let stopStreaming: (() => void) | null = null;
-			
+
 			// Send initial connection message
 			if (isConnected) {
-				controller.enqueue(`data: ${JSON.stringify({ type: 'connected', timestamp: new Date().toISOString() })}\n\n`);
+				controller.enqueue(
+					`data: ${JSON.stringify({ type: 'connected', timestamp: new Date().toISOString() })}\n\n`
+				);
 			}
 
 			// Helper function to safely enqueue data
@@ -29,31 +31,28 @@ export const GET: RequestHandler = async () => {
 			// Start streaming real logs from Loki
 			const startRealTimeLogs = async () => {
 				try {
-					stopStreaming = await lokiService.streamLogs(
-						'{app="web3-adapter"}',
-						(log) => {
-							// Parse the log entry to extract flow information
-							const flowEvent = lokiService.parseLogEntry(log);
-							
-							if (flowEvent) {
-								// Map the flow event to the expected format
-								const eventData = {
-									type: 'evault_sync_event',
-									timestamp: flowEvent.timestamp,
-									w3id: flowEvent.w3id,
-									platform: flowEvent.platform,
-									id: flowEvent.id,
-									tableName: flowEvent.tableName,
-									message: flowEvent.message,
-									// Extract platform and eVault indices for visualization
-									platformIndex: 0, // We'll need to map this based on actual platform names
-									evaultIndex: 0    // We'll need to map this based on actual eVault w3ids
-								};
-								
-								safeEnqueue(eventData);
-							}
+					stopStreaming = await lokiService.streamLogs('{app="web3-adapter"}', (log) => {
+						// Parse the log entry to extract flow information
+						const flowEvent = lokiService.parseLogEntry(log);
+
+						if (flowEvent) {
+							// Map the flow event to the expected format
+							const eventData = {
+								type: 'evault_sync_event',
+								timestamp: flowEvent.timestamp,
+								w3id: flowEvent.w3id,
+								platform: flowEvent.platform,
+								id: flowEvent.id,
+								tableName: flowEvent.tableName,
+								message: flowEvent.message,
+								// Extract platform and eVault indices for visualization
+								platformIndex: 0, // We'll need to map this based on actual platform names
+								evaultIndex: 0 // We'll need to map this based on actual eVault w3ids
+							};
+
+							safeEnqueue(eventData);
 						}
-					);
+					});
 				} catch (error) {
 					console.error('Error starting Loki stream:', error);
 					// Fallback to mock data if Loki is not available
@@ -64,7 +63,7 @@ export const GET: RequestHandler = async () => {
 			// Fallback mock data function
 			const startMockData = () => {
 				console.log('Using mock data as fallback');
-				
+
 				// Step 1: Platform 1 creates a message
 				const timeout1 = setTimeout(() => {
 					safeEnqueue({
@@ -127,7 +126,9 @@ export const GET: RequestHandler = async () => {
 			const heartbeat = setInterval(() => {
 				if (isConnected) {
 					try {
-						controller.enqueue(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+						controller.enqueue(
+							`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`
+						);
 					} catch (error) {
 						console.log('Client disconnected during heartbeat, stopping stream');
 						isConnected = false;
@@ -161,9 +162,9 @@ export const GET: RequestHandler = async () => {
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
-			'Connection': 'keep-alive',
+			Connection: 'keep-alive',
 			'Access-Control-Allow-Origin': '*',
 			'Access-Control-Allow-Headers': 'Cache-Control'
 		}
 	});
-}; 
+};

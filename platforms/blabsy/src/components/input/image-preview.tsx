@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { useModal } from '@lib/hooks/useModal';
 import { preventBubbling } from '@lib/utils';
@@ -10,7 +10,6 @@ import { NextImage } from '@components/ui/next-image';
 import { Button } from '@components/ui/button';
 import { HeroIcon } from '@components/ui/hero-icon';
 import { ToolTip } from '@components/ui/tooltip';
-import type { MotionProps } from 'framer-motion';
 import type { ImagesPreview, ImageData } from '@lib/types/file';
 
 type ImagePreviewProps = {
@@ -21,7 +20,7 @@ type ImagePreviewProps = {
     removeImage?: (targetId: string) => () => void;
 };
 
-const variants: MotionProps = {
+const variants = {
     initial: { opacity: 0, scale: 0.5 },
     animate: {
         opacity: 1,
@@ -29,7 +28,7 @@ const variants: MotionProps = {
         transition: { duration: 0.3 }
     },
     exit: { opacity: 0, scale: 0.5 },
-    transition: { type: 'spring', duration: 0.5 }
+    transition: { type: 'spring' as const, duration: 0.5 }
 };
 
 type PostImageBorderRadius = Record<number, string[]>;
@@ -133,13 +132,17 @@ export function ImagePreview({
                             className={cn(
                                 'accent-tab group relative transition-shadow',
                                 isTweet
-                                    ? postImageBorderRadius[actualPreviewCount]?.[index] || 'rounded-2xl'
+                                    ? postImageBorderRadius[
+                                          actualPreviewCount
+                                      ]?.[index] || 'rounded-2xl'
                                     : 'rounded-2xl',
                                 {
-                                    'col-span-2 row-span-2': actualPreviewCount === 1,
+                                    'col-span-2 row-span-2':
+                                        actualPreviewCount === 1,
                                     'row-span-2':
                                         actualPreviewCount === 2 ||
-                                        (index === 0 && actualPreviewCount === 3)
+                                        (index === 0 &&
+                                            actualPreviewCount === 3)
                                 }
                             )}
                             {...variants}

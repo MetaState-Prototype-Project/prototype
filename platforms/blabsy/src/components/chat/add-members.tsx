@@ -183,7 +183,8 @@ export function AddMembers({
                         !selectedUsers.some(
                             (selected) => selected.id === userData.id
                         ) && // Exclude already selected
-                        (newChat || !currentChat?.participants.includes(userData.id)) && // Only exclude existing participants if NOT creating new chat
+                        (newChat ||
+                            !currentChat?.participants.includes(userData.id)) && // Only exclude existing participants if NOT creating new chat
                         (userData.name
                             ?.toLowerCase()
                             .includes(query.toLowerCase()) ||
@@ -250,7 +251,7 @@ export function AddMembers({
 
                 let chatName: string | undefined;
                 const isGroupChat = participantIds.length > 2;
-                
+
                 if (isGroupChat) {
                     // For group chats, use the custom name or create from selected users
                     chatName =
@@ -264,10 +265,7 @@ export function AddMembers({
                 console.log('Is group chat:', isGroupChat);
 
                 // Create the new chat
-                const chatId = await createNewChat(
-                    participantIds,
-                    chatName
-                );
+                const chatId = await createNewChat(participantIds, chatName);
 
                 console.log('Chat created with ID:', chatId);
 
@@ -478,7 +476,8 @@ export function AddMembers({
                                 (u) => u.id === userItem.id
                             );
                             const isExistingMember =
-                                !newChat && currentChat?.participants.includes(userItem.id);
+                                !newChat &&
+                                currentChat?.participants.includes(userItem.id);
 
                             return (
                                 <label

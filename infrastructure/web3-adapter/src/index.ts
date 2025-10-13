@@ -37,7 +37,7 @@ export async function spinUpEVault(
                 registryEntropy,
                 namespace,
                 verificationId: finalVerificationCode,
-                publicKey: "0x0000000000000000000000000000000000000000"
+                publicKey: "0x0000000000000000000000000000000000000000",
             },
         );
 
@@ -306,15 +306,13 @@ export class Web3Adapter {
         );
 
         if (!this.mapping[tableName]) return;
-        
+
         if (this.mapping[tableName].readOnly) {
-            // early return on mappings which are readonly so as to not 
+            // early return on mappings which are readonly so as to not
             // sync any update to the eVault which is not warranted
             return;
         }
-        
 
-       
         if (existingGlobalId) {
             if (this.lockedIds.includes(existingGlobalId)) return;
             const global = await toGlobal({
@@ -338,7 +336,6 @@ export class Web3Adapter {
                 platform: this.platform,
                 w3id: global.ownerEvault,
             });
-
 
             return {
                 id: existingGlobalId,
@@ -387,7 +384,7 @@ export class Web3Adapter {
             tableName,
             id: globalId,
             w3id: global.ownerEvault,
-            platform: this.platform 
+            platform: this.platform,
         });
 
         return {

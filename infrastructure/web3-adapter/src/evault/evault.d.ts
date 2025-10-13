@@ -58,12 +58,15 @@ export declare class EVaultClient {
     /**
      * Get health status for all cached endpoints
      */
-    getHealthStatus(): Record<string, {
-        endpoint: string;
-        failures: number;
-        lastCheck: number;
-        isHealthy: boolean;
-    }>;
+    getHealthStatus(): Record<
+        string,
+        {
+            endpoint: string;
+            failures: number;
+            lastCheck: number;
+            isHealthy: boolean;
+        }
+    >;
     /**
      * Clear all cached clients (useful for testing or forcing fresh connections)
      */

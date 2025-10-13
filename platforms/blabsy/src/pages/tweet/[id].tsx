@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useRouter } from 'next/router';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'motion/react';
 import { doc, query, where, orderBy } from 'firebase/firestore';
 import { tweetsCollection } from '@lib/firebase/collections';
 import { useCollection } from '@lib/hooks/useCollection';

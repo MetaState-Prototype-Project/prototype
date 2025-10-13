@@ -8,7 +8,11 @@ import type { IMapping } from "./mapper/mapper.types";
  * @param verificationCode - Optional verification code, defaults to demo code
  * @returns Promise with eVault details (w3id, uri)
  */
-export declare function spinUpEVault(registryUrl: string, provisionerUrl: string, verificationCode?: string): Promise<{
+export declare function spinUpEVault(
+    registryUrl: string,
+    provisionerUrl: string,
+    verificationCode?: string,
+): Promise<{
     w3id: string;
     uri: string;
 }>;
@@ -20,15 +24,20 @@ export declare function spinUpEVault(registryUrl: string, provisionerUrl: string
  * @param verificationCode - Optional verification code, defaults to demo code
  * @returns Promise with eVault details (w3id, uri, manifestId)
  */
-export declare function createGroupEVault(registryUrl: string, provisionerUrl: string, groupData: {
-    name: string;
-    avatar?: string;
-    description?: string;
-    members: string[];
-    admins: string[];
-    owner: string;
-    charter?: string;
-}, verificationCode?: string): Promise<{
+export declare function createGroupEVault(
+    registryUrl: string,
+    provisionerUrl: string,
+    groupData: {
+        name: string;
+        avatar?: string;
+        description?: string;
+        members: string[];
+        admins: string[];
+        owner: string;
+        charter?: string;
+    },
+    verificationCode?: string,
+): Promise<{
     w3id: string;
     uri: string;
     manifestId: string;
@@ -53,28 +62,37 @@ export declare class Web3Adapter {
         data: Record<string, unknown>;
         tableName: string;
         participants?: string[];
-    }): Promise<{
-        id: string;
-        w3id: string;
-        schemaId: string;
-        data?: undefined;
-    } | {
-        id: string;
-        w3id: string;
-        data: Record<string, unknown>;
-        schemaId: string;
-    } | undefined>;
+    }): Promise<
+        | {
+              id: string;
+              w3id: string;
+              schemaId: string;
+              data?: undefined;
+          }
+        | {
+              id: string;
+              w3id: string;
+              data: Record<string, unknown>;
+              schemaId: string;
+          }
+        | undefined
+    >;
     fromGlobal(props: {
         data: Record<string, unknown>;
         mapping: IMapping;
-    }): Promise<Omit<import("./mapper/mapper.types").IMapperResponse, "ownerEvault">>;
+    }): Promise<
+        Omit<import("./mapper/mapper.types").IMapperResponse, "ownerEvault">
+    >;
     /**
      * Spins up an eVault by getting entropy from registry and provisioning it
      * @param verificationCode - Optional verification code, defaults to demo code
      * @param provisionerUrl - Optional provisioner URL, defaults to config
      * @returns Promise with eVault details (w3id, uri)
      */
-    spinUpEVault(verificationCode?: string, provisionerUrl?: string): Promise<{
+    spinUpEVault(
+        verificationCode?: string,
+        provisionerUrl?: string,
+    ): Promise<{
         w3id: string;
         uri: string;
     }>;
@@ -85,15 +103,19 @@ export declare class Web3Adapter {
      * @param provisionerUrl - Optional provisioner URL, defaults to config
      * @returns Promise with eVault details (w3id, uri, manifestId)
      */
-    createGroupEVault(groupData: {
-        name: string;
-        avatar?: string;
-        description?: string;
-        members: string[];
-        admins: string[];
-        owner: string;
-        charter?: string;
-    }, verificationCode?: string, provisionerUrl?: string): Promise<{
+    createGroupEVault(
+        groupData: {
+            name: string;
+            avatar?: string;
+            description?: string;
+            members: string[];
+            admins: string[];
+            owner: string;
+            charter?: string;
+        },
+        verificationCode?: string,
+        provisionerUrl?: string,
+    ): Promise<{
         w3id: string;
         uri: string;
         manifestId: string;
