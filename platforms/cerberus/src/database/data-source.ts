@@ -26,7 +26,7 @@ export const AppDataSource = new DataSource({
         VotingObservation,
         CharterSignature,
     ],
-    migrations: ["src/database/migrations/*.ts"],
+    migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],
 });
 

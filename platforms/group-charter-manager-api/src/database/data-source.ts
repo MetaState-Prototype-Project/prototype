@@ -16,6 +16,6 @@ export const AppDataSource = new DataSource({
     synchronize: false,
     logging: process.env.NODE_ENV === "development",
     entities: [User, Group, Message, CharterSignature],
-    migrations: ["src/database/migrations/*.ts"],
+    migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],
 }); 

@@ -12,13 +12,12 @@ import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
-console.log("SAODIHUOPIFHDSA", process.env.PICTIQUE_DATABASE_URL)
 export const AppDataSource = new DataSource({
     type: "postgres",
     url: process.env.PICTIQUE_DATABASE_URL,
     synchronize: false,
     logging: process.env.NODE_ENV === "development",
     entities: [User, Post, Comment, Message, Chat, MessageReadStatus],
-    migrations: ["src/database/migrations/*.ts"],
+    migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],
 });
