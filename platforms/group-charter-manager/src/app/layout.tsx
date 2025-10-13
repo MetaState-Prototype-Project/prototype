@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import DisclaimerModal from "@/components/disclaimer-modal";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body className={inter.className}>
+                <MaintenanceBanner />
                 <AuthProvider>
                     {children}
                     <Toaster />

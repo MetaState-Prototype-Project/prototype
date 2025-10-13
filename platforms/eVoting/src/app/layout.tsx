@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 
 export const metadata: Metadata = {
     title: "eVoting Platform",
@@ -18,6 +19,7 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body>
+                <MaintenanceBanner />
                 <AuthProvider>
                     {children}
                 </AuthProvider>
