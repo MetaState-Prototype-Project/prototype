@@ -31,7 +31,7 @@ export function UserName({
                 )}
                 tabIndex={username ? 0 : -1}
             >
-                <CustomTag className='truncate'>{name}</CustomTag>
+                <CustomTag className='truncate max-w-[120px]'>{name}</CustomTag>
                 {verified && (
                     <i>
                         <HeroIcon

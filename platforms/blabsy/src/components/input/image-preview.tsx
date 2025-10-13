@@ -97,10 +97,10 @@ export function ImagePreview({
     return (
         <div
             className={cn(
-                'grid grid-cols-2 grid-rows-2 rounded-2xl',
+                'grid grid-cols-2 grid-rows-2 rounded-2xl max-w-full overflow-hidden',
                 viewTweet
-                    ? 'h-[51vw] xs:h-[42vw] md:h-[305px]'
-                    : 'h-[42vw] xs:h-[37vw] md:h-[271px]',
+                    ? 'h-[51vw] xs:h-[42vw] md:h-[305px] max-h-[300px]'
+                    : 'h-[42vw] xs:h-[37vw] md:h-[271px] max-h-[250px]',
                 isTweet ? 'mt-2 gap-0.5' : 'gap-3'
             )}
         >
