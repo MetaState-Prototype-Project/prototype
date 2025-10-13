@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import axios from 'axios';
+	import { PUBLIC_REGISTRY_URL } from '$env/static/public';
 
 	let motd = $state<{ status: 'up' | 'maintenance'; message: string } | null>(null);
 
 	onMount(async () => {
 		try {
-			const registryUrl = import.meta.env.VITE_REGISTRY_URL || 'http://localhost:4321';
+			const registryUrl = PUBLIC_REGISTRY_URL || 'http://localhost:4321';
 			const response = await axios.get(`${registryUrl}/motd`);
 			motd = response.data;
 		} catch (error) {
@@ -20,4 +21,3 @@
 		⚠️ {motd.message}
 	</div>
 {/if}
-
