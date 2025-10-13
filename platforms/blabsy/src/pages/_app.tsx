@@ -3,6 +3,7 @@ import '@styles/globals.scss';
 import { AuthContextProvider } from '@lib/context/auth-context';
 import { ThemeContextProvider } from '@lib/context/theme-context';
 import { AppHead } from '@components/common/app-head';
+import { MaintenanceBanner } from '@components/common/maintenance-banner';
 import type { ReactElement, ReactNode } from 'react';
 import type { NextPage } from 'next';
 import type { AppProps } from 'next/app';
@@ -24,6 +25,7 @@ export default function App({
     return (
         <>
             <AppHead />
+            <MaintenanceBanner />
             <AuthContextProvider>
                 <ThemeContextProvider>
                     {getLayout(<Component {...pageProps} />)}
