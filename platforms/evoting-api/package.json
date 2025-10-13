@@ -6,7 +6,7 @@
     "scripts": {
         "start": "ts-node --project tsconfig.json src/index.ts",
         "dev": "nodemon --exec \"npx ts-node\" src/index.ts",
-        "build": "tsc",
+        "build": "tsc && cp -r src/web3adapter/mappings dist/web3adapter/",
         "typeorm": "typeorm-ts-node-commonjs",
         "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/migration -d src/database/data-source.ts",
         "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
