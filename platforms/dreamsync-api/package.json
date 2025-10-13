@@ -7,6 +7,7 @@
         "start": "ts-node --project tsconfig.json src/index.ts",
         "dev": "nodemon --exec \"npx ts-node\" src/index.ts",
         "build": "tsc",
+        "test-matchmaking": "ts-node test-matchmaking-mock.ts",
         "typeorm": "typeorm-ts-node-commonjs",
         "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
         "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",

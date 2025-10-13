@@ -1,32 +1,23 @@
-import OpenAI from "openai";
 import { AppDataSource } from "../database/data-source";
 import { Wishlist } from "../database/entities/Wishlist";
 import { Match, MatchType, MatchStatus } from "../database/entities/Match";
+import { Group } from "../database/entities/Group";
 import { Repository } from "typeorm";
 import { MatchNotificationService } from "./MatchNotificationService";
-
-export interface MatchResult {
-    confidence: number;
-    matchType: MatchType;
-    reason: string;
-    matchedWants: string[];
-    matchedOffers: string[];
-    suggestedActivities?: string[];
-    aiAnalysis: string;
-}
+import { MatchingService, MatchResult, WishlistData, GroupData } from "./MatchingService";
 
 export class AIMatchingService {
-    private openai: OpenAI;
+    private matchingService: MatchingService;
     private wishlistRepository: Repository<Wishlist>;
     private matchRepository: Repository<Match>;
+    private groupRepository: Repository<Group>;
     private notificationService: MatchNotificationService;
 
     constructor() {
-        this.openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        this.matchingService = new MatchingService();
         this.wishlistRepository = AppDataSource.getRepository(Wishlist);
         this.matchRepository = AppDataSource.getRepository(Match);
+        this.groupRepository = AppDataSource.getRepository(Group);
         this.notificationService = new MatchNotificationService();
     }
 
@@ -36,52 +27,61 @@ export class AIMatchingService {
         const wishlists = await this.getWishlistsForMatching();
         console.log(`📋 Found ${wishlists.length} wishlists to analyze`);
 
+        // Get existing groups for context
+        const existingGroups = await this.getExistingGroups();
+        console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
+
+        // Convert to shared service format
+        const wishlistData: WishlistData[] = wishlists.map(wishlist => ({
+            id: wishlist.id,
+            content: wishlist.content,
+            userId: wishlist.userId,
+            user: {
+                id: wishlist.user.id,
+                name: wishlist.user.name || wishlist.user.ename,
+                ename: wishlist.user.ename
+            }
+        }));
+
+        // Use matching service for parallel processing
+        const matchResults = await this.matchingService.findMatches(wishlistData, existingGroups);
+
+        // Create database matches from results
         let totalMatches = 0;
-        let totalProcessed = 0;
-        const batchSize = 10; // Process in batches to avoid overwhelming the API
-
-        for (let i = 0; i < wishlists.length; i += batchSize) {
-            const batch = wishlists.slice(i, i + batchSize);
-            console.log(`🔄 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(wishlists.length/batchSize)} (${batch.length} wishlists)`);
+        for (const matchResult of matchResults) {
+            // Check if this is a "join existing group" suggestion
+            const joinGroupActivity = matchResult.suggestedActivities.find(activity => 
+                activity.startsWith('JOIN_EXISTING_GROUP:')
+            );
             
-            for (let j = 0; j < batch.length; j++) {
-                for (let k = j + 1; k < batch.length; k++) {
-                    const wishlistA = batch[j];
-                    const wishlistB = batch[k];
-
-                    // Skip if same user
-                    if (wishlistA.userId === wishlistB.userId) continue;
-
-                    // Check if match already exists
-                    const existingMatch = await this.matchRepository.findOne({
-                        where: [
-                            { userAId: wishlistA.userId, userBId: wishlistB.userId },
-                            { userAId: wishlistB.userId, userBId: wishlistA.userId }
-                        ]
-                    });
-
-                    if (existingMatch) continue;
-
-                    try {
-                        const matchResult = await this.analyzeMatch(wishlistA, wishlistB);
-                        
-                        if (matchResult.confidence > 0.7) { // High confidence threshold
-                            await this.createMatch(wishlistA, wishlistB, matchResult);
-                            totalMatches++;
-                            console.log(`✅ Created match ${totalMatches} between ${wishlistA.user.ename} and ${wishlistB.user.ename} (confidence: ${matchResult.confidence})`);
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error analyzing match between ${wishlistA.user.ename} and ${wishlistB.user.ename}:`, error);
-                    }
-                    
-                    totalProcessed++;
-                }
+            if (joinGroupActivity) {
+                const groupId = joinGroupActivity.split(':')[1];
+                console.log(`🏠 AI suggests users join existing group: ${groupId}`);
+                // Handle joining existing group (implement this logic)
+                continue;
             }
-            
-            // Small delay between batches to be respectful to the API
-            if (i + batchSize < wishlists.length) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Find the original wishlists for all users in the match
+            const matchWishlists = matchResult.userIds.map(userId => 
+                wishlists.find(w => w.userId === userId)
+            ).filter(Boolean) as Wishlist[];
+
+            if (matchWishlists.length !== matchResult.userIds.length) {
+                console.log(`❌ Could not find all wishlists for match: ${matchResult.userIds.join(', ')}`);
+                continue;
             }
+
+            // Check if match already exists (any combination of these users)
+            const existingMatch = await this.checkForExistingMatch(matchResult.userIds);
+            if (existingMatch) {
+                console.log(`⏭️ Match already exists for users: ${matchResult.userIds.join(', ')}`);
+                continue;
+            }
+
+            await this.createMatch(matchWishlists, matchResult);
+            totalMatches++;
+            const userNames = matchWishlists.map(w => w.user.ename).join(', ');
+            console.log(`✅ Created ${matchResult.matchType} match ${totalMatches} for ${userNames} (confidence: ${matchResult.confidence})`);
         }
 
         // Mark wishlists as analyzed
@@ -95,7 +95,7 @@ export class AIMatchingService {
             });
         }
 
-        console.log(`🎉 AI matching process completed! Created ${totalMatches} matches from ${totalProcessed} comparisons`);
+        console.log(`🎉 AI matching process completed! Created ${totalMatches} matches from ${matchResults.length} AI results`);
         
         // Process any existing matches that haven't been messaged yet
         await this.processUnmessagedMatches();
@@ -178,6 +178,57 @@ export class AIMatchingService {
             .orderBy("wishlist.updatedAt", "DESC")
             .limit(200) // Increased limit for more matches
             .getMany();
+    }
+
+    private async getExistingGroups(): Promise<GroupData[]> {
+        const groups = await this.groupRepository
+            .createQueryBuilder("group")
+            .leftJoinAndSelect("group.members", "members")
+            .where("group.isPrivate = :isPrivate", { isPrivate: false })
+            .andWhere("group.name ILIKE :dreamsync", { dreamsync: "%DreamSync%" })
+            .orderBy("group.createdAt", "DESC")
+            .limit(50) // Limit to recent groups
+            .getMany();
+
+        return groups.map(group => ({
+            id: group.id,
+            name: group.name,
+            description: group.description || "",
+            activityCategory: this.extractActivityCategory(group.name),
+            memberCount: group.members?.length || 0,
+            memberIds: group.members?.map(m => m.id) || [],
+            createdAt: group.createdAt
+        }));
+    }
+
+    private extractActivityCategory(groupName: string): string {
+        const name = groupName.toLowerCase();
+        if (name.includes('chess')) return 'chess';
+        if (name.includes('youtube')) return 'youtube';
+        if (name.includes('language')) return 'language-exchange';
+        if (name.includes('fitness') || name.includes('gym')) return 'fitness';
+        if (name.includes('coding') || name.includes('programming')) return 'coding';
+        if (name.includes('photography')) return 'photography';
+        if (name.includes('music')) return 'music';
+        if (name.includes('cooking') || name.includes('food')) return 'cooking';
+        return 'general';
+    }
+
+    private async checkForExistingMatch(userIds: string[]): Promise<Match | null> {
+        // For now, check if any pair of users already have a match
+        // In the future, we could check for exact group matches
+        for (let i = 0; i < userIds.length; i++) {
+            for (let j = i + 1; j < userIds.length; j++) {
+                const existingMatch = await this.matchRepository.findOne({
+                    where: [
+                        { userAId: userIds[i], userBId: userIds[j] },
+                        { userAId: userIds[j], userBId: userIds[i] }
+                    ]
+                });
+                if (existingMatch) return existingMatch;
+            }
+        }
+        return null;
     }
 
     private async analyzeMatch(wishlistA: Wishlist, wishlistB: Wishlist): Promise<MatchResult> {
@@ -263,7 +314,12 @@ Only suggest matches with confidence > 0.7 for meaningful connections.
         `.trim();
     }
 
-    private async createMatch(wishlistA: Wishlist, wishlistB: Wishlist, matchResult: MatchResult): Promise<void> {
+    private async createMatch(wishlists: Wishlist[], matchResult: MatchResult): Promise<void> {
+        // For now, create a match between the first two users
+        // In the future, we could create group matches differently
+        const wishlistA = wishlists[0];
+        const wishlistB = wishlists[1];
+        
         const match = this.matchRepository.create({
             type: matchResult.matchType,
             status: MatchStatus.PENDING,
@@ -273,7 +329,9 @@ Only suggest matches with confidence > 0.7 for meaningful connections.
                 matchedWants: matchResult.matchedWants,
                 matchedOffers: matchResult.matchedOffers,
                 suggestedActivities: matchResult.suggestedActivities,
-                aiAnalysis: matchResult.aiAnalysis
+                aiAnalysis: matchResult.aiAnalysis,
+                activityCategory: matchResult.activityCategory,
+                userIds: matchResult.userIds
             },
             userAId: wishlistA.userId,
             userBId: wishlistB.userId,
@@ -282,7 +340,8 @@ Only suggest matches with confidence > 0.7 for meaningful connections.
             metadata: {
                 aiModel: "gpt-4",
                 aiVersion: "1.0",
-                processingTime: Date.now()
+                processingTime: Date.now(),
+                allUserIds: matchResult.userIds // Store all user IDs for group matches
             }
         });
 
