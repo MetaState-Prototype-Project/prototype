@@ -27,7 +27,8 @@
       "@/*": [
         "src/*"
       ]
-    }
+    },
+    "types": ["react", "react-dom"]
   },
   "include": [
     "**/*.ts",
