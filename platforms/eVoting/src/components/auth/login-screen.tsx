@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/lib/auth-context";
 import { apiClient } from "@/lib/apiClient";
 
@@ -73,7 +73,7 @@ export function LoginScreen() {
           <div className="flex flex-col items-center space-y-6">
             {qrCode ? (
               <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
-                <QRCode
+                <QRCodeSVG
                   value={qrCode}
                   size={200}
                   level="M"

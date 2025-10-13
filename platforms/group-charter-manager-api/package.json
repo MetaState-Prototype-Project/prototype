@@ -23,7 +23,8 @@
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.24",
-        "uuid": "^9.0.1"
+        "uuid": "^9.0.1",
+        "web3-adapter": "workspace:*"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",

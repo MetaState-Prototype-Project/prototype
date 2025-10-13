@@ -3,7 +3,7 @@ import { UserService } from "../services/UserService";
 import { ChatService } from "../services/ChatService";
 import { PostService } from "../services/PostService";
 import { CommentService } from "../services/CommentService";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
+import { Web3Adapter } from "web3-adapter";
 import { User } from "database/entities/User";
 import { Chat } from "database/entities/Chat";
 import { Message } from "database/entities/Message";

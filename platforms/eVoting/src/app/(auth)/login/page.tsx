@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/lib/auth-context";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
 import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
@@ -135,7 +135,7 @@ export default function LoginPage() {
                                 </div>
                             ) : (
                                 <div className="p-4 bg-white rounded-lg">
-                                    <QRCode
+                                    <QRCodeSVG
                                         value={qrData}
                                         size={200}
                                         level="M"
