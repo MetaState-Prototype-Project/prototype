@@ -2,7 +2,7 @@
 
 import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
-import { createGroupEVault } from "../../../../infrastructure/web3-adapter/src/index";
+import { createGroupEVault } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { IsNull } from "typeorm";

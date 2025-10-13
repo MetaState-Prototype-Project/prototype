@@ -6,8 +6,8 @@ import {
     RemoveEvent,
     ObjectLiteral,
 } from "typeorm";
-import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
-import { createGroupEVault } from "../../../../../infrastructure/web3-adapter/src/index";
+import { Web3Adapter } from "web3-adapter";
+import { createGroupEVault } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
