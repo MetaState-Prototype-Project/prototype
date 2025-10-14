@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { App, InsertApp } from "@shared/schema";
+import { App, InsertApp } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Settings, ExternalLink, LogOut, Edit, Trash2, Star, Eye, TrendingUp, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { user, logoutMutation } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingApp, setEditingApp] = useState<App | null>(null);
@@ -274,14 +274,7 @@ export default function AdminDashboard() {
                 </Button>
               </a>
               <div className="flex items-center space-x-3">
-                <span className="text-sm font-medium text-gray-700">{user?.email}</span>
-                <Button
-                  className="text-black font-bold px-4 py-3 rounded-full hover:scale-105 transition-all duration-200 border-2 border-gray-200 bg-white hover:border-black"
-                  onClick={() => logoutMutation.mutate()}
-                  disabled={logoutMutation.isPending}
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
+                <span className="text-sm font-medium text-gray-700">Admin</span>
               </div>
             </div>
           </div>

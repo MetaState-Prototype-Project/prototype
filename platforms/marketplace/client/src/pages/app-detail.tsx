@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { App, Review } from "@shared/schema";
+import { App, Review } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -341,11 +341,11 @@ export default function AppDetailPage() {
                 <div key={review.id} className={`${index < reviews.length - 1 ? "border-b border-gray-200 pb-6" : ""}`}>
                   <div className="flex items-start space-x-4">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-black font-bold text-lg" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
-                      {review.username.substring(0, 2).toUpperCase()}
+                      {review.userName.substring(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <span className="font-bold text-black text-lg">{review.username}</span>
+                        <span className="font-bold text-black text-lg">{review.userName}</span>
                         {renderStars(review.rating)}
                         <span className="text-sm font-medium text-gray-500">
                           {new Date(review.createdAt).toLocaleDateString()}
