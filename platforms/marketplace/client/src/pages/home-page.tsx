@@ -1,23 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { App, Review } from "@shared/schema";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Search, Store, ArrowRight, ExternalLink } from "lucide-react";
+import { Search, Store, ArrowRight } from "lucide-react";
 import w3dsLogo from "@assets/w3dslogo.svg";
+import appsData from "@/data/apps.json";
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Apps");
 
-  const { data: apps = [], isLoading: isLoadingApps } = useQuery<App[]>({
-    queryKey: ["/api/apps"],
-  });
+  const apps = appsData;
+  const isLoadingApps = false;
 
-  const categories = ["All Apps", "Productivity", "Design", "Development", "Communication", "Marketing"];
+  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness"];
 
   const filteredApps = apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -26,28 +23,6 @@ export default function HomePage() {
                            app.category.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
-
-  const renderStars = (rating: number) => {
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-
-    return (
-      <div className="flex items-center">
-        {[...Array(fullStars)].map((_, i) => (
-          <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-        ))}
-        {hasHalfStar && (
-          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" style={{
-            clipPath: "polygon(0 0, 50% 0, 50% 100%, 0 100%)"
-          }} />
-        )}
-        {[...Array(emptyStars)].map((_, i) => (
-          <Star key={i} className="w-3 h-3 text-slate-300" />
-        ))}
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -138,46 +113,75 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredApps.map((app) => (
-                <div key={app.id} className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-gray-300 transition-all duration-200 group">
-                  <div className="flex items-start space-x-6 mb-6">
-                    {app.logoUrl ? (
-                      <img 
-                        src={app.logoUrl} 
-                        alt={`${app.name} logo`} 
-                        className="w-20 h-20 rounded-2xl object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
-                        <Store className="w-10 h-10 text-black" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-black mb-2 group-hover:text-gray-700">
-                        {app.name}
-                      </h3>
-                      <p className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">{app.category}</p>
-                      <div className="flex items-center space-x-2">
-                        {renderStars(parseFloat(app.averageRating || "0"))}
-                        <span className="text-lg font-bold text-black">
-                          {parseFloat(app.averageRating || "0").toFixed(1)}
-                        </span>
+                <Link key={app.id} href={`/app/${app.id}`}>
+                  <div className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-gray-300 transition-all duration-200 group cursor-pointer">
+                    <div className="flex items-start space-x-6 mb-6">
+                      {app.logoUrl ? (
+                        <img 
+                          src={app.logoUrl} 
+                          alt={`${app.name} logo`} 
+                          className="w-20 h-20 rounded-2xl object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
+                          <Store className="w-10 h-10 text-black" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold text-black mb-2 group-hover:text-gray-700">
+                          {app.name}
+                        </h3>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Badge className="bg-gray-100 text-gray-700 font-semibold uppercase tracking-wide">
+                            {app.category}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
+                    <p className="text-gray-700 mb-6 line-clamp-2 font-medium">
+                      {app.description}
+                    </p>
+                    <div className="flex items-center justify-end gap-3">
+                      {(app as any).appStoreUrl && (app as any).playStoreUrl ? (
+                        <>
+                          <a 
+                            href={(app as any).appStoreUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
+                              App Store
+                            </Button>
+                          </a>
+                          <a 
+                            href={(app as any).playStoreUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
+                              Play Store
+                            </Button>
+                          </a>
+                        </>
+                      ) : (
+                        <a 
+                          href={(app as any).url || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button className="text-black font-bold px-6 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
+                            Open App <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-gray-700 mb-6 line-clamp-2 font-medium">
-                    {app.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-500">
-                      {app.totalReviews} reviews
-                    </span>
-                    <Link href={`/app/${app.id}`}>
-                      <Button className="text-black font-bold px-6 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
-                        View Details <ArrowRight className="w-4 h-4 ml-2" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
