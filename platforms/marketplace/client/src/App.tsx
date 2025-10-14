@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
-import { ProtectedRoute } from "@/lib/protected-route";
 import HomePage from "@/pages/home-page";
 import AppDetailPage from "@/pages/app-detail";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -16,7 +15,7 @@ function Router() {
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/app/:id" component={AppDetailPage} />
-      <ProtectedRoute path="/admin" component={AdminDashboard} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
