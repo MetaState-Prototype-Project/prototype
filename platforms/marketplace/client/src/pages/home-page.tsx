@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,70 +113,75 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredApps.map((app) => (
-                <div key={app.id} className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-gray-300 transition-all duration-200 group">
-                  <div className="flex items-start space-x-6 mb-6">
-                    {app.logoUrl ? (
-                      <img 
-                        src={app.logoUrl} 
-                        alt={`${app.name} logo`} 
-                        className="w-20 h-20 rounded-2xl object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
-                        <Store className="w-10 h-10 text-black" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-bold text-black mb-2 group-hover:text-gray-700">
-                        {app.name}
-                      </h3>
-                      <div className="flex items-center space-x-2 mb-3">
-                        <Badge className="bg-gray-100 text-gray-700 font-semibold uppercase tracking-wide">
-                          {app.category}
-                        </Badge>
+                <Link key={app.id} href={`/app/${app.id}`}>
+                  <div className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-gray-300 transition-all duration-200 group cursor-pointer">
+                    <div className="flex items-start space-x-6 mb-6">
+                      {app.logoUrl ? (
+                        <img 
+                          src={app.logoUrl} 
+                          alt={`${app.name} logo`} 
+                          className="w-20 h-20 rounded-2xl object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
+                          <Store className="w-10 h-10 text-black" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold text-black mb-2 group-hover:text-gray-700">
+                          {app.name}
+                        </h3>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Badge className="bg-gray-100 text-gray-700 font-semibold uppercase tracking-wide">
+                            {app.category}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <p className="text-gray-700 mb-6 line-clamp-2 font-medium">
-                    {app.description}
-                  </p>
-                  <div className="flex items-center justify-end gap-3">
-                    {(app as any).appStoreUrl && (app as any).playStoreUrl ? (
-                      <>
+                    <p className="text-gray-700 mb-6 line-clamp-2 font-medium">
+                      {app.description}
+                    </p>
+                    <div className="flex items-center justify-end gap-3">
+                      {(app as any).appStoreUrl && (app as any).playStoreUrl ? (
+                        <>
+                          <a 
+                            href={(app as any).appStoreUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
+                              App Store
+                            </Button>
+                          </a>
+                          <a 
+                            href={(app as any).playStoreUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
+                              Play Store
+                            </Button>
+                          </a>
+                        </>
+                      ) : (
                         <a 
-                          href={(app as any).appStoreUrl} 
+                          href={(app as any).url || '#'} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="flex-1"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
-                            App Store
+                          <Button className="text-black font-bold px-6 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
+                            Open App <ArrowRight className="w-4 h-4 ml-2" />
                           </Button>
                         </a>
-                        <a 
-                          href={(app as any).playStoreUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex-1"
-                        >
-                          <Button className="w-full text-black font-bold px-4 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(270, 100%, 85%)' }}>
-                            Play Store
-                          </Button>
-                        </a>
-                      </>
-                    ) : (
-                      <a 
-                        href={(app as any).url || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                      >
-                        <Button className="text-black font-bold px-6 py-3 rounded-full hover:opacity-90" style={{ backgroundColor: 'hsl(85, 100%, 85%)' }}>
-                          Open App <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                      </a>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
