@@ -42,10 +42,10 @@ AppDataSource.initialize()
             // Don't exit the process, just log the error
         }
         
-        // Start AI matching job
+        // Start AI matching job (disabled automatic startup)
         const matchingJob = new MatchingJob();
-        matchingJob.start(60); // Run every 60 minutes
-        console.log("AI matching job started");
+        // matchingJob.start(60); // Run every 60 minutes - DISABLED
+        console.log("AI matching job initialized (manual trigger only)");
     })
     .catch((error: unknown) => {
         console.error("Error during initialization:", error);

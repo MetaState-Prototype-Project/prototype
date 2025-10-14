@@ -2,12 +2,15 @@ import React, { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/apiClient";
+import { isMobileDevice, getDeepLinkUrl, getAppStoreLink } from "@/lib/utils/mobile-detection";
+import { Heart } from "lucide-react";
 
 export function LoginScreen() {
   const { login } = useAuth();
   const [qrCode, setQrCode] = useState<string>("");
   const [sessionId, setSessionId] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const getAuthOffer = async () => {
@@ -17,10 +20,12 @@ export function LoginScreen() {
         console.log("✅ Auth offer response:", response.data);
         setQrCode(response.data.offer);
         setSessionId(response.data.sessionId);
+        setIsLoading(false);
       } catch (error) {
         console.error("❌ Failed to get auth offer:", error);
         console.error("❌ Error details:", error.response?.data);
         console.error("❌ Error status:", error.response?.status);
+        setIsLoading(false);
       }
     };
 
@@ -60,52 +65,98 @@ export function LoginScreen() {
     };
   }, [sessionId, login]);
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
+
+  if (isConnecting) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Authenticating...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to DreamSync
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Scan the QR code with your eID wallet to authenticate
+    <div className="flex flex-col gap-6 min-h-screen items-center justify-center p-4">
+      <div className="flex flex-col gap-2 items-center justify-center">
+        <div className="flex gap-4 justify-center items-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 rounded-xl flex items-center justify-center shadow-sm">
+            <Heart className="h-6 w-6 text-blue-600" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 bg-clip-text text-transparent">DreamSync</h1>
+        </div>
+        <p className="text-gray-600">
+          Connect your dreams in the MetaState
+        </p>
+      </div>
+      
+      <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
+        <div className="text-center mb-8">
+          <p className="text-gray-600">
+            Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
           </p>
         </div>
-        
-        <div className="mt-8 space-y-6">
-          <div className="flex justify-center">
-            {qrCode ? (
-              <div className="p-4 bg-white rounded-lg shadow-lg">
-                <QRCodeSVG value={qrCode} size={256} />
+
+        {qrCode && (
+          <div className="flex justify-center mb-6">
+            {isMobileDevice() ? (
+              <div className="flex flex-col gap-4 items-center">
+                <a
+                  href={getDeepLinkUrl(qrCode)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center"
+                >
+                  Login with eID Wallet
+                </a>
+                <div className="text-xs text-gray-500 text-center max-w-xs">
+                  Click the button to open your eID wallet app
+                </div>
               </div>
             ) : (
-              <div className="p-4 bg-white rounded-lg shadow-lg w-64 h-64 flex items-center justify-center">
-                <div className="text-gray-500">Loading QR code...</div>
+              <div className="bg-white p-4 rounded-lg border">
+                <QRCodeSVG
+                  value={qrCode}
+                  size={200}
+                  level="M"
+                  includeMargin={true}
+                />
               </div>
             )}
           </div>
-          
-          {isConnecting && (
-            <div className="text-center">
-              <div className="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-white bg-blue-500 hover:bg-blue-400 transition ease-in-out duration-150 cursor-not-allowed">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Connecting...
-              </div>
-            </div>
-          )}
-          
-          <div className="text-center text-sm text-gray-600">
-            <p>Don't have an eID wallet?</p>
-            <p className="mt-1">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Download eID wallet
-              </a>
-            </p>
-          </div>
+        )}
+
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            <span className="mb-1 block font-bold text-gray-600">The {isMobileDevice() ? "button" : "code"} is valid for 60 seconds</span>
+            <span className="block font-light text-gray-600">Please refresh the page if it expires</span>
+          </p>
         </div>
+
+        <div className="p-4 rounded-xl bg-gray-100 text-gray-700 mt-4">
+          You are entering DreamSync - an AI-powered wishlist matching and collaboration
+          platform built on the Web 3.0 Data Space (W3DS)
+          architecture. This system is designed around the principle
+          of data-platform separation, where all your personal content
+          is stored in your own sovereign eVault, not on centralised
+          servers.
+        </div>
+
+        <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
+          <img
+            src="/W3DS.svg"
+            alt="W3DS Logo"
+            width={50}
+            height={20}
+            className="mx-auto mt-5"
+          />
+        </a>
       </div>
     </div>
   );

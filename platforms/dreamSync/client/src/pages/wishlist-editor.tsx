@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, Heart, Sparkles, Users, LogOut, Loader2 } from 'lucide-react';
@@ -54,6 +55,7 @@ const sampleWishlistTemplate = `# My Dream Wishlist
 
 export default function WishlistEditor() {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [wishlistContent, setWishlistContent] = useState(sampleWishlistTemplate);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,10 +106,17 @@ export default function WishlistEditor() {
         console.log("Wishlist created successfully:", response.data);
       }
       
-      alert(existingWishlist ? 'Wishlist updated successfully!' : 'Wishlist saved successfully!');
+      toast({
+        title: "Success!",
+        description: existingWishlist ? 'Wishlist updated successfully!' : 'Wishlist saved successfully!',
+      });
     } catch (error: any) {
       console.error("Error saving wishlist:", error);
-      alert('Failed to save wishlist. Please try again.');
+      toast({
+        title: "Error",
+        description: 'Failed to save wishlist. Please try again.',
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }

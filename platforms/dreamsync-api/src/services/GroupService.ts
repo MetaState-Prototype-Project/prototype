@@ -45,6 +45,7 @@ export class GroupService {
         visibility: "public" | "private" | "restricted" = "public",
         avatarUrl?: string,
         bannerUrl?: string,
+        originalMatchParticipants?: string[],
     ): Promise<Group> {
         const members = await this.userRepository.findBy({
             id: In(memberIds),
@@ -72,6 +73,7 @@ export class GroupService {
             visibility,
             avatarUrl,
             bannerUrl,
+            originalMatchParticipants: originalMatchParticipants || [],
         });
         return await this.groupRepository.save(group);
     }
@@ -116,7 +118,12 @@ export class GroupService {
         groupId: string,
         memberIds: string[]
     ): Promise<Group> {
-        const group = await this.getGroupById(groupId);
+        // Load the group with ALL relations to ensure proper save
+        const group = await this.groupRepository.findOne({
+            where: { id: groupId },
+            relations: ["members", "admins", "participants"]
+        });
+        
         if (!group) {
             throw new Error("Group not found");
         }
@@ -128,8 +135,14 @@ export class GroupService {
             throw new Error("One or more members not found");
         }
 
-        group.participants = [...group.participants, ...newMembers];
-        return await this.groupRepository.save(group);
+        // Ensure arrays exist and add new members
+        group.participants = [...(group.participants || []), ...newMembers];
+        group.members = [...(group.members || []), ...newMembers];
+        
+        // Save the group entity to trigger PostgresSubscriber
+        const savedGroup = await this.groupRepository.save(group);
+        
+        return savedGroup;
     }
 
     async removeMember(groupId: string, userId: string): Promise<Group> {

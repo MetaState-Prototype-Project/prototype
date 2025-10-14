@@ -3,6 +3,7 @@ import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { ConsentService } from "../services/ConsentService";
+import { WebhookProcessingService } from "../services/WebhookProcessingService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -14,6 +15,7 @@ export class WebhookController {
     groupService: GroupService;
     messageService: MessageService;
     consentService: ConsentService;
+    webhookProcessingService: WebhookProcessingService;
     adapter: typeof adapter;
 
     constructor() {
@@ -21,26 +23,50 @@ export class WebhookController {
         this.groupService = new GroupService();
         this.messageService = new MessageService();
         this.consentService = new ConsentService();
+        this.webhookProcessingService = new WebhookProcessingService();
         this.adapter = adapter;
     }
 
     handleWebhook = async (req: Request, res: Response) => {
+        const globalId = req.body.id;
+        const schemaId = req.body.schemaId;
+        
         try {
-            console.log("DreamSync Webhook received:", {
-                schemaId: req.body.schemaId,
-                globalId: req.body.id,
+            console.log("🔔 DreamSync Webhook received:", {
+                globalId,
+                schemaId,
                 tableName: req.body.data?.tableName
             });
 
-            if (process.env.ANCHR_URL) {
-                axios.post(
-                    new URL("dreamsync-api", process.env.ANCHR_URL).toString(),
-                    req.body
-                );
+            // Check if this webhook has already been processed
+            if (await this.webhookProcessingService.isWebhookProcessed(req.body)) {
+                console.log(`⏭️ Webhook already processed, skipping`);
+                return res.status(200).send("Already processed");
             }
 
-            const schemaId = req.body.schemaId;
-            const globalId = req.body.id;
+            // Mark webhook as being processed (this will fail if another instance is processing it)
+            let processingRecord;
+            try {
+                processingRecord = await this.webhookProcessingService.markWebhookProcessing(req.body);
+                console.log(`🔄 Marked webhook as processing`);
+            } catch (error) {
+                console.log(`⏭️ Webhook is already being processed by another instance`);
+                return res.status(200).send("Already being processed");
+            }
+
+            // Forward to ANCHR if configured
+            if (process.env.ANCHR_URL) {
+                try {
+                    await axios.post(
+                        new URL("dreamsync-api", process.env.ANCHR_URL).toString(),
+                        req.body
+                    );
+                } catch (error) {
+                    console.error("Failed to forward to ANCHR:", error);
+                    // Don't fail the webhook if ANCHR forwarding fails
+                }
+            }
+
             const mapping = Object.values(this.adapter.mapping).find(
                 (m: any) => m.schemaId === schemaId
             ) as any;
@@ -50,12 +76,14 @@ export class WebhookController {
 
             if (!mapping) {
                 console.error("No mapping found for schemaId:", schemaId);
+                await this.webhookProcessingService.markWebhookFailed(req.body, "No mapping found");
                 throw new Error("No mapping found");
             }
 
             // Check if this globalId is already locked (being processed)
             if (this.adapter.lockedIds.includes(globalId)) {
                 console.log("GlobalId already locked, skipping:", globalId);
+                await this.webhookProcessingService.markWebhookCompleted(req.body);
                 return res.status(200).send();
             }
 
@@ -68,6 +96,7 @@ export class WebhookController {
 
             let localId = await this.adapter.mappingDb.getLocalId(globalId);
             console.log("Local ID for globalId", globalId, ":", localId);
+            let finalLocalId = localId; // Track the final local ID for completion
 
             if (mapping.tableName === "users") {
                 if (localId) {
@@ -94,6 +123,7 @@ export class WebhookController {
                     });
                     this.adapter.addToLockedIds(user.id);
                     this.adapter.addToLockedIds(globalId);
+                    finalLocalId = user.id;
                 } else {
                     const user = await this.userService.createBlankUser(req.body.w3id);
                     
@@ -114,9 +144,25 @@ export class WebhookController {
                     });
                     this.adapter.addToLockedIds(user.id);
                     this.adapter.addToLockedIds(globalId);
+                    finalLocalId = user.id;
                 }
             } else if (mapping.tableName === "groups") {
                 console.log("Processing group with data:", local.data);
+
+        // Check if this is a group created locally (has originalMatchParticipants)
+        // If so, skip creation to prevent infinite loops
+        if (local.data.originalMatchParticipants && Array.isArray(local.data.originalMatchParticipants)) {
+            console.log("⏭️ Skipping group creation - this is a locally created group (has originalMatchParticipants)");
+            await this.webhookProcessingService.markWebhookCompleted(req.body);
+            return res.status(200).send("Skipped local group");
+        }
+
+        // Check if this is a group with Match ID in description (already processed)
+        if (local.data.description && typeof local.data.description === 'string' && local.data.description.startsWith('Match ID:')) {
+            console.log("⏭️ Skipping group creation - this group has Match ID in description (already processed)");
+            await this.webhookProcessingService.markWebhookCompleted(req.body);
+            return res.status(200).send("Skipped Match ID group");
+        }
 
                 let participants: User[] = [];
                 if (
@@ -163,24 +209,46 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
                     console.log("Updated group:", group.id);
+                    finalLocalId = group.id;
                 } else {
-                    console.log("Creating new group");
-                    const group = await this.groupService.createGroup(
-                        local.data.name as string,
-                        local.data.description as string,
-                        local.data.owner as string,
-                        adminIds,
-                        participants.map(p => p.id),
-                        local.data.charter as string | undefined,
-                    );
-                    console.log("Created group with ID:", group.id);
-                    console.log(group)
-                    this.adapter.addToLockedIds(group.id);
-                    await this.adapter.mappingDb.storeMapping({
-                        localId: group.id,
-                        globalId: req.body.id,
+                    // Check if a group with the same name and description already exists
+                    // This prevents duplicate group creation from junction table webhooks
+                    const existingGroup = await this.groupService.groupRepository.findOne({
+                        where: {
+                            name: local.data.name as string,
+                            description: local.data.description as string
+                        }
                     });
-                    console.log("Stored mapping for group:", group.id, "->", req.body.id);
+
+                    if (existingGroup) {
+                        console.log("⏭️ Group with same name/description already exists, updating mapping instead");
+                        this.adapter.addToLockedIds(existingGroup.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: existingGroup.id,
+                            globalId: req.body.id,
+                        });
+                        console.log("Stored mapping for existing group:", existingGroup.id, "->", req.body.id);
+                        finalLocalId = existingGroup.id;
+                    } else {
+                        console.log("Creating new group");
+                        const group = await this.groupService.createGroup(
+                            local.data.name as string,
+                            local.data.description as string,
+                            local.data.owner as string,
+                            adminIds,
+                            participants.map(p => p.id),
+                            local.data.charter as string | undefined,
+                        );
+                        console.log("Created group with ID:", group.id);
+                        console.log(group)
+                        this.adapter.addToLockedIds(group.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: group.id,
+                            globalId: req.body.id,
+                        });
+                        console.log("Stored mapping for group:", group.id, "->", req.body.id);
+                        finalLocalId = group.id;
+                    }
                 }
             } else if (mapping.tableName === "messages") {
                 console.log("Processing message with data:", local.data);
@@ -235,6 +303,7 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.messageService.messageRepository.save(message);
                     console.log("Updated message:", message.id);
+                    finalLocalId = message.id;
                 } else {
                     console.log("Creating new message");
                     let message: Message;
@@ -259,9 +328,10 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for message:", message.id, "->", req.body.id);
+                    finalLocalId = message.id;
 
-                    // Check if this is a consent response (non-system message with "yes")
-                    if (!isSystemMessage && message.text && message.text.toLowerCase().includes('yes')) {
+                    // Check if this is a consent response (non-system message with Match ID)
+                    if (!isSystemMessage && message.text && message.text.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)) {
                         console.log("🤝 WEBHOOK: Processing potential consent response");
                         try {
                             await this.consentService.processConsentResponse(
@@ -275,9 +345,15 @@ export class WebhookController {
                     }
                 }
             }
+            
+            // Mark webhook as completed
+            await this.webhookProcessingService.markWebhookCompleted(req.body, finalLocalId || undefined);
+            console.log(`✅ Webhook completed successfully`);
             res.status(200).send();
         } catch (e) {
             console.error("DreamSync Webhook error:", e);
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            await this.webhookProcessingService.markWebhookFailed(req.body, errorMessage);
             res.status(500).send();
         }
     };

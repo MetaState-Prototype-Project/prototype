@@ -53,6 +53,16 @@ export class Match {
         matchedOffers: string[]; // What user B offers that user A wants
         suggestedActivities?: string[];
         aiAnalysis?: string;
+        activityCategory?: string; // Category of the activity (chess, youtube, etc.)
+        allUserIds?: string[]; // All user IDs in this match (for multi-user matches)
+        isMultiUserMatch?: boolean; // Flag to indicate this is part of a multi-user match
+        userConsents?: { [userId: string]: boolean }; // Track consent for each user
+        consentThreshold?: number; // Minimum number of users needed to consent (default: 2)
+        newUserIds?: string[]; // Only new users who need to be added (for join existing group)
+        existingGroupId?: string; // Reference to existing group (for join existing group)
+        isJoinExistingGroup?: boolean; // Flag to indicate this is joining an existing group
+        newUserId?: string; // The user who wants to join (for 2-user join existing group matches)
+        adminUserId?: string; // The admin who needs to consent (for 2-user join existing group matches)
     };
 
     @ManyToOne(() => User, { onDelete: "CASCADE" })

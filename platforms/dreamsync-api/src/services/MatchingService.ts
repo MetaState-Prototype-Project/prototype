@@ -92,6 +92,10 @@ ${groupsText}
 
 IMPORTANT: If users match an existing group's activity, suggest they JOIN that group instead of creating a new one!
 Use the format: "JOIN_EXISTING_GROUP:${existingGroups[0].id}" in the suggestedActivities field.
+
+This applies even if the user is NOT currently a member of the group - they can still join existing groups for the same activity.
+
+However, if users want to collaborate on a DIFFERENT activity than existing groups, create a NEW group for that specific activity.
 `;
         }
 
@@ -118,36 +122,33 @@ Return a JSON array of matches with this structure:
     "userIds": ["user-001", "user-002", "user-020"], 
     "confidence": 0.85,
     "matchType": "group",
-    "activityCategory": "chess",
-    "reason": "Three users all want to play chess and can organize tournaments together",
-    "matchedWants": ["chess practice", "tournament participation", "strategy games"],
-    "matchedOffers": ["chess teaching", "tournament organization", "game hosting"],
-    "suggestedActivities": ["weekly chess nights", "monthly tournaments", "strategy discussions"],
-    "aiAnalysis": "Perfect group for chess enthusiasts with complementary skills"
-  },
-  {
-    "userIds": ["user-003", "user-004"], 
-    "confidence": 0.9,
-    "matchType": "private",
-    "activityCategory": "youtube-collaboration",
-    "reason": "Both users want to collaborate on YouTube and have complementary skills",
-    "matchedWants": ["YouTube collaboration", "video editing help"],
-    "matchedOffers": ["script writing", "graphic design"],
-    "suggestedActivities": ["weekly video shoots", "content planning sessions"],
-    "aiAnalysis": "Strong private collaboration potential for YouTube content"
+    "activityCategory": "activity-name",
+    "reason": "Description of why these users match",
+    "matchedWants": ["what users want"],
+    "matchedOffers": ["what users can provide"],
+    "suggestedActivities": ["suggested activities"],
+    "aiAnalysis": "AI analysis of the match"
   }
 ]
 
 Find as many meaningful matches as possible. Look for:
 - Complementary skills (one teaches, one learns)
 - Shared interests and activities  
-- Group activities that 3+ people can join (sports, clubs, workshops, tournaments)
-- Private 1-on-1 services (tutoring, coaching, personal projects)
+- Group activities that 3+ people can join
+- Private 1-on-1 services
 - Skill exchanges and collaborations
 - Learning partnerships
 
-GROUP ACTIVITIES (3+ people): Sports teams, clubs, workshops, tournaments, group projects, meetups
-PRIVATE ACTIVITIES (2 people): Tutoring, coaching, personal services, 1-on-1 projects
+GROUP ACTIVITIES (3+ people): Group activities, clubs, workshops, tournaments, group projects, meetups
+PRIVATE ACTIVITIES (2 people): Personal services, coaching, 1-on-1 projects
+
+IMPORTANT RULES FOR EXISTING GROUPS:
+- Suggest JOIN_EXISTING_GROUP if users want the SAME activity as an existing group (regardless of membership status)
+- If users want a DIFFERENT activity than existing groups, create a NEW group for that specific activity
+- Users can have multiple groups for different activities
+- Existing groups can grow by adding new members who share the same interest
+
+EXAMPLE: If there's an existing group for an activity and a new user wants the same activity, suggest JOIN_EXISTING_GROUP even if they're not currently a member.
 
 Be thorough and find ALL potential matches!
         `.trim();
@@ -232,11 +233,18 @@ Be thorough and find ALL potential matches!
                 const match = matches[i];
                 console.log(`🔍 Validating match ${i + 1}:`, JSON.stringify(match, null, 2));
                 
+                // Check if this is a JOIN_EXISTING_GROUP match (can have 1 user)
+                const isJoinExistingGroup = match.suggestedActivities?.some((activity: any) => 
+                    typeof activity === 'string' && activity.startsWith('JOIN_EXISTING_GROUP:')
+                );
+                
+                const minUsers = isJoinExistingGroup ? 1 : 2;
+                
                 if (typeof match.confidence === 'number' && 
                     match.confidence > 0.7 &&
                     ['private', 'group'].includes(match.matchType) &&
                     Array.isArray(match.userIds) &&
-                    match.userIds.length >= 2 &&
+                    match.userIds.length >= minUsers &&
                     match.activityCategory) {
                     
                     console.log(`✅ Match ${i + 1} is VALID`);
@@ -255,8 +263,9 @@ Be thorough and find ALL potential matches!
                     console.log(`❌ Match ${i + 1} is INVALID:`);
                     console.log(`   - confidence: ${match.confidence} (type: ${typeof match.confidence})`);
                     console.log(`   - matchType: ${match.matchType} (valid: ${['private', 'group'].includes(match.matchType)})`);
-                    console.log(`   - userIds: ${JSON.stringify(match.userIds)} (isArray: ${Array.isArray(match.userIds)}, length: ${match.userIds?.length})`);
+                    console.log(`   - userIds: ${JSON.stringify(match.userIds)} (isArray: ${Array.isArray(match.userIds)}, length: ${match.userIds?.length}, min required: ${minUsers})`);
                     console.log(`   - activityCategory: ${match.activityCategory}`);
+                    console.log(`   - isJoinExistingGroup: ${isJoinExistingGroup}`);
                 }
             }
 

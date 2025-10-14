@@ -32,6 +32,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         console.log("🔧 PostgresSubscriber class is being loaded");
     }
     private adapter: Web3Adapter;
+    private junctionTableDebounceMap: Map<string, NodeJS.Timeout> = new Map();
 
     constructor() {
         console.log("🚀 PostgresSubscriber constructor called - subscriber is being instantiated (updated)");
@@ -95,7 +96,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 
                 if (fullGroup) {
                     enrichedMessage.group = fullGroup;
-                    console.log("📝 Message group enriched with admins:", fullGroup.admins?.length || 0);
                 }
             }
             
@@ -122,7 +122,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
-        console.log("afterInsert?")
         let entity = event.entity;
         if (entity) {
             entity = (await this.enrichEntity(
@@ -134,7 +133,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Special handling for Message entities to ensure complete data
         if (event.metadata.tableName === "messages" && entity) {
-            console.log("📝 Enriching Message entity after insert");
             entity = await this.enrichMessageEntity(entity);
         }
         
@@ -158,14 +156,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity update.
      */
     async afterUpdate(event: UpdateEvent<any>) {
-        console.log("🔍 afterUpdate triggered:", {
-            hasEntity: !!event.entity,
-            entityId: event.entity?.id,
-            databaseEntity: event.databaseEntity?.id,
-            tableName: event.metadata.tableName,
-            target: event.metadata.target
-        });
-
         // For updates, we need to reload the full entity since event.entity only contains changed fields
         let entity = event.entity;
         
@@ -175,7 +165,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         if (!entityId && event.entity) {
             // If we have the entity but no ID, try to extract it from the entity object
             const entityKeys = Object.keys(event.entity);
-            console.log("🔍 Entity keys:", entityKeys);
             
             // Look for common ID field names
             entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
@@ -184,13 +173,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // If still no ID, try to find the entity by matching the changed data
         if (!entityId && event.entity) {
             try {
-                console.log("🔍 Trying to find entity by matching changed data...");
                 const repository = AppDataSource.getRepository(event.metadata.target);
                 const changedData = event.entity;
                 
                 // For Group entities, try to find by charter content
                 if (changedData.charter) {
-                    console.log("🔍 Looking for group with charter content...");
                     const matchingEntity = await repository.findOne({
                         where: { charter: changedData.charter },
                         select: ['id']
@@ -198,15 +185,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     
                     if (matchingEntity) {
                         entityId = matchingEntity.id;
-                        console.log("🔍 Found entity by charter match:", entityId);
                     }
                 }
             } catch (error) {
-                console.log("❌ Error finding entity by changed data:", error);
+                // Silent error handling
             }
         }
-        
-        console.log("🔍 Final entityId:", entityId);
         
         if (entityId) {
             // Reload the full entity from the database
@@ -215,15 +199,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 ? event.metadata.target.name 
                 : event.metadata.target;
             
-            console.log("🔍 Reloading entity:", { entityId, entityName });
-            
             const fullEntity = await repository.findOne({
                 where: { id: entityId },
                 relations: this.getRelationsForEntity(entityName)
             });
             
             if (fullEntity) {
-                console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
@@ -232,14 +213,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 
                 // Special handling for Message entities to ensure complete data
                 if (event.metadata.tableName === "messages" && entity) {
-                    console.log("📝 Enriching Message entity after update");
                     entity = await this.enrichMessageEntity(entity);
                 }
-            } else {
-                console.log("❌ Could not load full entity for ID:", entityId);
             }
-        } else {
-            console.log("❌ No entity ID found in update event");
         }
         
         this.handleChange(
@@ -275,41 +251,58 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Handle entity changes and send to web3adapter
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        // Check if this is a junction table
-        if (tableName === "group_participants") return;
+        console.log(`🔍 handleChange called for: ${tableName}, entityId: ${entity?.id}`);
         
+        // Handle junction table changes - DON'T IGNORE group_participants!
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];
         if (junctionInfo) {
-            console.log("Processing junction table change:", tableName);
+            console.log(`🔗 Processing junction table change for: ${tableName}`);
             await this.handleJunctionTableChange(entity, junctionInfo);
             return;
         }
         
-        // Handle regular entity changes
+        // Handle regular entity changes with debouncing for groups
         const data = this.entityToPlain(entity);
         if (!data.id) return;
+        
+        // Add debouncing for group entities to prevent duplicate webhooks
+        if (tableName === "groups") {
+            const debounceKey = `group:${data.id}`;
+            console.log(`🔍 Group debounce key: ${debounceKey}`);
+            
+            // Clear existing timeout for this group
+            if (this.junctionTableDebounceMap.has(debounceKey)) {
+                console.log(`🔍 Clearing existing group timeout for: ${debounceKey}`);
+                clearTimeout(this.junctionTableDebounceMap.get(debounceKey)!);
+            }
+            
+            // Set new timeout
+            const timeoutId = setTimeout(async () => {
+                try {
+                    console.log(`🔍 Executing debounced group webhook for: ${debounceKey}`);
+                    await this.sendGroupWebhook(data);
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                    console.log(`🔍 Completed group webhook for: ${debounceKey}`);
+                } catch (error) {
+                    console.error("Error in group timeout:", error);
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                }
+            }, 3_000);
+            
+            // Store the timeout ID
+            this.junctionTableDebounceMap.set(debounceKey, timeoutId);
+            return;
+        }
         
         // For Message entities, only process if they are system messages
         if (tableName === "messages") {
             const isSystemMessage = data.text && data.text.includes('$$system-message$$');
 
             if (!isSystemMessage) {
-                console.log("📝 Skipping non-system message:", data.id);
                 return;
             }
-            
-            console.log("📝 Processing system message:", {
-                id: data.id,
-                hasGroup: !!data.group,
-                groupId: data.group?.id,
-                hasAdmins: !!data.group?.admins,
-                adminCount: data.group?.admins?.length || 0,
-                isSystemMessage: true
-            });
         }
-        
-        console.log("hmm?")
 
         try {
             setTimeout(async () => {
@@ -319,23 +312,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 globalId = globalId ?? "";
 
                 if (this.adapter.lockedIds.includes(globalId)) {
-                    console.log("Entity already locked, skipping:", globalId, entity.id);
                     return;
                 }
 
                 // Check if this entity was recently created by a webhook
                 if (this.adapter.lockedIds.includes(entity.id)) {
-                    console.log("Local entity locked (webhook created), skipping:", entity.id);
                     return;
                 }
 
-                console.log(
-                    "sending packet for global Id",
-                    globalId,
-                    entity.id,
-                    "table:",
-                    tableName
-                );
                 const envelope = await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),
@@ -371,36 +355,80 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return;
             }
 
-            let globalId = await this.adapter.mappingDb.getGlobalId(entity.id);
-            globalId = globalId ?? "";
+            // Use debouncing to prevent multiple webhook packets for the same group
+            const debounceKey = `${junctionInfo.entity}:${parentId}`;
+            
+            console.log(`🔗 Junction table debounce key: ${debounceKey}`);
+            
+            // Clear existing timeout for this group
+            if (this.junctionTableDebounceMap.has(debounceKey)) {
+                console.log(`🔗 Clearing existing timeout for: ${debounceKey}`);
+                clearTimeout(this.junctionTableDebounceMap.get(debounceKey)!);
+            }
 
-            try {
-                setTimeout(async () => {
+            // Set new timeout
+            const timeoutId = setTimeout(async () => {
+                try {
+                    console.log(`🔗 Executing debounced webhook for: ${debounceKey}`);
                     let globalId = await this.adapter.mappingDb.getGlobalId(
                         entity.id
                     );
                     globalId = globalId ?? "";
 
-                    if (this.adapter.lockedIds.includes(globalId))
-                        return console.log("locked skipping ", globalId);
-
-                    console.log(
-                        "sending packet for global Id",
-                        globalId,
-                        entity.id
-                    );
+                    if (this.adapter.lockedIds.includes(globalId)) {
+                        console.log(`🔗 GlobalId ${globalId} is locked, skipping`);
+                        return;
+                    }
 
                     const tableName = `${junctionInfo.entity.toLowerCase()}s`;
+                    console.log(`🔗 Sending webhook packet for group: ${parentId}, tableName: ${tableName}`);
                     await this.adapter.handleChange({
                         data: this.entityToPlain(parentEntity),
                         tableName,
                     });
-                }, 3_000);
-            } catch (error) {
-                console.error(error);
-            }
+                    
+                    // Remove from debounce map after processing
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                    console.log(`🔗 Completed webhook for: ${debounceKey}`);
+                } catch (error) {
+                    console.error("Error in junction table timeout:", error);
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                }
+            }, 3_000);
+            
+            // Store the timeout ID for potential cancellation
+            this.junctionTableDebounceMap.set(debounceKey, timeoutId);
         } catch (error) {
             console.error("Error handling junction table change:", error);
+        }
+    }
+
+    /**
+     * Send webhook for group entity
+     */
+    private async sendGroupWebhook(data: any): Promise<void> {
+        try {
+            // Skip groups with Match ID in description (already processed)
+            if (data.description && typeof data.description === 'string' && data.description.startsWith('Match ID:')) {
+                console.log(`🔍 Skipping group webhook - has Match ID in description: ${data.description}`);
+                return;
+            }
+
+            let globalId = await this.adapter.mappingDb.getGlobalId(data.id);
+            globalId = globalId ?? "";
+
+            if (this.adapter.lockedIds.includes(globalId)) {
+                console.log(`🔍 Group globalId ${globalId} is locked, skipping`);
+                return;
+            }
+
+            console.log(`🔍 Sending group webhook for: ${data.id}, tableName: groups`);
+            await this.adapter.handleChange({
+                data,
+                tableName: "groups",
+            });
+        } catch (error) {
+            console.error("Error sending group webhook:", error);
         }
     }
 

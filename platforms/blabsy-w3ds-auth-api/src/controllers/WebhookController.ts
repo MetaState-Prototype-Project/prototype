@@ -46,6 +46,7 @@ type Chat = {
     type: "direct" | "group";  // Always set by webhook based on participant count
     name?: string;
     participants: string[];
+    admins: string[];
     ename?: string; // eVault identifier (w3id)
     createdAt: Timestamp;
     updatedAt: Timestamp;
@@ -287,6 +288,10 @@ export class WebhookController {
         const participants = data.participants.map(
             (p: string) => p.split("(")[1].split(")")[0],
         ) || [];
+        const admins = (data.admins ?? []).map(
+            (p: string) => p.split("(")[1].split(")")[0],
+        ) || [];
+        
         
         // Derive type from participant count
         const type = participants.length > 2 ? "group" : "direct";
@@ -301,6 +306,7 @@ export class WebhookController {
             name: data.name,
             participants,
             ename: data.ename || null, // Include eVault identifier if available
+            admins: admins,
             createdAt: data.createdAt
                 ? Timestamp.fromDate(new Date(data.createdAt))
                 : now,

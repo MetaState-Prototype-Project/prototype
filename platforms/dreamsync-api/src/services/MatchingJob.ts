@@ -9,7 +9,7 @@ export class MatchingJob {
         this.aiMatchingService = new AIMatchingService();
     }
 
-    start(intervalMinutes: number = 60): void {
+    start(intervalMinutes: number = 60, runImmediately: boolean = false): void {
         if (this.intervalId) {
             console.log("⚠️ Matching job is already running");
             return;
@@ -17,8 +17,13 @@ export class MatchingJob {
 
         console.log(`🚀 Starting AI matching job (every ${intervalMinutes} minutes)`);
         
-        // Run immediately on start
-        this.runMatching();
+        // Only run immediately if explicitly requested
+        if (runImmediately) {
+            console.log("🔄 Running AI matching immediately on start");
+            this.runMatching();
+        } else {
+            console.log("⏭️ Skipping immediate run - will start on interval");
+        }
 
         // Then run on interval
         this.intervalId = setInterval(() => {

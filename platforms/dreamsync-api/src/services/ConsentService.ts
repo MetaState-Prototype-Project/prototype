@@ -17,52 +17,66 @@ export class ConsentService {
     }
 
     /**
-     * Process a "yes" response to a match notification
+     * Process a consent response to a match notification (by Match ID)
      */
     async processConsentResponse(messageText: string, senderId: string, groupId: string): Promise<void> {
         try {
-            // Check if this is a "yes" response to a system message
-            if (!messageText.toLowerCase().includes('yes')) {
-                return;
-            }
-
-            // Find the match notification message in this group
-            const messageRepository = AppDataSource.getRepository(Message);
-            const groupRepository = AppDataSource.getRepository(Group);
+            // Check if the message text itself is a UUID (Match ID)
+            const uuidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+            const isDirectMatchId = uuidRegex.test(messageText.trim());
             
-            const group = await groupRepository.findOne({
-                where: { id: groupId },
-                relations: ["members"]
-            });
+            let matchId: string;
+            
+            if (isDirectMatchId) {
+                // Message text is directly the Match ID
+                matchId = messageText.trim();
+                console.log("✅ Direct Match ID provided:", matchId);
+            } else {
+                // First, find the most recent system message with a Match ID
+                const group = await this.groupService.getGroupById(groupId);
+                if (!group) {
+                    console.error("Group not found:", groupId);
+                    return;
+                }
 
-            if (!group) {
-                console.error("Group not found:", groupId);
-                return;
+                // Find the MOST RECENT system message with match ID in this group
+                const messageRepository = AppDataSource.getRepository(Message);
+                const systemMessage = await messageRepository
+                    .createQueryBuilder("message")
+                    .leftJoinAndSelect("message.sender", "sender")
+                    .where("message.group.id = :groupId", { groupId })
+                    .andWhere("message.isSystemMessage = :isSystem", { isSystem: true })
+                    .andWhere("message.text ILIKE :pattern", { pattern: "%[Match ID:%" })
+                    .orderBy("message.createdAt", "DESC") // ✅ Get the most recent one
+                    .getOne();
+
+                if (!systemMessage) {
+                    console.log("No system message with match ID found in group:", groupId);
+                    return;
+                }
+
+                // Extract match ID from the system message
+                const matchIdMatch = systemMessage.text.match(/\[Match ID: ([^\]]+)\]/);
+                if (!matchIdMatch) {
+                    console.error("Could not extract match ID from system message");
+                    return;
+                }
+
+                matchId = matchIdMatch[1];
+                console.log("📋 Found system message:", systemMessage.text.substring(0, 100) + "...");
+                console.log("📅 Message created at:", systemMessage.createdAt);
+
+                // Check if the message text contains the match ID (consent response)
+                const isConsentResponse = messageText.toLowerCase().includes(matchId.toLowerCase());
+                
+                if (!isConsentResponse) {
+                    console.log("Message does not contain match ID, not a consent response");
+                    return;
+                }
             }
 
-            // Find the system message with match ID in this group
-            const systemMessage = await messageRepository
-                .createQueryBuilder("message")
-                .leftJoinAndSelect("message.sender", "sender")
-                .where("message.group.id = :groupId", { groupId })
-                .andWhere("message.isSystemMessage = :isSystem", { isSystem: true })
-                .andWhere("message.text ILIKE :pattern", { pattern: "%[Match ID:%" })
-                .getOne();
-
-            if (!systemMessage) {
-                console.log("No system message with match ID found in group:", groupId);
-                return;
-            }
-
-            // Extract match ID from the system message
-            const matchIdMatch = systemMessage.text.match(/\[Match ID: ([^\]]+)\]/);
-            if (!matchIdMatch) {
-                console.error("Could not extract match ID from system message");
-                return;
-            }
-
-            const matchId = matchIdMatch[1];
             console.log("Processing consent for match:", matchId);
+            console.log("✅ Valid consent response detected for match:", matchId);
 
             // Find the match
             const matchRepository = AppDataSource.getRepository(Match);
@@ -76,7 +90,19 @@ export class ConsentService {
                 return;
             }
 
-            // Determine which user gave consent
+        // Handle join existing group matches differently
+        if (match.matchData?.isJoinExistingGroup && match.matchData?.existingGroupId) {
+            await this.processJoinExistingGroupConsent(match, senderId, matchId);
+            return;
+        }
+
+            // Handle multi-user matches differently
+            if (match.matchData?.isMultiUserMatch && match.matchData?.allUserIds) {
+                await this.processMultiUserConsent(match, senderId, matchId);
+                return;
+            }
+
+            // Handle 2-user matches (existing logic)
             const isUserA = match.userAId === senderId;
             const isUserB = match.userBId === senderId;
 
@@ -94,24 +120,16 @@ export class ConsentService {
 
             await matchRepository.save(match);
 
-            // HUGE LOG for consent received
-            console.log("\n" + "=".repeat(80));
-            console.log("🎉🎉🎉 CONSENT RECEIVED! 🎉🎉🎉");
-            console.log("=".repeat(80));
-            console.log(`👤 User: ${senderId} (${isUserA ? 'User A' : 'User B'})`);
-            console.log(`💬 Match ID: ${matchId}`);
-            console.log(`🤝 Match Type: ${match.type}`);
-            console.log(`📊 Confidence: ${Math.round(match.matchData.confidence * 100)}%`);
-            console.log(`👥 User A Consent: ${match.userAConsent ? '✅ YES' : '❌ NO'}`);
-            console.log(`👥 User B Consent: ${match.userBConsent ? '✅ YES' : '❌ NO'}`);
-            console.log(`🔗 Both Consented: ${match.userAConsent && match.userBConsent ? '✅ YES - CREATING GROUP!' : '⏳ Waiting for other user...'}`);
-            console.log("=".repeat(80) + "\n");
+            // Send acknowledgment message to the user who gave consent
+            await this.sendConsentAcknowledgment(senderId, match);
+
+            console.log(`✅ Consent received from ${senderId} for match ${matchId}`);
 
             // Check if both users have given consent
             if (match.userAConsent && match.userBConsent) {
                 // Check if this match is already being processed to prevent duplicates
                 if (this.processingMatches.has(match.id)) {
-                    console.log(`⏭️ Match ${match.id} is already being processed, skipping duplicate group creation`);
+                    console.log(`⏭️ Match ${match.id} is already being processed, skipping duplicate processing`);
                     return;
                 }
                 
@@ -122,10 +140,10 @@ export class ConsentService {
                     console.log("\n" + "🚀".repeat(40));
                     console.log("🎊🎊🎊 MUTUAL CONSENT ACHIEVED! 🎊🎊🎊");
                     console.log("🚀".repeat(40));
-                    console.log("🔥 CREATING MUTUAL GROUP NOW! 🔥");
+                    console.log("🔥 PROCESSING CONSENT NOW! 🔥");
                     console.log("🚀".repeat(40) + "\n");
                     
-                    await this.createMutualGroup(match);
+                    await this.processMutualConsent(match);
                 } finally {
                     // Always remove from processing set when done
                     this.processingMatches.delete(match.id);
@@ -134,6 +152,705 @@ export class ConsentService {
 
         } catch (error) {
             console.error("Error processing consent response:", error);
+        }
+    }
+
+    /**
+     * Process mutual consent - either create new group or add to existing group
+     */
+    private async processMutualConsent(match: Match): Promise<void> {
+        try {
+            console.log(`🔄 Processing mutual consent for match: ${match.id}`);
+
+            // Handle multi-user matches differently
+            if (match.matchData?.isMultiUserMatch && match.matchData?.allUserIds) {
+                await this.processMultiUserMutualConsent(match);
+                return;
+            }
+
+            // Handle 2-user matches (existing logic)
+            // Check if there's an existing group for this activity type
+            const activity = this.extractActivityFromMatch(match);
+            const existingGroup = await this.findExistingGroupForActivity(activity, match);
+
+            if (existingGroup) {
+                console.log(`🏠 Found existing group: ${existingGroup.id} for activity: ${activity}`);
+                console.log(`📋 Original match participants:`, existingGroup.originalMatchParticipants);
+                
+                // Check if both users were part of the original match
+                const isOriginalMemberA = existingGroup.originalMatchParticipants?.includes(match.userAId) || false;
+                const isOriginalMemberB = existingGroup.originalMatchParticipants?.includes(match.userBId) || false;
+                
+                console.log(`🔍 User A (${match.userAId}) is original member: ${isOriginalMemberA}`);
+                console.log(`🔍 User B (${match.userBId}) is original member: ${isOriginalMemberB}`);
+                console.log(`🔍 Match scenario: A=${isOriginalMemberA}, B=${isOriginalMemberB}`);
+                
+                if (isOriginalMemberA && isOriginalMemberB) {
+                    // Both users are original members - add both to group
+                    console.log(`✅ Both users are original members, adding to existing group`);
+                    await this.addOriginalMembersToExistingGroup(existingGroup, match);
+                } else if (isOriginalMemberA || isOriginalMemberB) {
+                    // One user is original member, one is new - need admin consent
+                    console.log(`⚠️ Mixed consent: one original member, one new user - requiring admin consent`);
+                    await this.handleMixedConsent(existingGroup, match, isOriginalMemberA);
+                } else {
+                    // Both users are new - need admin consent
+                    console.log(`⚠️ Both users are new - requiring admin consent`);
+                    await this.handleNewUserConsent(existingGroup, match);
+                }
+            } else {
+                console.log(`🆕 No existing group found, creating new group for activity: ${activity}`);
+                await this.createMutualGroup(match);
+            }
+
+        } catch (error) {
+            console.error("Error processing mutual consent:", error);
+        }
+    }
+
+    /**
+     * Process mutual consent for multi-user matches
+     */
+    private async processMultiUserMutualConsent(match: Match): Promise<void> {
+        try {
+            console.log(`🔄 Processing multi-user mutual consent for match: ${match.id}`);
+            
+            // Check if this is a "join existing group" match
+            if (match.matchData?.isJoinExistingGroup && match.matchData?.existingGroupId) {
+                // This should not happen for multi-user matches anymore since we create 2-user matches for join existing group
+                console.log("⚠️ Multi-user match with join existing group - this should not happen");
+                return;
+            }
+            
+            const allUserIds = match.matchData?.allUserIds || [];
+            const userConsents = match.matchData?.userConsents || {};
+            const consentThreshold = match.matchData?.consentThreshold || 2;
+            
+            // Get users who have consented
+            const consentedUserIds = allUserIds.filter(userId => userConsents[userId]);
+            
+            console.log(`👥 Total users: ${allUserIds.length}`);
+            console.log(`✅ Consented users: ${consentedUserIds.length} (${consentedUserIds.join(', ')})`);
+            console.log(`🎯 Consent threshold: ${consentThreshold}`);
+            
+            // Check if there's an existing group for this activity type
+            const activity = this.extractActivityFromMatch(match);
+            const existingGroup = await this.findExistingGroupForActivity(activity, match);
+            
+            if (existingGroup) {
+                console.log(`🏠 Found existing group: ${existingGroup.id} for activity: ${activity}`);
+                
+                // For multi-user matches with existing groups, we need to handle this more carefully
+                // For now, let's add all consented users to the existing group
+                await this.addMultiUserMembersToExistingGroup(existingGroup, match, consentedUserIds);
+            } else {
+                console.log(`🆕 No existing group found, creating new multi-user group for activity: ${activity}`);
+                await this.createMultiUserGroup(match, consentedUserIds);
+            }
+            
+        } catch (error) {
+            console.error("Error processing multi-user mutual consent:", error);
+        }
+    }
+
+
+    /**
+     * Add multiple users to an existing group
+     */
+    private async addMultiUserMembersToExistingGroup(existingGroup: Group, match: Match, consentedUserIds: string[]): Promise<void> {
+        try {
+            console.log(`👥 Adding ${consentedUserIds.length} users to existing group: ${existingGroup.id}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for multi-user group addition");
+                return;
+            }
+
+            // Add all consented users to the group
+            await this.groupService.addMembers(existingGroup.id, consentedUserIds);
+            
+            // Send notifications to all users
+            for (const userId of consentedUserIds) {
+                await this.sendGroupJoinNotification(userId, existingGroup, match);
+            }
+            
+            // Mark match as active
+            const matchRepository = AppDataSource.getRepository(Match);
+            match.isActive = true;
+            match.status = MatchStatus.ACCEPTED;
+            await matchRepository.save(match);
+            
+            console.log(`✅ Successfully added ${consentedUserIds.length} users to existing group: ${existingGroup.id}`);
+            
+        } catch (error) {
+            console.error("Error adding multi-user members to existing group:", error);
+        }
+    }
+
+    /**
+     * Create a new group for multi-user match
+     */
+    private async createMultiUserGroup(match: Match, consentedUserIds: string[]): Promise<void> {
+        try {
+            console.log(`🆕 Creating new multi-user group for ${consentedUserIds.length} users`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for multi-user group creation");
+                return;
+            }
+
+            const activity = this.extractActivityFromMatch(match);
+            const groupName = this.generateGroupName(match);
+            const groupDescription = `Match ID: ${match.id}`; // Use Match ID as description for deduplication
+            
+            // Randomly select an admin from consented users
+            const randomAdminId = consentedUserIds[Math.floor(Math.random() * consentedUserIds.length)];
+            
+            // Create group with all consented users + DreamSync user
+            const allMemberIds = [dreamsyncUser.id, ...consentedUserIds];
+            
+            const mutualGroup = await this.groupService.createGroup(
+                groupName,
+                groupDescription,
+                randomAdminId, // Random user is the owner/admin
+                [randomAdminId], // Random user is admin
+                allMemberIds, // All users as members
+                undefined, // NO CHARTER - let users create their own
+                false, // isPrivate = false (group activity)
+                "public", // visibility
+                undefined, // avatarUrl
+                undefined, // bannerUrl
+                consentedUserIds // Store original match participants
+            );
+            
+            console.log(`✅ Created multi-user group: ${mutualGroup.id}`);
+            console.log(`👥 Group members: ${allMemberIds.join(', ')}`);
+            console.log(`👑 Admin: ${randomAdminId}`);
+
+            // Send admin announcement to the group after 10 seconds
+            setTimeout(async () => {
+                try {
+                    const adminUser = await this.userService.getUserById(randomAdminId);
+                    if (adminUser) {
+                        await this.sendGroupAdminAnnouncement(mutualGroup, adminUser);
+                        console.log(`📢 Sent admin announcement to multi-user group: ${mutualGroup.id} (after 10s delay)`);
+                    }
+                } catch (error) {
+                    console.error("Error sending delayed admin announcement to multi-user group:", error);
+                }
+            }, 10_000); // 10 second delay
+            
+            console.log(`⏰ Scheduled admin announcement for multi-user group: ${mutualGroup.id} (in 10 seconds)`);
+
+            // Mark match as active
+            const matchRepository = AppDataSource.getRepository(Match);
+            match.isActive = true;
+            match.status = MatchStatus.ACCEPTED;
+            await matchRepository.save(match);
+            
+            // Send notifications to all users
+            for (const userId of consentedUserIds) {
+                await this.sendGroupCreatedNotification(userId, mutualGroup, match);
+            }
+            
+        } catch (error) {
+            console.error("Error creating multi-user group:", error);
+        }
+    }
+
+    /**
+     * Add a new member to an existing group (admin + new member consent)
+     */
+    private async addMemberToExistingGroup(existingGroup: Group, match: Match): Promise<void> {
+        try {
+            console.log(`👥 Adding member to existing group: ${existingGroup.id}`);
+
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for group member addition");
+                return;
+            }
+
+            // Find the admin of the existing group
+            const adminId = existingGroup.owner;
+            const adminUser = existingGroup.members?.find(m => m.id === adminId);
+
+            if (!adminUser) {
+                console.error("Admin not found for existing group:", existingGroup.id);
+                return;
+            }
+
+            // Determine which user is the new member (not the admin)
+            const newMemberId = match.userAId === adminId ? match.userBId : match.userAId;
+            const newMember = match.userAId === adminId ? match.userB : match.userA;
+
+            console.log(`👑 Admin: ${adminUser.name || adminUser.ename} (${adminId})`);
+            console.log(`👤 New Member: ${newMember.name || newMember.ename} (${newMemberId})`);
+
+            // Add the new member to the existing group
+            const updatedMembers = [...(existingGroup.members?.map(m => m.id) || []), newMemberId];
+            
+            // Update the group with the new member
+            existingGroup.members = updatedMembers.map(id => ({ id } as User));
+            await this.groupService.groupRepository.save(existingGroup);
+
+            console.log(`✅ Added ${newMember.name || newMember.ename} to existing group: ${existingGroup.id}`);
+
+            // Send privacy-preserving notifications
+            await this.sendGroupJoinNotifications(existingGroup, adminUser, newMember, match);
+
+            // Mark match as active
+            const matchRepository = AppDataSource.getRepository(Match);
+            match.isActive = true;
+            match.status = MatchStatus.ACCEPTED;
+            await matchRepository.save(match);
+
+            console.log(`✅ Member ${newMember.name || newMember.ename} added to group ${existingGroup.name}`);
+
+        } catch (error) {
+            console.error("Error adding member to existing group:", error);
+        }
+    }
+
+    /**
+     * Add original members to existing group (no admin consent needed)
+     */
+    private async addOriginalMembersToExistingGroup(existingGroup: Group, match: Match): Promise<void> {
+        try {
+            console.log(`👥 Adding original members to existing group: ${existingGroup.id}`);
+
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for group member addition");
+                return;
+            }
+
+            // Add both users to the existing group
+            const currentMemberIds = existingGroup.members?.map(m => m.id) || [];
+            const newMemberIds = [match.userAId, match.userBId];
+            const updatedMembers = [...currentMemberIds, ...newMemberIds.filter(id => !currentMemberIds.includes(id))];
+            
+            // Update the group with the new members
+            existingGroup.members = updatedMembers.map(id => ({ id } as User));
+            await this.groupService.groupRepository.save(existingGroup);
+
+            console.log(`✅ Added original members ${match.userA.name || match.userA.ename} and ${match.userB.name || match.userB.ename} to existing group: ${existingGroup.id}`);
+
+            // Send notifications to both users
+            await this.sendOriginalMemberNotifications(existingGroup, match);
+
+            // Mark match as active
+            const matchRepository = AppDataSource.getRepository(Match);
+            match.isActive = true;
+            match.status = MatchStatus.ACCEPTED;
+            await matchRepository.save(match);
+
+            console.log(`✅ Original members added to group ${existingGroup.name}`);
+
+        } catch (error) {
+            console.error("Error adding original members to existing group:", error);
+        }
+    }
+
+    /**
+     * Handle mixed consent (one original member, one new user)
+     */
+    private async handleMixedConsent(existingGroup: Group, match: Match, isUserAOriginal: boolean): Promise<void> {
+        try {
+            console.log(`⚠️ Handling mixed consent for group: ${existingGroup.id}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for mixed consent handling");
+                return;
+            }
+
+            const adminId = existingGroup.owner;
+            const adminUser = existingGroup.members?.find(m => m.id === adminId);
+            const originalMember = isUserAOriginal ? match.userA : match.userB;
+            const newUser = isUserAOriginal ? match.userB : match.userA;
+
+            if (!adminUser) {
+                console.error("Admin not found for existing group:", existingGroup.id);
+                return;
+            }
+
+            console.log(`👑 Admin: ${adminUser.name || adminUser.ename} (${adminId})`);
+            console.log(`👤 Original Member: ${originalMember.name || originalMember.ename} (${isUserAOriginal ? match.userAId : match.userBId})`);
+            console.log(`🆕 New User: ${newUser.name || newUser.ename} (${isUserAOriginal ? match.userBId : match.userAId})`);
+
+            // Send notification to admin asking for consent to add new user
+            await this.sendAdminConsentRequest(existingGroup, adminUser, newUser, match);
+
+            // Send notification to original member that they're being added
+            await this.sendOriginalMemberNotification(existingGroup, originalMember, match);
+
+            console.log(`✅ Mixed consent handled - admin consent requested for new user: ${newUser.name || newUser.ename}`);
+
+        } catch (error) {
+            console.error("Error handling mixed consent:", error);
+        }
+    }
+
+    /**
+     * Handle new user consent (both users are new)
+     */
+    private async handleNewUserConsent(existingGroup: Group, match: Match): Promise<void> {
+        try {
+            console.log(`⚠️ Handling new user consent for group: ${existingGroup.id}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for new user consent handling");
+                return;
+            }
+
+            const adminId = existingGroup.owner;
+            const adminUser = existingGroup.members?.find(m => m.id === adminId);
+
+            if (!adminUser) {
+                console.error("Admin not found for existing group:", existingGroup.id);
+                return;
+            }
+
+            console.log(`👑 Admin: ${adminUser.name || adminUser.ename} (${adminId})`);
+            console.log(`🆕 New Users: ${match.userA.name || match.userA.ename}, ${match.userB.name || match.userB.ename}`);
+
+            // Send notification to admin asking for consent to add both new users
+            await this.sendAdminConsentRequestForBoth(existingGroup, adminUser, match);
+
+            console.log(`✅ New user consent handled - admin consent requested for both users`);
+
+        } catch (error) {
+            console.error("Error handling new user consent:", error);
+        }
+    }
+
+    /**
+     * Send admin consent request for a single new user
+     */
+    private async sendAdminConsentRequest(
+        group: Group, 
+        adminUser: User, 
+        newUser: User, 
+        match: Match
+    ): Promise<void> {
+        try {
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) return;
+
+            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
+            if (!adminChat) return;
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+👥 New user wants to join your ${activity} group!
+
+New User: ${newUser.name || newUser.ename}
+Group: ${group.name}
+Activity: ${activity}
+Confidence: ${Math.round(match.matchData.confidence * 100)}%
+
+Suggested activities: ${match.matchData.suggestedActivities?.join(", ") || "Connect and explore together"}
+
+This user was matched with an original group member. Reply with the Match ID "${match.id}" to add them to the group.
+
+Best regards,
+DreamSync
+
+[Admin Consent Request for Match ID: ${match.id}]`;
+
+            console.log(`💾 Creating admin consent request message...`);
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: adminChat,
+                isSystemMessage: true,
+            });
+
+            console.log(`💾 Saving admin consent request message to database...`);
+            const savedMessage = await messageRepository.save(message);
+            console.log(`✅ Admin consent request message saved with ID: ${savedMessage.id}`);
+            console.log(`✅ Admin consent request sent to ${adminUser.name || adminUser.ename} for new user ${newUser.name || newUser.ename}`);
+            console.log(`📊 Message stats: Length=${messageContent.length}, Chat=${adminChat.id}, Sender=${dreamsyncUser.id}`);
+        } catch (error) {
+            console.error("Error sending admin consent request:", error);
+        }
+    }
+
+    /**
+     * Send admin consent request for both new users
+     */
+    private async sendAdminConsentRequestForBoth(
+        group: Group, 
+        adminUser: User, 
+        match: Match
+    ): Promise<void> {
+        try {
+            console.log(`📤 SENDING ADMIN CONSENT REQUEST FOR BOTH USERS`);
+            console.log(`👑 Admin: ${adminUser.name || adminUser.ename} (${adminUser.id})`);
+            console.log(`🆕 New Users: ${match.userA.name || match.userA.ename}, ${match.userB.name || match.userB.ename}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("❌ DreamSync user not found for admin consent request");
+                return;
+            }
+            console.log(`✅ DreamSync user found: ${dreamsyncUser.id}`);
+
+            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
+            if (!adminChat) {
+                console.error("❌ Could not find/create admin chat");
+                return;
+            }
+            console.log(`✅ Admin chat found/created: ${adminChat.id}`);
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+👥 Two new users want to join your ${activity} group!
+
+New Users: ${match.userA.name || match.userA.ename}, ${match.userB.name || match.userB.ename}
+Group: ${group.name}
+Activity: ${activity}
+Confidence: ${Math.round(match.matchData.confidence * 100)}%
+
+Suggested activities: ${match.matchData.suggestedActivities?.join(", ") || "Connect and explore together"}
+
+These users were matched together. Reply with the Match ID "${match.id}" to add both to the group.
+
+Best regards,
+DreamSync
+
+[Admin Consent Request for Match ID: ${match.id}]`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: adminChat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Admin consent request sent to ${adminUser.name || adminUser.ename} for both new users`);
+        } catch (error) {
+            console.error("Error sending admin consent request for both:", error);
+        }
+    }
+
+    /**
+     * Send notification to original member that they're being added
+     */
+    private async sendOriginalMemberNotification(
+        group: Group, 
+        originalMember: User, 
+        match: Match
+    ): Promise<void> {
+        try {
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) return;
+
+            const memberChat = await this.findOrCreateMutualChat(originalMember.id);
+            if (!memberChat) return;
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+Welcome back to the ${activity} group!
+
+You were part of the original match for this group and have been automatically added. You can now connect with other members who share similar interests.
+
+Best regards,
+DreamSync
+
+[Original Member Added for Match ID: ${match.id}]`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: memberChat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Original member notification sent to ${originalMember.name || originalMember.ename}`);
+        } catch (error) {
+            console.error("Error sending original member notification:", error);
+        }
+    }
+
+    /**
+     * Send notifications to original members
+     */
+    private async sendOriginalMemberNotifications(group: Group, match: Match): Promise<void> {
+        try {
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) return;
+
+            const activity = this.extractActivityFromMatch(match);
+
+            // Send notification to both users
+            for (const user of [match.userA, match.userB]) {
+                const userChat = await this.findOrCreateMutualChat(user.id);
+                if (!userChat) continue;
+
+                const messageContent = `$$system-message$$
+
+Welcome to the ${activity} group!
+
+You were part of the original match for this group and have been automatically added. You can now connect with other members who share similar interests.
+
+Best regards,
+DreamSync
+
+[Original Members Added for Match ID: ${match.id}]`;
+
+                const messageRepository = AppDataSource.getRepository(Message);
+                const message = messageRepository.create({
+                    text: messageContent,
+                    sender: dreamsyncUser,
+                    group: userChat,
+                    isSystemMessage: true,
+                });
+
+                await messageRepository.save(message);
+                console.log(`✅ Original member notification sent to ${user.name || user.ename}`);
+            }
+        } catch (error) {
+            console.error("Error sending original member notifications:", error);
+        }
+    }
+
+    /**
+     * Find existing group for a specific activity type AND the same users
+     * This allows users to have multiple groups for different activities
+     */
+    private async findExistingGroupForActivity(activity: string, match: Match): Promise<Group | null> {
+        try {
+            console.log(`🔍 Looking for existing group for activity: ${activity} with users: ${match.userAId}, ${match.userBId}`);
+            
+            // Look for groups with similar activity names AND containing both users
+            const capitalizedActivity = activity.charAt(0).toUpperCase() + activity.slice(1);
+            const groups = await this.groupService.groupRepository.find({
+                where: {
+                    name: `DreamSync ${capitalizedActivity} Group`,
+                    isPrivate: false
+                },
+                relations: ["members"]
+            });
+
+            console.log(`🔍 Found ${groups.length} groups with activity "${activity}"`);
+
+            // Check if any of these groups contain BOTH matched users
+            for (const group of groups) {
+                const memberIds = group.members?.map(member => member.id) || [];
+                const hasUserA = memberIds.includes(match.userAId);
+                const hasUserB = memberIds.includes(match.userBId);
+                
+                console.log(`🔍 Group ${group.id} members:`, memberIds);
+                console.log(`🔍 Has User A (${match.userAId}): ${hasUserA}`);
+                console.log(`🔍 Has User B (${match.userBId}): ${hasUserB}`);
+                
+                if (hasUserA && hasUserB) {
+                    console.log(`✅ Found existing group ${group.id} with both users for activity: ${activity}`);
+                    return group;
+                }
+            }
+
+            console.log(`❌ No existing group found with both users for activity: ${activity}`);
+            return null;
+        } catch (error) {
+            console.error("Error finding existing group for activity:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Send notifications when a member joins an existing group
+     */
+    private async sendGroupJoinNotifications(
+        group: Group, 
+        adminUser: User, 
+        newMember: User, 
+        match: Match
+    ): Promise<void> {
+        try {
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for group join notifications");
+                return;
+            }
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const activity = this.extractActivityFromMatch(match);
+
+            // Send notification to admin with full details
+            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
+            if (adminChat) {
+                const adminMessageContent = `$$system-message$$
+
+👥 New member joined your ${activity} group!
+
+New Member: ${newMember.name || newMember.ename}
+Group: ${group.name}
+Activity: ${activity}
+Confidence: ${Math.round(match.matchData.confidence * 100)}%
+
+Suggested activities: ${match.matchData.suggestedActivities?.join(", ") || "Connect and explore together"}
+
+As the admin, you can manage this group and help facilitate collaboration between members.
+
+Best regards,
+DreamSync
+
+[Group Join for Match ID: ${match.id}]`;
+
+                const adminMessage = messageRepository.create({
+                    text: adminMessageContent,
+                    sender: dreamsyncUser,
+                    group: adminChat,
+                    isSystemMessage: true,
+                });
+
+                await messageRepository.save(adminMessage);
+                console.log(`✅ Admin notification sent to ${adminUser.name || adminUser.ename}`);
+            }
+
+            // Send generic notification to new member
+            const memberChat = await this.findOrCreateMutualChat(newMember.id);
+            if (memberChat) {
+                const memberMessageContent = `$$system-message$$
+
+Welcome to the ${activity} group!
+
+You've been matched with a group based on your shared interests. This group focuses on ${activity.toLowerCase()} activities and collaboration.
+
+You can now connect with other members who share similar interests and goals.
+
+Best regards,
+DreamSync
+
+[Group Join for Match ID: ${match.id}]`;
+
+                const memberMessage = messageRepository.create({
+                    text: memberMessageContent,
+                    sender: dreamsyncUser,
+                    group: memberChat,
+                    isSystemMessage: true,
+                });
+
+                await messageRepository.save(memberMessage);
+                console.log(`✅ Generic notification sent to new member ${newMember.name || newMember.ename}`);
+            }
+
+        } catch (error) {
+            console.error("Error sending group join notifications:", error);
         }
     }
 
@@ -150,43 +867,50 @@ export class ConsentService {
                 return;
             }
 
-            // Check if a group already exists for this activity type
+            // Generate group name for new group creation
             const groupName = this.generateGroupName(match);
-            const existingGroup = await this.findExistingGroup(groupName, match);
 
-            if (existingGroup) {
-                console.log(`✅ Group already exists: ${existingGroup.id}`);
-                await this.sendGroupCreatedMessage(existingGroup, match);
-                return;
-            }
+            // Randomly select one of the matched users as admin (not DreamSync)
+            const matchedUsers = [match.userAId, match.userBId];
+            const randomAdminId = matchedUsers[Math.floor(Math.random() * matchedUsers.length)];
+            const adminUser = randomAdminId === match.userAId ? match.userA : match.userB;
+            
+            console.log(`🎲 Randomly selected admin: ${adminUser.name || adminUser.ename} (${randomAdminId})`);
 
             // Create new group with DreamSync platform user and both matched users
-            const groupDescription = `Group created by DreamSync based on mutual consent for ${match.type} activity`;
-            const charter = this.generateGroupCharter(match);
+            const groupDescription = `Match ID: ${match.id}`; // Use Match ID as description for deduplication
 
             console.log(`🔧 Creating group with name: "${groupName}"`);
             console.log(`🔧 Members: DreamSync (${dreamsyncUser.id}), UserA (${match.userAId}), UserB (${match.userBId})`);
+            console.log(`👑 Admin: ${adminUser.name || adminUser.ename} (${randomAdminId})`);
 
             const mutualGroup = await this.groupService.createGroup(
                 groupName,
                 groupDescription,
-                dreamsyncUser.id, // DreamSync platform user is the owner
-                [dreamsyncUser.id], // DreamSync platform user is admin
+                randomAdminId, // Random user is the owner/admin
+                [randomAdminId], // Random user is admin
                 [dreamsyncUser.id, match.userAId, match.userBId], // All three users as members
-                charter, // Charter describing the group purpose
+                undefined, // NO CHARTER - let users create their own
                 false, // isPrivate = false (group activity)
-                "public" // visibility
+                "public", // visibility
+                undefined, // avatarUrl
+                undefined, // bannerUrl
+                [match.userAId, match.userBId] // Store original match participants
             );
 
             console.log(`✅ Created mutual group: ${mutualGroup.id}`);
-
-            // Wait 10 seconds to ensure the group is fully created before sending system message
-            console.log(`⏳ Waiting 10 seconds for group to be fully created before sending system message...`);
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            console.log(`✅ 10 seconds passed, now sending system message`);
-
-            // Send system message about group creation
-            await this.sendGroupCreatedMessage(mutualGroup, match);
+            
+            // Send admin announcement to the group after 10 seconds
+            setTimeout(async () => {
+                try {
+                    await this.sendGroupAdminAnnouncement(mutualGroup, adminUser);
+                    console.log(`📢 Sent admin announcement to group: ${mutualGroup.id} (after 10s delay)`);
+                } catch (error) {
+                    console.error("Error sending delayed admin announcement:", error);
+                }
+            }, 10_000); // 10 second delay
+            
+            console.log(`⏰ Scheduled admin announcement for group: ${mutualGroup.id} (in 10 seconds)`);
 
             // Mark match as active
             const matchRepository = AppDataSource.getRepository(Match);
@@ -194,17 +918,7 @@ export class ConsentService {
             match.status = MatchStatus.ACCEPTED;
             await matchRepository.save(match);
 
-            // HUGE SUCCESS LOG
-            console.log("\n" + "🎉".repeat(50));
-            console.log("🏆🏆🏆 MUTUAL GROUP CREATED SUCCESSFULLY! 🏆🏆🏆");
-            console.log("🎉".repeat(50));
-            console.log(`👥 Group ID: ${mutualGroup.id}`);
-            console.log(`🏷️ Group Name: ${groupName}`);
-            console.log(`👥 Members: DreamSync Platform, ${match.userA.name || match.userA.ename}, ${match.userB.name || match.userB.ename}`);
-            console.log(`🤝 Match ID: ${match.id}`);
-            console.log(`🎯 Activity Type: ${match.type}`);
-            console.log(`✅ Status: ACTIVE`);
-            console.log("🎉".repeat(50) + "\n");
+            console.log(`✅ Group created successfully: ${groupName} (${mutualGroup.id})`);
 
         } catch (error) {
             console.error("Error creating mutual group:", error);
@@ -216,32 +930,57 @@ export class ConsentService {
      */
     private generateGroupName(match: Match): string {
         const activity = this.extractActivityFromMatch(match);
-        return `DreamSync ${activity} Group`;
+        const capitalizedActivity = activity.charAt(0).toUpperCase() + activity.slice(1);
+        return `DreamSync ${capitalizedActivity} Group`;
+    }
+
+    /**
+     * Generate a group description based on the match activity and user count
+     */
+    private generateGroupDescription(match: Match, userCount: number): string {
+        const activity = this.extractActivityFromMatch(match);
+        const capitalizedActivity = activity.charAt(0).toUpperCase() + activity.slice(1);
+        return `A group for ${userCount} users interested in ${capitalizedActivity} activities. Connect, collaborate, and share your passion for ${activity}!`;
     }
 
     /**
      * Extract the main activity from match data
      */
     private extractActivityFromMatch(match: Match): string {
-        // Look for chess or other activities in suggested activities
+        // First, try to get activity from matchData.activityCategory
+        if (match.matchData?.activityCategory) {
+            console.log(`🎯 Using activityCategory from match data: ${match.matchData.activityCategory}`);
+            return match.matchData.activityCategory;
+        }
+        
+        // Fallback to extracting from suggested activities
         const activities = match.matchData.suggestedActivities || [];
+        console.log(`🔍 Extracting activity from suggested activities:`, activities);
         
         // Check for chess specifically
         if (activities.some(activity => activity.toLowerCase().includes('chess'))) {
-            return 'Chess';
+            return 'chess';
         }
         
-        // Check for other group activities
+        // Check for football/soccer
+        if (activities.some(activity => 
+            activity.toLowerCase().includes('football') || 
+            activity.toLowerCase().includes('soccer')
+        )) {
+            return 'football';
+        }
+        
+        // Check for other sports
         if (activities.some(activity => 
             activity.toLowerCase().includes('sports') || 
             activity.toLowerCase().includes('game') ||
             activity.toLowerCase().includes('tournament')
         )) {
-            return 'Gaming';
+            return 'gaming';
         }
         
         // Default to collaboration
-        return 'Collaboration';
+        return 'collaboration';
     }
 
     /**
@@ -292,7 +1031,8 @@ export class ConsentService {
         const activity = this.extractActivityFromMatch(match);
         const suggestedActivities = match.matchData.suggestedActivities?.join(", ") || "collaboration";
         
-        return `# DreamSync ${activity} Group
+        const capitalizedActivity = activity.charAt(0).toUpperCase() + activity.slice(1);
+        return `# DreamSync ${capitalizedActivity} Group
 
 ## Purpose
 This group was created by DreamSync based on mutual consent between ${match.userA.name || match.userA.ename} and ${match.userB.name || match.userB.ename}.
@@ -314,7 +1054,7 @@ This group can grow as more people with similar interests join!`;
     }
 
     /**
-     * Send a system message about the group being created
+     * Find the DreamSync platform user
      */
     private async sendGroupCreatedMessage(group: Group, match: Match): Promise<void> {
         try {
@@ -326,11 +1066,25 @@ This group can grow as more people with similar interests join!`;
 
             const messageRepository = AppDataSource.getRepository(Message);
             const activity = this.extractActivityFromMatch(match);
-            const messageContent = `$$system-message$$
+            
+            // Find the admin (group owner)
+            const adminId = group.owner;
+            const adminUser = group.members?.find(m => m.id === adminId);
+            
+            console.log(`👑 Sending privacy-preserving messages - Admin: ${adminUser?.name || adminUser?.ename || adminId}`);
 
-🎉 Great news! Both you and ${match.userAId === group.members[0]?.id ? match.userB.name || match.userB.ename : match.userA.name || match.userA.ename} have agreed to connect.
+            // Send different messages based on user role
+            for (const member of group.members || []) {
+                let messageContent: string;
+                
+                if (member.id === adminId) {
+                    // Admin gets full information
+                    const otherUser = member.id === match.userAId ? match.userB : match.userA;
+                    messageContent = `$$system-message$$
 
-This ${activity} group has been created by DreamSync based on your mutual consent! You can now start collaborating on your shared interests with other group members.
+🎉 Great news! Both you and ${otherUser.name || otherUser.ename} have agreed to connect.
+
+This ${activity} group has been created by DreamSync based on your mutual consent! You are the admin of this group and can manage it as needed.
 
 Suggested activities: ${match.matchData.suggestedActivities?.join(", ") || "Connect and explore together"}
 
@@ -340,21 +1094,146 @@ Best regards,
 DreamSync
 
 [Group Created for Match ID: ${match.id}]`;
+                } else if (member.id === dreamsyncUser.id) {
+                    // DreamSync user gets admin notification
+                    messageContent = `$$system-message$$
 
-            const message = messageRepository.create({
-                text: messageContent,
-                sender: dreamsyncUser,
-                group: group,
-                isSystemMessage: true,
-            });
+Group "${group.name}" has been successfully created!
 
-            await messageRepository.save(message);
-            console.log(`✅ Group creation message sent to group: ${group.id}`);
-            console.log(`📝 Message content preview: "${messageContent.substring(0, 100)}..."`);
+Admin: ${adminUser?.name || adminUser?.ename || 'Unknown'}
+Activity: ${activity}
+Members: ${group.members?.length || 0}
+
+The group is now active and ready for collaboration.
+
+Best regards,
+DreamSync
+
+[Group Created for Match ID: ${match.id}]`;
+                } else {
+                    // Regular members get generic message (privacy-preserving)
+                    messageContent = `$$system-message$$
+
+Welcome to the ${activity} group!
+
+A new group has been created based on shared interests. You can now collaborate with other members on activities you're both interested in.
+
+This group can grow as more people with similar interests join. Welcome to the DreamSync ${activity} community!
+
+Best regards,
+DreamSync
+
+[Group Created for Match ID: ${match.id}]`;
+                }
+
+                const message = messageRepository.create({
+                    text: messageContent,
+                    sender: dreamsyncUser,
+                    group: group,
+                    isSystemMessage: true,
+                });
+
+                await messageRepository.save(message);
+                console.log(`✅ Privacy-preserving message sent to ${member.name || member.ename} (${member.id === adminId ? 'ADMIN' : 'MEMBER'})`);
+            }
+
+            console.log(`✅ All group creation messages sent to group: ${group.id}`);
             console.log(`👥 Group members: ${group.members?.map(m => m.name || m.ename).join(', ') || 'No members loaded'}`);
 
         } catch (error) {
             console.error("Error sending group creation message:", error);
+        }
+    }
+
+    /**
+     * Send notification to user about joining an existing group
+     */
+    private async sendGroupJoinNotification(userId: string, group: Group, match: Match): Promise<void> {
+        try {
+            console.log(`📤 Sending group join notification to user: ${userId}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for group join notification");
+                return;
+            }
+
+            const userChat = await this.findOrCreateMutualChat(userId);
+            if (!userChat) {
+                console.error("Could not find/create user chat for group join notification");
+                return;
+            }
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+🎉 Welcome to the ${group.name}!
+
+You've successfully joined the ${activity} group based on your consent. You can now connect with other members and participate in group activities.
+
+Best regards,
+DreamSync Team
+
+[Group Joined: ${group.id}]`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: userChat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Group join notification sent to user: ${userId}`);
+        } catch (error) {
+            console.error("Error sending group join notification:", error);
+        }
+    }
+
+    /**
+     * Send notification to user about group creation
+     */
+    private async sendGroupCreatedNotification(userId: string, group: Group, match: Match): Promise<void> {
+        try {
+            console.log(`📤 Sending group created notification to user: ${userId}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("DreamSync user not found for group created notification");
+                return;
+            }
+
+            const userChat = await this.findOrCreateMutualChat(userId);
+            if (!userChat) {
+                console.error("Could not find/create user chat for group created notification");
+                return;
+            }
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+🎉 Great news! The ${group.name} has been created!
+
+Based on mutual consent from ${match.matchData?.allUserIds?.length || 2} users, we've created this group for ${activity} activities. You can now connect with other members and start collaborating!
+
+Best regards,
+DreamSync Team
+
+[Group Created: ${group.id}]`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: userChat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Group created notification sent to user: ${userId}`);
+        } catch (error) {
+            console.error("Error sending group created notification:", error);
         }
     }
 
@@ -370,6 +1249,356 @@ DreamSync
         } catch (error) {
             console.error("Error finding DreamSync user:", error);
             return null;
+        }
+    }
+
+    /**
+     * Find or create a mutual chat between DreamSync and a user
+     */
+    private async findOrCreateMutualChat(userId: string): Promise<Group | null> {
+        try {
+            console.log(`🔍 ConsentService: Looking for mutual chat between DreamSync and user: ${userId}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("❌ ConsentService: DreamSync user not found for mutual chat creation");
+                return null;
+            }
+
+            console.log(`👤 ConsentService: DreamSync user found: ${dreamsyncUser.id} (${dreamsyncUser.name || dreamsyncUser.ename})`);
+
+            // Look for existing mutual chat
+            console.log(`🔍 ConsentService: Checking for existing mutual chat between DreamSync (${dreamsyncUser.id}) and user (${userId})`);
+            
+            // Find groups where both users are members
+            const existingChat = await this.groupService.groupRepository
+                .createQueryBuilder("group")
+                .leftJoinAndSelect("group.members", "members")
+                .where("group.isPrivate = :isPrivate", { isPrivate: true })
+                .andWhere((qb) => {
+                    const subQuery = qb.subQuery()
+                        .select("gm.group_id")
+                        .from("group_members", "gm")
+                        .where("gm.user_id IN (:...memberIds)", { 
+                            memberIds: [dreamsyncUser.id, userId] 
+                        })
+                        .groupBy("gm.group_id")
+                        .having("COUNT(DISTINCT gm.user_id) = :memberCount", { memberCount: 2 })
+                        .getQuery();
+                    return "group.id IN " + subQuery;
+                })
+                .getOne();
+
+            if (existingChat) {
+                console.log(`✅ ConsentService: Found existing mutual chat: ${existingChat.id}`);
+                console.log(`📋 ConsentService: Chat details: Name="${existingChat.name}", Private=${existingChat.isPrivate}, Members=${existingChat.members?.length || 0}`);
+                return existingChat;
+            }
+
+            console.log(`🆕 ConsentService: No existing mutual chat found, creating new one...`);
+
+            // Create new mutual chat
+            console.log(`🔧 ConsentService: Creating mutual chat with:`);
+            console.log(`   - Name: DreamSync Chat with ${userId}`);
+            console.log(`   - Description: Private chat with DreamSync platform`);
+            console.log(`   - Owner: ${dreamsyncUser.id}`);
+            console.log(`   - Members: [${dreamsyncUser.id}, ${userId}]`);
+            console.log(`   - Private: true`);
+            
+            const mutualChat = await this.groupService.createGroup(
+                `DreamSync Chat with ${userId}`,
+                "Private chat with DreamSync platform",
+                dreamsyncUser.id,
+                [dreamsyncUser.id],
+                [dreamsyncUser.id, userId],
+                undefined,
+                true, // isPrivate = true
+                "private",
+                undefined,
+                undefined,
+                []
+            );
+
+            console.log(`✅ ConsentService: Created new mutual chat: ${mutualChat.id}`);
+            console.log(`📋 ConsentService: New chat details: Name="${mutualChat.name}", Private=${mutualChat.isPrivate}, Members=${mutualChat.members?.length || 0}`);
+            return mutualChat;
+
+        } catch (error) {
+            console.error("❌ ConsentService: Error finding or creating mutual chat:", error);
+            console.error("❌ ConsentService: Error details:", (error as Error).message);
+            return null;
+        }
+    }
+
+    /**
+     * Process consent for multi-user matches
+     */
+    private async processMultiUserConsent(match: Match, senderId: string, matchId: string): Promise<void> {
+        const matchRepository = AppDataSource.getRepository(Match);
+        const allUserIds = match.matchData?.allUserIds || [];
+        const userConsents = match.matchData?.userConsents || {};
+        const consentThreshold = match.matchData?.consentThreshold || 2;
+
+        // Check if sender is part of this match
+        if (!allUserIds.includes(senderId)) {
+            console.error("Sender is not part of this multi-user match:", senderId);
+            return;
+        }
+
+        // Update consent for this user
+        userConsents[senderId] = true;
+        match.matchData.userConsents = userConsents;
+
+        await matchRepository.save(match);
+
+        // Send acknowledgment message to the user who gave consent
+        await this.sendConsentAcknowledgment(senderId, match);
+
+        // Count current consents
+        const consentCount = Object.values(userConsents).filter(Boolean).length;
+        const totalUsers = allUserIds.length;
+
+        console.log(`✅ Multi-user consent received from ${senderId} (${consentCount}/${totalUsers})`);
+
+        // Check if we've reached the consent threshold
+        if (consentCount >= consentThreshold) {
+            // Check if this match is already being processed to prevent duplicates
+            if (this.processingMatches.has(match.id)) {
+                console.log(`⏭️ Multi-user match ${match.id} is already being processed, skipping duplicate processing`);
+                return;
+            }
+
+            this.processingMatches.add(match.id);
+            console.log(`🚀 Processing multi-user match with ${consentCount} consents (threshold: ${consentThreshold})`);
+
+            try {
+                await this.processMutualConsent(match);
+            } finally {
+                this.processingMatches.delete(match.id);
+            }
+        }
+    }
+
+    /**
+     * Send acknowledgment message to user who gave consent
+     */
+    private async sendConsentAcknowledgment(userId: string, match: Match): Promise<void> {
+        try {
+            console.log(`📤 Sending consent acknowledgment to user: ${userId}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("❌ DreamSync user not found for consent acknowledgment");
+                return;
+            }
+
+            const userChat = await this.findOrCreateMutualChat(userId);
+            if (!userChat) {
+                console.error("❌ Could not find/create user chat for acknowledgment");
+                return;
+            }
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+✅ Consent received!
+
+Thank you for agreeing to connect for ${activity} activities. 
+
+We're now processing your consent and will notify you once the connection is established.
+
+Best regards,
+DreamSync Team
+
+[Consent Acknowledged for Match ID: ${match.id}]`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: userChat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Consent acknowledgment sent to user: ${userId}`);
+        } catch (error) {
+            console.error("Error sending consent acknowledgment:", error);
+        }
+    }
+
+    /**
+     * Send a message to the group announcing who the admin is
+     */
+    private async sendGroupAdminAnnouncement(group: Group, adminUser: User): Promise<void> {
+        try {
+            console.log(`📢 Sending admin announcement to group: ${group.id}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("❌ DreamSync user not found for admin announcement");
+                return;
+            }
+
+            const messageContent = `$$system-message$$
+
+🎉 Welcome to ${group.name}!
+
+This group has been created based on your mutual consent. 
+
+👑 **${adminUser.name || adminUser.ename}** has been randomly selected as the group admin and can help organize activities and manage the group.
+
+Feel free to introduce yourselves and start planning your first activity together!
+
+Best regards,
+DreamSync Team`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: group,
+                isSystemMessage: true
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Sent admin announcement message to group: ${group.id}`);
+            
+        } catch (error) {
+            console.error("Error sending group admin announcement:", error);
+        }
+    }
+    
+    /**
+     * Process consent for join existing group matches (2-user matches)
+     */
+    private async processJoinExistingGroupConsent(match: Match, senderId: string, matchId: string): Promise<void> {
+        try {
+            const newUserId = match.matchData?.newUserId;
+            const adminUserId = match.matchData?.adminUserId;
+            const groupId = match.matchData?.existingGroupId;
+            
+            if (!newUserId || !adminUserId || !groupId) {
+                console.error("Missing required data for join existing group consent:", { newUserId, adminUserId, groupId });
+                return;
+            }
+            
+            const isNewUser = senderId === newUserId;
+            const isAdmin = senderId === adminUserId;
+            
+            if (!isNewUser && !isAdmin) {
+                console.error("Sender is not part of this join existing group match:", senderId);
+                return;
+            }
+            
+            // Update consent
+            if (isNewUser) {
+                match.userAConsent = true;
+            } else {
+                match.userBConsent = true;
+            }
+            
+            const matchRepository = AppDataSource.getRepository(Match);
+            await matchRepository.save(match);
+            
+            // Send acknowledgment message to the user who gave consent
+            await this.sendConsentAcknowledgment(senderId, match);
+            
+            // Check if both users have given consent
+            if (match.userAConsent && match.userBConsent) {
+                // Check if this match is already being processed to prevent duplicates
+                if (this.processingMatches.has(match.id)) {
+                    return;
+                }
+                
+                this.processingMatches.add(match.id);
+                
+                try {
+                    await this.addUserToExistingGroup(match, newUserId, groupId);
+                } catch (error) {
+                    console.error("Error in addUserToExistingGroup:", error);
+                } finally {
+                    this.processingMatches.delete(match.id);
+                }
+            }
+            
+        } catch (error) {
+            console.error("Error processing join existing group consent:", error);
+        }
+    }
+    
+    /**
+     * Add user to existing group after both consents
+     */
+    private async addUserToExistingGroup(match: Match, newUserId: string, groupId: string): Promise<void> {
+        try {
+            // Add user to group
+            const updatedGroup = await this.groupService.addMembers(groupId, [newUserId]);
+            
+            // Send system message to group
+            await this.sendUserJoinedGroupMessage(groupId, newUserId, match);
+            
+            // Mark match as active
+            match.isActive = true;
+            match.status = MatchStatus.ACCEPTED;
+            const matchRepository = AppDataSource.getRepository(Match);
+            await matchRepository.save(match);
+            
+        } catch (error) {
+            console.error("Error adding user to existing group:", error);
+        }
+    }
+    
+    /**
+     * Send a message to the group when a new user joins
+     */
+    private async sendUserJoinedGroupMessage(groupId: string, newUserId: string, match: Match): Promise<void> {
+        try {
+            console.log(`📢 Sending user joined message to group: ${groupId}`);
+            
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("❌ DreamSync user not found for user joined message");
+                return;
+            }
+
+            const newUser = await this.userService.getUserById(newUserId);
+            if (!newUser) {
+                console.error(`❌ New user not found: ${newUserId}`);
+                return;
+            }
+
+            const group = await this.groupService.getGroupById(groupId);
+            if (!group) {
+                console.error(`❌ Group not found: ${groupId}`);
+                return;
+            }
+
+            const activity = this.extractActivityFromMatch(match);
+            const messageContent = `$$system-message$$
+
+🎉 Welcome to ${group.name}!
+
+**${newUser.name || newUser.ename}** has joined the group based on mutual consent for ${activity} activities.
+
+Feel free to introduce yourselves and start planning your first activity together!
+
+Best regards,
+DreamSync Team`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: group,
+                isSystemMessage: true
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ Sent user joined message to group: ${groupId}`);
+            
+        } catch (error) {
+            console.error("Error sending user joined group message:", error);
         }
     }
 }
