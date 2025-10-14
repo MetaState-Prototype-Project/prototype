@@ -1,9 +1,7 @@
 "use strict";
-var __importDefault =
-    (this && this.__importDefault) ||
-    function (mod) {
-        return mod && mod.__esModule ? mod : { default: mod };
-    };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MappingDatabase = void 0;
 const node_path_1 = require("node:path");
@@ -40,9 +38,7 @@ class MappingDatabase {
     async storeMapping(params) {
         // Validate inputs
         if (!params.localId || !params.globalId) {
-            throw new Error(
-                "Invalid mapping parameters: all fields are required",
-            );
+            throw new Error("Invalid mapping parameters: all fields are required");
         }
         console.log("storing mapping g:l", params.globalId, params.localId);
         // Check if mapping already exists
@@ -50,11 +46,8 @@ class MappingDatabase {
         if (existingMapping) {
             return;
         }
-        await this.runAsync(
-            `INSERT INTO id_mappings (local_id, global_id)
-                VALUES (?, ?)`,
-            [params.localId, params.globalId],
-        );
+        await this.runAsync(`INSERT INTO id_mappings (local_id, global_id)
+                VALUES (?, ?)`, [params.localId, params.globalId]);
         const storedMapping = await this.getGlobalId(params.localId);
         if (storedMapping !== params.globalId) {
             console.log("storedMappingError", storedMapping, params.globalId);
@@ -70,14 +63,12 @@ class MappingDatabase {
             return null;
         }
         try {
-            const result = await this.getAsync(
-                `SELECT global_id
+            const result = await this.getAsync(`SELECT global_id
                 FROM id_mappings
-                WHERE local_id = ?`,
-                [localId],
-            );
+                WHERE local_id = ?`, [localId]);
             return result?.global_id ?? null;
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error getting global ID:", error);
             return null;
         }
@@ -90,14 +81,12 @@ class MappingDatabase {
             return null;
         }
         try {
-            const result = await this.getAsync(
-                `SELECT local_id
+            const result = await this.getAsync(`SELECT local_id
                 FROM id_mappings
-                WHERE global_id = ?`,
-                [globalId],
-            );
+                WHERE global_id = ?`, [globalId]);
             return result?.local_id ?? null;
-        } catch (error) {
+        }
+        catch (error) {
             return null;
         }
     }
@@ -108,11 +97,8 @@ class MappingDatabase {
         if (!localId) {
             return;
         }
-        await this.runAsync(
-            `DELETE FROM id_mappings
-                WHERE local_id = ?`,
-            [localId],
-        );
+        await this.runAsync(`DELETE FROM id_mappings
+                WHERE local_id = ?`, [localId]);
     }
     /**
      * Get all mappings
@@ -125,7 +111,8 @@ class MappingDatabase {
                 localId: local_id,
                 globalId: global_id,
             }));
-        } catch (error) {
+        }
+        catch (error) {
             return [];
         }
     }
@@ -135,7 +122,8 @@ class MappingDatabase {
     close() {
         try {
             this.db.close();
-        } catch (error) {
+        }
+        catch (error) {
             console.error("Error closing database connection:", error);
         }
     }
