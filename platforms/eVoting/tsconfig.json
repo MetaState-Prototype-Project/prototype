@@ -22,11 +22,13 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "src/*"
       ]
-    }
+    },
+    "types": ["react", "react-dom"]
   },
   "include": [
     "**/*.ts",

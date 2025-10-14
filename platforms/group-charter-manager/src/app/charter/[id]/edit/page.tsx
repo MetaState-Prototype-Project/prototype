@@ -45,12 +45,47 @@ const insertCharterSchema = z.object({
 });
 
 const editCharterSchema = insertCharterSchema.extend({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    groupId: z.string().optional(),
+    isActive: z.boolean().optional(),
+    autoApprove: z.boolean().optional(),
+    allowPosts: z.boolean().optional(),
     guidelines: z
         .array(z.string())
         .min(1, "At least one guideline is required"),
 });
 
 type EditCharterForm = z.infer<typeof editCharterSchema>;
+
+interface Charter {
+    id: string;
+    name: string;
+    description?: string;
+    guidelines: string[];
+    groupId?: string;
+    isActive: boolean;
+    autoApprove: boolean;
+    allowPosts: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    group?: {
+        id: string;
+        name: string;
+        platform: string;
+        imageUrl?: string;
+        memberCount?: number;
+    };
+}
+
+interface Group {
+    id: string;
+    name: string;
+    description?: string;
+    platform?: string;
+    imageUrl?: string;
+    memberCount?: number;
+}
 
 export default function EditCharter({
     params,
@@ -62,15 +97,11 @@ export default function EditCharter({
     const [guidelines, setGuidelines] = useState<string[]>([]);
     const { user } = useAuth();
 
-    const { data: charter, isLoading: charterLoading } = {
-        data: null,
-        isLoading: false,
-    }; // Replace with actual data fetching logic
+    const charter: Charter | null = null; // Replace with actual data fetching logic
+    const charterLoading = false;
 
-    const { data: groups, isLoading: groupsLoading } = {
-        data: [],
-        isLoading: false,
-    }; // Replace with actual groups fetching logic
+    const groups: Group[] = []; // Replace with actual groups fetching logic
+    const groupsLoading = false;
 
     const form = useForm<EditCharterForm>({
         resolver: zodResolver(editCharterSchema),
@@ -87,33 +118,34 @@ export default function EditCharter({
 
     // Populate form when charter data is loaded
     useEffect(() => {
-        if (charter && charter.name) {
-            const guidelines = charter.guidelines || [];
+        if (charter) {
+            const charterData = charter as Charter;
+            const guidelines = charterData.guidelines || [];
 
-            console.log("Charter data loaded:", charter);
-            console.log("Charter name:", charter.name);
-            console.log("Charter description:", charter.description);
+            console.log("Charter data loaded:", charterData);
+            console.log("Charter name:", charterData.name);
+            console.log("Charter description:", charterData.description);
             console.log("Charter guidelines:", guidelines);
-            console.log("Charter groupId:", charter.groupId);
+            console.log("Charter groupId:", charterData.groupId);
 
             // Set guidelines state first
             setGuidelines(guidelines.length > 0 ? guidelines : [""]);
 
             // Reset form with current charter data
             const formValues = {
-                name: charter.name || "",
-                description: charter.description || "",
+                name: charterData.name || "",
+                description: charterData.description || "",
                 guidelines: guidelines,
-                groupId: charter.groupId || undefined,
+                groupId: charterData.groupId || undefined,
                 isActive:
-                    charter.isActive !== undefined ? charter.isActive : true,
+                    charterData.isActive !== undefined ? charterData.isActive : true,
                 autoApprove:
-                    charter.autoApprove !== undefined
-                        ? charter.autoApprove
+                    charterData.autoApprove !== undefined
+                        ? charterData.autoApprove
                         : false,
                 allowPosts:
-                    charter.allowPosts !== undefined
-                        ? charter.allowPosts
+                    charterData.allowPosts !== undefined
+                        ? charterData.allowPosts
                         : true,
             };
 
@@ -124,23 +156,23 @@ export default function EditCharter({
 
             // Also manually set values to ensure they stick
             setTimeout(() => {
-                form.setValue("name", charter.name || "");
-                form.setValue("description", charter.description || "");
+                form.setValue("name", charterData.name || "");
+                form.setValue("description", charterData.description || "");
                 form.setValue("guidelines", guidelines);
-                form.setValue("groupId", charter.groupId || undefined);
+                form.setValue("groupId", charterData.groupId || undefined);
                 form.setValue(
                     "isActive",
-                    charter.isActive !== undefined ? charter.isActive : true
+                    charterData.isActive !== undefined ? charterData.isActive : true
                 );
                 form.setValue(
                     "autoApprove",
-                    charter.autoApprove !== undefined
-                        ? charter.autoApprove
+                    charterData.autoApprove !== undefined
+                        ? charterData.autoApprove
                         : false
                 );
                 form.setValue(
                     "allowPosts",
-                    charter.allowPosts !== undefined ? charter.allowPosts : true
+                    charterData.allowPosts !== undefined ? charterData.allowPosts : true
                 );
             }, 100);
         }
@@ -286,15 +318,15 @@ export default function EditCharter({
                                                         className={cn(
                                                             "w-full justify-between rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-xs px-4 py-3 h-auto",
                                                             !field.value &&
-                                                                "text-muted-foreground"
+                                                            "text-muted-foreground"
                                                         )}
                                                     >
                                                         {field.value
                                                             ? groups?.find(
-                                                                  (group) =>
-                                                                      group.id ===
-                                                                      field.value
-                                                              )?.name
+                                                                (group) =>
+                                                                    group.id ===
+                                                                    field.value
+                                                            )?.name
                                                             : "Select a group..."}
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
@@ -345,7 +377,7 @@ export default function EditCharter({
                                                                                     </span>
                                                                                     <PlatformBadge
                                                                                         platform={
-                                                                                            group.platform
+                                                                                            group.platform || "unknown"
                                                                                         }
                                                                                     />
                                                                                 </div>
@@ -412,9 +444,8 @@ export default function EditCharter({
                                             className="flex items-center space-x-3"
                                         >
                                             <Input
-                                                placeholder={`Guideline ${
-                                                    index + 1
-                                                }`}
+                                                placeholder={`Guideline ${index + 1
+                                                    }`}
                                                 className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 bg-white/80 backdrop-blur-xs"
                                                 value={guideline}
                                                 onChange={(e) =>

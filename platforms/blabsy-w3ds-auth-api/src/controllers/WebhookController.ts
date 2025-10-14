@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src/index";
+import { Web3Adapter } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { getFirestore } from "firebase-admin/firestore";

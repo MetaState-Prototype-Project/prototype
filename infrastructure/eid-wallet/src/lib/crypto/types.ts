@@ -26,12 +26,16 @@ export interface KeyManager {
     /**
      * Verify a signature with the given keyId and payload
      */
-    verifySignature(keyId: string, payload: string, signature: string): Promise<boolean>;
+    verifySignature(
+        keyId: string,
+        payload: string,
+        signature: string,
+    ): Promise<boolean>;
 
     /**
      * Get the type of key manager (hardware or software)
      */
-    getType(): 'hardware' | 'software';
+    getType(): "hardware" | "software";
 }
 
 /**
@@ -60,18 +64,18 @@ export class KeyManagerError extends Error {
     constructor(
         message: string,
         public readonly code: string,
-        public readonly keyId?: string
+        public readonly keyId?: string,
     ) {
         super(message);
-        this.name = 'KeyManagerError';
+        this.name = "KeyManagerError";
     }
 }
 
 export const KeyManagerErrorCodes = {
-    KEY_NOT_FOUND: 'KEY_NOT_FOUND',
-    KEY_GENERATION_FAILED: 'KEY_GENERATION_FAILED',
-    SIGNING_FAILED: 'SIGNING_FAILED',
-    VERIFICATION_FAILED: 'VERIFICATION_FAILED',
-    HARDWARE_UNAVAILABLE: 'HARDWARE_UNAVAILABLE',
-    STORAGE_ERROR: 'STORAGE_ERROR',
+    KEY_NOT_FOUND: "KEY_NOT_FOUND",
+    KEY_GENERATION_FAILED: "KEY_GENERATION_FAILED",
+    SIGNING_FAILED: "SIGNING_FAILED",
+    VERIFICATION_FAILED: "VERIFICATION_FAILED",
+    HARDWARE_UNAVAILABLE: "HARDWARE_UNAVAILABLE",
+    STORAGE_ERROR: "STORAGE_ERROR",
 } as const;

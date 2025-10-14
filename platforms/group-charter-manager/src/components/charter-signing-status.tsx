@@ -17,6 +17,8 @@ interface Participant {
     name?: string;
     ename?: string;
     hasSigned: boolean;
+    isAdmin?: boolean;
+    isOwner?: boolean;
 }
 
 interface SigningStatus {
@@ -95,8 +97,8 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
                 <CardContent>
                     <div className="space-y-3">
                         {signingStatus.participants.map((participant) => (
-                            <div 
-                                key={participant.id} 
+                            <div
+                                key={participant.id}
                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                             >
                                 <div className="flex items-center gap-3">

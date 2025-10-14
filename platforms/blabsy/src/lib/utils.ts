@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from 'react';
-import type { MotionProps } from 'framer-motion';
+import type { MotionProps } from 'motion/react';
 
 export function preventBubbling(
     callback?: ((...args: never[]) => unknown) | null,

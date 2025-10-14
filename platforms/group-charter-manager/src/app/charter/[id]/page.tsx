@@ -55,27 +55,27 @@ export default function CharterDetail({
     const { toast } = useToast();
     const { user } = useAuth();
 
-        const fetchGroup = async () => {
-            try {
-                setIsLoading(true);
-                const response = await apiClient.get(`/api/groups/${id}`);
-                setGroup(response.data);
-                setEditCharter(response.data.charter || "");
-            } catch (error) {
-                console.error('Failed to fetch group:', error);
-                toast({
-                    title: "Error",
-                    description: "Failed to load charter",
-                    variant: "destructive",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    const fetchGroup = async () => {
+        try {
+            setIsLoading(true);
+            const response = await apiClient.get(`/api/groups/${id}`);
+            setGroup(response.data);
+            setEditCharter(response.data.charter || "");
+        } catch (error) {
+            console.error('Failed to fetch group:', error);
+            toast({
+                title: "Error",
+                description: "Failed to load charter",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const fetchSigningStatus = async () => {
         if (!group?.charter) return;
-        
+
         try {
             setSigningStatusLoading(true);
             const response = await apiClient.get(`/api/groups/${id}/charter/signing-status`);
@@ -138,7 +138,7 @@ export default function CharterDetail({
 
     // Check if user can edit (owner or admin)
     const canEdit = user && group && (
-        group.owner === user.id || 
+        group.owner === user.id ||
         (group.admins && group.admins.includes(user.id))
     );
 
@@ -274,7 +274,7 @@ export default function CharterDetail({
                                             Edit Charter
                                         </Button>
                                     )}
-                                    
+
                                     {/* Sign Charter Button (only if current user hasn't signed) */}
                                     {group.charter && signingStatus && !signingStatusLoading && (
                                         (() => {
@@ -291,7 +291,7 @@ export default function CharterDetail({
                                             </Button>
                                         )
                                     )}
-                                    
+
                                     {/* Disabled button for users who have already signed */}
                                     {group.charter && signingStatus && !signingStatusLoading && (
                                         (() => {
@@ -332,39 +332,39 @@ export default function CharterDetail({
                                         placeholder="Write your group charter here..."
                                         className="min-h-[400px]"
                                     />
-                                                                       ) : (
-                                           <div className="prose prose-sm max-w-none">
-                                               {group.charter ? (
-                                                   <div className="text-gray-600 prose prose-sm max-w-none prose-headings:text-gray-800 prose-strong:text-gray-800 prose-em:text-gray-700 prose-ul:text-gray-600 prose-ol:text-gray-600 prose-li:text-gray-600 prose-blockquote:text-gray-600 prose-code:text-gray-800 prose-pre:bg-gray-50">
-                                                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                           {group.charter}
-                                                       </ReactMarkdown>
-                                                   </div>
-                                               ) : (
-                                                   <div>
-                                                   <p className="text-gray-500 italic">
-                                                       No charter content has been set for this group.
-                                                   </p>
-                                                       {!canEdit && (
-                                                           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                               <p className="text-sm text-blue-700">
-                                                                   💡 Only admins can create the charter. Contact a group admin to get started.
-                                                               </p>
-                                                           </div>
-                                                       )}
-                                                   </div>
-                                               )}
-                                           </div>
-                                       )}
-                                        
-                                        {/* Info message for non-admin users */}
-                                        {!canEdit && group.charter && (
-                                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                <p className="text-sm text-blue-700">
-                                                    💡 Only admins can edit the charter. Contact a group admin if you need changes.
+                                ) : (
+                                    <div className="prose prose-sm max-w-none">
+                                        {group.charter ? (
+                                            <div className="text-gray-600 prose prose-sm max-w-none prose-headings:text-gray-800 prose-strong:text-gray-800 prose-em:text-gray-700 prose-ul:text-gray-600 prose-ol:text-gray-600 prose-li:text-gray-600 prose-blockquote:text-gray-600 prose-code:text-gray-800 prose-pre:bg-gray-50">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                    {group.charter}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p className="text-gray-500 italic">
+                                                    No charter content has been set for this group.
                                                 </p>
-                                           </div>
-                                       )}
+                                                {!canEdit && (
+                                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                        <p className="text-sm text-blue-700">
+                                                            💡 Only admins can create the charter. Contact a group admin to get started.
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Info message for non-admin users */}
+                                {!canEdit && group.charter && (
+                                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p className="text-sm text-blue-700">
+                                            💡 Only admins can edit the charter. Contact a group admin if you need changes.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -420,9 +420,9 @@ export default function CharterDetail({
 
                     {/* Charter Signing Status */}
                     {group.charter && (
-                        <CharterSigningStatus 
-                            groupId={group.id} 
-                            charterContent={group.charter} 
+                        <CharterSigningStatus
+                            groupId={group.id}
+                            charterContent={group.charter}
                         />
                     )}
                 </div>
@@ -444,15 +444,15 @@ export default function CharterDetail({
                             onSigningStatusUpdate={(participantId, hasSigned) => {
                                 // Immediately update the local signing status
                                 if (signingStatus) {
-                                    setSigningStatus(prev => {
+                                    setSigningStatus((prev: any) => {
                                         if (!prev) return prev;
-                                        
-                                        const updatedParticipants = prev.participants.map(participant => 
-                                            participant.id === participantId 
+
+                                        const updatedParticipants = prev.participants.map((participant: any) =>
+                                            participant.id === participantId
                                                 ? { ...participant, hasSigned }
                                                 : participant
                                         );
-                                        
+
                                         return {
                                             ...prev,
                                             participants: updatedParticipants

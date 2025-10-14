@@ -1,12 +1,28 @@
 import fastify from "fastify";
 import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
 import dotenv from "dotenv";
-import path from "path";
+import path from "node:path";
 import { AppDataSource } from "./config/database";
 import { VaultService } from "./services/VaultService";
 import { UriResolutionService } from "./services/UriResolutionService";
 import { KubernetesService } from "./services/KubernetesService";
 import cors from "@fastify/cors";
+
+import fs from "node:fs";
+
+function loadMotdJSON() {
+    const motdJSON = fs.readFileSync(path.resolve(__dirname, "../motd.json"), "utf8");
+    return JSON.parse(motdJSON) as {
+        status: "up" | "maintenance"
+        message: string
+    };
+}
+
+let motd = loadMotdJSON();
+
+fs.watchFile(path.resolve(__dirname, "../motd.json"), (_curr, _prev) => {
+    motd = loadMotdJSON();
+});
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -54,6 +70,10 @@ const checkSharedSecret = async (request: any, reply: any) => {
         return reply.status(401).send({ error: "Invalid shared secret" });
     }
 };
+
+server.get("/motd", async (request, reply) => {
+    return motd;
+});
 
 // Create a new vault entry
 server.post(

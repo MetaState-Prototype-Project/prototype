@@ -1,14 +1,14 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { preventBubbling } from '@lib/utils';
 import { Button } from '@components/ui/button';
 import { HeroIcon } from '@components/ui/hero-icon';
 import { Loading } from '@components/ui/loading';
 import { backdrop, modal } from './modal';
-import type { VariantLabels } from 'framer-motion';
+import type { VariantLabels } from 'motion/react';
 import type { ImageData } from '@lib/types/file';
 import type { IconName } from '@components/ui/hero-icon';
 
@@ -103,9 +103,7 @@ export function ImageModal({
                     <motion.div
                         className='mx-auto'
                         {...backdrop}
-                        exit={
-                            tweet ? (backdrop.exit as VariantLabels) : undefined
-                        }
+                        exit={tweet ? (backdrop.exit as any) : undefined}
                         transition={{ duration: 0.15 }}
                     >
                         <Loading iconClassName='w-20 h-20' />

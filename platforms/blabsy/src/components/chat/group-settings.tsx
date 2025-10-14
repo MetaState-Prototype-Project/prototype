@@ -22,13 +22,13 @@ export function GroupSettings({
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    
+
     // Form state
     const [groupName, setGroupName] = useState('');
     const [groupDescription, setGroupDescription] = useState('');
     const [groupPhotoURL, setGroupPhotoURL] = useState<string | null>(null);
     const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
-    
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const otherParticipant = currentChat?.participants.find(
@@ -87,23 +87,26 @@ export function GroupSettings({
     };
 
     const uploadPhoto = async (file: File): Promise<string> => {
-        const photoRef = ref(storage, `group-photos/${currentChat?.id}/${Date.now()}-${file.name}`);
+        const photoRef = ref(
+            storage,
+            `group-photos/${currentChat?.id}/${Date.now()}-${file.name}`
+        );
         await uploadBytes(photoRef, file);
         return await getDownloadURL(photoRef);
     };
 
     const handleSave = async () => {
         if (!currentChat || !user) return;
-        
+
         setIsSaving(true);
         try {
             let finalPhotoURL = groupPhotoURL;
-            
+
             // Upload new photo if one was selected
             if (newPhotoFile) {
                 finalPhotoURL = await uploadPhoto(newPhotoFile);
             }
-            
+
             // Update the chat document
             const chatRef = doc(db, 'chats', currentChat.id);
             await updateDoc(chatRef, {
@@ -112,7 +115,7 @@ export function GroupSettings({
                 photoURL: finalPhotoURL,
                 updatedAt: serverTimestamp()
             });
-            
+
             // Update the local chat context to reflect changes immediately
             const updatedChat = {
                 ...currentChat,
@@ -121,7 +124,7 @@ export function GroupSettings({
                 photoURL: finalPhotoURL || undefined
             };
             setCurrentChat(updatedChat);
-            
+
             // Close the modal
             onClose();
         } catch (error) {
@@ -132,7 +135,10 @@ export function GroupSettings({
         }
     };
 
-    const isAdmin = user && (currentChat?.admins?.includes(user.id) || currentChat?.owner === user.id);
+    const isAdmin =
+        user &&
+        (currentChat?.admins?.includes(user.id) ||
+            currentChat?.owner === user.id);
     const isGroup = currentChat?.type === 'group';
 
     return (
@@ -141,16 +147,23 @@ export function GroupSettings({
             <div className='fixed inset-0 flex items-center justify-center p-4'>
                 <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
                     <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
-                        {isGroup 
-                            ? (isAdmin ? 'Edit Group Settings' : 'Group Info')
-                            : 'Chat Info'
-                        }
+                        {isGroup
+                            ? isAdmin
+                                ? 'Edit Group Settings'
+                                : 'Group Info'
+                            : 'Chat Info'}
                         <XMarkIcon
                             className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             onClick={onClose}
                         />
                     </Dialog.Title>
-                    <form className='mt-4 flex flex-col gap-4' onSubmit={(e) => { e.preventDefault(); void handleSave(); }}>
+                    <form
+                        className='mt-4 flex flex-col gap-4'
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            void handleSave();
+                        }}
+                    >
                         <div className='flex flex-col items-center'>
                             <div className='relative w-24 h-24'>
                                 {isGroup ? (
@@ -212,7 +225,7 @@ export function GroupSettings({
                                 </div>
                             )}
                         </div>
-                        
+
                         {isGroup && (
                             <>
                                 <div>
@@ -222,13 +235,16 @@ export function GroupSettings({
                                             <input
                                                 type='text'
                                                 value={groupName}
-                                                onChange={(e) => setGroupName(e.target.value)}
+                                                onChange={(e) =>
+                                                    setGroupName(e.target.value)
+                                                }
                                                 placeholder='Enter group name'
                                                 className='mt-1 block w-full py-3 px-4 rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                                             />
                                         ) : (
                                             <p className='px-4 py-3 font-normal'>
-                                                {currentChat?.name || 'No name set'}
+                                                {currentChat?.name ||
+                                                    'No name set'}
                                             </p>
                                         )}
                                     </label>
@@ -239,21 +255,26 @@ export function GroupSettings({
                                         {isAdmin ? (
                                             <textarea
                                                 value={groupDescription}
-                                                onChange={(e) => setGroupDescription(e.target.value)}
+                                                onChange={(e) =>
+                                                    setGroupDescription(
+                                                        e.target.value
+                                                    )
+                                                }
                                                 placeholder='Enter group description'
                                                 rows={3}
                                                 className='mt-1 py-3 px-4 resize-none block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                                             />
                                         ) : (
                                             <p className='px-4 py-3 font-normal'>
-                                                {currentChat?.description || "It's empty out here."}
+                                                {currentChat?.description ||
+                                                    "It's empty out here."}
                                             </p>
                                         )}
                                     </label>
                                 </div>
                             </>
                         )}
-                        
+
                         {isGroup && isAdmin && (
                             <div className='flex justify-end gap-2 mt-4'>
                                 <button
@@ -266,11 +287,15 @@ export function GroupSettings({
                                 </button>
                                 <button
                                     type='submit'
-                                    disabled={isSaving || (
-                                        groupName.trim() === (currentChat?.name || '') &&
-                                        groupDescription.trim() === (currentChat?.description || '') &&
-                                        !newPhotoFile
-                                    )}
+                                    disabled={
+                                        isSaving ||
+                                        (groupName.trim() ===
+                                            (currentChat?.name || '') &&
+                                            groupDescription.trim() ===
+                                                (currentChat?.description ||
+                                                    '') &&
+                                            !newPhotoFile)
+                                    }
                                     className='px-4 py-2 text-sm rounded-md bg-main-accent text-white hover:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed'
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}

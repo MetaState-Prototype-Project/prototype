@@ -1,63 +1,63 @@
 <script lang="ts">
-    import { cn } from "$lib/utils";
-    import { CupertinoPane } from "cupertino-pane";
-    import type { Snippet } from "svelte";
-    import { swipe } from "svelte-gestures";
-    import type { HTMLAttributes } from "svelte/elements";
+import { cn } from "$lib/utils";
+import { CupertinoPane } from "cupertino-pane";
+import type { Snippet } from "svelte";
+import { swipe } from "svelte-gestures";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
-        isPaneOpen?: boolean;
-        children?: Snippet;
-        handleSwipe?: (isOpen: boolean | undefined) => void;
+interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
+    isPaneOpen?: boolean;
+    children?: Snippet;
+    handleSwipe?: (isOpen: boolean | undefined) => void;
+}
+
+let drawerElem: HTMLDivElement;
+let pane: CupertinoPane;
+
+let {
+    isPaneOpen = $bindable(),
+    children = undefined,
+    handleSwipe,
+    ...restProps
+}: IDrawerProps = $props();
+
+// Disabled click outside behavior to prevent white screen issues
+// const handleClickOutside = () => {
+//     pane?.destroy({ animate: true });
+//     isPaneOpen = false;
+// };
+
+// Initialize pane only once when element is available
+$effect(() => {
+    if (!drawerElem) return;
+    pane = new CupertinoPane(drawerElem, {
+        fitHeight: true,
+        backdrop: true,
+        backdropOpacity: 0.5,
+        backdropBlur: true,
+        bottomClose: true,
+        buttonDestroy: false,
+        showDraggable: true,
+        upperThanTop: true,
+        breaks: {
+            bottom: { enabled: true, height: 250 },
+        },
+        initialBreak: "bottom",
+    });
+
+    return () => pane?.destroy();
+});
+
+// Handle open/close state separately
+$effect(() => {
+    if (!pane) return;
+
+    if (isPaneOpen) {
+        pane.present({ animate: true });
+    } else {
+        pane.destroy({ animate: true });
     }
-
-    let drawerElem: HTMLDivElement;
-    let pane: CupertinoPane;
-
-    let {
-        isPaneOpen = $bindable(),
-        children = undefined,
-        handleSwipe,
-        ...restProps
-    }: IDrawerProps = $props();
-
-    // Disabled click outside behavior to prevent white screen issues
-    // const handleClickOutside = () => {
-    //     pane?.destroy({ animate: true });
-    //     isPaneOpen = false;
-    // };
-
-    // Initialize pane only once when element is available
-    $effect(() => {
-        if (!drawerElem) return;
-        pane = new CupertinoPane(drawerElem, {
-            fitHeight: true,
-            backdrop: true,
-            backdropOpacity: 0.5,
-            backdropBlur: true,
-            bottomClose: true,
-            buttonDestroy: false,
-            showDraggable: true,
-            upperThanTop: true,
-            breaks: {
-                bottom: { enabled: true, height: 250 },
-            },
-            initialBreak: "bottom",
-        });
-
-        return () => pane?.destroy();
-    });
-
-    // Handle open/close state separately
-    $effect(() => {
-        if (!pane) return;
-
-        if (isPaneOpen) {
-            pane.present({ animate: true });
-        } else {
-            pane.destroy({ animate: true });
-        }
-    });
+});
 </script>
 
 <div

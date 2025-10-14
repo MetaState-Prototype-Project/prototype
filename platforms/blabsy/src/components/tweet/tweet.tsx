@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { useAuth } from '@lib/context/auth-context';
 import { useModal } from '@lib/hooks/useModal';
@@ -15,7 +15,7 @@ import { TweetActions } from './tweet-actions';
 import { TweetStatus } from './tweet-status';
 import { TweetStats } from './tweet-stats';
 import { TweetDate } from './tweet-date';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 import type { Tweet } from '@lib/types/tweet';
 import type { User } from '@lib/types/user';
 
@@ -94,7 +94,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                 <a
                     className={cn(
                         `accent-tab hover-card relative flex flex-col
-             gap-y-4 px-4 py-3 outline-none duration-200`,
+             gap-y-4 px-4 py-3 outline-none duration-200 overflow-hidden`,
                         parentTweet
                             ? 'mt-0.5 pt-2.5 pb-0'
                             : 'border-b border-light-border dark:border-dark-border'
@@ -143,7 +143,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                         </div>
                         <div className='flex min-w-0 flex-col'>
                             <div className='flex justify-between gap-2 text-light-secondary dark:text-dark-secondary'>
-                                <div className='flex gap-1 truncate xs:overflow-visible xs:whitespace-normal'>
+                                <div className='flex gap-1 min-w-0 max-w-[calc(100%-80px)]'>
                                     <UserTooltip
                                         modal={modal}
                                         {...tweetUserData}
@@ -200,7 +200,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                     {text}
                                 </p>
                             )}
-                            <div className='mt-1 flex flex-col gap-2'>
+                            <div className='mt-1 flex flex-col gap-2 overflow-hidden'>
                                 {images && images.length > 0 && (
                                     <ImagePreview
                                         tweet

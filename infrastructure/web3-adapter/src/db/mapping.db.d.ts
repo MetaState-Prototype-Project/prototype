@@ -27,10 +27,12 @@ export declare class MappingDatabase {
     /**
      * Get all mappings
      */
-    getAllMappings(): Promise<Array<{
-        localId: string;
-        globalId: string;
-    }>>;
+    getAllMappings(): Promise<
+        Array<{
+            localId: string;
+            globalId: string;
+        }>
+    >;
     /**
      * Close the database connection
      */

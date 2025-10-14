@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/lib/auth-context";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
 import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
@@ -67,15 +67,16 @@ export default function LoginPage() {
     }, [sessionId, login]);
 
     const getAppStoreLink = () => {
-			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-			if (/android/i.test(userAgent)) {
-				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-			}
-			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
-			}
-			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-		};
+        if (typeof navigator === 'undefined') return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+        const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+        if (/android/i.test(userAgent)) {
+            return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+        }
+        if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+            return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
+        }
+        return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+    };
 
     return (
         <div className="flex flex-col items-center justify-center gap-4 min-h-screen px-4 pb-safe">
@@ -134,7 +135,7 @@ export default function LoginPage() {
                                 </div>
                             ) : (
                                 <div className="p-4 bg-white rounded-lg">
-                                    <QRCode
+                                    <QRCodeSVG
                                         value={qrData}
                                         size={200}
                                         level="M"
@@ -168,7 +169,7 @@ export default function LoginPage() {
                 </div>
             </Card>
             <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
-            <img src="/W3DS.svg" alt="w3ds Logo" className="max-h-8" />
+                <img src="/W3DS.svg" alt="w3ds Logo" className="max-h-8" />
             </a>
         </div>
     );

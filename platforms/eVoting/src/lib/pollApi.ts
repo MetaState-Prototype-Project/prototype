@@ -24,15 +24,29 @@ export interface Poll {
   updatedAt: string;
 }
 
+export interface PointVoteData {
+  option: string;
+  points: number;
+}
+
+export interface RankVoteData {
+  option: string;
+  points: number;
+}
+
+export interface VoteData {
+  mode: "normal" | "point" | "rank";
+  data: string[] | PointVoteData[] | RankVoteData[] | Record<string, number>;
+}
+
 export interface Vote {
   id: string;
   pollId: string;
   userId: string;
   voterId: string;
-  data: {
-    mode: "normal" | "point" | "rank";
-    data: string[] | any[];
-  };
+  data: VoteData;
+  points?: Record<string, number>;
+  ranks?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -58,31 +72,67 @@ export interface Group {
   updatedAt: string;
 }
 
+export interface PollResultOption {
+  option: string;
+  votes: number;
+  percentage?: number;
+  // Additional fields for different voting modes
+  totalPoints?: number;
+  averagePoints?: number;
+  isWinner?: boolean;
+  isTied?: boolean;
+  finalRound?: number;
+  voteCount?: number;
+}
+
+export interface IRVRound {
+  round: number;
+  eliminated?: string;
+  remainingCandidates: string[];
+  voteCounts: Record<string, number>;
+}
+
+export interface IRVDetails {
+  winnerIndex: number | null;
+  winnerOption?: string;
+  rounds: IRVRound[];
+  rejectedBallots: number;
+  rejectedReasons: string[];
+}
+
+export interface VoterDetail {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  optionId: string;
+  profileImageUrl?: string;
+}
+
 export interface PollResults {
   poll: Poll;
   totalVotes: number;
   totalEligibleVoters?: number;
   turnout?: number;
   mode?: "normal" | "point" | "rank";
-  results: {
-    option: string;
-    votes: number;
-    percentage: number;
-    // Additional fields for different voting modes
-    totalPoints?: number;
-    averagePoints?: number;
-    isWinner?: boolean;
-    isTied?: boolean;
-    finalRound?: number;
-  }[];
-  // Detailed IRV info for rank mode
-  irvDetails?: {
-    winnerIndex: number | null;
-    winnerOption?: string;
-    rounds: any[];
-    rejectedBallots: number;
-    rejectedReasons: any[];
-  };
+  results: PollResultOption[];
+  irvDetails?: IRVDetails;
+  voterDetails?: VoterDetail[];
+}
+
+export interface BlindVoteOptionResult {
+  option: string;
+  optionText?: string;
+  voteCount: number;
+  isTied?: boolean;
+  isWinner?: boolean;
+}
+
+export interface BlindVoteResults {
+  optionResults: BlindVoteOptionResult[];
+  totalVotes: number;
+  totalEligibleVoters?: number;
+  turnout?: number;
 }
 
 export interface SigningSession {

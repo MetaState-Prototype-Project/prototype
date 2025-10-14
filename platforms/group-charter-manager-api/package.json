@@ -6,7 +6,7 @@
     "scripts": {
         "start": "ts-node src/index.ts",
         "dev": "nodemon --exec ts-node src/index.ts",
-        "build": "tsc",
+        "build": "tsc && cp -r src/web3adapter/mappings dist/web3adapter/",
         "typeorm": "typeorm-ts-node-commonjs",
         "migration:generate": "npm run typeorm migration:generate -- -d src/database/data-source.ts",
         "migration:run": "npm run typeorm migration:run -- -d src/database/data-source.ts",
@@ -23,7 +23,8 @@
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.24",
-        "uuid": "^9.0.1"
+        "uuid": "^9.0.1",
+        "web3-adapter": "workspace:*"
     },
     "devDependencies": {
         "@types/cors": "^2.8.17",
