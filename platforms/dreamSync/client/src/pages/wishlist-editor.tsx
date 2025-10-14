@@ -11,47 +11,8 @@ const sampleWishlistTemplate = `# My Dream Wishlist
 
 ## What I Want
 
-### Personal Dreams
-- [ ] Learn to play the guitar and perform at a local venue
-- [ ] Travel to Japan and experience authentic culture
-- [ ] Write and publish a novel
-- [ ] Learn a new language fluently
+## What I Can Do`
 
-### Professional Goals
-- [ ] Start my own sustainable business
-- [ ] Mentor someone in my field
-- [ ] Speak at a major conference
-- [ ] Contribute to open source projects
-
-### Life Experiences
-- [ ] Volunteer for a meaningful cause
-- [ ] Learn to cook authentic Italian cuisine
-- [ ] Take a solo backpacking trip
-- [ ] Build lasting friendships with people from different cultures
-
-## What I Can Do
-
-### Skills & Talents
-- **Technical Skills**: Web development, data analysis, problem-solving
-- **Creative Abilities**: Writing, photography, graphic design
-- **Languages**: English (native), Spanish (conversational)
-- **Tools**: Various programming languages, design software
-
-### What I Can Offer
-- **Mentoring**: I can help beginners learn web development
-- **Collaboration**: Open to creative projects and partnerships
-- **Teaching**: Can share knowledge about technology and design
-- **Support**: Available to listen and provide emotional support
-
-### Resources I Can Share
-- **Time**: Weekends and evenings for meaningful projects
-- **Space**: Can host small gatherings or workshops
-- **Equipment**: Have access to cameras, computers, and other tools
-- **Network**: Connections in tech and creative communities
-
----
-
-*This wishlist is a living document. Feel free to edit, add, or remove anything to make it truly yours!*`;
 
 export default function WishlistEditor() {
   const { user, logout } = useAuth();
