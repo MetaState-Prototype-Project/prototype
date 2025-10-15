@@ -541,8 +541,18 @@ export class ConsentService {
             const dreamsyncUser = await this.findDreamSyncUser();
             if (!dreamsyncUser) return;
 
-            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
-            if (!adminChat) return;
+            const adminChatResult = await this.findOrCreateMutualChat(adminUser.id);
+            if (!adminChatResult.chat) return;
+            
+            const adminChat = adminChatResult.chat;
+            const wasCreated = adminChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ Admin chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for admin message`);
+            }
 
             const activity = this.extractActivityFromMatch(match);
             const messageContent = `$$system-message$$
@@ -602,10 +612,20 @@ DreamSync
             }
             console.log(`✅ DreamSync user found: ${dreamsyncUser.id}`);
 
-            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
-            if (!adminChat) {
+            const adminChatResult = await this.findOrCreateMutualChat(adminUser.id);
+            if (!adminChatResult.chat) {
                 console.error("❌ Could not find/create admin chat");
                 return;
+            }
+            
+            const adminChat = adminChatResult.chat;
+            const wasCreated = adminChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ Admin chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for admin message`);
             }
             console.log(`✅ Admin chat found/created: ${adminChat.id}`);
 
@@ -655,8 +675,18 @@ DreamSync
             const dreamsyncUser = await this.findDreamSyncUser();
             if (!dreamsyncUser) return;
 
-            const memberChat = await this.findOrCreateMutualChat(originalMember.id);
-            if (!memberChat) return;
+            const memberChatResult = await this.findOrCreateMutualChat(originalMember.id);
+            if (!memberChatResult.chat) return;
+            
+            const memberChat = memberChatResult.chat;
+            const wasCreated = memberChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ Member chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for member message`);
+            }
 
             const activity = this.extractActivityFromMatch(match);
             const messageContent = `$$system-message$$
@@ -697,8 +727,18 @@ DreamSync
 
             // Send notification to both users
             for (const user of [match.userA, match.userB]) {
-                const userChat = await this.findOrCreateMutualChat(user.id);
-                if (!userChat) continue;
+                const userChatResult = await this.findOrCreateMutualChat(user.id);
+                if (!userChatResult.chat) continue;
+                
+                const userChat = userChatResult.chat;
+                const wasCreated = userChatResult.wasCreated;
+                
+                // If chat was just created, wait 15 seconds before sending message
+                if (wasCreated) {
+                    console.log(`⏳ User chat was just created, waiting 15 seconds before sending message...`);
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    console.log(`✅ 15-second delay completed for user message`);
+                }
 
                 const messageContent = `$$system-message$$
 
@@ -791,8 +831,17 @@ DreamSync
             const activity = this.extractActivityFromMatch(match);
 
             // Send notification to admin with full details
-            const adminChat = await this.findOrCreateMutualChat(adminUser.id);
-            if (adminChat) {
+            const adminChatResult = await this.findOrCreateMutualChat(adminUser.id);
+            if (adminChatResult.chat) {
+                const adminChat = adminChatResult.chat;
+                const wasCreated = adminChatResult.wasCreated;
+                
+                // If chat was just created, wait 15 seconds before sending message
+                if (wasCreated) {
+                    console.log(`⏳ Admin chat was just created, waiting 15 seconds before sending message...`);
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    console.log(`✅ 15-second delay completed for admin message`);
+                }
                 const adminMessageContent = `$$system-message$$
 
 👥 New member joined your ${activity} group!
@@ -823,8 +872,17 @@ DreamSync
             }
 
             // Send generic notification to new member
-            const memberChat = await this.findOrCreateMutualChat(newMember.id);
-            if (memberChat) {
+            const memberChatResult = await this.findOrCreateMutualChat(newMember.id);
+            if (memberChatResult.chat) {
+                const memberChat = memberChatResult.chat;
+                const wasCreated = memberChatResult.wasCreated;
+                
+                // If chat was just created, wait 15 seconds before sending message
+                if (wasCreated) {
+                    console.log(`⏳ Member chat was just created, waiting 15 seconds before sending message...`);
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    console.log(`✅ 15-second delay completed for member message`);
+                }
                 const memberMessageContent = `$$system-message$$
 
 Welcome to the ${activity} group!
@@ -1158,10 +1216,20 @@ DreamSync
                 return;
             }
 
-            const userChat = await this.findOrCreateMutualChat(userId);
-            if (!userChat) {
+            const userChatResult = await this.findOrCreateMutualChat(userId);
+            if (!userChatResult.chat) {
                 console.error("Could not find/create user chat for group join notification");
                 return;
+            }
+            
+            const userChat = userChatResult.chat;
+            const wasCreated = userChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ User chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for user message`);
             }
 
             const activity = this.extractActivityFromMatch(match);
@@ -1204,10 +1272,20 @@ DreamSync Team
                 return;
             }
 
-            const userChat = await this.findOrCreateMutualChat(userId);
-            if (!userChat) {
+            const userChatResult = await this.findOrCreateMutualChat(userId);
+            if (!userChatResult.chat) {
                 console.error("Could not find/create user chat for group created notification");
                 return;
+            }
+            
+            const userChat = userChatResult.chat;
+            const wasCreated = userChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ User chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for user message`);
             }
 
             const activity = this.extractActivityFromMatch(match);
@@ -1254,15 +1332,16 @@ DreamSync Team
 
     /**
      * Find or create a mutual chat between DreamSync and a user
+     * Returns both the chat and whether it was just created
      */
-    private async findOrCreateMutualChat(userId: string): Promise<Group | null> {
+    private async findOrCreateMutualChat(userId: string): Promise<{ chat: Group | null; wasCreated: boolean }> {
         try {
             console.log(`🔍 ConsentService: Looking for mutual chat between DreamSync and user: ${userId}`);
             
             const dreamsyncUser = await this.findDreamSyncUser();
             if (!dreamsyncUser) {
                 console.error("❌ ConsentService: DreamSync user not found for mutual chat creation");
-                return null;
+                return { chat: null, wasCreated: false };
             }
 
             console.log(`👤 ConsentService: DreamSync user found: ${dreamsyncUser.id} (${dreamsyncUser.name || dreamsyncUser.ename})`);
@@ -1292,7 +1371,7 @@ DreamSync Team
             if (existingChat) {
                 console.log(`✅ ConsentService: Found existing mutual chat: ${existingChat.id}`);
                 console.log(`📋 ConsentService: Chat details: Name="${existingChat.name}", Private=${existingChat.isPrivate}, Members=${existingChat.members?.length || 0}`);
-                return existingChat;
+                return { chat: existingChat, wasCreated: false };
             }
 
             console.log(`🆕 ConsentService: No existing mutual chat found, creating new one...`);
@@ -1321,12 +1400,12 @@ DreamSync Team
 
             console.log(`✅ ConsentService: Created new mutual chat: ${mutualChat.id}`);
             console.log(`📋 ConsentService: New chat details: Name="${mutualChat.name}", Private=${mutualChat.isPrivate}, Members=${mutualChat.members?.length || 0}`);
-            return mutualChat;
+            return { chat: mutualChat, wasCreated: true };
 
         } catch (error) {
             console.error("❌ ConsentService: Error finding or creating mutual chat:", error);
             console.error("❌ ConsentService: Error details:", (error as Error).message);
-            return null;
+            return { chat: null, wasCreated: false };
         }
     }
 
@@ -1392,10 +1471,20 @@ DreamSync Team
                 return;
             }
 
-            const userChat = await this.findOrCreateMutualChat(userId);
-            if (!userChat) {
+            const userChatResult = await this.findOrCreateMutualChat(userId);
+            if (!userChatResult.chat) {
                 console.error("❌ Could not find/create user chat for acknowledgment");
                 return;
+            }
+            
+            const userChat = userChatResult.chat;
+            const wasCreated = userChatResult.wasCreated;
+            
+            // If chat was just created, wait 15 seconds before sending message
+            if (wasCreated) {
+                console.log(`⏳ User chat was just created, waiting 15 seconds before sending message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for user message`);
             }
 
             const activity = this.extractActivityFromMatch(match);
