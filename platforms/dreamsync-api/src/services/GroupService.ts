@@ -13,15 +13,39 @@ export class GroupService {
             return null;
         }
 
-        // Find groups that have exactly the same members
+        // Use a more efficient query to find groups with exactly these members
+        const sortedMemberIds = memberIds.sort();
+        
+        // First, try to find groups that have exactly 2 members (for DMs)
+        if (sortedMemberIds.length === 2) {
+            const groups = await this.groupRepository
+                .createQueryBuilder("group")
+                .leftJoinAndSelect("group.members", "members")
+                .where("group.isPrivate = :isPrivate", { isPrivate: true })
+                .andWhere("group.name LIKE :namePattern", { namePattern: "DreamSync Chat%" })
+                .getMany();
+
+            // Filter groups that have exactly the same 2 members
+            for (const group of groups) {
+                if (group.members.length === 2) {
+                    const groupMemberIds = group.members.map((m: User) => m.id).sort();
+                    
+                    if (groupMemberIds.length === sortedMemberIds.length &&
+                        groupMemberIds.every((id: string, index: number) => id === sortedMemberIds[index])) {
+                        return group;
+                    }
+                }
+            }
+        }
+
+        // Fallback to general search for other group sizes
         const groups = await this.groupRepository
             .createQueryBuilder("group")
             .leftJoinAndSelect("group.members", "members")
+            .where("group.isPrivate = :isPrivate", { isPrivate: true })
             .getMany();
 
         // Filter groups that have exactly the same members (order doesn't matter)
-        const sortedMemberIds = memberIds.sort();
-        
         for (const group of groups) {
             const groupMemberIds = group.members.map((m: User) => m.id).sort();
             
@@ -47,6 +71,15 @@ export class GroupService {
         bannerUrl?: string,
         originalMatchParticipants?: string[],
     ): Promise<Group> {
+        // For DreamSync Chat groups, check if a DM already exists between these users
+        if (isPrivate && name.startsWith("DreamSync Chat") && memberIds.length === 2) {
+            const existingDM = await this.findGroupByMembers(memberIds);
+            if (existingDM) {
+                console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${existingDM.id}`);
+                return existingDM;
+            }
+        }
+
         const members = await this.userRepository.findBy({
             id: In(memberIds),
         });
