@@ -82,8 +82,8 @@ export class MatchNotificationService {
             console.log(`🆕 No existing mutual chat found, creating new one...`);
 
             // Create a new mutual chat
-            const chatName = `DreamSync Chat`;
-            const chatDescription = `Private chat between DreamSync and user for match notifications`;
+            const chatName = `DreamSync Chat with ${targetUserId}`;
+            const chatDescription = `DM ID: ${targetUserId}::${dreamsyncUser.id}`;
             
             console.log(`🔧 Creating mutual chat with:`);
             console.log(`   - Name: ${chatName}`);
