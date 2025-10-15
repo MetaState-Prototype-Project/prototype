@@ -164,6 +164,13 @@ export class WebhookController {
             return res.status(200).send("Skipped Match ID group");
         }
 
+        // Check if this is a DM with DM ID in description (already processed)
+        if (local.data.description && typeof local.data.description === 'string' && local.data.description.startsWith('DM ID:')) {
+            console.log("⏭️ Skipping DM creation - this DM has DM ID in description (already processed)");
+            await this.webhookProcessingService.markWebhookCompleted(req.body);
+            return res.status(200).send("Skipped DM ID group");
+        }
+
                 let participants: User[] = [];
                 if (
                     local.data.participants &&
