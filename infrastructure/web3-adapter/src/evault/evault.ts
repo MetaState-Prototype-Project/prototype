@@ -11,15 +11,15 @@ export interface MetaEnvelope {
 
 // Configuration constants
 const CONFIG = {
-    REQUEST_TIMEOUT: 30000, // 30 seconds
-    CONNECTION_TIMEOUT: 10000, // 10 seconds
+    REQUEST_TIMEOUT: 5000, // 5 seconds
+    CONNECTION_TIMEOUT: 5000, // 5 seconds
     TOKEN_REFRESH_THRESHOLD: 5 * 60 * 1000, // 5 minutes before expiry
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000, // 1 second base delay
     CONNECTION_POOL_SIZE: 10,
-    HEALTH_CHECK_TIMEOUT: 5000, // 5 seconds for health check
-    MAX_HEALTH_CHECK_FAILURES: 3, // Max consecutive failures before re-resolution
-    GRAPHQL_TIMEOUT: 10000, // 10 seconds for GraphQL requests before considering endpoint unhealthy
+    HEALTH_CHECK_TIMEOUT: 2000, // 2 seconds for health check
+    MAX_HEALTH_CHECK_FAILURES: 1, // Max consecutive failures before re-resolution (much more aggressive!)
+    GRAPHQL_TIMEOUT: 5000, // 5 seconds for GraphQL requests before considering endpoint unhealthy
 } as const;
 
 const STORE_META_ENVELOPE = `
@@ -350,8 +350,8 @@ export class EVaultClient {
             const lastCheck = this.lastHealthCheck.get(w3id) || 0;
             const timeSinceLastCheck = now - lastCheck;
 
-            // Only check every 30 seconds to avoid performance impact
-            if (timeSinceLastCheck < 30000) {
+            // Only check every 10 seconds to avoid performance impact
+            if (timeSinceLastCheck < 10000) {
                 return true; // Assume healthy if checked recently
             }
 
