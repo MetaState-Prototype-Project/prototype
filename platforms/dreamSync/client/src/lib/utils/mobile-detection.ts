@@ -12,11 +12,6 @@ export function isMobileDevice(): boolean {
     return true;
   }
   
-  // Check for touch capability
-  if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-    return true;
-  }
-  
   // Check screen size
   if (window.innerWidth <= 768) {
     return true;
