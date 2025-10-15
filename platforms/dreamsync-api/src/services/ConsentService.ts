@@ -1379,14 +1379,14 @@ DreamSync Team
             // Create new mutual chat
             console.log(`🔧 ConsentService: Creating mutual chat with:`);
             console.log(`   - Name: DreamSync Chat with ${userId}`);
-            console.log(`   - Description: Private chat with DreamSync platform`);
+            console.log(`   - Description: DM ID: ${userId}::${dreamsyncUser.id}`);
             console.log(`   - Owner: ${dreamsyncUser.id}`);
             console.log(`   - Members: [${dreamsyncUser.id}, ${userId}]`);
             console.log(`   - Private: true`);
             
             const mutualChat = await this.groupService.createGroup(
                 `DreamSync Chat with ${userId}`,
-                "Private chat with DreamSync platform",
+                `DM ID: ${userId}::${dreamsyncUser.id}`,
                 dreamsyncUser.id,
                 [dreamsyncUser.id],
                 [dreamsyncUser.id, userId],
