@@ -462,7 +462,7 @@ DreamSync Team`;
             );
             processedMessage = processedMessage.replace(
                 /<a href='[^']*'>Pictique<\/a>/g,
-                `<a href='${new URL("/user/" + otherUser.ename, process.env.PUBLIC_PICTIQUE_URL).toString()}'>Pictique</a>`
+                `<a href='${new URL("/profile/" + otherUser.ename, process.env.PUBLIC_PICTIQUE_URL).toString()}'>Pictique</a>`
             );
         }
         
