@@ -10,6 +10,7 @@ import { Web3Adapter } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
+import { shouldProcessWebhook } from "../../context/OperationContext";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../../../.env") });
 export const adapter = new Web3Adapter({
@@ -253,6 +254,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     private async handleChange(entity: any, tableName: string): Promise<void> {
         console.log(`🔍 handleChange called for: ${tableName}, entityId: ${entity?.id}`);
         
+        // Check if this operation should be processed (only ConsentService operations for groups/messages)
+        if (!shouldProcessWebhook(entity?.id, tableName)) {
+            console.log(`⏭️ Skipping webhook for ${tableName}:${entity?.id} - not from ConsentService (protected entity)`);
+            return;
+        }
+        
         // Handle junction table changes - DON'T IGNORE group_participants!
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];
@@ -344,6 +351,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return;
             }
 
+            // Check if this junction table change should be processed (only ConsentService operations for groups)
+            if (!shouldProcessWebhook(parentId, junctionInfo.entity)) {
+                console.log(`⏭️ Skipping junction table webhook for ${junctionInfo.entity}:${parentId} - not from ConsentService (protected entity)`);
+                return;
+            }
+
             const repository = AppDataSource.getRepository(junctionInfo.entity);
             const parentEntity = await repository.findOne({
                 where: { id: parentId },
@@ -408,6 +421,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async sendGroupWebhook(data: any): Promise<void> {
         try {
+            // Check if this group webhook should be processed (only ConsentService operations for groups)
+            if (!shouldProcessWebhook(data.id, "groups")) {
+                console.log(`⏭️ Skipping group webhook for ${data.id} - not from ConsentService (protected entity)`);
+                return;
+            }
+
             // Skip groups with Match ID in description (already processed)
             if (data.description && typeof data.description === 'string' && data.description.startsWith('Match ID:')) {
                 console.log(`🔍 Skipping group webhook - has Match ID in description: ${data.description}`);

@@ -5,6 +5,7 @@ import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";
 import { UserService } from "./UserService";
 import { GroupService } from "./GroupService";
+import { withOperationContext } from "../context/OperationContext";
 
 export class ConsentService {
     private userService: UserService;
@@ -20,7 +21,11 @@ export class ConsentService {
      * Process a consent response to a match notification (by Match ID)
      */
     async processConsentResponse(messageText: string, senderId: string, groupId: string): Promise<void> {
-        try {
+        // Generate unique operation ID for this consent processing
+        const operationId = `consent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('ConsentService', operationId, async () => {
+            try {
             // Check if the message text itself is a UUID (Match ID)
             const uuidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
             const isDirectMatchId = uuidRegex.test(messageText.trim());
@@ -150,9 +155,10 @@ export class ConsentService {
                 }
             }
 
-        } catch (error) {
-            console.error("Error processing consent response:", error);
-        }
+            } catch (error) {
+                console.error("Error processing consent response:", error);
+            }
+        });
     }
 
     /**
