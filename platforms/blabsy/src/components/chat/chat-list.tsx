@@ -92,8 +92,8 @@ export function ChatList(): JSX.Element {
     }
 
     return (
-        <div className='flex h-full flex-col gap-4'>
-            <div className='flex h-full flex-col gap-2 overflow-y-auto p-4'>
+        <div className='flex h-full flex-col'>
+            <div className='flex-1 overflow-y-auto p-4 space-y-2'>
                 {chats.map((chat) => {
                     const otherParticipant = chat.participants.find(
                         (p) => p !== user?.id
@@ -160,13 +160,15 @@ export function ChatList(): JSX.Element {
                     );
                 })}
             </div>
-            <button
-                type='button'
-                onClick={() => setOpenCreateNewChatModal(true)}
-                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90 mx-4 mb-4'
-            >
-                New Chat
-            </button>
+            <div className='flex-shrink-0 p-4'>
+                <button
+                    type='button'
+                    onClick={() => setOpenCreateNewChatModal(true)}
+                    className='w-full flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+                >
+                    New Chat
+                </button>
+            </div>
             <AddMembers
                 open={openCreateNewChatModal}
                 onClose={() => setOpenCreateNewChatModal(false)}

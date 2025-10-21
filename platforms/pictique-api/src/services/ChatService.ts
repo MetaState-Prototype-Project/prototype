@@ -162,6 +162,11 @@ export class ChatService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
+        
+        // Update the chat's updatedAt timestamp to reflect the latest message
+        chat.updatedAt = new Date();
+        await this.chatRepository.save(chat);
+        
         console.log("Sent event", `chat:${chatId}`);
         this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
 
@@ -280,20 +285,32 @@ export class ChatService {
         page: number;
         totalPages: number;
     }> {
-        // First, get the chat IDs that the user is part of
-        const [chatIds, total] = await this.chatRepository
+        // Get chats ordered by the most recent message timestamp
+        const queryBuilder = this.chatRepository
             .createQueryBuilder("chat")
-            .select(["chat.id", "chat.updatedAt"])
+            .leftJoin("chat.messages", "message")
             .innerJoin("chat.participants", "participants")
             .where("participants.id = :userId", { userId })
-            .orderBy("chat.updatedAt", "DESC")
+            .groupBy("chat.id")
+            .addGroupBy("chat.name")
+            .addGroupBy("chat.ename")
+            .addGroupBy("chat.createdAt")
+            .addGroupBy("chat.updatedAt")
+            .orderBy("MAX(message.createdAt)", "DESC")
+            .addOrderBy("chat.createdAt", "DESC"); // Fallback for chats without messages
+
+        // Get total count for pagination
+        const total = await queryBuilder.getCount();
+
+        // Apply pagination
+        const chats = await queryBuilder
             .skip((page - 1) * limit)
             .take(limit)
-            .getManyAndCount();
+            .getMany();
 
-        // Then, load the full chat data with all relations
-        const chats = await this.chatRepository.find({
-            where: { id: In(chatIds.map((chat) => chat.id)) },
+        // Load full chat data with all relations for the paginated results
+        const chatsWithRelations = await this.chatRepository.find({
+            where: { id: In(chats.map((chat) => chat.id)) },
             relations: [
                 "participants",
                 "messages",
@@ -301,12 +318,25 @@ export class ChatService {
                 "messages.readStatuses",
                 "messages.readStatuses.user",
             ],
-            order: { updatedAt: "DESC" },
+        });
+
+        // Sort the chats by latest message timestamp (since we loaded relations, we need to sort again)
+        const sortedChats = chatsWithRelations.sort((a, b) => {
+            const aLatestMessage = a.messages[a.messages.length - 1];
+            const bLatestMessage = b.messages[b.messages.length - 1];
+            
+            if (!aLatestMessage && !bLatestMessage) {
+                return b.createdAt.getTime() - a.createdAt.getTime();
+            }
+            if (!aLatestMessage) return 1;
+            if (!bLatestMessage) return -1;
+            
+            return bLatestMessage.createdAt.getTime() - aLatestMessage.createdAt.getTime();
         });
 
         // For each chat, get the latest message and its read status
         const chatsWithLatestMessage = await Promise.all(
-            chats.map(async (chat) => {
+            sortedChats.map(async (chat) => {
                 const latestMessage = chat.messages[chat.messages.length - 1];
                 if (!latestMessage) {
                     return { ...chat, latestMessage: undefined };
