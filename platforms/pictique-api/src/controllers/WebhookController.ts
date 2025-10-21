@@ -294,8 +294,8 @@ export class WebhookController {
                     if (!message) return res.status(500).send();
 
                     message.text = local.data.text as string;
-                    message.sender = sender || undefined;
-                    message.chat = chat;
+                    message.sender = message.sender ?? sender ?? undefined;
+                    message.chat = message.chat ?? chat;
 
                     this.adapter.addToLockedIds(localId);
                     await this.messageService.messageRepository.save(message);
