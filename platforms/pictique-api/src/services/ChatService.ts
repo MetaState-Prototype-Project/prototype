@@ -285,19 +285,12 @@ export class ChatService {
         page: number;
         totalPages: number;
     }> {
-        // Get chats ordered by the most recent message timestamp
+        // First, get all chats for the user with basic info
         const queryBuilder = this.chatRepository
             .createQueryBuilder("chat")
-            .leftJoin("chat.messages", "message")
             .innerJoin("chat.participants", "participants")
             .where("participants.id = :userId", { userId })
-            .groupBy("chat.id")
-            .addGroupBy("chat.name")
-            .addGroupBy("chat.ename")
-            .addGroupBy("chat.createdAt")
-            .addGroupBy("chat.updatedAt")
-            .orderBy("MAX(message.createdAt)", "DESC")
-            .addOrderBy("chat.createdAt", "DESC"); // Fallback for chats without messages
+            .orderBy("chat.updatedAt", "DESC");
 
         // Get total count for pagination
         const total = await queryBuilder.getCount();
@@ -320,7 +313,7 @@ export class ChatService {
             ],
         });
 
-        // Sort the chats by latest message timestamp (since we loaded relations, we need to sort again)
+        // Sort the chats by latest message timestamp (most recent first)
         const sortedChats = chatsWithRelations.sort((a, b) => {
             const aLatestMessage = a.messages[a.messages.length - 1];
             const bLatestMessage = b.messages[b.messages.length - 1];

@@ -93,7 +93,7 @@ export function ChatList(): JSX.Element {
 
     return (
         <div className='flex h-full flex-col'>
-            <div className='flex-1 overflow-y-auto p-4 space-y-2'>
+            <div className='flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1'>
                 {chats.map((chat) => {
                     const otherParticipant = chat.participants.find(
                         (p) => p !== user?.id
@@ -107,7 +107,7 @@ export function ChatList(): JSX.Element {
                             key={chat.id}
                             type='button'
                             onClick={() => setCurrentChat(chat)}
-                            className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
+                            className={`w-full flex items-center gap-3 rounded-lg p-3 transition-colors ${
                                 currentChat?.id === chat.id
                                     ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary'
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -160,7 +160,7 @@ export function ChatList(): JSX.Element {
                     );
                 })}
             </div>
-            <div className='flex-shrink-0 p-4'>
+            <div className='flex-shrink-0 px-2 py-2'>
                 <button
                     type='button'
                     onClick={() => setOpenCreateNewChatModal(true)}
