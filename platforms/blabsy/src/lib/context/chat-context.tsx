@@ -94,14 +94,29 @@ export function ChatContextProvider({
 
         const chatsQuery = query(
             chatsCollection,
-            where('participants', 'array-contains', user.id)
+            where('participants', 'array-contains', user.id),
+            orderBy('updatedAt', 'desc')
         );
 
         const unsubscribe = onSnapshot(
             chatsQuery,
             (snapshot) => {
                 const chatsData = snapshot.docs.map((doc) => doc.data());
-                setChats(chatsData);
+                
+                // Sort chats by last message timestamp (most recent first)
+                const sortedChats = chatsData.sort((a, b) => {
+                    // If both have lastMessage, sort by timestamp
+                    if (a.lastMessage?.timestamp && b.lastMessage?.timestamp) {
+                        return b.lastMessage.timestamp.toMillis() - a.lastMessage.timestamp.toMillis();
+                    }
+                    // If only one has lastMessage, prioritize it
+                    if (a.lastMessage?.timestamp && !b.lastMessage?.timestamp) return -1;
+                    if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp) return 1;
+                    // If neither has lastMessage, sort by updatedAt
+                    return b.updatedAt.toMillis() - a.updatedAt.toMillis();
+                });
+                
+                setChats(sortedChats);
                 setLoading(false);
             },
             (error) => {
