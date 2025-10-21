@@ -23,6 +23,7 @@
 
 	// Pagination and loading state
 	let isLoading = $state(true);
+	let isLoadingMore = $state(false);
 	let currentPage = $state(1);
 	let totalPages = $state(1);
 	let totalChats = $state(0);
@@ -91,21 +92,14 @@
 		}
 	}
 
-	async function loadNextPage() {
-		if (hasMorePages && !isLoading) {
-			await loadMessages(currentPage + 1, true);
-		}
-	}
-
-	async function loadPreviousPage() {
-		if (currentPage > 1 && !isLoading) {
-			await loadMessages(currentPage - 1, false);
-		}
-	}
-
-	async function goToPage(page: number) {
-		if (page >= 1 && page <= totalPages && !isLoading) {
-			await loadMessages(page, false);
+	async function loadMoreMessages() {
+		if (hasMorePages && !isLoadingMore) {
+			isLoadingMore = true;
+			try {
+				await loadMessages(currentPage + 1, true);
+			} finally {
+				isLoadingMore = false;
+			}
 		}
 	}
 
@@ -287,94 +281,26 @@
 			/>
 		{/each}
 
-		<!-- Pagination Controls -->
-		{#if totalPages > 1}
-			<div class="mt-6 flex items-center justify-between">
+		<!-- Load More Button -->
+		{#if hasMorePages}
+			<div class="mt-4 flex justify-center">
 				<Button
 					variant="secondary"
 					size="sm"
-					callback={loadPreviousPage}
-					disabled={currentPage <= 1 || isLoading}
+					callback={loadMoreMessages}
+					disabled={isLoadingMore}
+					isLoading={isLoadingMore}
 				>
-					Previous
-				</Button>
-
-				<div class="flex items-center space-x-2">
-					{#if totalPages <= 7}
-						{#each Array.from({ length: totalPages }, (_, i) => i + 1) as page}
-							<button
-								class="rounded px-3 py-1 text-sm {page === currentPage
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-								onclick={() => goToPage(page)}
-								disabled={isLoading}
-							>
-								{page}
-							</button>
-						{/each}
-					{:else}
-						<!-- Show first page -->
-						<button
-							class="rounded px-3 py-1 text-sm {1 === currentPage
-								? 'bg-blue-600 text-white'
-								: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-							onclick={() => goToPage(1)}
-							disabled={isLoading}
-						>
-							1
-						</button>
-
-						{#if currentPage > 3}
-							<span class="text-gray-500">...</span>
-						{/if}
-
-						<!-- Show pages around current page -->
-						{#each Array.from({ length: Math.min(3, totalPages - 2) }, (_, i) => {
-							const start = Math.max(2, currentPage - 1);
-							return Math.min(start + i, totalPages - 1);
-						}).filter((page, index, arr) => arr.indexOf(page) === index) as page}
-							<button
-								class="rounded px-3 py-1 text-sm {page === currentPage
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-								onclick={() => goToPage(page)}
-								disabled={isLoading}
-							>
-								{page}
-							</button>
-						{/each}
-
-						{#if currentPage < totalPages - 2}
-							<span class="text-gray-500">...</span>
-						{/if}
-
-						<!-- Show last page -->
-						{#if totalPages > 1}
-							<button
-								class="rounded px-3 py-1 text-sm {totalPages === currentPage
-									? 'bg-blue-600 text-white'
-									: 'bg-gray-200 text-gray-700 hover:bg-gray-300'}"
-								onclick={() => goToPage(totalPages)}
-								disabled={isLoading}
-							>
-								{totalPages}
-							</button>
-						{/if}
-					{/if}
-				</div>
-
-				<Button
-					variant="secondary"
-					size="sm"
-					callback={loadNextPage}
-					disabled={!hasMorePages || isLoading}
-				>
-					Next
+					Load More Chats
 				</Button>
 			</div>
 
 			<div class="mt-2 text-center text-sm text-gray-500">
-				Page {currentPage} of {totalPages} • {totalChats} total chats
+				Showing {messages.length} of {totalChats} chats
+			</div>
+		{:else if messages.length > 0}
+			<div class="mt-2 text-center text-sm text-gray-500">
+				All {totalChats} chats loaded
 			</div>
 		{/if}
 	{:else if !isLoading}
