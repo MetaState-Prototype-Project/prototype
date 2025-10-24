@@ -1,5 +1,5 @@
 {
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
+  "include": ["client/src/**/*"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,
@@ -15,11 +15,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "types": ["node", "vite/client"],
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
     "paths": {
-      "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
+      "@/*": ["./client/src/*"]
     }
   }
 }
