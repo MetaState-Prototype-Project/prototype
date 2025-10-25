@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiClient } from "@/lib/apiClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import SelfCalculationModal from "@/components/modals/self-calculation-modal";
 import OtherCalculationModal from "@/components/modals/other-calculation-modal";
 import ReferenceModal from "@/components/modals/reference-modal";
 import ReferenceViewModal from "@/components/modals/reference-view-modal";
@@ -27,7 +27,6 @@ import ReferenceViewModal from "@/components/modals/reference-view-modal";
 export default function Dashboard() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [selfModalOpen, setSelfModalOpen] = useState(false);
   const [otherModalOpen, setOtherModalOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -36,8 +35,12 @@ export default function Dashboard() {
 
   // This page is only rendered when authenticated, no need for redirect logic
 
-  const { data: stats } = useQuery<{currentScore: string; totalReferences: string}>({
+  const { data: stats } = useQuery<{totalReferences: string}>({
     queryKey: ["/api/dashboard/stats"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/dashboard/stats");
+      return response.data;
+    },
     enabled: isAuthenticated,
   });
 
@@ -55,11 +58,14 @@ export default function Dashboard() {
     };
   }>({
     queryKey: ["/api/dashboard/activities", currentPage],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/dashboard/activities?page=${currentPage}`);
+      return response.data;
+    },
     enabled: isAuthenticated,
     refetchOnWindowFocus: true,
     refetchInterval: 5000, // Poll every 5 seconds for updates
     staleTime: 0, // Always consider data stale
-    queryFn: () => fetch(`/api/dashboard/activities?page=${currentPage}`).then(res => res.json())
   });
 
   const activities = activitiesResponse?.activities || [];
@@ -134,9 +140,7 @@ export default function Dashboard() {
     return count;
   };
 
-  const currentScore = parseFloat(stats?.currentScore || "0");
   const totalReferences = parseInt(stats?.totalReferences || "0");
-  const animatedScore = useCountUp(currentScore * 10, 800) / 10; // Convert to decimal for animation
   const animatedReferences = useCountUp(totalReferences, 600);
 
   const getStatusBadge = (status: string) => {
@@ -278,21 +282,7 @@ export default function Dashboard() {
           </div>
           
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto">
-            <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{backgroundColor: '#4C3F54'}}>
-              <div className="text-xs sm:text-sm text-white/80 font-medium">Current eReputation</div>
-              <div className="text-xl sm:text-3xl font-black text-white">
-                {animatedScore.toFixed(1)}
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 bg-white/20 rounded-lg flex items-center justify-center shadow-sm transform rotate-12 border border-swiss-cheese/30 mr-1">
-                  <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                </div>
-                <span className="text-xs text-white/70">out of 10</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 w-full lg:w-auto">
             <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{backgroundColor: '#4C3F54'}}>
               <div className="text-xs sm:text-sm text-white/80 font-medium">Total eReferences</div>
               <div className="text-xl sm:text-3xl font-black text-white">
@@ -311,24 +301,7 @@ export default function Dashboard() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 items-center">
-          <button 
-            onClick={() => setSelfModalOpen(true)}
-            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
-          >
-            <div className="flex items-center gap-3 h-full">
-              <div className="w-12 h-12 bg-fig rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 transform rotate-12">
-                <svg className="w-6 h-6 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <h3 className="font-black text-lg mb-1 text-fig leading-tight">Calculate My eReputation</h3>
-                <p className="text-fig/70 text-sm font-medium leading-tight">Calculate your current eReputation throughout the W3DS</p>
-              </div>
-            </div>
-          </button>
-
+        <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8 items-center">
           <button 
             onClick={() => setOtherModalOpen(true)}
             className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
@@ -348,7 +321,7 @@ export default function Dashboard() {
 
           <button 
             onClick={() => setReferenceModalOpen(true)}
-            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 sm:col-span-2 lg:col-span-1 h-32 w-full max-w-sm sm:max-w-none"
+            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
           >
             <div className="flex items-center gap-3 h-full">
               <div className="w-12 h-12 bg-fig rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 transform rotate-12">
@@ -384,12 +357,6 @@ export default function Dashboard() {
                   <p className="text-gray-500">Start by calculating your reputation or providing a reference</p>
                 </div>
                 <div className="flex flex-wrap gap-3 mt-4">
-                  <button 
-                    onClick={() => setSelfModalOpen(true)}
-                    className="px-4 py-2 bg-apple-red text-white rounded-lg font-medium hover:bg-apple-red/90 transition-colors"
-                  >
-                    Calculate My Score
-                  </button>
                   <button 
                     onClick={() => setReferenceModalOpen(true)}
                     className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
@@ -622,7 +589,6 @@ export default function Dashboard() {
       </div>
 
       {/* Modals */}
-      <SelfCalculationModal open={selfModalOpen} onOpenChange={setSelfModalOpen} />
       <OtherCalculationModal open={otherModalOpen} onOpenChange={setOtherModalOpen} />
       <ReferenceModal open={referenceModalOpen} onOpenChange={setReferenceModalOpen} />
       

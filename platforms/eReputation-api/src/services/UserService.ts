@@ -10,7 +10,16 @@ export class UserService {
     }
 
     async findUser(ename: string): Promise<User | null> {
-        return await this.userRepository.findOne({ where: { ename } });
+        // Only find user, don't create - users should only be created via webhooks
+        return this.getUserByEname(ename);
+    }
+
+    async getUserByEname(ename: string): Promise<User | null> {
+        // Strip @ prefix if present for database lookup
+        const cleanEname = this.stripEnamePrefix(ename);
+        return this.userRepository.findOne({
+            where: { ename: cleanEname },
+        });
     }
 
     async getUserById(id: string): Promise<User | null> {
@@ -21,8 +30,10 @@ export class UserService {
     }
 
     async createBlankUser(w3id: string): Promise<User> {
+        // Strip @ prefix if present before storing
+        const cleanEname = this.stripEnamePrefix(w3id);
         const user = this.userRepository.create({
-            ename: w3id,
+            ename: cleanEname,
         });
         return await this.userRepository.save(user);
     }
@@ -42,5 +53,14 @@ export class UserService {
             .where("user.name ILIKE :query OR user.handle ILIKE :query", { query: `%${query}%` })
             .limit(limit)
             .getMany();
+    }
+
+    /**
+     * Strips the @ prefix from ename if present
+     * @param ename - The ename with or without @ prefix
+     * @returns The ename without @ prefix
+     */
+    private stripEnamePrefix(ename: string): string {
+        return ename.startsWith('@') ? ename.slice(1) : ename;
     }
 }

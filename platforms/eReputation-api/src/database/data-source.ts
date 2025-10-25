@@ -4,6 +4,8 @@ import { config } from "dotenv";
 import { DataSource, type DataSourceOptions } from "typeorm";
 import { User } from "./entities/User";
 import { Group } from "./entities/Group";
+import { Reference } from "./entities/Reference";
+import { Calculation } from "./entities/Calculation";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 // Use absolute path for better CLI compatibility
@@ -14,7 +16,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.EREPUTATION_DATABASE_URL,
     synchronize: false, // Auto-sync in development
-    entities: [User, Group],
+        entities: [User, Group, Reference, Calculation],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],

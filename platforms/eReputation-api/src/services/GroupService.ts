@@ -67,4 +67,12 @@ export class GroupService {
             .where("members.id = :userId OR admins.id = :userId OR participants.id = :userId", { userId })
             .getMany();
     }
+
+    async searchGroups(query: string, limit: number = 10): Promise<Group[]> {
+        return await this.groupRepository
+            .createQueryBuilder("group")
+            .where("group.name ILIKE :query OR group.description ILIKE :query", { query: `%${query}%` })
+            .limit(limit)
+            .getMany();
+    }
 }

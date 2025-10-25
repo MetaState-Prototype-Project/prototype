@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiClient } from "@/lib/apiClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -61,54 +62,37 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [referenceText, setReferenceText] = useState("");
   const [referenceType, setReferenceType] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const debouncedSearch = useDebouncedCallback((query: string) => {
-    if (query.length >= 2) {
-      refetch();
-    }
-  }, 300);
 
-  const { data: searchResults = [], refetch } = useQuery({
-    queryKey: ['/api/search', targetType, searchQuery],
-    queryFn: () => {
+  const { data: searchResults = [], refetch, isLoading: isSearching } = useQuery({
+    queryKey: ['search', targetType, searchQuery],
+    queryFn: async () => {
       if (!targetType || searchQuery.length < 2) return [];
-      const endpoint = `/api/search/${targetType}s?q=${encodeURIComponent(searchQuery)}`;
-      return fetch(endpoint, { credentials: "include" }).then(res => res.json());
+      
+      if (targetType === 'platform') {
+        // Search platforms using the new platform endpoint
+        const response = await apiClient.get(`/api/platforms/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data.platforms || response.data || [];
+      } else if (targetType === 'user') {
+        // Search users using existing endpoint
+        const response = await apiClient.get(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data;
+      } else if (targetType === 'group') {
+        // Search groups using new endpoint
+        const response = await apiClient.get(`/api/groups/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data;
+      }
+      return [];
     },
-    enabled: false,
+    enabled: targetType !== "" && searchQuery.length >= 2,
   });
 
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
-      const formData = new FormData();
-      
-      // Add text fields
-      Object.keys(data).forEach(key => {
-        if (key !== 'files') {
-          formData.append(key, data[key]);
-        }
-      });
-      
-      // Add files
-      files.forEach(file => {
-        formData.append('files', file);
-      });
-
-      const response = await fetch('/api/references', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`${response.status}: ${error}`);
-      }
-
-      return response.json();
+      const response = await apiClient.post('/api/references', data);
+      return response.data;
     },
     onSuccess: () => {
       toast({
@@ -146,15 +130,10 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
     setSelectedTarget(null);
     setReferenceText("");
     setReferenceType("");
-    setFiles([]);
   };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    // Trigger search if query is long enough
-    if (value.length >= 2) {
-      debouncedSearch(value);
-    }
     // Don't automatically set selected target, let user pick from results
     if (!value.trim()) {
       setSelectedTarget(null);
@@ -277,49 +256,44 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                 </svg>
                 
                 {/* Search Results Dropdown - Absolute positioned overlay */}
-                {searchQuery.length >= 2 && searchResults.length > 0 && !selectedTarget && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
-                    {searchResults.map((result: any, index: number) => (
-                      <button
-                        key={result.id}
-                        onClick={() => handleSelectTarget(result)}
-                        className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors border-b border-fig/10 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
-                            <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="font-bold text-fig">{result.name}</div>
-                            <div className="text-xs text-fig/70 capitalize">{result.type}</div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Manual Entry Option */}
                 {searchQuery.length >= 2 && !selectedTarget && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl">
-                    <button
-                      onClick={() => handleSelectTarget({ id: searchQuery.trim(), name: searchQuery.trim() })}
-                      className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors rounded-2xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="font-bold text-fig">Add "{searchQuery}"</div>
-                          <div className="text-xs text-fig/70">Use custom name</div>
-                        </div>
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
+                    {isSearching ? (
+                      <div className="px-4 py-3 text-center text-fig/70">
+                        <div className="w-4 h-4 border-2 border-fig border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        Searching...
                       </div>
-                    </button>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((result: any, index: number) => (
+                        <button
+                          key={result.id}
+                          onClick={() => handleSelectTarget(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors border-b border-fig/10 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
+                              {targetType === 'platform' ? (
+                                <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-fig">{result.name}</div>
+                              <div className="text-xs text-fig/70 capitalize">{result.type || result.category}</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-fig/70">
+                        No {targetType}s found for "{searchQuery}"
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -365,46 +339,6 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
               <div className={`text-right text-sm mt-1 font-medium ${referenceText.length > 500 ? 'text-apple-red' : 'text-fig/70'}`}>
                 {referenceText.length} / 500 characters
               </div>
-            </div>
-            
-            {/* File Upload */}
-            <div>
-              <Label className="block text-sm font-black text-fig mb-2">
-                Supporting Documents (Optional)
-              </Label>
-              <div className="relative border-2 border-dashed border-fig/20 rounded-2xl p-4 text-center bg-fig-10/50">
-                <div className="flex flex-col items-center gap-2">
-                  <svg className="w-6 h-6 text-fig/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <div className="text-sm text-fig/70 font-medium">
-                    <span className="font-black text-fig">Click to upload</span> or drag files here
-                  </div>
-                  <div className="text-xs text-fig/50">PDF, DOC, JPG up to 10MB</div>
-                </div>
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-              </div>
-              {files.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  {files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm p-2 bg-fig-10 rounded-lg">
-                      <span className="font-medium text-fig truncate">{file.name}</span>
-                      <button
-                        onClick={() => setFiles(files.filter((_, i) => i !== index))}
-                        className="text-fig/50 hover:text-fig ml-2"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

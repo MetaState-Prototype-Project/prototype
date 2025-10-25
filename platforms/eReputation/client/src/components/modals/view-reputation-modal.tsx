@@ -6,7 +6,6 @@ interface ViewReputationModalProps {
   onOpenChange: (open: boolean) => void;
   reputationData: {
     score: string;
-    confidence: string;
     analysis: string;
     targetName?: string;
   } | null;
@@ -20,19 +19,18 @@ export default function ViewReputationModal({
   if (!reputationData) return null;
 
   const score = parseFloat(reputationData.score);
-  const confidence = parseFloat(reputationData.confidence);
   
-  // Score color based on value
+  // Score color based on value (1-5 scale)
   const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600";
-    if (score >= 6) return "text-yellow-600";
+    if (score >= 4) return "text-green-600";
+    if (score >= 3) return "text-yellow-600";
     return "text-red-600";
   };
 
-  // Score gradient for circle
+  // Score gradient for circle (1-5 scale)
   const getScoreGradient = (score: number) => {
-    if (score >= 8) return "from-green-500 to-green-600";
-    if (score >= 6) return "from-yellow-500 to-yellow-600";
+    if (score >= 4) return "from-green-500 to-green-600";
+    if (score >= 3) return "from-yellow-500 to-yellow-600";
     return "from-red-500 to-red-600";
   };
 
@@ -70,7 +68,7 @@ export default function ViewReputationModal({
                     {score.toFixed(1)}
                   </div>
                   <div className="text-xs text-white/80 font-medium">
-                    out of 10
+                    out of 5
                   </div>
                 </div>
               </div>
@@ -79,9 +77,6 @@ export default function ViewReputationModal({
             <div className="text-center">
               <div className="text-lg font-bold text-fig mb-1">
                 {reputationData.targetName ? `${reputationData.targetName}'s eReputation` : "Your eReputation"}
-              </div>
-              <div className="text-sm text-fig/70">
-                Confidence: {Math.round(confidence * 100)}%
               </div>
             </div>
           </div>

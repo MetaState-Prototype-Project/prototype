@@ -8,6 +8,11 @@ import { AppDataSource } from "./database/data-source";
 import { UserController } from "./controllers/UserController";
 import { AuthController } from "./controllers/AuthController";
 import { WebhookController } from "./controllers/WebhookController";
+import { ReferenceController } from "./controllers/ReferenceController";
+import { CalculationController } from "./controllers/CalculationController";
+import { PlatformController } from "./controllers/PlatformController";
+import { GroupController } from "./controllers/GroupController";
+import { DashboardController } from "./controllers/DashboardController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
@@ -48,6 +53,11 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const userController = new UserController();
 const authController = new AuthController();
 const webhookController = new WebhookController();
+const referenceController = new ReferenceController();
+const calculationController = new CalculationController();
+const platformController = new PlatformController();
+const groupController = new GroupController();
+const dashboardController = new DashboardController();
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -69,6 +79,10 @@ app.get("/api/auth/sessions/:id", authController.sseStream);
 // Webhook route (no auth required)
 app.post("/api/webhook", webhookController.handleWebhook);
 
+// Platform routes (public)
+app.get("/api/platforms", platformController.getPlatforms);
+app.get("/api/platforms/search", platformController.searchPlatforms);
+
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below
 
@@ -77,6 +91,24 @@ app.get("/api/users/me", authGuard, userController.currentUser);
 app.get("/api/users/search", userController.search);
 app.get("/api/users/:id", authGuard, userController.getProfileById);
 app.patch("/api/users", authGuard, userController.updateProfile);
+
+// Group routes
+app.get("/api/groups/search", groupController.search);
+
+// Dashboard routes
+app.get("/api/dashboard/stats", authGuard, dashboardController.getStats);
+app.get("/api/dashboard/activities", authGuard, dashboardController.getActivities);
+
+// Reference routes
+app.post("/api/references", authGuard, referenceController.createReference);
+app.get("/api/references/target/:targetType/:targetId", referenceController.getReferencesForTarget);
+app.get("/api/references/my", authGuard, referenceController.getUserReferences);
+app.patch("/api/references/:referenceId/revoke", authGuard, referenceController.revokeReference);
+
+// Calculation routes
+app.post("/api/reputation/calculate", authGuard, calculationController.calculateReputation);
+app.get("/api/reputation/calculations/:calculationId", authGuard, calculationController.getCalculationResult);
+app.get("/api/reputation/calculations/my", authGuard, calculationController.getUserCalculations);
 
 // Start server
 app.listen(port, () => {

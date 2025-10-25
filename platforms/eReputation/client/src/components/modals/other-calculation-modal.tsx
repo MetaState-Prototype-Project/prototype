@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useDebouncedCallback } from 'use-debounce';
-import { apiRequest } from "@/lib/queryClient";
+import { apiClient } from "@/lib/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import ViewReputationModal from "./view-reputation-modal";
 
 
@@ -101,6 +102,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
   const [progress, setProgress] = useState(0);
   const [showViewModal, setShowViewModal] = useState(false);
   const [reputationResult, setReputationResult] = useState<any>(null);
+  const [userValues, setUserValues] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -116,31 +118,40 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
     }
   }, [isCalculating, currentStep]);
 
-  const debouncedSearch = useDebouncedCallback((query: string) => {
-    if (query.length >= 2) {
-      refetch();
-    }
-  }, 300);
 
-  const { data: searchResults = [], refetch } = useQuery({
-    queryKey: ['/api/search', targetType, searchQuery],
-    queryFn: () => {
+  const { data: searchResults = [], refetch, isLoading: isSearching } = useQuery({
+    queryKey: ['search', targetType, searchQuery],
+    queryFn: async () => {
       if (!targetType || searchQuery.length < 2) return [];
-      const endpoint = `/api/search/${targetType}s?q=${encodeURIComponent(searchQuery)}`;
-      return fetch(endpoint, { credentials: "include" }).then(res => res.json());
+      
+      if (targetType === 'platform') {
+        // Search platforms using the new platform endpoint
+        const response = await apiClient.get(`/api/platforms/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data.platforms || response.data || [];
+      } else if (targetType === 'user') {
+        // Search users using existing endpoint
+        const response = await apiClient.get(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data;
+      } else if (targetType === 'group') {
+        // Search groups using new endpoint
+        const response = await apiClient.get(`/api/groups/search?q=${encodeURIComponent(searchQuery)}`);
+        return response.data;
+      }
+      return [];
     },
-    enabled: false,
+    enabled: targetType !== "" && searchQuery.length >= 2,
   });
 
   const calculateMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/reputation/calculate", {
+      const response = await apiClient.post("/api/reputation/calculate", {
         targetType: targetType,
         targetId: selectedTarget?.id || '',
         targetName: selectedTarget?.name || selectedTarget?.title || 'Unknown',
+        userValues: userValues.trim(),
         variables: ALL_VARIABLES
       });
-      return response.json();
+      return response.data;
     },
     onError: (error) => {
       setIsCalculating(false);
@@ -190,14 +201,11 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
     setCurrentStep(0);
     setProgress(0);
     setReputationResult(null);
+    setUserValues("");
   };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    // Trigger search if query is long enough
-    if (value.length >= 2) {
-      debouncedSearch(value);
-    }
     // Don't automatically set selected target, let user pick from results
     if (!value.trim()) {
       setSelectedTarget(null);
@@ -223,6 +231,15 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
       toast({
         title: "Invalid Selection",
         description: "Please select a target to evaluate",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!userValues.trim()) {
+      toast({
+        title: "Missing Values",
+        description: "Please describe what qualities you value in people",
         variant: "destructive",
       });
       return;
@@ -409,49 +426,44 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
                 </svg>
                 
                 {/* Search Results Dropdown - Absolute positioned overlay */}
-                {searchQuery.length >= 2 && searchResults.length > 0 && !selectedTarget && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
-                    {searchResults.map((result: any, index: number) => (
-                      <button
-                        key={result.id}
-                        onClick={() => handleSelectTarget(result)}
-                        className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors border-b border-fig/10 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
-                            <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div>
-                            <div className="font-bold text-fig">{result.name}</div>
-                            <div className="text-xs text-fig/70 capitalize">{result.type}</div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Manual Entry Option */}
                 {searchQuery.length >= 2 && !selectedTarget && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl">
-                    <button
-                      onClick={() => handleSelectTarget({ id: searchQuery.trim(), name: searchQuery.trim() })}
-                      className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors rounded-2xl"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="font-bold text-fig">Add "{searchQuery}"</div>
-                          <div className="text-xs text-fig/70">Use custom name</div>
-                        </div>
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border-2 border-fig/20 rounded-2xl shadow-xl max-h-48 overflow-y-auto">
+                    {isSearching ? (
+                      <div className="px-4 py-3 text-center text-fig/70">
+                        <div className="w-4 h-4 border-2 border-fig border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        Searching...
                       </div>
-                    </button>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((result: any, index: number) => (
+                        <button
+                          key={result.id}
+                          onClick={() => handleSelectTarget(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-fig-10 transition-colors border-b border-fig/10 last:border-b-0 first:rounded-t-2xl last:rounded-b-2xl"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-fig/10 rounded-lg flex items-center justify-center">
+                              {targetType === 'platform' ? (
+                                <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-fig">{result.name}</div>
+                              <div className="text-xs text-fig/70 capitalize">{result.type || result.category}</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-center text-fig/70">
+                        No {targetType}s found for "{searchQuery}"
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -481,6 +493,23 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
                 </div>
               )}
             </div>
+
+            {/* User Values Input */}
+            <div>
+              <Label className="block text-sm font-black text-fig mb-2">
+                What Qualities Do You Value?
+              </Label>
+              <Textarea
+                placeholder="Describe what qualities you value in people (e.g., punctuality, creativity, honesty, leadership, technical skills, communication, etc.). This will be used to calculate the eReputation score based on your personal values..."
+                value={userValues}
+                onChange={(e) => setUserValues(e.target.value)}
+                className="h-24 resize-none border-2 border-fig/20 focus:border-fig/40 focus:ring-fig/20 rounded-2xl"
+                maxLength={500}
+              />
+              <div className={`text-right text-sm mt-1 font-medium ${userValues.length > 500 ? 'text-apple-red' : 'text-fig/70'}`}>
+                {userValues.length} / 500 characters
+              </div>
+            </div>
           </div>
         </div>
         
@@ -496,7 +525,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
             </Button>
             <Button 
               onClick={handleStartCalculation}
-              disabled={isCalculating || !targetType || !selectedTarget}
+              disabled={isCalculating || !targetType || !selectedTarget || !userValues.trim()}
               className="order-1 sm:order-2 flex-1 bg-fig hover:bg-fig/90 text-white font-bold h-11 sm:h-12 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               {isCalculating ? (

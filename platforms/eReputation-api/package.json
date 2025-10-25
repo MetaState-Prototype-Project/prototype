@@ -18,6 +18,7 @@
         "dotenv": "^16.4.5",
         "express": "^4.18.2",
         "jsonwebtoken": "^9.0.2",
+        "openai": "^4.20.1",
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.24",
