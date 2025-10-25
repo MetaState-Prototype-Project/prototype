@@ -53,15 +53,16 @@ class OperationContextManager {
             return true;
         }
 
-        // Look for any active ConsentService context
+        // Look for any active context from trusted services
+        const trustedServices = ['ConsentService', 'AIMatchingService', 'MatchNotificationService', 'GroupService'];
         for (const [contextKey, context] of this.contexts.entries()) {
-            if (context.serviceName === 'ConsentService') {
-                console.log(`✅ Found ConsentService context: ${contextKey}, processing protected operation for ${tableName}:${entityId}`);
+            if (trustedServices.includes(context.serviceName)) {
+                console.log(`✅ Found ${context.serviceName} context: ${contextKey}, processing protected operation for ${tableName}:${entityId}`);
                 return true;
             }
         }
         
-        console.log(`❌ No ConsentService context found, skipping protected operation for ${tableName}:${entityId}`);
+        console.log(`❌ No trusted service context found, skipping protected operation for ${tableName}:${entityId}`);
         return false;
     }
 
