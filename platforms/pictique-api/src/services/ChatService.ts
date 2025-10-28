@@ -43,10 +43,10 @@ export class ChatService {
 
         // Filter chats that have exactly the same participants (order doesn't matter)
         const sortedParticipantIds = participantIds.sort();
-        
+
         for (const chat of chats) {
             const chatParticipantIds = chat.participants.map(p => p.id).sort();
-            
+
             if (chatParticipantIds.length === sortedParticipantIds.length &&
                 chatParticipantIds.every((id, index) => id === sortedParticipantIds[index])) {
                 return chat;
@@ -162,11 +162,7 @@ export class ChatService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
-        
-        // Update the chat's updatedAt timestamp to reflect the latest message
-        chat.updatedAt = new Date();
-        await this.chatRepository.save(chat);
-        
+
         console.log("Sent event", `chat:${chatId}`);
         this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
 
@@ -317,13 +313,13 @@ export class ChatService {
         const sortedChats = chatsWithRelations.sort((a, b) => {
             const aLatestMessage = a.messages[a.messages.length - 1];
             const bLatestMessage = b.messages[b.messages.length - 1];
-            
+
             if (!aLatestMessage && !bLatestMessage) {
                 return b.createdAt.getTime() - a.createdAt.getTime();
             }
             if (!aLatestMessage) return 1;
             if (!bLatestMessage) return -1;
-            
+
             return bLatestMessage.createdAt.getTime() - aLatestMessage.createdAt.getTime();
         });
 
