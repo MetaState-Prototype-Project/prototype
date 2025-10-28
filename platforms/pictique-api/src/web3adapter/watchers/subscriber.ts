@@ -84,6 +84,24 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 enrichedEntity.author = author;
             }
 
+            // For messages, enrich sender and chat relations
+            if (entity.sender && entity.sender.id) {
+                const sender = await AppDataSource.getRepository(
+                    "User"
+                ).findOne({ where: { id: entity.sender.id } });
+                enrichedEntity.sender = sender;
+            }
+
+            if (entity.chat && entity.chat.id) {
+                const chat = await AppDataSource.getRepository(
+                    "Chat"
+                ).findOne({ 
+                    where: { id: entity.chat.id },
+                    relations: ["participants", "messages"]
+                });
+                enrichedEntity.chat = chat;
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);

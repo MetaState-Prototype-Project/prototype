@@ -7,7 +7,10 @@ export class MessageService {
     private chatRepository = AppDataSource.getRepository(Chat);
 
     async findById(id: string): Promise<Message | null> {
-        return await this.messageRepository.findOneBy({ id });
+        return await this.messageRepository.findOne({ 
+            where: { id },
+            relations: ["chat", "sender"]
+        });
     }
 
     async createMessage(senderId: string | null, chatId: string, text: string, isSystemMessage: boolean = false): Promise<Message> {
