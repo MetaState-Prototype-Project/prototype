@@ -23,14 +23,6 @@ export class MessageService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
-
-        // Update the chat's updatedAt timestamp to reflect the latest message
-        const chat = await this.chatRepository.findOneBy({ id: chatId });
-        if (chat) {
-            chat.updatedAt = new Date();
-            await this.chatRepository.save(chat);
-        }
-
         return savedMessage;
     }
 
