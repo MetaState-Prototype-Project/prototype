@@ -7,7 +7,7 @@ export class MessageService {
     private chatRepository = AppDataSource.getRepository(Chat);
 
     async findById(id: string): Promise<Message | null> {
-        return await this.messageRepository.findOne({ 
+        return await this.messageRepository.findOne({
             where: { id },
             relations: ["chat", "sender"]
         });
@@ -23,7 +23,7 @@ export class MessageService {
         });
 
         const savedMessage = await this.messageRepository.save(message);
-        
+
         // Update the chat's updatedAt timestamp to reflect the latest message
         const chat = await this.chatRepository.findOneBy({ id: chatId });
         if (chat) {
@@ -37,4 +37,4 @@ export class MessageService {
     async createSystemMessage(chatId: string, text: string): Promise<Message> {
         return this.createMessage(null, chatId, text, true);
     }
-} 
+}

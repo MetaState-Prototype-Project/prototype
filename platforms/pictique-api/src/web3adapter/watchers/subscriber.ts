@@ -34,6 +34,7 @@ const JUNCTION_TABLE_MAP = {
 export class PostgresSubscriber implements EntitySubscriberInterface {
     private adapter: Web3Adapter;
     private pendingChanges: Map<string, number> = new Map();
+    private recentMessageActivity: Map<string, number> = new Map(); // chatId -> timestamp
 
     constructor() {
         this.adapter = adapter;
@@ -42,6 +43,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         setInterval(() => {
             this.cleanupOldPendingChanges();
         }, 5 * 60 * 1000);
+        
+        // Clean up old message activity every minute
+        setInterval(() => {
+            this.cleanupOldMessageActivity();
+        }, 60 * 1000);
     }
 
     /**
@@ -55,6 +61,20 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             if (now - timestamp > maxAge) {
                 this.pendingChanges.delete(key);
                 console.log(`Cleaned up old pending change: ${key}`);
+            }
+        }
+    }
+
+    /**
+     * Clean up old message activity to prevent memory leaks
+     */
+    private cleanupOldMessageActivity(): void {
+        const now = Date.now();
+        const maxAge = 10 * 1000; // 10 seconds
+        
+        for (const [chatId, timestamp] of this.recentMessageActivity.entries()) {
+            if (now - timestamp > maxAge) {
+                this.recentMessageActivity.delete(chatId);
             }
         }
     }
@@ -202,6 +222,28 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
         if (!data.id) return;
+
+        // For messages, track activity per chat to prevent race conditions
+        if (tableName === "messages") {
+            const chatId = data.chat?.id;
+            if (chatId) {
+                console.log(`Recording message activity for chat: ${chatId}`);
+                this.recentMessageActivity.set(chatId, Date.now());
+            }
+        }
+
+        // For chats, check if there was recent message activity
+        if (tableName === "chats") {
+            const chatId = data.id;
+            const lastMessageActivity = this.recentMessageActivity.get(chatId);
+            if (lastMessageActivity) {
+                const timeSinceLastMessage = Date.now() - lastMessageActivity;
+                if (timeSinceLastMessage < 5000) { // 5 seconds
+                    console.log(`Skipping chat ${chatId} change, recent message activity ${timeSinceLastMessage}ms ago`);
+                    return;
+                }
+            }
+        }
 
         // Create a unique key for this entity change to prevent duplicates
         const changeKey = `${tableName}:${entity.id}`;
