@@ -1,6 +1,6 @@
 import { DataSource } from "typeorm"
-import { Vault } from "../entities/Vault"
-// Import Verification entity from evault-core if available (shared database)
+import { Verification } from "../entities/Verification"
+import { Notification } from "../entities/Notification"
 import * as dotenv from "dotenv"
 import { join } from "path"
 
@@ -9,11 +9,9 @@ dotenv.config({ path: join(__dirname, "../../../../.env") })
 
 export const AppDataSource = new DataSource({
     type: "postgres",
-    url: process.env.REGISTRY_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/registry",
-    synchronize: process.env.NODE_ENV !== "production",
+    url: process.env.REGISTRY_DATABASE_URL || process.env.PROVISIONER_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/registry",
     logging: process.env.NODE_ENV !== "production",
-    entities: [Vault],
-    // Verification entity will be handled by evault-core provisioning service
+    entities: [Verification, Notification],
     migrations: [join(__dirname, "../migrations/*.{ts,js}")],
     migrationsTableName: "migrations",
     subscribers: [],
