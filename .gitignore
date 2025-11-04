@@ -43,3 +43,8 @@ yarn-error.log*
  
 
 evault-cache.json
+.pnpm-store
+.pnpm-store/
+.pnpm-store/v*/
+.pnpm-store/v10/
+.pnpm-store/v3/
