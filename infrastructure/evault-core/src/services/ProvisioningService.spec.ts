@@ -158,9 +158,10 @@ describe("ProvisioningService", () => {
             expect(result.success).toBe(true);
             expect(result.w3id).toBeDefined();
 
-            // Verify verification was updated
+            // Verify verification was updated and consumed
             const updated = await verificationService.findById(verification.id);
             expect(updated?.linkedEName).toBe(result.w3id);
+            expect(updated?.consumed).toBe(true);
         });
     });
 
