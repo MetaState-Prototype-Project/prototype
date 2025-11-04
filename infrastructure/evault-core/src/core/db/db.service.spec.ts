@@ -285,4 +285,270 @@ describe("DbService (integration)", () => {
         expect(foundInObject.length).toBeGreaterThan(0);
         expect(foundInObject[0].id).toBe(metaEnv.metaEnvelope.id);
     });
+
+    describe("eName isolation and data leak prevention", () => {
+        const TENANT1_ENAME = "tenant1@example.com";
+        const TENANT2_ENAME = "tenant2@example.com";
+
+        it("should not return data from other tenants when querying by ID", async () => {
+            // Create meta-envelope for tenant1
+            const tenant1Meta = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Secret",
+                    payload: { secret: "tenant1-data" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            // Try to query tenant1's data with tenant2's eName
+            const result = await service.findMetaEnvelopeById(
+                tenant1Meta.metaEnvelope.id,
+                TENANT2_ENAME
+            );
+
+            // Should return null - data leak prevented!
+            expect(result).toBeNull();
+        });
+
+        it("should not return data from other tenants when querying by ontology", async () => {
+            // Create meta-envelopes for both tenants with same ontology
+            await service.storeMetaEnvelope(
+                {
+                    ontology: "SharedOntology",
+                    payload: { data: "tenant1-data" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            await service.storeMetaEnvelope(
+                {
+                    ontology: "SharedOntology",
+                    payload: { data: "tenant2-data" },
+                },
+                ["*"],
+                TENANT2_ENAME
+            );
+
+            // Query tenant1's data
+            const tenant1Results = await service.findMetaEnvelopesByOntology(
+                "SharedOntology",
+                TENANT1_ENAME
+            );
+
+            // Query tenant2's data
+            const tenant2Results = await service.findMetaEnvelopesByOntology(
+                "SharedOntology",
+                TENANT2_ENAME
+            );
+
+            // Each tenant should only see their own data
+            expect(tenant1Results.length).toBe(1);
+            expect(tenant1Results[0].parsed.data).toBe("tenant1-data");
+
+            expect(tenant2Results.length).toBe(1);
+            expect(tenant2Results[0].parsed.data).toBe("tenant2-data");
+
+            // Verify no cross-contamination
+            const tenant1HasTenant2Data = tenant1Results.some(
+                (r) => r.parsed.data === "tenant2-data"
+            );
+            const tenant2HasTenant1Data = tenant2Results.some(
+                (r) => r.parsed.data === "tenant1-data"
+            );
+
+            expect(tenant1HasTenant2Data).toBe(false);
+            expect(tenant2HasTenant1Data).toBe(false);
+        });
+
+        it("should not return data from other tenants when searching", async () => {
+            // Create meta-envelopes for both tenants with searchable content
+            await service.storeMetaEnvelope(
+                {
+                    ontology: "Searchable",
+                    payload: { text: "tenant1-searchable-text" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            await service.storeMetaEnvelope(
+                {
+                    ontology: "Searchable",
+                    payload: { text: "tenant2-searchable-text" },
+                },
+                ["*"],
+                TENANT2_ENAME
+            );
+
+            // Search tenant1's data
+            const tenant1Results = await service.findMetaEnvelopesBySearchTerm(
+                "Searchable",
+                "searchable",
+                TENANT1_ENAME
+            );
+
+            // Search tenant2's data
+            const tenant2Results = await service.findMetaEnvelopesBySearchTerm(
+                "Searchable",
+                "searchable",
+                TENANT2_ENAME
+            );
+
+            // Each tenant should only see their own results
+            expect(tenant1Results.length).toBe(1);
+            expect(tenant1Results[0].parsed.text).toBe("tenant1-searchable-text");
+
+            expect(tenant2Results.length).toBe(1);
+            expect(tenant2Results[0].parsed.text).toBe("tenant2-searchable-text");
+
+            // Verify no cross-contamination
+            const tenant1HasTenant2Data = tenant1Results.some(
+                (r) => r.parsed.text === "tenant2-searchable-text"
+            );
+            const tenant2HasTenant1Data = tenant2Results.some(
+                (r) => r.parsed.text === "tenant1-searchable-text"
+            );
+
+            expect(tenant1HasTenant2Data).toBe(false);
+            expect(tenant2HasTenant1Data).toBe(false);
+        });
+
+        it("should not allow deletion of other tenants' data", async () => {
+            // Create meta-envelope for tenant1
+            const tenant1Meta = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Data",
+                    payload: { data: "tenant1-data" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            // Try to delete tenant1's data using tenant2's eName
+            await service.deleteMetaEnvelope(
+                tenant1Meta.metaEnvelope.id,
+                TENANT2_ENAME
+            );
+
+            // Data should still exist (deletion with wrong eName should be a no-op)
+            const stillExists = await service.findMetaEnvelopeById(
+                tenant1Meta.metaEnvelope.id,
+                TENANT1_ENAME
+            );
+
+            expect(stillExists).not.toBeNull();
+            expect(stillExists?.parsed.data).toBe("tenant1-data");
+        });
+
+        it("should not allow updating other tenants' envelope values", async () => {
+            // Create meta-envelope for tenant1
+            const tenant1Meta = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Data",
+                    payload: { value: "original-value" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            const envelopeId = tenant1Meta.envelopes[0].id;
+
+            // Try to update tenant1's envelope using tenant2's eName
+            await service.updateEnvelopeValue(
+                envelopeId,
+                "hacked-value",
+                TENANT2_ENAME
+            );
+
+            // Value should remain unchanged (update with wrong eName should be a no-op)
+            const stillOriginal = await service.findMetaEnvelopeById(
+                tenant1Meta.metaEnvelope.id,
+                TENANT1_ENAME
+            );
+
+            expect(stillOriginal).not.toBeNull();
+            expect(stillOriginal?.parsed.value).toBe("original-value");
+        });
+
+        it("should not return data from other tenants when querying by multiple IDs", async () => {
+            // Create meta-envelopes for both tenants
+            const tenant1Meta1 = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Data",
+                    payload: { data: "tenant1-data-1" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            const tenant1Meta2 = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Data",
+                    payload: { data: "tenant1-data-2" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            const tenant2Meta = await service.storeMetaEnvelope(
+                {
+                    ontology: "Tenant2Data",
+                    payload: { data: "tenant2-data" },
+                },
+                ["*"],
+                TENANT2_ENAME
+            );
+
+            // Try to query tenant1's IDs with tenant2's eName
+            const results = await service.findMetaEnvelopesByIds(
+                [tenant1Meta1.metaEnvelope.id, tenant1Meta2.metaEnvelope.id],
+                TENANT2_ENAME
+            );
+
+            // Should return empty array - data leak prevented!
+            expect(results.length).toBe(0);
+
+            // Verify tenant1 can still access their own data
+            const tenant1Results = await service.findMetaEnvelopesByIds(
+                [tenant1Meta1.metaEnvelope.id, tenant1Meta2.metaEnvelope.id],
+                TENANT1_ENAME
+            );
+
+            expect(tenant1Results.length).toBe(2);
+        });
+
+        it("should throw error when eName is missing", async () => {
+            const metaEnvelope = await service.storeMetaEnvelope(
+                {
+                    ontology: "Test",
+                    payload: { data: "test" },
+                },
+                ["*"],
+                TENANT1_ENAME
+            );
+
+            // All methods should throw when eName is missing
+            await expect(
+                service.findMetaEnvelopeById(metaEnvelope.metaEnvelope.id, "")
+            ).rejects.toThrow("eName is required");
+
+            await expect(
+                service.findMetaEnvelopesByOntology("Test", "")
+            ).rejects.toThrow("eName is required");
+
+            await expect(
+                service.findMetaEnvelopesBySearchTerm("Test", "test", "")
+            ).rejects.toThrow("eName is required");
+
+            await expect(
+                service.deleteMetaEnvelope(metaEnvelope.metaEnvelope.id, "")
+            ).rejects.toThrow("eName is required");
+
+            await expect(
+                service.updateEnvelopeValue(metaEnvelope.envelopes[0].id, "new", "")
+            ).rejects.toThrow("eName is required");
+        });
+    });
 });

@@ -218,6 +218,85 @@ describe("VaultAccessGuard", () => {
             );
         });
 
+        it("should prevent access to meta-envelopes from different eName (data leak prevention)", async () => {
+            const eName1 = "tenant1@example.com";
+            const eName2 = "tenant2@example.com";
+            
+            // Create meta-envelope for tenant1
+            const metaEnvelope = await dbService.storeMetaEnvelope(
+                {
+                    ontology: "SecretData",
+                    payload: { secret: "tenant1-secret-value" },
+                },
+                ["*"], // Public ACL
+                eName1
+            );
+
+            // Try to access tenant1's data with tenant2's eName
+            const context = createMockContext({
+                eName: eName2, // Different eName!
+                currentUser: "user-123",
+            });
+
+            const checkAccess = (guard as any).checkAccess.bind(guard);
+            
+            // Should return false because the meta-envelope won't be found with eName2
+            const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
+            expect(result).toBe(false);
+        });
+
+        it("should allow access only to meta-envelopes matching the provided eName", async () => {
+            const eName1 = "tenant1@example.com";
+            const eName2 = "tenant2@example.com";
+            
+            // Create meta-envelopes for both tenants
+            const metaEnvelope1 = await dbService.storeMetaEnvelope(
+                {
+                    ontology: "Tenant1Data",
+                    payload: { data: "tenant1-data" },
+                },
+                ["*"],
+                eName1
+            );
+
+            const metaEnvelope2 = await dbService.storeMetaEnvelope(
+                {
+                    ontology: "Tenant2Data",
+                    payload: { data: "tenant2-data" },
+                },
+                ["*"],
+                eName2
+            );
+
+            // Tenant1 should only access their own data
+            const context1 = createMockContext({
+                eName: eName1,
+                currentUser: "user-123",
+            });
+
+            const checkAccess = (guard as any).checkAccess.bind(guard);
+            
+            const result1 = await checkAccess(metaEnvelope1.metaEnvelope.id, context1);
+            expect(result1).toBe(true);
+
+            // Tenant1 should NOT access tenant2's data
+            const result2 = await checkAccess(metaEnvelope2.metaEnvelope.id, context1);
+            expect(result2).toBe(false);
+
+            // Tenant2 should only access their own data
+            const context2 = createMockContext({
+                eName: eName2,
+                currentUser: "user-123",
+            });
+
+            const result3 = await checkAccess(metaEnvelope2.metaEnvelope.id, context2);
+            expect(result3).toBe(true);
+
+            // Tenant2 should NOT access tenant1's data
+            const result4 = await checkAccess(metaEnvelope1.metaEnvelope.id, context2);
+            expect(result4).toBe(false);
+        });
+
         it("should allow access with ACL '*' even without currentUser", async () => {
             const eName = "test@example.com";
             const metaEnvelope = await dbService.storeMetaEnvelope(
@@ -295,6 +374,42 @@ describe("VaultAccessGuard", () => {
 
             const wrappedResolver = guard.middleware(mockResolver);
             
+            await expect(
+                wrappedResolver(null, { id: metaEnvelope.metaEnvelope.id }, context)
+            ).rejects.toThrow("Access denied");
+        });
+
+        it("should prevent data leak when accessing with wrong eName in middleware", async () => {
+            const eName1 = "tenant1@example.com";
+            const eName2 = "tenant2@example.com";
+            
+            // Create meta-envelope for tenant1
+            const metaEnvelope = await dbService.storeMetaEnvelope(
+                {
+                    ontology: "SecretData",
+                    payload: { secret: "tenant1-secret" },
+                },
+                ["*"], // Public ACL
+                eName1
+            );
+
+            // Try to access with tenant2's eName
+            const context = createMockContext({
+                eName: eName2, // Wrong eName!
+                currentUser: "user-123",
+            });
+
+            const mockResolver = vi.fn(async () => {
+                // Resolver tries to fetch with the context's eName
+                return await dbService.findMetaEnvelopeById(
+                    metaEnvelope.metaEnvelope.id,
+                    eName2 // Using wrong eName
+                );
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            // Should throw "Access denied" because the meta-envelope won't be found with eName2
             await expect(
                 wrappedResolver(null, { id: metaEnvelope.metaEnvelope.id }, context)
             ).rejects.toThrow("Access denied");
