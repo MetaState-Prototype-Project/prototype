@@ -1,7 +1,8 @@
-import axios, { AxiosError } from "axios";
-import { W3IDBuilder } from "w3id";
+import axios, { type AxiosError } from "axios";
 import * as jose from "jose";
-import { VerificationService } from "./VerificationService";
+import { validate as uuidValidate } from "uuid";
+import { W3IDBuilder } from "w3id";
+import type { VerificationService } from "./VerificationService";
 
 export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 
@@ -28,19 +29,28 @@ export class ProvisioningService {
      * @param request - Provision request containing registryEntropy, namespace, verificationId, and publicKey
      * @returns Provision response with w3id (eName) and URI
      */
-    async provisionEVault(request: ProvisionRequest): Promise<ProvisionResponse> {
+    async provisionEVault(
+        request: ProvisionRequest,
+    ): Promise<ProvisionResponse> {
         try {
             if (!process.env.PUBLIC_REGISTRY_URL) {
                 throw new Error("PUBLIC_REGISTRY_URL is not set");
             }
 
-            const { registryEntropy, namespace, verificationId, publicKey } = request;
+            const { registryEntropy, namespace, verificationId, publicKey } =
+                request;
 
-            if (!registryEntropy || !namespace || !verificationId || !publicKey) {
+            if (
+                !registryEntropy ||
+                !namespace ||
+                !verificationId ||
+                !publicKey
+            ) {
                 return {
                     success: false,
                     error: "Missing required fields",
-                    message: "Missing required fields: registryEntropy, namespace, verificationId, publicKey",
+                    message:
+                        "Missing required fields: registryEntropy, namespace, verificationId, publicKey",
                 };
             }
 
@@ -50,8 +60,8 @@ export class ProvisioningService {
                 const jwksResponse = await axios.get(
                     new URL(
                         `/.well-known/jwks.json`,
-                        process.env.PUBLIC_REGISTRY_URL
-                    ).toString()
+                        process.env.PUBLIC_REGISTRY_URL,
+                    ).toString(),
                 );
 
                 const JWKS = jose.createLocalJWKSet(jwksResponse.data);
@@ -60,17 +70,27 @@ export class ProvisioningService {
             } catch (jwtError) {
                 // If JWT verification fails, re-throw with a clearer message
                 // but preserve the original error for debugging
-                throw new Error(`JWT verification failed: ${jwtError instanceof Error ? jwtError.message : String(jwtError)}`);
+                throw new Error(
+                    `JWT verification failed: ${
+                        jwtError instanceof Error
+                            ? jwtError.message
+                            : String(jwtError)
+                    }`,
+                );
             }
 
-            // Generate eName (W3ID) from entropy
-            // namespace is a string, but W3IDBuilder.withNamespace expects a UUID
-            // We'll let W3IDBuilder generate a random namespace if namespace is not a valid UUID
+            if (!uuidValidate(namespace)) {
+                return {
+                    success: false,
+                    error: "Invalid namespace",
+                    message: "Namespace must be a valid UUID",
+                };
+            }
+
             let w3id: string;
             try {
-                // Try to use namespace as-is (if it's already a UUID), otherwise W3IDBuilder will generate one
-                // W3IDBuilder internally generates a UUID v4 namespace if not provided
                 const userId = await new W3IDBuilder()
+                    .withNamespace(namespace)
                     .withEntropy(payload.entropy as string)
                     .withGlobal(true)
                     .build();
@@ -78,14 +98,21 @@ export class ProvisioningService {
             } catch (w3idError) {
                 // If W3ID generation fails, it's likely an entropy format issue
                 // Re-throw with clearer message, but let verification errors take precedence
-                throw new Error(`Failed to generate W3ID from entropy: ${w3idError instanceof Error ? w3idError.message : String(w3idError)}`);
+                throw new Error(
+                    `Failed to generate W3ID from entropy: ${
+                        w3idError instanceof Error
+                            ? w3idError.message
+                            : String(w3idError)
+                    }`,
+                );
             }
 
             // Validate verification if not demo code
             if (verificationId !== DEMO_CODE_W3DS) {
                 let verification;
                 try {
-                    verification = await this.verificationService.findById(verificationId);
+                    verification =
+                        await this.verificationService.findById(verificationId);
                 } catch (dbError) {
                     // If database query fails (e.g., invalid UUID format), treat as verification not found
                     throw new Error("verification doesn't exist");
@@ -104,10 +131,13 @@ export class ProvisioningService {
             // Update verification with linked eName (only if not demo code)
             if (verificationId !== DEMO_CODE_W3DS) {
                 try {
-                    await this.verificationService.findByIdAndUpdate(verificationId, {
-                        linkedEName: w3id,
-                        consumed: true
-                    });
+                    await this.verificationService.findByIdAndUpdate(
+                        verificationId,
+                        {
+                            linkedEName: w3id,
+                            consumed: true,
+                        },
+                    );
                 } catch (updateError) {
                     // If update fails, it means verification doesn't exist (should have been caught above, but handle gracefully)
                     throw new Error("verification doesn't exist");
@@ -119,19 +149,30 @@ export class ProvisioningService {
             try {
                 evaultId = await new W3IDBuilder().withGlobal(true).build();
             } catch (evaultIdError) {
-                throw new Error(`Failed to generate evault ID: ${evaultIdError instanceof Error ? evaultIdError.message : String(evaultIdError)}`);
+                throw new Error(
+                    `Failed to generate evault ID: ${
+                        evaultIdError instanceof Error
+                            ? evaultIdError.message
+                            : String(evaultIdError)
+                    }`,
+                );
             }
 
             // Build URI (IP:PORT format pointing to shared service)
-            const fastifyPort = process.env.FASTIFY_PORT || process.env.PORT || 4000;
-            const baseUri = process.env.EVAULT_BASE_URI || `http://${process.env.EVAULT_HOST || "localhost"}:${fastifyPort}`;
+            const fastifyPort =
+                process.env.FASTIFY_PORT || process.env.PORT || 4000;
+            const baseUri =
+                process.env.EVAULT_BASE_URI ||
+                `http://${
+                    process.env.EVAULT_HOST || "localhost"
+                }:${fastifyPort}`;
             const uri = baseUri;
 
             // Register in registry
             await axios.post(
                 new URL(
                     "/register",
-                    process.env.PUBLIC_REGISTRY_URL
+                    process.env.PUBLIC_REGISTRY_URL,
                 ).toString(),
                 {
                     ename: w3id,
@@ -142,7 +183,7 @@ export class ProvisioningService {
                     headers: {
                         Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
                     },
-                }
+                },
             );
 
             return {
@@ -152,7 +193,8 @@ export class ProvisioningService {
             };
         } catch (error) {
             const axiosError = error as AxiosError;
-            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
             console.error("Provisioning error:", error);
 
             // Preserve specific verification-related error messages, otherwise use generic message
@@ -163,8 +205,12 @@ export class ProvisioningService {
                 "PUBLIC_REGISTRY_URL",
             ];
 
-            const isVerificationError = verificationErrors.some(err => errorMessage.includes(err));
-            const message = isVerificationError ? errorMessage : "Failed to provision evault instance";
+            const isVerificationError = verificationErrors.some((err) =>
+                errorMessage.includes(err),
+            );
+            const message = isVerificationError
+                ? errorMessage
+                : "Failed to provision evault instance";
 
             return {
                 success: false,
@@ -174,4 +220,3 @@ export class ProvisioningService {
         }
     }
 }
-

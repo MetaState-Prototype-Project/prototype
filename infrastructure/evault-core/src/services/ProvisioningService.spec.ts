@@ -1,13 +1,31 @@
 import "reflect-metadata";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { ProvisioningService, ProvisionRequest, DEMO_CODE_W3DS } from "./ProvisioningService";
+import {
+    describe,
+    it,
+    expect,
+    beforeAll,
+    afterAll,
+    beforeEach,
+    vi,
+} from "vitest";
+import {
+    ProvisioningService,
+    ProvisionRequest,
+    DEMO_CODE_W3DS,
+} from "./ProvisioningService";
 import { VerificationService } from "./VerificationService";
 import { Verification } from "../entities/Verification";
-import { setupTestDatabase, teardownTestDatabase } from "../test-utils/postgres-setup";
+import {
+    setupTestDatabase,
+    teardownTestDatabase,
+} from "../test-utils/postgres-setup";
 import { DataSource } from "typeorm";
 import { Repository } from "typeorm";
 import axios from "axios";
-import { createMockRegistryServer, stopMockRegistryServer } from "../test-utils/mock-registry-server";
+import {
+    createMockRegistryServer,
+    stopMockRegistryServer,
+} from "../test-utils/mock-registry-server";
 import { FastifyInstance } from "fastify";
 // Mock generateEntropy for testing - we'll create tokens manually
 // import { generateEntropy } from "../../../platforms/registry/src/jwt";
@@ -21,23 +39,29 @@ vi.mock("jose", async () => {
     const actual = await vi.importActual("jose");
     return {
         ...actual,
-        jwtVerify: vi.fn().mockImplementation(async (token: string, jwks: any) => {
-            // For mock tokens, return mock payload with entropy
-            // Entropy should be a random string that W3ID can use to generate UUID v5
-            if (token === "mock.jwt.token.here" || token.includes("mock") || (typeof token === "string" && token !== "invalid-token")) {
-                // Use a random hex string that will work with W3ID's UUID v5 generation
-                // W3ID uses UUID v5 which requires a namespace and a name (entropy)
-                return {
-                    payload: { entropy: "test-entropy-1234567890abcdef" }, // Random string for UUID v5
-                };
-            }
-            // For invalid tokens, throw
-            if (token === "invalid-token") {
-                throw new Error("Invalid token");
-            }
-            // Otherwise use actual verification (will likely fail)
-            return (actual as any).jwtVerify(token, jwks);
-        }),
+        jwtVerify: vi
+            .fn()
+            .mockImplementation(async (token: string, jwks: any) => {
+                // For mock tokens, return mock payload with entropy
+                // Entropy should be a random string that W3ID can use to generate UUID v5
+                if (
+                    token === "mock.jwt.token.here" ||
+                    token.includes("mock") ||
+                    (typeof token === "string" && token !== "invalid-token")
+                ) {
+                    // Use a random hex string that will work with W3ID's UUID v5 generation
+                    // W3ID uses UUID v5 which requires a namespace and a name (entropy)
+                    return {
+                        payload: { entropy: "test-entropy-1234567890abcdef" }, // Random string for UUID v5
+                    };
+                }
+                // For invalid tokens, throw
+                if (token === "invalid-token") {
+                    throw new Error("Invalid token");
+                }
+                // Otherwise use actual verification (will likely fail)
+                return (actual as any).jwtVerify(token, jwks);
+            }),
     };
 });
 
@@ -80,14 +104,16 @@ describe("ProvisioningService", () => {
             if (url.includes("/.well-known/jwks.json")) {
                 return {
                     data: {
-                        keys: [{
-                            kty: "EC",
-                            crv: "P-256",
-                            x: "test-x",
-                            y: "test-y",
-                            kid: "entropy-key-1",
-                            alg: "ES256",
-                        }],
+                        keys: [
+                            {
+                                kty: "EC",
+                                crv: "P-256",
+                                x: "test-x",
+                                y: "test-y",
+                                kid: "entropy-key-1",
+                                alg: "ES256",
+                            },
+                        ],
                     },
                 };
             }
@@ -105,7 +131,7 @@ describe("ProvisioningService", () => {
         const token = "mock.jwt.token.here";
         return {
             registryEntropy: token,
-            namespace: "test",
+            namespace: "52258594-1cd2-45f0-90cc-d34a047edf4b",
             verificationId: DEMO_CODE_W3DS,
             publicKey: "test-public-key",
         };
@@ -187,14 +213,16 @@ describe("ProvisioningService", () => {
             // Mock JWKS endpoint
             mockedAxios.get.mockResolvedValueOnce({
                 data: {
-                    keys: [{
-                        kty: "EC",
-                        crv: "P-256",
-                        x: "test-x",
-                        y: "test-y",
-                        kid: "entropy-key-1",
-                        alg: "ES256",
-                    }],
+                    keys: [
+                        {
+                            kty: "EC",
+                            crv: "P-256",
+                            x: "test-x",
+                            y: "test-y",
+                            kid: "entropy-key-1",
+                            alg: "ES256",
+                        },
+                    ],
                 },
             });
 
@@ -251,7 +279,10 @@ describe("ProvisioningService", () => {
             const request = await createValidRequest();
 
             mockedAxios.post.mockRejectedValueOnce({
-                response: { status: 500, data: { error: "Internal server error" } },
+                response: {
+                    status: 500,
+                    data: { error: "Internal server error" },
+                },
             });
 
             const result = await provisioningService.provisionEVault(request);
@@ -261,4 +292,3 @@ describe("ProvisioningService", () => {
         });
     });
 });
-
