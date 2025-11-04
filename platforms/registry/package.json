@@ -27,6 +27,7 @@
         "typeorm": "^0.3.24"
     },
     "devDependencies": {
+        "@testcontainers/postgresql": "^10.0.0-beta.6",
         "@types/jest": "^29.5.12",
         "@types/node": "^20.11.19",
         "@types/pg": "^8.11.0",

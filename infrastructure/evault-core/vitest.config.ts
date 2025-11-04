@@ -1,11 +1,22 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     test: {
-        globals: true,
-        environment: "node",
-        testTimeout: 60000,
-        hookTimeout: 60000,
-        watch: false,
+        glob: ['**/*.{test,spec}.{ts,tsx}'],
+        environment: 'node',
+        setupFiles: ['./src/test-utils/test-setup.ts'],
+        testTimeout: 120000, // 120 seconds for testcontainers
+        hookTimeout: 120000, // 120 seconds for hooks (beforeAll, afterAll)
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'json', 'html'],
+            exclude: [
+                'node_modules/',
+                'dist/',
+                '**/*.d.ts',
+                '**/migrations/**',
+            ],
+        },
     },
 });
+
