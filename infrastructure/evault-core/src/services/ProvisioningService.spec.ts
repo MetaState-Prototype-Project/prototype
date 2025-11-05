@@ -11,7 +11,6 @@ import {
 import {
     ProvisioningService,
     ProvisionRequest,
-    DEMO_CODE_W3DS,
 } from "./ProvisioningService";
 import { VerificationService } from "./VerificationService";
 import { Verification } from "../entities/Verification";
@@ -132,7 +131,7 @@ describe("ProvisioningService", () => {
         return {
             registryEntropy: token,
             namespace: "52258594-1cd2-45f0-90cc-d34a047edf4b",
-            verificationId: DEMO_CODE_W3DS,
+            verificationId: process.env.DEMO_CODE_W3DS || "d66b7138-538a-465f-a6ce-f6985854c3f4",
             publicKey: "test-public-key",
         };
     };

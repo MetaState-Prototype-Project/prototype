@@ -3,8 +3,6 @@ import { W3IDBuilder } from "w3id";
 import * as jose from "jose";
 import { VerificationService } from "../../../services/VerificationService";
 
-export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
-
 export interface ProvisionRequest {
     registryEntropy: string;
     namespace: string;
@@ -65,7 +63,8 @@ export class ProvisioningService {
             const w3id = userId.id;
 
             // Validate verification if not demo code
-            if (verificationId !== DEMO_CODE_W3DS) {
+            const demoCode = process.env.DEMO_CODE_W3DS || "d66b7138-538a-465f-a6ce-f6985854c3f4";
+            if (verificationId !== demoCode) {
                 const verification = await this.verificationService.findById(verificationId);
                 if (!verification) {
                     throw new Error("verification doesn't exist");

@@ -4,8 +4,6 @@ import { validate as uuidValidate } from "uuid";
 import { W3IDBuilder } from "w3id";
 import type { VerificationService } from "./VerificationService";
 
-export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
-
 export interface ProvisionRequest {
     registryEntropy: string;
     namespace: string;
@@ -108,7 +106,8 @@ export class ProvisioningService {
             }
 
             // Validate verification if not demo code
-            if (verificationId !== DEMO_CODE_W3DS) {
+            const demoCode = process.env.DEMO_CODE_W3DS || "d66b7138-538a-465f-a6ce-f6985854c3f4";
+            if (verificationId !== demoCode) {
                 let verification;
                 try {
                     verification =
@@ -129,7 +128,7 @@ export class ProvisioningService {
             }
 
             // Update verification with linked eName (only if not demo code)
-            if (verificationId !== DEMO_CODE_W3DS) {
+            if (verificationId !== demoCode) {
                 try {
                     await this.verificationService.findByIdAndUpdate(
                         verificationId,

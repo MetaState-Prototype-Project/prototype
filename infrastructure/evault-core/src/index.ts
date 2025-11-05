@@ -1,9 +1,6 @@
 import "reflect-metadata";
 import express, { Request, Response } from "express";
-import axios, { AxiosError } from "axios";
 import dotenv from "dotenv";
-import { W3IDBuilder } from "w3id";
-import * as jose from "jose";
 import path from "path";
 import { createHmacSignature } from "./utils/hmac";
 import cors from "cors";
@@ -11,6 +8,7 @@ import { AppDataSource } from "./config/database";
 import { VerificationService } from "./services/VerificationService";
 import { VerificationController } from "./controllers/VerificationController";
 import { NotificationController } from "./controllers/NotificationController";
+import { ProvisioningController } from "./controllers/ProvisioningController";
 import { ProvisioningService } from "./services/ProvisioningService";
 
 // Import evault-core functionality
@@ -62,6 +60,7 @@ const initializeDatabase = async () => {
 let verificationService: VerificationService;
 let verificationController: VerificationController;
 let notificationController: NotificationController;
+let provisioningController: ProvisioningController;
 
 // eVault Core initialization
 let fastifyServer: FastifyInstance;
@@ -70,22 +69,6 @@ let logService: LogService;
 let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
 
-interface ProvisionRequest {
-    registryEntropy: string;
-    namespace: string;
-    verificationId: string;
-    publicKey: string;
-}
-
-interface ProvisionResponse {
-    success: boolean;
-    uri?: string;
-    w3id?: string;
-    message?: string;
-    error?: string | unknown;
-}
-
-export const DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 
 // Initialize eVault Core
 const initializeEVault = async (provisioningServiceInstance?: ProvisioningService) => {
@@ -159,92 +142,6 @@ expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
 });
 
-// Provision evault endpoint (logical provisioning only)
-expressApp.post(
-    "/provision",
-    async (
-        req: Request<{}, {}, ProvisionRequest>,
-        res: Response<ProvisionResponse>
-    ) => {
-        try {
-            if (!process.env.PUBLIC_REGISTRY_URL) {
-                throw new Error("PUBLIC_REGISTRY_URL is not set");
-            }
-            const { registryEntropy, namespace, verificationId, publicKey } = req.body;
-            if (!registryEntropy || !namespace || !verificationId || !publicKey) {
-                return res.status(400).json({
-                    success: false,
-                    error: "registryEntropy and namespace are required",
-                    message:
-                        "Missing required fields: registryEntropy, namespace, verificationId, publicKey",
-                });
-            }
-
-            const jwksResponse = await axios.get(
-                new URL(
-                    `/.well-known/jwks.json`,
-                    process.env.PUBLIC_REGISTRY_URL
-                ).toString()
-            );
-
-            const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-            const { payload } = await jose.jwtVerify(registryEntropy, JWKS);
-
-            const userId = await new W3IDBuilder()
-                .withNamespace(namespace)
-                .withEntropy(payload.entropy as string)
-                .withGlobal(true)
-                .build();
-
-            const w3id = userId.id;
-
-            if (verificationId !== DEMO_CODE_W3DS) {
-                const verification = await verificationService.findById(verificationId);
-                if (!verification) throw new Error("verification doesn't exist");
-                if (!verification.approved) throw new Error("verification not approved");
-                if (verification.consumed) {
-                    throw new Error("This verification ID has already been used");
-                }
-            }
-            await verificationService.findByIdAndUpdate(verificationId, { linkedEName: w3id });
-            const evaultId = await new W3IDBuilder().withGlobal(true).build();
-            
-            // Build URI (IP:PORT format pointing to shared service)
-            const fastifyPortNum = process.env.FASTIFY_PORT || process.env.PORT || 4000;
-            const baseUri = process.env.EVAULT_BASE_URI || `http://${process.env.EVAULT_HOST || "localhost"}:${fastifyPortNum}`;
-            const uri = baseUri;
-
-            await axios.post(
-                new URL("/register", process.env.PUBLIC_REGISTRY_URL).toString(),
-                {
-                    ename: w3id,
-                    uri,
-                    evault: evaultId.id,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
-                    },
-                }
-            );
-
-            res.json({
-                success: true,
-                w3id,
-                uri,
-            });
-        } catch (error) {
-            const axiosError = error as AxiosError;
-            console.error(error);
-            res.status(500).json({
-                success: false,
-                error: axiosError.response?.data || axiosError.message,
-                message: "Failed to provision evault instance",
-            });
-        }
-    }
-);
-
 // Start the server
 const start = async () => {
     try {
@@ -260,10 +157,12 @@ const start = async () => {
         
         // Initialize provisioning service (uses shared AppDataSource)
         provisioningService = new ProvisioningService(verificationService);
+        provisioningController = new ProvisioningController(provisioningService);
 
-        // Register verification and notification routes
+        // Register verification, notification, and provisioning routes
         verificationController.registerRoutes(expressApp);
         notificationController.registerRoutes(expressApp);
+        provisioningController.registerRoutes(expressApp);
 
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);
