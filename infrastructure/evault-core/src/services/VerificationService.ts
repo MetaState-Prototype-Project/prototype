@@ -19,14 +19,22 @@ export class VerificationService {
         id: string,
         data: DeepPartial<Verification>,
     ): Promise<Verification | null> {
-        const current = await this.findById(id);
-        const toSave = this.verificationRepository.create({
-            ...current,
-            ...data,
-        });
+        try {
+            const current = await this.findById(id);
+            if (!current) {
+                return null;
+            }
+            const toSave = this.verificationRepository.create({
+                ...current,
+                ...data,
+            });
 
-        const updated = await this.verificationRepository.save(toSave);
-        return updated;
+            const updated = await this.verificationRepository.save(toSave);
+            return updated;
+        } catch (error) {
+            // If findById throws an error (e.g., invalid UUID format), return null
+            return null;
+        }
     }
 
     async findOne(where: Partial<Verification>): Promise<Verification | null> {

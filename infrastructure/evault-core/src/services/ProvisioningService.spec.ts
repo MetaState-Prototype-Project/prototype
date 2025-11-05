@@ -188,6 +188,33 @@ describe("ProvisioningService", () => {
             expect(updated?.linkedEName).toBe(result.w3id);
             expect(updated?.consumed).toBe(true);
         });
+
+        it("should generate deterministic eName for same input variables", async () => {
+            const request1 = await createValidRequest();
+            const request2 = await createValidRequest();
+            
+            // Ensure both requests have identical inputs
+            request2.registryEntropy = request1.registryEntropy;
+            request2.namespace = request1.namespace;
+            request2.verificationId = request1.verificationId;
+            request2.publicKey = request1.publicKey;
+
+            // Mock registry registration for both calls
+            mockedAxios.post.mockResolvedValue({
+                status: 201,
+                data: { success: true },
+            });
+
+            const result1 = await provisioningService.provisionEVault(request1);
+            const result2 = await provisioningService.provisionEVault(request2);
+
+            expect(result1.success).toBe(true);
+            expect(result2.success).toBe(true);
+            expect(result1.w3id).toBeDefined();
+            expect(result2.w3id).toBeDefined();
+            // Same inputs should produce the same eName
+            expect(result1.w3id).toBe(result2.w3id);
+        });
     });
 
     describe("provisionEVault - error cases", () => {

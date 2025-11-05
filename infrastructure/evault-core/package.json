@@ -34,6 +34,7 @@
         "reflect-metadata": "^0.2.1",
         "tweetnacl": "^1.0.3",
         "typeorm": "^0.3.24",
+        "uuid": "^13.0.0",
         "w3id": "workspace:*"
     },
     "devDependencies": {
@@ -47,8 +48,8 @@
         "nodemon": "^3.0.3",
         "ts-node-dev": "^2.0.0",
         "tsx": "^4.7.1",
+        "typeorm-ts-node-commonjs": "^0.3.20",
         "typescript": "^5.3.3",
-        "uuid": "^13.0.0",
         "vitest": "^1.6.1"
     }
 }

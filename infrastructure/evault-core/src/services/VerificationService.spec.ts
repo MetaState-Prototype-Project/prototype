@@ -97,6 +97,15 @@ describe("VerificationService", () => {
 
             expect(updated?.linkedEName).toBe("new@example.com");
         });
+
+        it("should return null when updating non-existent verification", async () => {
+            // Use a valid UUID format that doesn't exist in the database
+            const updated = await verificationService.findByIdAndUpdate("00000000-0000-0000-0000-000000000000", {
+                approved: true,
+            });
+
+            expect(updated).toBeNull();
+        });
     });
 
     describe("findOne", () => {
