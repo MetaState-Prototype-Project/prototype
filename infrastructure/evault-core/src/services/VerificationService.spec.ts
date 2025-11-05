@@ -122,50 +122,5 @@ describe("VerificationService", () => {
             expect(found).toBeNull();
         });
     });
-
-    // Note: findAndCount is not implemented in VerificationService
-    // These tests are commented out until the method is added
-    /*
-    describe("findAndCount", () => {
-        it("should return verifications with count", async () => {
-            await verificationService.create({
-                linkedEName: "test1@example.com",
-                approved: true,
-                consumed: false,
-            });
-            await verificationService.create({
-                linkedEName: "test2@example.com",
-                approved: true,
-                consumed: false,
-            });
-
-            const [results, count] = await verificationService.findAndCount({});
-
-            expect(results).toHaveLength(2);
-            expect(count).toBe(2);
-        });
-
-        it("should filter by conditions", async () => {
-            await verificationService.create({
-                linkedEName: "approved@example.com",
-                approved: true,
-                consumed: false,
-            });
-            await verificationService.create({
-                linkedEName: "not-approved@example.com",
-                approved: false,
-                consumed: false,
-            });
-
-            const [results, count] = await verificationService.findAndCount({
-                approved: true,
-            });
-
-            expect(results).toHaveLength(1);
-            expect(count).toBe(1);
-            expect(results[0].linkedEName).toBe("approved@example.com");
-        });
-    });
-    */
 });
 
