@@ -2,7 +2,7 @@ import fastify, { FastifyInstance } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { WatcherRequest, TypedRequest, TypedReply } from "./types";
-import { ProvisioningService, ProvisionRequest } from "../../../services/ProvisioningService";
+import { ProvisioningService, ProvisionRequest } from "../../services/ProvisioningService";
 
 interface WatcherSignatureRequest {
   w3id: string;

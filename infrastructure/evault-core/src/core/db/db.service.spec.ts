@@ -296,6 +296,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant1Secret",
                     payload: { secret: "tenant1-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -317,6 +318,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "SharedOntology",
                     payload: { data: "tenant1-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -326,6 +328,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "SharedOntology",
                     payload: { data: "tenant2-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT2_ENAME
@@ -368,6 +371,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Searchable",
                     payload: { text: "tenant1-searchable-text" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -377,6 +381,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Searchable",
                     payload: { text: "tenant2-searchable-text" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT2_ENAME
@@ -421,6 +426,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant1Data",
                     payload: { data: "tenant1-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -448,6 +454,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant1Data",
                     payload: { value: "original-value" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -478,6 +485,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant1Data",
                     payload: { data: "tenant1-data-1" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -487,6 +495,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant1Data",
                     payload: { data: "tenant1-data-2" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME
@@ -496,6 +505,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Tenant2Data",
                     payload: { data: "tenant2-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT2_ENAME
@@ -524,6 +534,7 @@ describe("DbService (integration)", () => {
                 {
                     ontology: "Test",
                     payload: { data: "test" },
+                    acl: ["*"],
                 },
                 ["*"],
                 TENANT1_ENAME

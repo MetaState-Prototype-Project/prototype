@@ -165,7 +165,7 @@ describe("ProvisioningService", () => {
         it("should successfully provision eVault with valid verification", async () => {
             // Create approved verification
             const verification = await verificationService.create({
-                linkedEName: null,
+                linkedEName: undefined,
                 approved: true,
                 consumed: false,
             });
@@ -245,7 +245,7 @@ describe("ProvisioningService", () => {
 
         it("should fail when verification is not approved", async () => {
             const verification = await verificationService.create({
-                linkedEName: null,
+                linkedEName: undefined,
                 approved: false,
                 consumed: false,
             });

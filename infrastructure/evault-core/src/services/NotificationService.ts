@@ -40,7 +40,9 @@ export class NotificationService {
         if (verification) {
             // Update existing verification with device info
             verification.platform = registration.platform;
-            verification.fcmToken = registration.fcmToken;
+            if (registration.fcmToken) {
+                verification.fcmToken = registration.fcmToken;
+            }
             verification.deviceActive = true;
             verification.updatedAt = new Date();
         } else {

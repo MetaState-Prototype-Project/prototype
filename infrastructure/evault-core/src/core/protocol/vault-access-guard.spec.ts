@@ -56,10 +56,11 @@ describe("VaultAccessGuard", () => {
     });
 
     const createMockContext = (overrides: Partial<VaultContext> = {}): VaultContext => {
+        const mockRequest = {
+            headers: new Headers(overrides.request?.headers || {}),
+        } as any;
         return {
-            request: {
-                headers: new Headers(overrides.request?.headers || {}),
-            },
+            request: mockRequest,
             currentUser: overrides.currentUser || null,
             eName: overrides.eName || null,
             ...overrides,
@@ -82,7 +83,7 @@ describe("VaultAccessGuard", () => {
                     headers: new Headers({
                         authorization: `Bearer ${token}`,
                     }),
-                },
+                } as any,
             });
 
             // Access private method through reflection for testing
@@ -128,7 +129,7 @@ describe("VaultAccessGuard", () => {
                     headers: new Headers({
                         authorization: `Bearer ${token}`,
                     }),
-                },
+                } as any,
                 eName: "test@example.com",
             });
 
@@ -145,6 +146,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["*"],
                 },
                 ["*"],
                 eName
@@ -167,6 +169,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["user-123"],
                 },
                 ["user-123"],
                 eName
@@ -189,6 +192,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["other-user"],
                 },
                 ["other-user"],
                 eName
@@ -227,6 +231,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "SecretData",
                     payload: { secret: "tenant1-secret-value" },
+                    acl: ["*"], // Public ACL
                 },
                 ["*"], // Public ACL
                 eName1
@@ -254,6 +259,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Tenant1Data",
                     payload: { data: "tenant1-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 eName1
@@ -263,6 +269,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Tenant2Data",
                     payload: { data: "tenant2-data" },
+                    acl: ["*"],
                 },
                 ["*"],
                 eName2
@@ -303,6 +310,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["*"],
                 },
                 ["*"],
                 eName
@@ -327,6 +335,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["user-123"],
                 },
                 ["user-123"],
                 eName
@@ -358,6 +367,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "Test",
                     payload: { field: "value" },
+                    acl: ["other-user"],
                 },
                 ["other-user"],
                 eName
@@ -388,6 +398,7 @@ describe("VaultAccessGuard", () => {
                 {
                     ontology: "SecretData",
                     payload: { secret: "tenant1-secret" },
+                    acl: ["*"], // Public ACL
                 },
                 ["*"], // Public ACL
                 eName1

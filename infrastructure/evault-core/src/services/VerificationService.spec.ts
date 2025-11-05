@@ -80,8 +80,8 @@ describe("VerificationService", () => {
             });
 
             expect(updated).toBeDefined();
-            expect(updated.approved).toBe(true);
-            expect(updated.consumed).toBe(true);
+            expect(updated?.approved).toBe(true);
+            expect(updated?.consumed).toBe(true);
         });
 
         it("should update linkedEName", async () => {
