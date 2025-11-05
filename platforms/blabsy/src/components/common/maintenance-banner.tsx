@@ -15,10 +15,12 @@ export function MaintenanceBanner(): JSX.Element | null {
     useEffect(() => {
         const fetchMotd = async () => {
             try {
-                const registryUrl = process.env.NEXT_PUBLIC_REGISTRY_URL || 'http://localhost:4321';
+                const registryUrl =
+                    process.env.NEXT_PUBLIC_REGISTRY_URL ||
+                    'http://localhost:4321';
                 const response = await axios.get<Motd>(`${registryUrl}/motd`);
                 setMotd(response.data);
-                
+
                 // Check if this message has been dismissed
                 if (response.data.status === 'maintenance') {
                     const dismissed = localStorage.getItem(DISMISSED_KEY);
@@ -69,4 +71,3 @@ export function MaintenanceBanner(): JSX.Element | null {
         </div>
     );
 }
-

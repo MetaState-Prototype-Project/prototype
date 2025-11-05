@@ -102,20 +102,25 @@ export function ChatContextProvider({
             chatsQuery,
             (snapshot) => {
                 const chatsData = snapshot.docs.map((doc) => doc.data());
-                
+
                 // Sort chats by last message timestamp (most recent first)
                 const sortedChats = chatsData.sort((a, b) => {
                     // If both have lastMessage, sort by timestamp
                     if (a.lastMessage?.timestamp && b.lastMessage?.timestamp) {
-                        return b.lastMessage.timestamp.toMillis() - a.lastMessage.timestamp.toMillis();
+                        return (
+                            b.lastMessage.timestamp.toMillis() -
+                            a.lastMessage.timestamp.toMillis()
+                        );
                     }
                     // If only one has lastMessage, prioritize it
-                    if (a.lastMessage?.timestamp && !b.lastMessage?.timestamp) return -1;
-                    if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp) return 1;
+                    if (a.lastMessage?.timestamp && !b.lastMessage?.timestamp)
+                        return -1;
+                    if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp)
+                        return 1;
                     // If neither has lastMessage, sort by updatedAt
                     return b.updatedAt.toMillis() - a.updatedAt.toMillis();
                 });
-                
+
                 setChats(sortedChats);
                 setLoading(false);
             },
