@@ -26,9 +26,22 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Install dependencies
         run: pnpm install
 
+      - name: Rebuild native modules
+        run: |
+          pnpm rebuild ssh2 || echo "ssh2 rebuild failed, continuing..."
+          pnpm rebuild || true
+
       - name: Run tests
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
+          TESTCONTAINERS_HOST_OVERRIDE: localhost
         run: pnpm -F=evault-core test
 
