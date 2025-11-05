@@ -10,7 +10,9 @@
         "check-format": "turbo run check-format",
         "check": "turbo run check",
         "check-types": "turbo run check-types",
-        "dev:evault": "docker compose -f evault.docker-compose.yml up --watch"
+        "dev:docker": "docker compose -f dev-docker-compose.yaml up --watch",
+        "dev:docker:down": "docker compose -f dev-docker-compose.yaml down",
+        "dev:docker:all": "docker compose -f dev-docker-compose.yaml --profile all up --watch"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",

@@ -45,7 +45,8 @@ export function LoginMain(): JSX.Element {
         if (typeof window === 'undefined' || typeof navigator === 'undefined') {
             return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
         }
-        const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+        const userAgent =
+            navigator.userAgent || navigator.vendor || (window as any).opera;
         if (/android/i.test(userAgent)) {
             return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
         }

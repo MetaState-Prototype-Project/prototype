@@ -1,0 +1,365 @@
+version: '3.8'
+
+services:
+  # Core Services - Always Running
+  registry:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "4321:4321"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${REGISTRY_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/registry}
+      - REGISTRY_SHARED_SECRET=${REGISTRY_SHARED_SECRET:-dev-secret-change-me}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/registry
+    command: sh -c "cd /app/platforms/registry && pnpm run dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - metastate-network
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/registry/src
+          ignore:
+            - node_modules
+        - action: restart
+          path: ./infrastructure/w3id/src
+          ignore:
+            - node_modules
+        - action: rebuild
+          path: ./platforms/registry/package.json
+        - action: rebuild
+          path: ./infrastructure/w3id/package.json
+        - action: rebuild
+          path: ./.env
+
+  evault-core:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "3001:3001"  # Express (provisioning API)
+      - "4000:4000"  # Fastify (GraphQL/HTTP)
+    environment:
+      - NODE_ENV=development
+      - EXPRESS_PORT=3001
+      - FASTIFY_PORT=4000
+      - PORT=4000
+      - REGISTRY_DATABASE_URL=${REGISTRY_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/registry}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - REGISTRY_SHARED_SECRET=${REGISTRY_SHARED_SECRET:-dev-secret-change-me}
+      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/infrastructure/evault-core
+    command: sh -c "cd /app/infrastructure/evault-core && pnpm run dev"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+      neo4j:
+        condition: service_started
+    networks:
+      - metastate-network
+    develop:
+      watch:
+        - action: restart
+          path: ./infrastructure/evault-core/src
+          ignore:
+            - node_modules
+        - action: restart
+          path: ./infrastructure/w3id/src
+          ignore:
+            - node_modules
+        - action: rebuild
+          path: ./infrastructure/evault-core/package.json
+        - action: rebuild
+          path: ./infrastructure/w3id/package.json
+        - action: rebuild
+          path: ./.env
+
+  # Neo4j for evault-core graph data
+  neo4j:
+    image: neo4j:5.15
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j}
+    volumes:
+      - neo4j_data:/var/lib/neo4j/data
+    networks:
+      - metastate-network
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database for services
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=registry,pictique,evoting,dreamsync,cerberus,group_charter_manager,blabsy_auth,ereputation,marketplace
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    networks:
+      - metastate-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional Platform Services - Use profiles to enable
+  
+  # Pictique API
+  pictique-api:
+    profiles:
+      - pictique
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "1111:1111"
+    environment:
+      - NODE_ENV=development
+      - PORT=1111
+      - DATABASE_URL=${PICTIQUE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/pictique}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - PUBLIC_PICTIQUE_BASE_URL=${PUBLIC_PICTIQUE_BASE_URL:-http://localhost:1111}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/pictique-api
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # eVoting API
+  evoting-api:
+    profiles:
+      - evoting
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - DATABASE_URL=${EVOTING_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/evoting}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - PUBLIC_EVOTING_BASE_URL=${PUBLIC_EVOTING_BASE_URL:-http://localhost:4000}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/evoting-api
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # DreamSync API
+  dreamsync-api:
+    profiles:
+      - dreamsync
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - DATABASE_URL=${DREAMSYNC_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/dreamsync}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - DREAMSYNC_CLIENT_URL=${DREAMSYNC_CLIENT_URL:-http://localhost:4001}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/dreamsync-api
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # Cerberus
+  cerberus:
+    profiles:
+      - cerberus
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=${CERBERUS_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/cerberus}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - PUBLIC_CERBERUS_BASE_URL=${PUBLIC_CERBERUS_BASE_URL:-http://localhost:3002}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/cerberus
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # Group Charter Manager API
+  group-charter-manager-api:
+    profiles:
+      - group-charter
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=${GROUP_CHARTER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/group_charter_manager}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - PUBLIC_GROUP_CHARTER_BASE_URL=${PUBLIC_GROUP_CHARTER_BASE_URL:-http://localhost:3003}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/group-charter-manager-api
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # Blabsy W3DS Auth API
+  blabsy-w3ds-auth-api:
+    profiles:
+      - blabsy
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+      - PUBLIC_BLABSY_BASE_URL=${PUBLIC_BLABSY_BASE_URL:-http://localhost:3000}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/blabsy-w3ds-auth-api
+    command: pnpm run dev
+    depends_on:
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # eReputation
+  ereputation:
+    profiles:
+      - ereputation
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - DATABASE_URL=${EREPUTATION_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/ereputation}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/eReputation
+    command: pnpm run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+  # Marketplace
+  marketplace:
+    profiles:
+      - marketplace
+      - all
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=development
+      - PORT=5001
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/marketplace
+    command: pnpm run dev
+    depends_on:
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  node_modules_cache:
+
+networks:
+  metastate-network:
+    driver: bridge
+
