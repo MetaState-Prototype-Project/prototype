@@ -31,9 +31,6 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Install dependencies
         run: pnpm install
 
@@ -43,7 +40,7 @@ jobs:
           find node_modules -name "sshcrypto.node" -delete 2>/dev/null || true
           find node_modules -path "*/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node" -delete 2>/dev/null || true
           # Rebuild ssh2 specifically for this platform
-          pnpm rebuild ssh2 --force
+          pnpm rebuild ssh2
           # Rebuild all other native modules
           pnpm rebuild
 
