@@ -430,7 +430,7 @@ importers:
         specifier: ^10.0.1
         version: 10.27.0
       '@testcontainers/postgresql':
-        specifier: ^10.0.0-beta.6
+        specifier: ^10.0.1
         version: 10.28.0
       '@types/cors':
         specifier: ^2.8.18
@@ -2399,7 +2399,7 @@ importers:
         version: 5.33.1
       svelte-check:
         specifier: ^4.0.0
-        version: 4.2.1(picomatch@4.0.3)(svelte@5.33.1)(typescript@5.8.3)
+        version: 4.2.1(picomatch@4.0.2)(svelte@5.33.1)(typescript@5.8.3)
       svelte-gestures:
         specifier: ^5.1.3
         version: 5.1.4
@@ -29063,6 +29063,18 @@ snapshots:
       sade: 1.8.1
       svelte: 5.33.1
       typescript: 5.6.3
+    transitivePeerDependencies:
+      - picomatch
+
+  svelte-check@4.2.1(picomatch@4.0.2)(svelte@5.33.1)(typescript@5.8.3):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.25
+      chokidar: 4.0.3
+      fdir: 6.4.4(picomatch@4.0.2)
+      picocolors: 1.1.1
+      sade: 1.8.1
+      svelte: 5.33.1
+      typescript: 5.8.3
     transitivePeerDependencies:
       - picomatch
 
