@@ -42,7 +42,9 @@ describe("eVault Integration", () => {
 
 	it("should store and retrieve data from eVault", async () => {
 		if (!evaultAvailable) {
-			console.warn("Skipping test: eVault server not available at http://localhost:4000");
+			console.warn(
+				"Skipping test: eVault server not available at http://localhost:4000",
+			);
 			return;
 		}
 		// Register mappings for a platform
@@ -115,7 +117,9 @@ describe("eVault Integration", () => {
 
 	it("should exchange data between different platforms", async () => {
 		if (!evaultAvailable) {
-			console.warn("Skipping test: eVault server not available at http://localhost:4000");
+			console.warn(
+				"Skipping test: eVault server not available at http://localhost:4000",
+			);
 			return;
 		}
 		// Register mappings for Platform A (Twitter-like)
@@ -217,7 +221,9 @@ describe("eVault Integration", () => {
 
 	it("should search data in eVault", async () => {
 		if (!evaultAvailable) {
-			console.warn("Skipping test: eVault server not available at http://localhost:4000");
+			console.warn(
+				"Skipping test: eVault server not available at http://localhost:4000",
+			);
 			return;
 		}
 		// Register mappings for a platform
