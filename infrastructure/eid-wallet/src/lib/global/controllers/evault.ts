@@ -157,10 +157,7 @@ export class VaultController {
                 }
 
                 // Wait before retrying (exponential backoff)
-                const delay = Math.min(
-                    1000 * 2 ** (retryCount - 1),
-                    10000,
-                );
+                const delay = Math.min(1000 * 2 ** (retryCount - 1), 10000);
                 console.log(`Waiting ${delay}ms before resolve retry...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }

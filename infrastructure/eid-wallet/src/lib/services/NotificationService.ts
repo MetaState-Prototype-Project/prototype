@@ -181,9 +181,7 @@ class NotificationService {
                 console.log("Device unregistered successfully");
                 return true;
             }
-            throw new Error(
-                `Unregistration failed: ${response.statusText}`,
-            );
+            throw new Error(`Unregistration failed: ${response.statusText}`);
         } catch (error) {
             console.error("Failed to unregister device:", error);
             return false;
