@@ -67,7 +67,7 @@ async function generateApplicationKeyPair() {
     }
 
     try {
-        const res = await keyManager!.generate("default");
+        const res = await keyManager?.generate("default");
         console.log("Key generation result:", res);
         return res;
     } catch (e) {
@@ -82,7 +82,7 @@ async function getApplicationPublicKey() {
     }
 
     try {
-        const res = await keyManager!.getPublicKey("default");
+        const res = await keyManager?.getPublicKey("default");
         console.log("Public key retrieved:", res);
         return res;
     } catch (e) {
@@ -97,8 +97,8 @@ const handleNext = async () => {
 };
 
 let globalState: GlobalState;
-let handleContinue: () => Promise<void> | void;
-let handleFinalSubmit: () => Promise<void> | void;
+let handleContinue: () => Promise<void> | void = $state(() => {});
+let handleFinalSubmit: () => Promise<void> | void = $state(() => {});
 let ename: string;
 let uri: string;
 
@@ -116,7 +116,7 @@ onMount(async () => {
 
         // Initialize key manager for pre-verification context
         await initializeKeyManager();
-        const keyExists = await keyManager!.exists("default");
+        const keyExists = await keyManager?.exists("default");
         if (!keyExists) {
             await generateApplicationKeyPair();
         }

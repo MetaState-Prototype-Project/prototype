@@ -22,6 +22,40 @@ import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 
+// Type definitions for signing and deep link data
+interface SigningData {
+    type?: string;
+    pollId?: string;
+    voteData?: Record<string, unknown>;
+    userId?: string;
+    sessionId?: string;
+    message?: string;
+    redirect?: string;
+    platform_url?: string;
+    pollDetails?: {
+        title: string;
+        creatorName: string;
+        options: string[];
+    };
+    platformUrl?: string;
+}
+
+interface DeepLinkData {
+    type: string;
+    platform?: string;
+    session?: string;
+    redirect?: string;
+    redirect_uri?: string;
+    data?: string;
+    pollId?: string;
+}
+
+interface RevealedVoteData {
+    chosenOption: string;
+    pollId: string;
+    voterId?: string;
+}
+
 const globalState = getContext<() => GlobalState>("globalState")();
 const pathProps: SVGAttributes<SVGPathElement> = {
     stroke: "white",
@@ -38,13 +72,13 @@ let loggedInDrawerOpen = $state(false);
 let signingDrawerOpen = $state(false);
 let scannedData: Scanned | undefined = $state(undefined);
 let scanning = false;
-let loading = false;
+let loading = $state(false);
 let redirect = $state<string | null>();
 let permissions_nullable: PermissionState | null;
 
 // Signing specific state
 let signingSessionId = $state<string | null>(null);
-let signingData = $state<any>(null);
+let signingData = $state<SigningData | null>(null);
 let isSigningRequest = $state(false);
 let showSigningSuccess = $state(false);
 
@@ -60,7 +94,7 @@ let revealPollId = $state<string | null>(null);
 let revealError = $state<string | null>(null);
 let isRevealingVote = $state(false);
 let revealSuccess = $state(false);
-let revealedVoteData = $state<any>(null);
+let revealedVoteData = $state<RevealedVoteData | null>(null);
 
 // Debug logging for selectedBlindVoteOption changes
 $effect(() => {
@@ -565,16 +599,17 @@ async function handleSignVote() {
 }
 
 async function handleBlindVotingRequest(
-    blindVoteData: any,
+    blindVoteData: SigningData,
     platformUrl: string | null,
     redirectUri: string | null,
 ) {
     try {
-        console.log("🔍 Handling blind voting request:", blindVoteData);
+        const voteData = blindVoteData;
+        console.log("🔍 Handling blind voting request:", voteData);
         console.log("🔗 Platform URL:", platformUrl);
 
         // Extract poll details from the blind vote data
-        const pollId = blindVoteData.pollId;
+        const pollId = voteData.pollId;
         if (!pollId) {
             throw new Error("No poll ID provided in blind vote data");
         }
@@ -592,9 +627,9 @@ async function handleBlindVotingRequest(
         signingData = {
             pollId: pollId,
             pollDetails: pollDetails,
-            redirect: redirectUri,
+            redirect: redirectUri ?? undefined,
             sessionId: blindVoteData.sessionId,
-            platform_url: platformUrl, // Add the platform URL for API calls
+            platform_url: platformUrl ?? undefined, // Add the platform URL for API calls
         };
 
         console.log("🔍 DEBUG: Stored signing data:", {
@@ -631,7 +666,12 @@ async function handleBlindVote() {
     blindVoteError = null;
     isSubmittingBlindVote = true;
 
-    if (selectedBlindVoteOption === null || !signingData) {
+    if (
+        selectedBlindVoteOption === null ||
+        !signingData ||
+        !signingData.pollId ||
+        !signingData.pollDetails
+    ) {
         const errorMsg = "No vote option selected or poll details missing";
         console.error("❌ Validation failed:", errorMsg);
         console.error("❌ selectedBlindVoteOption:", selectedBlindVoteOption);
@@ -644,6 +684,10 @@ async function handleBlindVote() {
         isSubmittingBlindVote = false;
         return;
     }
+
+    // Extract validated values for type safety
+    const pollId = signingData.pollId;
+    const pollDetails = signingData.pollDetails;
 
     try {
         // Get the vault for user identification
@@ -698,7 +742,7 @@ async function handleBlindVote() {
         // Check if user has already voted before attempting registration
         console.log("🔍 DEBUG: Checking if user has already voted...");
         const voteStatusResponse = await axios.get(
-            `${platformUrl}/api/polls/${signingData.pollId}/vote?userId=${voterId}`,
+            `${platformUrl}/api/polls/${pollId}/vote?userId=${voterId}`,
         );
 
         console.log("🔍 DEBUG: Vote status response:", voteStatusResponse.data);
@@ -715,7 +759,7 @@ async function handleBlindVote() {
         // Register the voter on the backend first
         console.log("🔍 DEBUG: Registering voter on backend:", voterId);
         const registerResponse = await axios.post(
-            `${platformUrl}/api/votes/${signingData.pollId}/register`,
+            `${platformUrl}/api/votes/${pollId}/register`,
             {
                 voterId: voterId,
             },
@@ -731,10 +775,10 @@ async function handleBlindVote() {
 
         // Create ElectionConfig from poll details
         const electionConfig = {
-            id: signingData.pollId,
-            title: signingData.pollDetails.title,
+            id: pollId,
+            title: pollDetails.title,
             description: "",
-            options: signingData.pollDetails.options.map(
+            options: pollDetails.options.map(
                 (option: string, index: number) => `option_${index}`,
             ),
             maxVotes: 1,
@@ -745,19 +789,11 @@ async function handleBlindVote() {
 
         // Create voting system and register voter locally
         const votingSystem = new VotingSystem();
-        votingSystem.createElection(
-            signingData.pollId,
-            signingData.pollId,
-            electionConfig.options,
-        );
+        votingSystem.createElection(pollId, pollId, electionConfig.options);
 
         // Register the voter locally (this creates the voter's key pair and anchor)
         console.log("🔍 DEBUG: Registering voter locally:", voterId);
-        votingSystem.registerVoter(
-            voterId,
-            signingData.pollId,
-            signingData.pollId,
-        );
+        votingSystem.registerVoter(voterId, pollId, pollId);
 
         // Generate vote data with the selected option (PRIVACY PRESERVING - only known locally)
         const optionId = `option_${selectedBlindVoteOption}`;
@@ -765,8 +801,8 @@ async function handleBlindVote() {
 
         const voteData = votingSystem.generateVoteData(
             voterId,
-            signingData.pollId,
-            signingData.pollId,
+            pollId,
+            pollId,
             optionId,
         );
 
@@ -793,12 +829,11 @@ async function handleBlindVote() {
         // Store vote data locally for later revelation
         // Convert BigInt values to strings for JSON serialization
         const localVoteData = {
-            pollId: signingData.pollId,
+            pollId: pollId,
             voterId: voterId, // Store voterId for ownership verification
             optionId: `option_${selectedBlindVoteOption}`, // Use the correct option ID format
             chosenOption: selectedBlindVoteOption, // Store the actual chosen option number
-            optionText:
-                signingData.pollDetails.options[selectedBlindVoteOption], // Store the actual option text
+            optionText: pollDetails.options[selectedBlindVoteOption], // Store the actual option text
             commitments: commitments,
             anchors: anchors,
             timestamp: new Date().toISOString(),
@@ -812,11 +847,11 @@ async function handleBlindVote() {
             return value;
         });
 
-        localStorage.setItem(`blindVote_${signingData.pollId}`, jsonString);
+        localStorage.setItem(`blindVote_${pollId}`, jsonString);
 
         // Submit to the API (PRIVACY PRESERVING - no chosenOptionId revealed)
         const payload = {
-            pollId: signingData.pollId,
+            pollId: pollId,
             voterId: voterId,
             // chosenOptionId is NOT sent - this preserves privacy!
             commitments: hexCommitments,
@@ -850,9 +885,13 @@ async function handleBlindVote() {
             signingData.platform_url,
         );
 
-        const redirectUrl = signingData.redirect.startsWith("http")
+        const redirectUrl = signingData.redirect?.startsWith("http")
             ? signingData.redirect
-            : `${signingData.platform_url}${signingData.redirect}`;
+            : `${signingData.platform_url}${signingData.redirect || ""}`;
+
+        if (!redirectUrl) {
+            throw new Error("Redirect URL not provided");
+        }
 
         console.log("🔍 DEBUG: Final redirect URL:", redirectUrl);
         console.log("🔍 Submitting blind vote to:", redirectUrl);
@@ -951,41 +990,42 @@ onMount(async () => {
     console.log("Scan QR page mounted, checking for deep link data...");
 
     // Function to handle deep link data
-    async function handleDeepLinkData(data: any) {
-        console.log("Handling deep link data:", data);
-        console.log("Data type:", data.type);
-        console.log("Platform:", data.platform);
-        console.log("Session:", data.session);
-        console.log("Redirect:", data.redirect);
-        console.log("Redirect URI:", data.redirect_uri);
+    async function handleDeepLinkData(data: DeepLinkData) {
+        const deepLinkData = data;
+        console.log("Handling deep link data:", deepLinkData);
+        console.log("Data type:", deepLinkData.type);
+        console.log("Platform:", deepLinkData.platform);
+        console.log("Session:", deepLinkData.session);
+        console.log("Redirect:", deepLinkData.redirect);
+        console.log("Redirect URI:", deepLinkData.redirect_uri);
 
         // Prevent duplicate processing by checking if we're already handling this type of request
-        if (data.type === "auth" && codeScannedDrawerOpen) {
+        if (deepLinkData.type === "auth" && codeScannedDrawerOpen) {
             console.log("Auth request already in progress, ignoring duplicate");
             return;
         }
-        if (data.type === "sign" && signingDrawerOpen) {
+        if (deepLinkData.type === "sign" && signingDrawerOpen) {
             console.log(
                 "Signing request already in progress, ignoring duplicate",
             );
             return;
         }
-        if (data.type === "reveal" && isRevealRequest) {
+        if (deepLinkData.type === "reveal" && isRevealRequest) {
             console.log(
                 "Reveal request already in progress, ignoring duplicate",
             );
             return;
         }
 
-        if (data.type === "auth") {
+        if (deepLinkData.type === "auth") {
             console.log("Handling auth deep link");
             // Handle auth deep link
-            platform = data.platform;
-            session = data.session;
-            redirect = data.redirect;
+            platform = deepLinkData.platform;
+            session = deepLinkData.session;
+            redirect = deepLinkData.redirect ?? null;
 
             try {
-                hostname = new URL(data.redirect).hostname;
+                hostname = new URL(deepLinkData.redirect || "").hostname;
             } catch (error) {
                 console.error("Error parsing redirect URL:", error);
                 hostname = "unknown";
@@ -1002,12 +1042,12 @@ onMount(async () => {
                 "hostname:",
                 hostname,
             );
-        } else if (data.type === "sign") {
+        } else if (deepLinkData.type === "sign") {
             console.log("Handling signing deep link");
             // Handle signing deep link
-            signingSessionId = data.session;
-            const base64Data = data.data;
-            const redirectUri = data.redirect_uri;
+            signingSessionId = deepLinkData.session ?? null;
+            const base64Data = deepLinkData.data;
+            const redirectUri = deepLinkData.redirect_uri;
 
             if (signingSessionId && base64Data && redirectUri) {
                 redirect = redirectUri;
@@ -1017,7 +1057,7 @@ onMount(async () => {
                     console.log("Decoded signing data:", signingData);
 
                     // Check if this is actually a blind voting request
-                    if (signingData.type === "blind-vote") {
+                    if (signingData && signingData.type === "blind-vote") {
                         console.log(
                             "🔍 Blind voting request detected in sign deep link",
                         );
@@ -1030,13 +1070,13 @@ onMount(async () => {
 
                         // Extract platform URL from the data
                         const platformUrl =
-                            signingData.platformUrl ||
+                            signingData?.platformUrl ||
                             "http://192.168.0.225:7777";
 
                         // Set up signingData for blind voting UI
                         signingData = {
-                            pollId: signingData.pollId,
-                            sessionId: signingData.sessionId,
+                            pollId: signingData?.pollId,
+                            sessionId: signingData?.sessionId,
                             platform_url: platformUrl,
                             redirect: redirectUri, // Add the redirect URI from the deep link
                             // We'll need to fetch poll details, but for now set a placeholder
@@ -1080,10 +1120,10 @@ onMount(async () => {
                     return;
                 }
             }
-        } else if (data.type === "reveal") {
+        } else if (deepLinkData.type === "reveal") {
             console.log("Handling reveal deep link");
             // Handle reveal deep link
-            const pollId = data.pollId;
+            const pollId = deepLinkData.pollId;
 
             if (pollId) {
                 console.log("🔍 Reveal request for poll:", pollId);
@@ -1290,10 +1330,13 @@ async function handleRevealVote() {
 
             // Don't close the drawer - let it show the revealed vote
             // The drawer content will change to show the success state
-        } catch (parseError: any) {
+        } catch (parseError: unknown) {
             console.error("❌ JSON Parse Error Details:", parseError);
-            console.error("❌ Parse Error Message:", parseError.message);
-            console.error("❌ Parse Error Stack:", parseError.stack);
+            console.error(
+                "❌ Parse Error Message:",
+                (parseError as Error).message,
+            );
+            console.error("❌ Parse Error Stack:", (parseError as Error).stack);
             console.error("❌ Raw data that failed to parse:", storedVoteData);
 
             // Try to identify what went wrong
@@ -1319,9 +1362,9 @@ async function handleRevealVote() {
                 "Failed to parse stored vote data. The vote may be corrupted.",
             );
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("❌ Error revealing vote:", error);
-        revealError = error.message || "Failed to reveal vote";
+        revealError = (error as Error).message || "Failed to reveal vote";
     } finally {
         isRevealingVote = false;
     }
@@ -1617,9 +1660,9 @@ async function handleRevealVote() {
                 </div>
 
                 <!-- Vote Options -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2"
-                        >Select your vote:</label
+                <fieldset class="mb-4">
+                    <legend class="block text-sm font-medium text-gray-700 mb-2"
+                        >Select your vote:</legend
                     >
                     {#each signingData.pollDetails?.options || [] as option, index}
                         <label class="flex items-center mb-2">
@@ -1628,7 +1671,7 @@ async function handleRevealVote() {
                                 name="blindVoteOption"
                                 value={index}
                                 bind:group={selectedBlindVoteOption}
-                                on:change={() => {
+                                onchange={() => {
                                     console.log(
                                         `🔍 Radio changed: index = ${index}, value = ${index}, selectedBlindVoteOption = ${selectedBlindVoteOption}`,
                                     );
@@ -1640,11 +1683,11 @@ async function handleRevealVote() {
                             <span class="text-sm">{option}</span>
                         </label>
                     {/each}
-                </div>
+                </fieldset>
 
                 <!-- Submit Button -->
                 <button
-                    on:click={() => {
+                    onclick={() => {
                         console.log(
                             `🔍 Submit button clicked. selectedBlindVoteOption = ${selectedBlindVoteOption}, type = ${typeof selectedBlindVoteOption}`,
                         );
