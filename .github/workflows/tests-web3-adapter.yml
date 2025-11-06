@@ -1,0 +1,47 @@
+name: Tests [web3-adapter]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/web3-adapter/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Clean and rebuild ssh2 native module
+        run: |
+          # Remove any pre-built binaries that might be incompatible
+          find node_modules -name "sshcrypto.node" -delete 2>/dev/null || true
+          find node_modules -path "*/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node" -delete 2>/dev/null || true
+          # Rebuild ssh2 specifically for this platform
+          pnpm rebuild ssh2
+          # Rebuild all other native modules
+          pnpm rebuild
+
+      - name: Run tests
+        run: pnpm -F=web3-adapter test --run
+

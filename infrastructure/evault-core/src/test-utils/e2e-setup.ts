@@ -168,16 +168,54 @@ export async function teardownE2ETestServer(server: E2ETestServer | undefined): 
         console.error("Error closing Fastify server:", error);
     }
 
-    if (server.registryServer) {
-        await stopMockRegistryServer(server.registryServer);
+    // Close Neo4j DB service and driver before stopping containers
+    if (server.dbService) {
+        try {
+            await server.dbService.close();
+        } catch (error) {
+            console.error("Error closing DbService:", error);
+        }
     }
-    
+
+    // Also close the raw Neo4j driver if available
+    if (server.neo4jDriver) {
+        try {
+            await server.neo4jDriver.close();
+        } catch (error) {
+            console.error("Error closing Neo4j driver:", error);
+        }
+    }
+
+    // Destroy PostgreSQL testDataSource
     if (server.testDataSource?.isInitialized) {
-        await server.testDataSource.destroy();
+        try {
+            await server.testDataSource.destroy();
+        } catch (error) {
+            console.error("Error destroying testDataSource:", error);
+        }
+    }
+
+    // Stop registry server
+    if (server.registryServer) {
+        try {
+            await stopMockRegistryServer(server.registryServer);
+        } catch (error) {
+            console.error("Error stopping registry server:", error);
+        }
     }
     
-    await teardownTestNeo4j();
-    await teardownTestDatabase();
+    // Stop testcontainers
+    try {
+        await teardownTestNeo4j();
+    } catch (error) {
+        console.error("Error tearing down Neo4j testcontainer:", error);
+    }
+
+    try {
+        await teardownTestDatabase();
+    } catch (error) {
+        console.error("Error tearing down PostgreSQL testcontainer:", error);
+    }
 
     // Clean up environment variables
     delete process.env.NEO4J_URI;
