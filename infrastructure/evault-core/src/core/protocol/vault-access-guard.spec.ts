@@ -136,7 +136,7 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             const result = await checkAccess("meta-envelope-id", context);
 
-            expect(result).toBe(true);
+            expect(result.hasAccess).toBe(true);
             expect(context.tokenPayload).toBeDefined();
         });
 
@@ -160,7 +160,7 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
 
-            expect(result).toBe(true);
+            expect(result.hasAccess).toBe(true);
         });
 
         it("should allow access when user is in ACL", async () => {
@@ -183,7 +183,7 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
 
-            expect(result).toBe(true);
+            expect(result.hasAccess).toBe(true);
         });
 
         it("should deny access when user is not in ACL", async () => {
@@ -206,7 +206,7 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
 
-            expect(result).toBe(false);
+            expect(result.hasAccess).toBe(false);
         });
 
         it("should throw error when eName header is missing", async () => {
@@ -247,7 +247,8 @@ describe("VaultAccessGuard", () => {
             
             // Should return false because the meta-envelope won't be found with eName2
             const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
-            expect(result).toBe(false);
+            expect(result.hasAccess).toBe(false);
+            expect(result.exists).toBe(false);
         });
 
         it("should allow access only to meta-envelopes matching the provided eName", async () => {
@@ -284,11 +285,11 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             
             const result1 = await checkAccess(metaEnvelope1.metaEnvelope.id, context1);
-            expect(result1).toBe(true);
+            expect(result1.hasAccess).toBe(true);
 
             // Tenant1 should NOT access tenant2's data
             const result2 = await checkAccess(metaEnvelope2.metaEnvelope.id, context1);
-            expect(result2).toBe(false);
+            expect(result2.hasAccess).toBe(false);
 
             // Tenant2 should only access their own data
             const context2 = createMockContext({
@@ -297,11 +298,11 @@ describe("VaultAccessGuard", () => {
             });
 
             const result3 = await checkAccess(metaEnvelope2.metaEnvelope.id, context2);
-            expect(result3).toBe(true);
+            expect(result3.hasAccess).toBe(true);
 
             // Tenant2 should NOT access tenant1's data
             const result4 = await checkAccess(metaEnvelope1.metaEnvelope.id, context2);
-            expect(result4).toBe(false);
+            expect(result4.hasAccess).toBe(false);
         });
 
         it("should allow access with ACL '*' even without currentUser", async () => {
@@ -324,7 +325,8 @@ describe("VaultAccessGuard", () => {
             const checkAccess = (guard as any).checkAccess.bind(guard);
             const result = await checkAccess(metaEnvelope.metaEnvelope.id, context);
 
-            expect(result).toBe(true);
+            expect(result.hasAccess).toBe(true);
+            expect(result.exists).toBe(true);
         });
     });
 
@@ -420,10 +422,9 @@ describe("VaultAccessGuard", () => {
 
             const wrappedResolver = guard.middleware(mockResolver);
             
-            // Should throw "Access denied" because the meta-envelope won't be found with eName2
-            await expect(
-                wrappedResolver(null, { id: metaEnvelope.metaEnvelope.id }, context)
-            ).rejects.toThrow("Access denied");
+            // When envelope doesn't exist (wrong eName), middleware returns null (not found)
+            const result = await wrappedResolver(null, { id: metaEnvelope.metaEnvelope.id }, context);
+            expect(result).toBeNull();
         });
     });
 });

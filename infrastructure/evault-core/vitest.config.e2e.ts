@@ -16,7 +16,6 @@ export default defineConfig({
                 'dist/',
                 '**/*.d.ts',
                 '**/migrations/**',
-                '**/e2e/**',
             ],
         },
     },
