@@ -147,8 +147,14 @@ export class VaultAccessGuard {
             if (!args.id && !args.envelopeId) {
                 const result = await resolver(parent, args, context);
 
-                // If the result is an array of meta envelopes, filter based on access
+                // If the result is an array
                 if (Array.isArray(result)) {
+                    // Check if it's an array of Envelopes (no ACL) or MetaEnvelopes (has ACL)
+                    if (result.length > 0 && result[0] && !('acl' in result[0])) {
+                        // It's an array of Envelopes - already filtered by eName, just return as-is
+                        return result;
+                    }
+                    // It's an array of MetaEnvelopes - filter based on access
                     return this.filterEnvelopesByAccess(result, context);
                 }
 

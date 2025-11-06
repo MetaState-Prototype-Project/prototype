@@ -196,6 +196,12 @@ export class GraphQLServer {
                             context.eName
                         );
 
+                        // Add parsed field to metaEnvelope for GraphQL response
+                        const metaEnvelopeWithParsed = {
+                            ...result.metaEnvelope,
+                            parsed: input.payload,
+                        };
+
                         // Deliver webhooks for create operation
                         const requestingPlatform =
                             context.tokenPayload?.platform || null;
@@ -224,7 +230,10 @@ export class GraphQLServer {
                             );
                         }, 3_000);
 
-                        return result;
+                        return {
+                            ...result,
+                            metaEnvelope: metaEnvelopeWithParsed,
+                        };
                     }
                 ),
                 updateMetaEnvelopeById: this.accessGuard.middleware(

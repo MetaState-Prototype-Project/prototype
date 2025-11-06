@@ -304,11 +304,12 @@ export class EVaultClient {
 		const endpoint = await this.resolveEndpoint(w3id).catch(() => null);
 		if (!endpoint) throw new Error("Failed to resolve endpoint");
 
-		// Get platform token and create client with authorization header
+		// Get platform token and create client with authorization and X-ENAME headers
 		const token = await this.ensurePlatformToken();
 		const client = new GraphQLClient(endpoint, {
 			headers: {
 				authorization: `Bearer ${token}`,
+				"X-ENAME": w3id,
 			},
 		});
 
