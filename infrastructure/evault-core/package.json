@@ -8,6 +8,8 @@
         "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
         "build": "tsc",
         "test": "vitest",
+        "test:e2e": "vitest src/e2e/evault-core.e2e.spec.ts --run",
+        "test:e2e:web3-adapter": "vitest src/e2e/evault-core.e2e.spec.ts --run",
         "typeorm": "typeorm-ts-node-commonjs",
         "migration:generate": "npm run typeorm migration:generate -- -d src/config/database.ts",
         "migration:run": "npm run typeorm migration:run -- -d src/config/database.ts",

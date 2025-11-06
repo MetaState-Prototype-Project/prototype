@@ -3,8 +3,6 @@ name: Tests [registry]
 on:
   push:
     branches: [main]
-    paths:
-      - 'platforms/registry/**'
   pull_request:
     branches: [main]
     paths:
