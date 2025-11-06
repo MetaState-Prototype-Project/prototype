@@ -158,7 +158,7 @@ export class VaultController {
 
                 // Wait before retrying (exponential backoff)
                 const delay = Math.min(
-                    1000 * Math.pow(2, retryCount - 1),
+                    1000 * 2 ** (retryCount - 1),
                     10000,
                 );
                 console.log(`Waiting ${delay}ms before resolve retry...`);
@@ -174,9 +174,7 @@ export class VaultController {
      */
     private async ensureClient(w3id: string): Promise<GraphQLClient> {
         this.#endpoint = await this.resolveEndpoint(w3id);
-        this.#client = new GraphQLClient(this.#endpoint, {
-            timeout: 3000, // 3 second timeout for GraphQL requests
-        });
+        this.#client = new GraphQLClient(this.#endpoint);
         return this.#client;
     }
 

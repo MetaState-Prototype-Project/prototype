@@ -20,7 +20,7 @@ import {
   dec,
   tallyOption
 } from "../crypto/pedersen";
-import { 
+import type { 
   Voter, 
   VoteData, 
   ElectionConfig, 

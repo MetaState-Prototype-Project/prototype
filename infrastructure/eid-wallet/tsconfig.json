@@ -9,8 +9,17 @@
         "skipLibCheck": true,
         "sourceMap": true,
         "strict": true,
+        "target": "ES2020",
+        "module": "ES2020",
         "moduleResolution": "bundler"
-    }
+    },
+    "exclude": [
+        "node_modules/**",
+        ".svelte-kit/**",
+        "svelte.config.js",
+        "vite.config.js",
+        "vitest.workspace.js"
+    ]
     // Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias
     // except $lib which is handled by https://kit.svelte.dev/docs/configuration#files
     //

@@ -6,6 +6,7 @@ import { KeyManagerError, KeyManagerErrorCodes } from "./types";
 /**
  * Factory class to create appropriate key managers based on context
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Factory pattern with state management requires a class
 export class KeyManagerFactory {
     private static hardwareKeyManager: HardwareKeyManager | null = null;
     private static softwareKeyManager: SoftwareKeyManager | null = null;
@@ -16,18 +17,18 @@ export class KeyManagerFactory {
     static async getKeyManager(config: KeyManagerConfig): Promise<KeyManager> {
         // If explicitly requesting hardware and not in pre-verification mode
         if (config.useHardware && !config.preVerificationMode) {
-            return this.getHardwareKeyManager();
+            return KeyManagerFactory.getHardwareKeyManager();
         }
 
         // If in pre-verification mode, always use software keys
         if (config.preVerificationMode) {
             console.log("Using software key manager for pre-verification mode");
-            return this.getSoftwareKeyManager();
+            return KeyManagerFactory.getSoftwareKeyManager();
         }
 
         // Default behavior: try hardware first, fallback to software
         try {
-            const hardwareManager = this.getHardwareKeyManager();
+            const hardwareManager = KeyManagerFactory.getHardwareKeyManager();
             // Test if hardware is available by checking if we can call exists
             await hardwareManager.exists(config.keyId);
             console.log("Using hardware key manager");
@@ -36,7 +37,7 @@ export class KeyManagerFactory {
             console.log(
                 "Hardware key manager not available, falling back to software",
             );
-            return this.getSoftwareKeyManager();
+            return KeyManagerFactory.getSoftwareKeyManager();
         }
     }
 
@@ -44,20 +45,20 @@ export class KeyManagerFactory {
      * Get hardware key manager instance (singleton)
      */
     private static getHardwareKeyManager(): HardwareKeyManager {
-        if (!this.hardwareKeyManager) {
-            this.hardwareKeyManager = new HardwareKeyManager();
+        if (!KeyManagerFactory.hardwareKeyManager) {
+            KeyManagerFactory.hardwareKeyManager = new HardwareKeyManager();
         }
-        return this.hardwareKeyManager;
+        return KeyManagerFactory.hardwareKeyManager;
     }
 
     /**
      * Get software key manager instance (singleton)
      */
     private static getSoftwareKeyManager(): SoftwareKeyManager {
-        if (!this.softwareKeyManager) {
-            this.softwareKeyManager = new SoftwareKeyManager();
+        if (!KeyManagerFactory.softwareKeyManager) {
+            KeyManagerFactory.softwareKeyManager = new SoftwareKeyManager();
         }
-        return this.softwareKeyManager;
+        return KeyManagerFactory.softwareKeyManager;
     }
 
     /**
@@ -65,7 +66,7 @@ export class KeyManagerFactory {
      */
     static async isHardwareAvailable(): Promise<boolean> {
         try {
-            const hardwareManager = this.getHardwareKeyManager();
+            const hardwareManager = KeyManagerFactory.getHardwareKeyManager();
             // Try to check if a test key exists to verify hardware availability
             await hardwareManager.exists("test-hardware-check");
             return true;
@@ -88,14 +89,14 @@ export class KeyManagerFactory {
             preVerificationMode: context === "pre-verification",
         };
 
-        return this.getKeyManager(config);
+        return KeyManagerFactory.getKeyManager(config);
     }
 
     /**
      * Reset singleton instances (useful for testing)
      */
     static reset(): void {
-        this.hardwareKeyManager = null;
-        this.softwareKeyManager = null;
+        KeyManagerFactory.hardwareKeyManager = null;
+        KeyManagerFactory.softwareKeyManager = null;
     }
 }
