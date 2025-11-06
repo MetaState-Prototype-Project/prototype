@@ -1,10 +1,10 @@
 <script lang="ts">
-import { page } from "$app/state";
 import { goto } from "$app/navigation";
-import type { Snippet } from "svelte";
-import type { LayoutData } from "./$types";
+import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
+import type { Snippet } from "svelte";
 import { getContext, onMount } from "svelte";
+import type { LayoutData } from "./$types";
 
 let { data, children }: { data: LayoutData; children: Snippet } = $props();
 

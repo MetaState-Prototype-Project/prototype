@@ -111,7 +111,7 @@ export default function UserCard({ match, currentUserId, showFullDetails = false
                 {skill.name}
               </Badge>
             ))}
-            {topHobbies.map((hobby) => (
+            {topHobbies.map((hobby: { id: string; name: string }) => (
               <Badge key={hobby.id} variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-800 border border-blue-300">
                 {hobby.name}
               </Badge>

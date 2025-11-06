@@ -4,12 +4,12 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import { type KeyManager, KeyManagerFactory } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import Drawer from "$lib/ui/Drawer/Drawer.svelte";
 import { capitalize } from "$lib/utils";
-import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -18,8 +18,8 @@ import DocumentType from "./steps/document-type.svelte";
 import Passport from "./steps/passport.svelte";
 import Selfie from "./steps/selfie.svelte";
 import {
-    DocFront,
     DocBack,
+    DocFront,
     Selfie as SelfiePic,
     reason,
     status,

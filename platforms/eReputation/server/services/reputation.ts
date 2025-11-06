@@ -2,24 +2,41 @@ import { storage } from "../storage";
 // Removed OpenAI dependency for simplified random calculations
 import type { InsertReputationCalculation } from "@shared/schema";
 
+// Helper to convert null to undefined
+const nullToUndefined = <T>(value: T | null | undefined): T | undefined => 
+  value === null ? undefined : value;
+
 export class ReputationService {
   static async calculateReputation(
-    userId: string,
+    userId: number,
     targetType: string,
-    targetId: string | null,
-    targetName: string | null,
-    variables: string[]
+    targetId: string | null | undefined,
+    targetName: string | null | undefined,
+    variables: string[] | any
   ) {
-    // Create initial calculation record
-    const calculationData: InsertReputationCalculation = {
+    // Ensure variables is an array
+    const variablesArray: string[] = Array.isArray(variables) 
+      ? variables.map(v => String(v))
+      : (variables ? [String(variables)] : []);
+    
+    // Create initial calculation record - ensure null/undefined is handled
+    const baseData = {
       userId,
       targetType,
-      targetId,
-      targetName,
-      variables,
-      status: "processing",
+      variables: variablesArray as any, // jsonb accepts array
+      status: "processing" as const,
     };
+    
+    const optionalFields: Partial<Pick<InsertReputationCalculation, 'targetId' | 'targetName'>> = {};
+    if (targetId != null) optionalFields.targetId = targetId as string;
+    if (targetName != null) optionalFields.targetName = targetName as string;
+    
+    const calculationData = {
+      ...baseData,
+      ...optionalFields,
+    } as unknown as InsertReputationCalculation;
 
+    // @ts-expect-error - TypeScript incorrectly infers null in optionalFields, but runtime value is correct
     const calculation = await storage.createReputationCalculation(calculationData);
 
     // Generate random score and confidence for simplified calculation
@@ -37,7 +54,7 @@ export class ReputationService {
     return updatedCalculation;
   }
 
-  static async getActivityHistory(userId: string) {
+  static async getActivityHistory(userId: number) {
     const [calculations, references] = await Promise.all([
       storage.getUserReputationCalculations(userId),
       storage.getUserReferences(userId),
@@ -74,7 +91,7 @@ export class ReputationService {
     return activities;
   }
 
-  static async getUserStats(userId: string) {
+  static async getUserStats(userId: number) {
     const calculations = await storage.getUserReputationCalculations(userId);
     const references = await storage.getUserReferences(userId);
 

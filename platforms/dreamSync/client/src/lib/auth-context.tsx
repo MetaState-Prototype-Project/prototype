@@ -3,22 +3,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiClient } from "./apiClient";
 import { getAuthToken, getAuthId, setAuthToken, setAuthId, clearAuth } from "./authUtils";
+import type { UserWithProfile } from "@shared/schema";
 
-interface User {
-  id: string;
-  ename: string;
-  name?: string;
-  handle?: string;
-  description?: string;
-  avatarUrl?: string;
-  bannerUrl?: string;
-  isVerified: boolean;
-  isPrivate: boolean;
-  email?: string;
-  emailVerified?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+type User = UserWithProfile;
 
 interface AuthContextType {
   user: User | null;

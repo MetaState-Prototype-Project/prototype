@@ -5,6 +5,17 @@ import type { Express } from 'express';
 import { storage } from './storage';
 import { LoginUser, InsertUser } from '@shared/entities';
 
+declare module 'express-session' {
+  interface SessionData {
+    user?: {
+      id: number;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+    };
+  }
+}
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);

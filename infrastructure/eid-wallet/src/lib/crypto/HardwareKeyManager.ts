@@ -1,5 +1,3 @@
-import type { KeyManager } from "./types";
-import { KeyManagerError, KeyManagerErrorCodes } from "./types";
 import {
     exists as hwExists,
     generate as hwGenerate,
@@ -7,6 +5,8 @@ import {
     signPayload as hwSignPayload,
     verifySignature as hwVerifySignature,
 } from "@auvo/tauri-plugin-crypto-hw-api";
+import type { KeyManager } from "./types";
+import { KeyManagerError, KeyManagerErrorCodes } from "./types";
 
 /**
  * Hardware key manager implementation using Tauri crypto hardware API

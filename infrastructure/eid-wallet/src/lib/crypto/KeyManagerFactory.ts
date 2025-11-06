@@ -1,6 +1,6 @@
-import type { KeyManager, KeyManagerConfig } from "./types";
 import { HardwareKeyManager } from "./HardwareKeyManager";
 import { SoftwareKeyManager } from "./SoftwareKeyManager";
+import type { KeyManager, KeyManagerConfig } from "./types";
 import { KeyManagerError, KeyManagerErrorCodes } from "./types";
 
 /**

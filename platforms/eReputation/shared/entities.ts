@@ -193,13 +193,3 @@ export type LoginUser = Pick<User, 'email' | 'password'>;
 export type InsertReputationCalculation = Omit<ReputationCalculation, 'id' | 'createdAt' | 'updatedAt' | 'user'>;
 export type InsertReference = Omit<Reference, 'id' | 'createdAt' | 'updatedAt' | 'author'>;
 export type InsertFileUpload = Omit<FileUpload, 'id' | 'createdAt' | 'user' | 'reference'>;
-
-// Make sure the types are properly exported
-export {
-  UpsertUser,
-  InsertUser,
-  LoginUser,
-  InsertReputationCalculation,
-  InsertReference,
-  InsertFileUpload
-};

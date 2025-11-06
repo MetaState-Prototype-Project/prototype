@@ -1,8 +1,8 @@
 <script lang="ts">
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-import { onMount, setContext, getContext, onDestroy } from "svelte";
+import { getContext, onDestroy, onMount, setContext } from "svelte";
 import "../app.css";
-import { onNavigate, goto } from "$app/navigation";
+import { goto, onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
