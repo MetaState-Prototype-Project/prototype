@@ -14,8 +14,8 @@ const CONFIG = {
 	REQUEST_TIMEOUT: 5000, // 5 seconds
 	CONNECTION_TIMEOUT: 5000, // 5 seconds
 	TOKEN_REFRESH_THRESHOLD: 5 * 60 * 1000, // 5 minutes before expiry
-	MAX_RETRIES: 3,
-	RETRY_DELAY: 1000, // 1 second base delay
+	MAX_RETRIES: process.env.CI || process.env.VITEST ? 1 : 3, // Reduce retries in CI/test environments
+	RETRY_DELAY: process.env.CI || process.env.VITEST ? 50 : 1000, // Reduced delay for tests
 	CONNECTION_POOL_SIZE: 10,
 	HEALTH_CHECK_TIMEOUT: 2000, // 2 seconds for health check
 	MAX_HEALTH_CHECK_FAILURES: 1, // Max consecutive failures before re-resolution (much more aggressive!)
@@ -35,8 +35,8 @@ const STORE_META_ENVELOPE = `
 `;
 
 const FETCH_META_ENVELOPE = `
-  query FetchMetaEnvelope($id: ID!) {
-    metaEnvelope(id: $id) {
+  query FetchMetaEnvelope($id: String!) {
+    getMetaEnvelopeById(id: $id) {
       id
       ontology
       parsed
@@ -63,7 +63,11 @@ const UPDATE_META_ENVELOPE = `
 `;
 
 interface MetaEnvelopeResponse {
-	metaEnvelope: MetaEnvelope;
+	getMetaEnvelopeById: {
+		id: string;
+		ontology: string;
+		parsed: Record<string, any> | null;
+	};
 }
 
 interface StoreMetaEnvelopeResponse {
@@ -223,7 +227,9 @@ export class EVaultClient {
 				obtainedAt: now,
 			};
 		} catch (error) {
-			console.error("Error requesting platform token:", error);
+			if (!process.env.CI && !process.env.VITEST) {
+				console.error("Error requesting platform token:", error);
+			}
 			throw new Error("Failed to request platform token");
 		}
 	}
@@ -253,9 +259,8 @@ export class EVaultClient {
 
 	private async resolveEndpoint(w3id: string): Promise<string> {
 		try {
-			const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`;
-			console.log("fetching endpoint for :", enrichedW3id);
-			const response = await fetch(
+		const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`;
+		const response = await fetch(
 				new URL(`/resolve?w3id=${enrichedW3id}`, this.registryUrl).toString(),
 			);
 
@@ -266,7 +271,9 @@ export class EVaultClient {
 			const data = await response.json();
 			return new URL("/graphql", data.uri).toString();
 		} catch (error) {
-			console.error("Error resolving eVault endpoint:", error);
+			if (!process.env.CI && !process.env.VITEST) {
+				console.error("Error resolving eVault endpoint:", error);
+			}
 			throw new Error("Failed to resolve eVault endpoint");
 		}
 	}
@@ -284,18 +291,8 @@ export class EVaultClient {
 			if (client && endpoint) {
 				// Check if the cached endpoint is still healthy
 				if (await this.isEndpointHealthy(w3id, endpoint)) {
-					console.log(
-						"reusing existing client for w3id:",
-						w3id,
-						"endpoint:",
-						endpoint,
-					);
 					return client;
 				}
-				console.log(
-					"cached endpoint is unhealthy, removing and re-resolving for w3id:",
-					w3id,
-				);
 				this.removeCachedClient(w3id);
 			}
 		}
@@ -321,7 +318,6 @@ export class EVaultClient {
 		this.healthCheckFailures.set(w3id, 0);
 		this.lastHealthCheck.set(w3id, Date.now());
 
-		console.log("created new client for w3id:", w3id, "endpoint:", endpoint);
 		return client;
 	}
 
@@ -348,7 +344,6 @@ export class EVaultClient {
 
 			// Perform health check on the whois endpoint
 			const healthCheckUrl = `${baseUrl}/whois`;
-			console.log(`Health checking endpoint for ${w3id}: ${healthCheckUrl}`);
 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(
@@ -371,10 +366,7 @@ export class EVaultClient {
 			}
 			throw new Error(`Health check failed with status: ${response.status}`);
 		} catch (error) {
-			console.log(
-				`Health check failed for ${w3id}:`,
-				error instanceof Error ? error.message : "Unknown error",
-			);
+			// Silently handle health check failures in test mode
 
 			// Increment failure count
 			const currentFailures = this.healthCheckFailures.get(w3id) || 0;
@@ -384,9 +376,6 @@ export class EVaultClient {
 
 			// If we've had too many consecutive failures, mark as unhealthy
 			if (newFailures >= CONFIG.MAX_HEALTH_CHECK_FAILURES) {
-				console.log(
-					`Endpoint for ${w3id} marked as unhealthy after ${newFailures} consecutive failures`,
-				);
 				return false;
 			}
 
@@ -403,7 +392,6 @@ export class EVaultClient {
 		this.endpoints.delete(w3id);
 		this.healthCheckFailures.delete(w3id);
 		this.lastHealthCheck.delete(w3id);
-		console.log(`Removed cached client for ${w3id}`);
 	}
 
 	/**
@@ -416,9 +404,6 @@ export class EVaultClient {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => {
 			controller.abort();
-			console.log(
-				`GraphQL request timeout for ${w3id}, marking endpoint as unhealthy`,
-			);
 			this.removeCachedClient(w3id);
 		}, CONFIG.GRAPHQL_TIMEOUT);
 
@@ -443,13 +428,11 @@ export class EVaultClient {
 	 */
 	public async forceHealthCheck(w3id: string): Promise<boolean> {
 		if (!this.clients.has(w3id)) {
-			console.log(`No cached client found for ${w3id}`);
 			return false;
 		}
 
 		const endpoint = this.endpoints.get(w3id);
 		if (!endpoint) {
-			console.log(`No cached endpoint found for ${w3id}`);
 			return false;
 		}
 
@@ -459,9 +442,6 @@ export class EVaultClient {
 		const isHealthy = await this.isEndpointHealthy(w3id, endpoint);
 
 		if (!isHealthy) {
-			console.log(
-				`Forced health check failed for ${w3id}, removing cached client`,
-			);
 			this.removeCachedClient(w3id);
 		}
 
@@ -510,7 +490,6 @@ export class EVaultClient {
 	 * Clear all cached clients (useful for testing or forcing fresh connections)
 	 */
 	public clearCache(): void {
-		console.log("Clearing all cached clients and endpoints");
 		this.clients.clear();
 		this.endpoints.clear();
 		this.healthCheckFailures.clear();
@@ -519,13 +498,13 @@ export class EVaultClient {
 
 	async storeMetaEnvelope(envelope: MetaEnvelope): Promise<string> {
 		return this.withRetry(async () => {
-			const client = await this.ensureClient(envelope.w3id).catch(() => {
-				return null;
-			});
-			if (!client) return v4();
+			if (this.isDisposed) {
+				throw new Error("EVaultClient has been disposed");
+			}
 
-			console.log("sending to eVault: ", envelope.w3id);
-			console.log("sending payload", envelope);
+			const client = await this.ensureClient(envelope.w3id).catch((error) => {
+				throw new Error(`Failed to establish client connection: ${error instanceof Error ? error.message : String(error)}`);
+			});
 
 			const response = await this.withTimeout(envelope.w3id, () =>
 				client.request<StoreMetaEnvelopeResponse>(STORE_META_ENVELOPE, {
@@ -535,9 +514,13 @@ export class EVaultClient {
 						acl: ["*"],
 					},
 				}),
-			).catch(() => null);
+			).catch((error) => {
+				throw new Error(`Failed to store meta envelope: ${error instanceof Error ? error.message : String(error)}`);
+			});
 
-			if (!response) return v4();
+			if (!response || !response.storeMetaEnvelope) {
+				throw new Error("Failed to store meta envelope: Invalid response");
+			}
 			return response.storeMetaEnvelope.metaEnvelope.id;
 		});
 	}
@@ -559,7 +542,9 @@ export class EVaultClient {
 				.catch(() => null);
 
 			if (!response) {
-				console.error("Failed to store reference");
+				if (!process.env.CI && !process.env.VITEST) {
+					console.error("Failed to store reference");
+				}
 				throw new Error("Failed to store reference");
 			}
 		});
@@ -574,12 +559,23 @@ export class EVaultClient {
 					FETCH_META_ENVELOPE,
 					{
 						id,
-						w3id,
 					},
 				);
-				return response.metaEnvelope;
+				if (!response.getMetaEnvelopeById) {
+					throw new Error(`MetaEnvelope with id ${id} not found`);
+				}
+				// Map GraphQL response (ontology, parsed) to MetaEnvelope interface (schemaId, data)
+				return {
+					id: response.getMetaEnvelopeById.id,
+					schemaId: response.getMetaEnvelopeById.ontology,
+					data: response.getMetaEnvelopeById.parsed || {},
+					w3id,
+				};
 			} catch (error) {
-				console.error("Error fetching meta envelope:", error);
+				// Only log errors in non-test environments
+				if (!process.env.CI && !process.env.VITEST) {
+					console.error("Error fetching meta envelope:", error);
+				}
 				throw error;
 			}
 		});
@@ -590,7 +586,6 @@ export class EVaultClient {
 		envelope: MetaEnvelope,
 	): Promise<void> {
 		return this.withRetry(async () => {
-			console.log("sending to eVault", envelope.w3id);
 			const client = await this.ensureClient(envelope.w3id).catch(() => null);
 			if (!client) throw new Error("Failed to establish client connection");
 
@@ -609,7 +604,9 @@ export class EVaultClient {
 					variables,
 				);
 			} catch (error) {
-				console.error("Error updating meta envelope:", error);
+				if (!process.env.CI && !process.env.VITEST) {
+					console.error("Error updating meta envelope:", error);
+				}
 				throw error;
 			}
 		});

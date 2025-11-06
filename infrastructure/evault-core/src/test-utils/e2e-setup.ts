@@ -157,16 +157,22 @@ export async function setupE2ETestServer(
 /**
  * Tears down the E2E test environment
  */
-export async function teardownE2ETestServer(server: E2ETestServer): Promise<void> {
+export async function teardownE2ETestServer(server: E2ETestServer | undefined): Promise<void> {
+    if (!server) {
+        return;
+    }
+
     try {
         await server.fastifyServer.close();
     } catch (error) {
         console.error("Error closing Fastify server:", error);
     }
 
-    await stopMockRegistryServer(server.registryServer);
+    if (server.registryServer) {
+        await stopMockRegistryServer(server.registryServer);
+    }
     
-    if (server.testDataSource.isInitialized) {
+    if (server.testDataSource?.isInitialized) {
         await server.testDataSource.destroy();
     }
     

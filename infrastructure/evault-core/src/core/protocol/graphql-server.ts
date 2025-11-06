@@ -339,11 +339,19 @@ export class GraphQLServer {
                 const eName = request.headers.get("x-ename") ?? request.headers.get("X-ENAME") ?? null;
 
                 if (token) {
-                    const id = getJWTHeader(token).kid?.split("#")[0];
-                    return {
-                        currentUser: id ?? null,
-                        eName: eName,
-                    };
+                    try {
+                        const id = getJWTHeader(token).kid?.split("#")[0];
+                        return {
+                            currentUser: id ?? null,
+                            eName: eName,
+                        };
+                    } catch (error) {
+                        // Invalid JWT token - ignore and continue without currentUser
+                        return {
+                            currentUser: null,
+                            eName: eName,
+                        };
+                    }
                 }
 
                 return {

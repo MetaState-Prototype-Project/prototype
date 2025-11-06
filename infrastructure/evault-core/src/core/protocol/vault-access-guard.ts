@@ -54,12 +54,12 @@ export class VaultAccessGuard {
      * Checks if the current user has access to a meta envelope based on its ACL
      * @param metaEnvelopeId - The ID of the meta envelope to check access for
      * @param context - The GraphQL context containing the current user
-     * @returns Promise<boolean> - Whether the user has access
+     * @returns Promise<{hasAccess: boolean, exists: boolean}> - Whether the user has access and if envelope exists
      */
     private async checkAccess(
         metaEnvelopeId: string,
         context: VaultContext
-    ): Promise<boolean> {
+    ): Promise<{ hasAccess: boolean; exists: boolean }> {
         // Validate token if present
         const authHeader =
             context.request?.headers?.get("authorization") ??
@@ -69,7 +69,12 @@ export class VaultAccessGuard {
         if (tokenPayload) {
             // Token is valid, set platform context and allow access
             context.tokenPayload = tokenPayload;
-            return true;
+            // Still need to check if envelope exists
+            if (!context.eName) {
+                return { hasAccess: true, exists: false };
+            }
+            const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId, context.eName);
+            return { hasAccess: true, exists: metaEnvelope !== null };
         }
 
         // Validate eName is present
@@ -77,28 +82,27 @@ export class VaultAccessGuard {
             throw new Error("X-ENAME header is required for access control");
         }
 
-        // Fallback to original ACL logic if no valid token
-        if (!context.currentUser) {
-            const metaEnvelope = await this.db.findMetaEnvelopeById(
-                metaEnvelopeId,
-                context.eName
-            );
-            if (metaEnvelope && metaEnvelope.acl.includes("*")) return true;
-            return false;
-        }
-
         const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId, context.eName);
         if (!metaEnvelope) {
-            return false;
+            return { hasAccess: false, exists: false };
+        }
+
+        // Fallback to original ACL logic if no valid token
+        if (!context.currentUser) {
+            if (metaEnvelope.acl.includes("*")) {
+                return { hasAccess: true, exists: true };
+            }
+            return { hasAccess: false, exists: true };
         }
 
         // If ACL contains "*", anyone can access
         if (metaEnvelope.acl.includes("*")) {
-            return true;
+            return { hasAccess: true, exists: true };
         }
 
         // Check if the current user's ID is in the ACL
-        return metaEnvelope.acl.includes(context.currentUser);
+        const hasAccess = metaEnvelope.acl.includes(context.currentUser);
+        return { hasAccess, exists: true };
     }
 
     /**
@@ -169,13 +173,25 @@ export class VaultAccessGuard {
                 return this.filterACL(result);
             }
 
-            const hasAccess = await this.checkAccess(metaEnvelopeId, context);
+            // Check if envelope exists and user has access
+            const { hasAccess, exists } = await this.checkAccess(metaEnvelopeId, context);
             if (!hasAccess) {
+                // If envelope doesn't exist, return null (not found)
+                if (!exists) {
+                    return null;
+                }
+                // Envelope exists but access denied
                 throw new Error("Access denied");
             }
 
-            // console.log
+            // Execute resolver and filter ACL
             const result = await resolver(parent, args, context);
+            
+            // If result is null (envelope not found), return null
+            if (result === null) {
+                return null;
+            }
+            
             return this.filterACL(result);
         };
     }
