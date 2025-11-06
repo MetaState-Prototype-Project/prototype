@@ -2,8 +2,8 @@ import { PUBLIC_REGISTRY_URL } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
-import type { UserController } from "./user";
 import NotificationService from "../../services/NotificationService";
+import type { UserController } from "./user";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {

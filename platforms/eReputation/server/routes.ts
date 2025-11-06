@@ -113,8 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Validation successful:', { targetType, targetId, targetName, variables });
 
+      // Convert variables to string array if needed
+      const variablesArray = Array.isArray(variables) 
+        ? variables as string[]
+        : (variables ? [String(variables)] : []);
+
       // Skip the variables check for now to isolate the validation issue
-      // if (!Array.isArray(variables) || variables.length < 3) {
+      // if (!Array.isArray(variablesArray) || variablesArray.length < 3) {
       //   return res.status(400).json({ 
       //     message: "Please select at least 3 variables for accurate analysis" 
       //   });
@@ -123,9 +128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const calculation = await ReputationService.calculateReputation(
         userId,
         targetType,
-        targetId || '',
-        targetName || null,
-        variables
+        targetId || undefined,
+        targetName || undefined,
+        variablesArray
       );
 
       res.json(calculation);

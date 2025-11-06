@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 
 const baseURL = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:8888";
 
@@ -18,7 +18,7 @@ export const apiClient = axios.create({
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
-    (config: AxiosRequestConfig) => {
+    (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem("dreamsync_token");
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;

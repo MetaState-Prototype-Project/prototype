@@ -1,5 +1,5 @@
-import { MappingDatabase } from "./db";
-import { EVaultClient } from "./evault/evault";
+import type { MappingDatabase } from "./db";
+import type { EVaultClient } from "./evault/evault";
 import type { IMapping } from "./mapper/mapper.types";
 /**
  * Standalone function to spin up an eVault

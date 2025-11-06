@@ -4,11 +4,11 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import { type KeyManager, KeyManagerFactory } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { ButtonAction, Drawer } from "$lib/ui";
 import { capitalize } from "$lib/utils";
-import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";

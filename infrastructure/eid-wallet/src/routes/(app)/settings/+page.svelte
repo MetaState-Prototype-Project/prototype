@@ -122,7 +122,7 @@ $effect(() => {
     <div class="w-full py-10 text-center">
         <button
             class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
-            on:click={handleVersionTap}
+            onclick={handleVersionTap}
             disabled={isRetrying}
         >
             Version v0.3.0.0

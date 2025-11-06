@@ -23,8 +23,11 @@ export function LoginScreen() {
         setIsLoading(false);
       } catch (error) {
         console.error("❌ Failed to get auth offer:", error);
-        console.error("❌ Error details:", error.response?.data);
-        console.error("❌ Error status:", error.response?.status);
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { data?: unknown; status?: number } };
+          console.error("❌ Error details:", axiosError.response?.data);
+          console.error("❌ Error status:", axiosError.response?.status);
+        }
         setIsLoading(false);
       }
     };

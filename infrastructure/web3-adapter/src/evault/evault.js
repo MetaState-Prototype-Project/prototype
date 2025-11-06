@@ -1,4 +1,3 @@
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EVaultClient = void 0;
 const graphql_request_1 = require("graphql-request");
