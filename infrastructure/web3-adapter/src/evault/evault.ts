@@ -66,7 +66,7 @@ interface MetaEnvelopeResponse {
 	getMetaEnvelopeById: {
 		id: string;
 		ontology: string;
-		parsed: Record<string, any> | null;
+		parsed: Record<string, unknown> | null;
 	};
 }
 
@@ -259,8 +259,8 @@ export class EVaultClient {
 
 	private async resolveEndpoint(w3id: string): Promise<string> {
 		try {
-		const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`;
-		const response = await fetch(
+			const enrichedW3id = w3id.startsWith("@") ? w3id : `@${w3id}`;
+			const response = await fetch(
 				new URL(`/resolve?w3id=${enrichedW3id}`, this.registryUrl).toString(),
 			);
 
@@ -503,7 +503,9 @@ export class EVaultClient {
 			}
 
 			const client = await this.ensureClient(envelope.w3id).catch((error) => {
-				throw new Error(`Failed to establish client connection: ${error instanceof Error ? error.message : String(error)}`);
+				throw new Error(
+					`Failed to establish client connection: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			});
 
 			const response = await this.withTimeout(envelope.w3id, () =>
@@ -515,7 +517,9 @@ export class EVaultClient {
 					},
 				}),
 			).catch((error) => {
-				throw new Error(`Failed to store meta envelope: ${error instanceof Error ? error.message : String(error)}`);
+				throw new Error(
+					`Failed to store meta envelope: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			});
 
 			if (!response || !response.storeMetaEnvelope) {
