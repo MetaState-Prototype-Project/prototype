@@ -8,11 +8,11 @@ export default defineConfig({
         setupFiles: ['./src/test-utils/test-setup.ts'],
         testTimeout: 120000, // 120 seconds for testcontainers
         hookTimeout: 120000, // 120 seconds for hooks (beforeAll, afterAll)
-        // Run tests sequentially to avoid testcontainer conflicts and native module crashes
-        pool: 'forks', // Use forks instead of threads to avoid native module conflicts
+        // Run E2E tests sequentially to avoid resource conflicts and native module crashes
+        pool: 'forks',
         poolOptions: {
             forks: {
-                singleFork: true, // Run all tests in a single fork to avoid native module loading conflicts
+                singleFork: true, // Run all E2E tests in a single fork to avoid native module loading conflicts
             },
         },
         // Reduce log verbosity
@@ -26,7 +26,6 @@ export default defineConfig({
                 'dist/',
                 '**/*.d.ts',
                 '**/migrations/**',
-                '**/e2e/**',
             ],
         },
     },

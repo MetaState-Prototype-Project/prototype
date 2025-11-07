@@ -3,8 +3,6 @@ name: Tests [evault-core]
 on:
   push:
     branches: [main]
-    paths:
-      - 'infrastructure/evault-core/**'
   pull_request:
     branches: [main]
     paths:

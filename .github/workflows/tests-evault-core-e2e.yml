@@ -1,4 +1,4 @@
-name: Tests [registry]
+name: Tests [evault-core + web3-adapter Integration]
 
 on:
   push:
@@ -6,10 +6,11 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'platforms/registry/**'
+      - 'infrastructure/evault-core/**'
+      - 'infrastructure/web3-adapter/**'
 
 jobs:
-  test:
+  test-web3-adapter-integration:
     runs-on: ubuntu-latest
 
     steps:
@@ -32,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Clean and rebuild ssh2 native module
+      - name: Clean and rebuild native modules
         run: |
           # Remove any pre-built binaries that might be incompatible
           find node_modules -name "sshcrypto.node" -delete 2>/dev/null || true
@@ -42,7 +43,10 @@ jobs:
           # Rebuild all other native modules
           pnpm rebuild
 
-      - name: Run tests
+      - name: Build web3-adapter
+        run: pnpm -F=web3-adapter build
+
+      - name: Run evault-core + web3-adapter integration tests
         env:
           CI: true
           GITHUB_ACTIONS: true
@@ -50,5 +54,5 @@ jobs:
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
           TESTCONTAINERS_RYUK_DISABLED: false
           TESTCONTAINERS_HOST_OVERRIDE: localhost
-        run: pnpm -F=registry test
+        run: pnpm -F=evault-core test:e2e:web3-adapter
 

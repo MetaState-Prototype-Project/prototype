@@ -24,7 +24,11 @@
 
 	onMount(async () => {
 		getAppStoreLink = () => {
-			const userAgent = navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || '';
+			const userAgent =
+				navigator.userAgent ||
+				navigator.vendor ||
+				(window as { opera?: string }).opera ||
+				'';
 			if (/android/i.test(userAgent)) {
 				return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
 			}

@@ -1,4 +1,4 @@
-name: Tests [registry]
+name: Tests [web3-adapter]
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'platforms/registry/**'
+      - 'infrastructure/web3-adapter/**'
 
 jobs:
   test:
@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -43,12 +43,5 @@ jobs:
           pnpm rebuild
 
       - name: Run tests
-        env:
-          CI: true
-          GITHUB_ACTIONS: true
-          DOCKER_HOST: unix:///var/run/docker.sock
-          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
-          TESTCONTAINERS_RYUK_DISABLED: false
-          TESTCONTAINERS_HOST_OVERRIDE: localhost
-        run: pnpm -F=registry test
+        run: pnpm -F=web3-adapter test --run
 
