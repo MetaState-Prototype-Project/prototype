@@ -12,7 +12,9 @@
         "check-types": "turbo run check-types",
         "dev:docker": "docker compose -f dev-docker-compose.yaml up --watch",
         "dev:docker:down": "docker compose -f dev-docker-compose.yaml down",
-        "dev:docker:all": "docker compose -f dev-docker-compose.yaml --profile all up --watch"
+        "dev:docker:all": "docker compose -f dev-docker-compose.yaml --profile all up --watch",
+        "dev:docker:socials": "docker compose -f dev-docker-compose.yaml --profile socials up --watch",
+        "dev:docker:charter-blabsy": "docker compose -f dev-docker-compose.yaml --profile charter-blabsy up --watch"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",

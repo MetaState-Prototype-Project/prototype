@@ -5,8 +5,12 @@ x-common-host-access: &common-host-access
     - "host.docker.internal:host-gateway"
 
 services:
-  # Core Services - Always Running
+  # Core Services - Always Running (included in all profiles)
   registry:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     build:
       context: .
       dockerfile: ./docker/Dockerfile.registry
@@ -48,6 +52,10 @@ services:
           path: ./.env
 
   evault-core:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     build:
       context: .
       dockerfile: ./docker/Dockerfile.evault-core
@@ -103,6 +111,10 @@ services:
 
   # Neo4j for evault-core graph data
   neo4j:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     image: neo4j:5.15
     ports:
       - "7474:7474" # HTTP
@@ -122,6 +134,10 @@ services:
 
   # Database for services
   postgres:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     image: postgres:15-alpine
     ports:
       - "5432:5432"
@@ -149,6 +165,7 @@ services:
   pictique-api:
     profiles:
       - pictique
+      - socials
       - all
     build:
       context: .
@@ -258,6 +275,7 @@ services:
   cerberus:
     profiles:
       - cerberus
+      - charter-blabsy
       - all
     build:
       context: .
@@ -296,6 +314,7 @@ services:
   group-charter-manager-api:
     profiles:
       - group-charter
+      - charter-blabsy
       - all
     build:
       context: .
@@ -332,6 +351,8 @@ services:
   blabsy-w3ds-auth-api:
     profiles:
       - blabsy
+      - socials
+      - charter-blabsy
       - all
     build:
       context: .
@@ -424,6 +445,8 @@ services:
   blabsy:
     profiles:
       - blabsy
+      - socials
+      - charter-blabsy
       - all
     build:
       context: .
@@ -452,6 +475,7 @@ services:
   pictique:
     profiles:
       - pictique
+      - socials
       - all
     build:
       context: .
@@ -480,6 +504,7 @@ services:
   group-charter-manager:
     profiles:
       - group-charter
+      - charter-blabsy
       - all
     build:
       context: .
