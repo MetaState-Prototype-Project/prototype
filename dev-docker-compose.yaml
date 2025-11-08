@@ -33,6 +33,10 @@ services:
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
+        - action: sync
+          path: ./platforms/registry/src/migrations
+          target: /app/platforms/registry/src/migrations
+          command: sh -c "cd /app/platforms/registry && pnpm run migration:run"
         - action: rebuild
           path: ./platforms/registry/package.json
         - action: rebuild
@@ -79,10 +83,15 @@ services:
           path: ./infrastructure/evault-core/src
           ignore:
             - node_modules
+            - migrations
         - action: restart
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
+        - action: sync
+          path: ./infrastructure/evault-core/src/migrations
+          target: /app/infrastructure/evault-core/src/migrations
+          command: sh -c "cd /app/infrastructure/evault-core && pnpm run migration:run"
         - action: rebuild
           path: ./infrastructure/evault-core/package.json
         - action: rebuild
@@ -127,6 +136,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "none"
 
   # Optional Platform Services - Use profiles to enable
 
@@ -160,6 +171,12 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/pictique-api/src/database/migrations
+          target: /app/platforms/pictique-api/src/database/migrations
+          command: sh -c "cd /app/platforms/pictique-api && pnpm run migration:run"
 
   # eVoting API
   evoting-api:
@@ -191,6 +208,12 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/evoting-api/src/database/migrations
+          target: /app/platforms/evoting-api/src/database/migrations
+          command: sh -c "cd /app/platforms/evoting-api && pnpm run migration:run"
 
   # DreamSync API
   dreamsync-api:
@@ -223,6 +246,12 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/dreamsync-api/src/database/migrations
+          target: /app/platforms/dreamsync-api/src/database/migrations
+          command: sh -c "cd /app/platforms/dreamsync-api && pnpm run migration:run"
 
   # Cerberus
   cerberus:
@@ -254,6 +283,16 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/cerberus/src/database/migrations
+          target: /app/platforms/cerberus/src/database/migrations
+          command: sh -c "cd /app/platforms/cerberus && pnpm run migration:run"
+        - action: sync
+          path: ./platforms/cerberus/src/migrations
+          target: /app/platforms/cerberus/src/migrations
+          command: sh -c "cd /app/platforms/cerberus && pnpm run migration:run"
 
   # Group Charter Manager API
   group-charter-manager-api:
@@ -285,6 +324,12 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/group-charter-manager-api/src/database/migrations
+          target: /app/platforms/group-charter-manager-api/src/database/migrations
+          command: sh -c "cd /app/platforms/group-charter-manager-api && pnpm run migration:run"
 
   # Blabsy W3DS Auth API
   blabsy-w3ds-auth-api:
@@ -315,6 +360,12 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    develop:
+      watch:
+        - action: sync
+          path: ./platforms/blabsy-w3ds-auth-api/src/database/migrations
+          target: /app/platforms/blabsy-w3ds-auth-api/src/database/migrations
+          command: sh -c "cd /app/platforms/blabsy-w3ds-auth-api && pnpm run migration:run"
 
   # eReputation
   ereputation:
