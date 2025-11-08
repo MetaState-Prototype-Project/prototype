@@ -26,9 +26,19 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const authController = new AuthController();
 
-initializeApp({
-    credential: applicationDefault(),
-});
+// Initialize Firebase Admin SDK (only if credentials are available)
+try {
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_CREDENTIALS_PATH) {
+        initializeApp({
+            credential: applicationDefault(),
+        });
+    } else {
+        console.warn("⚠️  Firebase credentials not configured. Firebase features will be disabled.");
+    }
+} catch (error: any) {
+    console.warn("⚠️  Failed to initialize Firebase Admin SDK:", error.message);
+    console.warn("⚠️  Firebase features will be disabled.");
+}
 
 // Initialize Web3Adapter
 const web3Adapter = new Web3Adapter();

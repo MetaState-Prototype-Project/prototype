@@ -575,7 +575,7 @@ export class VoteService {
         voteCount: electionResult.optionResults[`option_${index}`] || 0
       }));
 
-      const totalVoteCount = Object.values(electionResult.optionResults).reduce((sum, count) => sum + count, 0);
+      const totalVoteCount = Object.values(electionResult.optionResults).reduce((sum: number, count: number) => sum + count, 0);
 
       // Get group member count for voting turnout calculation
       let totalEligibleVoters = 0;
@@ -694,11 +694,14 @@ export class VoteService {
       const commitments: Record<string, string> = {};
       const anchors: Record<string, string> = {};
 
-      for (const [optionId, commitment] of Object.entries(voteData.commitments)) {
+      const voteCommitments = voteData.commitments as Record<string, Uint8Array>;
+      const voteAnchors = voteData.anchors as Record<string, Uint8Array>;
+
+      for (const [optionId, commitment] of Object.entries(voteCommitments)) {
         commitments[optionId] = Array.from(commitment).map(b => b.toString(16).padStart(2, '0')).join('');
       }
 
-      for (const [optionId, anchor] of Object.entries(voteData.anchors)) {
+      for (const [optionId, anchor] of Object.entries(voteAnchors)) {
         anchors[optionId] = Array.from(anchor).map(b => b.toString(16).padStart(2, '0')).join('');
       }
 
