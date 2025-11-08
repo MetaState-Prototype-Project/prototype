@@ -1,5 +1,9 @@
 version: '3.8'
 
+x-common-host-access: &common-host-access
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
 services:
   # Core Services - Always Running
   registry:
@@ -17,12 +21,13 @@ services:
       - .:/app
       - node_modules_cache:/app/node_modules
     working_dir: /app/platforms/registry
-    command: sh -c "cd /app/platforms/registry && pnpm run dev"
+    command: sh -c "cd /app/platforms/registry && pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
         - action: restart
@@ -33,10 +38,8 @@ services:
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
-        - action: sync
+        - action: restart
           path: ./platforms/registry/src/migrations
-          target: /app/platforms/registry/src/migrations
-          command: sh -c "cd /app/platforms/registry && pnpm run migration:run"
         - action: rebuild
           path: ./platforms/registry/package.json
         - action: rebuild
@@ -67,7 +70,7 @@ services:
       - node_modules_cache:/app/node_modules
       - evault_core_node_modules:/app/infrastructure/evault-core/node_modules
     working_dir: /app/infrastructure/evault-core
-    command: sh -c "cd /app/infrastructure/evault-core && pnpm install && pnpm run dev"
+    command: sh -c "cd /app/infrastructure/evault-core && pnpm install && pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,6 +80,7 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
         - action: restart
@@ -88,10 +92,8 @@ services:
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
-        - action: sync
+        - action: restart
           path: ./infrastructure/evault-core/src/migrations
-          target: /app/infrastructure/evault-core/src/migrations
-          command: sh -c "cd /app/infrastructure/evault-core && pnpm run migration:run"
         - action: rebuild
           path: ./infrastructure/evault-core/package.json
         - action: rebuild
@@ -111,6 +113,7 @@ services:
       - neo4j_data:/var/lib/neo4j/data
     networks:
       - metastate-network
+    <<: *common-host-access
     healthcheck:
       test: [ "CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1" ]
       interval: 10s
@@ -131,6 +134,7 @@ services:
       - ./db/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
     networks:
       - metastate-network
+    <<: *common-host-access
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
@@ -163,7 +167,7 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/pictique-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,12 +175,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/pictique-api/src/database/migrations
-          target: /app/platforms/pictique-api/src/database/migrations
-          command: sh -c "cd /app/platforms/pictique-api && pnpm run migration:run"
 
   # eVoting API
   evoting-api:
@@ -200,7 +203,7 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/evoting-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -208,12 +211,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/evoting-api/src/database/migrations
-          target: /app/platforms/evoting-api/src/database/migrations
-          command: sh -c "cd /app/platforms/evoting-api && pnpm run migration:run"
 
   # DreamSync API
   dreamsync-api:
@@ -238,7 +240,7 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/dreamsync-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -246,12 +248,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/dreamsync-api/src/database/migrations
-          target: /app/platforms/dreamsync-api/src/database/migrations
-          command: sh -c "cd /app/platforms/dreamsync-api && pnpm run migration:run"
 
   # Cerberus
   cerberus:
@@ -275,7 +276,7 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/cerberus
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -283,16 +284,13 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/cerberus/src/database/migrations
-          target: /app/platforms/cerberus/src/database/migrations
-          command: sh -c "cd /app/platforms/cerberus && pnpm run migration:run"
-        - action: sync
+        - action: restart
           path: ./platforms/cerberus/src/migrations
-          target: /app/platforms/cerberus/src/migrations
-          command: sh -c "cd /app/platforms/cerberus && pnpm run migration:run"
 
   # Group Charter Manager API
   group-charter-manager-api:
@@ -316,7 +314,7 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/group-charter-manager-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -324,12 +322,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/group-charter-manager-api/src/database/migrations
-          target: /app/platforms/group-charter-manager-api/src/database/migrations
-          command: sh -c "cd /app/platforms/group-charter-manager-api && pnpm run migration:run"
 
   # Blabsy W3DS Auth API
   blabsy-w3ds-auth-api:
@@ -354,18 +351,17 @@ services:
       - node_modules_cache:/app/node_modules
       - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/blabsy-w3ds-auth-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       registry:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
-        - action: sync
+        - action: restart
           path: ./platforms/blabsy-w3ds-auth-api/src/database/migrations
-          target: /app/platforms/blabsy-w3ds-auth-api/src/database/migrations
-          command: sh -c "cd /app/platforms/blabsy-w3ds-auth-api && pnpm run migration:run"
 
   # eReputation
   ereputation:
@@ -394,6 +390,7 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
 
   # Marketplace
   marketplace:
@@ -419,6 +416,121 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+
+  # Frontend Services
+
+  # Blabsy Frontend
+  blabsy:
+    profiles:
+      - blabsy
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.blabsy
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_BASE_URL=${PUBLIC_BLABSY_BASE_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/blabsy
+    command: pnpm run dev
+    depends_on:
+      blabsy-w3ds-auth-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # Pictique Frontend
+  pictique:
+    profiles:
+      - pictique
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.pictique
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - PUBLIC_PICTIQUE_BASE_URL=${PUBLIC_PICTIQUE_BASE_URL:-http://localhost:1111}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/pictique
+    command: pnpm run dev
+    depends_on:
+      pictique-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # Group Charter Manager Frontend
+  group-charter-manager:
+    profiles:
+      - group-charter
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.group-charter-manager
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_GROUP_CHARTER_BASE_URL=${PUBLIC_GROUP_CHARTER_BASE_URL:-http://localhost:3003}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/group-charter-manager
+    command: sh -c "next dev -p 3004"
+    depends_on:
+      group-charter-manager-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # eVoting Frontend
+  evoting:
+    profiles:
+      - evoting
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.eVoting
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_EVOTING_BASE_URL=${PUBLIC_EVOTING_BASE_URL:-http://localhost:4002}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/eVoting
+    command: sh -c "next dev --turbopack -p 3005"
+    depends_on:
+      evoting-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
 
 volumes:
   postgres_data:
