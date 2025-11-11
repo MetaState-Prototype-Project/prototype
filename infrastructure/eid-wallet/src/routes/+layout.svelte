@@ -6,8 +6,8 @@ import { goto, onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
-import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 import { swipedetect } from "$lib/utils";
+import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 
 const { children } = $props();
 

@@ -3,13 +3,15 @@ export const swipedetect = (
     el: HTMLElement,
     callback: (dir: string) => void,
 ) => {
-    let startX = 0,
-        startY = 0,
-        distX = 0,
-        distY = 0;
-    let threshold = 100; // min distance for swipe
-    let restraint = 100; // max perpendicular distance
-    let allowedTime = 400; // ms
+    let startX = 0;
+    let startY = 0;
+    let distX = 0;
+    let distY = 0;
+
+    const threshold = 100; // min distance for swipe
+    const restraint = 100; // max perpendicular distance
+    const allowedTime = 400; // ms
+
     let startTime = 0;
 
     el.addEventListener(
