@@ -109,6 +109,108 @@ describe('Sync Verification Test', () => {
         });
     }, 300_000);
 
+    describe('Comments Sync', () => {
+        let pictiqueComments: any[] = [];
+        let blabsyComments: any[] = [];
+        let blabsyPostIdForComments: string | null = null;
+        let pictiquePostIdForComments: string | null = null;
+        let syncedPictiquePostId: string | null = null;
+        let syncedBlabsyPostId: string | null = null;
+
+        beforeAll(async () => {
+            // Get posts from both platforms to find posts to comment on
+            const [user] = loadedUsers.map(u => TestSocialUserFactory.createForBothPlatforms(u.ename));
+            const allPictiquePosts = await user.pictique.getAllPosts();
+            const allBlabsyPosts = await user.blabsy.getAllPosts();
+
+            // Find a Blabsy post and its synced Pictique counterpart
+            if (allBlabsyPosts.length > 0) {
+                const blabsyPost = allBlabsyPosts[0];
+                blabsyPostIdForComments = blabsyPost.id;
+                
+                // Find the corresponding Pictique post by matching text
+                const syncedPost = allPictiquePosts.find((p: any) => p.text === blabsyPost.text);
+                if (syncedPost) {
+                    syncedPictiquePostId = syncedPost.id;
+                }
+            }
+
+            // Find a Pictique post and its synced Blabsy counterpart
+            if (allPictiquePosts.length > 0) {
+                const pictiquePost = allPictiquePosts[0];
+                pictiquePostIdForComments = pictiquePost.id;
+                
+                // Find the corresponding Blabsy post by matching text
+                const syncedPost = allBlabsyPosts.find((p: any) => p.text === pictiquePost.text);
+                if (syncedPost) {
+                    syncedBlabsyPostId = syncedPost.id;
+                }
+            }
+
+            // Create comments from Blabsy users on Blabsy posts
+            if (blabsyPostIdForComments) {
+                for (const user of testSocialUsers) {
+                    if (user.metadata.platform === Platform.BLABSY) {
+                        const comment = await user.createComment(blabsyPostIdForComments, falso.randSentence());
+                        blabsyComments.push(comment);
+                    }
+                }
+            }
+
+            // Create comments from Pictique users on Pictique posts
+            if (pictiquePostIdForComments) {
+                for (const user of testSocialUsers) {
+                    if (user.metadata.platform === Platform.PICTIQUE) {
+                        const comment = await user.createComment(pictiquePostIdForComments, falso.randSentence());
+                        pictiqueComments.push(comment);
+                    }
+                }
+            }
+
+            // Wait 20 seconds for sync
+            await new Promise(resolve => setTimeout(resolve, 20_000));
+
+        }, 300_000);
+
+        test('[Comments] Blabsy -> Pictique', async () => {
+            if (!blabsyPostIdForComments || !syncedPictiquePostId || blabsyComments.length === 0) {
+                console.log('Skipping test: Missing Blabsy post or synced Pictique post or no comments created');
+                return;
+            }
+
+            const [user] = loadedUsers.map(u => TestSocialUserFactory.createForBothPlatforms(u.ename));
+            const loadedCommentsFromPictique = await user.pictique.getAllComments(syncedPictiquePostId);
+
+            let pictiqueCommentSyncCounter = 0;
+            for (const comment of blabsyComments) {
+                const match = loadedCommentsFromPictique.find((c: any) =>
+                    c.text === comment.text
+                );
+                if (match) pictiqueCommentSyncCounter++;
+            }
+            expect(blabsyComments.length).toEqual(pictiqueCommentSyncCounter);
+        });
+
+        test('[Comments] Pictique -> Blabsy', async () => {
+            if (!pictiquePostIdForComments || !syncedBlabsyPostId || pictiqueComments.length === 0) {
+                console.log('Skipping test: Missing Pictique post or synced Blabsy post or no comments created');
+                return;
+            }
+
+            const [user] = loadedUsers.map(u => TestSocialUserFactory.createForBothPlatforms(u.ename));
+            const loadedCommentsFromBlabsy = await user.blabsy.getAllComments(syncedBlabsyPostId);
+
+            let blabsyCommentSyncCounter = 0;
+            for (const comment of pictiqueComments) {
+                const match = loadedCommentsFromBlabsy.find((c: any) =>
+                    c.text === comment.text
+                );
+                if (match) blabsyCommentSyncCounter++;
+            }
+            expect(pictiqueComments.length).toEqual(blabsyCommentSyncCounter);
+        });
+    }, 300_000);
+
     // test('Create entities from both platforms, wait 90s, then verify sync', async () => {
     //     // Need at least 3 users for this test
     //     if (testUsers.length < 3) {
