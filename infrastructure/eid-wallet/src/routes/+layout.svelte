@@ -442,10 +442,7 @@
     $effect(() => {
         if (mainWrapper) {
             swipedetect(mainWrapper, (dir: string) => {
-                if (dir === "right") {
-                    alert("Swipe right detected — going back");
-                    window.history.back();
-                }
+                if (dir === "right") window.history.back();
             });
         }
     });
