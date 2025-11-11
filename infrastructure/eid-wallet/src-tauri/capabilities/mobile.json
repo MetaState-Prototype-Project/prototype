@@ -13,7 +13,8 @@
     "barcode-scanner:default",
     "deep-link:default",
     "crypto-hw:default",
-    "notification:default"
+    "notification:default",
+    "process:default"
   ],
   "platforms": [
     "iOS",

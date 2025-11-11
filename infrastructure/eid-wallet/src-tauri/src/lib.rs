@@ -1,8 +1,8 @@
 mod errors;
 mod funcs;
 
-use uuid::Uuid;
 use std::env;
+use uuid::Uuid;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 // #[tauri::command]
@@ -52,26 +52,33 @@ async fn get_device_id() -> Result<String, String> {
 async fn get_platform() -> Result<String, String> {
     #[cfg(target_os = "android")]
     return Ok("android".to_string());
-    
+
     #[cfg(target_os = "ios")]
     return Ok("ios".to_string());
-    
+
     #[cfg(target_os = "windows")]
     return Ok("windows".to_string());
-    
+
     #[cfg(target_os = "macos")]
     return Ok("macos".to_string());
-    
+
     #[cfg(target_os = "linux")]
     return Ok("linux".to_string());
-    
-    #[cfg(not(any(target_os = "android", target_os = "ios", target_os = "windows", target_os = "macos", target_os = "linux")))]
+
+    #[cfg(not(any(
+        target_os = "android",
+        target_os = "ios",
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "linux"
+    )))]
     return Ok("unknown".to_string());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
@@ -86,7 +93,12 @@ pub fn run() {
             Ok(())
         })
         // Register the commands with Tauri.
-        .invoke_handler(tauri::generate_handler![hash, verify, get_device_id, get_platform])
+        .invoke_handler(tauri::generate_handler![
+            hash,
+            verify,
+            get_device_id,
+            get_platform
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
