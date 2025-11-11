@@ -19,6 +19,7 @@ export class FirestoreWatcher {
     private retryCount = 0;
     private readonly maxRetries: number = 3;
     private readonly retryDelay: number = 1000; // 1 second
+    private isFirstSnapshot = true; // Skip the initial snapshot that contains all existing documents
     
     // Track processed document IDs to prevent duplicates
     private processedIds = new Set<string>();
@@ -42,13 +43,16 @@ export class FirestoreWatcher {
                 : "collection group";
 
         try {
-            // First, get all existing documents
-            const snapshot = await this.collection.get();
-            await this.processSnapshot(snapshot);
-
-            // Then set up real-time listener
+            // Set up real-time listener (only for new changes, not existing documents)
             this.unsubscribe = this.collection.onSnapshot(
                 async (snapshot) => {
+                    // Skip the first snapshot which contains all existing documents
+                    if (this.isFirstSnapshot) {
+                        console.log(`Skipping initial snapshot for ${collectionPath} (contains all existing documents)`);
+                        this.isFirstSnapshot = false;
+                        return;
+                    }
+                    
                     if (this.isProcessing) {
                         console.log(
                             "Still processing previous snapshot, skipping..."
@@ -138,6 +142,8 @@ export class FirestoreWatcher {
             await new Promise((resolve) =>
                 setTimeout(resolve, this.retryDelay * this.retryCount)
             );
+            // Reset first snapshot flag when restarting
+            this.isFirstSnapshot = true;
             await this.start();
         } else {
             console.error("Max retries reached, stopping watcher");

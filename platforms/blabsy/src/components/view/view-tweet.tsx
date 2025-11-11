@@ -121,10 +121,11 @@ export function ViewTweet(tweet: ViewTweetProps): JSX.Element {
             {reply && (
                 <p className='text-light-secondary dark:text-dark-secondary'>
                     Replying to{' '}
-                    <Link href={`/user/${parentUsername}`}>
-                        <a className='custom-underline text-main-accent'>
-                            @{parentUsername}
-                        </a>
+                    <Link
+                        href={`/user/${parentUsername}`}
+                        className='custom-underline text-main-accent'
+                    >
+                        @{parentUsername}
                     </Link>
                 </p>
             )}

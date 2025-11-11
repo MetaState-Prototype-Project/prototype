@@ -47,6 +47,7 @@ export function UserDetails({
                 <UserName
                     className='-mb-1 text-xl'
                     name={name}
+                    username={username}
                     iconClassName='w-6 h-6'
                     verified={verified}
                 />

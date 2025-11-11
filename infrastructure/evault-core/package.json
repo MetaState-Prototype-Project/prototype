@@ -10,10 +10,10 @@
         "test": "vitest --exclude '**/e2e/**'",
         "test:e2e": "vitest src/e2e/evault-core.e2e.spec.ts --run --config vitest.config.e2e.ts",
         "test:e2e:web3-adapter": "vitest src/e2e/evault-core.e2e.spec.ts --run --config vitest.config.e2e.ts",
-        "typeorm": "typeorm-ts-node-commonjs",
-        "migration:generate": "npm run typeorm migration:generate -- -d src/config/database.ts",
-        "migration:run": "npm run typeorm migration:run -- -d src/config/database.ts",
-        "migration:revert": "npm run typeorm migration:revert -- -d src/config/database.ts"
+        "typeorm": "typeorm",
+        "migration:generate": "npm run typeorm migration:generate -- -d dist/config/database.js",
+        "migration:run": "npm run typeorm migration:run -- -d dist/config/database.js",
+        "migration:revert": "npm run typeorm migration:revert -- -d dist/config/database.js"
     },
     "dependencies": {
         "@fastify/formbody": "^8.0.2",

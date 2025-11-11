@@ -51,6 +51,11 @@ export function Tweet(tweet: TweetProps): JSX.Element {
         user: tweetUserData
     } = tweet;
 
+    // Guard against undefined tweetUserData
+    if (!tweetUserData) {
+        return <div>Error: Tweet user data is missing</div>;
+    }
+
     const { id: ownerId, name, username, verified, photoURL } = tweetUserData;
 
     const { user } = useAuth();
@@ -90,18 +95,19 @@ export function Tweet(tweet: TweetProps): JSX.Element {
             >
                 <TweetReplyModal tweet={tweet} closeModal={closeModal} />
             </Modal>
-            <Link href={tweetLink} scroll={!reply}>
-                <a
-                    className={cn(
-                        `accent-tab hover-card relative flex flex-col
+            <Link
+                href={tweetLink}
+                scroll={!reply}
+                className={cn(
+                    `accent-tab hover-card relative flex flex-col
              gap-y-4 px-4 py-3 outline-none duration-200 overflow-hidden`,
-                        parentTweet
-                            ? 'mt-0.5 pt-2.5 pb-0'
-                            : 'border-b border-light-border dark:border-dark-border'
-                    )}
-                    draggable={false}
-                    onClick={delayScroll(200)}
-                >
+                    parentTweet
+                        ? 'mt-0.5 pt-2.5 pb-0'
+                        : 'border-b border-light-border dark:border-dark-border'
+                )}
+                draggable={false}
+                onClick={delayScroll(200)}
+            >
                     <div className='grid grid-cols-[auto,1fr] gap-x-3 gap-y-1'>
                         <AnimatePresence initial={false}>
                             {modal ? null : pinned ? (
@@ -111,15 +117,16 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                     </p>
                                 </TweetStatus>
                             ) : (
-                                tweetIsRetweeted && (
+                                tweetIsRetweeted && profileUsername && (
                                     <TweetStatus type='tweet'>
-                                        <Link href={profileUsername as string}>
-                                            <a className='custom-underline truncate text-sm font-bold'>
-                                                {userId === profileId
-                                                    ? 'You'
-                                                    : profileName}{' '}
-                                                Reblabed
-                                            </a>
+                                        <Link
+                                            href={`/user/${profileUsername}`}
+                                            className='custom-underline truncate text-sm font-bold'
+                                        >
+                                            {userId === profileId
+                                                ? 'You'
+                                                : profileName}{' '}
+                                            Reblabed
                                         </Link>
                                     </TweetStatus>
                                 )
@@ -180,7 +187,7 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                     )}
                                 </div>
                             </div>
-                            {(reply || modal) && (
+                            {(reply || modal) && parentUsername && (
                                 <p
                                     className={cn(
                                         'text-light-secondary dark:text-dark-secondary',
@@ -188,10 +195,11 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                                     )}
                                 >
                                     Replying to{' '}
-                                    <Link href={`/user/${parentUsername}`}>
-                                        <a className='custom-underline text-main-accent'>
-                                            @{parentUsername}
-                                        </a>
+                                    <Link
+                                        href={`/user/${parentUsername}`}
+                                        className='custom-underline text-main-accent'
+                                    >
+                                        @{parentUsername}
                                     </Link>
                                 </p>
                             )}
@@ -225,7 +233,6 @@ export function Tweet(tweet: TweetProps): JSX.Element {
                             </div>
                         </div>
                     </div>
-                </a>
             </Link>
         </motion.article>
     );
