@@ -49,17 +49,20 @@ export function UserFollowStats({
                 {[
                     ['Following', currentFollowing],
                     ['Follower', currentFollowers]
-                ].map(([title, stats], index) => (
-                    <div
-                        key={title}
-                        className='mt-0.5 mb-[3px] flex h-4 items-center gap-1 pointer-events-none'
-                    >
-                        <p className='font-bold text-light-primary dark:text-dark-primary'>
-                            {stats}
-                        </p>
-                        <p>{index === 1 && stats > 1 ? `${title}s` : title}</p>
-                    </div>
-                ))}
+                ].map(([title, stats], index) => {
+                    const statsValue = typeof stats === 'number' ? stats : 0;
+                    return (
+                        <div
+                            key={title}
+                            className='mt-0.5 mb-[3px] flex h-4 items-center gap-1 pointer-events-none'
+                        >
+                            <p className='font-bold text-light-primary dark:text-dark-primary'>
+                                {stats}
+                            </p>
+                            <p>{index === 1 && statsValue > 1 ? `${title}s` : title}</p>
+                        </div>
+                    );
+                })}
             </div>
         );
     }
