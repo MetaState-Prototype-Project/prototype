@@ -1,0 +1,41 @@
+name: "Build All Packages"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "dev"
+      - "main"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Clean and rebuild native modules
+        run: |
+          # Remove any pre-built binaries that might be incompatible
+          find node_modules -name "*.node" -delete 2>/dev/null || true
+          # Rebuild all native modules
+          pnpm rebuild
+
+      - name: Build All Packages
+        run: pnpm build
+
