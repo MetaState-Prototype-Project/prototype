@@ -193,7 +193,7 @@ $: hasPollDetails =
                                 name="blindVoteOption"
                                 value={index}
                                 checked={selectedBlindVoteOption === index}
-                                on:change={() => onBlindVoteOptionChange(index)}
+                                onchange={() => onBlindVoteOptionChange(index)}
                                 class="mr-2"
                             />
                             <span class="text-sm">{option}</span>
