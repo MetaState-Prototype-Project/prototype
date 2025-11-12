@@ -47,10 +47,7 @@ export function UserAvatar({
     return (
         <Link
             href={`/user/${username}`}
-            className={cn(
-                'blur-picture flex self-start',
-                className
-            )}
+            className={cn('blur-picture flex self-start', className)}
             tabIndex={0}
         >
             {image}

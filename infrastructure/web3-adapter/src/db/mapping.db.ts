@@ -1,5 +1,5 @@
-import { join, dirname } from "node:path";
 import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import sqlite3 from "sqlite3";
 

@@ -394,7 +394,7 @@ export async function createChat(
 ): Promise<string> {
     // Check for existing DM (2 participants, no name) before creating
     const isDM = participants.length === 2 && !name;
-    
+
     if (isDM) {
         // Check if a direct chat already exists between these users
         const existingChatsQuery = query(

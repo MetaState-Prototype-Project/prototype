@@ -169,7 +169,10 @@ export class VaultController {
     /**
      * Create a new GraphQL client every time
      */
-    private async ensureClient(w3id: string, ename: string): Promise<GraphQLClient> {
+    private async ensureClient(
+        w3id: string,
+        ename: string,
+    ): Promise<GraphQLClient> {
         this.#endpoint = await this.resolveEndpoint(w3id);
         this.#client = new GraphQLClient(this.#endpoint, {
             headers: {

@@ -54,7 +54,9 @@ export function UserFollowStats({
                         key={title}
                         className='mt-0.5 mb-[3px] flex h-4 items-center gap-1 pointer-events-none'
                     >
-                        <p className='font-bold text-light-primary dark:text-dark-primary'>{stats}</p>
+                        <p className='font-bold text-light-primary dark:text-dark-primary'>
+                            {stats}
+                        </p>
                         <p>{index === 1 && stats > 1 ? `${title}s` : title}</p>
                     </div>
                 ))}
@@ -86,11 +88,7 @@ export function UserFollowStats({
                        focus-visible:border-b-light-primary dark:hover:border-b-dark-primary
                        dark:focus-visible:border-b-dark-primary'
                 >
-                    <NumberStats
-                        move={move}
-                        stats={stats}
-                        alwaysShowStats
-                    />
+                    <NumberStats move={move} stats={stats} alwaysShowStats />
                     <p>{index === 1 && stats > 1 ? `${title}s` : title}</p>
                 </Link>
             ))}

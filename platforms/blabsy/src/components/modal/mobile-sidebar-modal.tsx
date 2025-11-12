@@ -137,7 +137,10 @@ export function MobileSidebarModal({
             />
             <section className='mt-0.5 flex flex-col gap-2 px-4'>
                 {username && userLink ? (
-                    <Link href={userLink} className='blur-picture relative h-20 rounded-md'>
+                    <Link
+                        href={userLink}
+                        className='blur-picture relative h-20 rounded-md'
+                    >
                         {coverPhotoURL ? (
                             <NextImage
                                 useSkeleton
@@ -187,7 +190,7 @@ export function MobileSidebarModal({
                         <UserUsername username={username} />
                     </div>
                     <div className='text-secondary flex gap-4'>
-                        {allStats.map(([id, label, stat]) => (
+                        {allStats.map(([id, label, stat]) =>
                             userLink ? (
                                 <Link
                                     href={`${userLink}/${id}`}
@@ -212,7 +215,7 @@ export function MobileSidebarModal({
                                     </p>
                                 </div>
                             )
-                        ))}
+                        )}
                     </div>
                     <i className='h-0.5 bg-light-line-reply dark:bg-dark-line-reply' />
                     <nav className='flex flex-col'>
