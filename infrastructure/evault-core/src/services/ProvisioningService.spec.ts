@@ -83,6 +83,7 @@ describe("ProvisioningService", () => {
         registryUrl = "http://localhost:4322";
         process.env.PUBLIC_REGISTRY_URL = registryUrl;
         process.env.REGISTRY_SHARED_SECRET = "test-secret";
+        process.env.PUBLIC_EVAULT_SERVER_URI = "http://localhost:3000";
 
         provisioningService = new ProvisioningService(verificationService);
     });
@@ -92,6 +93,7 @@ describe("ProvisioningService", () => {
         await teardownTestDatabase();
         delete process.env.PUBLIC_REGISTRY_URL;
         delete process.env.REGISTRY_SHARED_SECRET;
+        delete process.env.PUBLIC_EVAULT_SERVER_URI;
     });
 
     beforeEach(async () => {
