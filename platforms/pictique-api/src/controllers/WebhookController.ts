@@ -243,16 +243,45 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.chatService.chatRepository.save(chat);
                 } else {
-                    const chat = await this.chatService.createChat(
-                        local.data.name as string,
-                        participants.map((p) => p.id)
-                    );
-
-                    this.adapter.addToLockedIds(chat.id);
-                    await this.adapter.mappingDb.storeMapping({
-                        localId: chat.id,
-                        globalId: req.body.id,
-                    });
+                    // Check for existing DM (2 participants, no name) before creating
+                    const participantIds = participants.map((p) => p.id);
+                    const isDM = participantIds.length === 2 && !local.data.name;
+                    
+                    let chat;
+                    if (isDM) {
+                        const existingChat = await this.chatService.findChatByParticipants(participantIds);
+                        if (existingChat) {
+                            // Use existing chat and store mapping
+                            chat = existingChat;
+                            this.adapter.addToLockedIds(chat.id);
+                            await this.adapter.mappingDb.storeMapping({
+                                localId: chat.id,
+                                globalId: req.body.id,
+                            });
+                        } else {
+                            // Create new chat
+                            chat = await this.chatService.createChat(
+                                local.data.name as string,
+                                participantIds
+                            );
+                            this.adapter.addToLockedIds(chat.id);
+                            await this.adapter.mappingDb.storeMapping({
+                                localId: chat.id,
+                                globalId: req.body.id,
+                            });
+                        }
+                    } else {
+                        // Group chat - always create new
+                        chat = await this.chatService.createChat(
+                            local.data.name as string,
+                            participantIds
+                        );
+                        this.adapter.addToLockedIds(chat.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: chat.id,
+                            globalId: req.body.id,
+                        });
+                    }
                 }
             } else if (mapping.tableName === "messages") {
                 console.log("messages");

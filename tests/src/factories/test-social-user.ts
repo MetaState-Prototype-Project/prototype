@@ -170,7 +170,17 @@ export class TestSocialUser {
             return await createBlabsyChat(participantEnames, name);
         } else {
             const token = await this.getToken();
-            return await createPictiqueChat(token, participantEnames);
+            const createdChat = await createPictiqueChat(token, participantEnames);
+            
+            // Re-fetch the chat to get full participant data with handles/enames
+            const { getChat } = await import('../utils/api-client');
+            const fullChat = await getChat(createdChat.id, token);
+            
+            return {
+                id: fullChat.id,
+                participants: fullChat.participants || createdChat.participants,
+                name: fullChat.name || createdChat.name,
+            };
         }
     }
 

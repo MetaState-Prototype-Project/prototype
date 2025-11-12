@@ -12,8 +12,6 @@ export interface CreatedPost {
 export async function createPost(token: string, text: string): Promise<CreatedPost> {
     const post = await createPostApi({ text }, token);
 
-    console.log("CREATED PICTIQUE POST", post)
-
     return {
         id: post.id,
         text: post.text,

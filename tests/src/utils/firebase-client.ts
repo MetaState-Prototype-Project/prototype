@@ -196,8 +196,33 @@ export async function createChat(
   description?: string
 ): Promise<string> {
   const db = getFirestoreInstance();
-  const chatRef = db.collection('chats').doc();
+  const chatsCollection = db.collection('chats');
   
+  // Check for existing DM (2 participants, no name) before creating
+  const isDM = participants.length === 2 && !name;
+  
+  if (isDM) {
+    // Check if a direct chat already exists between these users
+    const existingChatsQuery = chatsCollection.where('participants', 'array-contains', participants[0]);
+    const existingChatsSnapshot = await existingChatsQuery.get();
+    
+    for (const doc of existingChatsSnapshot.docs) {
+      const chat = doc.data();
+      // Check if it's a direct chat (2 participants) with same participants
+      if (
+        chat.participants &&
+        Array.isArray(chat.participants) &&
+        chat.participants.length === 2 &&
+        chat.participants.includes(participants[0]) &&
+        chat.participants.includes(participants[1])
+      ) {
+        return doc.id; // Return existing chat ID
+      }
+    }
+  }
+  
+  // No existing DM found or it's a group chat - create new
+  const chatRef = chatsCollection.doc();
   const isGroup = participants.length > 2;
   
   const chatData = {
