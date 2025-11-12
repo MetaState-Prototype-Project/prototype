@@ -28,10 +28,7 @@ onMount(async () => {
         console.error("Failed to determine onboarding status:", error);
     }
 
-    if (
-        !onboardingComplete ||
-        !(await globalState.userController.user)
-    ) {
+    if (!onboardingComplete || !(await globalState.userController.user)) {
         await goto("/onboarding");
         return;
     }

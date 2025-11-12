@@ -17,7 +17,6 @@ import {
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
 
-import { KeyManagerFactory } from "$lib/crypto/KeyManagerFactory";
 import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
@@ -196,19 +195,19 @@ async function handleAuth() {
     if (!vault || !redirect) return;
 
     try {
-        // Get the appropriate key manager for authentication
-        const keyManager = await KeyManagerFactory.getKeyManagerForContext(
+        // Ensure the key exists and capture manager for logging
+        const { manager: keyManager, created } =
+            await globalState.keyService.ensureKey(vault.ename, "signing");
+        console.log(
+            "Key generation result for signing:",
+            created ? "key-generated" : "key-exists",
+        );
+
+        // Get the W3ID (public key)
+        const w3idResult = await globalState.keyService.getPublicKey(
             vault.ename,
             "signing",
         );
-
-        // Ensure the key exists
-        if (!(await keyManager.exists(vault.ename))) {
-            await keyManager.generate(vault.ename);
-        }
-
-        // Get the W3ID (public key)
-        const w3idResult = await keyManager.getPublicKey(vault.ename);
         if (!w3idResult) {
             throw new Error("Failed to get W3ID");
         }
@@ -221,8 +220,9 @@ async function handleAuth() {
         });
 
         // Sign the session payload
-        const signature = await keyManager.signPayload(
+        const signature = await globalState.keyService.signPayload(
             vault.ename,
+            "signing",
             sessionPayload,
         );
 
@@ -487,19 +487,19 @@ async function handleSignVote() {
             throw new Error("No vault available for signing");
         }
 
-        // Get the appropriate key manager for signing
-        const keyManager = await KeyManagerFactory.getKeyManagerForContext(
+        // Ensure the key exists and capture manager for logging
+        const { manager: keyManager, created } =
+            await globalState.keyService.ensureKey(vault.ename, "signing");
+        console.log(
+            "Key generation result for signing:",
+            created ? "key-generated" : "key-exists",
+        );
+
+        // Get the W3ID (public key)
+        const w3idResult = await globalState.keyService.getPublicKey(
             vault.ename,
             "signing",
         );
-
-        // Ensure the key exists
-        if (!(await keyManager.exists(vault.ename))) {
-            await keyManager.generate(vault.ename);
-        }
-
-        // Get the W3ID (public key)
-        const w3idResult = await keyManager.getPublicKey(vault.ename);
         if (!w3idResult) {
             throw new Error("Failed to get W3ID");
         }
@@ -531,8 +531,9 @@ async function handleSignVote() {
         );
         console.log("✍️ Signing message:", messageToSign);
 
-        const signature = await keyManager.signPayload(
+        const signature = await globalState.keyService.signPayload(
             vault.ename,
+            "signing",
             messageToSign,
         );
         console.log("✅ Message signed successfully");
@@ -699,19 +700,19 @@ async function handleBlindVote() {
         // 🔐 Get the real public key for voter identification using KeyManager
         let voterPublicKey: string;
         try {
-            // Get the appropriate key manager for blind voting
-            const keyManager = await KeyManagerFactory.getKeyManagerForContext(
+            // Ensure the signing key exists for blind voting context reuse
+            const { manager: keyManager, created } =
+                await globalState.keyService.ensureKey(vault.ename, "signing");
+            console.log(
+                "Key generation result for blind voting:",
+                created ? "key-generated" : "key-exists",
+            );
+
+            // Get the W3ID (public key)
+            const w3idResult = await globalState.keyService.getPublicKey(
                 vault.ename,
                 "signing",
             );
-
-            // Ensure the key exists
-            if (!(await keyManager.exists(vault.ename))) {
-                await keyManager.generate(vault.ename);
-            }
-
-            // Get the W3ID (public key)
-            const w3idResult = await keyManager.getPublicKey(vault.ename);
             if (!w3idResult) {
                 throw new Error("Failed to get W3ID");
             }
