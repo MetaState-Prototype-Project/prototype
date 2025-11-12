@@ -24,6 +24,12 @@ export const dataSourceOptions: DataSourceOptions = {
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],
+    ssl: process.env.DB_CA_CERT
+        ? {
+              rejectUnauthorized: false,
+              ca: process.env.DB_CA_CERT,
+          }
+        : false,
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);

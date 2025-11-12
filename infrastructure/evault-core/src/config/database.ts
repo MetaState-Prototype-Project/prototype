@@ -15,4 +15,10 @@ export const AppDataSource = new DataSource({
     migrations: [join(__dirname, "../migrations/*.{ts,js}")],
     migrationsTableName: "migrations",
     subscribers: [],
+    ssl: process.env.DB_CA_CERT
+        ? {
+              rejectUnauthorized: false,
+              ca: process.env.DB_CA_CERT,
+          }
+        : false,
 }) 

@@ -15,5 +15,11 @@ export const ProvisioningDataSource = new DataSource({
     migrations: [],
     migrationsTableName: "migrations",
     subscribers: [],
+    ssl: process.env.DB_CA_CERT
+        ? {
+              rejectUnauthorized: false,
+              ca: process.env.DB_CA_CERT,
+          }
+        : false,
 });
 
