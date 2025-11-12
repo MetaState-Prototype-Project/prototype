@@ -20,7 +20,7 @@ export interface ProvisionResponse {
 }
 
 export class ProvisioningService {
-    constructor(private verificationService: VerificationService) {}
+    constructor(private verificationService: VerificationService) { }
 
     /**
      * Provisions a new eVault logically (no infrastructure creation)
@@ -69,10 +69,9 @@ export class ProvisioningService {
                 // If JWT verification fails, re-throw with a clearer message
                 // but preserve the original error for debugging
                 throw new Error(
-                    `JWT verification failed: ${
-                        jwtError instanceof Error
-                            ? jwtError.message
-                            : String(jwtError)
+                    `JWT verification failed: ${jwtError instanceof Error
+                        ? jwtError.message
+                        : String(jwtError)
                     }`,
                 );
             }
@@ -97,10 +96,9 @@ export class ProvisioningService {
                 // If W3ID generation fails, it's likely an entropy format issue
                 // Re-throw with clearer message, but let verification errors take precedence
                 throw new Error(
-                    `Failed to generate W3ID from entropy: ${
-                        w3idError instanceof Error
-                            ? w3idError.message
-                            : String(w3idError)
+                    `Failed to generate W3ID from entropy: ${w3idError instanceof Error
+                        ? w3idError.message
+                        : String(w3idError)
                     }`,
                 );
             }
@@ -149,23 +147,16 @@ export class ProvisioningService {
                 evaultId = await new W3IDBuilder().withGlobal(true).build();
             } catch (evaultIdError) {
                 throw new Error(
-                    `Failed to generate evault ID: ${
-                        evaultIdError instanceof Error
-                            ? evaultIdError.message
-                            : String(evaultIdError)
+                    `Failed to generate evault ID: ${evaultIdError instanceof Error
+                        ? evaultIdError.message
+                        : String(evaultIdError)
                     }`,
                 );
             }
 
             // Build URI (IP:PORT format pointing to shared service)
-            const fastifyPort =
-                process.env.FASTIFY_PORT || process.env.PORT || 4000;
-            const baseUri =
-                process.env.EVAULT_BASE_URI ||
-                `http://${
-                    process.env.EVAULT_HOST || "localhost"
-                }:${fastifyPort}`;
-            const uri = baseUri;
+            const uri = process.env.PUBLIC_EVAULT_SERVER_URI;
+            console.log("URI set", uri)
 
             // Register in registry
             await axios.post(

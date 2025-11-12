@@ -3,6 +3,7 @@ packages:
   - packages/*
   - platforms/*
   - infrastructure/*
+  - tests/
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - cpu-features

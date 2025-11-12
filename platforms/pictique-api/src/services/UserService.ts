@@ -38,6 +38,28 @@ export class UserService {
         return await this.userRepository.findOneBy({ id });
     }
 
+    /**
+     * Find a user by ename, regardless of whether the ename is stored with or without @ symbol
+     * @param ename - The ename to search for (with or without @ prefix)
+     * @returns The user if found, null otherwise
+     */
+    async findByEname(ename: string): Promise<User | null> {
+        // Normalize the input: remove @ if present for comparison
+        const normalizedEname = ename.startsWith('@') ? ename.slice(1) : ename;
+        const enameWithAt = `@${normalizedEname}`;
+        
+        // Search for user where ename matches either with or without @
+        const user = await this.userRepository
+            .createQueryBuilder("user")
+            .where("user.ename = :enameWithAt OR user.ename = :enameWithoutAt", {
+                enameWithAt,
+                enameWithoutAt: normalizedEname,
+            })
+            .getOne();
+        
+        return user;
+    }
+
     searchUsers = async (
         query: string, 
         page: number = 1, 

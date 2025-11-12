@@ -100,7 +100,7 @@ export function MobileSidebarModal({
         ['followers', 'Followers', followers.length]
     ];
 
-    const userLink = `/user/${username}`;
+    const userLink = username ? `/user/${username}` : null;
 
     return (
         <>
@@ -136,8 +136,11 @@ export function MobileSidebarModal({
                 action={closeModal}
             />
             <section className='mt-0.5 flex flex-col gap-2 px-4'>
-                <Link href={userLink}>
-                    <a className='blur-picture relative h-20 rounded-md'>
+                {username && userLink ? (
+                    <Link
+                        href={userLink}
+                        className='blur-picture relative h-20 rounded-md'
+                    >
                         {coverPhotoURL ? (
                             <NextImage
                                 useSkeleton
@@ -149,8 +152,22 @@ export function MobileSidebarModal({
                         ) : (
                             <div className='h-full rounded-md bg-light-line-reply dark:bg-dark-line-reply' />
                         )}
-                    </a>
-                </Link>
+                    </Link>
+                ) : (
+                    <div className='blur-picture relative h-20 rounded-md'>
+                        {coverPhotoURL ? (
+                            <NextImage
+                                useSkeleton
+                                imgClassName='rounded-md'
+                                src={coverPhotoURL}
+                                alt={name}
+                                layout='fill'
+                            />
+                        ) : (
+                            <div className='h-full rounded-md bg-light-line-reply dark:bg-dark-line-reply' />
+                        )}
+                    </div>
+                )}
                 <div className='mb-8 ml-2 -mt-4'>
                     <UserAvatar
                         className='absolute -translate-y-1/2 bg-main-background p-1 hover:brightness-100
@@ -173,9 +190,11 @@ export function MobileSidebarModal({
                         <UserUsername username={username} />
                     </div>
                     <div className='text-secondary flex gap-4'>
-                        {allStats.map(([id, label, stat]) => (
-                            <Link href={`${userLink}/${id}`} key={id}>
-                                <a
+                        {allStats.map(([id, label, stat]) =>
+                            userLink ? (
+                                <Link
+                                    href={`${userLink}/${id}`}
+                                    key={id}
                                     className='hover-animation flex h-4 items-center gap-1 border-b border-b-transparent
                              outline-none hover:border-b-light-primary focus-visible:border-b-light-primary
                              dark:hover:border-b-dark-primary dark:focus-visible:border-b-dark-primary'
@@ -184,17 +203,29 @@ export function MobileSidebarModal({
                                     <p className='text-light-secondary dark:text-dark-secondary'>
                                         {label}
                                     </p>
-                                </a>
-                            </Link>
-                        ))}
+                                </Link>
+                            ) : (
+                                <div
+                                    key={id}
+                                    className='flex h-4 items-center gap-1 pointer-events-none'
+                                >
+                                    <p className='font-bold'>{stat}</p>
+                                    <p className='text-light-secondary dark:text-dark-secondary'>
+                                        {label}
+                                    </p>
+                                </div>
+                            )
+                        )}
                     </div>
                     <i className='h-0.5 bg-light-line-reply dark:bg-dark-line-reply' />
                     <nav className='flex flex-col'>
-                        <MobileSidebarLink
-                            href={`/user/${username}`}
-                            iconName='UserIcon'
-                            linkName='Profile'
-                        />
+                        {username && (
+                            <MobileSidebarLink
+                                href={`/user/${username}`}
+                                iconName='UserIcon'
+                                linkName='Profile'
+                            />
+                        )}
                         {topNavLinks.map((linkData) => (
                             <MobileSidebarLink
                                 {...linkData}

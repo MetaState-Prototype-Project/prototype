@@ -39,13 +39,13 @@ export class GraphQLServer {
      */
     private async getActivePlatforms(): Promise<string[]> {
         try {
-            if (!process.env.REGISTRY_URL) {
+            if (!process.env.PUBLIC_REGISTRY_URL) {
                 console.error("REGISTRY_URL is not set");
                 return [];
             }
 
             const response = await axios.get(
-                new URL("/platforms", process.env.REGISTRY_URL).toString()
+                new URL("/platforms", process.env.PUBLIC_REGISTRY_URL).toString()
             );
             return response.data;
         } catch (error) {

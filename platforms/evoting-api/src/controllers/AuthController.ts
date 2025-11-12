@@ -59,8 +59,8 @@ export class AuthController {
                 return res.status(400).json({ error: "ename is required" });
             }
 
-            // Only find existing users - don't create new ones during auth
-            const user = await this.userService.findUser(ename);
+            // Find user by ename (handles @ symbol variations)
+            const user = await this.userService.findByEname(ename);
             
             if (!user) {
                 // User doesn't exist - they need to be created via webhook first

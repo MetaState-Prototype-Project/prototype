@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import sqlite3 from "sqlite3";
 
@@ -19,6 +20,15 @@ export class MappingDatabase {
 	constructor(dbPath: string) {
 		// Ensure the directory exists
 		const fullPath = join(dbPath, "mappings.db");
+		const dbDir = dirname(fullPath);
+		try {
+			mkdirSync(dbDir, { recursive: true });
+		} catch (error) {
+			// Directory might already exist, which is fine
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+				throw error;
+			}
+		}
 		this.db = new sqlite3.Database(fullPath);
 
 		// Promisify database methods

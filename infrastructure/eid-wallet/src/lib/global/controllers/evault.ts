@@ -169,9 +169,16 @@ export class VaultController {
     /**
      * Create a new GraphQL client every time
      */
-    private async ensureClient(w3id: string): Promise<GraphQLClient> {
+    private async ensureClient(
+        w3id: string,
+        ename: string,
+    ): Promise<GraphQLClient> {
         this.#endpoint = await this.resolveEndpoint(w3id);
-        this.#client = new GraphQLClient(this.#endpoint);
+        this.#client = new GraphQLClient(this.#endpoint, {
+            headers: {
+                "X-ENAME": ename,
+            },
+        });
         return this.#client;
     }
 
@@ -204,7 +211,7 @@ export class VaultController {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const client = await this.ensureClient(w3id);
+                const client = await this.ensureClient(w3id, ename);
 
                 console.log(
                     `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,

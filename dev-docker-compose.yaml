@@ -1,11 +1,19 @@
 version: '3.8'
 
+x-common-host-access: &common-host-access
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
 services:
-  # Core Services - Always Running
+  # Core Services - Always Running (included in all profiles)
   registry:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.registry
     ports:
       - "4321:4321"
     environment:
@@ -17,12 +25,13 @@ services:
       - .:/app
       - node_modules_cache:/app/node_modules
     working_dir: /app/platforms/registry
-    command: sh -c "cd /app/platforms/registry && pnpm run dev"
+    command: sh -c "cd /app/platforms/registry && pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
         - action: restart
@@ -33,6 +42,8 @@ services:
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
+        - action: restart
+          path: ./platforms/registry/src/migrations
         - action: rebuild
           path: ./platforms/registry/package.json
         - action: rebuild
@@ -41,12 +52,16 @@ services:
           path: ./.env
 
   evault-core:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.evault-core
     ports:
-      - "3001:3001"  # Express (provisioning API)
-      - "4000:4000"  # Fastify (GraphQL/HTTP)
+      - "3001:3001" # Express (provisioning API)
+      - "4000:4000" # Fastify (GraphQL/HTTP)
     environment:
       - NODE_ENV=development
       - EXPRESS_PORT=3001
@@ -61,8 +76,9 @@ services:
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - evault_core_node_modules:/app/infrastructure/evault-core/node_modules
     working_dir: /app/infrastructure/evault-core
-    command: sh -c "cd /app/infrastructure/evault-core && pnpm run dev"
+    command: sh -c "cd /app/infrastructure/evault-core && pnpm install && pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,16 +88,20 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
     develop:
       watch:
         - action: restart
           path: ./infrastructure/evault-core/src
           ignore:
             - node_modules
+            - migrations
         - action: restart
           path: ./infrastructure/w3id/src
           ignore:
             - node_modules
+        - action: restart
+          path: ./infrastructure/evault-core/src/migrations
         - action: rebuild
           path: ./infrastructure/evault-core/package.json
         - action: rebuild
@@ -91,24 +111,33 @@ services:
 
   # Neo4j for evault-core graph data
   neo4j:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     image: neo4j:5.15
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
     environment:
       - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j}
     volumes:
       - neo4j_data:/var/lib/neo4j/data
     networks:
       - metastate-network
+    <<: *common-host-access
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1"]
+      test: [ "CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Database for services
   postgres:
+    profiles:
+      - socials
+      - charter-blabsy
+      - all
     image: postgres:15-alpine
     ports:
       - "5432:5432"
@@ -121,22 +150,26 @@ services:
       - ./db/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
     networks:
       - metastate-network
+    <<: *common-host-access
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "none"
 
   # Optional Platform Services - Use profiles to enable
-  
+
   # Pictique API
   pictique-api:
     profiles:
       - pictique
+      - socials
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.pictique-api
     ports:
       - "1111:1111"
     environment:
@@ -145,11 +178,13 @@ services:
       - DATABASE_URL=${PICTIQUE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/pictique}
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
       - PUBLIC_PICTIQUE_BASE_URL=${PUBLIC_PICTIQUE_BASE_URL:-http://localhost:1111}
+      - PICTIQUE_MAPPING_DB_PATH=${PICTIQUE_MAPPING_DB_PATH:-/app/data/mapping-dbs/pictique}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/pictique-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -157,6 +192,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/pictique-api/src/database/migrations
 
   # eVoting API
   evoting-api:
@@ -165,20 +205,22 @@ services:
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.evoting-api
     ports:
-      - "4000:4000"
+      - "4002:4000"
     environment:
       - NODE_ENV=development
       - PORT=4000
       - DATABASE_URL=${EVOTING_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/evoting}
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
-      - PUBLIC_EVOTING_BASE_URL=${PUBLIC_EVOTING_BASE_URL:-http://localhost:4000}
+      - PUBLIC_EVOTING_BASE_URL=${PUBLIC_EVOTING_BASE_URL:-http://localhost:4002}
+      - EVOTING_MAPPING_DB_PATH=${EVOTING_MAPPING_DB_PATH:-/app/data/mapping-dbs/evoting}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/evoting-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -186,6 +228,11 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/evoting-api/src/database/migrations
 
   # DreamSync API
   dreamsync-api:
@@ -194,7 +241,7 @@ services:
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.dreamsync-api
     ports:
       - "4001:4001"
     environment:
@@ -204,11 +251,13 @@ services:
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
       - DREAMSYNC_CLIENT_URL=${DREAMSYNC_CLIENT_URL:-http://localhost:4001}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
+      - DREAMSYNC_MAPPING_DB_PATH=${DREAMSYNC_MAPPING_DB_PATH:-/app/data/mapping-dbs/dreamsync}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/dreamsync-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -216,15 +265,21 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/dreamsync-api/src/database/migrations
 
   # Cerberus
   cerberus:
     profiles:
       - cerberus
+      - charter-blabsy
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.cerberus
     ports:
       - "3002:3002"
     environment:
@@ -233,11 +288,13 @@ services:
       - DATABASE_URL=${CERBERUS_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/cerberus}
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
       - PUBLIC_CERBERUS_BASE_URL=${PUBLIC_CERBERUS_BASE_URL:-http://localhost:3002}
+      - CERBERUS_MAPPING_DB_PATH=${CERBERUS_MAPPING_DB_PATH:-/app/data/mapping-dbs/cerberus}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/cerberus
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -245,15 +302,23 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/cerberus/src/database/migrations
+        - action: restart
+          path: ./platforms/cerberus/src/migrations
 
   # Group Charter Manager API
   group-charter-manager-api:
     profiles:
       - group-charter
+      - charter-blabsy
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.group-charter-manager-api
     ports:
       - "3003:3003"
     environment:
@@ -262,11 +327,13 @@ services:
       - DATABASE_URL=${GROUP_CHARTER_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/group_charter_manager}
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
       - PUBLIC_GROUP_CHARTER_BASE_URL=${PUBLIC_GROUP_CHARTER_BASE_URL:-http://localhost:3003}
+      - GROUP_CHARTER_MAPPING_DB_PATH=${GROUP_CHARTER_MAPPING_DB_PATH:-/app/data/mapping-dbs/group-charter}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/group-charter-manager-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       postgres:
         condition: service_healthy
@@ -274,15 +341,22 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/group-charter-manager-api/src/database/migrations
 
   # Blabsy W3DS Auth API
   blabsy-w3ds-auth-api:
     profiles:
       - blabsy
+      - socials
+      - charter-blabsy
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.blabsy-w3ds-auth-api
     ports:
       - "3000:3000"
     environment:
@@ -290,16 +364,25 @@ services:
       - PORT=3000
       - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://registry:4321}
       - PUBLIC_BLABSY_BASE_URL=${PUBLIC_BLABSY_BASE_URL:-http://localhost:3000}
+      - BLABSY_MAPPING_DB_PATH=${BLABSY_MAPPING_DB_PATH:-/app/data/mapping-dbs/blabsy}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-}
+      - FIREBASE_CREDENTIALS_PATH=${FIREBASE_CREDENTIALS_PATH:-}
     volumes:
       - .:/app
       - node_modules_cache:/app/node_modules
+      - mapping_db_data:/app/data/mapping-dbs
     working_dir: /app/platforms/blabsy-w3ds-auth-api
-    command: pnpm run dev
+    command: sh -c "pnpm run migration:run 2>/dev/null || true && pnpm run dev"
     depends_on:
       registry:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+    develop:
+      watch:
+        - action: restart
+          path: ./platforms/blabsy-w3ds-auth-api/src/database/migrations
 
   # eReputation
   ereputation:
@@ -308,7 +391,7 @@ services:
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.ereputation
     ports:
       - "5000:5000"
     environment:
@@ -328,6 +411,7 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
 
   # Marketplace
   marketplace:
@@ -336,7 +420,7 @@ services:
       - all
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
+      dockerfile: ./docker/Dockerfile.marketplace
     ports:
       - "5001:5001"
     environment:
@@ -353,13 +437,134 @@ services:
         condition: service_started
     networks:
       - metastate-network
+    <<: *common-host-access
+
+  # Frontend Services
+
+  # Blabsy Frontend
+  blabsy:
+    profiles:
+      - blabsy
+      - socials
+      - charter-blabsy
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.blabsy
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_BASE_URL=${PUBLIC_BLABSY_BASE_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/blabsy
+    command: pnpm run dev
+    depends_on:
+      blabsy-w3ds-auth-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # Pictique Frontend
+  pictique:
+    profiles:
+      - pictique
+      - socials
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.pictique
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - PUBLIC_PICTIQUE_BASE_URL=${PUBLIC_PICTIQUE_BASE_URL:-http://localhost:1111}
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/pictique
+    command: pnpm run dev
+    depends_on:
+      pictique-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # Group Charter Manager Frontend
+  group-charter-manager:
+    profiles:
+      - group-charter
+      - charter-blabsy
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.group-charter-manager
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_GROUP_CHARTER_BASE_URL=${PUBLIC_GROUP_CHARTER_BASE_URL:-http://localhost:3003}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/group-charter-manager
+    command: sh -c "next dev -p 3004"
+    depends_on:
+      group-charter-manager-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
+  # eVoting Frontend
+  evoting:
+    profiles:
+      - evoting
+      - all
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.eVoting
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_EVOTING_BASE_URL=${PUBLIC_EVOTING_BASE_URL:-http://localhost:4002}
+      - NEXT_PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+      - node_modules_cache:/app/node_modules
+    working_dir: /app/platforms/eVoting
+    command: sh -c "next dev --turbopack -p 3005"
+    depends_on:
+      evoting-api:
+        condition: service_started
+      registry:
+        condition: service_started
+    networks:
+      - metastate-network
+    <<: *common-host-access
 
 volumes:
   postgres_data:
   neo4j_data:
   node_modules_cache:
+  mapping_db_data:
+  evault_core_node_modules:
+
 
 networks:
   metastate-network:
     driver: bridge
-

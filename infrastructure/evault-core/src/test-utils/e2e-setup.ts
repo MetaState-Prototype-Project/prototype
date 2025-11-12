@@ -66,7 +66,9 @@ export async function setupE2ETestServer(
     process.env.NEO4J_USER = neo4jContainer.getUsername();
     process.env.NEO4J_PASSWORD = neo4jContainer.getPassword();
     process.env.PUBLIC_REGISTRY_URL = registryUrl;
+    process.env.REGISTRY_URL = registryUrl; // Also set REGISTRY_URL for vault-access-guard
     process.env.REGISTRY_SHARED_SECRET = "test-secret";
+    process.env.PUBLIC_EVAULT_SERVER_URI = `http://localhost:${fastifyPort}`;
     process.env.EVAULT_BASE_URI = `http://localhost:${fastifyPort}`;
     process.env.EVAULT_HOST = "localhost";
     process.env.PORT = String(fastifyPort);
@@ -222,7 +224,9 @@ export async function teardownE2ETestServer(server: E2ETestServer | undefined): 
     delete process.env.NEO4J_USER;
     delete process.env.NEO4J_PASSWORD;
     delete process.env.PUBLIC_REGISTRY_URL;
+    delete process.env.REGISTRY_URL;
     delete process.env.REGISTRY_SHARED_SECRET;
+    delete process.env.PUBLIC_EVAULT_SERVER_URI;
     delete process.env.EVAULT_BASE_URI;
     delete process.env.EVAULT_HOST;
     delete process.env.PORT;

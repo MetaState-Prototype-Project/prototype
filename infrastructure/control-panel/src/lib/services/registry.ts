@@ -65,25 +65,25 @@ export class RegistryService {
 			return [
 				{
 					name: 'Blabsy',
-					url: 'http://192.168.0.225:4444',
+					url: 'http://192.168.0.235:4444',
 					status: 'Active',
 					uptime: '24h'
 				},
 				{
 					name: 'Pictique',
-					url: 'http://192.168.0.225:1111',
+					url: 'http://192.168.0.235:1111',
 					status: 'Active',
 					uptime: '24h'
 				},
 				{
 					name: 'Group Charter',
-					url: 'http://192.168.0.225:5555',
+					url: 'http://192.168.0.235:5555',
 					status: 'Active',
 					uptime: '24h'
 				},
 				{
 					name: 'Cerberus',
-					url: 'http://192.168.0.225:6666',
+					url: 'http://192.168.0.235:6666',
 					status: 'Active',
 					uptime: '24h'
 				}

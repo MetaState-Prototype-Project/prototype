@@ -1071,7 +1071,7 @@ onMount(async () => {
                         // Extract platform URL from the data
                         const platformUrl =
                             signingData?.platformUrl ||
-                            "http://192.168.0.225:7777";
+                            "http://192.168.0.235:7777";
 
                         // Set up signingData for blind voting UI
                         signingData = {

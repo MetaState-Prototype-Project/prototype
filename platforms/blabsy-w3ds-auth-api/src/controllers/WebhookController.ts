@@ -157,6 +157,39 @@ export class WebhookController {
         const mappedData = await this.mapDataToFirebase(tableName, data);
         if (tableName === "users") {
             docRef = collection.doc(data.ename);
+        } else if (tableName === "chats") {
+            // Check for existing DM (2 participants, no name) before creating
+            const participants = mappedData.participants || [];
+            const isDM = participants.length === 2 && !mappedData.name;
+            
+            if (isDM) {
+                // Query for existing chats with these participants
+                const existingChatsQuery = collection.where('participants', 'array-contains', participants[0]);
+                const existingChatsSnapshot = await existingChatsQuery.get();
+                
+                for (const doc of existingChatsSnapshot.docs) {
+                    const chat = doc.data();
+                    // Check if it's a direct chat (2 participants) with same participants
+                    if (
+                        chat.participants &&
+                        chat.participants.length === 2 &&
+                        chat.participants.includes(participants[0]) &&
+                        chat.participants.includes(participants[1])
+                    ) {
+                        // Use existing chat and store mapping
+                        docRef = collection.doc(doc.id);
+                        adapter.addToLockedIds(docRef.id);
+                        adapter.addToLockedIds(globalId);
+                        await adapter.mappingDb.storeMapping({
+                            globalId: globalId,
+                            localId: docRef.id,
+                        });
+                        return; // Exit early, don't create new chat
+                    }
+                }
+            }
+            // No existing DM found or it's a group chat - create new
+            docRef = collection.doc();
         } else {
             // Use auto-generated ID for other tables
             docRef = collection.doc();
