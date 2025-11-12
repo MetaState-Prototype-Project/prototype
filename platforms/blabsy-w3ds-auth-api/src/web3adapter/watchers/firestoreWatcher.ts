@@ -32,6 +32,14 @@ export class FirestoreWatcher {
     private healthCheckInterval: NodeJS.Timeout | null = null;
     private readonly healthCheckIntervalMs = 60000; // 1 minute
     private readonly maxTimeWithoutSnapshot = 120000; // 2 minutes - if no snapshot in 2 min, reconnect
+    
+    // Reconnection policy
+    private currentAttempt = 0;
+    private readonly maxAttempts = 20; // Maximum reconnection attempts
+    private readonly baseDelay = 1000; // Base delay in ms
+    private readonly maxDelay = 60000; // Maximum delay cap (60 seconds)
+    private reconnectTimeoutId: NodeJS.Timeout | null = null;
+    private stopped = false; // Flag to stop reconnection attempts
 
     constructor(
         private readonly collection:
@@ -46,6 +54,9 @@ export class FirestoreWatcher {
             this.collection instanceof CollectionReference
                 ? this.collection.path
                 : "collection group";
+
+        // Reset stopped flag when starting
+        this.stopped = false;
 
         try {
             // Set up real-time listener (only for new changes, not existing documents)
@@ -100,6 +111,9 @@ export class FirestoreWatcher {
                 : "collection group";
         console.log(`Stopping watcher for collection: ${collectionPath}`);
 
+        // Set stopped flag to prevent new reconnection attempts
+        this.stopped = true;
+
         if (this.unsubscribe) {
             this.unsubscribe();
             this.unsubscribe = null;
@@ -116,6 +130,12 @@ export class FirestoreWatcher {
         if (this.healthCheckInterval) {
             clearInterval(this.healthCheckInterval);
             this.healthCheckInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
         }
     }
 
@@ -143,7 +163,14 @@ export class FirestoreWatcher {
                     `⚠️ Health check failed for ${collectionPath}: No snapshot received in ${timeSinceLastSnapshot}ms. Reconnecting...`
                 );
                 // Silently reconnect - don't increment retry count for health checks
-                this.reconnect();
+                // Use async IIFE to properly await and handle errors
+                (async () => {
+                    try {
+                        await this.reconnect();
+                    } catch (error) {
+                        console.error(`Error during health-check reconnect for ${collectionPath}:`, error);
+                    }
+                })();
             }
         }, this.healthCheckIntervalMs);
     }
@@ -156,6 +183,22 @@ export class FirestoreWatcher {
         
         console.log(`Reconnecting watcher for ${collectionPath}...`);
         
+        // Clear existing intervals before restarting
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+        
         // Clean up old listener
         if (this.unsubscribe) {
             this.unsubscribe();
@@ -166,14 +209,68 @@ export class FirestoreWatcher {
         this.isFirstSnapshot = true;
         this.lastSnapshotTime = Date.now();
         
+        // Reset reconnection attempt counter on successful reconnect
+        this.currentAttempt = 0;
+        
         // Restart the listener
         try {
             await this.start();
         } catch (error) {
             console.error(`Failed to reconnect watcher for ${collectionPath}:`, error);
-            // Retry after delay
-            setTimeout(() => this.reconnect(), this.retryDelay);
+            // Schedule retry with exponential backoff
+            this.scheduleReconnect();
         }
+    }
+    
+    /**
+     * Schedules a reconnection attempt with exponential backoff
+     */
+    private scheduleReconnect(): void {
+        if (this.stopped) {
+            console.error("Watcher is stopped, not scheduling reconnect");
+            return;
+        }
+        
+        if (this.currentAttempt >= this.maxAttempts) {
+            console.error(`Max reconnection attempts (${this.maxAttempts}) reached. Stopping reconnection attempts.`);
+            this.stopped = true;
+            return;
+        }
+        
+        // Clear any existing timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+        
+        this.currentAttempt++;
+        
+        // Calculate exponential backoff with jitter
+        const exponentialDelay = Math.min(
+            this.baseDelay * Math.pow(2, this.currentAttempt - 1),
+            this.maxDelay
+        );
+        // Add jitter: ±20% of the delay
+        const jitter = exponentialDelay * 0.2 * (Math.random() * 2 - 1);
+        const delay = Math.floor(exponentialDelay + jitter);
+        
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
+        
+        console.log(`Scheduling reconnect attempt ${this.currentAttempt}/${this.maxAttempts} for ${collectionPath} in ${delay}ms`);
+        
+        this.reconnectTimeoutId = setTimeout(async () => {
+            this.reconnectTimeoutId = null;
+            try {
+                await this.reconnect();
+            } catch (error) {
+                console.error(`Error during scheduled reconnect for ${collectionPath}:`, error);
+                // Schedule another attempt
+                this.scheduleReconnect();
+            }
+        }, delay);
     }
 
     // Method to manually clear processed IDs (useful for debugging)
@@ -196,6 +293,22 @@ export class FirestoreWatcher {
             this.collection instanceof CollectionReference
                 ? this.collection.path
                 : "collection group";
+        
+        // Clear existing intervals before restarting
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
         
         if (this.retryCount < this.maxRetries) {
             this.retryCount++;
