@@ -139,7 +139,7 @@ onMount(async () => {
                 console.log("caught");
                 preVerified = false;
                 verificationId = "";
-                error = "Wrong pre-verificaiton code";
+                error = "Wrong pre-verification code";
                 setTimeout(() => {
                     error = null;
                 }, 6_000);

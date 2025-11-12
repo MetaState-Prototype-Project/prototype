@@ -52,7 +52,43 @@ export class GlobalState {
 
         if (!alreadyInitialized) {
             await instance.#store.set("initialized", true);
+            await instance.#store.set("isOnboardingComplete", false);
+        } else {
+            const onboardingFlag = await instance.#store.get<boolean>(
+                "isOnboardingComplete",
+            );
+            if (onboardingFlag === undefined) {
+                await instance.#store.set("isOnboardingComplete", false);
+            }
         }
         return instance;
+    }
+
+    get isOnboardingComplete() {
+        return this.#store
+            .get<boolean>("isOnboardingComplete")
+            .then((value) => value ?? false)
+            .catch((error) => {
+                console.error("Failed to get onboarding status:", error);
+                return false;
+            });
+    }
+
+    set isOnboardingComplete(value: boolean | Promise<boolean>) {
+        if (value instanceof Promise) {
+            value
+                .then((resolved) => {
+                    this.#store.set("isOnboardingComplete", resolved);
+                })
+                .catch((error) => {
+                    console.error("Failed to set onboarding status:", error);
+                });
+        } else {
+            this.#store
+                .set("isOnboardingComplete", value)
+                .catch((error) => {
+                    console.error("Failed to set onboarding status:", error);
+                });
+        }
     }
 }

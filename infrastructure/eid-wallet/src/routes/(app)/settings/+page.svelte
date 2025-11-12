@@ -36,6 +36,7 @@ function confirmDelete() {
 function nukeWallet() {
     globalState.userController.user = undefined;
     globalState.securityController.clearPin();
+    globalState.isOnboardingComplete = false;
     isFinalConfirmationOpen = false;
     goto("/onboarding");
 }
