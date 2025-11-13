@@ -23,12 +23,46 @@ let verificationId = $state("");
 let demoName = $state("");
 let verificationSuccess = $state(false);
 let keyManager: KeyManager | null = $state(null);
+let hardwareAvailable = $state<boolean | null>(null);
+let checkingHardware = $state(false);
 const KEY_ID = "default";
 
 const handleGetStarted = async () => {
-    //get started functionality
-    isPaneOpen = true;
-    preVerified = false;
+    checkingHardware = true;
+    try {
+        if (!globalState) {
+            globalState = getContext<() => GlobalState>("globalState")();
+        }
+        const isAvailable = await globalState.keyService.isHardwareAvailable();
+        hardwareAvailable = isAvailable;
+        
+        if (!isAvailable) {
+            // Hardware not available - show error and don't proceed
+            error = "Your device doesn't support hardware-backed security keys required for passport verification. Please use the pre-verification code option instead.";
+            isPaneOpen = true;
+            preVerified = false;
+            setTimeout(() => {
+                error = null;
+            }, 8000);
+            checkingHardware = false;
+            return;
+        }
+        
+        // Hardware is available - proceed to verification
+        isPaneOpen = true;
+        preVerified = false;
+    } catch (err) {
+        console.error("Failed to check hardware availability:", err);
+        hardwareAvailable = false;
+        error = "Unable to check device capabilities. Please use the pre-verification code option instead.";
+        isPaneOpen = true;
+        preVerified = false;
+        setTimeout(() => {
+            error = null;
+        }, 8000);
+    } finally {
+        checkingHardware = false;
+    }
 };
 
 const handlePreVerified = () => {
@@ -239,9 +273,13 @@ onMount(async () => {
             >
         </p>
         <div class="flex justify-center whitespace-nowrap mt-1">
-            <ButtonAction class="w-full" callback={handleGetStarted}
-                >Get Started</ButtonAction
+            <ButtonAction 
+                class="w-full" 
+                callback={handleGetStarted}
+                disabled={checkingHardware}
             >
+                {checkingHardware ? "Checking device..." : "Get Started"}
+            </ButtonAction>
         </div>
 
         <p class="mt-2 text-center">
@@ -304,20 +342,43 @@ onMount(async () => {
             </div>
         {/if}
     {:else}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">
-            Your Digital Self begins with the Real You
-        </h4>
-        <p class="text-black-700">
-            In the Web 3.0 Data Space, identity is linked to reality. We begin
-            by verifying your real-world passport, which serves as the
-            foundation for issuing your secure ePassport. At the same time, we
-            generate your eName – a unique digital identifier – and create your
-            eVault to store and protect your personal data.
-        </p>
-        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-            <ButtonAction class="w-full" callback={handleNext}
-                >Next</ButtonAction
-            >
-        </div>
+        {#if hardwareAvailable === false}
+            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+                Hardware Security Not Available
+            </h4>
+            <p class="text-black-700 mb-4">
+                Your device doesn't support hardware-backed security keys required for passport verification.
+            </p>
+            <p class="text-black-700 mb-4">
+                Please use the pre-verification code option to create a demo account instead.
+            </p>
+            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                <ButtonAction 
+                    class="w-full" 
+                    callback={() => {
+                        isPaneOpen = false;
+                        handlePreVerified();
+                    }}
+                >
+                    Use Pre-Verification Code
+                </ButtonAction>
+            </div>
+        {:else}
+            <h4 class="mt-[2.3svh] mb-[0.5svh]">
+                Your Digital Self begins with the Real You
+            </h4>
+            <p class="text-black-700">
+                In the Web 3.0 Data Space, identity is linked to reality. We begin
+                by verifying your real-world passport, which serves as the
+                foundation for issuing your secure ePassport. At the same time, we
+                generate your eName – a unique digital identifier – and create your
+                eVault to store and protect your personal data.
+            </p>
+            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                <ButtonAction class="w-full" callback={handleNext}
+                    >Next</ButtonAction
+                >
+            </div>
+        {/if}
     {/if}
 </Drawer>

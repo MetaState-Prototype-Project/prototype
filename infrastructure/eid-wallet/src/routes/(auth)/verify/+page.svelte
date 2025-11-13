@@ -227,6 +227,13 @@ onMount(async () => {
     // Check hardware key support first
     await checkHardwareKeySupport();
 
+    // If hardware is not available, redirect back to onboarding
+    if (!hardwareKeySupported) {
+        console.log("Hardware not available, redirecting to onboarding");
+        await goto("/onboarding");
+        return;
+    }
+
     // Initialize key manager and check if default key pair exists
     await initializeKeyManager();
     await ensureKeyForVerification();
