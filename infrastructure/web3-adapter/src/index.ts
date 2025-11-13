@@ -180,7 +180,11 @@ async function createGroupManifestWithRetry(
 			const endpoint = new URL("/graphql", response.data.uri).toString();
 
 			const { GraphQLClient } = await import("graphql-request");
-			const client = new GraphQLClient(endpoint);
+			const client = new GraphQLClient(endpoint, {
+				headers: {
+					"X-ENAME": w3id,
+				},
+			});
 
 			const STORE_META_ENVELOPE = `
                 mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {

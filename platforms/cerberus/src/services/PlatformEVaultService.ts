@@ -42,6 +42,7 @@ export class PlatformEVaultService {
     private static instance: PlatformEVaultService;
     private client: GraphQLClient | null = null;
     private endpoint: string | null = null;
+    private w3id: string | null = null;
 
     private constructor() {}
 
@@ -169,9 +170,15 @@ export class PlatformEVaultService {
      * Ensure we have a valid GraphQL client
      */
     private async ensureClient(w3id: string): Promise<GraphQLClient> {
-        if (!this.endpoint || !this.client) {
+        // Recreate client if w3id changed or client/endpoint is missing
+        if (!this.endpoint || !this.client || this.w3id !== w3id) {
             this.endpoint = await this.resolveEndpoint(w3id);
-            this.client = new GraphQLClient(this.endpoint);
+            this.client = new GraphQLClient(this.endpoint, {
+                headers: {
+                    "X-ENAME": w3id,
+                },
+            });
+            this.w3id = w3id;
         }
         return this.client;
     }

@@ -8,42 +8,61 @@ on:
             - "main"
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  # Rollup native binaries are tested/stable on Node 20 LTS
-                  node-version: 20.x
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
 
-            - name: Install build dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y build-essential python3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'pnpm'
 
-            - name: Install pnpm
-              run: npm install -g pnpm
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
 
-            - name: Install Dependencies
-              run: pnpm install
+      - name: Setup environment variables
+        run: |
+          # Always copy .env.example to .env before builds to ensure env vars are available
+          # Root level .env
+          if [ -f .env.example ]; then
+            cp .env.example .env
+            echo "✅ Created root .env from .env.example"
+          else
+            echo "⚠️  Warning: root .env.example not found, creating minimal .env"
+            touch .env
+          fi
+          
+          # Package-level .env files (e.g., blabsy)
+          for dir in platforms/* infrastructure/*; do
+            if [ -d "$dir" ] && [ -f "$dir/.env.example" ]; then
+              cp "$dir/.env.example" "$dir/.env"
+              echo "✅ Created $dir/.env from $dir/.env.example"
+            fi
+          done
 
-            - name: Clean and rebuild native modules
-              run: |
-                  # Remove any pre-built binaries that might be incompatible
-                  find node_modules -name "*.node" -delete 2>/dev/null || true
-                  # Rebuild all native modules
-                  pnpm rebuild
+      - name: Install Dependencies
+        run: |
+          # Install all dependencies (optional dependencies are installed by default)
+          # Use --frozen-lockfile to ensure reproducible builds
+          pnpm install --frozen-lockfile
+          
+      - name: Rebuild native modules
+        run: |
+          # Rebuild native modules to ensure compatibility with CI environment
+          pnpm rebuild || echo "Rebuild completed with warnings (some packages may not need rebuilding)"
 
-            # 🔧 Workaround: Fix missing Rollup native module for marketplace
-            - name: Ensure Rollup native binary is installed for marketplace
-              working-directory: ./platforms/marketplace
-              run: |
-                  echo "Cleaning marketplace node_modules and reinstalling with npm (for optional deps)"
-                  rm -rf node_modules package-lock.json
-                  npm ci
+      - name: Build All Packages
+        run: |
+          # Build all packages using turbo
+          pnpm build
 
-            - name: Build All Packages
-              run: pnpm build
