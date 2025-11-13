@@ -45,7 +45,9 @@ $effect(() => {
 
 $effect(() => {
     if (pin === "") {
-        Object.keys(pins).forEach((key) => (pins[+key] = ""));
+        for (const key of Object.keys(pins)) {
+            pins[+key] = "";
+        }
     }
 });
 

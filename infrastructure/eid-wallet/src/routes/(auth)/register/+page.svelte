@@ -22,7 +22,8 @@ let globalState: GlobalState | undefined = $state(undefined);
 
 const handleFirstStep = async () => {
     if (pin.length === 4) {
-        (firstStep = false), (btnVariant = "solid");
+        firstStep = false;
+        btnVariant = "solid";
     }
 };
 
