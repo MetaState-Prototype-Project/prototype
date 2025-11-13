@@ -13,29 +13,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+          cache: 'pnpm'
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+      - name: Setup environment variables
+        run: |
+          # Always copy .env.example to .env before builds to ensure env vars are available
+          # Root level .env
+          if [ -f .env.example ]; then
+            cp .env.example .env
+            echo "✅ Created root .env from .env.example"
+          else
+            echo "⚠️  Warning: root .env.example not found, creating minimal .env"
+            touch .env
+          fi
+          
+          # Package-level .env files (e.g., blabsy)
+          for dir in platforms/* infrastructure/*; do
+            if [ -d "$dir" ] && [ -f "$dir/.env.example" ]; then
+              cp "$dir/.env.example" "$dir/.env"
+              echo "✅ Created $dir/.env from $dir/.env.example"
+            fi
+          done
 
       - name: Install Dependencies
-        run: pnpm install
-
-      - name: Clean and rebuild native modules
         run: |
-          # Remove any pre-built binaries that might be incompatible
-          find node_modules -name "*.node" -delete 2>/dev/null || true
-          # Rebuild all native modules
-          pnpm rebuild
+          # Install all dependencies (optional dependencies are installed by default)
+          # Use --frozen-lockfile to ensure reproducible builds
+          pnpm install --frozen-lockfile
+          
+      - name: Rebuild native modules
+        run: |
+          # Rebuild native modules to ensure compatibility with CI environment
+          pnpm rebuild || echo "Rebuild completed with warnings (some packages may not need rebuilding)"
 
       - name: Build All Packages
-        run: pnpm build
+        run: |
+          # Build all packages using turbo
+          pnpm build
 

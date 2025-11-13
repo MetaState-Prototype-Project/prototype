@@ -35,11 +35,13 @@
         "onlyBuiltDependencies": [
             "@biomejs/biome",
             "@parcel/watcher",
+            "@rollup/rollup-linux-x64-gnu",
             "cpu-features",
             "es5-ext",
             "esbuild",
             "msw",
             "protobufjs",
+            "rollup",
             "sqlite3",
             "ssh2",
             "svelte-preprocess"
