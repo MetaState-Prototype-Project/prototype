@@ -33,13 +33,22 @@ jobs:
       - name: Setup environment variables
         run: |
           # Always copy .env.example to .env before builds to ensure env vars are available
+          # Root level .env
           if [ -f .env.example ]; then
             cp .env.example .env
-            echo "✅ Created .env from .env.example"
+            echo "✅ Created root .env from .env.example"
           else
-            echo "⚠️  Warning: .env.example not found, creating minimal .env"
+            echo "⚠️  Warning: root .env.example not found, creating minimal .env"
             touch .env
           fi
+          
+          # Package-level .env files (e.g., blabsy)
+          for dir in platforms/* infrastructure/*; do
+            if [ -d "$dir" ] && [ -f "$dir/.env.example" ]; then
+              cp "$dir/.env.example" "$dir/.env"
+              echo "✅ Created $dir/.env from $dir/.env.example"
+            fi
+          done
 
       - name: Install Dependencies
         run: |
