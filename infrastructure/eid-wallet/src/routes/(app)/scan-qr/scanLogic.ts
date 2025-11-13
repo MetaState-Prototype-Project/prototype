@@ -1,4 +1,3 @@
-import { get, writable, type Writable } from "svelte/store";
 import {
     Format,
     type PermissionState,
@@ -9,6 +8,7 @@ import {
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
 import axios from "axios";
+import { type Writable, get, writable } from "svelte/store";
 
 import type { GlobalState } from "$lib/global";
 
@@ -271,12 +271,14 @@ export function createScanLogic({
                 signatureLength: authPayload.signature.length,
             });
 
-        const redirectUrl = get(redirect);
-        if (!redirectUrl) {
-            throw new Error("No redirect URL configured for authentication");
-        }
+            const redirectUrl = get(redirect);
+            if (!redirectUrl) {
+                throw new Error(
+                    "No redirect URL configured for authentication",
+                );
+            }
 
-        await axios.post(redirectUrl, authPayload);
+            await axios.post(redirectUrl, authPayload);
             codeScannedDrawerOpen.set(false);
 
             let deepLinkData = sessionStorage.getItem("deepLinkData");
@@ -293,7 +295,10 @@ export function createScanLogic({
                     );
 
                     if (data.type === "auth") {
-                        if (!data.redirect || typeof data.redirect !== "string") {
+                        if (
+                            !data.redirect ||
+                            typeof data.redirect !== "string"
+                        ) {
                             console.error(
                                 "Invalid redirect URL:",
                                 data.redirect,
@@ -306,10 +311,7 @@ export function createScanLogic({
                         try {
                             new URL(data.redirect);
                         } catch (urlError) {
-                            console.error(
-                                "Invalid URL format:",
-                                urlError,
-                            );
+                            console.error("Invalid URL format:", urlError);
                             loggedInDrawerOpen.set(true);
                             startScan();
                             return;
@@ -411,7 +413,11 @@ export function createScanLogic({
                 const decodedData: SigningData = JSON.parse(decodedString);
 
                 if (decodedData.type === "blind-vote") {
-                    handleBlindVotingRequest(decodedData, platformUrl, redirectUri);
+                    handleBlindVotingRequest(
+                        decodedData,
+                        platformUrl,
+                        redirectUri,
+                    );
                     return;
                 }
 
@@ -572,13 +578,13 @@ export function createScanLogic({
                 message: messageToSign,
             };
 
-        const redirectUri = get(redirect);
+            const redirectUri = get(redirect);
 
-        if (!redirectUri) {
+            if (!redirectUri) {
                 throw new Error("No redirect URI available");
             }
 
-        const response = await fetch(redirectUri, {
+            const response = await fetch(redirectUri, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -619,7 +625,10 @@ export function createScanLogic({
         console.log("🔍 DEBUG: handleBlindVote called");
         const currentSelectedOption = get(selectedBlindVoteOption);
         const currentSigningData = get(signingData);
-        console.log("🔍 DEBUG: selectedBlindVoteOption:", currentSelectedOption);
+        console.log(
+            "🔍 DEBUG: selectedBlindVoteOption:",
+            currentSelectedOption,
+        );
         console.log("🔍 DEBUG: signingData:", currentSigningData);
         console.log(
             "🔍 DEBUG: isBlindVotingRequest:",
@@ -706,7 +715,9 @@ export function createScanLogic({
             );
 
             if (voteStatusResponse.data !== null) {
-                throw new Error("You have already submitted a vote for this poll");
+                throw new Error(
+                    "You have already submitted a vote for this poll",
+                );
             }
 
             console.log(
@@ -721,7 +732,10 @@ export function createScanLogic({
                 },
             );
 
-            if (registerResponse.status < 200 || registerResponse.status >= 300) {
+            if (
+                registerResponse.status < 200 ||
+                registerResponse.status >= 300
+            ) {
                 throw new Error("Failed to register voter on backend");
             }
             console.log("🔍 DEBUG: Voter registered on backend successfully");
@@ -742,11 +756,7 @@ export function createScanLogic({
             console.log("🔍 DEBUG: Created electionConfig:", electionConfig);
 
             const votingSystem = new VotingSystem();
-            votingSystem.createElection(
-                pollId,
-                pollId,
-                electionConfig.options,
-            );
+            votingSystem.createElection(pollId, pollId, electionConfig.options);
 
             console.log("🔍 DEBUG: Registering voter locally:", voterId);
             votingSystem.registerVoter(voterId, pollId, pollId);
@@ -814,7 +824,10 @@ export function createScanLogic({
             console.log("🔍 DEBUG: Original anchors:", anchors);
             console.log("🔍 DEBUG: Hex commitments:", hexCommitments);
             console.log("🔍 DEBUG: Hex anchors:", hexAnchors);
-            console.log("🔗 Submitting blind vote to API:", currentSigningData.redirect);
+            console.log(
+                "🔗 Submitting blind vote to API:",
+                currentSigningData.redirect,
+            );
             console.log("📦 Payload:", payload);
 
             const apiPayload = JSON.stringify(payload, (key, value) => {
@@ -886,7 +899,10 @@ export function createScanLogic({
             }
 
             const storedVoteKey = `blindVote_${currentPollId}`;
-            console.log("🔍 Debug: Looking for localStorage key:", storedVoteKey);
+            console.log(
+                "🔍 Debug: Looking for localStorage key:",
+                storedVoteKey,
+            );
 
             const storedVoteData = localStorage.getItem(storedVoteKey);
             console.log("🔍 Debug: Raw storedVoteData:", storedVoteData);
@@ -908,10 +924,12 @@ export function createScanLogic({
                     parsedVoteData,
                 );
 
-                const storedVoterId = (parsedVoteData.voterId as string | null)
-                    ?.replace(/^@/, "") ?? "";
-                const currentVoterId =
-                    vault.ename?.replace(/^@/, "") ?? "";
+                const storedVoterId =
+                    (parsedVoteData.voterId as string | null)?.replace(
+                        /^@/,
+                        "",
+                    ) ?? "";
+                const currentVoterId = vault.ename?.replace(/^@/, "") ?? "";
 
                 if (storedVoterId !== currentVoterId) {
                     throw new Error("This blind vote does not belong to you.");
@@ -932,7 +950,10 @@ export function createScanLogic({
                 revealSuccess.set(true);
             } catch (parseError) {
                 console.error("❌ JSON Parse Error Details:", parseError);
-                console.error("❌ Raw data that failed to parse:", storedVoteData);
+                console.error(
+                    "❌ Raw data that failed to parse:",
+                    storedVoteData,
+                );
                 throw new Error(
                     "Failed to parse stored vote data. The vote may be corrupted.",
                 );
@@ -1012,11 +1033,15 @@ export function createScanLogic({
             return;
         }
         if (data.type === "sign" && get(signingDrawerOpen)) {
-            console.log("Signing request already in progress, ignoring duplicate");
+            console.log(
+                "Signing request already in progress, ignoring duplicate",
+            );
             return;
         }
         if (data.type === "reveal" && get(isRevealRequest)) {
-            console.log("Reveal request already in progress, ignoring duplicate");
+            console.log(
+                "Reveal request already in progress, ignoring duplicate",
+            );
             return;
         }
 
@@ -1045,10 +1070,15 @@ export function createScanLogic({
                 redirect.set(redirectUri);
                 try {
                     const decodedString = atob(base64Data);
-                    const parsedSigningData = JSON.parse(decodedString) as SigningData;
+                    const parsedSigningData = JSON.parse(
+                        decodedString,
+                    ) as SigningData;
                     console.log("Decoded signing data:", parsedSigningData);
 
-                    if (parsedSigningData && parsedSigningData.type === "blind-vote") {
+                    if (
+                        parsedSigningData &&
+                        parsedSigningData.type === "blind-vote"
+                    ) {
                         console.log(
                             "🔍 Blind voting request detected in sign deep link",
                         );
@@ -1088,7 +1118,10 @@ export function createScanLogic({
                                           }
                                         : prev,
                                 );
-                                console.log("✅ Poll details fetched:", pollDetails);
+                                console.log(
+                                    "✅ Poll details fetched:",
+                                    pollDetails,
+                                );
                             }
                         } catch (error) {
                             console.error(
@@ -1134,7 +1167,9 @@ export function createScanLogic({
                 await goto("/login");
                 return () => {};
             }
-            console.log("User authenticated, proceeding with scan functionality");
+            console.log(
+                "User authenticated, proceeding with scan functionality",
+            );
         } catch (error) {
             console.log("Authentication check failed, redirecting to login");
             await goto("/login");
@@ -1251,5 +1286,3 @@ export function createScanLogic({
         },
     };
 }
-
-

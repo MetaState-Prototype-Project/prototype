@@ -2,9 +2,9 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { get } from "svelte/store";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
+import { get } from "svelte/store";
 
 import AuthDrawer from "./components/AuthDrawer.svelte";
 import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
