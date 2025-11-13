@@ -10,7 +10,6 @@ import {
 import axios from "axios";
 import { type Writable, get, writable } from "svelte/store";
 
-import { PUBLIC_PLATFORM_URL } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 
 export interface SigningData {
@@ -1090,8 +1089,7 @@ export function createScanLogic({
                         blindVoteError.set(null);
 
                         const platformUrlCandidate =
-                            parsedSigningData?.platformUrl?.trim() ||
-                            PUBLIC_PLATFORM_URL?.trim();
+                            parsedSigningData?.platformUrl?.trim()
 
                         if (!platformUrlCandidate) {
                             const errorMessage =
