@@ -1,118 +1,125 @@
 <script lang="ts">
-import { cn } from "$lib/utils";
-import { onMount } from "svelte";
-import type { HTMLAttributes } from "svelte/elements";
+    import { cn } from "$lib/utils";
+    import { onMount } from "svelte";
+    import type { HTMLAttributes } from "svelte/elements";
 
-const KEYBOARD = {
-    BACKSPACE: "Backspace",
-    DELETE: "Delete",
-    ANDROID_BACKSPACE: "Backspace",
-};
+    const KEYBOARD = {
+        BACKSPACE: "Backspace",
+        DELETE: "Delete",
+        ANDROID_BACKSPACE: "Backspace",
+    };
 
-let inputs = $state([0]);
-let pins: { [key: number]: string } = $state({});
+    let inputs = $state([0]);
+    let pins: { [key: number]: string } = $state({});
 
-interface IInputPinProps extends HTMLAttributes<HTMLInputElement> {
-    pin: string;
-    variant?: "lg" | "sm";
-    size?: number;
-    focusOnMount?: boolean | undefined;
-    inFocus?: boolean | undefined;
-    isError?: boolean;
-}
+    interface IInputPinProps extends HTMLAttributes<HTMLInputElement> {
+        pin: string;
+        variant?: "lg" | "sm";
+        size?: number;
+        focusOnMount?: boolean | undefined;
+        inFocus?: boolean | undefined;
+        isError?: boolean;
+    }
 
-let {
-    pin = $bindable(""),
-    variant = "lg",
-    size = 4,
-    focusOnMount = true,
-    inFocus = false,
-    isError = $bindable(false),
-    ...restProps
-}: IInputPinProps = $props();
+    let {
+        pin = $bindable(""),
+        variant = "lg",
+        size = 4,
+        focusOnMount = true,
+        inFocus = false,
+        isError = $bindable(false),
+        ...restProps
+    }: IInputPinProps = $props();
 
-onMount(async () => {
-    inputs = createArray(size);
-    pins = await createValueSlot(inputs);
-    pin = calcPin(pins);
-    if (!focusOnMount) return;
-    document.getElementById("pin0")?.focus();
-});
+    onMount(async () => {
+        inputs = createArray(size);
+        pins = await createValueSlot(inputs);
+        pin = calcPin(pins);
+        if (!focusOnMount) return;
+        document.getElementById("pin0")?.focus();
+    });
 
-$effect(() => {
-    pin = calcPin(pins);
-});
+    $effect(() => {
+        pin = calcPin(pins);
+    });
 
-const calcPin = (pins: { [key: number]: string }) => {
-    return Object.values(pins).join("") || "";
-};
-
-const isKeyDelete = (key: string) => {
-    return (
-        key === KEYBOARD.BACKSPACE ||
-        key === KEYBOARD.DELETE ||
-        key === KEYBOARD.ANDROID_BACKSPACE
-    );
-};
-
-const changeHandler = (e: KeyboardEvent, i: number) => {
-    const current = document.activeElement ?? document.getElementById("pin0");
-    const items = Array.from(document.getElementsByClassName("pin-item"));
-    const currentIndex = items.indexOf(current as HTMLElement);
-    let newIndex: number;
-
-    const regx = /^\d+$/;
-
-    if (isKeyDelete(e.key)) {
-        e.preventDefault();
-        if (pins[i] !== "") {
-            pins[i] = "";
-            return;
+    $effect(() => {
+        if (pin === "") {
+            Object.keys(pins).forEach((key) => (pins[+key] = ""));
         }
-        if (currentIndex > 0) {
+    });
+
+    const calcPin = (pins: { [key: number]: string }) => {
+        return Object.values(pins).join("") || "";
+    };
+
+    const isKeyDelete = (key: string) => {
+        return (
+            key === KEYBOARD.BACKSPACE ||
+            key === KEYBOARD.DELETE ||
+            key === KEYBOARD.ANDROID_BACKSPACE
+        );
+    };
+
+    const changeHandler = (e: KeyboardEvent, i: number) => {
+        const current =
+            document.activeElement ?? document.getElementById("pin0");
+        const items = Array.from(document.getElementsByClassName("pin-item"));
+        const currentIndex = items.indexOf(current as HTMLElement);
+        let newIndex: number;
+
+        const regx = /^\d+$/;
+
+        if (isKeyDelete(e.key)) {
+            e.preventDefault();
+            if (pins[i] !== "") {
+                pins[i] = "";
+                return;
+            }
+            if (currentIndex > 0) {
+                newIndex = currentIndex - 1;
+                (items[newIndex] as HTMLInputElement)?.focus();
+            }
+        }
+
+        if (regx.test(e.key)) {
+            e.preventDefault();
+            pins[i] = e.key;
+            if (currentIndex < items.length - 1) {
+                newIndex = currentIndex + 1;
+                (items[newIndex] as HTMLInputElement)?.focus();
+            }
+        }
+
+        // Allow arrow keys for navigation
+        if (e.key === "ArrowLeft" && currentIndex > 0) {
             newIndex = currentIndex - 1;
             (items[newIndex] as HTMLInputElement)?.focus();
         }
-    }
 
-    if (regx.test(e.key)) {
-        e.preventDefault();
-        pins[i] = e.key;
-        if (currentIndex < items.length - 1) {
+        if (e.key === "ArrowRight" && currentIndex < items.length - 1) {
             newIndex = currentIndex + 1;
             (items[newIndex] as HTMLInputElement)?.focus();
         }
-    }
+    };
 
-    // Allow arrow keys for navigation
-    if (e.key === "ArrowLeft" && currentIndex > 0) {
-        newIndex = currentIndex - 1;
-        (items[newIndex] as HTMLInputElement)?.focus();
-    }
+    const createArray = (size: number) => {
+        return new Array(size);
+    };
 
-    if (e.key === "ArrowRight" && currentIndex < items.length - 1) {
-        newIndex = currentIndex + 1;
-        (items[newIndex] as HTMLInputElement)?.focus();
-    }
-};
+    const createValueSlot = (arr: number[]) => {
+        return arr.reduce(
+            (obj, item) => {
+                obj[item] = "";
+                return obj;
+            },
+            {} as Record<number, string>,
+        );
+    };
 
-const createArray = (size: number) => {
-    return new Array(size);
-};
-
-const createValueSlot = (arr: number[]) => {
-    return arr.reduce(
-        (obj, item) => {
-            obj[item] = "";
-            return obj;
-        },
-        {} as Record<number, string>,
-    );
-};
-
-const uniqueId = `input${Math.random().toString().split(".")[1]}`;
-const cBase =
-    "relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
+    const uniqueId = `input${Math.random().toString().split(".")[1]}`;
+    const cBase =
+        "relative w-full margin-x-[auto] flex justify-between items-center gap-[10px] flex-row flex-nowrap select-none";
 </script>
 
 <div class={cn(`${cBase} ${variant === "sm" && "sm"}`, restProps.class)}>
