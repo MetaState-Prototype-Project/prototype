@@ -9,17 +9,19 @@ import {
     type ProvisionedEVault,
 } from "../../test-utils/e2e-setup";
 
+// Store original axios functions before any spying happens
+const originalAxiosGet = axios.get;
+const originalAxiosPost = axios.post;
+
 describe("GraphQLServer Webhook Payload W3ID", () => {
     let server: E2ETestServer;
     let evault1: ProvisionedEVault;
     let evault2: ProvisionedEVault;
     const evaultW3ID = "evault-w3id-123";
-    let realAxios: typeof axios;
+    let axiosGetSpy: any;
+    let axiosPostSpy: any;
 
     beforeAll(async () => {
-        // Get real axios before any spying
-        realAxios = (await vi.importActual<typeof axios>("axios")) as typeof axios;
-        
         server = await setupE2ETestServer();
         evault1 = await provisionTestEVault(server);
         evault2 = await provisionTestEVault(server);
@@ -27,45 +29,64 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
 
     afterAll(async () => {
         await teardownE2ETestServer(server);
+        // Restore original implementations
+        if (axiosGetSpy) {
+            axiosGetSpy.mockRestore();
+        }
+        if (axiosPostSpy) {
+            axiosPostSpy.mockRestore();
+        }
     });
 
     beforeEach(() => {
+        // Restore any existing spies first
+        if (axiosGetSpy) {
+            axiosGetSpy.mockRestore();
+        }
+        if (axiosPostSpy) {
+            axiosPostSpy.mockRestore();
+        }
+        
         vi.clearAllMocks();
         
         // Mock axios.get for platforms endpoint only
-        vi.spyOn(axios, "get").mockImplementation((url: string | any) => {
+        axiosGetSpy = vi.spyOn(axios, "get").mockImplementation((url: string | any) => {
             if (typeof url === "string" && url.includes("/platforms")) {
                 return Promise.resolve({
                     data: ["http://localhost:9999"], // Mock platform URL
                 }) as any;
             }
-            // For other GET requests, call through to real axios
-            return realAxios.get(url);
+            // For other GET requests, call through to original (stored before spying)
+            return originalAxiosGet.call(axios, url);
         });
 
         // Spy on axios.post to capture webhook payloads
-        // For webhook calls, return success. For others, call through to real axios
-        vi.spyOn(axios, "post").mockImplementation((url: string | any, data?: any, config?: any) => {
+        axiosPostSpy = vi.spyOn(axios, "post").mockImplementation((url: string | any, data?: any, config?: any) => {
             // If it's a webhook call, capture it and return success
+            // Note: axios.post(url, data, config) - data is the second parameter
             if (typeof url === "string" && url.includes("/api/webhook")) {
+                // Log for debugging
+                console.log("Webhook intercepted:", { url, data });
                 return Promise.resolve({ status: 200, data: {} }) as any;
             }
-            // For GraphQL and other requests, call through to real axios
-            return realAxios.post(url, data, config);
+            // For GraphQL and other requests, call through to original (stored before spying)
+            return originalAxiosPost.call(axios, url, data, config);
         });
     });
 
     describe("storeMetaEnvelope webhook payload", () => {
-        it("should include user's W3ID (eName) in webhook payload, not eVault's W3ID", async () => {
+        it("should include X-ENAME in webhook payload", async () => {
             const testData = { field: "value", test: "store-test" };
             const testOntology = "WebhookTestOntology";
 
             // Make GraphQL mutation with user's W3ID in X-ENAME header
             const mutation = `
-                mutation StoreMetaEnvelope($input: StoreMetaEnvelopeInput!) {
+                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
                     storeMetaEnvelope(input: $input) {
-                        id
-                        ontology
+                        metaEnvelope {
+                            id
+                            ontology
+                        }
                     }
                 }
             `;
@@ -95,6 +116,9 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
             expect(webhookCall).toBeDefined();
             const webhookPayload = webhookCall[1]; // Second argument is the payload
 
+            console.log("Webhook payload:", JSON.stringify(webhookPayload, null, 2));
+            console.log("Expected w3id:", evault1.w3id);
+
             // Verify the webhook payload contains the user's W3ID, not the eVault's W3ID
             expect(webhookPayload).toBeDefined();
             expect(webhookPayload.w3id).toBe(evault1.w3id);
@@ -109,10 +133,12 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
             const testOntology = "MultiUserWebhookTest";
 
             const mutation = `
-                mutation StoreMetaEnvelope($input: StoreMetaEnvelopeInput!) {
+                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
                     storeMetaEnvelope(input: $input) {
-                        id
-                        ontology
+                        metaEnvelope {
+                            id
+                            ontology
+                        }
                     }
                 }
             `;
@@ -172,10 +198,12 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
 
             // First, create an envelope
             const createMutation = `
-                mutation StoreMetaEnvelope($input: StoreMetaEnvelopeInput!) {
+                mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
                     storeMetaEnvelope(input: $input) {
-                        id
-                        ontology
+                        metaEnvelope {
+                            id
+                            ontology
+                        }
                     }
                 }
             `;
@@ -190,17 +218,19 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 "X-ENAME": evault1.w3id,
             });
 
-            const envelopeId = createResult.storeMetaEnvelope.id;
+            const envelopeId = createResult.storeMetaEnvelope.metaEnvelope.id;
 
             // Clear previous webhook calls
             (axios.post as any).mockClear();
 
             // Now update the envelope
             const updateMutation = `
-                mutation UpdateMetaEnvelopeById($id: String!, $input: UpdateMetaEnvelopeInput!) {
+                mutation UpdateMetaEnvelopeById($id: String!, $input: MetaEnvelopeInput!) {
                     updateMetaEnvelopeById(id: $id, input: $input) {
-                        id
-                        ontology
+                        metaEnvelope {
+                            id
+                            ontology
+                        }
                     }
                 }
             `;

@@ -207,7 +207,7 @@ export class GraphQLServer {
                             context.tokenPayload?.platform || null;
                         const webhookPayload = {
                             id: result.metaEnvelope.id,
-                            w3id: this.getCurrentEvaultW3ID(),
+                            w3id: context.eName,
                             evaultPublicKey: this.evaultPublicKey,
                             data: input.payload,
                             schemaId: input.ontology,
@@ -272,7 +272,7 @@ export class GraphQLServer {
                                 context.tokenPayload?.platform || null;
                             const webhookPayload = {
                                 id: id,
-                                w3id: this.getCurrentEvaultW3ID(),
+                                w3id: context.eName,
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: input.payload,
                                 schemaId: input.ontology,
