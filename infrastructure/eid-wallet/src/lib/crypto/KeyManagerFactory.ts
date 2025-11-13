@@ -15,15 +15,15 @@ export class KeyManagerFactory {
      * Get a key manager instance based on the configuration
      */
     static async getKeyManager(config: KeyManagerConfig): Promise<KeyManager> {
-        // If explicitly requesting hardware and not in pre-verification mode
-        if (config.useHardware && !config.preVerificationMode) {
-            return KeyManagerFactory.getHardwareKeyManager();
-        }
-
-        // If in pre-verification mode, always use software keys
+        // If in pre-verification mode, ALWAYS use software keys (never hardware)
         if (config.preVerificationMode) {
             console.log("Using software key manager for pre-verification mode");
             return KeyManagerFactory.getSoftwareKeyManager();
+        }
+
+        // If explicitly requesting hardware and not in pre-verification mode
+        if (config.useHardware) {
+            return KeyManagerFactory.getHardwareKeyManager();
         }
 
         // Default behavior: try hardware first, fallback to software
@@ -82,11 +82,18 @@ export class KeyManagerFactory {
     static async getKeyManagerForContext(
         keyId: string,
         context: "onboarding" | "signing" | "verification" | "pre-verification",
+        isFake: boolean,
     ): Promise<KeyManager> {
+        // Pre-verification users (isFake=true) or pre-verification context should NEVER use hardware
+        const shouldUseHardware =
+            !isFake &&
+            context !== "pre-verification" &&
+            (await KeyManagerFactory.isHardwareAvailable());
+
         const config: KeyManagerConfig = {
             keyId,
-            useHardware: context !== "pre-verification",
-            preVerificationMode: context === "pre-verification",
+            useHardware: shouldUseHardware,
+            preVerificationMode: context === "pre-verification" || isFake,
         };
 
         return KeyManagerFactory.getKeyManager(config);

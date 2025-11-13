@@ -1,6 +1,7 @@
 import { KeyManagerFactory } from "$lib/crypto";
 import type { KeyManager } from "$lib/crypto";
 import type { Store } from "@tauri-apps/plugin-store";
+import type { UserController } from "./user";
 
 export type KeyServiceContext =
     | "onboarding"
@@ -67,18 +68,48 @@ export class KeyService {
             const cachedManager = this.#managerCache.get(cacheKey);
             if (cachedManager) {
                 await this.#touchContext(cacheKey, cachedManager);
-                return cachedManager;
+                // If user is pre-verification, ensure we're using software keys
+                const isFake = await this.#isPreVerificationUser();
+                if (isFake && cachedManager.getType() === "hardware") {
+                    // Force software keys for pre-verification users
+                    this.#managerCache.delete(cacheKey);
+                } else {
+                    return cachedManager;
+                }
             }
             this.#managerCache.delete(cacheKey);
         }
 
+        const isFake = await this.#isPreVerificationUser();
+        // Force pre-verification mode if user is fake/pre-verification
+        const effectiveContext = isFake ? "pre-verification" : context;
         const manager = await KeyManagerFactory.getKeyManagerForContext(
             keyId,
-            context,
+            effectiveContext,
+            isFake ?? false,
         );
         this.#managerCache.set(cacheKey, manager);
         await this.#persistContext(cacheKey, manager, keyId, context);
         return manager;
+    }
+
+    /**
+     * Check if the current user is a pre-verification (demo) user
+     */
+    async #isPreVerificationUser(): Promise<boolean> {
+        const isFake = await this.#store
+            .get<boolean>("fake")
+            .then((f) => {
+                if (!f) {
+                    return false;
+                }
+                return f;
+            })
+            .catch((error) => {
+                console.error("Failed to get fake:", error);
+                return false;
+            });
+        return isFake;
     }
 
     async ensureKey(
