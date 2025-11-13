@@ -85,10 +85,11 @@ export class KeyManagerFactory {
         isFake: boolean,
     ): Promise<KeyManager> {
         // Pre-verification users (isFake=true) or pre-verification context should NEVER use hardware
-        const shouldUseHardware = !isFake && 
-                                  context !== "pre-verification" &&
-                                  (await KeyManagerFactory.isHardwareAvailable());
-        
+        const shouldUseHardware =
+            !isFake &&
+            context !== "pre-verification" &&
+            (await KeyManagerFactory.isHardwareAvailable());
+
         const config: KeyManagerConfig = {
             keyId,
             useHardware: shouldUseHardware,

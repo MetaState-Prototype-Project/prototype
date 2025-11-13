@@ -109,12 +109,41 @@ let hardwareKeyCheckComplete = $state(false);
 const KEY_ID = "default";
 
 async function handleVerification() {
-    const { data } = await axios.post(
-        new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
-    );
-    verificaitonId.set(data.id);
-    showVeriffModal = true;
-    watchEventStream(data.id);
+    try {
+        // Ensure keys are initialized before starting verification
+        if (!keyManager) {
+            try {
+                await initializeKeyManager();
+                await ensureKeyForVerification();
+            } catch (keyError) {
+                console.error("Failed to initialize keys:", keyError);
+                // If key initialization fails, go back to onboarding
+                await goto("/onboarding");
+                return;
+            }
+        }
+
+        const { data } = await axios.post(
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+        );
+        verificaitonId.set(data.id);
+        showVeriffModal = true;
+        watchEventStream(data.id);
+    } catch (error) {
+        console.error("Failed to start verification:", error);
+        // If verification fails due to key issues or any initialization error, go back to onboarding
+        const errorMessage =
+            error instanceof Error
+                ? error.message.toLowerCase()
+                : String(error).toLowerCase();
+        if (
+            errorMessage.includes("key") ||
+            errorMessage.includes("initialize") ||
+            errorMessage.includes("manager")
+        ) {
+            await goto("/onboarding");
+        }
+    }
 }
 
 function watchEventStream(id: string) {
@@ -235,8 +264,15 @@ onMount(async () => {
     }
 
     // Initialize key manager and check if default key pair exists
-    await initializeKeyManager();
-    await ensureKeyForVerification();
+    try {
+        await initializeKeyManager();
+        await ensureKeyForVerification();
+    } catch (error) {
+        console.error("Failed to initialize keys for verification:", error);
+        // If key initialization fails, redirect back to onboarding
+        await goto("/onboarding");
+        return;
+    }
 
     handleContinue = async () => {
         if ($status !== "approved" && $status !== "duplicate")
