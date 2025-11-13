@@ -10,6 +10,7 @@ import {
 import axios from "axios";
 import { type Writable, get, writable } from "svelte/store";
 
+import { PUBLIC_PLATFORM_URL } from "$env/static/public";
 import type { GlobalState } from "$lib/global";
 
 export interface SigningData {
@@ -1088,9 +1089,34 @@ export function createScanLogic({
                         signingDrawerOpen.set(true);
                         blindVoteError.set(null);
 
-                        const platformUrl =
-                            parsedSigningData?.platformUrl ||
-                            "http://192.168.0.235:7777";
+                        const platformUrlCandidate =
+                            parsedSigningData?.platformUrl?.trim() ||
+                            PUBLIC_PLATFORM_URL?.trim();
+
+                        if (!platformUrlCandidate) {
+                            const errorMessage =
+                                "Missing platform URL in signing data and no PUBLIC_PLATFORM_URL configured.";
+                            blindVoteError.set(errorMessage);
+                            throw new Error(errorMessage);
+                        }
+
+                        let platformUrl: string;
+                        try {
+                            // Validate the URL and normalize trailing slashes for consistent API calls.
+                            const validatedUrl = new URL(platformUrlCandidate);
+                            platformUrl =
+                                validatedUrl.toString().replace(/\/+$/, "");
+                        } catch (error) {
+                            const message =
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error);
+                            const errorMessage = `Invalid platform URL "${platformUrlCandidate}": ${message}`;
+                            blindVoteError.set(
+                                "Invalid platform URL in signing request.",
+                            );
+                            throw new Error(errorMessage);
+                        }
 
                         signingData.set({
                             pollId: parsedSigningData?.pollId,
