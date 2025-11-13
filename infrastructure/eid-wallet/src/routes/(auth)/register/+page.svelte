@@ -16,11 +16,14 @@
     let isBiometricScreen = $state(false);
     let isBiometricsAdded = $state(false);
     let isError = $state(false);
+    let btnVariant = $state<"soft" | "solid">("soft");
 
     let globalState: GlobalState | undefined = $state(undefined);
 
     const handleFirstStep = async () => {
-        if (pin.length === 4) firstStep = false;
+        if (pin.length === 4) {
+            (firstStep = false), (btnVariant = "solid");
+        }
     };
 
     let handleConfirm: () => Promise<void> = $state(async () => {});
@@ -55,11 +58,6 @@
         console.log("isBiometricsAvailable", isBiometricsAvailable);
 
         handleConfirm = async () => {
-            if (pin.length < 4) {
-                isError = true;
-                return;
-            }
-
             if (repeatPin.length < 4) {
                 isError = true;
                 return;
@@ -129,7 +127,7 @@
             </Hero>
             <InputPin bind:pin={repeatPin} />
         </section>
-        <ButtonAction class="w-full" callback={handleConfirm}
+        <ButtonAction variant="soft" class="w-full" callback={handleConfirm}
             >Confirm</ButtonAction
         >
     </main>
