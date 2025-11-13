@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { GroupService } from "../services/GroupService";
 import { CharterSignatureService } from "../services/CharterSignatureService";
+import { createGroupEVault } from "web3-adapter";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export class GroupController {
     private groupService = new GroupService();
@@ -110,7 +114,51 @@ export class GroupController {
             }
 
             const { charter } = req.body;
-            const updatedGroup = await this.groupService.updateGroup(id, { charter });
+            
+            // Check if this is the first charter being added (charterless group getting a charter)
+            const needsEVault = !group.charter && !group.ename && charter;
+            
+            let updateData: any = { charter };
+            
+            if (needsEVault) {
+                console.log("Group getting first charter, provisioning eVault instantly...");
+                
+                // Provision eVault instantly
+                const registryUrl = process.env.PUBLIC_REGISTRY_URL;
+                const provisionerUrl = process.env.PUBLIC_PROVISIONER_URL;
+                
+                if (!registryUrl || !provisionerUrl) {
+                    throw new Error("Missing required environment variables for eVault creation");
+                }
+                
+                const groupData = {
+                    name: group.name || "Unnamed Group",
+                    avatar: group.avatarUrl,
+                    description: group.description,
+                    members: group.participants?.map((p: any) => p.id) || [],
+                    admins: group.admins || [],
+                    owner: group.owner,
+                    charter: charter
+                };
+                
+                console.log("Creating eVault with data:", groupData);
+                
+                const evaultResult = await createGroupEVault(
+                    registryUrl,
+                    provisionerUrl,
+                    groupData
+                );
+                
+                console.log("eVault created successfully:", evaultResult);
+                
+                // Set ename from eVault result
+                updateData.ename = evaultResult.w3id;
+                
+                console.log("Setting ename on group:", evaultResult.w3id);
+            }
+            
+            // Now save with both charter and ename (if provisioned)
+            const updatedGroup = await this.groupService.updateGroup(id, updateData);
             
             if (!updatedGroup) {
                 return res.status(404).json({ error: "Group not found" });
