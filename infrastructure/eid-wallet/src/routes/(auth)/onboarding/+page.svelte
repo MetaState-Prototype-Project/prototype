@@ -4,9 +4,10 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
-import { type KeyManager, KeyManagerFactory } from "$lib/crypto";
+import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction, Drawer } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import * as falso from "@ngneat/falso";
@@ -22,6 +23,7 @@ let verificationId = $state("");
 let demoName = $state("");
 let verificationSuccess = $state(false);
 let keyManager: KeyManager | null = $state(null);
+const KEY_ID = "default";
 
 const handleGetStarted = async () => {
     //get started functionality
@@ -45,14 +47,15 @@ function generatePassportNumber() {
     return randomLetters() + randomDigits();
 }
 
-// Initialize key manager based on context
+function getKeyContext(): KeyServiceContext {
+    return preVerified ? "pre-verification" : "onboarding";
+}
+
 async function initializeKeyManager() {
     try {
-        const context = preVerified ? "pre-verification" : "onboarding";
-        keyManager = await KeyManagerFactory.getKeyManagerForContext(
-            "default",
-            context,
-        );
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        keyManager = await globalState.keyService.getManager(KEY_ID, context);
         console.log(`Key manager initialized: ${keyManager.getType()}`);
         return keyManager;
     } catch (error) {
@@ -61,33 +64,42 @@ async function initializeKeyManager() {
     }
 }
 
-async function generateApplicationKeyPair() {
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
+async function ensureKeyForContext() {
     try {
-        const res = await keyManager?.generate("default");
-        console.log("Key generation result:", res);
-        return res;
-    } catch (e) {
-        console.error("Key generation failed:", e);
-        throw e;
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        const { manager, created } = await globalState.keyService.ensureKey(
+            KEY_ID,
+            context,
+        );
+        keyManager = manager;
+        console.log(
+            "Key generation result:",
+            created ? "key-generated" : "key-exists",
+        );
+        return { manager, created };
+    } catch (error) {
+        console.error("Failed to ensure key:", error);
+        throw error;
     }
 }
 
 async function getApplicationPublicKey() {
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
     try {
-        const res = await keyManager?.getPublicKey("default");
-        console.log("Public key retrieved:", res);
-        return res;
-    } catch (e) {
-        console.error("Public key retrieval failed:", e);
-        throw e;
+        if (!globalState) throw new Error("Global state is not defined");
+        if (!keyManager) {
+            await initializeKeyManager();
+        }
+        const context = getKeyContext();
+        const publicKey = await globalState.keyService.getPublicKey(
+            KEY_ID,
+            context,
+        );
+        console.log("Public key retrieved:", publicKey);
+        return publicKey;
+    } catch (error) {
+        console.error("Public key retrieval failed:", error);
+        throw error;
     }
 }
 
@@ -116,10 +128,7 @@ onMount(async () => {
 
         // Initialize key manager for pre-verification context
         await initializeKeyManager();
-        const keyExists = await keyManager?.exists("default");
-        if (!keyExists) {
-            await generateApplicationKeyPair();
-        }
+        await ensureKeyForContext();
 
         const {
             data: { token: registryEntropy },
@@ -139,7 +148,7 @@ onMount(async () => {
                 console.log("caught");
                 preVerified = false;
                 verificationId = "";
-                error = "Wrong pre-verificaiton code";
+                error = "Wrong pre-verification code";
                 setTimeout(() => {
                     error = null;
                 }, 6_000);

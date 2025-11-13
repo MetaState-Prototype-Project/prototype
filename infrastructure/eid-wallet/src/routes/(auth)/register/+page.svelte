@@ -31,7 +31,9 @@ const handleNext = async () => {
 };
 
 const handleSkip = async () => {
-    // handle skip biometics logic goes here
+    // handle skip biometrics logic goes here
+    if (!globalState) return goto("/onboarding");
+    globalState.isOnboardingComplete = true;
     goto("/review");
 };
 
@@ -39,6 +41,8 @@ let handleSetupBiometrics = $state(async () => {});
 
 const handleBiometricsAdded = async () => {
     //handle logic when biometrics added successfully
+    if (!globalState) return goto("/onboarding");
+    globalState.isOnboardingComplete = true;
     goto("/review");
 };
 
