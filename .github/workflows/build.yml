@@ -13,35 +13,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+          cache: 'pnpm'
 
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential python3
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
       - name: Install Dependencies
         run: |
-          # pnpm should install optional dependencies by default, but ensure it does
-          pnpm install --no-frozen-lockfile || pnpm install
-          
-      - name: Fix rollup native module
-        run: |
-          # Rollup's native modules are optional dependencies that pnpm might not install correctly
-          # Install it explicitly at the workspace root to ensure it's available
-          pnpm add -w -D @rollup/rollup-linux-x64-gnu || echo "Rollup native module installation skipped (may already be present)"
+          # Install all dependencies (optional dependencies are installed by default)
+          # Use --frozen-lockfile to ensure reproducible builds
+          pnpm install --frozen-lockfile
           
       - name: Rebuild native modules
         run: |
-          # Rebuild native modules to ensure compatibility
-          pnpm rebuild || echo "Rebuild completed with warnings"
+          # Rebuild native modules to ensure compatibility with CI environment
+          pnpm rebuild || echo "Rebuild completed with warnings (some packages may not need rebuilding)"
 
       - name: Build All Packages
-        run: pnpm build
+        run: |
+          # Build all packages using turbo
+          pnpm build
 

@@ -6,9 +6,11 @@ packages:
   - tests/
 onlyBuiltDependencies:
   - '@biomejs/biome'
+  - '@rollup/rollup-linux-x64-gnu'
   - cpu-features
   - esbuild
   - msw
   - protobufjs
+  - rollup
   - ssh2
   - svelte-preprocess
