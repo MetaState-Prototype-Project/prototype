@@ -84,10 +84,28 @@ export class CerberusTriggerService {
                 return result;
             }
             
-            // Fallback: check if "Watchdog Name: Cerberus" appears anywhere
-            const fallbackResult = charterText.includes('watchdog name: cerberus');
-            console.log(`🔍 Fallback check result: ${fallbackResult}`);
-            return fallbackResult;
+            // Fallback 1: check if "Watchdog Name: Cerberus" appears anywhere
+            if (charterText.includes('watchdog name: cerberus')) {
+                console.log(`🔍 Fallback 1: Found "watchdog name: cerberus" in charter`);
+                return true;
+            }
+            
+            // Fallback 2: check if "Automated Watchdog Policy" section mentions Cerberus
+            const policyMatch = charterText.match(/automated\s+watchdog\s+policy[\s\S]{0,500}cerberus/i);
+            if (policyMatch) {
+                console.log(`🔍 Fallback 2: Found Cerberus in Automated Watchdog Policy section`);
+                return true;
+            }
+            
+            // Fallback 3: more permissive - just look for both "watchdog" and "cerberus" in the charter
+            const hasBothTerms = charterText.includes('watchdog') && charterText.includes('cerberus');
+            if (hasBothTerms) {
+                console.log(`🔍 Fallback 3: Found both "watchdog" and "cerberus" terms in charter`);
+                return true;
+            }
+            
+            console.log(`🔍 No match found for Cerberus watchdog - charter may not specify Cerberus`);
+            return false;
         } catch (error) {
             console.error("Error checking if Cerberus is enabled for group:", error);
             return false;
@@ -141,15 +159,6 @@ export class CerberusTriggerService {
             console.log(`🔍 Old charter: ${oldCharter ? 'exists' : 'none'}`);
             console.log(`🔍 New charter: ${newCharter ? 'exists' : 'none'}`);
             
-            // Check if Cerberus is enabled for this group
-            const cerberusEnabled = await this.isCerberusEnabled(groupId);
-            console.log(`🔍 Cerberus enabled check result: ${cerberusEnabled}`);
-            
-            if (!cerberusEnabled) {
-                console.log(`Cerberus not enabled for group ${groupId} - skipping charter change processing`);
-                return;
-            }
-
             let changeType: 'created' | 'updated' | 'removed';
             
             if (!oldCharter && newCharter) {
@@ -162,11 +171,33 @@ export class CerberusTriggerService {
 
             console.log(`🔍 Change type determined: ${changeType}`);
 
+            // Check if Cerberus is enabled for this group
+            const cerberusEnabled = await this.isCerberusEnabled(groupId);
+            console.log(`🔍 Cerberus enabled check result: ${cerberusEnabled}`);
+            
+            if (!cerberusEnabled) {
+                console.log(`Cerberus not enabled for group ${groupId} - sending notification about availability`);
+                
+                // Send a notification that charter was created/updated but Cerberus is not enabled
+                if (changeType === 'created') {
+                    const notificationMessage = `$$system-message$$ Cerberus: A new charter has been created for this group. To enable automated charter monitoring and compliance checking by Cerberus, please add "Watchdog Name: Cerberus" to your charter's Automated Watchdog Policy section.`;
+                    
+                    await this.messageService.createSystemMessageWithoutPrefix({
+                        text: notificationMessage,
+                        groupId: groupId,
+                    });
+                    
+                    console.log(`✅ Cerberus availability notification sent for new charter`);
+                }
+                
+                return;
+            }
+
             // Create a system message about the charter change
             const changeMessage = `$$system-message$$ Cerberus: Group charter has been ${changeType}. ${
-                changeType === 'created' ? 'New charter is now in effect.' :
+                changeType === 'created' ? 'New charter is now in effect. I will monitor compliance with the charter rules.' :
                 changeType === 'removed' ? 'Group is now operating without a charter.' :
-                'Charter has been updated and new rules are now in effect.'
+                'Charter has been updated and new rules are now in effect. All previous signatures have been invalidated.'
             }`;
 
             console.log(`🔍 Creating system message: ${changeMessage.substring(0, 100)}...`);

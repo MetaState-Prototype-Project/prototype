@@ -18,7 +18,8 @@ export class FirestoreWatcher {
     private retryCount = 0;
     private readonly maxRetries: number = 10; // Increased retries
     private readonly retryDelay: number = 1000; // 1 second
-    private isFirstSnapshot = true; // Skip the initial snapshot that contains all existing documents
+    private watcherStartTime: number = Date.now(); // Track when watcher starts
+    private firstSnapshotReceived = false; // Track if we've received the first snapshot
     
     // Track processed document IDs to prevent duplicates
     private processedIds = new Set<string>();
@@ -57,23 +58,53 @@ export class FirestoreWatcher {
 
         // Reset stopped flag when starting
         this.stopped = false;
+        
+        // Reset watcher start time
+        this.watcherStartTime = Date.now();
+        this.firstSnapshotReceived = false;
 
         try {
-            // Set up real-time listener (only for new changes, not existing documents)
+            // Set up real-time listener
             this.unsubscribe = this.collection.onSnapshot(
                 async (snapshot) => {
                     // Update last snapshot time for health monitoring
                     this.lastSnapshotTime = Date.now();
                     
-                    // Skip the first snapshot which contains all existing documents
-                    if (this.isFirstSnapshot) {
-                        console.log(`Skipping initial snapshot for ${collectionPath} (contains all existing documents)`);
-                        this.isFirstSnapshot = false;
+                    // On first snapshot, only skip documents that were created/modified BEFORE watcher started
+                    // This ensures we don't miss any new documents created right as the watcher starts
+                    if (!this.firstSnapshotReceived) {
+                        console.log(`First snapshot received for ${collectionPath} with ${snapshot.size} documents`);
+                        this.firstSnapshotReceived = true;
+                        
+                        // Process only documents modified AFTER watcher start time
+                        const recentChanges = snapshot.docChanges().filter((change) => {
+                            const doc = change.doc;
+                            const data = doc.data();
+                            
+                            // Check if document was modified after watcher started
+                            // Use updatedAt if available, otherwise createdAt
+                            const timestamp = data.updatedAt || data.createdAt;
+                            if (timestamp && timestamp.toMillis) {
+                                const docTime = timestamp.toMillis();
+                                return docTime >= this.watcherStartTime;
+                            }
+                            
+                            // If no timestamp, process it to be safe
+                            return true;
+                        });
+                        
+                        if (recentChanges.length > 0) {
+                            console.log(`Processing ${recentChanges.length} recent changes from first snapshot`);
+                            await this.processChanges(recentChanges);
+                        } else {
+                            console.log(`No recent changes in first snapshot, skipping`);
+                        }
+                        
+                        this.retryCount = 0;
                         return;
                     }
                     
-                    // Don't skip snapshots - queue them instead to handle large databases
-                    // Process snapshot asynchronously without blocking new snapshots
+                    // For subsequent snapshots, process all changes normally
                     this.processSnapshot(snapshot).catch((error) => {
                         console.error("Error processing snapshot:", error);
                         this.handleError(error);
@@ -205,8 +236,9 @@ export class FirestoreWatcher {
             this.unsubscribe = null;
         }
         
-        // Reset first snapshot flag
-        this.isFirstSnapshot = true;
+        // Reset watcher state
+        this.watcherStartTime = Date.now();
+        this.firstSnapshotReceived = false;
         this.lastSnapshotTime = Date.now();
         
         // Reset reconnection attempt counter on successful reconnect
@@ -323,8 +355,9 @@ export class FirestoreWatcher {
                 this.unsubscribe = null;
             }
             
-            // Reset first snapshot flag when restarting
-            this.isFirstSnapshot = true;
+            // Reset watcher state when restarting
+            this.watcherStartTime = Date.now();
+            this.firstSnapshotReceived = false;
             this.lastSnapshotTime = Date.now();
             
             try {
@@ -343,8 +376,10 @@ export class FirestoreWatcher {
         }
     }
 
-    private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
-        const changes = snapshot.docChanges();
+    /**
+     * Processes an array of document changes
+     */
+    private async processChanges(changes: DocumentChange[]): Promise<void> {
         const collectionPath =
             this.collection instanceof CollectionReference
                 ? this.collection.path
@@ -411,6 +446,12 @@ export class FirestoreWatcher {
         // Process all changes in parallel
         await Promise.all(processPromises);
     }
+
+    private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
+        const changes = snapshot.docChanges();
+        await this.processChanges(changes);
+    }
+
 
     private async handleCreateOrUpdate(
         doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData>,

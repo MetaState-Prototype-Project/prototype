@@ -133,7 +133,6 @@ export class GroupController {
                 
                 const groupData = {
                     name: group.name || "Unnamed Group",
-                    avatar: group.avatarUrl,
                     description: group.description,
                     members: group.participants?.map((p: any) => p.id) || [],
                     admins: group.admins || [],
