@@ -48,8 +48,8 @@ onMount(async () => {
     }
 
     clearPin = async () => {
-        await globalState?.securityController.clearPin();
-        goto("/");
+        pin = "";
+        isError = false;
     };
 
     handlePinInput = async (pin: string) => {

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
@@ -16,6 +17,7 @@ let showDrawer = $state(false);
 const handleClose = async () => {
     // close functionality goes here.
     showDrawer = false;
+    goto("/settings");
 };
 
 const handleChangePIN = async () => {
@@ -30,7 +32,11 @@ const handleChangePIN = async () => {
     }
 
     try {
-        await globalState?.securityController.updatePin(currentPin, newPin);
+        await globalState?.securityController.updatePin(
+            newPin,
+            repeatPin,
+            currentPin,
+        );
         isError = false;
         showDrawer = true;
     } catch (err) {

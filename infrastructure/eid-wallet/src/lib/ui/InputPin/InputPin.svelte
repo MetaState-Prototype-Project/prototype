@@ -43,6 +43,14 @@ $effect(() => {
     pin = calcPin(pins);
 });
 
+$effect(() => {
+    if (pin === "") {
+        for (const key of Object.keys(pins)) {
+            pins[+key] = "";
+        }
+    }
+});
+
 const calcPin = (pins: { [key: number]: string }) => {
     return Object.values(pins).join("") || "";
 };
