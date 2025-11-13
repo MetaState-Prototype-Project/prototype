@@ -82,10 +82,11 @@ export class KeyManagerFactory {
     static async getKeyManagerForContext(
         keyId: string,
         context: "onboarding" | "signing" | "verification" | "pre-verification",
+        isFake: boolean,
     ): Promise<KeyManager> {
         const config: KeyManagerConfig = {
             keyId,
-            useHardware: context !== "pre-verification",
+            useHardware: isFake ? false : context !== "pre-verification" && await KeyManagerFactory.isHardwareAvailable(),
             preVerificationMode: context === "pre-verification",
         };
 

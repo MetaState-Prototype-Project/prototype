@@ -1,6 +1,7 @@
 import { KeyManagerFactory } from "$lib/crypto";
 import type { KeyManager } from "$lib/crypto";
 import type { Store } from "@tauri-apps/plugin-store";
+import type { UserController } from "./user";
 
 export type KeyServiceContext =
     | "onboarding"
@@ -72,9 +73,22 @@ export class KeyService {
             this.#managerCache.delete(cacheKey);
         }
 
+        const isFake = await this.#store
+        .get<boolean>("fake")
+        .then((f) => {
+            if (!f) {
+                return undefined;
+            }
+            return f;
+        })
+        .catch((error) => {
+            console.error("Failed to get fake:", error);
+            return undefined;
+        });
         const manager = await KeyManagerFactory.getKeyManagerForContext(
             keyId,
             context,
+            isFake,
         );
         this.#managerCache.set(cacheKey, manager);
         await this.#persistContext(cacheKey, manager, keyId, context);
