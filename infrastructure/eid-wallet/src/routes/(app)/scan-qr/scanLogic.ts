@@ -1089,7 +1089,7 @@ export function createScanLogic({
                         blindVoteError.set(null);
 
                         const platformUrlCandidate =
-                            parsedSigningData?.platformUrl?.trim()
+                            parsedSigningData?.platformUrl?.trim();
 
                         if (!platformUrlCandidate) {
                             const errorMessage =
