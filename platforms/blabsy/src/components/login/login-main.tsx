@@ -9,6 +9,7 @@ import { isMobileDevice, getDeepLinkUrl } from '@lib/utils/mobile-detection';
 export function LoginMain(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
     const [qr, setQr] = useState<string>();
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     function watchEventStream(id: string): void {
         const sseUrl = new URL(
@@ -19,13 +20,37 @@ export function LoginMain(): JSX.Element {
 
         eventSource.onopen = (): void => {
             console.log('Successfully connected.');
+            setErrorMessage(null);
         };
 
         eventSource.onmessage = async (e): Promise<void> => {
-            const data = JSON.parse(e.data as string) as { token: string };
-            const { token } = data;
-            console.log(token);
-            await signInWithCustomToken(token);
+            const data = JSON.parse(e.data as string) as {
+                token?: string;
+                error?: boolean;
+                message?: string;
+                type?: string;
+            };
+
+            // Check for error messages (version mismatch)
+            if (data.error && data.type === 'version_mismatch') {
+                setErrorMessage(
+                    data.message ||
+                        'Your eID Wallet app version is outdated. Please update to continue.'
+                );
+                eventSource.close();
+                return;
+            }
+
+            // Handle successful authentication
+            if (data.token) {
+                console.log(data.token);
+                await signInWithCustomToken(data.token);
+            }
+        };
+
+        eventSource.onerror = (): void => {
+            console.error('SSE connection error');
+            eventSource.close();
         };
     }
     const getOfferData = async (): Promise<void> => {
@@ -89,6 +114,14 @@ export function LoginMain(): JSX.Element {
                         Join Blabsy today.
                     </h2>
                     <div>
+                        {errorMessage && (
+                            <div className='mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg'>
+                                <p className='font-semibold'>
+                                    Authentication Error
+                                </p>
+                                <p className='text-sm'>{errorMessage}</p>
+                            </div>
+                        )}
                         {isMobileDevice() ? (
                             <div className='flex flex-col gap-4 items-center'>
                                 <div className='text-xs text-gray-500 text-center max-w-xs'>

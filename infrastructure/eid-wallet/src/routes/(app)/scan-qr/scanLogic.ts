@@ -262,6 +262,7 @@ export function createScanLogic({
                 session: get(session),
                 w3id: w3idResult,
                 signature: signature,
+                appVersion: "0.4.0",
             };
 
             console.log("🔐 Auth payload with signature:", {
