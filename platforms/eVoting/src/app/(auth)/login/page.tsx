@@ -11,6 +11,7 @@ export default function LoginPage() {
     const [qrData, setQrData] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -51,11 +52,24 @@ export default function LoginPage() {
         );
 
         eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.token && data.user) {
-                setAuthToken(data.token);
-                setAuthId(data.user.id);
-                window.location.href = "/";
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Check for error messages (version mismatch)
+                if (data.error && data.type === 'version_mismatch') {
+                    setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+                    eventSource.close();
+                    return;
+                }
+
+                // Handle successful authentication
+                if (data.token && data.user) {
+                    setAuthToken(data.token);
+                    setAuthId(data.user.id);
+                    window.location.href = "/";
+                }
+            } catch (error) {
+                console.error("Error parsing SSE data:", error);
             }
         };
 
@@ -114,6 +128,13 @@ export default function LoginPage() {
                     </div>
 
                     {error && <div className="w-full text-red-500">{error}</div>}
+                    
+                    {errorMessage && (
+                        <div className="w-full mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                            <p className="font-semibold">Authentication Error</p>
+                            <p className="text-sm">{errorMessage}</p>
+                        </div>
+                    )}
 
                     {isLoading ? (
                         <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
