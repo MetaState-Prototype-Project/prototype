@@ -50,14 +50,15 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
         vi.clearAllMocks();
         
         // Mock axios.get for platforms endpoint only
-        axiosGetSpy = vi.spyOn(axios, "get").mockImplementation((url: string | any) => {
+        axiosGetSpy = vi.spyOn(axios, "get").mockImplementation((...args: any[]) => {
+            const url = args[0];
             if (typeof url === "string" && url.includes("/platforms")) {
                 return Promise.resolve({
                     data: ["http://localhost:9999"], // Mock platform URL
                 }) as any;
             }
-            // For other GET requests, call through to original (stored before spying)
-            return originalAxiosGet.call(axios, url);
+            // For other GET requests, call through to original with all arguments preserved
+            return (originalAxiosGet as any).apply(axios, args);
         });
 
         // Spy on axios.post to capture webhook payloads
