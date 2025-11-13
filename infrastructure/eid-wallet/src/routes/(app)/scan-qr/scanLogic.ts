@@ -1104,8 +1104,9 @@ export function createScanLogic({
                         try {
                             // Validate the URL and normalize trailing slashes for consistent API calls.
                             const validatedUrl = new URL(platformUrlCandidate);
-                            platformUrl =
-                                validatedUrl.toString().replace(/\/+$/, "");
+                            platformUrl = validatedUrl
+                                .toString()
+                                .replace(/\/+$/, "");
                         } catch (error) {
                             const message =
                                 error instanceof Error
