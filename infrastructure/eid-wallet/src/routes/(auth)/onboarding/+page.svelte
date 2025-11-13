@@ -167,10 +167,6 @@ onMount(async () => {
 
     // New function to handle final submission with demo name
     handleFinalSubmit = async () => {
-        console.log("Setting vault in controller:", {
-            uri,
-            ename,
-        });
         loading = true;
 
         const tenYearsLater = new Date();
