@@ -1,101 +1,116 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { ButtonAction, Drawer, InputPin } from "$lib/ui";
-import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import { checkStatus } from "@tauri-apps/plugin-biometric";
-import { getContext, onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { Hero } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { ButtonAction, Drawer, InputPin } from "$lib/ui";
+    import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import { checkStatus } from "@tauri-apps/plugin-biometric";
+    import { getContext, onMount } from "svelte";
 
-let pin = $state("");
-let repeatPin = $state("");
-let firstStep = $state(true);
-let showDrawer = $state(false);
-let isBiometricsAvailable = $state(false);
-let isBiometricScreen = $state(false);
-let isBiometricsAdded = $state(false);
-let isError = $state(false);
-let btnVariant = $state<"soft" | "solid">("soft");
+    let pin = $state("");
+    let repeatPin = $state("");
+    let firstStep = $state(true);
+    let showDrawer = $state(false);
+    let isBiometricsAvailable = $state(false);
+    let isBiometricScreen = $state(false);
+    let isBiometricsAdded = $state(false);
+    let isError = $state(false);
+    let btnVariant = $state<"soft" | "solid">("soft");
 
-let globalState: GlobalState | undefined = $state(undefined);
+    let globalState: GlobalState | undefined = $state(undefined);
 
-const handleFirstStep = async () => {
-    if (pin.length === 4) {
-        (firstStep = false), (btnVariant = "solid");
-    }
-};
-
-let handleConfirm: () => Promise<void> = $state(async () => {});
-
-const handleNext = async () => {
-    //handle next logic goes here
-    isBiometricScreen = true;
-};
-
-const handleSkip = async () => {
-    // handle skip biometics logic goes here
-    goto("/review");
-};
-
-let handleSetupBiometrics = $state(async () => {});
-
-const handleBiometricsAdded = async () => {
-    //handle logic when biometrics added successfully
-    goto("/review");
-};
-
-$effect(() => {
-    if (repeatPin && repeatPin.length === 4 && pin === repeatPin)
-        isError = false;
-});
-
-onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
-
-    isBiometricsAvailable = (await checkStatus()).isAvailable;
-    console.log("isBiometricsAvailable", isBiometricsAvailable);
-
-    handleConfirm = async () => {
-        if (repeatPin.length < 4) {
-            isError = true;
-            return;
-        }
-
-        if (pin !== repeatPin) {
-            isError = true;
-            firstStep = true;
-            return;
-        }
-
-        isError = false;
-        try {
-            await globalState?.securityController.updatePin(pin, repeatPin);
-            showDrawer = true;
-        } catch (error) {
-            console.error("Failed to update PIN:", error);
-            isError = true;
+    const handleFirstStep = async () => {
+        if (pin.length === 4) {
+            (firstStep = false), (btnVariant = "solid");
         }
     };
 
-    handleSetupBiometrics = async () => {
-        if (!globalState)
-            throw new Error(
-                "Cannot set biometric support, Global state is not defined",
-            );
-        if (isBiometricsAvailable) {
-            try {
-                globalState.securityController.biometricSupport = true;
-            } catch (error) {
-                console.error("Failed to enable biometric support:", error);
-                // Consider showing an error message to the user
-                return;
+    let handleConfirm: () => Promise<void> = $state(async () => {});
+
+    const handleNext = async () => {
+        //handle next logic goes here
+        isBiometricScreen = true;
+    };
+
+    const handleSkip = async () => {
+        // handle skip biometics logic goes here
+        goto("/review");
+    };
+
+    let handleSetupBiometrics = $state(async () => {});
+
+    const handleBiometricsAdded = async () => {
+        //handle logic when biometrics added successfully
+        goto("/review");
+    };
+
+    $effect(() => {
+        if (repeatPin && repeatPin.length === 4 && pin === repeatPin)
+            isError = false;
+    });
+
+    $effect(() => {
+        // First step button
+        if (firstStep) {
+            btnVariant = pin.length === 4 ? "solid" : "soft";
+        } else {
+            // Second step button
+            if (repeatPin.length === 4 && pin === repeatPin) {
+                btnVariant = "solid";
+                isError = false;
+            } else {
+                btnVariant = "soft";
             }
         }
-        isBiometricsAdded = true;
-    };
-});
+    });
+
+    onMount(async () => {
+        globalState = getContext<() => GlobalState>("globalState")();
+        if (!globalState) throw new Error("Global state is not defined");
+
+        isBiometricsAvailable = (await checkStatus()).isAvailable;
+        console.log("isBiometricsAvailable", isBiometricsAvailable);
+
+        handleConfirm = async () => {
+            if (repeatPin.length < 4) {
+                isError = true;
+                return;
+            }
+
+            if (pin !== repeatPin) {
+                isError = true;
+                firstStep = true;
+                return;
+            }
+
+            isError = false;
+            try {
+                await globalState?.securityController.updatePin(pin, repeatPin);
+                showDrawer = true;
+            } catch (error) {
+                console.error("Failed to update PIN:", error);
+                isError = true;
+            }
+        };
+
+        handleSetupBiometrics = async () => {
+            if (!globalState)
+                throw new Error(
+                    "Cannot set biometric support, Global state is not defined",
+                );
+            if (isBiometricsAvailable) {
+                try {
+                    globalState.securityController.biometricSupport = true;
+                } catch (error) {
+                    console.error("Failed to enable biometric support:", error);
+                    // Consider showing an error message to the user
+                    return;
+                }
+            }
+            isBiometricsAdded = true;
+        };
+    });
 </script>
 
 {#if firstStep}
@@ -116,7 +131,11 @@ onMount(async () => {
                 Your PIN does not match, try again.
             </p>
         </section>
-        <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>
+        <ButtonAction
+            class="w-full"
+            variant={btnVariant}
+            callback={handleFirstStep}
+        >
             Confirm
         </ButtonAction>
     </main>
@@ -132,8 +151,10 @@ onMount(async () => {
             </Hero>
             <InputPin bind:pin={repeatPin} />
         </section>
-        <ButtonAction variant="soft" class="w-full" callback={handleConfirm}
-            >Confirm</ButtonAction
+        <ButtonAction
+            variant={btnVariant}
+            class="w-full"
+            callback={handleConfirm}>Confirm</ButtonAction
         >
     </main>
 {/if}
