@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const [qrData, setQrData] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -42,26 +43,37 @@ export default function LoginScreen() {
 
     eventSource.onopen = () => {
       console.log('Successfully connected to auth stream.');
+      setErrorMessage(null);
     };
 
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data);
       console.log('Auth data received:', data);
 
-      const { user, token } = data;
+      // Check for error messages (version mismatch)
+      if (data.error && data.type === 'version_mismatch') {
+        setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+        eventSource.close();
+        return;
+      }
 
-      // Set authentication data
-      setAuthId(user.id);
-      setAuthToken(token);
+      // Handle successful authentication
+      if (data.user && data.token) {
+        const { user, token } = data;
 
-      // Close the event source
-      eventSource.close();
+        // Set authentication data
+        setAuthId(user.id);
+        setAuthToken(token);
 
-      // Set authenticating state
-      setIsAuthenticating(true);
+        // Close the event source
+        eventSource.close();
 
-      // Force a page refresh to trigger AuthProvider re-initialization
-      window.location.reload();
+        // Set authenticating state
+        setIsAuthenticating(true);
+
+        // Force a page refresh to trigger AuthProvider re-initialization
+        window.location.reload();
+      }
     };
 
     eventSource.onerror = (error) => {
@@ -126,6 +138,13 @@ export default function LoginScreen() {
             Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p className="font-semibold">Authentication Error</p>
+            <p className="text-sm">{errorMessage}</p>
+          </div>
+        )}
 
         {qrData && (
           <div className="flex justify-center mb-6">
