@@ -86,7 +86,10 @@ export class KeyManagerFactory {
     ): Promise<KeyManager> {
         const config: KeyManagerConfig = {
             keyId,
-            useHardware: isFake ? false : context !== "pre-verification" && await KeyManagerFactory.isHardwareAvailable(),
+            useHardware: isFake
+                ? false
+                : context !== "pre-verification" &&
+                  (await KeyManagerFactory.isHardwareAvailable()),
             preVerificationMode: context === "pre-verification",
         };
 
