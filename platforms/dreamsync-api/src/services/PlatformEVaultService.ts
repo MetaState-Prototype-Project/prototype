@@ -171,7 +171,11 @@ export class PlatformEVaultService {
     private async ensureClient(w3id: string): Promise<GraphQLClient> {
         if (!this.endpoint || !this.client) {
             this.endpoint = await this.resolveEndpoint(w3id);
-            this.client = new GraphQLClient(this.endpoint);
+            this.client = new GraphQLClient(this.endpoint, {
+                headers: {
+                    "X-ENAME": w3id,
+                },
+            });
         }
         return this.client;
     }
