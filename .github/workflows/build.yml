@@ -1,11 +1,11 @@
 name: "Build All Packages"
 
 on:
-  pull_request:
-  push:
-    branches:
-      - "dev"
-      - "main"
+    pull_request:
+    push:
+        branches:
+            - "dev"
+            - "main"
 
 jobs:
   build:

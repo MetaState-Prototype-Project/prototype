@@ -59,7 +59,11 @@ export function UserFollowStats({
                             <p className='font-bold text-light-primary dark:text-dark-primary'>
                                 {stats}
                             </p>
-                            <p>{index === 1 && statsValue > 1 ? `${title}s` : title}</p>
+                            <p>
+                                {index === 1 && statsValue > 1
+                                    ? `${title}s`
+                                    : title}
+                            </p>
                         </div>
                     );
                 })}

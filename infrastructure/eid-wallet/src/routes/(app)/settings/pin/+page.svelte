@@ -1,9 +1,12 @@
 <script lang="ts">
+import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import { CircleLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
+import { getContext, onMount } from "svelte";
 
+let globalState: GlobalState | undefined = $state(undefined);
 let currentPin = $state("");
 let newPin = $state("");
 let repeatPin = $state("");
@@ -16,13 +19,34 @@ const handleClose = async () => {
 };
 
 const handleChangePIN = async () => {
-    if (repeatPin.length === 4 && newPin !== repeatPin) isError = true;
-    if (!isError) showDrawer = true;
+    if (newPin.length < 4 || repeatPin.length < 4 || currentPin.length < 4) {
+        isError = true;
+        return;
+    }
+
+    if (newPin !== repeatPin) {
+        isError = true;
+        return;
+    }
+
+    try {
+        await globalState?.securityController.updatePin(currentPin, newPin);
+        isError = false;
+        showDrawer = true;
+    } catch (err) {
+        console.error("Failed to update PIN:", err);
+        isError = true;
+    }
 };
 
 $effect(() => {
     runtime.header.title = "Change PIN";
     if (repeatPin.length === 4 && newPin === repeatPin) isError = false;
+});
+
+onMount(() => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    if (!globalState) throw new Error("Global state is not defined");
 });
 </script>
 
