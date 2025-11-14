@@ -154,12 +154,16 @@
 		{#each messages as msg, index (msg.id)}
 			{@const prevMessage = index > 0 ? messages[index - 1] : null}
 			{@const nextMessage = index < messages.length - 1 ? messages[index + 1] : null}
-			{@const isHeadNeeded = !prevMessage || 
-				prevMessage.isOwn !== msg.isOwn || 
-				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId)}
-			{@const isTimestampNeeded = !nextMessage || 
-				nextMessage.isOwn !== msg.isOwn ||
-				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId)}
+			{@const isHeadNeeded = Boolean(
+				!prevMessage ||
+					prevMessage.isOwn !== msg.isOwn ||
+					(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId)
+			)}
+			{@const isTimestampNeeded = Boolean(
+				!nextMessage ||
+					nextMessage.isOwn !== msg.isOwn ||
+					(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId)
+			)}
 			<ChatMessage
 				isOwn={msg.isOwn}
 				userImgSrc={msg.userImgSrc}

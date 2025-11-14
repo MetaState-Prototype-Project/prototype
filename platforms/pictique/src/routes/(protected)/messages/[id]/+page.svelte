@@ -123,13 +123,15 @@
 
 			// Show head (avatar, pointer) on first message of group
 			// Check if isOwn changed OR if the sender changed (for non-own messages)
-			const isHeadNeeded = !prevMessage || 
-				prevMessage.isOwn !== msg.isOwn || 
+			const isHeadNeeded =
+				!prevMessage ||
+				prevMessage.isOwn !== msg.isOwn ||
 				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId);
 
 			// Show timestamp on last message of group
 			// Check if isOwn will change OR if the sender will change (for non-own messages)
-			const isTimestampNeeded = !nextMessage || 
+			const isTimestampNeeded =
+				!nextMessage ||
 				nextMessage.isOwn !== msg.isOwn ||
 				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId);
 
