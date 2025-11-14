@@ -74,8 +74,13 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     if (!globalState) throw new Error("Global state is not defined");
 
-    isBiometricsAvailable = (await checkStatus()).isAvailable;
-    console.log("isBiometricsAvailable", isBiometricsAvailable);
+    try {
+        isBiometricsAvailable = (await checkStatus()).isAvailable;
+        console.log("isBiometricsAvailable", isBiometricsAvailable);
+    } catch (error) {
+        isBiometricsAvailable = false;
+        console.error("Failed to check biometrics status:", error);
+    }
 
     handleConfirm = async () => {
         if (repeatPin.length < 4) {
@@ -91,7 +96,10 @@ onMount(async () => {
 
         isError = false;
         try {
-            await globalState?.securityController.updatePin(pin, repeatPin);
+            await globalState?.securityController.setOnboardingPin(
+                pin,
+                repeatPin,
+            );
             showDrawer = true;
         } catch (error) {
             console.error("Failed to update PIN:", error);

@@ -18,9 +18,7 @@
             }
         ],
         "security": {
-            "capabilities": [
-                "mobile-capability"
-            ],
+            "capabilities": ["mobile-capability"],
             "csp": null
         }
     },
@@ -28,7 +26,7 @@
         "active": true,
         "targets": "all",
         "android": {
-            "versionCode": 10
+            "versionCode": 12
         },
         "icon": [
             "icons/32x32.png",

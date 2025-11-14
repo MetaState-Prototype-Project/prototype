@@ -142,8 +142,14 @@ function MessageItem({
 }
 
 export function ChatWindow(): JSX.Element {
-    const { currentChat, messages, sendNewMessage, markAsRead, loading, setCurrentChat } =
-        useChat();
+    const {
+        currentChat,
+        messages,
+        sendNewMessage,
+        markAsRead,
+        loading,
+        setCurrentChat
+    } = useChat();
     const { user } = useAuth();
     const { isMobile } = useWindow();
     const [messageText, setMessageText] = useState('');

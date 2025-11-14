@@ -48,7 +48,7 @@ export class GlobalState {
     static async create() {
         const store = await Store.load("global-state.json", {
             autoSave: true,
-        });
+        } as Parameters<typeof Store.load>[1]);
         const keyService = new KeyService(store);
         await keyService.initialize();
         const alreadyInitialized = await store.get<boolean>("initialized");

@@ -128,6 +128,51 @@ export class VaultController {
     }
 
     /**
+     * Simple health check: just checks if registry can resolve the w3id
+     * Returns the URI if healthy, throws error if not
+     */
+    async checkHealth(w3id: string): Promise<{
+        healthy: boolean;
+        deleted?: boolean;
+        uri?: string;
+        error?: string;
+    }> {
+        try {
+            console.log(`🏥 Checking eVault health for ${w3id}...`);
+            const response = await axios.get(
+                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
+                {
+                    timeout: 3000, // 3 second timeout
+                },
+            );
+
+            if (response.data?.uri) {
+                console.log(`✅ eVault is healthy, URI: ${response.data.uri}`);
+                return { healthy: true, uri: response.data.uri };
+            }
+            console.warn("⚠️ Registry responded but no URI found");
+            return { healthy: false, error: "No URI in registry response" };
+        } catch (error) {
+            // Check if it's a 404 - eVault has been deleted
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                console.error(
+                    "🗑️ eVault not found in registry (404) - it has been deleted",
+                );
+                return {
+                    healthy: false,
+                    deleted: true,
+                    error: "eVault has been deleted from registry",
+                };
+            }
+
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            console.error(`❌ eVault health check failed: ${errorMessage}`);
+            return { healthy: false, error: errorMessage };
+        }
+    }
+
+    /**
      * Resolve eVault endpoint from registry with retry logic
      */
     private async resolveEndpoint(w3id: string): Promise<string> {
@@ -141,6 +186,9 @@ export class VaultController {
                         `resolve?w3id=${w3id}`,
                         PUBLIC_REGISTRY_URL,
                     ).toString(),
+                    {
+                        timeout: 5000, // 5 second timeout for resolve
+                    },
                 );
                 return new URL("/graphql", response.data.uri).toString();
             } catch (error) {
