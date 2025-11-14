@@ -75,9 +75,9 @@ export class AuthController {
                     type: "version_mismatch"
                 };
                 this.eventEmitter.emit(session, errorMessage);
-                return res.status(400).json({ 
-                    error: "App version too old", 
-                    message: errorMessage.message 
+                return res.status(400).json({
+                    error: "App version too old",
+                    message: errorMessage.message
                 });
             }
 
@@ -97,19 +97,19 @@ export class AuthController {
             res.status(200).send();
         } catch (error) {
             console.error("Error during login:", error);
-            
+
             // Provide more specific error messages
             if (error instanceof Error) {
                 if (error.message.includes("not found")) {
-                    return res.status(404).json({ 
-                        error: "User not found", 
+                    return res.status(404).json({
+                        error: "User not found",
                         message: error.message,
                         details: "Please ensure you have the correct ename or contact support to create an account."
                     });
                 }
             }
-            
+
             res.status(500).json({ error: "Internal server error" });
         }
     };
-} 
+}
