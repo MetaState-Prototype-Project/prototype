@@ -178,7 +178,7 @@ export class GroupController {
                     } catch (error) {
                         console.error("Error in manual sync:", error);
                     }
-                }, 2000); // 2 second delay
+                }, 5000); // 5 second delay
             }
             
             res.json(updatedGroup);
