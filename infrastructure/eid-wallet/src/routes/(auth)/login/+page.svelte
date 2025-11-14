@@ -34,7 +34,8 @@ const authOpts: AuthOptions = {
 };
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
-const setGlobalState = getContext<(value: GlobalState) => void>("setGlobalState");
+const setGlobalState =
+    getContext<(value: GlobalState) => void>("setGlobalState");
 
 async function nukeWallet() {
     if (!globalState) return;
@@ -80,10 +81,16 @@ onMount(async () => {
             try {
                 const vault = await globalState?.vaultController.vault;
                 if (vault?.ename) {
-                    const healthCheck = await globalState.vaultController.checkHealth(vault.ename);
+                    const healthCheck =
+                        await globalState.vaultController.checkHealth(
+                            vault.ename,
+                        );
                     if (!healthCheck.healthy) {
-                        console.warn("eVault health check failed:", healthCheck.error);
-                        
+                        console.warn(
+                            "eVault health check failed:",
+                            healthCheck.error,
+                        );
+
                         // If eVault was deleted (404), show modal
                         if (healthCheck.deleted) {
                             isDeletedVaultModalOpen = true;
@@ -146,10 +153,16 @@ onMount(async () => {
             try {
                 const vault = await globalState.vaultController.vault;
                 if (vault?.ename) {
-                    const healthCheck = await globalState.vaultController.checkHealth(vault.ename);
+                    const healthCheck =
+                        await globalState.vaultController.checkHealth(
+                            vault.ename,
+                        );
                     if (!healthCheck.healthy) {
-                        console.warn("eVault health check failed:", healthCheck.error);
-                        
+                        console.warn(
+                            "eVault health check failed:",
+                            healthCheck.error,
+                        );
+
                         // If eVault was deleted (404), show modal
                         if (healthCheck.deleted) {
                             isDeletedVaultModalOpen = true;
