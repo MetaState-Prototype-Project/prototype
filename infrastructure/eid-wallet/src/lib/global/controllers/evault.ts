@@ -149,15 +149,14 @@ export class VaultController {
             if (response.data?.uri) {
                 console.log(`✅ eVault is healthy, URI: ${response.data.uri}`);
                 return { healthy: true, uri: response.data.uri };
-            } else {
-                console.warn(`⚠️ Registry responded but no URI found`);
-                return { healthy: false, error: "No URI in registry response" };
             }
+            console.warn("⚠️ Registry responded but no URI found");
+            return { healthy: false, error: "No URI in registry response" };
         } catch (error) {
             // Check if it's a 404 - eVault has been deleted
             if (axios.isAxiosError(error) && error.response?.status === 404) {
                 console.error(
-                    `🗑️ eVault not found in registry (404) - it has been deleted`,
+                    "🗑️ eVault not found in registry (404) - it has been deleted",
                 );
                 return {
                     healthy: false,
