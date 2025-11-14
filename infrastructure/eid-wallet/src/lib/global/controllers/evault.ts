@@ -131,9 +131,7 @@ export class VaultController {
      * Simple health check: just checks if registry can resolve the w3id
      * Returns the URI if healthy, throws error if not
      */
-    async checkHealth(
-        w3id: string,
-    ): Promise<{
+    async checkHealth(w3id: string): Promise<{
         healthy: boolean;
         deleted?: boolean;
         uri?: string;
