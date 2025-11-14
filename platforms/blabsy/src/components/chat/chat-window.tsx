@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
+import { useWindow } from '@lib/context/window-context';
 import { formatDistanceToNow, set } from 'date-fns';
 import type { Message } from '@lib/types/message';
 import { getChatType } from '@lib/types/chat';
 import {
     UserIcon,
     PaperAirplaneIcon,
-    Cog6ToothIcon
+    Cog6ToothIcon,
+    ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
@@ -140,9 +142,10 @@ function MessageItem({
 }
 
 export function ChatWindow(): JSX.Element {
-    const { currentChat, messages, sendNewMessage, markAsRead, loading } =
+    const { currentChat, messages, sendNewMessage, markAsRead, loading, setCurrentChat } =
         useChat();
     const { user } = useAuth();
+    const { isMobile } = useWindow();
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
@@ -269,6 +272,15 @@ export function ChatWindow(): JSX.Element {
                 <>
                     <div className='flex h-fit items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
                         <div className='flex items-center gap-3'>
+                            {isMobile && (
+                                <button
+                                    type='button'
+                                    onClick={() => setCurrentChat(null)}
+                                    className='flex items-center justify-center rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800'
+                                >
+                                    <ArrowLeftIcon className='h-5 w-5' />
+                                </button>
+                            )}
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
                                 {currentChat.type === 'group' ? (
                                     currentChat.photoURL ? (
