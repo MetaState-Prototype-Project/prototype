@@ -121,5 +121,7 @@ export class GlobalState {
         } catch (error) {
             console.error("Failed to reset global state:", error);
         }
+        const newGlobalState = await GlobalState.create();
+        return newGlobalState;
     }
 }
