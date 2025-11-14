@@ -143,4 +143,10 @@ export class UserController {
                 return undefined;
             });
     }
+
+    clear() {
+        this.#store.set("user", undefined);
+        this.#store.set("fake", undefined);
+        this.#store.set("doc", undefined);
+    }
 }

@@ -109,4 +109,13 @@ export class GlobalState {
                 });
         }
     }
+
+    reset() {
+        this.securityController.clear();
+        this.userController.clear();
+        this.vaultController.clear();
+        this.keyService.clear();
+        this.#store.delete("initialized");
+        this.#store.delete("isOnboardingComplete");
+    }
 }

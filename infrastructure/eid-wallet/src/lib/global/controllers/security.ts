@@ -216,4 +216,9 @@ export class SecurityController {
             return biometric;
         });
     }
+
+    clear() {
+        this.#store.delete("pin");
+        this.#store.delete("biometrics");
+    }
 }

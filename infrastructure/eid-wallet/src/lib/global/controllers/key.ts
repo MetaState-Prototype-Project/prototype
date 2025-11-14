@@ -212,4 +212,12 @@ export class KeyService {
             keyId: rest.join(":"),
         };
     }
+
+    clear() {
+        this.#managerCache.clear();
+        this.#contexts.clear();
+        this.#store.delete(CONTEXTS_KEY);
+        this.#store.delete(READY_KEY);
+        this.#ready = false;
+    }
 }
