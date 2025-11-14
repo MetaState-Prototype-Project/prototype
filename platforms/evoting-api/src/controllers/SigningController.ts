@@ -93,13 +93,13 @@ export class SigningController {
     // Handle signed payload callback from eID Wallet
     async handleSignedPayload(req: Request, res: Response) {
         try {
-            const { sessionId, signature, publicKey, message } = req.body;
+            const { sessionId, signature, w3id, message } = req.body;
             
-            if (!sessionId || !signature || !publicKey || !message) {
+            if (!sessionId || !signature || !w3id || !message) {
                 const missingFields = [];
                 if (!sessionId) missingFields.push('sessionId');
                 if (!signature) missingFields.push('signature');
-                if (!publicKey) missingFields.push('publicKey');
+                if (!w3id) missingFields.push('w3id');
                 if (!message) missingFields.push('message');
                 
                 return res.status(400).json({
@@ -112,7 +112,7 @@ export class SigningController {
             const result = await this.ensureService().processSignedPayload(
                 sessionId, 
                 signature, 
-                publicKey, 
+                w3id, 
                 message
             );
 
