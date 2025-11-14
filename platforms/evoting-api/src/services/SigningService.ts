@@ -17,7 +17,7 @@ export interface SigningSession {
 export interface SignedPayload {
     sessionId: string;
     signature: string;
-    publicKey: string;
+    w3id: string;
     message: string;
 }
 
@@ -112,7 +112,7 @@ export class SigningService {
         return session;
     }
 
-    async processSignedPayload(sessionId: string, signature: string, publicKey: string, message: string): Promise<SigningResult> {
+    async processSignedPayload(sessionId: string, signature: string, w3id: string, message: string): Promise<SigningResult> {
         const session = await this.getSession(sessionId);
         
         if (!session) {
@@ -128,7 +128,7 @@ export class SigningService {
         }
         
         try {
-            // 🔐 SECURITY ASSERTION: Verify that the publicKey matches the user's ename who created the session
+            // 🔐 SECURITY ASSERTION: Verify that the w3id matches the user's ename who created the session
             try {
                 const { UserService } = await import('./UserService');
                 const userService = new UserService();
@@ -139,14 +139,14 @@ export class SigningService {
                 }
 
                 // Strip @ prefix from both enames before comparison
-                const cleanPublicKey = publicKey.replace(/^@/, '');
+                const cleanW3id = w3id.replace(/^@/, '');
                 const cleanUserEname = user.ename.replace(/^@/, '');
                 
-                if (cleanPublicKey !== cleanUserEname) {
-                    console.error(`🔒 SECURITY VIOLATION: publicKey mismatch!`, {
-                        publicKey,
+                if (cleanW3id !== cleanUserEname) {
+                    console.error(`🔒 SECURITY VIOLATION: w3id mismatch!`, {
+                        w3id,
                         userEname: user.ename,
-                        cleanPublicKey,
+                        cleanW3id,
                         cleanUserEname,
                         sessionUserId: session.userId
                     });
@@ -160,18 +160,18 @@ export class SigningService {
                     this.notifySubscribers(sessionId, {
                         type: "security_violation",
                         status: "security_violation",
-                        error: "Public key does not match the user who created this signing session",
+                        error: "W3ID does not match the user who created this signing session",
                         sessionId
                     });
                     
                     // Return success: false but don't throw error - let the wallet think it succeeded
-                    return { success: false, error: "Public key does not match the user who created this signing session" };
+                    return { success: false, error: "W3ID does not match the user who created this signing session" };
                 }
                 
-                console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);
+                console.log(`✅ W3ID verification passed: ${cleanW3id} matches ${cleanUserEname}`);
             } catch (error) {
-                console.error("Error during public key verification:", error);
-                return { success: false, error: "Failed to verify public key: " + (error instanceof Error ? error.message : "Unknown error") };
+                console.error("Error during w3id verification:", error);
+                return { success: false, error: "Failed to verify w3id: " + (error instanceof Error ? error.message : "Unknown error") };
             }
 
             // Verify the signature (basic verification for now)
