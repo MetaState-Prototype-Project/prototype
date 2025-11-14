@@ -175,16 +175,15 @@ export class WebhookController {
 
                     // Only process if there's actually a charter change, not just a message update
                     if (newCharter !== undefined && newCharter !== null && oldCharter !== newCharter) {
-                        try {
-                            await this.cerberusTriggerService.processCharterChange(
-                                group.id,
-                                group.name,
-                                oldCharter,
-                                newCharter
-                            );
-                        } catch (error) {
+                        // Don't await - let it run asynchronously to avoid blocking webhook response
+                        this.cerberusTriggerService.processCharterChange(
+                            group.id,
+                            group.name,
+                            oldCharter,
+                            newCharter
+                        ).catch((error) => {
                             console.error("Error in processCharterChange:", error);
-                        }
+                        });
                     }
                 } else {
                     // Check if group already exists by ename (only if ename is available)
@@ -223,16 +222,15 @@ export class WebhookController {
 
                         // Check if new group has a charter and send Cerberus welcome message
                         if (group.charter) {
-                            try {
-                                await this.cerberusTriggerService.processCharterChange(
-                                    group.id,
-                                    group.name,
-                                    undefined, // No old charter for new groups
-                                    group.charter
-                                );
-                            } catch (error) {
+                            // Don't await - let it run asynchronously to avoid blocking webhook response
+                            this.cerberusTriggerService.processCharterChange(
+                                group.id,
+                                group.name,
+                                undefined, // No old charter for new groups
+                                group.charter
+                            ).catch((error) => {
                                 console.error("Error in processCharterChange for new group:", error);
-                            }
+                            });
                         }
                     }
                 }

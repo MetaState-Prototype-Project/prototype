@@ -200,6 +200,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
         if (!data.id) return;
+        
+        // Skip groups without charter - they'll be manually synced when charter is added
+        if (tableName === "groups" && !data.charter) {
+            return;
+        }
 
         try {
             setTimeout(async () => {
