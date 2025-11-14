@@ -96,7 +96,7 @@ onMount(async () => {
 
         isError = false;
         try {
-            await globalState?.securityController.updatePin(pin, repeatPin);
+            await globalState?.securityController.setOnboardingPin(pin, repeatPin);
             showDrawer = true;
         } catch (error) {
             console.error("Failed to update PIN:", error);
