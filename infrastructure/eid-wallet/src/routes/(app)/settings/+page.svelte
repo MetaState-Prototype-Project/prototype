@@ -13,7 +13,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { getContext } from "svelte";
 
-const globalState = getContext<() => GlobalState>("globalState")();
+const getGlobalState = getContext<() => GlobalState>("globalState");
+const setGlobalState =
+    getContext<(value: GlobalState) => void>("setGlobalState");
+let globalState = getGlobalState();
 
 let isDeleteConfirmationOpen = $state(false);
 let isFinalConfirmationOpen = $state(false);
@@ -33,11 +36,10 @@ function confirmDelete() {
     isFinalConfirmationOpen = true;
 }
 
-function nukeWallet() {
-    globalState.userController.user = undefined;
-    globalState.securityController.clearPin();
-    globalState.isOnboardingComplete = false;
-    isFinalConfirmationOpen = false;
+async function nukeWallet() {
+    const newGlobalState = await globalState.reset();
+    setGlobalState(newGlobalState);
+    globalState = newGlobalState;
     goto("/onboarding");
 }
 

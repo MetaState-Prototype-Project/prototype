@@ -20,6 +20,9 @@ let globalDeepLinkHandler: ((event: Event) => void) | undefined;
 let mainWrapper: HTMLElement | undefined = $state(undefined);
 
 setContext("globalState", () => globalState);
+setContext("setGlobalState", (value: GlobalState | undefined) => {
+    globalState = value;
+});
 
 // replace with actual data loading logic
 async function loadData() {

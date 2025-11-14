@@ -216,4 +216,9 @@ export class SecurityController {
             return biometric;
         });
     }
+
+    async clear() {
+        await this.#store.delete("pin");
+        await this.#store.delete("biometrics");
+    }
 }

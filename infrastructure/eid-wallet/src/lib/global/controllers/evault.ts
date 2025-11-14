@@ -368,4 +368,8 @@ export class VaultController {
     getendpoint() {
         return this.#endpoint;
     }
+
+    async clear() {
+        await this.#store.delete("vault");
+    }
 }
