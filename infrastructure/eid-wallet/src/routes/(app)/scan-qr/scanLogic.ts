@@ -75,6 +75,9 @@ interface ScanStores {
     isRevealingVote: Writable<boolean>;
     revealSuccess: Writable<boolean>;
     revealedVoteData: Writable<RevealedVoteData | null>;
+    authError: Writable<string | null>;
+    signingError: Writable<string | null>;
+    authLoading: Writable<boolean>;
 }
 
 interface ScanActions {
@@ -136,6 +139,9 @@ export function createScanLogic({
     const isRevealingVote = writable(false);
     const revealSuccess = writable(false);
     const revealedVoteData = writable<RevealedVoteData | null>(null);
+    const authError = writable<string | null>(null);
+    const signingError = writable<string | null>(null);
+    const authLoading = writable(false);
 
     let permissionsNullable: PermissionState | null = null;
 
@@ -227,6 +233,10 @@ export function createScanLogic({
         const vault = await globalState.vaultController.vault;
         if (!vault || !get(redirect)) return;
 
+        // Clear previous errors and set loading state
+        authError.set(null);
+        authLoading.set(true);
+
         try {
             const { created } = await globalState.keyService.ensureKey(
                 vault.ename,
@@ -269,6 +279,8 @@ export function createScanLogic({
             }
 
             await axios.post(redirectUrl, authPayload);
+
+            // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
 
             let deepLinkData = sessionStorage.getItem("deepLinkData");
@@ -293,6 +305,8 @@ export function createScanLogic({
                                 "Invalid redirect URL:",
                                 data.redirect,
                             );
+                            // Ensure auth drawer is closed before opening logged in drawer
+                            codeScannedDrawerOpen.set(false);
                             loggedInDrawerOpen.set(true);
                             startScan();
                             return;
@@ -302,6 +316,8 @@ export function createScanLogic({
                             new URL(data.redirect);
                         } catch (urlError) {
                             console.error("Invalid URL format:", urlError);
+                            // Ensure auth drawer is closed before opening logged in drawer
+                            codeScannedDrawerOpen.set(false);
                             loggedInDrawerOpen.set(true);
                             startScan();
                             return;
@@ -346,10 +362,33 @@ export function createScanLogic({
                 console.log("No deep link data found after auth completion");
             }
 
+            // Ensure auth drawer is closed before opening logged in drawer
+            codeScannedDrawerOpen.set(false);
             loggedInDrawerOpen.set(true);
             startScan();
         } catch (error) {
             console.error("Error completing authentication:", error);
+
+            // Set user-friendly error message
+            let errorMessage = "Authentication failed. Please try again.";
+            if (error instanceof Error) {
+                if (
+                    error.message.includes("network") ||
+                    error.message.includes("timeout")
+                ) {
+                    errorMessage =
+                        "Network error. Please check your connection and try again.";
+                } else if (error.message.includes("W3ID")) {
+                    errorMessage =
+                        "Failed to retrieve your identity. Please try again.";
+                } else if (error.message.includes("redirect")) {
+                    errorMessage =
+                        "Invalid redirect URL. Please scan the QR code again.";
+                }
+            }
+            authError.set(errorMessage);
+        } finally {
+            authLoading.set(false);
         }
     }
 
@@ -361,10 +400,14 @@ export function createScanLogic({
         session.set(url.searchParams.get("session"));
         hostname.set(redirectUrl.hostname);
         isSigningRequest.set(false);
+        authError.set(null); // Clear any previous auth errors
         codeScannedDrawerOpen.set(true);
     }
 
     function handleSigningRequest(content: string) {
+        // Clear any previous signing errors
+        signingError.set(null);
+
         try {
             let parseableContent = content;
             if (content.startsWith("w3ds://")) {
@@ -393,6 +436,9 @@ export function createScanLogic({
                     base64Data,
                     redirectUri,
                 });
+                signingError.set(
+                    "Invalid signing request. Please scan the QR code again.",
+                );
                 return;
             }
 
@@ -426,10 +472,16 @@ export function createScanLogic({
                 signingDrawerOpen.set(true);
             } catch (error) {
                 console.error("Error decoding signing data:", error);
+                signingError.set(
+                    "Failed to decode signing data. The QR code may be invalid.",
+                );
                 return;
             }
         } catch (error) {
             console.error("Error parsing signing request:", error);
+            signingError.set(
+                "Failed to parse signing request. Please scan the QR code again.",
+            );
         }
     }
 
@@ -505,6 +557,9 @@ export function createScanLogic({
         const currentSigningData = get(signingData);
         const currentSigningSessionId = get(signingSessionId);
         if (!currentSigningData || !currentSigningSessionId) return;
+
+        // Clear previous errors
+        signingError.set(null);
 
         try {
             loading.set(true);
@@ -603,6 +658,34 @@ export function createScanLogic({
             }
         } catch (error) {
             console.error("Error signing vote:", error);
+
+            // Set user-friendly error message
+            let errorMessage = "Failed to sign. Please try again.";
+            if (error instanceof Error) {
+                if (
+                    error.message.includes("vault") ||
+                    error.message.includes("W3ID")
+                ) {
+                    errorMessage =
+                        "Failed to retrieve your identity. Please try again.";
+                } else if (
+                    error.message.includes("network") ||
+                    error.message.includes("fetch")
+                ) {
+                    errorMessage =
+                        "Network error. Please check your connection and try again.";
+                } else if (error.message.includes("redirect")) {
+                    errorMessage =
+                        "No destination URL available. Please scan the QR code again.";
+                } else if (
+                    error.message.includes("submit") ||
+                    error.message.includes("payload")
+                ) {
+                    errorMessage =
+                        "Failed to submit signature. The server may be unavailable.";
+                }
+            }
+            signingError.set(errorMessage);
         } finally {
             loading.set(false);
         }
@@ -986,6 +1069,10 @@ export function createScanLogic({
 
     function setCodeScannedDrawerOpen(value: boolean) {
         codeScannedDrawerOpen.set(value);
+        // Clear auth error when drawer is closed
+        if (!value) {
+            authError.set(null);
+        }
     }
 
     function setLoggedInDrawerOpen(value: boolean) {
@@ -994,6 +1081,10 @@ export function createScanLogic({
 
     function setSigningDrawerOpen(value: boolean) {
         signingDrawerOpen.set(value);
+        // Clear signing error when drawer is closed
+        if (!value) {
+            signingError.set(null);
+        }
     }
 
     function setRevealRequestOpen(value: boolean) {
@@ -1031,6 +1122,12 @@ export function createScanLogic({
 
         if (data.type === "auth") {
             console.log("Handling auth deep link");
+
+            // Close all other modals first
+            signingDrawerOpen.set(false);
+            loggedInDrawerOpen.set(false);
+            isRevealRequest.set(false);
+
             platform.set(data.platform ?? null);
             session.set(data.session ?? null);
             redirect.set(data.redirect ?? null);
@@ -1043,15 +1140,24 @@ export function createScanLogic({
             }
 
             isSigningRequest.set(false);
+            authError.set(null); // Clear any previous auth errors
             codeScannedDrawerOpen.set(true);
         } else if (data.type === "sign") {
             console.log("Handling signing deep link");
+
+            // Close all other modals first
+            codeScannedDrawerOpen.set(false);
+            loggedInDrawerOpen.set(false);
+            isRevealRequest.set(false);
+
             signingSessionId.set(data.session ?? null);
             const base64Data = data.data;
             const redirectUri = data.redirect_uri;
 
             if (get(signingSessionId) && base64Data && redirectUri) {
                 redirect.set(redirectUri);
+                signingError.set(null); // Clear any previous signing errors
+
                 try {
                     const decodedString = atob(base64Data);
                     const parsedSigningData = JSON.parse(
@@ -1153,15 +1259,23 @@ export function createScanLogic({
             }
         } else if (data.type === "reveal") {
             console.log("Handling reveal deep link");
+
+            // Close all other modals first
+            codeScannedDrawerOpen.set(false);
+            loggedInDrawerOpen.set(false);
+            signingDrawerOpen.set(false);
+
             const pollId = data.pollId;
 
             if (pollId) {
                 console.log("🔍 Reveal request for poll:", pollId);
 
+                revealError.set(null); // Clear any previous reveal errors
                 revealPollId.set(pollId);
                 isRevealRequest.set(true);
             } else {
                 console.error("Missing pollId in reveal request");
+                revealError.set("Invalid reveal request. Poll ID is missing.");
             }
         }
     }
@@ -1271,6 +1385,9 @@ export function createScanLogic({
             isRevealingVote,
             revealSuccess,
             revealedVoteData,
+            authError,
+            signingError,
+            authLoading,
         },
         actions: {
             startScan,

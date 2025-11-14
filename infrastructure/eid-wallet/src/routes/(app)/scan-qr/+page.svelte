@@ -37,6 +37,9 @@ const {
     isRevealingVote,
     revealSuccess,
     revealedVoteData,
+    authError,
+    signingError,
+    authLoading,
 } = stores;
 
 const {
@@ -95,16 +98,20 @@ $effect(() => {
     );
 });
 
-function handleAuthDrawerDecline() {
-    setCodeScannedDrawerOpen(false);
-    startScan();
+async function handleAuthDrawerDecline() {
+    // If there's an error, "Okay" button closes modal and navigates to main
+    if ($authError) {
+        setCodeScannedDrawerOpen(false);
+        await goto("/main");
+    } else {
+        // Otherwise, "Decline" closes modal and restarts scanning
+        setCodeScannedDrawerOpen(false);
+        startScan();
+    }
 }
 
 function handleAuthDrawerOpenChange(value: boolean) {
     setCodeScannedDrawerOpen(value);
-    if (!value) {
-        startScan();
-    }
 }
 
 function handleLoggedInDrawerConfirm() {
@@ -118,9 +125,16 @@ function handleLoggedInDrawerOpenChange(value: boolean) {
     setLoggedInDrawerOpen(value);
 }
 
-function handleSigningDrawerDecline() {
-    setSigningDrawerOpen(false);
-    startScan();
+async function handleSigningDrawerDecline() {
+    // If there's an error, "Okay" button closes modal and navigates to main
+    if ($signingError) {
+        setSigningDrawerOpen(false);
+        await goto("/main");
+    } else {
+        // Otherwise, "Decline" closes modal and restarts scanning
+        setSigningDrawerOpen(false);
+        startScan();
+    }
 }
 
 function handleSigningDrawerOpenChange(value: boolean) {
@@ -177,6 +191,8 @@ function handleRevealDrawerOpenChange(value: boolean) {
     hostname={$hostname}
     scannedContent={$scannedData?.content}
     isSigningRequest={$isSigningRequest}
+    authError={$authError}
+    authLoading={$authLoading}
     onConfirm={handleAuth}
     onDecline={handleAuthDrawerDecline}
     onOpenChange={handleAuthDrawerOpenChange}
@@ -199,6 +215,7 @@ function handleRevealDrawerOpenChange(value: boolean) {
     selectedBlindVoteOption={$selectedBlindVoteOption}
     isSubmittingBlindVote={$isSubmittingBlindVote}
     loading={$loading}
+    signingError={$signingError}
     onDecline={handleSigningDrawerDecline}
     onSign={handleSignVote}
     onBlindVoteOptionChange={handleBlindVoteOptionChange}
