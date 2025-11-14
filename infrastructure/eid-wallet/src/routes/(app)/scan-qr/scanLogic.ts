@@ -237,10 +237,7 @@ export function createScanLogic({
                 created ? "key-generated" : "key-exists",
             );
 
-            const w3idResult = await globalState.keyService.getPublicKey(
-                vault.ename,
-                "signing",
-            );
+            const w3idResult = vault.ename;
             if (!w3idResult) {
                 throw new Error("Failed to get W3ID");
             }
@@ -260,17 +257,9 @@ export function createScanLogic({
             const authPayload = {
                 ename: vault.ename,
                 session: get(session),
-                w3id: w3idResult,
                 signature: signature,
                 appVersion: "0.4.0",
             };
-
-            console.log("🔐 Auth payload with signature:", {
-                ename: authPayload.ename,
-                session: authPayload.session,
-                w3id: authPayload.w3id,
-                signatureLength: authPayload.signature.length,
-            });
 
             const redirectUrl = get(redirect);
             if (!redirectUrl) {
@@ -534,10 +523,7 @@ export function createScanLogic({
                 created ? "key-generated" : "key-exists",
             );
 
-            const w3idResult = await globalState.keyService.getPublicKey(
-                vault.ename,
-                "signing",
-            );
+            const w3idResult = vault.ename;
             if (!w3idResult) {
                 throw new Error("Failed to get W3ID");
             }
@@ -678,10 +664,7 @@ export function createScanLogic({
                     created ? "key-generated" : "key-exists",
                 );
 
-                const w3idResult = await globalState.keyService.getPublicKey(
-                    vault.ename,
-                    "signing",
-                );
+                const w3idResult = vault.ename;
                 if (!w3idResult) {
                     throw new Error("Failed to get W3ID");
                 }

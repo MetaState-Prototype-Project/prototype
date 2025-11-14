@@ -212,7 +212,7 @@ async function createGroupManifestWithRetry(
 				STORE_META_ENVELOPE,
 				{
 					input: {
-						ontology: "550e8400-e29b-41d4-a716-446655440001", // GroupManifest schema ID
+						ontology: "550e8400-e29b-41d4-a716-446655440003", // GroupManifest schema ID
 						payload: groupManifest,
 						acl: ["*"],
 					},

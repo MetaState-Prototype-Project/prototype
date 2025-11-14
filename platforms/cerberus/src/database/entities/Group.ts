@@ -34,7 +34,7 @@ export class Group {
     @Column({ type: "text", nullable: true })
     charter!: string; // Markdown content for the group charter
 
-    @Column({ default: true })
+    @Column({ default: false })
     isCharterActive!: boolean; // Whether the charter is currently active and monitoring violations
 
     @ManyToMany("User")

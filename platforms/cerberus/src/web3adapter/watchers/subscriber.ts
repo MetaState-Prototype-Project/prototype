@@ -185,11 +185,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
             
             if (!isSystemMessage) {
-                console.log("📝 Skipping non-system message:", data.id);
                 return;
             }
-            
-            console.log("📝 Processing system message:", data.id);
         }
 
         try {
@@ -217,11 +214,22 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     "table:",
                     tableName
                 );
+                
+                // Log the full data being sent for system messages
+                if (tableName === "messages") {
+                    console.log("📤 [SUBSCRIBER] Sending message data:");
+                    console.log("  - Data keys:", Object.keys(data));
+                    console.log("  - Data.sender:", data.sender);
+                    console.log("  - Data.group:", data.group ? `Group ID: ${data.group.id}` : "null");
+                    console.log("  - Data.text (first 100):", data.text?.substring(0, 100));
+                    console.log("  - Data.isSystemMessage:", data.isSystemMessage);
+                }
+                
                 const envelope = await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),
                 });
-                console.log(envelope)
+                console.log("📥 [SUBSCRIBER] Envelope response:", envelope)
             }, 3_000);
         } catch (error) {
             console.error(`Error processing change for ${tableName}:`, error);

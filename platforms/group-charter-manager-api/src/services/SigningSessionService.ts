@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { CharterSignatureService } from "./CharterSignatureService";
 
-export interface CharterSigningSession {
+export interface SigningSession {
     sessionId: string;
     groupId: string;
     charterData: any;
@@ -19,7 +19,7 @@ export interface SignedCharterPayload {
     message: string;
 }
 
-export interface CharterSigningResult {
+export interface SigningResult {
     success: boolean;
     error?: string;
     sessionId: string;
@@ -31,11 +31,11 @@ export interface CharterSigningResult {
     type: "signed" | "security_violation";
 }
 
-export class CharterSigningService {
-    private sessions: Map<string, CharterSigningSession> = new Map();
+export class SigningSessionService {
+    private sessions: Map<string, SigningSession> = new Map();
     private signatureService = new CharterSignatureService();
 
-    async createSession(groupId: string, charterData: any, userId: string): Promise<CharterSigningSession> {
+    async createSession(groupId: string, charterData: any, userId: string): Promise<SigningSession> {
         const sessionId = crypto.randomUUID();
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15 minutes
@@ -45,14 +45,14 @@ export class CharterSigningService {
             message: `Sign charter for group: ${groupId}`,
             sessionId: sessionId
         });
-        
+
         const base64Data = Buffer.from(messageData).toString('base64');
         const apiBaseUrl = process.env.PUBLIC_GROUP_CHARTER_BASE_URL || "http://localhost:3003";
         const redirectUri = `${apiBaseUrl}/api/signing/callback`;
-        
+
         const qrData = `w3ds://sign?session=${sessionId}&data=${base64Data}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
-        const session: CharterSigningSession = {
+        const session: SigningSession = {
             sessionId,
             groupId,
             charterData,
@@ -78,9 +78,9 @@ export class CharterSigningService {
         return session;
     }
 
-    async getSession(sessionId: string): Promise<CharterSigningSession | null> {
+    async getSession(sessionId: string): Promise<SigningSession | null> {
         const session = this.sessions.get(sessionId);
-        
+
         if (!session) {
             return null;
         }
@@ -94,12 +94,12 @@ export class CharterSigningService {
         return session;
     }
 
-    async processSignedPayload(sessionId: string, signature: string, publicKey: string, message: string): Promise<CharterSigningResult> {
+    async processSignedPayload(sessionId: string, signature: string, publicKey: string, message: string): Promise<SigningResult> {
         console.log(`Processing signed payload for session: ${sessionId}`);
         console.log(`Available sessions:`, Array.from(this.sessions.keys()));
-        
+
         const session = await this.getSession(sessionId);
-        
+
         if (!session) {
             console.log(`Session ${sessionId} not found in available sessions`);
             throw new Error("Session not found");
@@ -120,7 +120,7 @@ export class CharterSigningService {
             const { UserService } = await import('./UserService');
             const userService = new UserService();
             const user = await userService.getUserById(session.userId);
-            
+
             if (!user) {
                 throw new Error("User not found for session");
             }
@@ -128,7 +128,7 @@ export class CharterSigningService {
             // Strip @ prefix from both enames before comparison
             const cleanPublicKey = publicKey.replace(/^@/, '');
             const cleanUserEname = user.ename.replace(/^@/, '');
-            
+
             if (cleanPublicKey !== cleanUserEname) {
                 console.error(`🔒 SECURITY VIOLATION: publicKey mismatch!`, {
                     publicKey,
@@ -137,11 +137,13 @@ export class CharterSigningService {
                     cleanUserEname,
                     sessionUserId: session.userId
                 });
-                
+
+                console.log(cleanPublicKey, cleanUserEname)
+
                 // Update session status to indicate security violation
                 session.status = "security_violation";
                 this.sessions.set(sessionId, session);
-                
+
                 // Return error result instead of throwing
                 return {
                     success: false,
@@ -152,7 +154,7 @@ export class CharterSigningService {
                     type: "security_violation"
                 };
             }
-            
+
             console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);
         } catch (error) {
             console.error("Error during public key verification:", error);
@@ -178,7 +180,7 @@ export class CharterSigningService {
         session.status = "completed";
         this.sessions.set(sessionId, session);
 
-        const result: CharterSigningResult = {
+        const result: SigningResult = {
             success: true,
             sessionId,
             groupId: session.groupId,
@@ -192,11 +194,12 @@ export class CharterSigningService {
         return result;
     }
 
-    async getSessionStatus(sessionId: string): Promise<CharterSigningSession | null> {
+    async getSessionStatus(sessionId: string): Promise<SigningSession | null> {
         return this.getSession(sessionId);
     }
 
     testConnection(): boolean {
         return true;
     }
-} 
+}
+

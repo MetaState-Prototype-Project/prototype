@@ -117,8 +117,19 @@ export function ChatContextProvider({
                         return -1;
                     if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp)
                         return 1;
-                    // If neither has lastMessage, sort by updatedAt
-                    return b.updatedAt.toMillis() - a.updatedAt.toMillis();
+                    // If neither has lastMessage, sort by updatedAt (with null checks)
+                    if (a.updatedAt && b.updatedAt) {
+                        return b.updatedAt.toMillis() - a.updatedAt.toMillis();
+                    }
+                    // If only one has updatedAt, prioritize it
+                    if (a.updatedAt && !b.updatedAt) return -1;
+                    if (!a.updatedAt && b.updatedAt) return 1;
+                    // If both are null, sort by createdAt as fallback
+                    if (a.createdAt && b.createdAt) {
+                        return b.createdAt.toMillis() - a.createdAt.toMillis();
+                    }
+                    // If all else fails, maintain order
+                    return 0;
                 });
 
                 setChats(sortedChats);
