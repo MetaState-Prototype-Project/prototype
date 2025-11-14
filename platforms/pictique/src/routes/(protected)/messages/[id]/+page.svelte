@@ -96,11 +96,11 @@
 				};
 			}
 
-			// Handle regular user messages
-			const sender = m.sender as Record<string, string>;
-			const isOwn = sender.id !== userId;
+		// Handle regular user messages
+		const sender = m.sender as Record<string, string>;
+		const isOwn = sender.id !== userId;
 
-			console.log('Message sender ID:', sender.id, 'User ID:', userId, 'IsOwn:', isOwn);
+		console.log('Message sender ID:', sender.id, 'User ID:', userId, 'IsOwn:', isOwn);
 
 			return {
 				id: m.id,
