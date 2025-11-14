@@ -42,14 +42,20 @@
 			isOwn: false,
 			userImgSrc: 'https://i.pravatar.cc/150?img=2',
 			time: '2 minutes ago',
-			message: 'Hey everyone, can we finalize the color palette today?'
+			message: 'Hey everyone, can we finalize the color palette today?',
+			senderId: 'user-2',
+			senderName: 'Bob',
+			senderHandle: '@bob'
 		},
 		{
 			id: 'msg-2',
 			isOwn: true,
 			userImgSrc: 'https://i.pravatar.cc/150?img=1',
 			time: '1 minute ago',
-			message: 'Yes, I just pushed a new draft to Figma.'
+			message: 'Yes, I just pushed a new draft to Figma.',
+			senderId: 'user-1',
+			senderName: 'Alice',
+			senderHandle: '@alice'
 		}
 	]);
 
@@ -65,14 +71,18 @@
 
 	async function handleSend() {
 		if (!messageValue.trim()) return Promise.resolve();
+		const currentMember = group.members.find((m) => m.id === userId);
 		messages = [
 			...messages,
 			{
 				id: `msg-${Date.now()}`,
 				isOwn: true,
-				userImgSrc: group.members.find((m) => m.id === userId)?.avatar || '',
+				userImgSrc: currentMember?.avatar || '',
 				time: 'just now',
-				message: messageValue
+				message: messageValue,
+				senderId: userId,
+				senderName: currentMember?.name || '',
+				senderHandle: `@${currentMember?.name.toLowerCase() || ''}`
 			}
 		];
 		messageValue = '';
@@ -141,12 +151,28 @@
 
 <section class="chat relative px-0">
 	<div class="mt-4 h-[calc(100vh-300px)] overflow-auto" bind:this={messagesContainer}>
-		{#each messages as msg (msg.id)}
+		{#each messages as msg, index (msg.id)}
+			{@const prevMessage = index > 0 ? messages[index - 1] : null}
+			{@const nextMessage = index < messages.length - 1 ? messages[index + 1] : null}
+			{@const isHeadNeeded = !prevMessage || 
+				prevMessage.isOwn !== msg.isOwn || 
+				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId)}
+			{@const isTimestampNeeded = !nextMessage || 
+				nextMessage.isOwn !== msg.isOwn ||
+				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId)}
 			<ChatMessage
 				isOwn={msg.isOwn}
 				userImgSrc={msg.userImgSrc}
 				time={msg.time}
 				message={msg.message}
+				{isHeadNeeded}
+				{isTimestampNeeded}
+				sender={{
+					id: msg.senderId,
+					name: msg.senderName,
+					handle: msg.senderHandle,
+					avatarUrl: msg.userImgSrc
+				}}
 			/>
 		{/each}
 	</div>
