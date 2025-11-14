@@ -552,6 +552,7 @@ export class DbService {
                     id,
                     ontology: meta.ontology,
                     acl,
+                    parsed: meta.payload,
                 },
                 envelopes: createdEnvelopes,
             };

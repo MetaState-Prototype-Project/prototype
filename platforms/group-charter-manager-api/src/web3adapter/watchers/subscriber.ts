@@ -150,11 +150,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     event.metadata.tableName,
                     event.metadata.target
                 )) as ObjectLiteral;
-            } else {
-                console.log("❌ Could not load full entity for ID:", entityId);
             }
-        } else {
-            console.log("❌ No entity ID found in update event");
         }
         
         this.handleChange(
@@ -230,6 +226,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     "table:",
                     tableName
                 );
+                
                 const envelope = await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),

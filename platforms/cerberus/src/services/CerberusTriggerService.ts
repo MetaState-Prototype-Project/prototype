@@ -180,6 +180,10 @@ export class CerberusTriggerService {
                 
                 // Send a notification that charter was created/updated but Cerberus is not enabled
                 if (changeType === 'created') {
+                    // Wait 10 seconds before sending the message
+                    console.log(`⏱️ Waiting 10 seconds before sending Cerberus availability notification...`);
+                    await new Promise(resolve => setTimeout(resolve, 10_000));
+                    
                     const notificationMessage = `$$system-message$$ Cerberus: A new charter has been created for this group. To enable automated charter monitoring and compliance checking by Cerberus, please add "Watchdog Name: Cerberus" to your charter's Automated Watchdog Policy section.`;
                     
                     await this.messageService.createSystemMessageWithoutPrefix({
@@ -193,26 +197,57 @@ export class CerberusTriggerService {
                 return;
             }
 
-            // Create a system message about the charter change
-            const changeMessage = `$$system-message$$ Cerberus: Group charter has been ${changeType}. ${
-                changeType === 'created' ? 'New charter is now in effect. I will monitor compliance with the charter rules.' :
-                changeType === 'removed' ? 'Group is now operating without a charter.' :
-                'Charter has been updated and new rules are now in effect. All previous signatures have been invalidated.'
-            }`;
+            // Wait 10 seconds before sending the charter change message
+            await new Promise(resolve => setTimeout(resolve, 10_000));
 
-            console.log(`🔍 Creating system message: ${changeMessage.substring(0, 100)}...`);
+            // For new charters, analyze activation status and send detailed welcome message
+            if (changeType === 'created') {
+                try {
+                    const { CharterSignatureService } = await import('./CharterSignatureService');
+                    const charterSignatureService = new CharterSignatureService();
+                    const { OpenAIService } = await import('./OpenAIService');
+                    const openaiService = new OpenAIService();
+                    
+                    // Get charter summary from OpenAI
+                    const summary = await openaiService.summarizeCharter(newCharter);
+                    
+                    // Analyze charter activation - this will also send the appropriate status message
+                    await charterSignatureService.analyzeCharterActivation(
+                        groupId,
+                        this.messageService
+                    );
+                    
+                    // Send welcome message with charter summary
+                    const welcomeMessage = `$$system-message$$ Cerberus: New charter created!\n\n📜 Charter Summary:\n${summary.summary}\n\nI will monitor compliance with the charter rules.`;
+                    await this.messageService.createSystemMessageWithoutPrefix({
+                        text: welcomeMessage,
+                        groupId: groupId,
+                    });
+                } catch (error) {
+                    console.error("Error analyzing new charter:", error);
+                    // Fallback to simple message
+                    const changeMessage = `$$system-message$$ Cerberus: New charter created. I will monitor compliance with the charter rules.`;
+                    await this.messageService.createSystemMessageWithoutPrefix({
+                        text: changeMessage,
+                        groupId: groupId,
+                    });
+                }
+            } else {
+                // For updated/removed charters, use simple message
+                const changeMessage = `$$system-message$$ Cerberus: Group charter has been ${changeType}. ${
+                    changeType === 'removed' ? 'Group is now operating without a charter.' :
+                    'Charter has been updated and new rules are now in effect. All previous signatures have been invalidated.'
+                }`;
 
-            const systemMessage = await this.messageService.createSystemMessageWithoutPrefix({
-                text: changeMessage,
-                groupId: groupId,
-            });
-
-            console.log(`✅ System message created successfully with ID: ${systemMessage.id}`);
+                await this.messageService.createSystemMessageWithoutPrefix({
+                    text: changeMessage,
+                    groupId: groupId,
+                });
+            }
 
             // If charter was updated, also handle signature invalidation and detailed analysis
             if (changeType === 'updated' && oldCharter && newCharter) {
                 try {
-                    console.log(`🔍 Handling charter update with signature invalidation...`);
                     // Import CharterSignatureService dynamically to avoid circular dependencies
                     const { CharterSignatureService } = await import('./CharterSignatureService');
                     const charterSignatureService = new CharterSignatureService();
@@ -223,7 +258,6 @@ export class CerberusTriggerService {
                         newCharter,
                         this.messageService
                     );
-                    console.log(`✅ Charter signature invalidation completed`);
                 } catch (error) {
                     console.error("Error handling charter signature invalidation:", error);
                 }
