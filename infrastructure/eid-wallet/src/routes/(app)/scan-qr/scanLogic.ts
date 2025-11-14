@@ -279,7 +279,7 @@ export function createScanLogic({
             }
 
             await axios.post(redirectUrl, authPayload);
-            
+
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
 
@@ -368,16 +368,22 @@ export function createScanLogic({
             startScan();
         } catch (error) {
             console.error("Error completing authentication:", error);
-            
+
             // Set user-friendly error message
             let errorMessage = "Authentication failed. Please try again.";
             if (error instanceof Error) {
-                if (error.message.includes("network") || error.message.includes("timeout")) {
-                    errorMessage = "Network error. Please check your connection and try again.";
+                if (
+                    error.message.includes("network") ||
+                    error.message.includes("timeout")
+                ) {
+                    errorMessage =
+                        "Network error. Please check your connection and try again.";
                 } else if (error.message.includes("W3ID")) {
-                    errorMessage = "Failed to retrieve your identity. Please try again.";
+                    errorMessage =
+                        "Failed to retrieve your identity. Please try again.";
                 } else if (error.message.includes("redirect")) {
-                    errorMessage = "Invalid redirect URL. Please scan the QR code again.";
+                    errorMessage =
+                        "Invalid redirect URL. Please scan the QR code again.";
                 }
             }
             authError.set(errorMessage);
@@ -401,7 +407,7 @@ export function createScanLogic({
     function handleSigningRequest(content: string) {
         // Clear any previous signing errors
         signingError.set(null);
-        
+
         try {
             let parseableContent = content;
             if (content.startsWith("w3ds://")) {
@@ -430,7 +436,9 @@ export function createScanLogic({
                     base64Data,
                     redirectUri,
                 });
-                signingError.set("Invalid signing request. Please scan the QR code again.");
+                signingError.set(
+                    "Invalid signing request. Please scan the QR code again.",
+                );
                 return;
             }
 
@@ -464,12 +472,16 @@ export function createScanLogic({
                 signingDrawerOpen.set(true);
             } catch (error) {
                 console.error("Error decoding signing data:", error);
-                signingError.set("Failed to decode signing data. The QR code may be invalid.");
+                signingError.set(
+                    "Failed to decode signing data. The QR code may be invalid.",
+                );
                 return;
             }
         } catch (error) {
             console.error("Error parsing signing request:", error);
-            signingError.set("Failed to parse signing request. Please scan the QR code again.");
+            signingError.set(
+                "Failed to parse signing request. Please scan the QR code again.",
+            );
         }
     }
 
@@ -646,18 +658,31 @@ export function createScanLogic({
             }
         } catch (error) {
             console.error("Error signing vote:", error);
-            
+
             // Set user-friendly error message
             let errorMessage = "Failed to sign. Please try again.";
             if (error instanceof Error) {
-                if (error.message.includes("vault") || error.message.includes("W3ID")) {
-                    errorMessage = "Failed to retrieve your identity. Please try again.";
-                } else if (error.message.includes("network") || error.message.includes("fetch")) {
-                    errorMessage = "Network error. Please check your connection and try again.";
+                if (
+                    error.message.includes("vault") ||
+                    error.message.includes("W3ID")
+                ) {
+                    errorMessage =
+                        "Failed to retrieve your identity. Please try again.";
+                } else if (
+                    error.message.includes("network") ||
+                    error.message.includes("fetch")
+                ) {
+                    errorMessage =
+                        "Network error. Please check your connection and try again.";
                 } else if (error.message.includes("redirect")) {
-                    errorMessage = "No destination URL available. Please scan the QR code again.";
-                } else if (error.message.includes("submit") || error.message.includes("payload")) {
-                    errorMessage = "Failed to submit signature. The server may be unavailable.";
+                    errorMessage =
+                        "No destination URL available. Please scan the QR code again.";
+                } else if (
+                    error.message.includes("submit") ||
+                    error.message.includes("payload")
+                ) {
+                    errorMessage =
+                        "Failed to submit signature. The server may be unavailable.";
                 }
             }
             signingError.set(errorMessage);
@@ -1097,12 +1122,12 @@ export function createScanLogic({
 
         if (data.type === "auth") {
             console.log("Handling auth deep link");
-            
+
             // Close all other modals first
             signingDrawerOpen.set(false);
             loggedInDrawerOpen.set(false);
             isRevealRequest.set(false);
-            
+
             platform.set(data.platform ?? null);
             session.set(data.session ?? null);
             redirect.set(data.redirect ?? null);
@@ -1119,12 +1144,12 @@ export function createScanLogic({
             codeScannedDrawerOpen.set(true);
         } else if (data.type === "sign") {
             console.log("Handling signing deep link");
-            
+
             // Close all other modals first
             codeScannedDrawerOpen.set(false);
             loggedInDrawerOpen.set(false);
             isRevealRequest.set(false);
-            
+
             signingSessionId.set(data.session ?? null);
             const base64Data = data.data;
             const redirectUri = data.redirect_uri;
@@ -1132,7 +1157,7 @@ export function createScanLogic({
             if (get(signingSessionId) && base64Data && redirectUri) {
                 redirect.set(redirectUri);
                 signingError.set(null); // Clear any previous signing errors
-                
+
                 try {
                     const decodedString = atob(base64Data);
                     const parsedSigningData = JSON.parse(
@@ -1234,12 +1259,12 @@ export function createScanLogic({
             }
         } else if (data.type === "reveal") {
             console.log("Handling reveal deep link");
-            
+
             // Close all other modals first
             codeScannedDrawerOpen.set(false);
             loggedInDrawerOpen.set(false);
             signingDrawerOpen.set(false);
-            
+
             const pollId = data.pollId;
 
             if (pollId) {
