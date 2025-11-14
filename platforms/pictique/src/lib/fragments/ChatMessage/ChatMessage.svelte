@@ -74,8 +74,8 @@
 		</div>
 
 		<div class={cn(`max-w-[50%] ${isHeadNeeded ? 'mt-4' : 'mt-0'}`)}>
-			{#if isHeadNeeded && !isOwn && sender}
-				<p class="text-black-400 mb-1 px-1 text-xs font-medium">
+			{#if isHeadNeeded && sender}
+				<p class="text-black-800 mb-1 px-1 text-xs font-semibold">
 					{sender.name}
 				</p>
 			{/if}
