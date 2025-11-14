@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
     "dependencies": {
-        "@hookform/resolvers": "^5.2.1",
+        "@hookform/resolvers": "^3.9.1",
         "@milkdown/core": "^7.15.2",
         "@milkdown/plugin-listener": "^7.15.2",
         "@milkdown/preset-gfm": "^7.15.2",
