@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { GroupService } from "../services/GroupService";
 import { CharterSignatureService } from "../services/CharterSignatureService";
 import { spinUpEVault } from "web3-adapter";
+import { adapter } from "../web3adapter";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -26,6 +27,10 @@ export class GroupController {
                 admins: [userId],
                 participants: []
             });
+
+            // Lock the group so it doesn't sync until charter+ename are added
+            adapter.addToLockedIds(group.id);
+            console.log("🔒 Locked group from syncing until charter is added:", group.id);
 
             // Add participants including the creator
             const allParticipants = [...new Set([userId, ...participants])];
@@ -142,11 +147,52 @@ export class GroupController {
                 updateData.ename = evaultResult.w3id;
             }
             
+            // Unlock the group so it CAN sync now that it has charter+ename
+            if (needsEVault) {
+                const lockIndex = adapter.lockedIds.indexOf(id);
+                if (lockIndex > -1) {
+                    adapter.lockedIds.splice(lockIndex, 1);
+                    console.log("🔓 Unlocked group for syncing with charter+ename:", id);
+                }
+            }
+            
             // Now save with both charter and ename (if provisioned)
             const updatedGroup = await this.groupService.updateGroup(id, updateData);
             
             if (!updatedGroup) {
                 return res.status(404).json({ error: "Group not found" });
+            }
+            
+            // HACK: Manually trigger sync after delay to ensure complete data is sent
+            if (needsEVault) {
+                console.log("⏰ Scheduling manual sync for group with charter+ename...");
+                setTimeout(async () => {
+                    try {
+                        // Re-fetch the complete group entity with all relations
+                        const completeGroup = await this.groupService.getGroupById(id);
+                        if (completeGroup && completeGroup.charter && completeGroup.ename) {
+                            console.log("📤 Manually syncing complete group:", {
+                                id: completeGroup.id,
+                                name: completeGroup.name,
+                                hasCharter: !!completeGroup.charter,
+                                charterLength: completeGroup.charter?.length || 0,
+                                hasEname: !!completeGroup.ename,
+                                ename: completeGroup.ename
+                            });
+                            
+                            // Convert to plain object and trigger the adapter manually
+                            const plainGroup = JSON.parse(JSON.stringify(completeGroup));
+                            await adapter.handleChange({
+                                data: plainGroup,
+                                tableName: "groups"
+                            });
+                            
+                            console.log("✅ Manual sync completed for group:", completeGroup.id);
+                        }
+                    } catch (error) {
+                        console.error("❌ Error in manual sync:", error);
+                    }
+                }, 2000); // 2 second delay
             }
             
             res.json(updatedGroup);
