@@ -35,7 +35,6 @@ function confirmDelete() {
 
 async function nukeWallet() {
     await globalState.reset();
-    globalState.reset();
     goto("/onboarding");
 }
 

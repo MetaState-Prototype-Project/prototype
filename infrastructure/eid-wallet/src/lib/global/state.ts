@@ -111,11 +111,15 @@ export class GlobalState {
     }
 
     async reset() {
-        await this.securityController.clear();
-        await this.userController.clear();
-        await this.vaultController.clear();
-        await this.keyService.clear();
-        await this.#store.delete("initialized");
-        await this.#store.delete("isOnboardingComplete");
+        try {
+            await this.securityController.clear();
+            await this.userController.clear();
+            await this.vaultController.clear();
+            await this.keyService.clear();
+            await this.#store.delete("initialized");
+            await this.#store.delete("isOnboardingComplete");
+        } catch (error) {
+            console.error("Failed to reset global state:", error);
+        }
     }
 }
