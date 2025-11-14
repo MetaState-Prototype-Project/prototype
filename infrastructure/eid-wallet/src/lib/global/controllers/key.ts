@@ -216,8 +216,8 @@ export class KeyService {
     async clear() {
         this.#managerCache.clear();
         this.#contexts.clear();
-        this.#store.delete(CONTEXTS_KEY);
-        this.#store.delete(READY_KEY);
+        await this.#store.delete(CONTEXTS_KEY);
+        await this.#store.delete(READY_KEY);
         this.#ready = false;
     }
 }
