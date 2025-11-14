@@ -136,10 +136,10 @@ export class SecurityController {
     }
 
     /**
-     * Dear future reader, if you're wondering why we didn't add 
-     * a check to ensure that an old pin isn't set, then well, we 
-     * used to do it previously, then the code decided to not work 
-     * on android, because android can sometimes have stale files as 
+     * Dear future reader, if you're wondering why we didn't add
+     * a check to ensure that an old pin isn't set, then well, we
+     * used to do it previously, then the code decided to not work
+     * on android, because android can sometimes have stale files as
      * an OS causing this app to crash, if it sees data for an old pin
      * but you actually dont have one
      *
