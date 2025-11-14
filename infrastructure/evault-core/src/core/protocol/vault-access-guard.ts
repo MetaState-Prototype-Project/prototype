@@ -176,9 +176,9 @@ export class VaultAccessGuard {
             // Check if envelope exists and user has access
             const { hasAccess, exists } = await this.checkAccess(metaEnvelopeId, context);
             
-            // For update operations, if envelope doesn't exist, allow the resolver to create it
+            // For update operations with input, allow in-place creation if envelope doesn't exist
             if (!exists && args.input) {
-                // This is an update/create operation - let the resolver handle it
+                // Envelope doesn't exist for this eName - allow in-place creation
                 const result = await resolver(parent, args, context);
                 return this.filterACL(result);
             }
