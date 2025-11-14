@@ -93,6 +93,11 @@ export class SigningController {
     // Handle signed payload callback from eID Wallet
     async handleSignedPayload(req: Request, res: Response) {
         try {
+            console.log("📥 Received signed payload callback:", {
+                body: req.body,
+                headers: req.headers
+            });
+            
             const { sessionId, signature, w3id, message } = req.body;
             
             if (!sessionId || !signature || !w3id || !message) {
@@ -102,12 +107,16 @@ export class SigningController {
                 if (!w3id) missingFields.push('w3id');
                 if (!message) missingFields.push('message');
                 
+                console.error("❌ Missing required fields:", missingFields);
+                
                 return res.status(400).json({
                     error: "Missing required fields",
                     missing: missingFields
                 });
             }
 
+            console.log("✅ All required fields present, processing...");
+            
             // Process the signed payload
             const result = await this.ensureService().processSignedPayload(
                 sessionId, 
@@ -115,6 +124,8 @@ export class SigningController {
                 w3id, 
                 message
             );
+            
+            console.log("📤 Processing result:", result);
 
             if (result.success) {
                 res.status(200).json({ 
