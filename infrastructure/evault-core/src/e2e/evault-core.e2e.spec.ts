@@ -346,19 +346,22 @@ describe("web3-adapter + evault-core Integration", () => {
                 data: { original: "data" },
             });
 
-            // Try to update evault1's data using evault2's w3id - should fail
-            await expect(
-                client.updateMetaEnvelopeById(id1, {
-                    w3id: evault2.w3id,
-                    schemaId: "CrossTenantUpdate",
-                    data: { hacked: "data" },
-                })
-            ).rejects.toThrow();
+            // Update with evault2's w3id creates a separate envelope for evault2 (in-place creation)
+            await client.updateMetaEnvelopeById(id1, {
+                w3id: evault2.w3id,
+                schemaId: "CrossTenantUpdate",
+                data: { hacked: "data" },
+            });
 
-            // Verify original data is still intact
+            // Verify original data in evault1 is still intact (isolation maintained)
             const fetched = await client.fetchMetaEnvelope(id1, evault1.w3id);
             expect(fetched.data.original).toBe("data");
             expect(fetched.data.hacked).toBeUndefined();
+
+            // Verify evault2 has its own separate envelope
+            const fetchedEvault2 = await client.fetchMetaEnvelope(id1, evault2.w3id);
+            expect(fetchedEvault2.data.hacked).toBe("data");
+            expect(fetchedEvault2.data.original).toBeUndefined();
         });
 
         it("should handle multiple operations across tenants", async () => {
@@ -547,19 +550,22 @@ describe("web3-adapter + evault-core Integration", () => {
             ).rejects.toThrow();
         });
 
-        it("should fail when updating non-existent envelope", async () => {
+        it("should create envelope in-place when updating non-existent envelope", async () => {
             const nonExistentId = "non-existent-envelope-id";
 
-            await expect(
-                client.updateMetaEnvelopeById(nonExistentId, {
-                    w3id: evault1.w3id,
-                    schemaId: "UpdateTest",
-                    data: { test: "data" },
-                })
-            ).rejects.toThrow();
+            // updateMetaEnvelopeById on non-existent envelope creates it in-place
+            await client.updateMetaEnvelopeById(nonExistentId, {
+                w3id: evault1.w3id,
+                schemaId: "UpdateTest",
+                data: { test: "data" },
+            });
+
+            // Verify it was created
+            const fetched = await client.fetchMetaEnvelope(nonExistentId, evault1.w3id);
+            expect(fetched.data.test).toBe("data");
         });
 
-        it("should fail when using wrong eName for existing envelope", async () => {
+        it("should maintain isolation when using different eName", async () => {
             // Store with evault1
             const id = await client.storeMetaEnvelope({
                 w3id: evault1.w3id,
@@ -567,19 +573,27 @@ describe("web3-adapter + evault-core Integration", () => {
                 data: { original: "data" },
             });
 
-            // Try to fetch with evault2's w3id
+            // Try to fetch with evault2's w3id - should fail (doesn't exist for evault2)
             await expect(
                 client.fetchMetaEnvelope(id, evault2.w3id)
             ).rejects.toThrow();
 
-            // Try to update with evault2's w3id
-            await expect(
-                client.updateMetaEnvelopeById(id, {
-                    w3id: evault2.w3id,
-                    schemaId: "WrongTenant",
-                    data: { hacked: "data" },
-                })
-            ).rejects.toThrow();
+            // Update with evault2's w3id creates separate envelope for evault2
+            await client.updateMetaEnvelopeById(id, {
+                w3id: evault2.w3id,
+                schemaId: "WrongTenant",
+                data: { hacked: "data" },
+            });
+
+            // Now fetch works for evault2 and shows its own data
+            const fetchedEvault2 = await client.fetchMetaEnvelope(id, evault2.w3id);
+            expect(fetchedEvault2.data.hacked).toBe("data");
+            expect(fetchedEvault2.data.original).toBeUndefined();
+
+            // Verify evault1's data is still intact
+            const fetchedEvault1 = await client.fetchMetaEnvelope(id, evault1.w3id);
+            expect(fetchedEvault1.data.original).toBe("data");
+            expect(fetchedEvault1.data.hacked).toBeUndefined();
         });
     });
 });
