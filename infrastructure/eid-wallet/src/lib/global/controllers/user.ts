@@ -144,9 +144,9 @@ export class UserController {
             });
     }
 
-    clear() {
-        this.#store.set("user", undefined);
-        this.#store.set("fake", undefined);
-        this.#store.set("doc", undefined);
+    async clear() {
+        await this.#store.delete("user");
+        await this.#store.delete("fake");
+        await this.#store.delete("doc");
     }
 }

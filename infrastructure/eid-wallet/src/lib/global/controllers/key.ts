@@ -213,7 +213,7 @@ export class KeyService {
         };
     }
 
-    clear() {
+    async clear() {
         this.#managerCache.clear();
         this.#contexts.clear();
         this.#store.delete(CONTEXTS_KEY);

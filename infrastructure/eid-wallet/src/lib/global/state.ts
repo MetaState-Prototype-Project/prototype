@@ -110,12 +110,12 @@ export class GlobalState {
         }
     }
 
-    reset() {
-        this.securityController.clear();
-        this.userController.clear();
-        this.vaultController.clear();
-        this.keyService.clear();
-        this.#store.delete("initialized");
-        this.#store.delete("isOnboardingComplete");
+    async reset() {
+        await this.securityController.clear();
+        await this.userController.clear();
+        await this.vaultController.clear();
+        await this.keyService.clear();
+        await this.#store.delete("initialized");
+        await this.#store.delete("isOnboardingComplete");
     }
 }

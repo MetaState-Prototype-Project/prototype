@@ -217,8 +217,8 @@ export class SecurityController {
         });
     }
 
-    clear() {
-        this.#store.delete("pin");
-        this.#store.delete("biometrics");
+    async clear() {
+        await this.#store.delete("pin");
+        await this.#store.delete("biometrics");
     }
 }

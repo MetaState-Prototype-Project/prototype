@@ -33,7 +33,8 @@
         isFinalConfirmationOpen = true;
     }
 
-    function nukeWallet() {
+    async function nukeWallet() {
+        await globalState.reset();
         globalState.reset();
         goto("/onboarding");
     }
