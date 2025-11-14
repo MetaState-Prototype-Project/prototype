@@ -37,7 +37,6 @@ export class GroupService {
         // Check if charter is being updated/added to delete signatures BEFORE saving
         const charterChanged = groupData.charter !== undefined && currentGroup.charter !== groupData.charter;
         if (charterChanged) {
-            console.log(`Charter updated for group ${id}, deleting all existing signatures before save`);
             await this.charterSignatureService.deleteAllSignaturesForGroup(id);
         }
         

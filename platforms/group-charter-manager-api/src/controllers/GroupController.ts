@@ -30,7 +30,6 @@ export class GroupController {
 
             // Lock the group so it doesn't sync until charter+ename are added
             adapter.addToLockedIds(group.id);
-            console.log("🔒 Locked group from syncing until charter is added:", group.id);
 
             // Add participants including the creator
             const allParticipants = [...new Set([userId, ...participants])];
@@ -152,7 +151,6 @@ export class GroupController {
                 const lockIndex = adapter.lockedIds.indexOf(id);
                 if (lockIndex > -1) {
                     adapter.lockedIds.splice(lockIndex, 1);
-                    console.log("🔓 Unlocked group for syncing with charter+ename:", id);
                 }
             }
             
@@ -165,32 +163,20 @@ export class GroupController {
             
             // HACK: Manually trigger sync after delay to ensure complete data is sent
             if (needsEVault) {
-                console.log("⏰ Scheduling manual sync for group with charter+ename...");
                 setTimeout(async () => {
                     try {
                         // Re-fetch the complete group entity with all relations
                         const completeGroup = await this.groupService.getGroupById(id);
                         if (completeGroup && completeGroup.charter && completeGroup.ename) {
-                            console.log("📤 Manually syncing complete group:", {
-                                id: completeGroup.id,
-                                name: completeGroup.name,
-                                hasCharter: !!completeGroup.charter,
-                                charterLength: completeGroup.charter?.length || 0,
-                                hasEname: !!completeGroup.ename,
-                                ename: completeGroup.ename
-                            });
-                            
                             // Convert to plain object and trigger the adapter manually
                             const plainGroup = JSON.parse(JSON.stringify(completeGroup));
                             await adapter.handleChange({
                                 data: plainGroup,
                                 tableName: "groups"
                             });
-                            
-                            console.log("✅ Manual sync completed for group:", completeGroup.id);
                         }
                     } catch (error) {
-                        console.error("❌ Error in manual sync:", error);
+                        console.error("Error in manual sync:", error);
                     }
                 }, 2000); // 2 second delay
             }

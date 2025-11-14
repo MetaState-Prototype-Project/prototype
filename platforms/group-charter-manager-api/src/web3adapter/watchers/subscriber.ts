@@ -203,7 +203,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Skip groups without charter - they'll be manually synced when charter is added
         if (tableName === "groups" && !data.charter) {
-            console.log("⏭️ Skipping group without charter:", entity.id);
             return;
         }
 
@@ -232,18 +231,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     "table:",
                     tableName
                 );
-                
-                // Debug logging for groups
-                if (tableName === "groups") {
-                    console.log("📤 Syncing group:", {
-                        id: data.id,
-                        name: data.name,
-                        hasCharter: !!data.charter,
-                        charterLength: data.charter?.length || 0,
-                        hasEname: !!data.ename,
-                        ename: data.ename
-                    });
-                }
                 
                 const envelope = await this.adapter.handleChange({
                     data,
