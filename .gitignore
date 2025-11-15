@@ -40,6 +40,9 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
- 
+
 
 evault-cache.json
+
+.pnpm-store
+.pnpm-store/

@@ -41,7 +41,7 @@
 		<span>⚠️ {motd.message}</span>
 		<button
 			onclick={dismissBanner}
-			class="absolute right-4 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-700"
+			class="absolute top-1/2 right-4 -translate-y-1/2 rounded p-1 hover:bg-yellow-600 focus:ring-2 focus:ring-yellow-700 focus:outline-none"
 			aria-label="Dismiss banner"
 		>
 			<svg

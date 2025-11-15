@@ -9,6 +9,7 @@ interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
     isPaneOpen?: boolean;
     children?: Snippet;
     handleSwipe?: (isOpen: boolean | undefined) => void;
+    dismissible?: boolean;
 }
 
 let drawerElem: HTMLDivElement;
@@ -18,6 +19,7 @@ let {
     isPaneOpen = $bindable(),
     children = undefined,
     handleSwipe,
+    dismissible = true,
     ...restProps
 }: IDrawerProps = $props();
 
@@ -33,11 +35,11 @@ $effect(() => {
     pane = new CupertinoPane(drawerElem, {
         fitHeight: true,
         backdrop: true,
-        backdropOpacity: 0.5,
+        backdropOpacity: dismissible ? 0.5 : 0.8,
         backdropBlur: true,
-        bottomClose: true,
+        bottomClose: dismissible,
         buttonDestroy: false,
-        showDraggable: true,
+        showDraggable: dismissible,
         upperThanTop: true,
         breaks: {
             bottom: { enabled: true, height: 250 },

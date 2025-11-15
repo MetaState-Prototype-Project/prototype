@@ -2,6 +2,7 @@ import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
 import { User } from "../database/entities/User";
 import { In } from "typeorm";
+import { withOperationContext } from "../context/OperationContext";
 
 export class GroupService {
     public groupRepository = AppDataSource.getRepository(Group);
@@ -71,44 +72,49 @@ export class GroupService {
         bannerUrl?: string,
         originalMatchParticipants?: string[],
     ): Promise<Group> {
-        // For DreamSync Chat groups, check if a DM already exists between these users
-        if (isPrivate && name.startsWith("DreamSync Chat") && memberIds.length === 2) {
-            const existingDM = await this.findGroupByMembers(memberIds);
-            if (existingDM) {
-                console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${existingDM.id}`);
-                return existingDM;
+        // Generate unique operation ID for this group creation
+        const operationId = `create-group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('GroupService', operationId, async () => {
+            // For DreamSync Chat groups, check if a DM already exists between these users
+            if (isPrivate && name.startsWith("DreamSync Chat") && memberIds.length === 2) {
+                const existingDM = await this.findGroupByMembers(memberIds);
+                if (existingDM) {
+                    console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${existingDM.id}`);
+                    return existingDM;
+                }
             }
-        }
 
-        const members = await this.userRepository.findBy({
-            id: In(memberIds),
-        });
-        if (members.length !== memberIds.length) {
-            throw new Error("One or more members not found");
-        }
+            const members = await this.userRepository.findBy({
+                id: In(memberIds),
+            });
+            if (members.length !== memberIds.length) {
+                throw new Error("One or more members not found");
+            }
 
-        const admins = await this.userRepository.findBy({
-            id: In(adminIds),
-        });
-        if (admins.length !== adminIds.length) {
-            throw new Error("One or more admins not found");
-        }
+            const admins = await this.userRepository.findBy({
+                id: In(adminIds),
+            });
+            if (admins.length !== adminIds.length) {
+                throw new Error("One or more admins not found");
+            }
 
-        const group = this.groupRepository.create({
-            name,
-            description,
-            owner,
-            charter,
-            members,
-            admins,
-            participants: members, // Also set participants for compatibility
-            isPrivate,
-            visibility,
-            avatarUrl,
-            bannerUrl,
-            originalMatchParticipants: originalMatchParticipants || [],
+            const group = this.groupRepository.create({
+                name,
+                description,
+                owner,
+                charter,
+                members,
+                admins,
+                participants: members, // Also set participants for compatibility
+                isPrivate,
+                visibility,
+                avatarUrl,
+                bannerUrl,
+                originalMatchParticipants: originalMatchParticipants || [],
+            });
+            return await this.groupRepository.save(group);
         });
-        return await this.groupRepository.save(group);
     }
 
     async getGroupById(id: string): Promise<Group | null> {
@@ -129,13 +135,18 @@ export class GroupService {
             bannerUrl: string;
         }>
     ): Promise<Group> {
-        const group = await this.getGroupById(id);
-        if (!group) {
-            throw new Error("Group not found");
-        }
+        // Generate unique operation ID for this group update
+        const operationId = `update-group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
-        Object.assign(group, updates);
-        return await this.groupRepository.save(group);
+        return withOperationContext('GroupService', operationId, async () => {
+            const group = await this.getGroupById(id);
+            if (!group) {
+                throw new Error("Group not found");
+            }
+            
+            Object.assign(group, updates);
+            return await this.groupRepository.save(group);
+        });
     }
 
     async deleteGroup(id: string): Promise<void> {
@@ -151,42 +162,52 @@ export class GroupService {
         groupId: string,
         memberIds: string[]
     ): Promise<Group> {
-        // Load the group with ALL relations to ensure proper save
-        const group = await this.groupRepository.findOne({
-            where: { id: groupId },
-            relations: ["members", "admins", "participants"]
-        });
+        // Generate unique operation ID for this member addition
+        const operationId = `add-members-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
-        if (!group) {
-            throw new Error("Group not found");
-        }
+        return withOperationContext('GroupService', operationId, async () => {
+            // Load the group with ALL relations to ensure proper save
+            const group = await this.groupRepository.findOne({
+                where: { id: groupId },
+                relations: ["members", "admins", "participants"]
+            });
+            
+            if (!group) {
+                throw new Error("Group not found");
+            }
 
-        const newMembers = await this.userRepository.findBy({
-            id: In(memberIds),
-        });
-        if (newMembers.length !== memberIds.length) {
-            throw new Error("One or more members not found");
-        }
+            const newMembers = await this.userRepository.findBy({
+                id: In(memberIds),
+            });
+            if (newMembers.length !== memberIds.length) {
+                throw new Error("One or more members not found");
+            }
 
-        // Ensure arrays exist and add new members
-        group.participants = [...(group.participants || []), ...newMembers];
-        group.members = [...(group.members || []), ...newMembers];
-        
-        // Save the group entity to trigger PostgresSubscriber
-        const savedGroup = await this.groupRepository.save(group);
-        
-        return savedGroup;
+            // Ensure arrays exist and add new members
+            group.participants = [...(group.participants || []), ...newMembers];
+            group.members = [...(group.members || []), ...newMembers];
+            
+            // Save the group entity to trigger PostgresSubscriber
+            const savedGroup = await this.groupRepository.save(group);
+            
+            return savedGroup;
+        });
     }
 
     async removeMember(groupId: string, userId: string): Promise<Group> {
-        const group = await this.getGroupById(groupId);
-        if (!group) {
-            throw new Error("Group not found");
-        }
+        // Generate unique operation ID for this member removal
+        const operationId = `remove-member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('GroupService', operationId, async () => {
+            const group = await this.getGroupById(groupId);
+            if (!group) {
+                throw new Error("Group not found");
+            }
 
-        group.members = group.members.filter((m) => m.id !== userId);
-        group.admins = group.admins.filter((a) => a.id !== userId);
-        return await this.groupRepository.save(group);
+            group.members = group.members.filter((m) => m.id !== userId);
+            group.admins = group.admins.filter((a) => a.id !== userId);
+            return await this.groupRepository.save(group);
+        });
     }
 
     // Admin Operations
@@ -194,31 +215,41 @@ export class GroupService {
         groupId: string,
         adminIds: string[]
     ): Promise<Group> {
-        const group = await this.getGroupById(groupId);
-        if (!group) {
-            throw new Error("Group not found");
-        }
+        // Generate unique operation ID for this admin addition
+        const operationId = `add-admins-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('GroupService', operationId, async () => {
+            const group = await this.getGroupById(groupId);
+            if (!group) {
+                throw new Error("Group not found");
+            }
 
-        // Verify the users exist
-        const newAdmins = await this.userRepository.findBy({
-            id: In(adminIds),
+            // Verify the users exist
+            const newAdmins = await this.userRepository.findBy({
+                id: In(adminIds),
+            });
+            if (newAdmins.length !== adminIds.length) {
+                throw new Error("One or more admins not found");
+            }
+
+            group.admins = [...group.admins, ...newAdmins];
+            return await this.groupRepository.save(group);
         });
-        if (newAdmins.length !== adminIds.length) {
-            throw new Error("One or more admins not found");
-        }
-
-        group.admins = [...group.admins, ...newAdmins];
-        return await this.groupRepository.save(group);
     }
 
     async removeAdmin(groupId: string, userId: string): Promise<Group> {
-        const group = await this.getGroupById(groupId);
-        if (!group) {
-            throw new Error("Group not found");
-        }
+        // Generate unique operation ID for this admin removal
+        const operationId = `remove-admin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('GroupService', operationId, async () => {
+            const group = await this.getGroupById(groupId);
+            if (!group) {
+                throw new Error("Group not found");
+            }
 
-        group.admins = group.admins.filter((a) => a.id !== userId);
-        return await this.groupRepository.save(group);
+            group.admins = group.admins.filter((a) => a.id !== userId);
+            return await this.groupRepository.save(group);
+        });
     }
 
     // Utility Methods

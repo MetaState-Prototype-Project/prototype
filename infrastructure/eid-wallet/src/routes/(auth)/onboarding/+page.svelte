@@ -4,11 +4,12 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction, Drawer } from "$lib/ui";
 import { capitalize } from "$lib/utils";
-import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
@@ -22,11 +23,59 @@ let verificationId = $state("");
 let demoName = $state("");
 let verificationSuccess = $state(false);
 let keyManager: KeyManager | null = $state(null);
+let showHardwareError = $state(false);
+let checkingHardware = $state(false);
+const KEY_ID = "default";
 
 const handleGetStarted = async () => {
-    //get started functionality
     isPaneOpen = true;
     preVerified = false;
+    checkingHardware = true;
+    showHardwareError = false;
+    error = null;
+
+    try {
+        if (!globalState) {
+            globalState = getContext<() => GlobalState>("globalState")();
+        }
+
+        // Actually try to generate a test hardware key
+        const testKeyId = `hardware-test-${Date.now()}`;
+        console.log(
+            "Testing hardware key generation with test key:",
+            testKeyId,
+        );
+
+        try {
+            const { manager, created } = await globalState.keyService.ensureKey(
+                testKeyId,
+                "onboarding",
+            );
+            console.log(
+                "Test key result - Manager type:",
+                manager.getType(),
+                "Created:",
+                created,
+            );
+
+            // Check if we got hardware manager and it actually created a key
+            if (manager.getType() !== "hardware") {
+                throw new Error("Got software fallback instead of hardware");
+            }
+
+            // Hardware works! Clean up test key and proceed
+            console.log("Hardware keys are working");
+            checkingHardware = false;
+        } catch (keyError) {
+            console.error("Hardware key test failed:", keyError);
+            showHardwareError = true;
+            checkingHardware = false;
+        }
+    } catch (err) {
+        console.error("Error checking hardware:", err);
+        showHardwareError = true;
+        checkingHardware = false;
+    }
 };
 
 const handlePreVerified = () => {
@@ -45,14 +94,15 @@ function generatePassportNumber() {
     return randomLetters() + randomDigits();
 }
 
-// Initialize key manager based on context
+function getKeyContext(): KeyServiceContext {
+    return preVerified ? "pre-verification" : "onboarding";
+}
+
 async function initializeKeyManager() {
     try {
-        const context = preVerified ? "pre-verification" : "onboarding";
-        keyManager = await KeyManagerFactory.getKeyManagerForContext(
-            "default",
-            context,
-        );
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        keyManager = await globalState.keyService.getManager(KEY_ID, context);
         console.log(`Key manager initialized: ${keyManager.getType()}`);
         return keyManager;
     } catch (error) {
@@ -61,44 +111,69 @@ async function initializeKeyManager() {
     }
 }
 
-async function generateApplicationKeyPair() {
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
+async function ensureKeyForContext() {
     try {
-        const res = await keyManager!.generate("default");
-        console.log("Key generation result:", res);
-        return res;
-    } catch (e) {
-        console.error("Key generation failed:", e);
-        throw e;
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        const { manager, created } = await globalState.keyService.ensureKey(
+            KEY_ID,
+            context,
+        );
+        keyManager = manager;
+        console.log(
+            "Key generation result:",
+            created ? "key-generated" : "key-exists",
+        );
+        return { manager, created };
+    } catch (error) {
+        console.error("Failed to ensure key:", error);
+        throw error;
     }
 }
 
 async function getApplicationPublicKey() {
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
     try {
-        const res = await keyManager!.getPublicKey("default");
-        console.log("Public key retrieved:", res);
-        return res;
-    } catch (e) {
-        console.error("Public key retrieval failed:", e);
-        throw e;
+        if (!globalState) throw new Error("Global state is not defined");
+        if (!keyManager) {
+            await initializeKeyManager();
+        }
+        const context = getKeyContext();
+        const publicKey = await globalState.keyService.getPublicKey(
+            KEY_ID,
+            context,
+        );
+        console.log("Public key retrieved:", publicKey);
+        return publicKey;
+    } catch (error) {
+        console.error("Public key retrieval failed:", error);
+        throw error;
     }
 }
 
 const handleNext = async () => {
-    //handle next functionlity
-    goto("/verify");
+    // Initialize keys for onboarding context before going to verify
+    try {
+        loading = true;
+        if (!globalState) {
+            globalState = getContext<() => GlobalState>("globalState")();
+        }
+        await initializeKeyManager();
+        await ensureKeyForContext();
+        loading = false;
+        goto("/verify");
+    } catch (err) {
+        console.error("Failed to initialize keys for onboarding:", err);
+        error = "Failed to initialize security keys. Please try again.";
+        loading = false;
+        setTimeout(() => {
+            error = null;
+        }, 5000);
+    }
 };
 
 let globalState: GlobalState;
-let handleContinue: () => Promise<void> | void;
-let handleFinalSubmit: () => Promise<void> | void;
+let handleContinue: () => Promise<void> | void = $state(() => {});
+let handleFinalSubmit: () => Promise<void> | void = $state(() => {});
 let ename: string;
 let uri: string;
 
@@ -116,10 +191,7 @@ onMount(async () => {
 
         // Initialize key manager for pre-verification context
         await initializeKeyManager();
-        const keyExists = await keyManager!.exists("default");
-        if (!keyExists) {
-            await generateApplicationKeyPair();
-        }
+        await ensureKeyForContext();
 
         const {
             data: { token: registryEntropy },
@@ -139,7 +211,7 @@ onMount(async () => {
                 console.log("caught");
                 preVerified = false;
                 verificationId = "";
-                error = "Wrong pre-verificaiton code";
+                error = "Wrong pre-verification code";
                 setTimeout(() => {
                     error = null;
                 }, 6_000);
@@ -230,9 +302,13 @@ onMount(async () => {
             >
         </p>
         <div class="flex justify-center whitespace-nowrap mt-1">
-            <ButtonAction class="w-full" callback={handleGetStarted}
-                >Get Started</ButtonAction
+            <ButtonAction 
+                class="w-full" 
+                callback={handleGetStarted}
+                disabled={checkingHardware}
             >
+                {checkingHardware ? "Checking device..." : "Get Started"}
+            </ButtonAction>
         </div>
 
         <p class="mt-2 text-center">
@@ -295,20 +371,63 @@ onMount(async () => {
             </div>
         {/if}
     {:else}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">
-            Your Digital Self begins with the Real You
-        </h4>
-        <p class="text-black-700">
-            In the Web 3.0 Data Space, identity is linked to reality. We begin
-            by verifying your real-world passport, which serves as the
-            foundation for issuing your secure ePassport. At the same time, we
-            generate your eName – a unique digital identifier – and create your
-            eVault to store and protect your personal data.
-        </p>
-        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-            <ButtonAction class="w-full" callback={handleNext}
-                >Next</ButtonAction
-            >
-        </div>
+        {#if checkingHardware}
+            <div class="my-20">
+                <div
+                    class="align-center flex w-full flex-col items-center justify-center gap-6"
+                >
+                    <Shadow size={40} color="rgb(142, 82, 255);" />
+                    <h4>Checking device capabilities...</h4>
+                </div>
+            </div>
+        {:else if showHardwareError}
+            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+                Hardware Security Not Available
+            </h4>
+            <p class="text-black-700 mb-4">
+                Your phone doesn't support hardware crypto keys, which is a requirement for verified IDs.
+            </p>
+            <p class="text-black-700 mb-4">
+                Please use the pre-verification code option to create a demo account instead.
+            </p>
+            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                <ButtonAction 
+                    class="w-full" 
+                    callback={() => {
+                        isPaneOpen = false;
+                        handlePreVerified();
+                    }}
+                >
+                    Use Pre-Verification Code
+                </ButtonAction>
+            </div>
+        {:else}
+            {#if loading}
+                <div class="my-20">
+                    <div
+                        class="align-center flex w-full flex-col items-center justify-center gap-6"
+                    >
+                        <Shadow size={40} color="rgb(142, 82, 255);" />
+                        <h4>Initializing security keys...</h4>
+                    </div>
+                </div>
+            {:else}
+                <h4 class="mt-[2.3svh] mb-[0.5svh]">
+                    Your Digital Self begins with the Real You
+                </h4>
+                <p class="text-black-700">
+                    In the Web 3.0 Data Space, identity is linked to reality. We begin
+                    by verifying your real-world passport, which serves as the
+                    foundation for issuing your secure ePassport. At the same time, we
+                    generate your eName – a unique digital identifier – and create your
+                    eVault to store and protect your personal data.
+                </p>
+                <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+                    <ButtonAction class="w-full" callback={handleNext}
+                        >Next</ButtonAction
+                    >
+                </div>
+            {/if}
+        {/if}
     {/if}
 </Drawer>

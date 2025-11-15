@@ -1535,7 +1535,11 @@ DreamSync Team
                 return;
             }
 
-            const messageContent = `$$system-message$$
+            // Generate unique operation ID for this admin announcement
+            const operationId = `admin-announcement-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            await withOperationContext('ConsentService', operationId, async () => {
+                const messageContent = `$$system-message$$
 
 🎉 Welcome to ${group.name}!
 
@@ -1548,16 +1552,17 @@ Feel free to introduce yourselves and start planning your first activity togethe
 Best regards,
 DreamSync Team`;
 
-            const messageRepository = AppDataSource.getRepository(Message);
-            const message = messageRepository.create({
-                text: messageContent,
-                sender: dreamsyncUser,
-                group: group,
-                isSystemMessage: true
-            });
+                const messageRepository = AppDataSource.getRepository(Message);
+                const message = messageRepository.create({
+                    text: messageContent,
+                    sender: dreamsyncUser,
+                    group: group,
+                    isSystemMessage: true
+                });
 
-            await messageRepository.save(message);
-            console.log(`✅ Sent admin announcement message to group: ${group.id}`);
+                await messageRepository.save(message);
+                console.log(`✅ Sent admin announcement message to group: ${group.id}`);
+            });
             
         } catch (error) {
             console.error("Error sending group admin announcement:", error);

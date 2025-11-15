@@ -392,6 +392,33 @@ export async function createChat(
     owner?: string,
     description?: string
 ): Promise<string> {
+    // Check for existing DM (2 participants, no name) before creating
+    const isDM = participants.length === 2 && !name;
+
+    if (isDM) {
+        // Check if a direct chat already exists between these users
+        const existingChatsQuery = query(
+            chatsCollection,
+            where('participants', 'array-contains', participants[0])
+        );
+
+        const existingChats = await getDocs(existingChatsQuery);
+
+        for (const doc of existingChats.docs) {
+            const chat = doc.data();
+            // Check if it's a direct chat (2 participants) and includes both participants
+            if (
+                chat.participants &&
+                chat.participants.length === 2 &&
+                chat.participants.includes(participants[0]) &&
+                chat.participants.includes(participants[1])
+            ) {
+                return doc.id; // Return existing chat ID
+            }
+        }
+    }
+
+    // No existing DM found or it's a group chat - create new
     const chatRef = doc(chatsCollection);
 
     // Derive type from participant count

@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 import type { Store } from "@tauri-apps/plugin-store";
 /**
- * @author SoSweetHam <soham@auvo.io>
+ * @author SoSweetHam <soham@ensombl.io>
  * @description A security controller that can enable/disable biometric authentication for the app and provide for basic pin based application authentication schemes.
  *
  * Uses the following namespaces in the store:
@@ -29,7 +29,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @description Store hash of app pin lock by providing the pin in 4 digit plain text
      * @memberof SecurityController
      * @param pin - The pin in plain text
@@ -51,7 +51,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @returns The pin hash if set, else undefined
      * @throws Error if the pin is not set
      * @description Get the pin hash for the app if set
@@ -66,7 +66,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @description Clear the pin for the app - For debug use only, ideally.
      * @memberof SecurityController
      * @returns void
@@ -76,7 +76,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @description Verify the pin for the app
      * @memberof SecurityController
      * @param pin The pin in plain text.
@@ -93,7 +93,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @memberof SecurityController
      * @description Set/Update the pin for the app
      * @param newPin The new pin in plain text
@@ -136,7 +136,35 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * Dear future reader, if you're wondering why we didn't add
+     * a check to ensure that an old pin isn't set, then well, we
+     * used to do it previously, then the code decided to not work
+     * on android, because android can sometimes have stale files as
+     * an OS causing this app to crash, if it sees data for an old pin
+     * but you actually dont have one
+     *
+     * @author SoSweetHam <soham@ensombl.io>
+     * @memberof SecurityController
+     * @description Set the onboarding pin for the app
+     * @param pin - The pin in plain text
+     * @param confirmPin - The confirm pin in plain text
+     * @returns void
+     * @throws Error if the pins are not the same
+     * @example
+     * ```ts
+     * const globalState = await GlobalState.create();
+     * globalState.securityController.setOnboardingPin("1234", "1234");
+     * ```
+     */
+    async setOnboardingPin(pin: string, confirmPin: string) {
+        if (pin !== confirmPin) {
+            throw new Error("Pins are not the same!");
+        }
+        return await this.#setPin(pin);
+    }
+
+    /**
+     * @author SoSweetHam <soham@ensombl.io>
      * @memberof SecurityController
      * @description Get the pin hash for the app if set
      * @returns A promise for the pin hash
@@ -152,7 +180,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @memberof SecurityController
      * @description Set the biometric authentication for the app
      * @param value - Enable/Disable biometric authentication
@@ -177,7 +205,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @memberof SecurityController
      * @description Set the biometric authentication status for the app, if the biometric is not supported, it will be set to false
      * @param value - Enable/Disable biometric authentication
@@ -197,7 +225,7 @@ export class SecurityController {
     }
 
     /**
-     * @author SoSweetHam <soham@auvo.io>
+     * @author SoSweetHam <soham@ensombl.io>
      * @memberof SecurityController
      * @description Get the biometric authentication status for the app
      * @returns A promise for the biometric authentication status
@@ -215,5 +243,10 @@ export class SecurityController {
             }
             return biometric;
         });
+    }
+
+    async clear() {
+        await this.#store.delete("pin");
+        await this.#store.delete("biometrics");
     }
 }

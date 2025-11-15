@@ -20,4 +20,10 @@ export const AppDataSource = new DataSource({
     entities: [User, Post, Comment, Message, Chat, MessageReadStatus],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],
+    ssl: process.env.DB_CA_CERT
+        ? {
+              rejectUnauthorized: false,
+              ca: process.env.DB_CA_CERT,
+          }
+        : false,
 });

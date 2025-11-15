@@ -10,7 +10,13 @@
         "check-format": "turbo run check-format",
         "check": "turbo run check",
         "check-types": "turbo run check-types",
-        "dev:evault": "docker compose -f evault.docker-compose.yml up --watch"
+        "dev:docker": "docker compose -f dev-docker-compose.yaml up --watch",
+        "dev:docker:down": "docker compose -f dev-docker-compose.yaml down",
+        "dev:docker:all": "docker compose -f dev-docker-compose.yaml --profile all up --watch",
+        "dev:docker:socials": "docker compose -f dev-docker-compose.yaml --profile socials up --watch",
+        "dev:docker:charter-blabsy": "docker compose -f dev-docker-compose.yaml --profile charter-blabsy up --watch",
+        "dev:docker:neo4j": "docker compose -f neo4j-compose.yaml up",
+        "dev:docker:neo4j:down": "docker compose -f neo4j-compose.yaml down"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
@@ -29,11 +35,13 @@
         "onlyBuiltDependencies": [
             "@biomejs/biome",
             "@parcel/watcher",
+            "@rollup/rollup-linux-x64-gnu",
             "cpu-features",
             "es5-ext",
             "esbuild",
             "msw",
             "protobufjs",
+            "rollup",
             "sqlite3",
             "ssh2",
             "svelte-preprocess"

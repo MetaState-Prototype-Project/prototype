@@ -21,7 +21,14 @@ onMount(async () => {
             // Consider adding user-facing error feedback
         }
     };
-    if (!(await globalState.userController.user)) {
+    let onboardingComplete = false;
+    try {
+        onboardingComplete = await globalState.isOnboardingComplete;
+    } catch (error) {
+        console.error("Failed to determine onboarding status:", error);
+    }
+
+    if (!onboardingComplete || !(await globalState.userController.user)) {
         await goto("/onboarding");
         return;
     }

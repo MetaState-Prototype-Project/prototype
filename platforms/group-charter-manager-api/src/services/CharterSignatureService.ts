@@ -24,7 +24,7 @@ export class CharterSignatureService {
         message: string
     ): Promise<CharterSignature> {
         const charterHash = this.createCharterHash(charterContent);
-        
+
         const charterSignature = this.signatureRepository.create({
             groupId,
             userId,
@@ -40,7 +40,7 @@ export class CharterSignatureService {
     // Get all signatures for a specific charter version
     async getSignaturesForCharter(groupId: string, charterContent: string): Promise<CharterSignature[]> {
         const charterHash = this.createCharterHash(charterContent);
-        
+
         return await this.signatureRepository.find({
             where: {
                 groupId,
@@ -70,7 +70,7 @@ export class CharterSignatureService {
     // Check if a user has signed the current charter version
     async hasUserSignedCharter(groupId: string, userId: string, charterContent: string): Promise<boolean> {
         const charterHash = this.createCharterHash(charterContent);
-        
+
         const signature = await this.signatureRepository.findOne({
             where: {
                 groupId,
@@ -136,7 +136,7 @@ export class CharterSignatureService {
         const result = await this.signatureRepository.delete({
             groupId
         });
-        
+
         console.log(`Deleted ${result.affected || 0} signatures for group ${groupId} due to charter content change`);
     }
-} 
+}

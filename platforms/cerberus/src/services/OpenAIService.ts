@@ -93,6 +93,60 @@ Respond with a JSON object containing:
     }
 
     /**
+     * Summarize a charter
+     */
+    async summarizeCharter(charterText: string): Promise<CharterChangeSummary> {
+        try {
+            const prompt = `
+You are an AI assistant that summarizes group charters.
+
+Charter Text:
+${charterText}
+
+Instructions:
+1. Provide a concise summary of the charter's key points
+2. Identify the main rules and guidelines
+3. Explain what signature requirements exist (if any)
+4. Do NOT use bold formatting with ** symbols in your response
+
+Respond with a JSON object containing:
+- summary: string (brief overview of the charter)
+- keyChanges: string[] (main rules and guidelines)
+- actionRequired: string (what users need to do, especially regarding signatures)
+`;
+
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-4",
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.1,
+            });
+
+            const content = response.choices[0]?.message?.content;
+            if (!content) {
+                throw new Error('No response from OpenAI');
+            }
+
+            try {
+                return JSON.parse(content) as CharterChangeSummary;
+            } catch (parseError) {
+                console.warn('Failed to parse OpenAI response as JSON, using fallback');
+                return {
+                    summary: "A new charter has been created for this group.",
+                    keyChanges: [],
+                    actionRequired: "Please review and sign the charter."
+                };
+            }
+        } catch (error) {
+            console.error('Error summarizing charter:', error);
+            return {
+                summary: "A new charter has been created for this group.",
+                keyChanges: [],
+                actionRequired: "Please review and sign the charter."
+            };
+        }
+    }
+
+    /**
      * Analyze charter changes and provide summary
      */
     async analyzeCharterChanges(

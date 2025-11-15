@@ -11,6 +11,7 @@ export function LoginScreen() {
   const [sessionId, setSessionId] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const getAuthOffer = async () => {
@@ -23,8 +24,11 @@ export function LoginScreen() {
         setIsLoading(false);
       } catch (error) {
         console.error("❌ Failed to get auth offer:", error);
-        console.error("❌ Error details:", error.response?.data);
-        console.error("❌ Error status:", error.response?.status);
+        if (error && typeof error === 'object' && 'response' in error) {
+          const axiosError = error as { response?: { data?: unknown; status?: number } };
+          console.error("❌ Error details:", axiosError.response?.data);
+          console.error("❌ Error status:", axiosError.response?.status);
+        }
         setIsLoading(false);
       }
     };
@@ -42,6 +46,15 @@ export function LoginScreen() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Check for error messages (version mismatch)
+        if (data.error && data.type === 'version_mismatch') {
+          setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+          eventSource.close();
+          return;
+        }
+
+        // Handle successful authentication
         if (data.user && data.token) {
           setIsConnecting(true);
           // Store the token and user ID directly
@@ -104,6 +117,13 @@ export function LoginScreen() {
             Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p className="font-semibold">Authentication Error</p>
+            <p className="text-sm">{errorMessage}</p>
+          </div>
+        )}
 
         {qrCode && (
           <div className="flex justify-center mb-6">

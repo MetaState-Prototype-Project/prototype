@@ -15,16 +15,33 @@ export function MaintenanceBanner(): JSX.Element | null {
     useEffect(() => {
         const fetchMotd = async () => {
             try {
-                const registryUrl = process.env.NEXT_PUBLIC_REGISTRY_URL || 'http://localhost:4321';
-                const response = await axios.get<Motd>(`${registryUrl}/motd`);
+                const registryUrl =
+                    process.env.NEXT_PUBLIC_REGISTRY_URL ||
+                    'http://localhost:4321';
+                const response = await axios.get<Motd>(`${registryUrl}/motd`, {
+                    timeout: 5000 // 5 second timeout
+                });
                 setMotd(response.data);
-                
+
                 // Check if this message has been dismissed
                 if (response.data.status === 'maintenance') {
                     const dismissed = localStorage.getItem(DISMISSED_KEY);
                     setIsDismissed(dismissed === response.data.message);
                 }
             } catch (error) {
+                // Silently handle network errors - registry service may not be available
+                // Only log non-network errors for debugging
+                if (axios.isAxiosError(error)) {
+                    if (
+                        error.code === 'ECONNABORTED' ||
+                        error.code === 'ERR_NETWORK' ||
+                        error.message === 'Network Error'
+                    ) {
+                        // Network error - registry service unavailable, silently fail
+                        return;
+                    }
+                }
+                // Log other errors (like 404, 500, etc.) for debugging
                 console.error('Failed to fetch motd:', error);
             }
         };
@@ -69,4 +86,3 @@ export function MaintenanceBanner(): JSX.Element | null {
         </div>
     );
 }
-

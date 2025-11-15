@@ -74,6 +74,11 @@
 		</div>
 
 		<div class={cn(`max-w-[50%] ${isHeadNeeded ? 'mt-4' : 'mt-0'}`)}>
+			{#if isHeadNeeded && sender}
+				<p class="text-black-800 mb-1 px-1 text-xs font-semibold">
+					{sender.name}
+				</p>
+			{/if}
 			<div
 				class={cn(
 					`relative rounded-3xl px-4 py-2 ${isOwn ? 'bg-grey' : 'bg-brand-burnt-orange'}`

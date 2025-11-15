@@ -1,22 +1,22 @@
 import { Request, Response } from "express";
-import { CharterSigningService } from "../services/CharterSigningService";
+import { SigningSessionService } from "../services/SigningSessionService";
 
 export class CharterSigningController {
-    private signingService: CharterSigningService | null = null;
+    private signingService: SigningSessionService | null = null;
 
     constructor() {
         try {
-            this.signingService = new CharterSigningService();
+            this.signingService = new SigningSessionService();
             console.log("CharterSigningController initialized successfully");
         } catch (error) {
-            console.error("Failed to initialize CharterSigningService:", error);
+            console.error("Failed to initialize SigningSessionService:", error);
             this.signingService = null;
         }
     }
 
-    private ensureService(): CharterSigningService {
+    private ensureService(): SigningSessionService {
         if (!this.signingService) {
-            throw new Error("CharterSigningService not initialized");
+            throw new Error("SigningSessionService not initialized");
         }
         return this.signingService;
     }
@@ -35,13 +35,13 @@ export class CharterSigningController {
             const userId = (req as any).user?.id;
 
             if (!groupId || !charterData || !userId) {
-                return res.status(400).json({ 
-                    error: "Missing required fields: groupId, charterData, or userId" 
+                return res.status(400).json({
+                    error: "Missing required fields: groupId, charterData, or userId"
                 });
             }
 
             const session = await this.ensureService().createSession(groupId, charterData, userId);
-            
+
             res.json({
                 sessionId: session.sessionId,
                 qrData: session.qrData,
@@ -57,7 +57,7 @@ export class CharterSigningController {
     async getSigningSessionStatus(req: Request, res: Response) {
         try {
             const { sessionId } = req.params;
-            
+
             if (!sessionId) {
                 return res.status(400).json({ error: "Session ID is required" });
             }
@@ -80,11 +80,11 @@ export class CharterSigningController {
             // Poll for status changes
             const interval = setInterval(async () => {
                 const session = await this.ensureService().getSessionStatus(sessionId);
-                
+
                 if (session) {
                     if (session.status === "completed") {
-                        res.write(`data: ${JSON.stringify({ 
-                            type: "signed", 
+                        res.write(`data: ${JSON.stringify({
+                            type: "signed",
                             status: "completed",
                             groupId: session.groupId
                         })}\n\n`);
@@ -121,18 +121,18 @@ export class CharterSigningController {
     // Handle signed payload callback from eID Wallet
     async handleSignedPayload(req: Request, res: Response) {
         try {
-            const { sessionId, signature, publicKey, message } = req.body;
-            
+            const { sessionId, signature, w3id, message } = req.body;
+
             // Validate required fields
             const missingFields = [];
             if (!sessionId) missingFields.push('sessionId');
             if (!signature) missingFields.push('signature');
-            if (!publicKey) missingFields.push('publicKey');
+            if (!w3id) missingFields.push('w3id');
             if (!message) missingFields.push('message');
 
             if (missingFields.length > 0) {
-                return res.status(400).json({ 
-                    error: `Missing required fields: ${missingFields.join(', ')}` 
+                return res.status(400).json({
+                    error: `Missing required fields: ${missingFields.join(', ')}`
                 });
             }
 
@@ -140,7 +140,7 @@ export class CharterSigningController {
             const result = await this.ensureService().processSignedPayload(
                 sessionId,
                 signature,
-                publicKey,
+                w3id,
                 message
             );
 
@@ -170,13 +170,13 @@ export class CharterSigningController {
     async getSigningSession(req: Request, res: Response) {
         try {
             const { sessionId } = req.params;
-            
+
             if (!sessionId) {
                 return res.status(400).json({ error: "Session ID is required" });
             }
 
             const session = await this.ensureService().getSession(sessionId);
-            
+
             if (!session) {
                 return res.status(404).json({ error: "Session not found" });
             }
@@ -188,4 +188,4 @@ export class CharterSigningController {
             res.status(500).json({ error: "Failed to get signing session" });
         }
     }
-} 
+}

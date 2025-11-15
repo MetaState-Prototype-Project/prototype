@@ -55,11 +55,19 @@ export class WebhookController {
 
             if (mapping.tableName === "users") {
                 if (localId) {
+                    console.log("DANGER", "user data being updated")
+                    console.log("following user got fucked", local.data)
+
                     const user = await this.userService.findById(localId);
+                    console.log(user)
+                    console.log("---------------------------------------------------------------")
+                    if (!user) throw new Error()
+
                     for (const key of Object.keys(local.data)) {
                         // @ts-ignore
-                        user[key] = local.data[key];
+                        user[key] = local.data[key] ?? user[key]
                     }
+                    user.handle = user.handle;
                     if (!user) throw new Error();
                     user.name = req.body.data.displayName;
                     await this.userService.userRepository.save(user);
@@ -79,6 +87,7 @@ export class WebhookController {
                     }
                     user.name = req.body.data.displayName;
                     await this.userService.userRepository.save(user);
+                    console.log("user saved", user);
                     await this.adapter.mappingDb.storeMapping({
                         localId: user.id,
                         globalId: req.body.id,
@@ -234,24 +243,53 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.chatService.chatRepository.save(chat);
                 } else {
-                    const chat = await this.chatService.createChat(
-                        local.data.name as string,
-                        participants.map((p) => p.id)
-                    );
-
-                    this.adapter.addToLockedIds(chat.id);
-                    await this.adapter.mappingDb.storeMapping({
-                        localId: chat.id,
-                        globalId: req.body.id,
-                    });
+                    // Check for existing DM (2 participants, no name) before creating
+                    const participantIds = participants.map((p) => p.id);
+                    const isDM = participantIds.length === 2 && !local.data.name;
+                    
+                    let chat;
+                    if (isDM) {
+                        const existingChat = await this.chatService.findChatByParticipants(participantIds);
+                        if (existingChat) {
+                            // Use existing chat and store mapping
+                            chat = existingChat;
+                            this.adapter.addToLockedIds(chat.id);
+                            await this.adapter.mappingDb.storeMapping({
+                                localId: chat.id,
+                                globalId: req.body.id,
+                            });
+                        } else {
+                            // Create new chat
+                            chat = await this.chatService.createChat(
+                                local.data.name as string,
+                                participantIds
+                            );
+                            this.adapter.addToLockedIds(chat.id);
+                            await this.adapter.mappingDb.storeMapping({
+                                localId: chat.id,
+                                globalId: req.body.id,
+                            });
+                        }
+                    } else {
+                        // Group chat - always create new
+                        chat = await this.chatService.createChat(
+                            local.data.name as string,
+                            participantIds
+                        );
+                        this.adapter.addToLockedIds(chat.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: chat.id,
+                            globalId: req.body.id,
+                        });
+                    }
                 }
             } else if (mapping.tableName === "messages") {
                 console.log("messages");
                 console.log(local.data);
-                
+
                 // Check if this is a system message
                 const isSystemMessage = !local.data.sender || (typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
-                
+
                 let sender: User | null = null;
                 if (
                     local.data.sender &&
@@ -276,7 +314,7 @@ export class WebhookController {
                         console.log("Missing chat for system message");
                         return res.status(400).send();
                     }
-                    
+
                     // System messages don't require a sender
                     sender = null;
                 } else {
@@ -301,7 +339,7 @@ export class WebhookController {
                     await this.messageService.messageRepository.save(message);
                 } else {
                     let message: Message;
-                    
+
                     if (isSystemMessage) {
                         // Create system message directly using MessageService
                         console.log("Creating system message");

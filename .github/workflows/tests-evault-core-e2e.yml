@@ -1,0 +1,58 @@
+name: Tests [evault-core + web3-adapter Integration]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/evault-core/**'
+      - 'infrastructure/web3-adapter/**'
+
+jobs:
+  test-web3-adapter-integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Clean and rebuild native modules
+        run: |
+          # Remove any pre-built binaries that might be incompatible
+          find node_modules -name "sshcrypto.node" -delete 2>/dev/null || true
+          find node_modules -path "*/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node" -delete 2>/dev/null || true
+          # Rebuild ssh2 specifically for this platform
+          pnpm rebuild ssh2
+          # Rebuild all other native modules
+          pnpm rebuild
+
+      - name: Build web3-adapter
+        run: pnpm -F=web3-adapter build
+
+      - name: Run evault-core + web3-adapter integration tests
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
+          TESTCONTAINERS_HOST_OVERRIDE: localhost
+        run: pnpm -F=evault-core test:e2e:web3-adapter
+

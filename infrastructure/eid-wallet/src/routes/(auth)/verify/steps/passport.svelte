@@ -5,12 +5,12 @@ import axios from "axios";
 import { onMount } from "svelte";
 import { writable } from "svelte/store";
 import {
-    DocFront,
     DocBack,
+    DocFront,
+    documentType,
     permissionGranted,
     verifStep,
     verificaitonId,
-    documentType,
 } from "../store";
 
 let error: string | undefined;

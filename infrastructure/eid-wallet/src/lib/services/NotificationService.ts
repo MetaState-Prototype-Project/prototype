@@ -1,10 +1,10 @@
+import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { invoke } from "@tauri-apps/api/core";
 import {
-    requestPermission,
     isPermissionGranted,
+    requestPermission,
     sendNotification,
 } from "@tauri-apps/plugin-notification";
-import { invoke } from "@tauri-apps/api/core";
-import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 
 export interface DeviceRegistration {
     eName: string;
@@ -17,7 +17,7 @@ export interface DeviceRegistration {
 export interface NotificationPayload {
     title: string;
     body: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
 }
 
 class NotificationService {
@@ -105,9 +105,8 @@ class NotificationService {
                 this.deviceRegistration = registration;
                 console.log("Device registered successfully:", registration);
                 return true;
-            } else {
-                throw new Error(`Registration failed: ${response.statusText}`);
             }
+            throw new Error(`Registration failed: ${response.statusText}`);
         } catch (error) {
             console.error("Failed to register device:", error);
             return false;
@@ -139,7 +138,6 @@ class NotificationService {
                 body: payload.body,
                 icon: "icons/32x32.png",
                 sound: "default",
-                data: payload.data,
             });
 
             await sendNotification({
@@ -147,7 +145,6 @@ class NotificationService {
                 body: payload.body,
                 icon: "icons/32x32.png",
                 sound: "default",
-                data: payload.data,
             });
 
             console.log("Notification sent successfully!");
@@ -183,11 +180,8 @@ class NotificationService {
                 this.deviceRegistration = null;
                 console.log("Device unregistered successfully");
                 return true;
-            } else {
-                throw new Error(
-                    `Unregistration failed: ${response.statusText}`,
-                );
             }
+            throw new Error(`Unregistration failed: ${response.statusText}`);
         } catch (error) {
             console.error("Failed to unregister device:", error);
             return false;
@@ -370,7 +364,7 @@ class NotificationService {
                 m.Store.load("global-state.json"),
             );
             const vault = await store.get<{ ename: string }>("vault");
-            return vault;
+            return vault || null;
         } catch (error) {
             console.error("Error getting vault eName:", error);
             return null;

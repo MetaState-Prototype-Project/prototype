@@ -2,8 +2,8 @@ import { PUBLIC_REGISTRY_URL } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
-import type { UserController } from "./user";
 import NotificationService from "../../services/NotificationService";
+import type { UserController } from "./user";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -128,6 +128,51 @@ export class VaultController {
     }
 
     /**
+     * Simple health check: just checks if registry can resolve the w3id
+     * Returns the URI if healthy, throws error if not
+     */
+    async checkHealth(w3id: string): Promise<{
+        healthy: boolean;
+        deleted?: boolean;
+        uri?: string;
+        error?: string;
+    }> {
+        try {
+            console.log(`🏥 Checking eVault health for ${w3id}...`);
+            const response = await axios.get(
+                new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
+                {
+                    timeout: 3000, // 3 second timeout
+                },
+            );
+
+            if (response.data?.uri) {
+                console.log(`✅ eVault is healthy, URI: ${response.data.uri}`);
+                return { healthy: true, uri: response.data.uri };
+            }
+            console.warn("⚠️ Registry responded but no URI found");
+            return { healthy: false, error: "No URI in registry response" };
+        } catch (error) {
+            // Check if it's a 404 - eVault has been deleted
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                console.error(
+                    "🗑️ eVault not found in registry (404) - it has been deleted",
+                );
+                return {
+                    healthy: false,
+                    deleted: true,
+                    error: "eVault has been deleted from registry",
+                };
+            }
+
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            console.error(`❌ eVault health check failed: ${errorMessage}`);
+            return { healthy: false, error: errorMessage };
+        }
+    }
+
+    /**
      * Resolve eVault endpoint from registry with retry logic
      */
     private async resolveEndpoint(w3id: string): Promise<string> {
@@ -141,6 +186,9 @@ export class VaultController {
                         `resolve?w3id=${w3id}`,
                         PUBLIC_REGISTRY_URL,
                     ).toString(),
+                    {
+                        timeout: 5000, // 5 second timeout for resolve
+                    },
                 );
                 return new URL("/graphql", response.data.uri).toString();
             } catch (error) {
@@ -157,10 +205,7 @@ export class VaultController {
                 }
 
                 // Wait before retrying (exponential backoff)
-                const delay = Math.min(
-                    1000 * Math.pow(2, retryCount - 1),
-                    10000,
-                );
+                const delay = Math.min(1000 * 2 ** (retryCount - 1), 10000);
                 console.log(`Waiting ${delay}ms before resolve retry...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
             }
@@ -172,10 +217,15 @@ export class VaultController {
     /**
      * Create a new GraphQL client every time
      */
-    private async ensureClient(w3id: string): Promise<GraphQLClient> {
+    private async ensureClient(
+        w3id: string,
+        ename: string,
+    ): Promise<GraphQLClient> {
         this.#endpoint = await this.resolveEndpoint(w3id);
         this.#client = new GraphQLClient(this.#endpoint, {
-            timeout: 3000, // 3 second timeout for GraphQL requests
+            headers: {
+                "X-ENAME": ename,
+            },
         });
         return this.#client;
     }
@@ -209,7 +259,7 @@ export class VaultController {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const client = await this.ensureClient(w3id);
+                const client = await this.ensureClient(w3id, ename);
 
                 console.log(
                     `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
@@ -365,5 +415,9 @@ export class VaultController {
 
     getendpoint() {
         return this.#endpoint;
+    }
+
+    async clear() {
+        await this.#store.delete("vault");
     }
 }

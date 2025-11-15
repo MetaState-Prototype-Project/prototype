@@ -5,6 +5,7 @@ import { Message } from "../database/entities/Message";
 import { Match } from "../database/entities/Match";
 import { UserService } from "./UserService";
 import { GroupService } from "./GroupService";
+import { withOperationContext } from "../context/OperationContext";
 import OpenAI from "openai";
 
 export class MatchNotificationService {
@@ -64,55 +65,60 @@ export class MatchNotificationService {
 
         console.log(`👤 DreamSync user found: ${dreamsyncUser.id} (${dreamsyncUser.name || dreamsyncUser.ename})`);
 
-        try {
-            // Check if a mutual chat already exists between these two users
-            console.log(`🔍 Checking for existing mutual chat between DreamSync (${dreamsyncUser.id}) and user (${targetUserId})`);
-            
-            const existingChat = await this.groupService.findGroupByMembers([
-                dreamsyncUser.id,
-                targetUserId
-            ]);
+        // Generate unique operation ID for this chat creation
+        const operationId = `mutual-chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        return withOperationContext('MatchNotificationService', operationId, async () => {
+            try {
+                // Check if a mutual chat already exists between these two users
+                console.log(`🔍 Checking for existing mutual chat between DreamSync (${dreamsyncUser.id}) and user (${targetUserId})`);
+                
+                const existingChat = await this.groupService.findGroupByMembers([
+                    dreamsyncUser.id,
+                    targetUserId
+                ]);
 
-            if (existingChat) {
-                console.log(`✅ Found existing mutual chat: ${existingChat.id}`);
-                console.log(`📋 Chat details: Name="${existingChat.name}", Private=${existingChat.isPrivate}, Members=${existingChat.members?.length || 0}`);
-                return { chat: existingChat, wasCreated: false };
+                if (existingChat) {
+                    console.log(`✅ Found existing mutual chat: ${existingChat.id}`);
+                    console.log(`📋 Chat details: Name="${existingChat.name}", Private=${existingChat.isPrivate}, Members=${existingChat.members?.length || 0}`);
+                    return { chat: existingChat, wasCreated: false };
+                }
+
+                console.log(`🆕 No existing mutual chat found, creating new one...`);
+
+                // Create a new mutual chat
+                const chatName = `DreamSync Chat with ${targetUserId}`;
+                const chatDescription = `DM ID: ${targetUserId}::${dreamsyncUser.id}`;
+                
+                console.log(`🔧 Creating mutual chat with:`);
+                console.log(`   - Name: ${chatName}`);
+                console.log(`   - Description: ${chatDescription}`);
+                console.log(`   - Owner: ${dreamsyncUser.id}`);
+                console.log(`   - Members: [${dreamsyncUser.id}, ${targetUserId}]`);
+                console.log(`   - Private: true`);
+                
+                const mutualChat = await this.groupService.createGroup(
+                    chatName,
+                    chatDescription,
+                    dreamsyncUser.id, // DreamSync is the owner
+                    [dreamsyncUser.id], // DreamSync is admin
+                    [dreamsyncUser.id, targetUserId], // Both users are participants
+                    undefined, // No charter
+                    true, // isPrivate
+                    "private", // visibility
+                    undefined, // avatarUrl
+                    undefined, // bannerUrl
+                    [] // originalMatchParticipants
+                );
+
+                console.log(`✅ Created new mutual chat: ${mutualChat.id}`);
+                console.log(`📋 New chat details: Name="${mutualChat.name}", Private=${mutualChat.isPrivate}, Members=${mutualChat.members?.length || 0}`);
+                return { chat: mutualChat, wasCreated: true };
+            } catch (error) {
+                console.error("❌ Error creating mutual chat:", error);
+                return { chat: null, wasCreated: false };
             }
-
-            console.log(`🆕 No existing mutual chat found, creating new one...`);
-
-            // Create a new mutual chat
-            const chatName = `DreamSync Chat with ${targetUserId}`;
-            const chatDescription = `DM ID: ${targetUserId}::${dreamsyncUser.id}`;
-            
-            console.log(`🔧 Creating mutual chat with:`);
-            console.log(`   - Name: ${chatName}`);
-            console.log(`   - Description: ${chatDescription}`);
-            console.log(`   - Owner: ${dreamsyncUser.id}`);
-            console.log(`   - Members: [${dreamsyncUser.id}, ${targetUserId}]`);
-            console.log(`   - Private: true`);
-            
-            const mutualChat = await this.groupService.createGroup(
-                chatName,
-                chatDescription,
-                dreamsyncUser.id, // DreamSync is the owner
-                [dreamsyncUser.id], // DreamSync is admin
-                [dreamsyncUser.id, targetUserId], // Both users are participants
-                undefined, // No charter
-                true, // isPrivate
-                "private", // visibility
-                undefined, // avatarUrl
-                undefined, // bannerUrl
-                [] // originalMatchParticipants
-            );
-
-            console.log(`✅ Created new mutual chat: ${mutualChat.id}`);
-            console.log(`📋 New chat details: Name="${mutualChat.name}", Private=${mutualChat.isPrivate}, Members=${mutualChat.members?.length || 0}`);
-            return { chat: mutualChat, wasCreated: true };
-        } catch (error) {
-            console.error("❌ Error creating mutual chat:", error);
-            return { chat: null, wasCreated: false };
-        }
+        });
     }
 
     /**
@@ -573,18 +579,22 @@ DreamSync Team`;
                 console.log(`✅ 15-second delay completed for user message`);
             }
 
-            // Get other users in the match (excluding current user)
-            const allUserIds = match.matchData?.allUserIds || [];
-            const otherUserIds = allUserIds.filter(id => id !== userId);
-            const consentThreshold = match.matchData?.consentThreshold || 2;
-
-            // Generate AI message for multi-user match
-            const aiMessage = await this.generateMultiUserMatchMessage(match, user, otherUserIds);
+            // Generate unique operation ID for this multi-user notification
+            const operationId = `multi-user-notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             
-            // Convert ename placeholders to actual names
-            const finalMessage = this.convertEnameToLinks(aiMessage, match, userId);
+            await withOperationContext('MatchNotificationService', operationId, async () => {
+                // Get other users in the match (excluding current user)
+                const allUserIds = match.matchData?.allUserIds || [];
+                const otherUserIds = allUserIds.filter(id => id !== userId);
+                const consentThreshold = match.matchData?.consentThreshold || 2;
 
-            const messageContent = `$$system-message$$
+                // Generate AI message for multi-user match
+                const aiMessage = await this.generateMultiUserMatchMessage(match, user, otherUserIds);
+                
+                // Convert ename placeholders to actual names
+                const finalMessage = this.convertEnameToLinks(aiMessage, match, userId);
+
+                const messageContent = `$$system-message$$
 
 ${finalMessage}
 
@@ -592,17 +602,18 @@ Reply with the Match ID "${match.id}" to connect with the other ${otherUserIds.l
 
 [Match ID: ${match.id}]`;
 
-            // Save the message
-            const messageRepository = AppDataSource.getRepository(Message);
-            const message = messageRepository.create({
-                text: messageContent,
-                sender: dreamsyncUser,
-                group: userChat,
-                isSystemMessage: true,
-            });
+                // Save the message
+                const messageRepository = AppDataSource.getRepository(Message);
+                const message = messageRepository.create({
+                    text: messageContent,
+                    sender: dreamsyncUser,
+                    group: userChat,
+                    isSystemMessage: true,
+                });
 
-            await messageRepository.save(message);
-            console.log(`✅ Multi-user match notification sent to user: ${userId}`);
+                await messageRepository.save(message);
+                console.log(`✅ Multi-user match notification sent to user: ${userId}`);
+            });
             
         } catch (error) {
             console.error(`Error sending multi-user match notification to user ${userId}:`, error);
@@ -641,26 +652,31 @@ Reply with the Match ID "${match.id}" to connect with the other ${otherUserIds.l
                 console.log(`✅ 15-second delay completed, proceeding with message`);
             }
 
-            // Generate the match message for this specific user
-            console.log(`🤖 Generating match message for user: ${userId}`);
-            const messageContent = await this.generateMatchMessage(match, userId);
-            console.log(`📝 Generated message content (first 100 chars): ${messageContent.substring(0, 100)}...`);
+            // Generate unique operation ID for this message sending
+            const operationId = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            
+            await withOperationContext('MatchNotificationService', operationId, async () => {
+                // Generate the match message for this specific user
+                console.log(`🤖 Generating match message for user: ${userId}`);
+                const messageContent = await this.generateMatchMessage(match, userId);
+                console.log(`📝 Generated message content (first 100 chars): ${messageContent.substring(0, 100)}...`);
 
-            // Create the message
-            console.log(`💾 Creating message in database...`);
-            const messageRepository = AppDataSource.getRepository(Message);
-            const message = messageRepository.create({
-                text: messageContent,
-                sender: dreamsyncUser,
-                group: mutualChat,
-                isSystemMessage: true,
+                // Create the message
+                console.log(`💾 Creating message in database...`);
+                const messageRepository = AppDataSource.getRepository(Message);
+                const message = messageRepository.create({
+                    text: messageContent,
+                    sender: dreamsyncUser,
+                    group: mutualChat,
+                    isSystemMessage: true,
+                });
+
+                console.log(`💾 Saving message to database...`);
+                const savedMessage = await messageRepository.save(message);
+                console.log(`✅ Message saved with ID: ${savedMessage.id}`);
+                console.log(`✅ Notification message sent to user ${userId} in chat ${mutualChat.id}`);
+                console.log(`📊 Message stats: Length=${messageContent.length}, SystemMessage=${true}, Sender=${dreamsyncUser.id}`);
             });
-
-            console.log(`💾 Saving message to database...`);
-            const savedMessage = await messageRepository.save(message);
-            console.log(`✅ Message saved with ID: ${savedMessage.id}`);
-            console.log(`✅ Notification message sent to user ${userId} in chat ${mutualChat.id}`);
-            console.log(`📊 Message stats: Length=${messageContent.length}, SystemMessage=${true}, Sender=${dreamsyncUser.id}`);
         } catch (error) {
             console.error(`❌ Error sending notification to user ${userId}:`, error);
             console.error(`❌ Error details:`, (error as Error).message);

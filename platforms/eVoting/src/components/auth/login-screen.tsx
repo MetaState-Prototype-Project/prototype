@@ -10,6 +10,7 @@ export function LoginScreen() {
   const [qrCode, setQrCode] = useState<string>("");
   const [sessionId, setSessionId] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const getAuthOffer = async () => {
@@ -35,6 +36,15 @@ export function LoginScreen() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Check for error messages (version mismatch)
+        if (data.error && data.type === 'version_mismatch') {
+          setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+          eventSource.close();
+          return;
+        }
+
+        // Handle successful authentication
         if (data.user && data.token) {
           setIsConnecting(true);
           // Store the token and user ID directly
@@ -71,6 +81,12 @@ export function LoginScreen() {
         </div>
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div className="flex flex-col items-center space-y-6">
+            {errorMessage && (
+              <div className="w-full mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <p className="font-semibold">Authentication Error</p>
+                <p className="text-sm">{errorMessage}</p>
+              </div>
+            )}
             {qrCode ? (
               <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
                 <QRCodeSVG

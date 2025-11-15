@@ -13,7 +13,10 @@ import {
 } from "@hugeicons/core-free-icons";
 import { getContext } from "svelte";
 
-const globalState = getContext<() => GlobalState>("globalState")();
+const getGlobalState = getContext<() => GlobalState>("globalState");
+const setGlobalState =
+    getContext<(value: GlobalState) => void>("setGlobalState");
+let globalState = getGlobalState();
 
 let isDeleteConfirmationOpen = $state(false);
 let isFinalConfirmationOpen = $state(false);
@@ -33,10 +36,10 @@ function confirmDelete() {
     isFinalConfirmationOpen = true;
 }
 
-function nukeWallet() {
-    globalState.userController.user = undefined;
-    globalState.securityController.clearPin();
-    isFinalConfirmationOpen = false;
+async function nukeWallet() {
+    const newGlobalState = await globalState.reset();
+    setGlobalState(newGlobalState);
+    globalState = newGlobalState;
     goto("/onboarding");
 }
 
@@ -122,10 +125,10 @@ $effect(() => {
     <div class="w-full py-10 text-center">
         <button
             class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
-            on:click={handleVersionTap}
+            onclick={handleVersionTap}
             disabled={isRetrying}
         >
-            Version v0.3.0.0
+            Version v0.4.0.0
         </button>
 
         {#if retryMessage}

@@ -4,12 +4,13 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
+import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import Drawer from "$lib/ui/Drawer/Drawer.svelte";
 import { capitalize } from "$lib/utils";
-import { KeyManagerFactory, type KeyManager } from "$lib/crypto";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -18,8 +19,8 @@ import DocumentType from "./steps/document-type.svelte";
 import Passport from "./steps/passport.svelte";
 import Selfie from "./steps/selfie.svelte";
 import {
-    DocFront,
     DocBack,
+    DocFront,
     Selfie as SelfiePic,
     reason,
     status,
@@ -105,14 +106,44 @@ let keyManager: KeyManager | null = $state(null);
 let websocketData: { w3id?: string } | null = $state(null); // Store websocket data for duplicate case
 let hardwareKeySupported = $state(false);
 let hardwareKeyCheckComplete = $state(false);
+const KEY_ID = "default";
 
 async function handleVerification() {
-    const { data } = await axios.post(
-        new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
-    );
-    verificaitonId.set(data.id);
-    showVeriffModal = true;
-    watchEventStream(data.id);
+    try {
+        // Ensure keys are initialized before starting verification
+        if (!keyManager) {
+            try {
+                await initializeKeyManager();
+                await ensureKeyForVerification();
+            } catch (keyError) {
+                console.error("Failed to initialize keys:", keyError);
+                // If key initialization fails, go back to onboarding
+                await goto("/onboarding");
+                return;
+            }
+        }
+
+        const { data } = await axios.post(
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+        );
+        verificaitonId.set(data.id);
+        showVeriffModal = true;
+        watchEventStream(data.id);
+    } catch (error) {
+        console.error("Failed to start verification:", error);
+        // If verification fails due to key issues or any initialization error, go back to onboarding
+        const errorMessage =
+            error instanceof Error
+                ? error.message.toLowerCase()
+                : String(error).toLowerCase();
+        if (
+            errorMessage.includes("key") ||
+            errorMessage.includes("initialize") ||
+            errorMessage.includes("manager")
+        ) {
+            await goto("/onboarding");
+        }
+    }
 }
 
 function watchEventStream(id: string) {
@@ -144,19 +175,19 @@ function watchEventStream(id: string) {
     };
 }
 
+function getKeyContext(): KeyServiceContext {
+    return "verification";
+}
+
 // Check if hardware key is supported on this device
 async function checkHardwareKeySupport() {
     try {
-        const hardwareKeyManager =
-            await KeyManagerFactory.getKeyManagerForContext(
-                "default",
-                "verification",
-            );
-
-        // Try to generate a test key to see if hardware is available
-        await hardwareKeyManager.generate("test-hardware-check");
-        hardwareKeySupported = true;
-        console.log("Hardware key is supported on this device");
+        if (!globalState) throw new Error("Global state is not defined");
+        hardwareKeySupported =
+            await globalState.keyService.isHardwareAvailable();
+        console.log(
+            `Hardware key ${hardwareKeySupported ? "is" : "is NOT"} supported on this device`,
+        );
     } catch (error) {
         hardwareKeySupported = false;
         console.log("Hardware key is NOT supported on this device:", error);
@@ -168,10 +199,9 @@ async function checkHardwareKeySupport() {
 // Initialize key manager for verification context
 async function initializeKeyManager() {
     try {
-        keyManager = await KeyManagerFactory.getKeyManagerForContext(
-            "default",
-            "verification",
-        );
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        keyManager = await globalState.keyService.getManager(KEY_ID, context);
         console.log(`Key manager initialized: ${keyManager.getType()}`);
         return keyManager;
     } catch (error) {
@@ -180,36 +210,35 @@ async function initializeKeyManager() {
     }
 }
 
-async function generateApplicationKeyPair() {
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
-    if (!keyManager) {
-        throw new Error("Key manager not initialized");
-    }
-
+async function ensureKeyForVerification() {
     try {
-        const res = await keyManager.generate("default");
-        console.log("Key generation result:", res);
-        return res;
-    } catch (e) {
-        console.error("Key generation failed:", e);
-        throw e;
+        if (!globalState) throw new Error("Global state is not defined");
+        const context = getKeyContext();
+        const { manager, created } = await globalState.keyService.ensureKey(
+            KEY_ID,
+            context,
+        );
+        keyManager = manager;
+        console.log(
+            "Key generation result:",
+            created ? "key-generated" : "key-exists",
+        );
+        return { manager, created };
+    } catch (error) {
+        console.error("Failed to ensure key:", error);
+        throw error;
     }
 }
 
 async function getApplicationPublicKey() {
+    if (!globalState) throw new Error("Global state is not defined");
     if (!keyManager) {
         await initializeKeyManager();
     }
 
-    if (!keyManager) {
-        throw new Error("Key manager not initialized");
-    }
-
     try {
-        const res = await keyManager.getPublicKey("default");
+        const context = getKeyContext();
+        const res = await globalState.keyService.getPublicKey(KEY_ID, context);
         console.log("Public key retrieved:", res);
         return res;
     } catch (e) {
@@ -227,13 +256,22 @@ onMount(async () => {
     // Check hardware key support first
     await checkHardwareKeySupport();
 
+    // If hardware is not available, redirect back to onboarding
+    if (!hardwareKeySupported) {
+        console.log("Hardware not available, redirecting to onboarding");
+        await goto("/onboarding");
+        return;
+    }
+
     // Initialize key manager and check if default key pair exists
-    await initializeKeyManager();
-    if (keyManager) {
-        const keyExists = await keyManager.exists("default");
-        if (!keyExists) {
-            await generateApplicationKeyPair();
-        }
+    try {
+        await initializeKeyManager();
+        await ensureKeyForVerification();
+    } catch (error) {
+        console.error("Failed to initialize keys for verification:", error);
+        // If key initialization fails, redirect back to onboarding
+        await goto("/onboarding");
+        return;
     }
 
     handleContinue = async () => {

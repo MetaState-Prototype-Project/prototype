@@ -1,11 +1,12 @@
 <script lang="ts">
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-import { onMount, setContext, getContext, onDestroy } from "svelte";
+import { getContext, onDestroy, onMount, setContext } from "svelte";
 import "../app.css";
-import { onNavigate, goto } from "$app/navigation";
+import { goto, onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
 
 import { runtime } from "$lib/global/runtime.svelte";
+import { swipedetect } from "$lib/utils";
 import { type Status, checkStatus } from "@tauri-apps/plugin-biometric";
 
 const { children } = $props();
@@ -16,8 +17,12 @@ let showSplashScreen = $state(false);
 let previousRoute = null;
 let navigationStack: string[] = [];
 let globalDeepLinkHandler: ((event: Event) => void) | undefined;
+let mainWrapper: HTMLElement | undefined = $state(undefined);
 
 setContext("globalState", () => globalState);
+setContext("setGlobalState", (value: GlobalState | undefined) => {
+    globalState = value;
+});
 
 // replace with actual data loading logic
 async function loadData() {
@@ -420,6 +425,14 @@ onNavigate((navigation) => {
         });
     });
 });
+
+$effect(() => {
+    if (mainWrapper) {
+        swipedetect(mainWrapper, (dir: string) => {
+            if (dir === "right") window.history.back();
+        });
+    }
+});
 </script>
 
 {#if showSplashScreen}
@@ -428,7 +441,10 @@ onNavigate((navigation) => {
     <div
         class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-50"
     ></div>
-    <div class="bg-white h-screen overflow-scroll pt-10">
+    <div
+        bind:this={mainWrapper}
+        class="bg-white h-screen overflow-scroll pt-10"
+    >
         {#if children}
             {@render children()}
         {/if}

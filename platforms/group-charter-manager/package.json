@@ -2,14 +2,14 @@
     "name": "group-charter-manager",
     "version": "0.1.0",
     "private": true,
-    "scripts": {
-        "dev": "next dev --turbopack",
-        "build": "next build",
-        "start": "next start",
-        "lint": "next lint"
-    },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
     "dependencies": {
-        "@hookform/resolvers": "^5.2.1",
+        "@hookform/resolvers": "^3.9.1",
         "@milkdown/core": "^7.15.2",
         "@milkdown/plugin-listener": "^7.15.2",
         "@milkdown/preset-gfm": "^7.15.2",

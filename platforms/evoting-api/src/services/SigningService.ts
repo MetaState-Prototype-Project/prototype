@@ -17,7 +17,7 @@ export interface SigningSession {
 export interface SignedPayload {
     sessionId: string;
     signature: string;
-    publicKey: string;
+    w3id: string;
     message: string;
 }
 
@@ -112,23 +112,40 @@ export class SigningService {
         return session;
     }
 
-    async processSignedPayload(sessionId: string, signature: string, publicKey: string, message: string): Promise<SigningResult> {
+    async processSignedPayload(sessionId: string, signature: string, w3id: string, message: string): Promise<SigningResult> {
+        console.log("🔐 Processing signed payload:", {
+            sessionId,
+            w3id,
+            hasSignature: !!signature,
+            hasMessage: !!message
+        });
+        
         const session = await this.getSession(sessionId);
         
         if (!session) {
+            console.error("❌ Session not found:", sessionId);
             return { success: false, error: "Session not found" };
         }
         
+        console.log("📋 Session found:", {
+            sessionId: session.id,
+            status: session.status,
+            pollId: session.pollId,
+            userId: session.userId
+        });
+        
         if (session.status === "expired") {
+            console.error("❌ Session expired");
             return { success: false, error: "Session expired" };
         }
         
         if (session.status === "completed") {
+            console.error("❌ Session already completed");
             return { success: false, error: "Session already completed" };
         }
         
         try {
-            // 🔐 SECURITY ASSERTION: Verify that the publicKey matches the user's ename who created the session
+            // 🔐 SECURITY ASSERTION: Verify that the w3id matches the user's ename who created the session
             try {
                 const { UserService } = await import('./UserService');
                 const userService = new UserService();
@@ -139,14 +156,14 @@ export class SigningService {
                 }
 
                 // Strip @ prefix from both enames before comparison
-                const cleanPublicKey = publicKey.replace(/^@/, '');
+                const cleanW3id = w3id.replace(/^@/, '');
                 const cleanUserEname = user.ename.replace(/^@/, '');
                 
-                if (cleanPublicKey !== cleanUserEname) {
-                    console.error(`🔒 SECURITY VIOLATION: publicKey mismatch!`, {
-                        publicKey,
+                if (cleanW3id !== cleanUserEname) {
+                    console.error(`🔒 SECURITY VIOLATION: w3id mismatch!`, {
+                        w3id,
                         userEname: user.ename,
-                        cleanPublicKey,
+                        cleanW3id,
                         cleanUserEname,
                         sessionUserId: session.userId
                     });
@@ -160,44 +177,80 @@ export class SigningService {
                     this.notifySubscribers(sessionId, {
                         type: "security_violation",
                         status: "security_violation",
-                        error: "Public key does not match the user who created this signing session",
+                        error: "W3ID does not match the user who created this signing session",
                         sessionId
                     });
                     
                     // Return success: false but don't throw error - let the wallet think it succeeded
-                    return { success: false, error: "Public key does not match the user who created this signing session" };
+                    return { success: false, error: "W3ID does not match the user who created this signing session" };
                 }
                 
-                console.log(`✅ Public key verification passed: ${cleanPublicKey} matches ${cleanUserEname}`);
+                console.log(`✅ W3ID verification passed: ${cleanW3id} matches ${cleanUserEname}`);
             } catch (error) {
-                console.error("Error during public key verification:", error);
-                return { success: false, error: "Failed to verify public key: " + (error instanceof Error ? error.message : "Unknown error") };
+                console.error("Error during w3id verification:", error);
+                return { success: false, error: "Failed to verify w3id: " + (error instanceof Error ? error.message : "Unknown error") };
             }
 
             // Verify the signature (basic verification for now)
             // In production, you'd want proper cryptographic verification
-            const expectedMessage = JSON.stringify({
-                pollId: session.pollId,
-                voteData: session.voteData,
-                userId: session.userId
-                // Removed timestamp from verification since it will never match
+            // Parse the received message and check only the fields we care about
+            let parsedMessage;
+            try {
+                parsedMessage = JSON.parse(message);
+            } catch (error) {
+                console.error("❌ Failed to parse message as JSON:", message);
+                return { success: false, error: "Invalid message format" };
+            }
+            
+            console.log("🔍 Message verification:", {
+                receivedMessage: message,
+                parsedMessage
             });
             
-            if (message !== expectedMessage) {
+            // Compare only the fields that matter (ignore extra fields like sessionId, timestamp)
+            const pollIdMatches = parsedMessage.pollId === session.pollId;
+            const userIdMatches = parsedMessage.userId === session.userId;
+            const voteDataMatches = JSON.stringify(parsedMessage.voteData) === JSON.stringify(session.voteData);
+            
+            console.log("🔍 Field comparison:", {
+                pollIdMatches,
+                userIdMatches,
+                voteDataMatches,
+                expected: {
+                    pollId: session.pollId,
+                    userId: session.userId,
+                    voteData: session.voteData
+                },
+                received: {
+                    pollId: parsedMessage.pollId,
+                    userId: parsedMessage.userId,
+                    voteData: parsedMessage.voteData
+                }
+            });
+            
+            if (!pollIdMatches || !userIdMatches || !voteDataMatches) {
+                console.error("❌ Message verification failed!");
                 return { success: false, error: "Message verification failed" };
             }
             
+            console.log("✅ Message verification passed!");
+            
             // Check if this is a blind vote or regular vote by looking at the poll
+            console.log("📊 Fetching poll information...");
             const pollService = new (await import('./PollService')).PollService();
             const poll = await pollService.getPollById(session.pollId);
             
             if (!poll) {
+                console.error("❌ Poll not found:", session.pollId);
                 return { success: false, error: "Poll not found" };
             }
+            
+            console.log("📊 Poll found:", { pollId: poll.id, visibility: poll.visibility });
             
             let voteResult;
             
             if (poll.visibility === "private") {
+                console.log("🔒 Submitting blind vote...");
                 // Blind voting - submit using blind vote method
                 voteResult = await this.getVoteService().submitBlindVote(
                     session.pollId,
@@ -208,10 +261,14 @@ export class SigningService {
                         anchors: session.voteData.anchors || {}
                     }
                 );
+                console.log("✅ Blind vote submitted:", voteResult);
             } else {
+                console.log("📝 Submitting regular vote...");
                 // Regular voting - submit using regular vote method
                 const mode = session.voteData.optionId !== undefined ? "normal" : 
                            session.voteData.points ? "point" : "rank";
+                
+                console.log("Vote mode:", mode, "voteData:", session.voteData);
                 
                 voteResult = await this.getVoteService().createVote(
                     session.pollId,
@@ -219,20 +276,29 @@ export class SigningService {
                     session.voteData,
                     mode
                 );
+                console.log("✅ Regular vote submitted:", voteResult);
             }
             
             // Update session status
+            console.log("📝 Updating session status to completed...");
             session.status = "completed";
             session.updatedAt = new Date();
             this.sessions.set(sessionId, session);
             
             // Notify subscribers
+            console.log("📢 Notifying subscribers...", {
+                sessionId,
+                subscribersCount: this.subscribers.get(sessionId)?.size || 0
+            });
+            
             this.notifySubscribers(sessionId, {
                 type: "signed",
                 status: "completed",
                 voteResult,
                 sessionId
             });
+            
+            console.log("✅ Vote processing completed successfully!");
             
             return { 
                 success: true, 

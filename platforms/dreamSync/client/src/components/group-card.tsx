@@ -193,9 +193,9 @@ export default function GroupCard({
           </div>
         </div>
         
-        {showSuggestionInfo && suggestion && false && (
+        {showSuggestionInfo && suggestion?.reason && false && (
           <p className="text-xs text-purple-600 mb-3 italic line-clamp-1 flex-grow">
-            {suggestion.reason}
+            {suggestion?.reason}
           </p>
         )}
         

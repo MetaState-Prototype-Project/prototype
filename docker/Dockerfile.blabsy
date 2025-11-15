@@ -1,0 +1,27 @@
+FROM node:18-alpine AS base
+RUN apk update && apk add --no-cache libc6-compat
+WORKDIR /app
+
+# ---
+FROM base AS prepare
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
+RUN npm install -g turbo@^2
+COPY . .
+RUN turbo prune blabsy --docker
+
+# ---
+FROM base AS runner
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
+# Copy workspace config
+COPY --from=prepare /app/pnpm-workspace.yaml ./
+COPY --from=prepare /app/package.json ./
+# Copy pruned workspace
+COPY --from=prepare /app/out/json/ .
+# Install dependencies (build will happen at runtime with volumes)
+RUN pnpm install --frozen-lockfile
+COPY --from=prepare /app/out/full/ .
+
+WORKDIR /app/platforms/blabsy
+EXPOSE 8080
+CMD ["pnpm", "dev"]
+

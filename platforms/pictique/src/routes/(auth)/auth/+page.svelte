@@ -13,29 +13,29 @@
 	import { onDestroy } from 'svelte';
 	import { qrcode } from 'svelte-qrcode-action';
 
-	let qrData: string;
-	let isMobile = false;
+	let qrData = $state<string>('');
+	let isMobile = $state(false);
+	let errorMessage = $state<string | null>(null);
 
 	function checkMobile() {
 		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
 	}
 
-	let getAppStoreLink: () => string = () => '';
+	function getAppStoreLink(): string {
+		const userAgent =
+			navigator.userAgent || navigator.vendor || (window as { opera?: string }).opera || '';
+		if (/android/i.test(userAgent)) {
+			return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
+		}
+
+		if (/iPad|iPhone|iPod/.test(userAgent) && !('MSStream' in window)) {
+			return 'https://apps.apple.com/in/app/eid-for-w3ds/id6747748667';
+		}
+
+		return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
+	}
 
 	onMount(async () => {
-		getAppStoreLink = () => {
-			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-			if (/android/i.test(userAgent)) {
-				return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
-			}
-
-			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-				return 'https://apps.apple.com/in/app/eid-for-w3ds/id6747748667';
-			}
-
-			return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
-		};
-
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
@@ -48,15 +48,34 @@
 
 			eventSource.onopen = () => {
 				console.log('Successfully connected.');
+				errorMessage = null;
 			};
 
 			eventSource.onmessage = (e) => {
 				const data = JSON.parse(e.data as string);
-				const { user } = data;
-				setAuthId(user.id);
-				const { token } = data;
-				setAuthToken(token);
-				goto('/home');
+
+				// Check for error messages (version mismatch)
+				if (data.error && data.type === 'version_mismatch') {
+					errorMessage =
+						data.message ||
+						'Your eID Wallet app version is outdated. Please update to continue.';
+					eventSource.close();
+					return;
+				}
+
+				// Handle successful authentication
+				if (data.user && data.token) {
+					const { user } = data;
+					setAuthId(user.id);
+					const { token } = data;
+					setAuthToken(token);
+					goto('/home');
+				}
+			};
+
+			eventSource.onerror = () => {
+				console.error('SSE connection error');
+				eventSource.close();
 			};
 		}
 
@@ -84,6 +103,12 @@
 				Scan the QR code using your <b><u>eID App</u></b> to login
 			{/if}
 		</h2>
+		{#if errorMessage}
+			<div class="mb-4 rounded-lg border border-red-400 bg-red-100 p-4 text-red-700">
+				<p class="font-semibold">Authentication Error</p>
+				<p class="text-sm">{errorMessage}</p>
+			</div>
+		{/if}
 		{#if qrData}
 			{#if isMobileDevice()}
 				<div class="flex flex-col items-center gap-4">

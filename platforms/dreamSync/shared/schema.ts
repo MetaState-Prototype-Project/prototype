@@ -280,7 +280,7 @@ export type User = typeof users.$inferSelect;
 
 // Additional types for wishlist functionality
 export type Wish = typeof wishes.$inferSelect;
-export type InsertWish = typeof wishes.$inferInsert;
+export type InsertWish = z.infer<typeof insertWishSchema>;
 export type WishUserSuggestion = typeof wishUserSuggestions.$inferSelect;
 export type WishGroupSuggestion = typeof wishGroupSuggestions.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
@@ -289,8 +289,6 @@ export type Skill = typeof skills.$inferSelect;
 export type InsertSkill = z.infer<typeof insertSkillSchema>;
 export type Interest = typeof interests.$inferSelect;
 export type InsertInterest = z.infer<typeof insertInterestSchema>;
-export type Wish = typeof wishes.$inferSelect;
-export type InsertWish = z.infer<typeof insertWishSchema>;
 export type Match = typeof matches.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type InsertGroup = z.infer<typeof insertGroupSchema>;
@@ -307,6 +305,8 @@ export type UserWithProfile = User & {
   profile?: Profile;
   skills?: Skill[];
   interests?: Interest[];
+  hobbies?: Interest[]; // Alias for interests for backward compatibility
+  habits?: Interest[]; // Alias for interests for backward compatibility
   wishlistItems?: Wish[];
 };
 

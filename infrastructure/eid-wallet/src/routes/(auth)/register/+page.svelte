@@ -16,11 +16,15 @@ let isBiometricsAvailable = $state(false);
 let isBiometricScreen = $state(false);
 let isBiometricsAdded = $state(false);
 let isError = $state(false);
+let btnVariant = $state<"soft" | "solid">("soft");
 
 let globalState: GlobalState | undefined = $state(undefined);
 
 const handleFirstStep = async () => {
-    if (pin.length === 4) firstStep = false;
+    if (pin.length === 4) {
+        firstStep = false;
+        btnVariant = "solid";
+    }
 };
 
 let handleConfirm: () => Promise<void> = $state(async () => {});
@@ -31,7 +35,9 @@ const handleNext = async () => {
 };
 
 const handleSkip = async () => {
-    // handle skip biometics logic goes here
+    // handle skip biometrics logic goes here
+    if (!globalState) return goto("/onboarding");
+    globalState.isOnboardingComplete = true;
     goto("/review");
 };
 
@@ -39,6 +45,8 @@ let handleSetupBiometrics = $state(async () => {});
 
 const handleBiometricsAdded = async () => {
     //handle logic when biometrics added successfully
+    if (!globalState) return goto("/onboarding");
+    globalState.isOnboardingComplete = true;
     goto("/review");
 };
 
@@ -47,25 +55,58 @@ $effect(() => {
         isError = false;
 });
 
+$effect(() => {
+    // First step button
+    if (firstStep) {
+        btnVariant = pin.length === 4 ? "solid" : "soft";
+    } else {
+        // Second step button
+        if (repeatPin.length === 4 && pin === repeatPin) {
+            btnVariant = "solid";
+            isError = false;
+        } else {
+            btnVariant = "soft";
+        }
+    }
+});
+
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     if (!globalState) throw new Error("Global state is not defined");
 
-    isBiometricsAvailable = (await checkStatus()).isAvailable;
-    console.log("isBiometricsAvailable", isBiometricsAvailable);
+    try {
+        isBiometricsAvailable = (await checkStatus()).isAvailable;
+        console.log("isBiometricsAvailable", isBiometricsAvailable);
+    } catch (error) {
+        isBiometricsAvailable = false;
+        console.error("Failed to check biometrics status:", error);
+    }
 
     handleConfirm = async () => {
-        //confirm pin logic goes here
-        if (repeatPin && repeatPin.length === 4 && pin !== repeatPin) {
-            firstStep = true;
+        if (repeatPin.length < 4) {
             isError = true;
-        } else {
-            isError = false;
-            showDrawer = true;
-            await globalState?.securityController.updatePin(pin, repeatPin);
             return;
         }
+
+        if (pin !== repeatPin) {
+            isError = true;
+            firstStep = true;
+            return;
+        }
+
+        isError = false;
+        try {
+            await globalState?.securityController.setOnboardingPin(
+                pin,
+                repeatPin,
+            );
+            showDrawer = true;
+        } catch (error) {
+            console.error("Failed to update PIN:", error);
+            isError = true;
+        }
     };
+
     handleSetupBiometrics = async () => {
         if (!globalState)
             throw new Error(
@@ -103,7 +144,11 @@ onMount(async () => {
                 Your PIN does not match, try again.
             </p>
         </section>
-        <ButtonAction class="w-full" variant="soft" callback={handleFirstStep}>
+        <ButtonAction
+            class="w-full"
+            variant={btnVariant}
+            callback={handleFirstStep}
+        >
             Confirm
         </ButtonAction>
     </main>
@@ -119,8 +164,10 @@ onMount(async () => {
             </Hero>
             <InputPin bind:pin={repeatPin} />
         </section>
-        <ButtonAction class="w-full" callback={handleConfirm}
-            >Confirm</ButtonAction
+        <ButtonAction
+            variant={btnVariant}
+            class="w-full"
+            callback={handleConfirm}>Confirm</ButtonAction
         >
     </main>
 {/if}

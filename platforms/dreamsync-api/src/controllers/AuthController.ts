@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from "uuid";
 import { UserService } from "../services/UserService";
 import { EventEmitter } from "events";
 import { signToken } from "../utils/jwt";
+import { isVersionValid } from "../utils/version";
+
+const MIN_REQUIRED_VERSION = "0.4.0";
 
 export class AuthController {
     private userService: UserService;
@@ -53,7 +56,7 @@ export class AuthController {
 
     login = async (req: Request, res: Response) => {
         try {
-            const { ename, session, w3id, signature } = req.body;
+            const { ename, session, w3id, signature, appVersion } = req.body;
 
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
@@ -63,8 +66,22 @@ export class AuthController {
                 return res.status(400).json({ error: "session is required" });
             }
 
-            // Only find existing users - don't create new ones during auth
-            const user = await this.userService.findUser(ename);
+            // Check app version - missing version is treated as old version
+            if (!appVersion || !isVersionValid(appVersion, MIN_REQUIRED_VERSION)) {
+                const errorMessage = {
+                    error: true,
+                    message: `Your eID Wallet app version is outdated. Please update to version ${MIN_REQUIRED_VERSION} or later.`,
+                    type: "version_mismatch"
+                };
+                this.eventEmitter.emit(session, errorMessage);
+                return res.status(400).json({ 
+                    error: "App version too old", 
+                    message: errorMessage.message 
+                });
+            }
+
+            // Find user by ename (handles @ symbol variations)
+            const user = await this.userService.findByEname(ename);
             
             if (!user) {
                 // User doesn't exist - they need to be created via webhook first
