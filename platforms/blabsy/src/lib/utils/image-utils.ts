@@ -17,8 +17,6 @@ export function combineBase64Images(
         id: string;
     }> = [];
 
-    console.log('Processing images for base64 combining:', images.length);
-
     for (let i = 0; i < images.length; i += 2) {
         const dataPart = images[i];
         const chunkPart = images[i + 1];
@@ -31,11 +29,6 @@ export function combineBase64Images(
             ) {
                 // Combine the base64 parts
                 const combinedSrc = `${dataPart.src},${chunkPart.src}`;
-                console.log(`Combined base64 image at index ${i}:`, {
-                    original: dataPart.src.substring(0, 50) + '...',
-                    chunk: chunkPart.src.substring(0, 50) + '...',
-                    combined: combinedSrc.substring(0, 50) + '...'
-                });
 
                 result.push({
                     ...dataPart,
@@ -49,10 +42,8 @@ export function combineBase64Images(
         } else {
             // Handle odd number of images (last item)
             if (dataPart) {
-                if (dataPart.src.startsWith('data:')) {
-                    console.warn(
-                        `Incomplete base64 image at index ${i}, skipping`
-                    );
+                if (dataPart.src.startsWith('data:') && !dataPart.src.includes(',')) {
+                    // Incomplete base64 image, skip it
                 } else {
                     result.push(dataPart);
                 }
@@ -60,9 +51,6 @@ export function combineBase64Images(
         }
     }
 
-    console.log(
-        `Processed ${images.length} images into ${result.length} valid images`
-    );
     return result;
 }
 

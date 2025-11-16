@@ -36,6 +36,33 @@ export function NextImage({
 
     const handleLoad = (): void => setLoading(false);
 
+    // Check if the image source is a base64 data URI
+    const isBase64 = typeof src === 'string' && src.startsWith('data:');
+
+    // For base64 images, use a regular img tag to avoid Next.js optimization issues
+    if (isBase64) {
+        return (
+            <figure style={{ width }} className={className}>
+                <img
+                    className={cn(
+                        imgClassName,
+                        loading
+                            ? blurClassName ??
+                                  'animate-pulse bg-light-secondary dark:bg-dark-secondary'
+                            : previewCount === 1
+                            ? '!h-auto !min-h-0 !w-auto !min-w-0 rounded-lg object-contain'
+                            : 'object-cover',
+                        'w-full h-full'
+                    )}
+                    src={src}
+                    alt={alt}
+                    onLoad={handleLoad}
+                />
+                {children}
+            </figure>
+        );
+    }
+
     return (
         <figure style={{ width }} className={className}>
             <Image

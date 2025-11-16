@@ -56,7 +56,34 @@ export function ImagePreview({
 
     // Combine accidentally separated base64 images
     const processedImages = useMemo(() => {
-        return combineBase64Images(imagesPreview);
+        console.log('[ImagePreview] Raw images received:', {
+            count: imagesPreview?.length || 0,
+            images: imagesPreview?.map((img, i) => ({
+                index: i,
+                id: img.id,
+                srcPreview: img.src.substring(0, 100),
+                srcLength: img.src.length,
+                alt: img.alt,
+                type: img.type
+            }))
+        });
+        
+        const processed = combineBase64Images(imagesPreview);
+        
+        console.log('[ImagePreview] Processed images:', {
+            originalCount: imagesPreview?.length || 0,
+            processedCount: processed.length,
+            processed: processed.map((img, i) => ({
+                index: i,
+                id: img.id,
+                srcPreview: img.src.substring(0, 100),
+                srcLength: img.src.length,
+                alt: img.alt,
+                type: img.type
+            }))
+        });
+        
+        return processed;
     }, [imagesPreview]);
 
     // Update previewCount based on processed images
