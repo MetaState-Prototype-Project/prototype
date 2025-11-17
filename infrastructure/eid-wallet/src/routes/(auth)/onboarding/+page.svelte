@@ -1,265 +1,276 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import {
-    PUBLIC_PROVISIONER_URL,
-    PUBLIC_REGISTRY_URL,
-} from "$env/static/public";
-import type { KeyManager } from "$lib/crypto";
-import { Hero } from "$lib/fragments";
-import { GlobalState } from "$lib/global";
-import type { KeyServiceContext } from "$lib/global";
-import { ButtonAction, Drawer } from "$lib/ui";
-import { capitalize } from "$lib/utils";
-import * as falso from "@ngneat/falso";
-import axios from "axios";
-import { getContext, onMount } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
-import { v4 as uuidv4 } from "uuid";
+    import { goto } from "$app/navigation";
+    import {
+        PUBLIC_PROVISIONER_URL,
+        PUBLIC_REGISTRY_URL,
+    } from "$env/static/public";
+    import type { KeyManager } from "$lib/crypto";
+    import { Hero } from "$lib/fragments";
+    import { GlobalState } from "$lib/global";
+    import type { KeyServiceContext } from "$lib/global";
+    import { ButtonAction, Drawer } from "$lib/ui";
+    import { capitalize } from "$lib/utils";
+    import * as falso from "@ngneat/falso";
+    import axios from "axios";
+    import { getContext, onMount } from "svelte";
+    import { Shadow } from "svelte-loading-spinners";
+    import { v4 as uuidv4 } from "uuid";
 
-let isPaneOpen = $state(false);
-let preVerified = $state(false);
-let loading = $state(false);
-let verificationId = $state("");
-let demoName = $state("");
-let verificationSuccess = $state(false);
-let keyManager: KeyManager | null = $state(null);
-let showHardwareError = $state(false);
-let checkingHardware = $state(false);
-const KEY_ID = "default";
+    let isPaneOpen = $state(false);
+    let preVerified = $state(false);
+    let loading = $state(false);
+    let verificationId = $state("");
+    let demoName = $state("");
+    let verificationSuccess = $state(false);
+    let keyManager: KeyManager | null = $state(null);
+    let showHardwareError = $state(false);
+    let checkingHardware = $state(false);
+    const KEY_ID = "default";
 
-const handleGetStarted = async () => {
-    isPaneOpen = true;
-    preVerified = false;
-    checkingHardware = true;
-    showHardwareError = false;
-    error = null;
-
-    try {
-        if (!globalState) {
-            globalState = getContext<() => GlobalState>("globalState")();
-        }
-
-        // Actually try to generate a test hardware key
-        const testKeyId = `hardware-test-${Date.now()}`;
-        console.log(
-            "Testing hardware key generation with test key:",
-            testKeyId,
-        );
+    const handleGetStarted = async () => {
+        isPaneOpen = true;
+        preVerified = false;
+        checkingHardware = true;
+        showHardwareError = false;
+        error = null;
 
         try {
-            const { manager, created } = await globalState.keyService.ensureKey(
-                testKeyId,
-                "onboarding",
-            );
-            console.log(
-                "Test key result - Manager type:",
-                manager.getType(),
-                "Created:",
-                created,
-            );
-
-            // Check if we got hardware manager and it actually created a key
-            if (manager.getType() !== "hardware") {
-                throw new Error("Got software fallback instead of hardware");
+            if (!globalState) {
+                globalState = getContext<() => GlobalState>("globalState")();
             }
 
-            // Hardware works! Clean up test key and proceed
-            console.log("Hardware keys are working");
-            checkingHardware = false;
-        } catch (keyError) {
-            console.error("Hardware key test failed:", keyError);
+            // Actually try to generate a test hardware key
+            const testKeyId = `hardware-test-${Date.now()}`;
+            console.log(
+                "Testing hardware key generation with test key:",
+                testKeyId,
+            );
+
+            try {
+                const { manager, created } =
+                    await globalState.keyService.ensureKey(
+                        testKeyId,
+                        "onboarding",
+                    );
+                console.log(
+                    "Test key result - Manager type:",
+                    manager.getType(),
+                    "Created:",
+                    created,
+                );
+
+                // Check if we got hardware manager and it actually created a key
+                if (manager.getType() !== "hardware") {
+                    throw new Error(
+                        "Got software fallback instead of hardware",
+                    );
+                }
+
+                // Hardware works! Clean up test key and proceed
+                console.log("Hardware keys are working");
+                checkingHardware = false;
+            } catch (keyError) {
+                console.error("Hardware key test failed:", keyError);
+                showHardwareError = true;
+                checkingHardware = false;
+            }
+        } catch (err) {
+            console.error("Error checking hardware:", err);
             showHardwareError = true;
             checkingHardware = false;
         }
-    } catch (err) {
-        console.error("Error checking hardware:", err);
-        showHardwareError = true;
-        checkingHardware = false;
+    };
+
+    const handlePreVerified = () => {
+        isPaneOpen = true;
+        preVerified = true;
+    };
+
+    function generatePassportNumber() {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const randomLetters = () =>
+            letters.charAt(Math.floor(Math.random() * letters.length)) +
+            letters.charAt(Math.floor(Math.random() * letters.length));
+        const randomDigits = () =>
+            String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
+
+        return randomLetters() + randomDigits();
     }
-};
 
-const handlePreVerified = () => {
-    isPaneOpen = true;
-    preVerified = true;
-};
-
-function generatePassportNumber() {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const randomLetters = () =>
-        letters.charAt(Math.floor(Math.random() * letters.length)) +
-        letters.charAt(Math.floor(Math.random() * letters.length));
-    const randomDigits = () =>
-        String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
-
-    return randomLetters() + randomDigits();
-}
-
-function getKeyContext(): KeyServiceContext {
-    return preVerified ? "pre-verification" : "onboarding";
-}
-
-async function initializeKeyManager() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        keyManager = await globalState.keyService.getManager(KEY_ID, context);
-        console.log(`Key manager initialized: ${keyManager.getType()}`);
-        return keyManager;
-    } catch (error) {
-        console.error("Failed to initialize key manager:", error);
-        throw error;
+    function getKeyContext(): KeyServiceContext {
+        return preVerified ? "pre-verification" : "onboarding";
     }
-}
 
-async function ensureKeyForContext() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        const { manager, created } = await globalState.keyService.ensureKey(
-            KEY_ID,
-            context,
-        );
-        keyManager = manager;
-        console.log(
-            "Key generation result:",
-            created ? "key-generated" : "key-exists",
-        );
-        return { manager, created };
-    } catch (error) {
-        console.error("Failed to ensure key:", error);
-        throw error;
+    async function initializeKeyManager() {
+        try {
+            if (!globalState) throw new Error("Global state is not defined");
+            const context = getKeyContext();
+            keyManager = await globalState.keyService.getManager(
+                KEY_ID,
+                context,
+            );
+            console.log(`Key manager initialized: ${keyManager.getType()}`);
+            return keyManager;
+        } catch (error) {
+            console.error("Failed to initialize key manager:", error);
+            throw error;
+        }
     }
-}
 
-async function getApplicationPublicKey() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        if (!keyManager) {
+    async function ensureKeyForContext() {
+        try {
+            if (!globalState) throw new Error("Global state is not defined");
+            const context = getKeyContext();
+            const { manager, created } = await globalState.keyService.ensureKey(
+                KEY_ID,
+                context,
+            );
+            keyManager = manager;
+            console.log(
+                "Key generation result:",
+                created ? "key-generated" : "key-exists",
+            );
+            return { manager, created };
+        } catch (error) {
+            console.error("Failed to ensure key:", error);
+            throw error;
+        }
+    }
+
+    async function getApplicationPublicKey() {
+        try {
+            if (!globalState) throw new Error("Global state is not defined");
+            if (!keyManager) {
+                await initializeKeyManager();
+            }
+            const context = getKeyContext();
+            const publicKey = await globalState.keyService.getPublicKey(
+                KEY_ID,
+                context,
+            );
+            console.log("Public key retrieved:", publicKey);
+            return publicKey;
+        } catch (error) {
+            console.error("Public key retrieval failed:", error);
+            throw error;
+        }
+    }
+
+    const handleNext = async () => {
+        // Initialize keys for onboarding context before going to verify
+        try {
+            loading = true;
+            if (!globalState) {
+                globalState = getContext<() => GlobalState>("globalState")();
+            }
             await initializeKeyManager();
-        }
-        const context = getKeyContext();
-        const publicKey = await globalState.keyService.getPublicKey(
-            KEY_ID,
-            context,
-        );
-        console.log("Public key retrieved:", publicKey);
-        return publicKey;
-    } catch (error) {
-        console.error("Public key retrieval failed:", error);
-        throw error;
-    }
-}
-
-const handleNext = async () => {
-    // Initialize keys for onboarding context before going to verify
-    try {
-        loading = true;
-        if (!globalState) {
-            globalState = getContext<() => GlobalState>("globalState")();
-        }
-        await initializeKeyManager();
-        await ensureKeyForContext();
-        loading = false;
-        goto("/verify");
-    } catch (err) {
-        console.error("Failed to initialize keys for onboarding:", err);
-        error = "Failed to initialize security keys. Please try again.";
-        loading = false;
-        setTimeout(() => {
-            error = null;
-        }, 5000);
-    }
-};
-
-let globalState: GlobalState;
-let handleContinue: () => Promise<void> | void = $state(() => {});
-let handleFinalSubmit: () => Promise<void> | void = $state(() => {});
-let ename: string;
-let uri: string;
-
-let error: string | null = $state(null);
-
-onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    // handle verification logic + sec user data in the store
-
-    // Don't initialize key manager here - wait until user chooses their path
-
-    handleContinue = async () => {
-        loading = true;
-        error = null;
-
-        // Initialize key manager for pre-verification context
-        await initializeKeyManager();
-        await ensureKeyForContext();
-
-        const {
-            data: { token: registryEntropy },
-        } = await axios.get(
-            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-        );
-
-        const { data } = await axios
-            .post(new URL("/provision", PUBLIC_PROVISIONER_URL).toString(), {
-                registryEntropy,
-                namespace: uuidv4(),
-                verificationId,
-                publicKey: await getApplicationPublicKey(),
-            })
-            .catch(() => {
-                loading = false;
-                console.log("caught");
-                preVerified = false;
-                verificationId = "";
-                error = "Wrong pre-verification code";
-                setTimeout(() => {
-                    error = null;
-                }, 6_000);
-                return { data: null };
-            });
-        if (!data) return;
-
-        // If verification is successful, show demo name input
-        if (data.success === true) {
+            await ensureKeyForContext();
             loading = false;
-            verificationSuccess = true;
-            uri = data.uri;
-            ename = data.w3id;
+            goto("/verify");
+        } catch (err) {
+            console.error("Failed to initialize keys for onboarding:", err);
+            error = "Failed to initialize security keys. Please try again.";
+            loading = false;
+            setTimeout(() => {
+                error = null;
+            }, 5000);
         }
     };
 
-    // New function to handle final submission with demo name
-    handleFinalSubmit = async () => {
-        loading = true;
+    let globalState: GlobalState;
+    let handleContinue: () => Promise<void> | void = $state(() => {});
+    let handleFinalSubmit: () => Promise<void> | void = $state(() => {});
+    let ename: string;
+    let uri: string;
 
-        const tenYearsLater = new Date();
-        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-        globalState.userController.user = {
-            name:
-                demoName ||
-                capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
-            "Date of Birth": new Date().toDateString(),
-            "ID submitted": `Passport - ${falso.randCountryCode()}`,
-            "Passport Number": generatePassportNumber(),
-        };
-        globalState.userController.isFake = true;
-        globalState.userController.document = {
-            "Valid From": new Date(Date.now()).toDateString(),
-            "Valid Until": tenYearsLater.toDateString(),
-            "Verified On": new Date().toDateString(),
+    let error: string | null = $state(null);
+
+    onMount(async () => {
+        globalState = getContext<() => GlobalState>("globalState")();
+        // handle verification logic + sec user data in the store
+
+        // Don't initialize key manager here - wait until user chooses their path
+
+        handleContinue = async () => {
+            loading = true;
+            error = null;
+
+            // Initialize key manager for pre-verification context
+            await initializeKeyManager();
+            await ensureKeyForContext();
+
+            const {
+                data: { token: registryEntropy },
+            } = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+
+            const { data } = await axios
+                .post(
+                    new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                    {
+                        registryEntropy,
+                        namespace: uuidv4(),
+                        verificationId,
+                        publicKey: await getApplicationPublicKey(),
+                    },
+                )
+                .catch(() => {
+                    loading = false;
+                    console.log("caught");
+                    preVerified = false;
+                    verificationId = "";
+                    error = "Wrong pre-verification code";
+                    setTimeout(() => {
+                        error = null;
+                    }, 6_000);
+                    return { data: null };
+                });
+            if (!data) return;
+
+            // If verification is successful, show demo name input
+            if (data.success === true) {
+                loading = false;
+                verificationSuccess = true;
+                uri = data.uri;
+                ename = data.w3id;
+            }
         };
 
-        // Set vault in controller - this will trigger profile creation with retry logic
-        globalState.vaultController.vault = {
-            uri,
-            ename,
-        };
+        // New function to handle final submission with demo name
+        handleFinalSubmit = async () => {
+            loading = true;
 
-        setTimeout(() => {
-            goto("/register");
-        }, 10_000);
-    };
-});
+            const tenYearsLater = new Date();
+            tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+            globalState.userController.user = {
+                name:
+                    demoName ||
+                    capitalize(
+                        `${falso.randFirstName()} ${falso.randLastName()}`,
+                    ),
+                "Date of Birth": new Date().toDateString(),
+                "ID submitted": `Passport - ${falso.randCountryCode()}`,
+                "Passport Number": generatePassportNumber(),
+            };
+            globalState.userController.isFake = true;
+            globalState.userController.document = {
+                "Valid From": new Date(Date.now()).toDateString(),
+                "Valid Until": tenYearsLater.toDateString(),
+                "Verified On": new Date().toDateString(),
+            };
+
+            // Set vault in controller - this will trigger profile creation with retry logic
+            globalState.vaultController.vault = {
+                uri,
+                ename,
+            };
+
+            setTimeout(() => {
+                goto("/register");
+            }, 10_000);
+        };
+    });
 </script>
 
 <main
@@ -302,8 +313,8 @@ onMount(async () => {
             >
         </p>
         <div class="flex justify-center whitespace-nowrap mt-1">
-            <ButtonAction 
-                class="w-full" 
+            <ButtonAction
+                class="w-full"
                 callback={handleGetStarted}
                 disabled={checkingHardware}
             >
@@ -365,69 +376,70 @@ onMount(async () => {
                 placeholder="Enter verification code"
             />
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction class="w-full" callback={handleContinue}
-                    >Next</ButtonAction
+                <ButtonAction
+                    variant={verificationId.length === 0 ? "soft" : "solid"}
+                    disabled={verificationId.length === 0}
+                    class="w-full"
+                    callback={handleContinue}>Next</ButtonAction
                 >
             </div>
         {/if}
+    {:else if checkingHardware}
+        <div class="my-20">
+            <div
+                class="align-center flex w-full flex-col items-center justify-center gap-6"
+            >
+                <Shadow size={40} color="rgb(142, 82, 255);" />
+                <h4>Checking device capabilities...</h4>
+            </div>
+        </div>
+    {:else if showHardwareError}
+        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+            Hardware Security Not Available
+        </h4>
+        <p class="text-black-700 mb-4">
+            Your phone doesn't support hardware crypto keys, which is a
+            requirement for verified IDs.
+        </p>
+        <p class="text-black-700 mb-4">
+            Please use the pre-verification code option to create a demo account
+            instead.
+        </p>
+        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+            <ButtonAction
+                class="w-full"
+                callback={() => {
+                    isPaneOpen = false;
+                    handlePreVerified();
+                }}
+            >
+                Use Pre-Verification Code
+            </ButtonAction>
+        </div>
+    {:else if loading}
+        <div class="my-20">
+            <div
+                class="align-center flex w-full flex-col items-center justify-center gap-6"
+            >
+                <Shadow size={40} color="rgb(142, 82, 255);" />
+                <h4>Initializing security keys...</h4>
+            </div>
+        </div>
     {:else}
-        {#if checkingHardware}
-            <div class="my-20">
-                <div
-                    class="align-center flex w-full flex-col items-center justify-center gap-6"
-                >
-                    <Shadow size={40} color="rgb(142, 82, 255);" />
-                    <h4>Checking device capabilities...</h4>
-                </div>
-            </div>
-        {:else if showHardwareError}
-            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-                Hardware Security Not Available
-            </h4>
-            <p class="text-black-700 mb-4">
-                Your phone doesn't support hardware crypto keys, which is a requirement for verified IDs.
-            </p>
-            <p class="text-black-700 mb-4">
-                Please use the pre-verification code option to create a demo account instead.
-            </p>
-            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction 
-                    class="w-full" 
-                    callback={() => {
-                        isPaneOpen = false;
-                        handlePreVerified();
-                    }}
-                >
-                    Use Pre-Verification Code
-                </ButtonAction>
-            </div>
-        {:else}
-            {#if loading}
-                <div class="my-20">
-                    <div
-                        class="align-center flex w-full flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
-                        <h4>Initializing security keys...</h4>
-                    </div>
-                </div>
-            {:else}
-                <h4 class="mt-[2.3svh] mb-[0.5svh]">
-                    Your Digital Self begins with the Real You
-                </h4>
-                <p class="text-black-700">
-                    In the Web 3.0 Data Space, identity is linked to reality. We begin
-                    by verifying your real-world passport, which serves as the
-                    foundation for issuing your secure ePassport. At the same time, we
-                    generate your eName – a unique digital identifier – and create your
-                    eVault to store and protect your personal data.
-                </p>
-                <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                    <ButtonAction class="w-full" callback={handleNext}
-                        >Next</ButtonAction
-                    >
-                </div>
-            {/if}
-        {/if}
+        <h4 class="mt-[2.3svh] mb-[0.5svh]">
+            Your Digital Self begins with the Real You
+        </h4>
+        <p class="text-black-700">
+            In the Web 3.0 Data Space, identity is linked to reality. We begin
+            by verifying your real-world passport, which serves as the
+            foundation for issuing your secure ePassport. At the same time, we
+            generate your eName – a unique digital identifier – and create your
+            eVault to store and protect your personal data.
+        </p>
+        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+            <ButtonAction class="w-full" callback={handleNext}
+                >Next</ButtonAction
+            >
+        </div>
     {/if}
 </Drawer>
