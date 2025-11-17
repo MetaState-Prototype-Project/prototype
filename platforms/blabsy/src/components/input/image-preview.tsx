@@ -67,9 +67,9 @@ export function ImagePreview({
                 type: img.type
             }))
         });
-        
+
         const processed = combineBase64Images(imagesPreview);
-        
+
         console.log('[ImagePreview] Processed images:', {
             originalCount: imagesPreview?.length || 0,
             processedCount: processed.length,
@@ -82,7 +82,7 @@ export function ImagePreview({
                 type: img.type
             }))
         });
-        
+
         return processed;
     }, [imagesPreview]);
 

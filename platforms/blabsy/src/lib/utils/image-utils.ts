@@ -42,7 +42,10 @@ export function combineBase64Images(
         } else {
             // Handle odd number of images (last item)
             if (dataPart) {
-                if (dataPart.src.startsWith('data:') && !dataPart.src.includes(',')) {
+                if (
+                    dataPart.src.startsWith('data:') &&
+                    !dataPart.src.includes(',')
+                ) {
                     // Incomplete base64 image, skip it
                 } else {
                     result.push(dataPart);
