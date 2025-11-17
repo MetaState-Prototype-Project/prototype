@@ -22,14 +22,8 @@ type ThemeContextProviderProps = {
 };
 
 function setInitialTheme(): Theme {
-    if (typeof window === 'undefined') return 'dark';
-
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const prefersDark = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-    ).matches;
-
-    return savedTheme ?? (prefersDark ? 'dark' : 'light');
+    // Always return dark theme - no light mode option
+    return 'dark';
 }
 
 function setInitialAccent(): Accent {
@@ -50,7 +44,8 @@ export function ThemeContextProvider({
     const { id: userId, theme: userTheme, accent: userAccent } = user ?? {};
 
     useEffect(() => {
-        if (user && userTheme) setTheme(userTheme);
+        // Always force dark theme, ignore user theme preference
+        setTheme('dark');
     }, [userId, userTheme]);
 
     useEffect(() => {
@@ -58,32 +53,37 @@ export function ThemeContextProvider({
     }, [userId, userAccent]);
 
     useEffect(() => {
-        const flipTheme = (theme: Theme): NodeJS.Timeout | undefined => {
+        const flipTheme = (): NodeJS.Timeout | undefined => {
             const root = document.documentElement;
-            const targetTheme = theme === 'dim' ? 'dark' : theme;
-
-            if (targetTheme === 'dark') root.classList.add('dark');
-            else root.classList.remove('dark');
+            // Always use dark theme
+            const forcedTheme: Theme = 'dark';
+            
+            // Always ensure dark class is present and never remove it
+            root.classList.add('dark');
+            // Prevent any accidental removal
+            if (!root.classList.contains('dark')) {
+                root.classList.add('dark');
+            }
 
             root.style.setProperty(
                 '--main-background',
-                `var(--${theme}-background)`
+                `var(--${forcedTheme}-background)`
             );
 
             root.style.setProperty(
                 '--main-search-background',
-                `var(--${theme}-search-background)`
+                `var(--${forcedTheme}-search-background)`
             );
 
             root.style.setProperty(
                 '--main-sidebar-background',
-                `var(--${theme}-sidebar-background)`
+                `var(--${forcedTheme}-sidebar-background)`
             );
 
             if (user) {
-                localStorage.setItem('theme', theme);
+                localStorage.setItem('theme', forcedTheme);
                 return setTimeout(
-                    () => void updateUserTheme(user.id, { theme }),
+                    () => void updateUserTheme(user.id, { theme: forcedTheme }),
                     500
                 );
             }
@@ -91,9 +91,13 @@ export function ThemeContextProvider({
             return undefined;
         };
 
-        const timeoutId = flipTheme(theme);
+        const timeoutId = flipTheme();
+        // Ensure dark class is always applied on mount and updates
+        const root = document.documentElement;
+        root.classList.add('dark');
+        
         return () => clearTimeout(timeoutId);
-    }, [userId, theme]);
+    }, [userId]);
 
     useEffect(() => {
         const flipAccent = (accent: Accent): NodeJS.Timeout | undefined => {
@@ -118,7 +122,10 @@ export function ThemeContextProvider({
 
     const changeTheme = ({
         target: { value }
-    }: ChangeEvent<HTMLInputElement>): void => setTheme(value as Theme);
+    }: ChangeEvent<HTMLInputElement>): void => {
+        // Ignore theme changes - always keep dark mode
+        setTheme('dark');
+    };
 
     const changeAccent = ({
         target: { value }

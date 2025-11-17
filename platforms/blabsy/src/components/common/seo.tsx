@@ -2,7 +2,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { siteURL } from '@lib/env';
 
-type MainLayoutProps = {
+type SEOProps = {
     title: string;
     image?: string;
     description?: string;
@@ -12,7 +12,7 @@ export function SEO({
     title,
     image,
     description
-}: MainLayoutProps): JSX.Element {
+}: SEOProps): JSX.Element {
     const { asPath } = useRouter();
 
     return (

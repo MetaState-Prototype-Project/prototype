@@ -1,19 +1,12 @@
 import { UserAvatar } from '@components/user/user-avatar';
 import { UserName } from '@components/user/user-name';
-import { InputThemeRadio } from '@components/input/input-theme-radio';
 import { Button } from '@components/ui/button';
 import { InputAccentRadio } from '@components/input/input-accent-radio';
-import type { Theme, Accent } from '@lib/types/theme';
+import type { Accent } from '@lib/types/theme';
 
 type DisplayModalProps = {
     closeModal: () => void;
 };
-
-const themes: Readonly<[Theme, string][]> = [
-    ['light', 'Default'],
-    ['dim', 'Dim'],
-    ['dark', 'Lights out']
-];
 
 const accentsColor: Readonly<Accent[]> = [
     'blue',
@@ -77,23 +70,7 @@ export function DisplayModal({ closeModal }: DisplayModalProps): JSX.Element {
                     ))}
                 </div>
             </div>
-            <div className='flex w-full flex-col gap-1'>
-                <p className='text-sm font-bold text-light-secondary dark:text-dark-secondary'>
-                    Background
-                </p>
-                <div
-                    className='hover-animation grid grid-rows-3 gap-3 rounded-2xl bg-main-sidebar-background
-                     px-4 py-3 xs:grid-cols-3 xs:grid-rows-none'
-                >
-                    {themes.map(([themeType, label]) => (
-                        <InputThemeRadio
-                            type={themeType}
-                            label={label}
-                            key={themeType}
-                        />
-                    ))}
-                </div>
-            </div>
+            {/* Theme selection removed - always dark mode */}
             <Button
                 className='bg-main-accent px-4 py-1.5 font-bold
                    text-white hover:bg-main-accent/90 active:bg-main-accent/75'
