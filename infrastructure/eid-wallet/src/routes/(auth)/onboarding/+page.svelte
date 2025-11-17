@@ -349,8 +349,11 @@ onMount(async () => {
                 placeholder="Enter your demo name for ePassport"
             />
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction class="w-full" callback={handleFinalSubmit}
-                    >Continue</ButtonAction
+                <ButtonAction
+                    variant={demoName.length === 0 ? "soft" : "solid"}
+                    disabled={demoName.length === 0}
+                    class="w-full"
+                    callback={handleFinalSubmit}>Continue</ButtonAction
                 >
             </div>
         {:else}
