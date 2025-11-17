@@ -1,12 +1,27 @@
 import fastify from "fastify";
 import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
 import dotenv from "dotenv";
-import path from "path";
+import path from "node:path";
 import { AppDataSource } from "./config/database";
 import { VaultService } from "./services/VaultService";
 import { UriResolutionService } from "./services/UriResolutionService";
-import { KubernetesService } from "./services/KubernetesService";
 import cors from "@fastify/cors";
+
+import fs from "node:fs";
+
+function loadMotdJSON() {
+    const motdJSON = fs.readFileSync(path.resolve(__dirname, "../motd.json"), "utf8");
+    return JSON.parse(motdJSON) as {
+        status: "up" | "maintenance"
+        message: string
+    };
+}
+
+let motd = loadMotdJSON();
+
+fs.watchFile(path.resolve(__dirname, "../motd.json"), (_curr, _prev) => {
+    motd = loadMotdJSON();
+});
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -34,11 +49,8 @@ const initializeDatabase = async () => {
 // Initialize VaultService
 const vaultService = new VaultService(AppDataSource.getRepository("Vault"));
 
-// Initialize UriResolutionService for health checks and Kubernetes fallbacks
+// Initialize UriResolutionService (simplified for multi-tenant architecture)
 const uriResolutionService = new UriResolutionService();
-
-// Initialize KubernetesService for debugging
-const kubernetesService = new KubernetesService();
 
 // Middleware to check shared secret
 const checkSharedSecret = async (request: any, reply: any) => {
@@ -54,6 +66,10 @@ const checkSharedSecret = async (request: any, reply: any) => {
         return reply.status(401).send({ error: "Invalid shared secret" });
     }
 };
+
+server.get("/motd", async (request, reply) => {
+    return motd;
+});
 
 // Create a new vault entry
 server.post(
@@ -113,6 +129,7 @@ server.get("/platforms", async (request, reply) => {
         process.env.PUBLIC_GROUP_CHARTER_BASE_URL, 
         process.env.PUBLIC_CERBERUS_BASE_URL, 
         process.env.PUBLIC_EVOTING_BASE_URL,
+        process.env.VITE_DREAMSYNC_BASE_URL
     ]
 
     return platforms
@@ -128,23 +145,6 @@ server.get("/.well-known/jwks.json", async (request, reply) => {
     } catch (error) {
         server.log.error(error);
         reply.status(500).send({ error: "Failed to get JWK" });
-    }
-});
-
-// Debug endpoint for Kubernetes connectivity (remove in production)
-server.get("/debug/kubernetes", async (request, reply) => {
-    try {
-        const debugInfo = await kubernetesService.debugExternalIps();
-        reply.send({
-            status: "ok",
-            timestamp: new Date().toISOString(),
-            kubernetes: debugInfo
-        });
-    } catch (error) {
-        reply.status(500).send({
-            error: "Failed to get Kubernetes debug info",
-            message: error instanceof Error ? error.message : String(error)
-        });
     }
 });
 

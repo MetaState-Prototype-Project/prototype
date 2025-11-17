@@ -42,7 +42,7 @@
 	<div {...restProps} class={cn('my-4 flex items-center justify-center', restProps.class)}>
 		<div class="max-w-[80%] text-center">
 			<div class="inline-block rounded-[10px] border border-gray-300 bg-gray-200 px-4 py-2">
-				<div class="whitespace-pre-wrap text-left text-sm font-medium text-black">
+				<div class="text-left text-sm font-medium whitespace-pre-wrap text-black">
 					{@html displayText.replace(
 						/<a href="([^"]+)">([^<]+)<\/a>/g,
 						'<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
@@ -74,6 +74,11 @@
 		</div>
 
 		<div class={cn(`max-w-[50%] ${isHeadNeeded ? 'mt-4' : 'mt-0'}`)}>
+			{#if isHeadNeeded && sender}
+				<p class="text-black-800 mb-1 px-1 text-xs font-semibold">
+					{sender.name}
+				</p>
+			{/if}
 			<div
 				class={cn(
 					`relative rounded-3xl px-4 py-2 ${isOwn ? 'bg-grey' : 'bg-brand-burnt-orange'}`
@@ -106,7 +111,7 @@
 			{#if isTimestampNeeded}
 				<p
 					class={cn(
-						`subtext text-black-400 mt-0.5 flex text-nowrap text-xs ${
+						`subtext text-black-400 mt-0.5 flex text-xs text-nowrap ${
 							isOwn ? 'justify-end' : 'justify-start'
 						}`
 					)}

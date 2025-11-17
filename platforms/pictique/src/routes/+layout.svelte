@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import '../app.css';
 	import { page } from '$app/state';
+	import MaintenanceBanner from '$lib/fragments/MaintenanceBanner/MaintenanceBanner.svelte';
 
 	let { children } = $props();
 
@@ -46,11 +47,14 @@
 		<img src="/images/Logo.svg" alt="logo" />
 	</main>
 {:else}
-	<main
-		class="h-[100dvh] overflow-hidden {page.url.pathname.includes('/profile')
-			? 'px-0'
-			: 'px-4'}  md:px-0"
-	>
-		{@render children()}
-	</main>
+	<div class="flex h-[100dvh] flex-col overflow-hidden">
+		<MaintenanceBanner />
+		<main
+			class="flex-1 overflow-hidden {page.url.pathname.includes('/profile')
+				? 'px-0'
+				: 'px-4'}  md:px-0"
+		>
+			{@render children()}
+		</main>
+	</div>
 {/if}

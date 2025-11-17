@@ -21,16 +21,37 @@
 	let groupName = $state('');
 	let debounceTimer: NodeJS.Timeout;
 
-	async function loadMessages() {
+	// Pagination and loading state
+	let isLoading = $state(true);
+	let isLoadingMore = $state(false);
+	let currentPage = $state(1);
+	let totalPages = $state(1);
+	let totalChats = $state(0);
+	let hasMorePages = $state(false);
+
+	async function loadMessages(page = 1, append = false) {
 		try {
-			const { data } = await apiClient.get<{ chats: Chat[] }>('/api/chats');
+			isLoading = true;
+			const { data } = await apiClient.get<{
+				chats: Chat[];
+				total: number;
+				page: number;
+				totalPages: number;
+			}>(`/api/chats?page=${page}&limit=10`);
+
 			const { data: userData } = await apiClient.get('/api/users');
 			currentUserId = userData.id;
 
 			console.log('Raw chat data from API:', data.chats);
 
-			// Show all chats (direct messages and groups) in one unified list
-			messages = data.chats.map((c) => {
+			// Update pagination info
+			currentPage = data.page;
+			totalPages = data.totalPages;
+			totalChats = data.total;
+			hasMorePages = data.page < data.totalPages;
+
+			// Transform chats to messages
+			const newMessages = data.chats.map((c) => {
 				const members = c.participants.filter((u) => u.id !== userData.id);
 				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
 				const isGroup = members.length > 1;
@@ -57,8 +78,28 @@
 					name: displayName
 				};
 			});
+
+			// Append or replace messages based on pagination
+			if (append) {
+				messages = [...messages, ...newMessages];
+			} else {
+				messages = newMessages;
+			}
 		} catch (error) {
 			console.error('Failed to load messages:', error);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function loadMoreMessages() {
+		if (hasMorePages && !isLoadingMore) {
+			isLoadingMore = true;
+			try {
+				await loadMessages(currentPage + 1, true);
+			} finally {
+				isLoadingMore = false;
+			}
 		}
 	}
 
@@ -197,7 +238,7 @@
 			// Navigate to messages and refresh the feed
 			goto('/messages');
 			// Refresh the messages to show the newly created group
-			await loadMessages();
+			await loadMessages(1, false);
 		} catch (err) {
 			console.error('Failed to create group:', err);
 			alert('Failed to create group. Please try again.');
@@ -218,7 +259,14 @@
 		</Button>
 	</div>
 
-	{#if messages.length > 0}
+	{#if isLoading && messages.length === 0}
+		<div class="flex items-center justify-center py-8">
+			<div
+				class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+			></div>
+			<span class="ml-3 text-gray-500">Loading chats...</span>
+		</div>
+	{:else if messages.length > 0}
 		{#each messages as message}
 			<Message
 				class="mb-2"
@@ -232,16 +280,37 @@
 				}}
 			/>
 		{/each}
-	{/if}
 
-	{#if messages.length === 0}
+		<!-- Load More Button -->
+		{#if hasMorePages}
+			<div class="mt-4 flex justify-center">
+				<Button
+					variant="secondary"
+					size="sm"
+					callback={loadMoreMessages}
+					disabled={isLoadingMore}
+					isLoading={isLoadingMore}
+				>
+					Load More Chats
+				</Button>
+			</div>
+
+			<div class="mt-2 text-center text-sm text-gray-500">
+				Showing {messages.length} of {totalChats} chats
+			</div>
+		{:else if messages.length > 0}
+			<div class="mt-2 text-center text-sm text-gray-500">
+				All {totalChats} chats loaded
+			</div>
+		{/if}
+	{:else if !isLoading}
 		<div class="w-full px-5 py-5 text-center text-sm text-gray-500">
 			You don't have any messages yet. Start a Direct Message by searching a name.
 		</div>
 	{/if}
 
 	{#if openNewChatModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
 			<div
 				class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
 			>
@@ -250,6 +319,7 @@
 					<button
 						onclick={() => (openNewChatModal = false)}
 						class="rounded-full p-2 hover:bg-gray-100"
+						aria-label="Close modal"
 					>
 						<svg
 							class="h-5 w-5 text-gray-500"
@@ -328,7 +398,9 @@
 						<Button
 							size="sm"
 							variant="secondary"
-							callback={() => (openNewChatModal = false)}
+							callback={() => {
+								openNewChatModal = false;
+							}}
 						>
 							Cancel
 						</Button>
@@ -348,7 +420,7 @@
 
 	<!-- New Group Modal -->
 	{#if openNewGroupModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
 			<div
 				class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
 			>
@@ -357,6 +429,7 @@
 					<button
 						onclick={() => (openNewGroupModal = false)}
 						class="rounded-full p-2 hover:bg-gray-100"
+						aria-label="Close modal"
 					>
 						<svg
 							class="h-5 w-5 text-gray-500"
@@ -391,10 +464,14 @@
 
 					<!-- Member Search -->
 					<div>
-						<label class="mb-2 block text-sm font-medium text-gray-700">
+						<label
+							for="memberSearch"
+							class="mb-2 block text-sm font-medium text-gray-700"
+						>
 							Search Users by Name
 						</label>
 						<Input
+							id="memberSearch"
 							type="text"
 							bind:value={searchValue}
 							placeholder="Type a name to search..."
@@ -466,6 +543,7 @@
 										<button
 											onclick={() => toggleMemberSelection(member.id)}
 											class="text-blue-600 hover:text-blue-800"
+											aria-label="Remove member"
 										>
 											<svg
 												class="h-4 w-4"
@@ -492,7 +570,9 @@
 						<Button
 							size="sm"
 							variant="secondary"
-							callback={() => (openNewGroupModal = false)}
+							callback={() => {
+								openNewGroupModal = false;
+							}}
 						>
 							Cancel
 						</Button>

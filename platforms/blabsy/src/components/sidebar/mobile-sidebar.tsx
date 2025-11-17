@@ -4,7 +4,7 @@ import { Button } from '@components/ui/button';
 import { Modal } from '@components/modal/modal';
 import { MobileSidebarModal } from '@components/modal/mobile-sidebar-modal';
 import { UserAvatar } from '@components/user/user-avatar';
-import type { Variants } from 'framer-motion';
+import type { Variants } from 'motion/react';
 import type { User } from '@lib/types/user';
 
 const variant: Variants = {

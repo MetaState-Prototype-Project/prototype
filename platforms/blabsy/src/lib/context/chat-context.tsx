@@ -32,10 +32,7 @@ type ChatContext = {
     loading: boolean;
     error: Error | null;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (
-        participants: string[],
-        name?: string
-    ) => Promise<string>;
+    createNewChat: (participants: string[], name?: string) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
@@ -97,14 +94,45 @@ export function ChatContextProvider({
 
         const chatsQuery = query(
             chatsCollection,
-            where('participants', 'array-contains', user.id)
+            where('participants', 'array-contains', user.id),
+            orderBy('updatedAt', 'desc')
         );
 
         const unsubscribe = onSnapshot(
             chatsQuery,
             (snapshot) => {
                 const chatsData = snapshot.docs.map((doc) => doc.data());
-                setChats(chatsData);
+
+                // Sort chats by last message timestamp (most recent first)
+                const sortedChats = chatsData.sort((a, b) => {
+                    // If both have lastMessage, sort by timestamp
+                    if (a.lastMessage?.timestamp && b.lastMessage?.timestamp) {
+                        return (
+                            b.lastMessage.timestamp.toMillis() -
+                            a.lastMessage.timestamp.toMillis()
+                        );
+                    }
+                    // If only one has lastMessage, prioritize it
+                    if (a.lastMessage?.timestamp && !b.lastMessage?.timestamp)
+                        return -1;
+                    if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp)
+                        return 1;
+                    // If neither has lastMessage, sort by updatedAt (with null checks)
+                    if (a.updatedAt && b.updatedAt) {
+                        return b.updatedAt.toMillis() - a.updatedAt.toMillis();
+                    }
+                    // If only one has updatedAt, prioritize it
+                    if (a.updatedAt && !b.updatedAt) return -1;
+                    if (!a.updatedAt && b.updatedAt) return 1;
+                    // If both are null, sort by createdAt as fallback
+                    if (a.createdAt && b.createdAt) {
+                        return b.createdAt.toMillis() - a.createdAt.toMillis();
+                    }
+                    // If all else fails, maintain order
+                    return 0;
+                });
+
+                setChats(sortedChats);
                 setLoading(false);
             },
             (error) => {

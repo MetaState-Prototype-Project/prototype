@@ -47,7 +47,10 @@ export function ChatList(): JSX.Element {
             }
 
             if (Object.keys(newParticipantData).length > 0) {
-                console.log('ChatList: Fetched new participant data:', newParticipantData);
+                console.log(
+                    'ChatList: Fetched new participant data:',
+                    newParticipantData
+                );
                 setParticipantData((prev) => ({
                     ...prev,
                     ...newParticipantData
@@ -89,8 +92,8 @@ export function ChatList(): JSX.Element {
     }
 
     return (
-        <div className='flex h-full flex-col gap-4'>
-            <div className='flex h-full flex-col gap-2 overflow-y-auto p-4'>
+        <div className='flex h-full flex-col'>
+            <div className='flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-1'>
                 {chats.map((chat) => {
                     const otherParticipant = chat.participants.find(
                         (p) => p !== user?.id
@@ -104,7 +107,7 @@ export function ChatList(): JSX.Element {
                             key={chat.id}
                             type='button'
                             onClick={() => setCurrentChat(chat)}
-                            className={`flex items-center gap-3 rounded-lg p-3 transition-colors ${
+                            className={`w-full flex items-center gap-3 rounded-lg p-3 transition-colors ${
                                 currentChat?.id === chat.id
                                     ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary'
                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -157,13 +160,15 @@ export function ChatList(): JSX.Element {
                     );
                 })}
             </div>
-            <button
-                type='button'
-                onClick={() => setOpenCreateNewChatModal(true)}
-                className='flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90 mx-4 mb-4'
-            >
-                New Chat
-            </button>
+            <div className='flex-shrink-0 px-2 py-2'>
+                <button
+                    type='button'
+                    onClick={() => setOpenCreateNewChatModal(true)}
+                    className='w-full flex items-center justify-center gap-3 bg-main-accent rounded-lg p-3 transition-colors hover:brightness-90'
+                >
+                    New Chat
+                </button>
+            </div>
             <AddMembers
                 open={openCreateNewChatModal}
                 onClose={() => setOpenCreateNewChatModal(false)}
@@ -194,7 +199,9 @@ function ChatListItem({
         <button
             type='button'
             className={`flex w-full items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                isSelected ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary' : ''
+                isSelected
+                    ? 'bg-gray-200 dark:bg-gray-700 border-l-4 border-primary'
+                    : ''
             }`}
             onClick={onClick}
         >

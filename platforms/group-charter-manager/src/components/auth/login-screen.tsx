@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const [qrData, setQrData] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -42,26 +43,37 @@ export default function LoginScreen() {
 
     eventSource.onopen = () => {
       console.log('Successfully connected to auth stream.');
+      setErrorMessage(null);
     };
 
     eventSource.onmessage = (e) => {
       const data = JSON.parse(e.data);
       console.log('Auth data received:', data);
 
-      const { user, token } = data;
+      // Check for error messages (version mismatch)
+      if (data.error && data.type === 'version_mismatch') {
+        setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+        eventSource.close();
+        return;
+      }
 
-      // Set authentication data
-      setAuthId(user.id);
-      setAuthToken(token);
+      // Handle successful authentication
+      if (data.user && data.token) {
+        const { user, token } = data;
 
-      // Close the event source
-      eventSource.close();
+        // Set authentication data
+        setAuthId(user.id);
+        setAuthToken(token);
 
-      // Set authenticating state
-      setIsAuthenticating(true);
+        // Close the event source
+        eventSource.close();
 
-      // Force a page refresh to trigger AuthProvider re-initialization
-      window.location.reload();
+        // Set authenticating state
+        setIsAuthenticating(true);
+
+        // Force a page refresh to trigger AuthProvider re-initialization
+        window.location.reload();
+      }
     };
 
     eventSource.onerror = (error) => {
@@ -71,15 +83,18 @@ export default function LoginScreen() {
   };
 
   const getAppStoreLink = () => {
-			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-			if (/android/i.test(userAgent)) {
-				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-			}
-			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
-			}
-			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-		};
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+      return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+    }
+    const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera || '';
+    if (/android/i.test(userAgent)) {
+      return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+    }
+    if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+      return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667";
+    }
+    return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+  };
 
   if (isLoading) {
     return (
@@ -102,20 +117,20 @@ export default function LoginScreen() {
 
   return (
     <div className="flex flex-col gap-6 min-h-screen items-center justify-center p-4">
-        <div className="flex flex-col gap-2 items-center justify-center">
-            <div className="flex gap-4 justify-center items-center">
-                <Image
-                    src="/logo.png"
-                    alt="Group Charter Manager Logo"
-                    width={50}
-                    height={50}
-                />
-                <h1 className="text-3xl font-bold">Group Charter</h1>
-            </div>
-            <p className="text-gray-600">
-                Coordinate your group in the MetaState
-            </p>
+      <div className="flex flex-col gap-2 items-center justify-center">
+        <div className="flex gap-4 justify-center items-center">
+          <Image
+            src="/logo.png"
+            alt="Group Charter Manager Logo"
+            width={50}
+            height={50}
+          />
+          <h1 className="text-3xl font-bold">Group Charter</h1>
         </div>
+        <p className="text-gray-600">
+          Coordinate your group in the MetaState
+        </p>
+      </div>
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
 
@@ -123,6 +138,13 @@ export default function LoginScreen() {
             Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
           </p>
         </div>
+
+        {errorMessage && (
+          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p className="font-semibold">Authentication Error</p>
+            <p className="text-sm">{errorMessage}</p>
+          </div>
+        )}
 
         {qrData && (
           <div className="flex justify-center mb-6">
@@ -153,9 +175,9 @@ export default function LoginScreen() {
 
         <div className="text-center">
           <p className="text-sm text-gray-500">
-           <span className="mb-1 block font-bold text-gray-600">The {isMobileDevice() ? "button": "code"} is valid for 60 seconds</span>
-			<span className="block font-light text-gray-600">Please refresh the page if it expires</span
-			>
+            <span className="mb-1 block font-bold text-gray-600">The {isMobileDevice() ? "button" : "code"} is valid for 60 seconds</span>
+            <span className="block font-light text-gray-600">Please refresh the page if it expires</span
+            >
           </p>
         </div>
 
@@ -169,13 +191,13 @@ export default function LoginScreen() {
         </div>
 
         <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
-            <Image
+          <Image
             src="/W3DS.svg"
             alt="W3DS Logo"
             width={50}
             height={20}
             className="mx-auto mt-5"
-            />
+          />
         </a>
       </div>
     </div>

@@ -13,7 +13,7 @@
         "charterSignatures": "charter_signature(charterSignatures[].id),signatureIds",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",
-        "ename": "ename"
+        "ename": "eName"
     },
     "readOnly": true
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 import { useWindow } from '@lib/context/window-context';
 import { useModal } from '@lib/hooks/useModal';
@@ -61,10 +62,12 @@ const navLinks: Readonly<NavLink[]> = [
 export function Sidebar(): JSX.Element {
     const { user } = useAuth();
     const { isMobile } = useWindow();
+    const { pathname } = useRouter();
 
     const { open, openModal, closeModal } = useModal();
 
     const username = user?.username as string;
+    const isOnChatPage = pathname.startsWith('/chat');
 
     return (
         <header
@@ -87,43 +90,46 @@ export function Sidebar(): JSX.Element {
             >
                 <section className='flex flex-col justify-center gap-2 xs:items-center xl:items-stretch'>
                     <h1 className='hidden xs:flex'>
-                        <Link href='/home'>
-                            <a
-                                className='custom-button main-tab text-accent-blue transition hover:bg-light-primary/10
+                        <Link
+                            href='/home'
+                            className='custom-button main-tab text-accent-blue transition hover:bg-light-primary/10
                            focus-visible:bg-accent-blue/10 focus-visible:!ring-accent-blue/80
                            dark:text-twitter-icon dark:hover:bg-dark-primary/10'
-                            >
-                                <CustomIcon
-                                    className='h-7 w-7'
-                                    iconName='TwitterIcon'
-                                />
-                            </a>
+                        >
+                            <CustomIcon
+                                className='h-7 w-7'
+                                iconName='TwitterIcon'
+                            />
                         </Link>
                     </h1>
                     <nav className='flex items-center justify-around xs:flex-col xs:justify-center xl:block'>
                         {navLinks.map(({ ...linkData }) => (
                             <SidebarLink {...linkData} key={linkData.href} />
                         ))}
-                        <SidebarLink
-                            href={`/user/${username}`}
-                            username={username}
-                            linkName='Profile'
-                            iconName='UserIcon'
-                        />
+                        {username && (
+                            <SidebarLink
+                                href={`/user/${username}`}
+                                username={username}
+                                linkName='Profile'
+                                iconName='UserIcon'
+                            />
+                        )}
                         {!isMobile && <MoreSettings />}
                     </nav>
-                    <Button
-                        className='accent-tab absolute right-4 -translate-y-[72px] bg-main-accent text-lg font-bold text-white
-                       outline-none transition hover:brightness-90 active:brightness-75 xs:static xs:translate-y-0
-                       xs:hover:bg-main-accent/90 xs:active:bg-main-accent/75 xl:w-11/12'
-                        onClick={openModal}
-                    >
-                        <CustomIcon
-                            className='block h-6 w-6 xl:hidden'
-                            iconName='FeatherIcon'
-                        />
-                        <p className='hidden xl:block'>Blab</p>
-                    </Button>
+                    {!(isMobile && isOnChatPage) && (
+                        <Button
+                            className='accent-tab absolute right-4 -translate-y-[72px] bg-main-accent text-lg font-bold text-white
+                           outline-none transition hover:brightness-90 active:brightness-75 xs:static xs:translate-y-0
+                           xs:hover:bg-main-accent/90 xs:active:bg-main-accent/75 xl:w-11/12'
+                            onClick={openModal}
+                        >
+                            <CustomIcon
+                                className='block h-6 w-6 xl:hidden'
+                                iconName='FeatherIcon'
+                            />
+                            <p className='hidden xl:block'>Blab</p>
+                        </Button>
+                    )}
                 </section>
                 {!isMobile && <SidebarProfile />}
             </div>

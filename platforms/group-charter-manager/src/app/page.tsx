@@ -183,15 +183,13 @@ export default function Dashboard() {
                     title="Total Charters"
                     value={stats?.totalCharters || 0}
                     icon={Scroll}
-                    trend="+12%"
-                    trendDirection="up"
+                    gradient="bg-gradient-to-br from-blue-500 to-blue-600"
                 />
                 <StatsCard
                     title="Active Groups"
                     value={groups.length}
                     icon={Users}
-                    trend="+5%"
-                    trendDirection="up"
+                    gradient="bg-gradient-to-br from-purple-500 to-purple-600"
                 />
             </div>
 
@@ -216,25 +214,24 @@ export default function Dashboard() {
                             const isOwner = group.owner === user?.id;
                             const isAdmin = group.admins?.includes(user?.id || '');
                             const hasSigned = group.hasSigned || false;
-                            
+
                             return (
-                                <Card 
-                                    key={group.id} 
-                                    className={`hover:shadow-md transition-shadow ${
-                                        !hasCharter ? 'opacity-60 bg-gray-50' : ''
-                                    }`}
+                                <Card
+                                    key={group.id}
+                                    className={`hover:shadow-md transition-shadow ${!hasCharter ? 'opacity-60 bg-gray-50' : ''
+                                        }`}
                                 >
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900 mb-1">
-                                                {group.name || 'Unnamed Group'}
-                                            </h3>
-                                            {group.ename && (
-                                                <p className="text-xs text-gray-500 font-mono mb-1">
-                                                    {group.ename}
-                                                </p>
-                                            )}
+                                    <CardContent className="p-6">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <h3 className="font-semibold text-gray-900 mb-1">
+                                                    {group.name || 'Unnamed Group'}
+                                                </h3>
+                                                {group.ename && (
+                                                    <p className="text-xs text-gray-500 font-mono mb-1">
+                                                        {group.ename}
+                                                    </p>
+                                                )}
                                                 <div className="text-sm text-gray-600 space-y-1">
                                                     {hasCharter ? (
                                                         hasSigned ? (
@@ -243,12 +240,12 @@ export default function Dashboard() {
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                                                                 <p>Please sign the charter</p>
-                                        </div>
+                                                            </div>
                                                         )
                                                     ) : (
                                                         <p className="text-gray-500 italic">No charter found</p>
                                                     )}
-                                                    <Badge 
+                                                    <Badge
                                                         variant={isOwner ? "default" : isAdmin ? "secondary" : "outline"}
                                                         className="text-xs"
                                                     >
@@ -258,12 +255,10 @@ export default function Dashboard() {
                                             </div>
                                             <div className="relative">
                                                 {hasCharter && (
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                        hasSigned ? 'bg-green-100' : 'bg-yellow-100'
-                                                    }`}>
-                                                        <Scroll className={`h-4 w-4 ${
-                                                            hasSigned ? 'text-green-600' : 'text-yellow-600'
-                                                        }`} />
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${hasSigned ? 'bg-green-100' : 'bg-yellow-100'
+                                                        }`}>
+                                                        <Scroll className={`h-4 w-4 ${hasSigned ? 'text-green-600' : 'text-yellow-600'
+                                                            }`} />
                                                         {hasSigned && (
                                                             <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                                                                 <CheckCircle className="h-3 w-3 text-white" />
@@ -272,32 +267,32 @@ export default function Dashboard() {
                                                     </div>
                                                 )}
                                             </div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs text-gray-500">
-                                            {group.participants?.length || 0} members
-                                        </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs text-gray-500">
+                                                {group.participants?.length || 0} members
+                                            </span>
                                             {hasCharter ? (
-                                        <Link href={`/charter/${group.id}`}>
-                                            <Button variant="outline" size="sm">
-                                                <Eye className="h-4 w-4 mr-2" />
-                                                View Charter
-                                            </Button>
-                                        </Link>
+                                                <Link href={`/charter/${group.id}`}>
+                                                    <Button variant="outline" size="sm">
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        View Charter
+                                                    </Button>
+                                                </Link>
                                             ) : (
-                                                <Button 
-                                                    variant="outline" 
-                                                    size="sm" 
-                                                    disabled 
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled
                                                     className="text-gray-400 cursor-not-allowed"
                                                 >
                                                     <Eye className="h-4 w-4 mr-2" />
                                                     No Charter
                                                 </Button>
                                             )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                        </div>
+                                    </CardContent>
+                                </Card>
                             );
                         })}
                     </div>

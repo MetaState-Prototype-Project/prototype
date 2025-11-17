@@ -29,7 +29,7 @@ export const GET: RequestHandler = async () => {
 			// First try to get external IP from nodes
 			const { stdout: nodesOutput } = await execAsync('kubectl get nodes -o json');
 			const nodes = JSON.parse(nodesOutput);
-			
+
 			// Look for external IP in node addresses
 			for (const node of nodes.items) {
 				if (node.status && node.status.addresses) {
@@ -43,7 +43,7 @@ export const GET: RequestHandler = async () => {
 					if (externalIP !== 'localhost') break;
 				}
 			}
-			
+
 			// If no external IP found, try to get internal IP
 			if (externalIP === 'localhost') {
 				for (const node of nodes.items) {
@@ -51,7 +51,10 @@ export const GET: RequestHandler = async () => {
 						for (const address of node.status.addresses) {
 							if (address.type === 'InternalIP' && address.address) {
 								// Check if it's not a localhost/127.0.0.1 address
-								if (!address.address.startsWith('127.') && address.address !== 'localhost') {
+								if (
+									!address.address.startsWith('127.') &&
+									address.address !== 'localhost'
+								) {
 									externalIP = address.address;
 									console.log('Found internal IP from node:', externalIP);
 									break;
@@ -62,30 +65,43 @@ export const GET: RequestHandler = async () => {
 					}
 				}
 			}
-			
+
 			// If still no IP found, try minikube ip as fallback
 			if (externalIP === 'localhost') {
-				const { stdout: minikubeIPOutput } = await execAsync('minikube ip 2>/dev/null || echo ""');
+				const { stdout: minikubeIPOutput } = await execAsync(
+					'minikube ip 2>/dev/null || echo ""'
+				);
 				if (minikubeIPOutput.trim() && minikubeIPOutput.trim() !== 'localhost') {
 					externalIP = minikubeIPOutput.trim();
 					console.log('Using minikube IP:', externalIP);
 				}
 			}
-			
+
 			// If still no IP, try to get the host IP from kubectl config
 			if (externalIP === 'localhost') {
-				const { stdout: configOutput } = await execAsync('kubectl config view --minify -o json');
+				const { stdout: configOutput } = await execAsync(
+					'kubectl config view --minify -o json'
+				);
 				const config = JSON.parse(configOutput);
-				if (config.clusters && config.clusters[0] && config.clusters[0].cluster && config.clusters[0].cluster.server) {
+				if (
+					config.clusters &&
+					config.clusters[0] &&
+					config.clusters[0].cluster &&
+					config.clusters[0].cluster.server
+				) {
 					const serverUrl = config.clusters[0].cluster.server;
 					const urlMatch = serverUrl.match(/https?:\/\/([^:]+):/);
-					if (urlMatch && urlMatch[1] && urlMatch[1] !== 'localhost' && urlMatch[1] !== '127.0.0.1') {
+					if (
+						urlMatch &&
+						urlMatch[1] &&
+						urlMatch[1] !== 'localhost' &&
+						urlMatch[1] !== '127.0.0.1'
+					) {
 						externalIP = urlMatch[1];
 						console.log('Using IP from kubectl config:', externalIP);
 					}
 				}
 			}
-			
 		} catch (ipError) {
 			console.log('Could not get external IP, using localhost:', ipError);
 		}

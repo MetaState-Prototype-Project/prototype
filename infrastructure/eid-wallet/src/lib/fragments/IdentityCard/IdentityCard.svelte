@@ -91,9 +91,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium"
                 >
                     {#if userData}
-                        {userData.isFake
-                            ? "DEMO PASSPORT"
-                            : "VERIFIED PASSPORT"}
+                        {userData.isFake ? "DEMO ID" : "VERIFIED ID"}
                     {/if}
                 </p>
                 {#if viewBtn}

@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 
 const baseURL = process.env.NEXT_PUBLIC_EVOTING_BASE_URL || "http://localhost:7777";
 
@@ -11,7 +11,7 @@ export const apiClient = axios.create({
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
-    (config: AxiosRequestConfig) => {
+    (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem("evoting_token");
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;

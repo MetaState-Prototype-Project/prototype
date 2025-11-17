@@ -1,0 +1,54 @@
+name: Tests [registry]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'platforms/registry/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Clean and rebuild ssh2 native module
+        run: |
+          # Remove any pre-built binaries that might be incompatible
+          find node_modules -name "sshcrypto.node" -delete 2>/dev/null || true
+          find node_modules -path "*/ssh2/lib/protocol/crypto/build/Release/sshcrypto.node" -delete 2>/dev/null || true
+          # Rebuild ssh2 specifically for this platform
+          pnpm rebuild ssh2
+          # Rebuild all other native modules
+          pnpm rebuild
+
+      - name: Run tests
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          TESTCONTAINERS_RYUK_DISABLED: false
+          TESTCONTAINERS_HOST_OVERRIDE: localhost
+        run: pnpm -F=registry test
+

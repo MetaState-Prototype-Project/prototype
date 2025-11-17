@@ -4,7 +4,11 @@ import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { QrCodeIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import {
+    CircleArrowDataTransferDiagonalFreeIcons,
+    QrCodeIcon,
+    Settings02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { type Snippet, getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
@@ -48,6 +52,7 @@ onMount(() => {
 
     // Get initial profile creation status
     profileCreationStatus = globalState.vaultController.profileCreationStatus;
+    console.log("status current", profileCreationStatus);
 
     // Set up a watcher for profile creation status changes
     const checkStatus = () => {

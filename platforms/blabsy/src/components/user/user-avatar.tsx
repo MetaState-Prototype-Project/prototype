@@ -19,28 +19,38 @@ export function UserAvatar({
 }: UserAvatarProps): JSX.Element {
     const pictureSize = size ?? 48;
 
-    console.log(typeof src);
+    const image = (
+        <NextImage
+            useSkeleton
+            imgClassName='rounded-full'
+            width={pictureSize}
+            height={pictureSize}
+            src={src}
+            alt={alt}
+            key={src}
+        />
+    );
 
-    return (
-        <Link href={username ? `/user/${username}` : '#'}>
-            <a
+    if (!username) {
+        return (
+            <div
                 className={cn(
-                    'blur-picture flex self-start',
-                    !username && 'pointer-events-none',
+                    'blur-picture flex self-start pointer-events-none',
                     className
                 )}
-                tabIndex={username ? 0 : -1}
             >
-                <NextImage
-                    useSkeleton
-                    imgClassName='rounded-full'
-                    width={pictureSize}
-                    height={pictureSize}
-                    src={src}
-                    alt={alt}
-                    key={src}
-                />
-            </a>
+                {image}
+            </div>
+        );
+    }
+
+    return (
+        <Link
+            href={`/user/${username}`}
+            className={cn('blur-picture flex self-start', className)}
+            tabIndex={0}
+        >
+            {image}
         </Link>
     );
 }

@@ -28,29 +28,24 @@ export class GroupService {
     }
 
     async updateGroup(id: string, groupData: Partial<Group>): Promise<Group | null> {
-        // If updating the charter, we need to delete all existing signatures
-        // since the charter content has changed
-        if (groupData.charter !== undefined) {
-            // Get the current group to check if charter is being updated
-            const currentGroup = await this.getGroupById(id);
-            if (currentGroup && currentGroup.charter !== groupData.charter) {
-                // Charter content has changed, so delete all existing signatures
-                console.log(`Charter updated for group ${id}, deleting all existing signatures`);
-                await this.charterSignatureService.deleteAllSignaturesForGroup(id);
-            }
-        }
-        
         // Get the current group, merge the data, and save it to trigger ORM events
         const currentGroup = await this.getGroupById(id);
         if (!currentGroup) {
             throw new Error("Group not found");
         }
         
+        // Check if charter is being updated/added to delete signatures BEFORE saving
+        const charterChanged = groupData.charter !== undefined && currentGroup.charter !== groupData.charter;
+        if (charterChanged) {
+            await this.charterSignatureService.deleteAllSignaturesForGroup(id);
+        }
+        
         // Merge the new data with the existing group
         Object.assign(currentGroup, groupData);
         
-        // Save the merged group to trigger ORM subscribers
+        // Save the merged group to trigger ORM subscribers - ONE save with all data
         const updatedGroup = await this.groupRepository.save(currentGroup);
+        
         return updatedGroup;
     }
 

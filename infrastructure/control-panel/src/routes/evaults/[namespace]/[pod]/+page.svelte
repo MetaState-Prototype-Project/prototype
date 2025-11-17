@@ -26,7 +26,7 @@
 
 			const [logsData, detailsData] = await Promise.all([
 				EVaultService.getEVaultLogs(namespace, podName),
-				EVaultService.getEVaultDetails(namespace, podName)
+				EVaultService.getEVaultMetrics(namespace, podName)
 			]);
 
 			logs = logsData;

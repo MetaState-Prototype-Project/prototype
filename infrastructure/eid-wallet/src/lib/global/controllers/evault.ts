@@ -2,6 +2,7 @@ import { PUBLIC_REGISTRY_URL } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
+import NotificationService from "../../services/NotificationService";
 import type { UserController } from "./user";
 
 const STORE_META_ENVELOPE = `
@@ -47,10 +48,12 @@ export class VaultController {
     #endpoint: string | null = null;
     #userController: UserController;
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
+    #notificationService: NotificationService;
 
     constructor(store: Store, userController: UserController) {
         this.#store = store;
         this.#userController = userController;
+        this.#notificationService = NotificationService.getInstance();
     }
 
     /**
@@ -69,6 +72,27 @@ export class VaultController {
         | "success"
         | "failed") {
         this.#profileCreationStatus = status;
+    }
+
+    /**
+     * Register device for notifications
+     */
+    private async registerDeviceForNotifications(eName: string): Promise<void> {
+        try {
+            console.log(
+                `Registering device for notifications with eName: ${eName}`,
+            );
+            const success =
+                await this.#notificationService.registerDevice(eName);
+            if (success) {
+                console.log("Device registered successfully for notifications");
+            } else {
+                console.warn("Failed to register device for notifications");
+            }
+        } catch (error) {
+            console.error("Error registering device for notifications:", error);
+            // Don't throw error - device registration failure shouldn't break vault setup
+        }
     }
 
     /**
@@ -104,28 +128,105 @@ export class VaultController {
     }
 
     /**
-     * Resolve eVault endpoint from registry
+     * Simple health check: just checks if registry can resolve the w3id
+     * Returns the URI if healthy, throws error if not
      */
-    private async resolveEndpoint(w3id: string): Promise<string> {
+    async checkHealth(w3id: string): Promise<{
+        healthy: boolean;
+        deleted?: boolean;
+        uri?: string;
+        error?: string;
+    }> {
         try {
+            console.log(`🏥 Checking eVault health for ${w3id}...`);
             const response = await axios.get(
                 new URL(`resolve?w3id=${w3id}`, PUBLIC_REGISTRY_URL).toString(),
+                {
+                    timeout: 3000, // 3 second timeout
+                },
             );
-            return new URL("/graphql", response.data.uri).toString();
+
+            if (response.data?.uri) {
+                console.log(`✅ eVault is healthy, URI: ${response.data.uri}`);
+                return { healthy: true, uri: response.data.uri };
+            }
+            console.warn("⚠️ Registry responded but no URI found");
+            return { healthy: false, error: "No URI in registry response" };
         } catch (error) {
-            console.error("Error resolving eVault endpoint:", error);
-            throw new Error("Failed to resolve eVault endpoint");
+            // Check if it's a 404 - eVault has been deleted
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                console.error(
+                    "🗑️ eVault not found in registry (404) - it has been deleted",
+                );
+                return {
+                    healthy: false,
+                    deleted: true,
+                    error: "eVault has been deleted from registry",
+                };
+            }
+
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            console.error(`❌ eVault health check failed: ${errorMessage}`);
+            return { healthy: false, error: errorMessage };
         }
     }
 
     /**
-     * Ensure we have a valid GraphQL client
+     * Resolve eVault endpoint from registry with retry logic
      */
-    private async ensureClient(w3id: string): Promise<GraphQLClient> {
-        if (!this.#endpoint || !this.#client) {
-            this.#endpoint = await this.resolveEndpoint(w3id);
-            this.#client = new GraphQLClient(this.#endpoint);
+    private async resolveEndpoint(w3id: string): Promise<string> {
+        const maxRetries = 5;
+        let retryCount = 0;
+
+        while (retryCount < maxRetries) {
+            try {
+                const response = await axios.get(
+                    new URL(
+                        `resolve?w3id=${w3id}`,
+                        PUBLIC_REGISTRY_URL,
+                    ).toString(),
+                    {
+                        timeout: 5000, // 5 second timeout for resolve
+                    },
+                );
+                return new URL("/graphql", response.data.uri).toString();
+            } catch (error) {
+                retryCount++;
+                console.error(
+                    `Error resolving eVault endpoint (attempt ${retryCount}/${maxRetries}):`,
+                    error,
+                );
+
+                if (retryCount >= maxRetries) {
+                    throw new Error(
+                        "Failed to resolve eVault endpoint after all retries",
+                    );
+                }
+
+                // Wait before retrying (exponential backoff)
+                const delay = Math.min(1000 * 2 ** (retryCount - 1), 10000);
+                console.log(`Waiting ${delay}ms before resolve retry...`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+            }
         }
+
+        throw new Error("Failed to resolve eVault endpoint");
+    }
+
+    /**
+     * Create a new GraphQL client every time
+     */
+    private async ensureClient(
+        w3id: string,
+        ename: string,
+    ): Promise<GraphQLClient> {
+        this.#endpoint = await this.resolveEndpoint(w3id);
+        this.#client = new GraphQLClient(this.#endpoint, {
+            headers: {
+                "X-ENAME": ename,
+            },
+        });
         return this.#client;
     }
 
@@ -158,7 +259,7 @@ export class VaultController {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const client = await this.ensureClient(w3id);
+                const client = await this.ensureClient(w3id, ename);
 
                 console.log(
                     `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
@@ -210,14 +311,22 @@ export class VaultController {
                 .then(async (resolvedUser) => {
                     if (resolvedUser?.ename) {
                         this.#store.set("vault", resolvedUser);
+
+                        // Register device for notifications
+                        await this.registerDeviceForNotifications(
+                            resolvedUser.ename,
+                        );
+
                         // Set loading status
-                        this.profileCreationStatus = "loading";
                         // Get user data for display name
                         const userData = await this.#userController.user;
                         const displayName =
                             userData?.name || resolvedUser?.ename;
 
                         try {
+                            if (this.profileCreationStatus === "success")
+                                return;
+                            this.profileCreationStatus = "loading";
                             await this.createUserProfileInEVault(
                                 resolvedUser?.ename as string,
                                 displayName as string,
@@ -240,6 +349,10 @@ export class VaultController {
         else if (vault?.ename) {
             this.#store.set("vault", vault);
 
+            // Register device for notifications
+            this.registerDeviceForNotifications(vault.ename);
+
+            if (this.profileCreationStatus === "success") return;
             // Set loading status
             this.profileCreationStatus = "loading";
 
@@ -302,5 +415,9 @@ export class VaultController {
 
     getendpoint() {
         return this.#endpoint;
+    }
+
+    async clear() {
+        await this.#store.delete("vault");
     }
 }

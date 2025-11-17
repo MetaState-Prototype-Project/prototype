@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { EventEmitter } from "events";
 import { auth } from "firebase-admin";
+import { isVersionValid } from "../utils/version";
+
+const MIN_REQUIRED_VERSION = "0.4.0";
+
 export class AuthController {
     private eventEmitter: EventEmitter;
 
@@ -51,11 +55,32 @@ export class AuthController {
 
     login = async (req: Request, res: Response) => {
         try {
-            const { ename, session } = req.body;
+            const { ename, session, appVersion } = req.body;
+
+            console.log(req.body)
 
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
             }
+
+            if (!session) {
+                return res.status(400).json({ error: "session is required" });
+            }
+
+            // Check app version - missing version is treated as old version
+            if (!appVersion || !isVersionValid(appVersion, MIN_REQUIRED_VERSION)) {
+                const errorMessage = {
+                    error: true,
+                    message: `Your eID Wallet app version is outdated. Please update to version ${MIN_REQUIRED_VERSION} or later.`,
+                    type: "version_mismatch"
+                };
+                this.eventEmitter.emit(session, errorMessage);
+                return res.status(400).json({ 
+                    error: "App version too old", 
+                    message: errorMessage.message 
+                });
+            }
+
             const token = await auth().createCustomToken(ename);
             console.log(token);
 

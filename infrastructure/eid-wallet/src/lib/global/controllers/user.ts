@@ -143,4 +143,10 @@ export class UserController {
                 return undefined;
             });
     }
+
+    async clear() {
+        await this.#store.delete("user");
+        await this.#store.delete("fake");
+        await this.#store.delete("doc");
+    }
 }

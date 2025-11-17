@@ -1,100 +1,102 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { SettingsNavigationBtn } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { runtime } from "$lib/global/runtime.svelte";
-    import { ButtonAction, Drawer } from "$lib/ui";
-    import {
-        Key01Icon,
-        LanguageSquareIcon,
-        Link02Icon,
-        PinCodeIcon,
-        Shield01Icon,
-    } from "@hugeicons/core-free-icons";
-    import { getContext } from "svelte";
+import { goto } from "$app/navigation";
+import { SettingsNavigationBtn } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { runtime } from "$lib/global/runtime.svelte";
+import { ButtonAction, Drawer } from "$lib/ui";
+import {
+    Key01Icon,
+    LanguageSquareIcon,
+    Link02Icon,
+    PinCodeIcon,
+    Shield01Icon,
+} from "@hugeicons/core-free-icons";
+import { getContext } from "svelte";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
+const getGlobalState = getContext<() => GlobalState>("globalState");
+const setGlobalState =
+    getContext<(value: GlobalState) => void>("setGlobalState");
+let globalState = getGlobalState();
 
-    let isDeleteConfirmationOpen = $state(false);
-    let isFinalConfirmationOpen = $state(false);
+let isDeleteConfirmationOpen = $state(false);
+let isFinalConfirmationOpen = $state(false);
 
-    // Hidden eVault profile retry functionality
-    let tapCount = $state(0);
-    let lastTapTime = $state(0);
-    let isRetrying = $state(false);
-    let retryMessage = $state("");
+// Hidden eVault profile retry functionality
+let tapCount = $state(0);
+let lastTapTime = $state(0);
+let isRetrying = $state(false);
+let retryMessage = $state("");
 
-    function showDeleteConfirmation() {
-        isDeleteConfirmationOpen = true;
+function showDeleteConfirmation() {
+    isDeleteConfirmationOpen = true;
+}
+
+function confirmDelete() {
+    isDeleteConfirmationOpen = false;
+    isFinalConfirmationOpen = true;
+}
+
+async function nukeWallet() {
+    const newGlobalState = await globalState.reset();
+    setGlobalState(newGlobalState);
+    globalState = newGlobalState;
+    goto("/onboarding");
+}
+
+function cancelDelete() {
+    isDeleteConfirmationOpen = false;
+    isFinalConfirmationOpen = false;
+}
+
+async function handleVersionTap() {
+    const now = Date.now();
+
+    // Reset counter if more than 3 seconds between taps
+    if (now - lastTapTime > 3000) {
+        tapCount = 0;
     }
 
-    function confirmDelete() {
-        isDeleteConfirmationOpen = false;
-        isFinalConfirmationOpen = true;
+    tapCount++;
+    lastTapTime = now;
+
+    // Show tap count feedback (only visible to user)
+    if (tapCount >= 5) {
+        retryMessage = `Taps: ${tapCount}/10`;
     }
 
-    function nukeWallet() {
-        globalState.userController.user = undefined;
-        globalState.securityController.clearPin();
-        isFinalConfirmationOpen = false;
-        goto("/onboarding");
-    }
+    // Trigger eVault profile retry after 10 taps
+    if (tapCount === 10) {
+        isRetrying = true;
+        retryMessage = "Retrying eVault profile setup...";
 
-    function cancelDelete() {
-        isDeleteConfirmationOpen = false;
-        isFinalConfirmationOpen = false;
-    }
+        try {
+            await globalState.vaultController.retryProfileCreation();
+            retryMessage = "✅ eVault profile setup completed successfully!";
 
-    async function handleVersionTap() {
-        const now = Date.now();
+            // Reset after success
+            setTimeout(() => {
+                tapCount = 0;
+                retryMessage = "";
+                isRetrying = false;
+            }, 3000);
+        } catch (error) {
+            console.error("Failed to retry eVault profile setup:", error);
+            retryMessage =
+                "❌ Failed to setup eVault profile. Check console for details.";
 
-        // Reset counter if more than 3 seconds between taps
-        if (now - lastTapTime > 3000) {
-            tapCount = 0;
+            // Reset after error
+            setTimeout(() => {
+                tapCount = 0;
+                retryMessage = "";
+                isRetrying = false;
+            }, 5000);
         }
-
-        tapCount++;
-        lastTapTime = now;
-
-        // Show tap count feedback (only visible to user)
-        if (tapCount >= 5) {
-            retryMessage = `Taps: ${tapCount}/10`;
-        }
-
-        // Trigger eVault profile retry after 10 taps
-        if (tapCount === 10) {
-            isRetrying = true;
-            retryMessage = "Retrying eVault profile setup...";
-
-            try {
-                await globalState.vaultController.retryProfileCreation();
-                retryMessage =
-                    "✅ eVault profile setup completed successfully!";
-
-                // Reset after success
-                setTimeout(() => {
-                    tapCount = 0;
-                    retryMessage = "";
-                    isRetrying = false;
-                }, 3000);
-            } catch (error) {
-                console.error("Failed to retry eVault profile setup:", error);
-                retryMessage =
-                    "❌ Failed to setup eVault profile. Check console for details.";
-
-                // Reset after error
-                setTimeout(() => {
-                    tapCount = 0;
-                    retryMessage = "";
-                    isRetrying = false;
-                }, 5000);
-            }
-        }
     }
+}
 
-    $effect(() => {
-        runtime.header.title = "Settings";
-    });
+$effect(() => {
+    runtime.header.title = "Settings";
+});
 </script>
 
 <main>
@@ -123,10 +125,10 @@
     <div class="w-full py-10 text-center">
         <button
             class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
-            on:click={handleVersionTap}
+            onclick={handleVersionTap}
             disabled={isRetrying}
         >
-            Version v0.2.1.2
+            Version v0.4.0.0
         </button>
 
         {#if retryMessage}

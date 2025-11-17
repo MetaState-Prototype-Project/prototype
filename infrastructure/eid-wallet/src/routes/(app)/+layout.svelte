@@ -1,10 +1,10 @@
 <script lang="ts">
-import { page } from "$app/state";
 import { goto } from "$app/navigation";
-import type { Snippet } from "svelte";
-import type { LayoutData } from "./$types";
+import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
+import type { Snippet } from "svelte";
 import { getContext, onMount } from "svelte";
+import type { LayoutData } from "./$types";
 
 let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
@@ -31,6 +31,14 @@ onMount(async () => {
         }
 
         console.log("User authenticated, allowing access to app routes");
+
+        // Check for notifications after successful authentication
+        try {
+            const notificationService = globalState.notificationService;
+            await notificationService.checkAndShowNotifications();
+        } catch (error) {
+            console.error("Failed to check notifications:", error);
+        }
     } catch (error) {
         console.log("Authentication check failed, redirecting to login");
         await goto("/login");

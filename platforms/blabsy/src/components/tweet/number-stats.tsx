@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { getStatsMove } from '@lib/utils';
 import { formatNumber } from '@lib/date';
 

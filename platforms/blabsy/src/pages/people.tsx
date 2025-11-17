@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { where } from 'firebase/firestore';
 import { useAuth } from '@lib/context/auth-context';
 import { usersCollection } from '@lib/firebase/collections';

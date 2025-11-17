@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import cn from 'clsx';
 import { useModal } from '@lib/hooks/useModal';
 import { preventBubbling } from '@lib/utils';
@@ -10,7 +10,6 @@ import { NextImage } from '@components/ui/next-image';
 import { Button } from '@components/ui/button';
 import { HeroIcon } from '@components/ui/hero-icon';
 import { ToolTip } from '@components/ui/tooltip';
-import type { MotionProps } from 'framer-motion';
 import type { ImagesPreview, ImageData } from '@lib/types/file';
 
 type ImagePreviewProps = {
@@ -21,7 +20,7 @@ type ImagePreviewProps = {
     removeImage?: (targetId: string) => () => void;
 };
 
-const variants: MotionProps = {
+const variants = {
     initial: { opacity: 0, scale: 0.5 },
     animate: {
         opacity: 1,
@@ -29,7 +28,7 @@ const variants: MotionProps = {
         transition: { duration: 0.3 }
     },
     exit: { opacity: 0, scale: 0.5 },
-    transition: { type: 'spring', duration: 0.5 }
+    transition: { type: 'spring' as const, duration: 0.5 }
 };
 
 type PostImageBorderRadius = Record<number, string[]>;
@@ -57,7 +56,34 @@ export function ImagePreview({
 
     // Combine accidentally separated base64 images
     const processedImages = useMemo(() => {
-        return combineBase64Images(imagesPreview);
+        console.log('[ImagePreview] Raw images received:', {
+            count: imagesPreview?.length || 0,
+            images: imagesPreview?.map((img, i) => ({
+                index: i,
+                id: img.id,
+                srcPreview: img.src.substring(0, 100),
+                srcLength: img.src.length,
+                alt: img.alt,
+                type: img.type
+            }))
+        });
+        
+        const processed = combineBase64Images(imagesPreview);
+        
+        console.log('[ImagePreview] Processed images:', {
+            originalCount: imagesPreview?.length || 0,
+            processedCount: processed.length,
+            processed: processed.map((img, i) => ({
+                index: i,
+                id: img.id,
+                srcPreview: img.src.substring(0, 100),
+                srcLength: img.src.length,
+                alt: img.alt,
+                type: img.type
+            }))
+        });
+        
+        return processed;
     }, [imagesPreview]);
 
     // Update previewCount based on processed images
@@ -98,10 +124,10 @@ export function ImagePreview({
     return (
         <div
             className={cn(
-                'grid grid-cols-2 grid-rows-2 rounded-2xl',
+                'grid grid-cols-2 grid-rows-2 rounded-2xl max-w-full overflow-hidden',
                 viewTweet
-                    ? 'h-[51vw] xs:h-[42vw] md:h-[305px]'
-                    : 'h-[42vw] xs:h-[37vw] md:h-[271px]',
+                    ? 'h-[51vw] xs:h-[42vw] md:h-[305px] max-h-[300px]'
+                    : 'h-[42vw] xs:h-[37vw] md:h-[271px] max-h-[250px]',
                 isTweet ? 'mt-2 gap-0.5' : 'gap-3'
             )}
         >
@@ -133,13 +159,17 @@ export function ImagePreview({
                             className={cn(
                                 'accent-tab group relative transition-shadow',
                                 isTweet
-                                    ? postImageBorderRadius[actualPreviewCount]?.[index] || 'rounded-2xl'
+                                    ? postImageBorderRadius[
+                                          actualPreviewCount
+                                      ]?.[index] || 'rounded-2xl'
                                     : 'rounded-2xl',
                                 {
-                                    'col-span-2 row-span-2': actualPreviewCount === 1,
+                                    'col-span-2 row-span-2':
+                                        actualPreviewCount === 1,
                                     'row-span-2':
                                         actualPreviewCount === 2 ||
-                                        (index === 0 && actualPreviewCount === 3)
+                                        (index === 0 &&
+                                            actualPreviewCount === 3)
                                 }
                             )}
                             {...variants}

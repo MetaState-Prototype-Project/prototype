@@ -15,10 +15,11 @@ export class FirestoreWatcher {
     private unsubscribe: (() => void) | null = null;
     private adapter = adapter;
     private db: FirebaseFirestore.Firestore;
-    private isProcessing = false;
     private retryCount = 0;
-    private readonly maxRetries: number = 3;
+    private readonly maxRetries: number = 10; // Increased retries
     private readonly retryDelay: number = 1000; // 1 second
+    private watcherStartTime: number = Date.now(); // Track when watcher starts
+    private firstSnapshotReceived = false; // Track if we've received the first snapshot
     
     // Track processed document IDs to prevent duplicates
     private processedIds = new Set<string>();
@@ -26,6 +27,20 @@ export class FirestoreWatcher {
     
     // Clean up old processed IDs periodically to prevent memory leaks
     private cleanupInterval: NodeJS.Timeout | null = null;
+    
+    // Connection health monitoring
+    private lastSnapshotTime: number = Date.now();
+    private healthCheckInterval: NodeJS.Timeout | null = null;
+    private readonly healthCheckIntervalMs = 60000; // 1 minute
+    private readonly maxTimeWithoutSnapshot = 120000; // 2 minutes - if no snapshot in 2 min, reconnect
+    
+    // Reconnection policy
+    private currentAttempt = 0;
+    private readonly maxAttempts = 20; // Maximum reconnection attempts
+    private readonly baseDelay = 1000; // Base delay in ms
+    private readonly maxDelay = 60000; // Maximum delay cap (60 seconds)
+    private reconnectTimeoutId: NodeJS.Timeout | null = null;
+    private stopped = false; // Flag to stop reconnection attempts
 
     constructor(
         private readonly collection:
@@ -41,31 +56,62 @@ export class FirestoreWatcher {
                 ? this.collection.path
                 : "collection group";
 
-        try {
-            // First, get all existing documents
-            const snapshot = await this.collection.get();
-            await this.processSnapshot(snapshot);
+        // Reset stopped flag when starting
+        this.stopped = false;
+        
+        // Reset watcher start time
+        this.watcherStartTime = Date.now();
+        this.firstSnapshotReceived = false;
 
-            // Then set up real-time listener
+        try {
+            // Set up real-time listener
             this.unsubscribe = this.collection.onSnapshot(
                 async (snapshot) => {
-                    if (this.isProcessing) {
-                        console.log(
-                            "Still processing previous snapshot, skipping..."
-                        );
+                    // Update last snapshot time for health monitoring
+                    this.lastSnapshotTime = Date.now();
+                    
+                    // On first snapshot, only skip documents that were created/modified BEFORE watcher started
+                    // This ensures we don't miss any new documents created right as the watcher starts
+                    if (!this.firstSnapshotReceived) {
+                        console.log(`First snapshot received for ${collectionPath} with ${snapshot.size} documents`);
+                        this.firstSnapshotReceived = true;
+                        
+                        // Process only documents modified AFTER watcher start time
+                        const recentChanges = snapshot.docChanges().filter((change) => {
+                            const doc = change.doc;
+                            const data = doc.data();
+                            
+                            // Check if document was modified after watcher started
+                            // Use updatedAt if available, otherwise createdAt
+                            const timestamp = data.updatedAt || data.createdAt;
+                            if (timestamp && timestamp.toMillis) {
+                                const docTime = timestamp.toMillis();
+                                return docTime >= this.watcherStartTime;
+                            }
+                            
+                            // If no timestamp, process it to be safe
+                            return true;
+                        });
+                        
+                        if (recentChanges.length > 0) {
+                            console.log(`Processing ${recentChanges.length} recent changes from first snapshot`);
+                            await this.processChanges(recentChanges);
+                        } else {
+                            console.log(`No recent changes in first snapshot, skipping`);
+                        }
+                        
+                        this.retryCount = 0;
                         return;
                     }
-
-                    try {
-                        this.isProcessing = true;
-                        await this.processSnapshot(snapshot);
-                        this.retryCount = 0; // Reset retry count on success
-                    } catch (error) {
+                    
+                    // For subsequent snapshots, process all changes normally
+                    this.processSnapshot(snapshot).catch((error) => {
                         console.error("Error processing snapshot:", error);
-                        await this.handleError(error);
-                    } finally {
-                        this.isProcessing = false;
-                    }
+                        this.handleError(error);
+                    });
+                    
+                    // Reset retry count on successful snapshot receipt
+                    this.retryCount = 0;
                 },
                 (error) => {
                     console.error("Error in Firestore listener:", error);
@@ -77,6 +123,9 @@ export class FirestoreWatcher {
             
             // Start cleanup interval to prevent memory leaks
             this.startCleanupInterval();
+            
+            // Start health check to detect silent disconnects
+            this.startHealthCheck();
         } catch (error) {
             console.error(
                 `Failed to start watcher for ${collectionPath}:`,
@@ -93,6 +142,9 @@ export class FirestoreWatcher {
                 : "collection group";
         console.log(`Stopping watcher for collection: ${collectionPath}`);
 
+        // Set stopped flag to prevent new reconnection attempts
+        this.stopped = true;
+
         if (this.unsubscribe) {
             this.unsubscribe();
             this.unsubscribe = null;
@@ -104,6 +156,18 @@ export class FirestoreWatcher {
             clearInterval(this.cleanupInterval);
             this.cleanupInterval = null;
         }
+        
+        // Stop health check
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
     }
 
     private startCleanupInterval(): void {
@@ -114,6 +178,131 @@ export class FirestoreWatcher {
             const afterSize = this.processedIds.size;
             console.log(`Cleaned up processed IDs: ${beforeSize} -> ${afterSize}`);
         }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    private startHealthCheck(): void {
+        // Check connection health periodically
+        this.healthCheckInterval = setInterval(() => {
+            const timeSinceLastSnapshot = Date.now() - this.lastSnapshotTime;
+            const collectionPath =
+                this.collection instanceof CollectionReference
+                    ? this.collection.path
+                    : "collection group";
+            
+            if (timeSinceLastSnapshot > this.maxTimeWithoutSnapshot) {
+                console.warn(
+                    `⚠️ Health check failed for ${collectionPath}: No snapshot received in ${timeSinceLastSnapshot}ms. Reconnecting...`
+                );
+                // Silently reconnect - don't increment retry count for health checks
+                // Use async IIFE to properly await and handle errors
+                (async () => {
+                    try {
+                        await this.reconnect();
+                    } catch (error) {
+                        console.error(`Error during health-check reconnect for ${collectionPath}:`, error);
+                    }
+                })();
+            }
+        }, this.healthCheckIntervalMs);
+    }
+
+    private async reconnect(): Promise<void> {
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
+        
+        console.log(`Reconnecting watcher for ${collectionPath}...`);
+        
+        // Clear existing intervals before restarting
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+        
+        // Clean up old listener
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+        }
+        
+        // Reset watcher state
+        this.watcherStartTime = Date.now();
+        this.firstSnapshotReceived = false;
+        this.lastSnapshotTime = Date.now();
+        
+        // Reset reconnection attempt counter on successful reconnect
+        this.currentAttempt = 0;
+        
+        // Restart the listener
+        try {
+            await this.start();
+        } catch (error) {
+            console.error(`Failed to reconnect watcher for ${collectionPath}:`, error);
+            // Schedule retry with exponential backoff
+            this.scheduleReconnect();
+        }
+    }
+    
+    /**
+     * Schedules a reconnection attempt with exponential backoff
+     */
+    private scheduleReconnect(): void {
+        if (this.stopped) {
+            console.error("Watcher is stopped, not scheduling reconnect");
+            return;
+        }
+        
+        if (this.currentAttempt >= this.maxAttempts) {
+            console.error(`Max reconnection attempts (${this.maxAttempts}) reached. Stopping reconnection attempts.`);
+            this.stopped = true;
+            return;
+        }
+        
+        // Clear any existing timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+        
+        this.currentAttempt++;
+        
+        // Calculate exponential backoff with jitter
+        const exponentialDelay = Math.min(
+            this.baseDelay * Math.pow(2, this.currentAttempt - 1),
+            this.maxDelay
+        );
+        // Add jitter: ±20% of the delay
+        const jitter = exponentialDelay * 0.2 * (Math.random() * 2 - 1);
+        const delay = Math.floor(exponentialDelay + jitter);
+        
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
+        
+        console.log(`Scheduling reconnect attempt ${this.currentAttempt}/${this.maxAttempts} for ${collectionPath} in ${delay}ms`);
+        
+        this.reconnectTimeoutId = setTimeout(async () => {
+            this.reconnectTimeoutId = null;
+            try {
+                await this.reconnect();
+            } catch (error) {
+                console.error(`Error during scheduled reconnect for ${collectionPath}:`, error);
+                // Schedule another attempt
+                this.scheduleReconnect();
+            }
+        }, delay);
     }
 
     // Method to manually clear processed IDs (useful for debugging)
@@ -132,21 +321,65 @@ export class FirestoreWatcher {
     }
 
     private async handleError(error: any): Promise<void> {
+        const collectionPath =
+            this.collection instanceof CollectionReference
+                ? this.collection.path
+                : "collection group";
+        
+        // Clear existing intervals before restarting
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = null;
+        }
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+        
+        // Clear any pending reconnect timeout
+        if (this.reconnectTimeoutId) {
+            clearTimeout(this.reconnectTimeoutId);
+            this.reconnectTimeoutId = null;
+        }
+        
         if (this.retryCount < this.maxRetries) {
             this.retryCount++;
-            console.log(`Retrying (${this.retryCount}/${this.maxRetries})...`);
+            console.log(`Retrying (${this.retryCount}/${this.maxRetries}) for ${collectionPath}...`);
             await new Promise((resolve) =>
                 setTimeout(resolve, this.retryDelay * this.retryCount)
             );
-            await this.start();
+            
+            // Clean up old listener before restarting
+            if (this.unsubscribe) {
+                this.unsubscribe();
+                this.unsubscribe = null;
+            }
+            
+            // Reset watcher state when restarting
+            this.watcherStartTime = Date.now();
+            this.firstSnapshotReceived = false;
+            this.lastSnapshotTime = Date.now();
+            
+            try {
+                await this.start();
+            } catch (restartError) {
+                console.error(`Failed to restart watcher for ${collectionPath}:`, restartError);
+                // Continue retrying
+                this.handleError(restartError);
+            }
         } else {
-            console.error("Max retries reached, stopping watcher");
-            await this.stop();
+            console.error(`Max retries reached for ${collectionPath}, but continuing to retry...`);
+            // Instead of stopping, reset retry count and keep trying
+            this.retryCount = 0;
+            await new Promise((resolve) => setTimeout(resolve, this.retryDelay * 5));
+            await this.reconnect();
         }
     }
 
-    private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
-        const changes = snapshot.docChanges();
+    /**
+     * Processes an array of document changes
+     */
+    private async processChanges(changes: DocumentChange[]): Promise<void> {
         const collectionPath =
             this.collection instanceof CollectionReference
                 ? this.collection.path
@@ -155,7 +388,8 @@ export class FirestoreWatcher {
             `Processing ${changes.length} changes in ${collectionPath}`
         );
 
-        for (const change of changes) {
+        // Process all changes in parallel immediately (no batching)
+        const processPromises = changes.map(async (change) => {
             const doc = change.doc;
             const docId = doc.id;
             const data = doc.data();
@@ -167,25 +401,28 @@ export class FirestoreWatcher {
                         // Check if already processed or currently processing
                         if (this.processedIds.has(docId) || this.processingIds.has(docId)) {
                             console.log(`${collectionPath} - skipping duplicate/processing - ${docId}`);
-                            continue;
+                            return;
                         }
                         
                         // Check if locked in adapter
                         if (adapter.lockedIds.includes(docId)) {
                             console.log(`${collectionPath} - skipping locked - ${docId}`);
-                            continue;
+                            return;
                         }
 
                         // Mark as currently processing
                         this.processingIds.add(docId);
                         
-                        // Process immediately without setTimeout to prevent race conditions
-                        console.log(`${collectionPath} - processing - ${docId}`);
-                        await this.handleCreateOrUpdate(doc, data);
-                        
-                        // Mark as processed and remove from processing
-                        this.processedIds.add(docId);
-                        this.processingIds.delete(docId);
+                        try {
+                            // Process immediately
+                            console.log(`${collectionPath} - processing - ${docId}`);
+                            await this.handleCreateOrUpdate(doc, data);
+                            
+                            // Mark as processed
+                            this.processedIds.add(docId);
+                        } finally {
+                            this.processingIds.delete(docId);
+                        }
                         break;
                         
                     case "removed":
@@ -204,8 +441,17 @@ export class FirestoreWatcher {
                 this.processingIds.delete(docId);
                 // Continue processing other changes even if one fails
             }
-        }
+        });
+
+        // Process all changes in parallel
+        await Promise.all(processPromises);
     }
+
+    private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
+        const changes = snapshot.docChanges();
+        await this.processChanges(changes);
+    }
+
 
     private async handleCreateOrUpdate(
         doc: FirebaseFirestore.QueryDocumentSnapshot<DocumentData>,

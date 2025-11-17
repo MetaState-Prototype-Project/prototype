@@ -122,10 +122,18 @@
 			const nextMessage = index < newMessages.length - 1 ? newMessages[index + 1] : null;
 
 			// Show head (avatar, pointer) on first message of group
-			const isHeadNeeded = !prevMessage || prevMessage.isOwn !== msg.isOwn;
+			// Check if isOwn changed OR if the sender changed (for non-own messages)
+			const isHeadNeeded =
+				!prevMessage ||
+				prevMessage.isOwn !== msg.isOwn ||
+				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId);
 
 			// Show timestamp on last message of group
-			const isTimestampNeeded = !nextMessage || nextMessage.isOwn !== msg.isOwn;
+			// Check if isOwn will change OR if the sender will change (for non-own messages)
+			const isTimestampNeeded =
+				!nextMessage ||
+				nextMessage.isOwn !== msg.isOwn ||
+				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId);
 
 			return {
 				...msg,
@@ -177,7 +185,7 @@
 		{/each}
 	</div>
 	<MessageInput
-		class="sticky bottom-[-15px] start-0 w-full"
+		class="sticky start-0 bottom-[-15px] w-full"
 		variant="dm"
 		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}

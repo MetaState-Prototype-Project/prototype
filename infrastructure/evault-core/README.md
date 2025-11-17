@@ -1,182 +1,188 @@
-# eVault Core
+# Evault Provisioner
 
-eVault is a secure, distributed data storage and access system designed for the MetaState ecosystem. It provides a robust framework for storing, managing, and accessing structured data with fine-grained access control and GraphQL-based querying capabilities.
+A TypeScript API for provisioning evault instances on Nomad. This service allows you to spin up evault instances with Neo4j backends for different tenants.
 
-## Overview
+## Prerequisites
 
-eVault is a core component of the MetaState infrastructure that enables:
+- Node.js 18+
+- Docker
+- Nomad (see setup instructions below)
+- OrbStack (for macOS users)
 
-- Secure storage of structured data
-- Fine-grained access control using W3ID
-- GraphQL-based data querying and manipulation
-- Distributed data management
-- Integration with the MetaState ecosystem
+## Nomad Setup
+
+### macOS Setup (using OrbStack)
+
+Due to CNI bridge plugin requirements, running Nomad on macOS is best done through OrbStack:
+
+1. Install OrbStack: https://orbstack.dev/
+2. Create a new VM in OrbStack
+3. SSH into the VM and install Nomad:
+
+```bash
+# Install Nomad
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install nomad
+
+# Install CNI plugins
+sudo mkdir -p /opt/cni/bin
+curl -L https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz | sudo tar -C /opt/cni/bin -xz
+```
+
+4. Start Nomad in dev mode:
+
+```bash
+sudo nomad agent -dev -network-interface=eth0 -log-level=DEBUG -bind=0.0.0.0
+```
+
+### Linux Setup
+
+1. Install Nomad:
+
+```bash
+# Install Nomad
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install nomad
+
+# Install CNI plugins
+sudo mkdir -p /opt/cni/bin
+curl -L https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz | sudo tar -C /opt/cni/bin -xz
+```
+
+2. Start Nomad in dev mode:
+
+```bash
+sudo nomad agent -dev -network-interface=eth0 -log-level=DEBUG -bind=0.0.0.0
+```
+
+## Project Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Build the project:
+
+```bash
+npm run build
+```
+
+3. Start the server:
+
+```bash
+npm start
+```
+
+For development with auto-reload:
+
+```bash
+npm run dev
+```
+
+## API Endpoints
+
+### Health Check
+
+```
+GET /health
+```
+
+Returns the health status of the API.
+
+### Provision Evault
+
+```
+POST /provision
+```
+
+Provisions a new evault instance for a tenant.
+
+Request body:
+
+```json
+{
+  "tenantId": "your-tenant-id"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Successfully provisioned evault for tenant your-tenant-id",
+  "jobName": "evault-your-tenant-id"
+}
+```
 
 ## Architecture
 
-### Core Components
+The provisioner creates a Nomad job that consists of two tasks:
 
-1. **GraphQL Server**
+1. **Neo4j Task**:
 
-   - Provides a flexible API for data operations
-   - Supports complex queries and mutations
-   - Includes built-in documentation and visualization tools
+   - Runs Neo4j 5.15
+   - Exposes ports: 7687 (bolt) and 7474 (browser)
+   - Uses dynamic ports for flexibility
+   - 2GB memory allocation
 
-2. **Access Control System**
+2. **Evault Task**:
+   - Runs the evault application
+   - Connects to Neo4j via localhost
+   - Uses dynamic port allocation
+   - 512MB memory allocation
+   - Depends on Neo4j task
 
-   - W3ID-based authentication
-   - Fine-grained access control lists (ACL)
-   - Secure token-based authentication
+## Environment Variables
 
-3. **Data Storage**
+- `PORT` - Port to run the API on (default: 3000)
+- `NOMAD_ADDR` - Nomad API address (default: http://localhost:4646)
 
-   - Neo4j-based storage backend
-   - Structured data model with envelopes
-   - Support for multiple data types and ontologies
+## Troubleshooting
 
-4. **HTTP Server**
-   - Fastify-based web server
-   - RESTful endpoints for basic operations
-   - GraphQL endpoint for advanced operations
+### Common Issues
 
-### Data Model
+1. **Port Allocation Issues**:
 
-The eVault system uses a hierarchical data model:
+   - Ensure Nomad is running with CNI plugins installed
+   - Check that the network interface is correctly specified
+   - Verify that ports are not already in use
 
-- **MetaEnvelope**: Top-level container for related data
+2. **Container Networking**:
 
-  - Contains multiple Envelopes
-  - Has an associated ontology
-  - Includes access control information
+   - Ensure Docker is running
+   - Check that the bridge network is properly configured
+   - Verify container-to-container communication
 
-- **Envelope**: Individual data container
-  - Contains structured data
-  - Has a specific value type
-  - Linked to a MetaEnvelope
+3. **Nomad Job Failures**:
+   - Check Nomad logs for detailed error messages
+   - Verify that all required images are available
+   - Ensure resource allocations are sufficient
 
-## Features
+### Debugging
 
-### 1. Data Management
+To debug Nomad issues:
 
-- Store and retrieve structured data
-- Update and delete data with version control
-- Search and filter data by ontology and content
+```bash
+# View Nomad logs
+journalctl -u nomad -f
 
-### 2. Access Control
+# Check Nomad status
+nomad status
 
-- W3ID-based authentication
-- Fine-grained access control lists
-- Secure token-based operations
+# View specific job details
+nomad job status evault-<tenant-id>
 
-### 3. Query Capabilities
-
-- GraphQL-based querying
-- Complex search operations
-- Real-time data access
-
-### 4. Integration
-
-- Seamless integration with W3ID
-- Support for multiple data formats
-- Extensible architecture
-
-## API Documentation
-
-### GraphQL Operations
-
-#### Queries
-
-- `getMetaEnvelopeById`: Retrieve a specific MetaEnvelope
-- `findMetaEnvelopesByOntology`: Find envelopes by ontology
-- `searchMetaEnvelopes`: Search envelopes by content
-- `getAllEnvelopes`: List all available envelopes
-
-#### Mutations
-
-- `storeMetaEnvelope`: Create a new MetaEnvelope
-- `deleteMetaEnvelope`: Remove a MetaEnvelope
-- `updateEnvelopeValue`: Update envelope content
-
-### HTTP Endpoints
-
-- `/graphql`: GraphQL API endpoint
-- `/voyager`: GraphQL schema visualization
-- `/documentation`: API documentation
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js
-- Neo4j database
-- W3ID system
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Configure environment variables:
-   ```
-   NEO4J_URI=bolt://localhost:7687
-   NEO4J_USER=neo4j
-   NEO4J_PASSWORD=your_password
-   PORT=4000
-   ```
-4. Start the server:
-   ```bash
-   npm start
-   ```
-
-## Security Considerations
-
-- All operations require W3ID authentication
-- Access control is enforced at both API and database levels
-- Data is encrypted in transit and at rest
-- Regular security audits and updates
-
-## Integration Guide
-
-### W3ID Integration
-
-eVault uses W3ID for authentication and access control:
-
-1. Obtain a W3ID token
-2. Include token in Authorization header
-3. Access eVault resources based on permissions
-
-### Data Storage
-
-1. Define data ontology
-2. Create MetaEnvelope with appropriate ACL
-3. Store and manage data through the API
+# View allocation details
+nomad alloc status <allocation-id>
+```
 
 ## Development
 
-### Testing
+The project uses TypeScript for type safety and better development experience. The source files are in the `src` directory and are compiled to the `dist` directory.
 
-```bash
-npm test
-```
-
-### Documentation
-
-- API documentation available at `/documentation`
-- GraphQL schema visualization at `/voyager`
-- Example queries in `src/protocol/examples`
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Submit pull request
-
-## License
-
-[License information]
-
-## Support
-
-[Support information]
+For development, you can use `npm run dev` which uses `tsx` to run the TypeScript files directly without compilation.

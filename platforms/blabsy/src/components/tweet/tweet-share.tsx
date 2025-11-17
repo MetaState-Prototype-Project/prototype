@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import cn from 'clsx';
 import { Popover } from '@headlessui/react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@lib/context/auth-context';
 import { manageBookmark } from '@lib/firebase/utils';
@@ -38,10 +38,11 @@ export function TweetShare({
                     ? (): JSX.Element => (
                           <span className='flex gap-2'>
                               Blab added to your Bookmarks
-                              <Link href='/bookmarks'>
-                                  <a className='custom-underline font-bold'>
-                                      View
-                                  </a>
+                              <Link
+                                  href='/bookmarks'
+                                  className='custom-underline font-bold'
+                              >
+                                  View
                               </Link>
                           </span>
                       )

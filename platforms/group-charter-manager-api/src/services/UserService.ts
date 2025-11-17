@@ -21,54 +21,42 @@ export class UserService {
         return await this.userRepository.save(user);
     }
 
+    /**
+     * Find a user by ename, regardless of whether the ename is stored with or without @ symbol
+     * @param ename - The ename to search for (with or without @ prefix)
+     * @returns The user if found, null otherwise
+     */
+    async findByEname(ename: string): Promise<User | null> {
+        // Normalize the input: remove @ if present for comparison
+        const normalizedEname = ename.startsWith('@') ? ename.slice(1) : ename;
+        const enameWithAt = `@${normalizedEname}`;
+        
+        // Search for user where ename matches either with or without @
+        const user = await this.userRepository
+            .createQueryBuilder("user")
+            .leftJoinAndSelect("user.followers", "followers")
+            .leftJoinAndSelect("user.following", "following")
+            .where("user.ename = :enameWithAt OR user.ename = :enameWithoutAt", {
+                enameWithAt,
+                enameWithoutAt: normalizedEname,
+            })
+            .getOne();
+        
+        return user;
+    }
+
     async findUserByEname(
         ename: string
     ): Promise<{ user: User; token: string }> {
-        let user: User | null = null;
-        
-        console.log(`🔍 Looking for user with ename: '${ename}'`);
-        
-        // Try to find user with the exact ename as provided
-        user = await this.userRepository.findOne({
-            where: { ename: ename },
-        });
-        
-        if (user) {
-            console.log(`✅ Found user with exact ename: '${ename}'`);
-        } else {
-            // If not found and ename starts with @, try without @
-            if (ename.startsWith('@')) {
-                const enameWithoutAt = ename.slice(1);
-                console.log(`🔍 Trying without @ prefix: '${enameWithoutAt}'`);
-                user = await this.userRepository.findOne({
-                    where: { ename: enameWithoutAt },
-                });
-                if (user) {
-                    console.log(`✅ Found user without @ prefix: '${enameWithoutAt}'`);
-                }
-            }
-            
-            // If not found and ename doesn't start with @, try with @
-            if (!user && !ename.startsWith('@')) {
-                const enameWithAt = `@${ename}`;
-                console.log(`🔍 Trying with @ prefix: '${enameWithAt}'`);
-                user = await this.userRepository.findOne({
-                    where: { ename: enameWithAt },
-                });
-                if (user) {
-                    console.log(`✅ Found user with @ prefix: '${enameWithAt}'`);
-                }
-            }
-        }
+        // Find user by ename (handles @ symbol variations)
+        const user = await this.findByEname(ename);
         
         // If still no user found, throw an error - never create new users
         if (!user) {
-            console.log(`❌ No user found for ename: '${ename}' (tried with/without @ prefix)`);
             throw new Error(`User with ename '${ename}' not found. Cannot create new users automatically.`);
         }
 
         const token = signToken({ userId: user.id });
-        console.log(`🎉 Successfully authenticated user: ${user.ename} (ID: ${user.id})`);
         return { user, token };
     }
 

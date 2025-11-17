@@ -4,7 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { CerberusTriggerService } from "../services/CerberusTriggerService";
 import { CharterSignatureService } from "../services/CharterSignatureService";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
+import { Web3Adapter } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";
@@ -29,12 +29,6 @@ export class WebhookController {
 
     handleWebhook = async (req: Request, res: Response) => {
         try {
-            console.log("Webhook received:", {
-                schemaId: req.body.schemaId,
-                globalId: req.body.id,
-                tableName: req.body.data?.tableName
-            }, req.body);
-
             if (process.env.ANCHR_URL) {
                 axios.post(
                     new URL("cerberus", process.env.ANCHR_URL).toString(),
@@ -110,6 +104,8 @@ export class WebhookController {
                 }
             } else if (mapping.tableName === "groups") {
                 console.log("Processing group with data:", local.data);
+                console.log("Global ID:", globalId);
+                console.log("Local ID from mapping:", localId);
 
                 let participants: User[] = [];
                 if (
@@ -134,11 +130,13 @@ export class WebhookController {
                     console.log("Found participants:", participants.length);
                 }
 
+                // Process admins - filter out nulls and extract IDs
                 let admins = local?.data?.admins as string[] ?? []
-                admins = admins.map((a) => a.includes("(") ? a.split("(")[1].split(")")[0]: a)
+                admins = admins
+                    .filter(a => a !== null && a !== undefined)
+                    .map((a) => a.includes("(") ? a.split("(")[1].split(")")[0] : a)
 
                 if (localId) {
-                    console.log("Updating existing group with localId:", localId);
                     const group = await this.groupService.getGroupById(localId);
                     if (!group) {
                         console.error("Group not found for localId:", localId);
@@ -149,66 +147,91 @@ export class WebhookController {
                     const oldCharter = group.charter;
                     const newCharter = local.data.charter as string;
 
-                    group.name = local.data.name as string;
-                    group.description = local.data.description as string;
-                    group.owner = local.data.owner as string;
-                    group.admins = admins;
-                    group.participants = participants;
-                    group.ename = local.data.ename as string;
-                    
-                    // Only update charter if new data is provided, preserve existing if not
+                    // Only update fields that are actually present in the webhook (partial update)
+                    if (local.data.name !== undefined) {
+                        group.name = local.data.name as string;
+                    }
+                    if (local.data.description !== undefined) {
+                        group.description = local.data.description as string;
+                    }
+                    if (local.data.owner !== undefined) {
+                        group.owner = local.data.owner as string;
+                    }
+                    if (admins.length > 0) {
+                        group.admins = admins;
+                    }
+                    if (participants && participants.length > 0) {
+                        group.participants = participants;
+                    }
+                    if (local.data.ename !== undefined) {
+                        group.ename = local.data.ename as string;
+                    }
                     if (newCharter !== undefined && newCharter !== null) {
                         group.charter = newCharter;
                     }
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
-                    console.log("Updated group:", group.id);
 
-                    // Check for charter changes and send Cerberus notifications
                     // Only process if there's actually a charter change, not just a message update
                     if (newCharter !== undefined && newCharter !== null && oldCharter !== newCharter) {
-                        console.log("Charter change detected, notifying Cerberus...");
-                        console.log("Old charter:", oldCharter ? "exists" : "none");
-                        console.log("New charter:", newCharter ? "exists" : "none");
-                        
-                        await this.cerberusTriggerService.processCharterChange(
+                        // Don't await - let it run asynchronously to avoid blocking webhook response
+                        this.cerberusTriggerService.processCharterChange(
                             group.id,
                             group.name,
                             oldCharter,
                             newCharter
-                        );
+                        ).catch((error) => {
+                            console.error("Error in processCharterChange:", error);
+                        });
                     }
                 } else {
-                    console.log("Creating new group");
-                    const group = await this.groupService.createGroup({
-                        name: local.data.name as string,
-                        description: local.data.description as string,
-                        owner: local.data.owner as string,
-                        admins,
-                        participants: participants,
-                        charter: local.data.charter as string,
-                        ename: local.data.ename as string
-                    });
+                    // Check if group already exists by ename (only if ename is available)
+                    let group;
+                    if (local.data.ename) {
+                        group = await this.groupService.groupRepository.findOne({
+                            where: { ename: local.data.ename as string },
+                            relations: ["participants"]
+                        });
+                    }
 
-                    console.log("Created group with ID:", group.id);
-                    console.log(group)
-                    this.adapter.addToLockedIds(group.id);
-                    await this.adapter.mappingDb.storeMapping({
-                        localId: group.id,
-                        globalId: req.body.id,
-                    });
-                    console.log("Stored mapping for group:", group.id, "->", req.body.id);
+                    if (group) {
+                        // Group exists, just store the mapping
+                        this.adapter.addToLockedIds(group.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: group.id,
+                            globalId: req.body.id,
+                        });
+                    } else {
+                        // Create new group
+                        group = await this.groupService.createGroup({
+                            name: local.data.name as string,
+                            description: local.data.description as string,
+                            owner: local.data.owner as string,
+                            admins,
+                            participants: participants,
+                            charter: local.data.charter as string,
+                            ename: local.data.ename as string
+                        });
 
-                    // Check if new group has a charter and send Cerberus welcome message
-                    if (group.charter) {
-                        console.log("New group with charter detected, sending Cerberus welcome...");
-                        await this.cerberusTriggerService.processCharterChange(
-                            group.id,
-                            group.name,
-                            undefined, // No old charter for new groups
-                            group.charter
-                        );
+                        this.adapter.addToLockedIds(group.id);
+                        await this.adapter.mappingDb.storeMapping({
+                            localId: group.id,
+                            globalId: req.body.id,
+                        });
+
+                        // Check if new group has a charter and send Cerberus welcome message
+                        if (group.charter) {
+                            // Don't await - let it run asynchronously to avoid blocking webhook response
+                            this.cerberusTriggerService.processCharterChange(
+                                group.id,
+                                group.name,
+                                undefined, // No old charter for new groups
+                                group.charter
+                            ).catch((error) => {
+                                console.error("Error in processCharterChange for new group:", error);
+                            });
+                        }
                     }
                 }
             } else if (mapping.tableName === "messages") {
@@ -229,8 +252,8 @@ export class WebhookController {
                 }
 
                 // Check if this is a system message (no sender required)
-                const isSystemMessage = local.data.isSystemMessage === true || 
-                                     (local.data.text && typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
+                const isSystemMessage = local.data.isSystemMessage === true ||
+                    (local.data.text && typeof local.data.text === 'string' && local.data.text.startsWith('$$system-message$$'));
 
                 if (!group) {
                     console.error("Group not found for message");
@@ -267,7 +290,7 @@ export class WebhookController {
                 } else {
                     console.log("Creating new message");
                     let message: Message;
-                    
+
                     if (isSystemMessage) {
                         message = await this.messageService.createSystemMessageWithoutPrefix({
                             text: local.data.text as string,
@@ -292,7 +315,7 @@ export class WebhookController {
                     // Check if this is a Cerberus trigger message
                     if (this.cerberusTriggerService.isCerberusTrigger(message.text)) {
                         console.log("🚨 Cerberus trigger detected!");
-                        
+
                         // Process the trigger asynchronously (don't block the webhook response)
                         this.cerberusTriggerService.processCerberusTrigger(message)
                             .then(() => {
@@ -344,39 +367,39 @@ export class WebhookController {
                     console.log("Charter signature update not yet implemented");
                 } else {
                     console.log("Creating new charter signature");
-                    
+
                     // Create the charter signature using the service
-                                            const charterSignature = await this.charterSignatureService.createCharterSignature({
-                            data: {
-                                id: req.body.id,
-                                group: group.id,
-                                user: user.id,
-                                charterHash: local.data.charterHash,
-                                signature: local.data.signature,
-                                publicKey: local.data.publicKey,
-                                message: local.data.message,
-                                createdAt: local.data.createdAt,
-                                updatedAt: local.data.updatedAt,
-                            }
-                        });
-
-                        console.log("Created charter signature with ID:", charterSignature.id);
-                        this.adapter.addToLockedIds(charterSignature.id);
-                        await this.adapter.mappingDb.storeMapping({
-                            localId: charterSignature.id,
-                            globalId: req.body.id,
-                        });
-                        console.log("Stored mapping for charter signature:", charterSignature.id, "->", req.body.id);
-
-                        // Analyze charter activation after new signature
-                        try {
-                            await this.charterSignatureService.analyzeCharterActivation(
-                                group.id,
-                                this.messageService
-                            );
-                        } catch (error) {
-                            console.error("Error analyzing charter activation:", error);
+                    const charterSignature = await this.charterSignatureService.createCharterSignature({
+                        data: {
+                            id: req.body.id,
+                            group: group.id,
+                            user: user.id,
+                            charterHash: local.data.charterHash,
+                            signature: local.data.signature,
+                            publicKey: local.data.publicKey,
+                            message: local.data.message,
+                            createdAt: local.data.createdAt,
+                            updatedAt: local.data.updatedAt,
                         }
+                    });
+
+                    console.log("Created charter signature with ID:", charterSignature.id);
+                    this.adapter.addToLockedIds(charterSignature.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: charterSignature.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Stored mapping for charter signature:", charterSignature.id, "->", req.body.id);
+
+                    // Analyze charter activation after new signature
+                    try {
+                        await this.charterSignatureService.analyzeCharterActivation(
+                            group.id,
+                            this.messageService
+                        );
+                    } catch (error) {
+                        console.error("Error analyzing charter activation:", error);
+                    }
                 }
             }
             res.status(200).send();
@@ -385,4 +408,4 @@ export class WebhookController {
             res.status(500).send();
         }
     };
-} 
+}

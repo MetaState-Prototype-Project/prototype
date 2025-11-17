@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
+import { useWindow } from '@lib/context/window-context';
 import { formatDistanceToNow, set } from 'date-fns';
 import type { Message } from '@lib/types/message';
 import { getChatType } from '@lib/types/chat';
 import {
     UserIcon,
     PaperAirplaneIcon,
-    Cog6ToothIcon
+    Cog6ToothIcon,
+    ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
@@ -32,25 +34,32 @@ function MessageItem({
     userData?: User | null;
 }): JSX.Element {
     // Check if this is a system message
-    const isSystemMessage = !message.senderId || message.text.startsWith('$$system-message$$');
+    const isSystemMessage =
+        !message.senderId || message.text.startsWith('$$system-message$$');
     // Remove the prefix for display
-    const displayText = isSystemMessage && message.text.startsWith('$$system-message$$') 
-        ? message.text.replace('$$system-message$$', '').trim() 
-        : message.text;
+    const displayText =
+        isSystemMessage && message.text.startsWith('$$system-message$$')
+            ? message.text.replace('$$system-message$$', '').trim()
+            : message.text;
 
-
-
-        if (isSystemMessage) {
+    if (isSystemMessage) {
         return (
-            <div className="flex w-full justify-center my-4">
-                <div className="max-w-[80%] text-center">
-                    <div className="inline-block rounded-[10px] bg-gray-100 dark:bg-gray-800 px-4 py-2">
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-left">
-                            <div dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
+            <div className='flex w-full justify-center my-4'>
+                <div className='max-w-[80%] text-center'>
+                    <div className='inline-block rounded-[10px] bg-gray-100 dark:bg-gray-800 px-4 py-2'>
+                        <div className='text-sm font-medium text-gray-600 dark:text-gray-400 whitespace-pre-wrap text-left'>
+                            <div
+                                dangerouslySetInnerHTML={{
+                                    __html: displayText.replace(
+                                        /<a href="([^"]+)">([^<]+)<\/a>/g,
+                                        '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                                    )
+                                }}
+                            />
                         </div>
                     </div>
                     {showTime && message.createdAt?.toDate && (
-                        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                        <p className='mt-1 text-xs text-gray-400 dark:text-gray-500'>
                             {formatDistanceToNow(message.createdAt.toDate(), {
                                 addSuffix: true
                             })}
@@ -106,7 +115,15 @@ function MessageItem({
                             : 'bg-[#6600ff] text-white'
                     } ${!isOwnMessage ? 'ml-8' : ''}`}
                 >
-                    <div className='break-words whitespace-pre-wrap' dangerouslySetInnerHTML={{ __html: displayText.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>') }} />
+                    <div
+                        className='break-words whitespace-pre-wrap'
+                        dangerouslySetInnerHTML={{
+                            __html: displayText.replace(
+                                /<a href="([^"]+)">([^<]+)<\/a>/g,
+                                '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                            )
+                        }}
+                    />
                     {showTime && message.createdAt?.toDate && (
                         <p
                             className={`mt-1 text-xs ${
@@ -125,9 +142,16 @@ function MessageItem({
 }
 
 export function ChatWindow(): JSX.Element {
-    const { currentChat, messages, sendNewMessage, markAsRead, loading } =
-        useChat();
+    const {
+        currentChat,
+        messages,
+        sendNewMessage,
+        markAsRead,
+        loading,
+        setCurrentChat
+    } = useChat();
     const { user } = useAuth();
+    const { isMobile } = useWindow();
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
@@ -180,10 +204,20 @@ export function ChatWindow(): JSX.Element {
                         otherParticipant &&
                         newParticipantsData[otherParticipant]
                     ) {
-                        console.log('ChatWindow: Setting otherUser:', newParticipantsData[otherParticipant]);
+                        console.log(
+                            'ChatWindow: Setting otherUser:',
+                            newParticipantsData[otherParticipant]
+                        );
                         setOtherUser(newParticipantsData[otherParticipant]);
                     } else {
-                        console.log('ChatWindow: Could not set otherUser. otherParticipant:', otherParticipant, 'userData:', otherParticipant ? newParticipantsData[otherParticipant] : 'undefined');
+                        console.log(
+                            'ChatWindow: Could not set otherUser. otherParticipant:',
+                            otherParticipant,
+                            'userData:',
+                            otherParticipant
+                                ? newParticipantsData[otherParticipant]
+                                : 'undefined'
+                        );
                     }
                 }
             } catch (error) {
@@ -233,7 +267,9 @@ export function ChatWindow(): JSX.Element {
         try {
             await sendNewMessage(messageText);
             setMessageText('');
-        } catch (error) {}
+        } catch (error) {
+            console.error('Failed to send message:', error);
+        }
     };
 
     return (
@@ -242,6 +278,15 @@ export function ChatWindow(): JSX.Element {
                 <>
                     <div className='flex h-fit items-center justify-between gap-3 border-b border-gray-200 p-4 dark:border-gray-800'>
                         <div className='flex items-center gap-3'>
+                            {isMobile && (
+                                <button
+                                    type='button'
+                                    onClick={() => setCurrentChat(null)}
+                                    className='flex items-center justify-center rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800'
+                                >
+                                    <ArrowLeftIcon className='h-5 w-5' />
+                                </button>
+                            )}
                             <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
                                 {currentChat.type === 'group' ? (
                                     currentChat.photoURL ? (
@@ -259,7 +304,9 @@ export function ChatWindow(): JSX.Element {
                                     <Image
                                         src={otherUser.photoURL}
                                         alt={
-                                            otherUser.name || otherUser.username || 'User'
+                                            otherUser.name ||
+                                            otherUser.username ||
+                                            'User'
                                         }
                                         width={40}
                                         height={40}
@@ -279,7 +326,7 @@ export function ChatWindow(): JSX.Element {
                                 </p>
                                 <p className='text-sm text-gray-500 dark:text-gray-400'>
                                     {currentChat.type === 'direct'
-                                        ? otherUser?.username 
+                                        ? otherUser?.username
                                             ? `@${otherUser.username}`
                                             : 'Direct Message'
                                         : `${currentChat.participants.length} participants`}
@@ -337,7 +384,8 @@ export function ChatWindow(): JSX.Element {
                                         // 2. Previous message is from different sender OR doesn't exist OR
                                         // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
-                                            getChatType(currentChat) === 'group' &&
+                                            getChatType(currentChat) ===
+                                                'group' &&
                                             !isOwnMessage &&
                                             (!prevMessage ||
                                                 prevMessage.senderId !==
@@ -355,8 +403,9 @@ export function ChatWindow(): JSX.Element {
                                                     ) >
                                                         5 * 60 * 1000));
 
-                                        const userData =
-                                            participantsData[message.senderId];
+                                        const userData = message.senderId
+                                            ? participantsData[message.senderId]
+                                            : null;
 
                                         return (
                                             <MessageItem

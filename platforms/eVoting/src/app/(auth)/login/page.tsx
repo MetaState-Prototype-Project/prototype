@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/lib/auth-context";
 import { setAuthToken, setAuthId } from "@/lib/authUtils";
 import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
@@ -11,6 +11,7 @@ export default function LoginPage() {
     const [qrData, setQrData] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -51,11 +52,24 @@ export default function LoginPage() {
         );
 
         eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.token && data.user) {
-                setAuthToken(data.token);
-                setAuthId(data.user.id);
-                window.location.href = "/";
+            try {
+                const data = JSON.parse(event.data);
+                
+                // Check for error messages (version mismatch)
+                if (data.error && data.type === 'version_mismatch') {
+                    setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+                    eventSource.close();
+                    return;
+                }
+
+                // Handle successful authentication
+                if (data.token && data.user) {
+                    setAuthToken(data.token);
+                    setAuthId(data.user.id);
+                    window.location.href = "/";
+                }
+            } catch (error) {
+                console.error("Error parsing SSE data:", error);
             }
         };
 
@@ -67,15 +81,16 @@ export default function LoginPage() {
     }, [sessionId, login]);
 
     const getAppStoreLink = () => {
-			const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-			if (/android/i.test(userAgent)) {
-				return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-			}
-			if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-				return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
-			}
-			return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-		};
+        if (typeof navigator === 'undefined') return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+        const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+        if (/android/i.test(userAgent)) {
+            return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+        }
+        if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
+            return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667"
+        }
+        return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+    };
 
     return (
         <div className="flex flex-col items-center justify-center gap-4 min-h-screen px-4 pb-safe">
@@ -113,6 +128,13 @@ export default function LoginPage() {
                     </div>
 
                     {error && <div className="w-full text-red-500">{error}</div>}
+                    
+                    {errorMessage && (
+                        <div className="w-full mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                            <p className="font-semibold">Authentication Error</p>
+                            <p className="text-sm">{errorMessage}</p>
+                        </div>
+                    )}
 
                     {isLoading ? (
                         <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -134,7 +156,7 @@ export default function LoginPage() {
                                 </div>
                             ) : (
                                 <div className="p-4 bg-white rounded-lg">
-                                    <QRCode
+                                    <QRCodeSVG
                                         value={qrData}
                                         size={200}
                                         level="M"
@@ -168,7 +190,7 @@ export default function LoginPage() {
                 </div>
             </Card>
             <a href="https://metastate.foundation" target="_blank" rel="noopener noreferrer">
-            <img src="/W3DS.svg" alt="w3ds Logo" className="max-h-8" />
+                <img src="/W3DS.svg" alt="w3ds Logo" className="max-h-8" />
             </a>
         </div>
     );

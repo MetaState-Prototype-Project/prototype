@@ -30,7 +30,7 @@ function htmlToMarkdown(html: string): string {
 
 // Convert Markdown to HTML using Marked
 function markdownToHtml(markdown: string): string {
-  return marked.parse(markdown);
+  return marked.parse(markdown) as string;
 }
 
 export default function WysiwygEditor({ content, onChange, placeholder = "Enter text...", className }: WysiwygEditorProps) {
@@ -182,10 +182,10 @@ export default function WysiwygEditor({ content, onChange, placeholder = "Enter 
           <Redo className="h-4 w-4" />
         </Button>
       </div>
-      
+
       {/* Editor Content */}
-      <EditorContent 
-        editor={editor} 
+      <EditorContent
+        editor={editor}
         className="focus-within:ring-2 focus-within:ring-purple-200 focus-within:border-purple-500 transition-all duration-200 rounded-b-2xl"
       />
     </div>

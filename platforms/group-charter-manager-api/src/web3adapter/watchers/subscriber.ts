@@ -6,8 +6,7 @@ import {
     RemoveEvent,
     ObjectLiteral,
 } from "typeorm";
-import { Web3Adapter } from "../../../../../infrastructure/web3-adapter/src/index";
-import { createGroupEVault } from "../../../../../infrastructure/web3-adapter/src/index";
+import { Web3Adapter } from "web3-adapter";
 import path from "path";
 import dotenv from "dotenv";
 import { AppDataSource } from "../../database/data-source";
@@ -146,27 +145,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             });
             
             if (fullEntity) {
-                // Check eVault creation BEFORE enriching the entity
-                if (entityName === "Group" && fullEntity.charter && fullEntity.charter.trim() !== "") {
-                    // Check if this group doesn't have an ename yet (meaning eVault wasn't created)
-                    if (!fullEntity.ename) {
-                        // Fire and forget eVault creation
-                        this.spinUpGroupEVault(fullEntity).catch(error => {
-                            console.error("Failed to create eVault for group:", fullEntity.id, error);
-                        });
-                    }
-                }
-                
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
                     event.metadata.target
                 )) as ObjectLiteral;
-            } else {
-                console.log("❌ Could not load full entity for ID:", entityId);
             }
-        } else {
-            console.log("❌ No entity ID found in update event");
         }
         
         this.handleChange(
@@ -216,6 +200,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
         if (!data.id) return;
+        
+        // Skip groups without charter - they'll be manually synced when charter is added
+        if (tableName === "groups" && !data.charter) {
+            return;
+        }
 
         try {
             setTimeout(async () => {
@@ -242,6 +231,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     "table:",
                     tableName
                 );
+                
                 const envelope = await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),
@@ -323,77 +313,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["user", "group"];
             default:
                 return [];
-        }
-    }
-
-    /**
-     * Spin up eVault for a newly chartered group
-     */
-    private async spinUpGroupEVault(group: any): Promise<void> {
-        try {
-            console.log("Starting eVault creation for group:", group.id);
-            
-            // Get environment variables for eVault creation
-            const registryUrl = process.env.PUBLIC_REGISTRY_URL;
-            const provisionerUrl = process.env.PUBLIC_PROVISIONER_URL;
-            
-            if (!registryUrl || !provisionerUrl) {
-                throw new Error("Missing required environment variables for eVault creation");
-            }
-            
-            // Prepare group data for eVault creation
-            const groupData = {
-                name: group.name || "Unnamed Group",
-                avatar: group.avatarUrl,
-                description: group.description,
-                members: group.participants?.map((p: any) => p.id) || [],
-                admins: group.admins || [],
-                owner: group.owner,
-                charter: group.charter
-            };
-            
-            console.log("Creating eVault with data:", groupData);
-            
-            // Create the eVault (this is the long-running operation)
-            const evaultResult = await createGroupEVault(
-                registryUrl,
-                provisionerUrl,
-                groupData
-            );
-            
-            console.log("eVault created successfully:", evaultResult);
-            
-            // Update the group with the ename (w3id) - use save() to trigger ORM events
-            const groupRepository = AppDataSource.getRepository("Group");
-            const groupToUpdate = await groupRepository.findOne({ where: { id: group.id } });
-            if (groupToUpdate) {
-                groupToUpdate.ename = evaultResult.w3id;
-                await groupRepository.save(groupToUpdate);
-            }
-            
-            console.log("Group updated with ename:", evaultResult.w3id);
-            
-            // Wait 20 seconds before triggering handleChange to allow eVault to stabilize
-            console.log("Waiting 20 seconds before syncing updated group data...");
-            setTimeout(async () => {
-                try {
-                    // Fetch the updated group entity with relations to trigger handleChange
-                    const updatedGroup = await groupRepository.findOne({ 
-                        where: { id: group.id },
-                        relations: this.getRelationsForEntity("Group")
-                    });
-                    if (updatedGroup) {
-                        console.log("Triggering handleChange for updated group with ename after timeout");
-                        await this.handleChange(updatedGroup, "groups");
-                    }
-                } catch (error) {
-                    console.error("Error triggering handleChange after timeout for group:", group.id, error);
-                }
-            }, 20000); // 20 seconds timeout
-            
-        } catch (error: any) {
-            console.error("Error creating eVault for group:", group.id, error);
-            throw error; // Re-throw to be caught by the caller
         }
     }
 

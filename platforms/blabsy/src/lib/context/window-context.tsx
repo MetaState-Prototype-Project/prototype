@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useEffect,
+    useState,
+    ReactNode
+} from 'react';
 
 type WindowSize = {
     width: number;
@@ -13,7 +19,7 @@ type WindowContext = {
 const WindowContext = createContext<WindowContext | null>(null);
 
 type WindowContextProviderProps = {
-    children: React.ReactNode;
+    children: ReactNode;
 };
 
 export function WindowContextProvider({

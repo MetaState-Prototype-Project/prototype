@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
-import { Web3Adapter } from "../../../../infrastructure/web3-adapter/src";
+import { Web3Adapter } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import axios from "axios";

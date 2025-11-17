@@ -2,7 +2,7 @@ import Link from 'next/link';
 import cn from 'clsx';
 
 type UserUsernameProps = {
-    username: string;
+    username?: string | null;
     className?: string;
     disableLink?: boolean;
 };
@@ -12,18 +12,31 @@ export function UserUsername({
     className,
     disableLink
 }: UserUsernameProps): JSX.Element {
-    return (
-        <Link href={`/user/${username}`}>
-            <a
+    if (!username) {
+        return (
+            <span
                 className={cn(
-                    'truncate text-light-secondary dark:text-dark-secondary',
+                    'truncate text-light-secondary dark:text-dark-secondary max-w-[100px]',
                     className,
-                    disableLink && 'pointer-events-none'
+                    'pointer-events-none'
                 )}
-                tabIndex={-1}
             >
-                @{username}
-            </a>
+                @user
+            </span>
+        );
+    }
+
+    return (
+        <Link
+            href={`/user/${username}`}
+            className={cn(
+                'truncate text-light-secondary dark:text-dark-secondary max-w-[100px]',
+                className,
+                disableLink && 'pointer-events-none'
+            )}
+            tabIndex={-1}
+        >
+            @{username}
         </Link>
     );
 }

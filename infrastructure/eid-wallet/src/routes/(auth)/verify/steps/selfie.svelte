@@ -62,9 +62,9 @@ async function captureImage() {
             for (const track of stream.getTracks()) {
                 track.stop();
             }
+            // The verification step will be updated by the SSE response
+            // verifStep will be set to 3 by the websocket event
         }
-    } else if (image === 2 && $imageCaptured) {
-        verifStep.update((n) => n + 1);
     }
 }
 </script>
