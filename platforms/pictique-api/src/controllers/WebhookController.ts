@@ -174,6 +174,7 @@ export class WebhookController {
                     }
 
                     if (localId) {
+                        local.data.text = local.data.text ?? "";
                         const post = await this.postsService.findById(localId);
                         if (!post) return res.status(500).send();
                         for (const key of Object.keys(local.data)) {
@@ -188,6 +189,7 @@ export class WebhookController {
                         await this.postsService.postRepository.save(post);
                     } else {
                         console.log("Creating new post");
+                        local.data.text = local.data.text ?? "";
                         const post = await this.postsService.createPost(
                             author?.id as string,
                             // @ts-ignore
@@ -246,7 +248,7 @@ export class WebhookController {
                     // Check for existing DM (2 participants, no name) before creating
                     const participantIds = participants.map((p) => p.id);
                     const isDM = participantIds.length === 2 && !local.data.name;
-                    
+
                     let chat;
                     if (isDM) {
                         const existingChat = await this.chatService.findChatByParticipants(participantIds);
