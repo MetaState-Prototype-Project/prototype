@@ -32,6 +32,8 @@ export default function Dashboard() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [referenceViewModal, setReferenceViewModal] = useState<any>(null);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // This page is only rendered when authenticated, no need for redirect logic
 
@@ -44,8 +46,6 @@ export default function Dashboard() {
     enabled: isAuthenticated,
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  
   const { data: activitiesResponse, refetch: refetchActivities } = useQuery<{
     activities: any[];
     pagination: {
@@ -57,9 +57,9 @@ export default function Dashboard() {
       hasPrev: boolean;
     };
   }>({
-    queryKey: ["/api/dashboard/activities", currentPage],
+    queryKey: ["/api/dashboard/activities", currentPage, activeFilter],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/dashboard/activities?page=${currentPage}`);
+      const response = await apiClient.get(`/api/dashboard/activities?page=${currentPage}&filter=${activeFilter}`);
       return response.data;
     },
     enabled: isAuthenticated,
@@ -118,20 +118,6 @@ export default function Dashboard() {
     setViewModalOpen(true);
   };
 
-  const handleShareActivity = (activity: any) => {
-    // Only share calculation activities, not references
-    if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
-      return;
-    }
-    
-    const shareText = `My eReputation calculation: ${activity.result || 'Calculating...'} for ${activity.target || 'Unknown'}`;
-    navigator.clipboard.writeText(shareText).then(() => {
-      // Could show a toast here instead
-      console.log('Results copied to clipboard!');
-    }).catch(() => {
-      console.log('Share feature coming soon!');
-    });
-  };
 
   // Number counting animation hook
   const useCountUp = (end: number, duration: number = 2000) => {
@@ -189,7 +175,7 @@ export default function Dashboard() {
     if (!result) return 'text-gray-500 font-black'; // Default gray for undefined/null
     
     const score = parseFloat(result.replace('Score: ', '')) || 0;
-    const percentage = (score / 10) * 100;
+    const percentage = (score / 5) * 100; // Scores are out of 5, not 10
     
     if (percentage <= 25) return 'text-red-500 font-black'; // Red (0-25%)
     if (percentage <= 50) return 'text-orange-500 font-black'; // Orange (25-50%)
@@ -363,8 +349,94 @@ export default function Dashboard() {
         {/* Activity History Table */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="px-4 sm:px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-fig/5 to-white">
-            <h3 className="text-xl sm:text-2xl font-black text-fig">Recent Activity</h3>
-            <p className="text-gray-700 text-sm mt-2 font-medium">Your latest eReputation activities and calculations</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-fig">Recent Activity</h3>
+                <p className="text-gray-700 text-sm mt-2 font-medium">Your latest eReputation activities and calculations</p>
+              </div>
+              
+              {/* Quick Filters */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    setActiveFilter('all');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'all'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('sent-references');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'sent-references'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Sent References
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('received-references');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'received-references'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Received
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('analysis');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'analysis'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Analysis
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('self-evaluation');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'self-evaluation'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Self Evaluation
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('other-evaluations');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'other-evaluations'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Other Evaluations
+                </button>
+              </div>
+            </div>
           </div>
           
           {activities.length === 0 ? (
@@ -376,17 +448,35 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-700 mb-2">No activities yet</p>
-                  <p className="text-gray-500">Start by calculating your reputation or providing a reference</p>
+                  <p className="text-lg font-semibold text-gray-700 mb-2">
+                    {activeFilter !== 'all' ? 'No activities match this filter' : 'No activities yet'}
+                  </p>
+                  <p className="text-gray-500">
+                    {activeFilter !== 'all' 
+                      ? 'Try selecting a different filter or clear filters to see all activities'
+                      : 'Start by calculating your reputation or providing a reference'}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-3 mt-4">
+                {activeFilter !== 'all' ? (
                   <button 
-                    onClick={() => setReferenceModalOpen(true)}
-                    className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
+                    onClick={() => {
+                      setActiveFilter('all');
+                      setCurrentPage(1);
+                    }}
+                    className="px-4 py-2 bg-fig text-white rounded-lg font-medium hover:bg-fig/90 transition-colors"
                   >
-                    Provide Reference
+                    Show All Activities
                   </button>
-                </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    <button 
+                      onClick={() => setReferenceModalOpen(true)}
+                      className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
+                    >
+                      Provide Reference
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -477,14 +567,6 @@ export default function Dashboard() {
                               </svg>
                               View Details
                             </DropdownMenuItem>
-                            {activity.type === 'calculation' && activity.status === 'complete' && (
-                              <DropdownMenuItem onClick={() => handleShareActivity(activity)}>
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                                </svg>
-                                Share Results
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -541,14 +623,6 @@ export default function Dashboard() {
                               </svg>
                               View Details
                             </DropdownMenuItem>
-                            {activity.type === 'calculation' && activity.status === 'complete' && (
-                              <DropdownMenuItem onClick={() => handleShareActivity(activity)}>
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                                </svg>
-                                Share Results
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <div className="flex items-center gap-2">
@@ -630,8 +704,8 @@ export default function Dashboard() {
       
       {/* Activity Details Modal - Only for calculations, not references */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50 border-2 border-fig/20">
-          <DialogHeader className="text-center pb-6">
+        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50 border-2 border-fig/20 max-h-[85vh] flex flex-col">
+          <DialogHeader className="text-center pb-6 flex-shrink-0">
             <DialogTitle className="flex items-center justify-center gap-3 text-fig text-xl font-black">
               <div className="w-8 h-8 bg-fig rounded-lg flex items-center justify-center transform rotate-12">
                 <svg className="w-5 h-5 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
@@ -647,7 +721,7 @@ export default function Dashboard() {
           </DialogHeader>
           
           {selectedActivity && (selectedActivity as any).type !== 'reference' && (selectedActivity as any).activity !== 'Reference Provided' && (selectedActivity as any).activity !== 'Reference Received' ? (
-            <div className="space-y-6">
+            <div className="space-y-6 overflow-y-auto flex-1">
               
               {/* Score Visualization */}
               <div className="bg-gradient-to-br from-fig/5 to-apple-red/5 rounded-2xl p-6 border border-fig/10">
@@ -662,8 +736,8 @@ export default function Dashboard() {
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
                     const resultStr = (selectedActivity as any).result || '';
-                    const score = parseFloat(resultStr.replace('Score: ', '')) || 5;
-                    const percentage = (score / 10) * 100;
+                    const score = parseFloat(resultStr.replace('Score: ', '')) || 0;
+                    const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
                     const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
                     
@@ -793,74 +867,34 @@ export default function Dashboard() {
                   
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-2xl font-black text-fig">
-                      {Math.round(((parseFloat(((selectedActivity as any).result || '').replace('Score: ', '')) || 5) / 10) * 100)}%
+                      {Math.round(((parseFloat(((selectedActivity as any).result || '').replace('Score: ', '')) || 0) / 5) * 100)}%
                     </span>
                     <span className="text-xs font-medium text-gray-500 mt-1">SCORE</span>
                   </div>
                 </div>
               </div>
 
-              {/* Activity Information Cards */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-apple-red/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-3 h-3 text-apple-red" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm6 7a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1zm-3 3a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4-3a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Activity Type</label>
-                  </div>
-                  <p className="text-sm font-black text-fig">{(selectedActivity as any).activity}</p>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-swiss-cheese/20 rounded-lg flex items-center justify-center">
+              {/* AI Explanation/Justification */}
+              {(selectedActivity as any).explanation && (
+                <div className="bg-fig-10 rounded-xl p-4 border-2 border-fig/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 bg-fig/20 rounded-lg flex items-center justify-center">
                       <svg className="w-3 h-3 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Date</label>
+                    <label className="text-xs font-bold text-fig uppercase tracking-wider">Score Justification</label>
                   </div>
-                  <p className="text-sm font-black text-gray-900">
-                    {new Date((selectedActivity as any).date).toLocaleDateString('en-US', { 
-                      weekday: 'short', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
+                  <p className="text-sm text-fig/90 leading-relaxed whitespace-pre-wrap">
+                    {(selectedActivity as any).explanation}
                   </p>
                 </div>
-              </div>
-              
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-basil/20 rounded-lg flex items-center justify-center">
-                    <svg className="w-3 h-3 text-basil" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Target Profile</label>
-                </div>
-                <p className="text-sm font-black text-gray-900">{(selectedActivity as any).target}</p>
-              </div>
-
-              {/* Remove status badge section */}
+              )}
               
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <Button 
-                  onClick={() => handleShareActivity(selectedActivity)}
-                  variant="outline" 
-                  className="flex-1 border-fig text-fig hover:bg-fig hover:text-white transition-all"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                  </svg>
-                  Share Results
-                </Button>
-                <Button 
                   onClick={() => setViewModalOpen(false)}
-                  className="flex-1 bg-fig hover:bg-fig/90 text-white font-bold"
+                  className="w-full bg-fig hover:bg-fig/90 text-white font-bold"
                 >
                   Close
                 </Button>
