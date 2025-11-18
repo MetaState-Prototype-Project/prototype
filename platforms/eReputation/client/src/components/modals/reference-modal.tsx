@@ -78,7 +78,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
       } else if (targetType === 'user') {
         // Search users using existing endpoint
         const response = await apiClient.get(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
-        return response.data;
+        // Ensure we return an array, handle different response structures
+        return Array.isArray(response.data) ? response.data : [];
       } else if (targetType === 'group') {
         // Search groups using new endpoint
         const response = await apiClient.get(`/api/groups/search?q=${encodeURIComponent(searchQuery)}`);
@@ -142,7 +143,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
 
   const handleSelectTarget = (target: any) => {
     setSelectedTarget(target);
-    setSearchQuery(target.name);
+    // Use name, ename, or handle as fallback
+    setSearchQuery(target.name || target.ename || target.handle || 'Unknown');
   };
 
   const handleSubmit = () => {
@@ -187,7 +189,7 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
     submitMutation.mutate({
       targetType,
       targetId: selectedTarget.id,
-      targetName: selectedTarget.name,
+      targetName: selectedTarget.name || selectedTarget.ename || selectedTarget.handle || 'Unknown',
       content: referenceText,
       referenceType: 'general'
     });
@@ -283,8 +285,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                               )}
                             </div>
                             <div>
-                              <div className="font-bold text-fig">{result.name}</div>
-                              <div className="text-xs text-fig/70 capitalize">{result.type || result.category}</div>
+                              <div className="font-bold text-fig">{result.name || result.ename || result.handle || 'Unknown'}</div>
+                              <div className="text-xs text-fig/70 capitalize">{result.type || result.category || targetType}</div>
                             </div>
                           </div>
                         </button>
@@ -306,7 +308,7 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                       <svg className="w-4 h-4 text-swiss-cheese" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span className="font-black text-fig">{selectedTarget.name}</span>
+                      <span className="font-black text-fig">{selectedTarget.name || selectedTarget.ename || selectedTarget.handle || 'Unknown'}</span>
                     </div>
                     <button
                       onClick={() => {

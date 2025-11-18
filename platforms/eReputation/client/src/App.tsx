@@ -7,7 +7,6 @@ import { AuthProvider } from "@/lib/auth-context";
 import { useAuth } from "@/hooks/useAuth";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
-import References from "@/pages/references-page";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,7 +20,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/references" component={References} />
       <Route component={NotFound} />
     </Switch>
   );
