@@ -48,9 +48,11 @@ export class CalculationService {
 
         try {
             // Get all references for this target
+            // For self-evaluation, references are stored with targetType "user", not "self"
+            const referenceTargetType = calculation.targetType === "self" ? "user" : calculation.targetType;
             const references = await this.referenceRepository.find({
                 where: { 
-                    targetType: calculation.targetType, 
+                    targetType: referenceTargetType, 
                     targetId: calculation.targetId,
                     status: "signed" // Only include signed references
                 },
@@ -92,7 +94,22 @@ export class CalculationService {
                 max_tokens: 1000
             });
 
-            const result = JSON.parse(response.choices[0].message.content || "{}");
+            const aiResponseContent = response.choices[0].message.content;
+            if (!aiResponseContent) {
+                throw new Error("AI returned empty response");
+            }
+
+            let result;
+            try {
+                result = JSON.parse(aiResponseContent);
+            } catch (parseError) {
+                throw new Error(`Failed to parse AI response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
+            }
+            
+            // Validate that we got a proper score from AI
+            if (!result.score || typeof result.score !== 'number') {
+                throw new Error("Invalid AI response: missing or invalid score");
+            }
             
             calculation.calculatedScore = Math.max(1, Math.min(5, result.score || 0));
             calculation.status = "complete";
@@ -107,11 +124,10 @@ export class CalculationService {
 
         } catch (error) {
             console.error("Error calculating reputation:", error);
-            calculation.status = "error";
-            calculation.calculationDetails = JSON.stringify({
-                error: error instanceof Error ? error.message : "Unknown error"
-            });
-            return await this.calculationRepository.save(calculation);
+            // Delete the calculation if there was an error getting the AI score
+            // Don't save failed calculations to the database
+            await this.calculationRepository.remove(calculation);
+            throw error; // Re-throw so controller can handle it
         }
     }
 

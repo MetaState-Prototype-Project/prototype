@@ -14,30 +14,49 @@ export class CalculationController {
             const { targetType, targetId, targetName, userValues } = req.body;
             const calculatorId = req.user!.id;
 
-            if (!targetType || !targetId || !targetName || !userValues) {
+            // Handle self-evaluation: use calculator's ID and name
+            let finalTargetId = targetId;
+            let finalTargetName = targetName;
+            let finalTargetType = targetType;
+            
+            if (targetType === "self") {
+                finalTargetId = calculatorId;
+                finalTargetName = req.user!.ename || req.user!.name || "Personal Profile";
+                finalTargetType = "self";
+            }
+
+            if (!finalTargetType || !finalTargetId || !finalTargetName || !userValues) {
                 return res.status(400).json({ error: "Missing required fields" });
             }
 
             // Create calculation record
             const calculation = await this.calculationService.createCalculation({
-                targetType,
-                targetId,
-                targetName,
+                targetType: finalTargetType,
+                targetId: finalTargetId,
+                targetName: finalTargetName,
                 userValues,
                 calculatorId
             });
 
-            // Calculate reputation synchronously
-            const result = await this.calculationService.calculateReputation(calculation.id);
+            try {
+                // Calculate reputation synchronously
+                const result = await this.calculationService.calculateReputation(calculation.id);
 
-            const details = result.calculationDetails ? JSON.parse(result.calculationDetails) : {};
+                const details = result.calculationDetails ? JSON.parse(result.calculationDetails) : {};
 
-            res.json({
-                score: result.calculatedScore?.toString() || "0",
-                analysis: details.explanation || "No analysis available",
-                targetName: result.targetName,
-                calculationId: result.id
-            });
+                res.json({
+                    score: result.calculatedScore?.toString() || "0",
+                    analysis: details.explanation || "No analysis available",
+                    targetName: result.targetName,
+                    calculationId: result.id
+                });
+            } catch (calcError) {
+                // If calculation fails, the service already deleted the record
+                // Just return an error response
+                console.error("Error calculating reputation:", calcError);
+                const errorMessage = calcError instanceof Error ? calcError.message : "Failed to calculate reputation";
+                res.status(500).json({ error: errorMessage });
+            }
         } catch (error) {
             console.error("Error calculating reputation:", error);
             res.status(500).json({ error: "Internal server error" });
