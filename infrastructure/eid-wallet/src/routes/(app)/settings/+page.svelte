@@ -12,6 +12,7 @@ import {
     Shield01Icon,
 } from "@hugeicons/core-free-icons";
 import { getContext } from "svelte";
+import { onDestroy } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
@@ -26,6 +27,7 @@ let tapCount = $state(0);
 let lastTapTime = $state(0);
 let isRetrying = $state(false);
 let retryMessage = $state("");
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 function showDeleteConfirmation() {
     isDeleteConfirmationOpen = true;
@@ -48,10 +50,15 @@ function cancelDelete() {
     isFinalConfirmationOpen = false;
 }
 
+// Cleanup on unmount
+onDestroy(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+});
+
 async function handleVersionTap() {
     const now = Date.now();
 
-    // Reset counter if more than 3 seconds between taps
+    // Reset if more than 3s between taps
     if (now - lastTapTime > 3000) {
         tapCount = 0;
     }
@@ -59,12 +66,12 @@ async function handleVersionTap() {
     tapCount++;
     lastTapTime = now;
 
-    // Show tap count feedback (only visible to user)
+    // Show feedback after 5 taps
     if (tapCount >= 5) {
         retryMessage = `Taps: ${tapCount}/10`;
     }
 
-    // Trigger eVault profile retry after 10 taps
+    // Trigger hidden action at 10 taps
     if (tapCount === 10) {
         isRetrying = true;
         retryMessage = "Retrying eVault profile setup...";
@@ -73,8 +80,10 @@ async function handleVersionTap() {
             await globalState.vaultController.retryProfileCreation();
             retryMessage = "✅ eVault profile setup completed successfully!";
 
-            // Reset after success
-            setTimeout(() => {
+            // Clear previous timeout if exists
+            if (timeoutId) clearTimeout(timeoutId);
+
+            timeoutId = setTimeout(() => {
                 tapCount = 0;
                 retryMessage = "";
                 isRetrying = false;
@@ -84,8 +93,10 @@ async function handleVersionTap() {
             retryMessage =
                 "❌ Failed to setup eVault profile. Check console for details.";
 
-            // Reset after error
-            setTimeout(() => {
+            // Clear previous timeout if exists
+            if (timeoutId) clearTimeout(timeoutId);
+
+            timeoutId = setTimeout(() => {
                 tapCount = 0;
                 retryMessage = "";
                 isRetrying = false;
