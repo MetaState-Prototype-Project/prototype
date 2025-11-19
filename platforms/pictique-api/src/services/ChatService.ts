@@ -58,7 +58,8 @@ export class ChatService {
 
     async createChat(
         name?: string,
-        participantIds: string[] = []
+        participantIds: string[] = [],
+        creatorId?: string
     ): Promise<Chat> {
         const participants = await this.userRepository.findBy({
             id: In(participantIds),
@@ -67,9 +68,18 @@ export class ChatService {
             throw new Error("One or more participants not found");
         }
 
+        let admins: User[] = [];
+        if (creatorId) {
+            const creator = await this.userRepository.findOneBy({ id: creatorId });
+            if (creator) {
+                admins = [creator];
+            }
+        }
+
         const chat = this.chatRepository.create({
             name: name || undefined,
             participants,
+            admins,
         });
         return await this.chatRepository.save(chat);
     }
@@ -82,6 +92,7 @@ export class ChatService {
                 "messages.sender",
                 "messages.readStatuses",
                 "participants",
+                "admins",
             ],
         });
     }
@@ -369,7 +380,7 @@ export class ChatService {
     async findById(id: string): Promise<Chat | null> {
         return await this.chatRepository.findOne({
             where: { id },
-            relations: ["participants"],
+            relations: ["participants", "admins"],
         });
     }
 }

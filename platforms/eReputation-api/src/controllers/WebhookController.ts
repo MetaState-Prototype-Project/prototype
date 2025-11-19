@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
+import { VoteService } from "../services/VoteService";
+import { PollService } from "../services/PollService";
+import { VotingReputationService } from "../services/VotingReputationService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -9,11 +12,17 @@ import axios from "axios";
 export class WebhookController {
     userService: UserService;
     groupService: GroupService;
+    voteService: VoteService;
+    pollService: PollService;
+    votingReputationService: VotingReputationService;
     adapter: typeof adapter;
 
     constructor() {
         this.userService = new UserService();
         this.groupService = new GroupService();
+        this.voteService = new VoteService();
+        this.pollService = new PollService();
+        this.votingReputationService = new VotingReputationService();
         this.adapter = adapter;
     }
 
@@ -207,6 +216,113 @@ export class WebhookController {
                         finalLocalId = group.id;
                     }
                 }
+            } else if (mapping.tableName === "votes") {
+                console.log("Processing vote with data:", local.data);
+
+                if (localId) {
+                    console.log("Updating existing vote with localId:", localId);
+                    const vote = await this.voteService.getVoteById(localId);
+                    if (!vote) {
+                        console.error("Vote not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    vote.data = local.data.data as any;
+                    vote.voterId = local.data.voterId as string;
+                    await this.voteService.voteRepository.save(vote);
+                    console.log("Updated vote:", vote.id);
+                    finalLocalId = vote.id;
+                } else {
+                    console.log("Creating new vote");
+                    // Get userId from voterId or local.data.userId
+                    const userId = local.data.userId as string;
+                    const voterId = local.data.voterId as string;
+                    const pollId = local.data.pollId as string;
+                    const voteData = local.data.data as any;
+
+                    if (!userId || !voterId || !pollId || !voteData) {
+                        console.error("Missing required vote fields");
+                        return res.status(400).send();
+                    }
+
+                    const vote = await this.voteService.createVote(
+                        pollId,
+                        userId,
+                        voterId,
+                        voteData
+                    );
+                    console.log("Created vote with ID:", vote.id);
+                    this.adapter.addToLockedIds(vote.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: vote.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Stored mapping for vote:", vote.id, "->", req.body.id);
+                    finalLocalId = vote.id;
+                }
+            } else if (mapping.tableName === "polls") {
+                console.log("Processing poll with data:", local.data);
+
+                if (localId) {
+                    console.log("Updating existing poll with localId:", localId);
+                    const poll = await this.pollService.getPollById(localId);
+                    if (!poll) {
+                        console.error("Poll not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    poll.title = local.data.title as string;
+                    poll.mode = local.data.mode as "normal" | "point" | "rank";
+                    poll.visibility = local.data.visibility as "public" | "private";
+                    poll.options = local.data.options as string[];
+                    poll.deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
+                    poll.groupId = local.data.groupId as string | null;
+                    await this.pollService.pollRepository.save(poll);
+                    console.log("Updated poll:", poll.id);
+                    finalLocalId = poll.id;
+
+                    // Check if this is an eReputation-weighted poll and calculate reputations
+                    if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
+                        await this.processEReputationWeightedPoll(poll);
+                    }
+                } else {
+                    console.log("Creating new poll");
+                    const title = local.data.title as string;
+                    const mode = local.data.mode as "normal" | "point" | "rank";
+                    const visibility = local.data.visibility as "public" | "private";
+                    const options = local.data.options as string[];
+                    const creatorId = local.data.creatorId as string;
+                    const groupId = local.data.groupId as string | null | undefined;
+                    const deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
+
+                    if (!title || !mode || !visibility || !options || !creatorId) {
+                        console.error("Missing required poll fields");
+                        return res.status(400).send();
+                    }
+
+                    const poll = await this.pollService.createPoll(
+                        title,
+                        mode,
+                        visibility,
+                        options,
+                        creatorId,
+                        groupId,
+                        deadline
+                    );
+                    console.log("Created poll with ID:", poll.id);
+                    this.adapter.addToLockedIds(poll.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: poll.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Stored mapping for poll:", poll.id, "->", req.body.id);
+                    finalLocalId = poll.id;
+
+                    // Check if this is an eReputation-weighted poll and calculate reputations
+                    if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
+                        await this.processEReputationWeightedPoll(poll);
+                    }
+                }
             }
             
             console.log(`✅ Webhook completed successfully`);
@@ -216,4 +332,84 @@ export class WebhookController {
             res.status(500).send();
         }
     };
+
+    /**
+     * Process eReputation-weighted poll: calculate reputations and transmit to eVoting
+     */
+    private async processEReputationWeightedPoll(poll: any): Promise<void> {
+        try {
+            console.log(`🔍 Processing eReputation-weighted poll: ${poll.id}`);
+            
+            if (!poll.groupId) {
+                console.error("Poll has no groupId, cannot calculate eReputation");
+                return;
+            }
+
+            // Get group with charter
+            const group = await this.groupService.getGroupById(poll.groupId);
+            if (!group) {
+                console.error("Group not found for poll");
+                return;
+            }
+
+            if (!group.charter) {
+                console.error("Group has no charter, cannot calculate eReputation");
+                return;
+            }
+
+            // Calculate reputations for all group members
+            console.log(`📊 Calculating eReputation for group members...`);
+            const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
+                poll.groupId,
+                group.charter
+            );
+
+            console.log(`✅ Calculated ${reputationResults.length} reputation scores`);
+
+            // Save results
+            const voteReputationResult = await this.votingReputationService.saveReputationResults(
+                poll.id,
+                poll.groupId,
+                reputationResults
+            );
+
+            console.log(`💾 Saved reputation results: ${voteReputationResult.id}`);
+
+            // Transmit results via web3adapter
+            await this.transmitReputationResults(voteReputationResult);
+
+            console.log(`📤 Transmitted reputation results to eVoting`);
+        } catch (error) {
+            console.error("Error processing eReputation-weighted poll:", error);
+            // Don't throw - we don't want to fail the webhook if reputation calculation fails
+        }
+    }
+
+    /**
+     * Transmit reputation results to eVoting via web3adapter
+     */
+    private async transmitReputationResults(result: any): Promise<void> {
+        try {
+            // Convert entity to plain object for web3adapter
+            const data = {
+                id: result.id,
+                pollId: result.pollId,
+                groupId: result.groupId,
+                results: result.results,
+                createdAt: result.createdAt,
+                updatedAt: result.updatedAt
+            };
+
+            // Use web3adapter to sync to eVault (which will send webhook to eVoting)
+            await this.adapter.handleChange({
+                data,
+                tableName: "vote_reputation_results"
+            });
+
+            console.log(`✅ Reputation results synced via web3adapter`);
+        } catch (error) {
+            console.error("Error transmitting reputation results:", error);
+            throw error;
+        }
+    }
 }

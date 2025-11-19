@@ -33,7 +33,8 @@ export class MessageController {
 
             const chat = await this.chatService.createChat(
                 name,
-                allParticipants
+                allParticipants,
+                userId
             );
             res.status(201).json(chat);
         } catch (error) {

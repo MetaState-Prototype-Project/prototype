@@ -101,6 +101,7 @@ export class WebhookController {
                     this.adapter.addToLockedIds(globalId);
                 }
             } else if (mapping.tableName === "groups") {
+                console.log("data", req.body)
                 console.log("Processing group with data:", local.data);
 
                 let participants: User[] = [];

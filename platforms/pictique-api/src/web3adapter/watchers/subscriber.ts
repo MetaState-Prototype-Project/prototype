@@ -38,12 +38,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
     constructor() {
         this.adapter = adapter;
-        
+
         // Clean up old pending changes every 5 minutes to prevent memory leaks
         setInterval(() => {
             this.cleanupOldPendingChanges();
         }, 5 * 60 * 1000);
-        
+
         // Clean up old message activity every minute
         setInterval(() => {
             this.cleanupOldMessageActivity();
@@ -56,7 +56,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     private cleanupOldPendingChanges(): void {
         const now = Date.now();
         const maxAge = 10 * 60 * 1000; // 10 minutes
-        
+
         for (const [key, timestamp] of this.pendingChanges.entries()) {
             if (now - timestamp > maxAge) {
                 this.pendingChanges.delete(key);
@@ -71,7 +71,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     private cleanupOldMessageActivity(): void {
         const now = Date.now();
         const maxAge = 10 * 1000; // 10 seconds
-        
+
         for (const [chatId, timestamp] of this.recentMessageActivity.entries()) {
             if (now - timestamp > maxAge) {
                 this.recentMessageActivity.delete(chatId);
@@ -115,9 +115,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             if (entity.chat && entity.chat.id) {
                 const chat = await AppDataSource.getRepository(
                     "Chat"
-                ).findOne({ 
+                ).findOne({
                     where: { id: entity.chat.id },
-                    relations: ["participants", "messages"]
+                    relations: ["participants", "admins", "messages"]
                 });
                 enrichedEntity.chat = chat;
             }
@@ -247,7 +247,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
         // Create a unique key for this entity change to prevent duplicates
         const changeKey = `${tableName}:${entity.id}`;
-        
+
         // Check if we already have a pending change for this entity
         if (this.pendingChanges.has(changeKey)) {
             console.log(`Change already pending for ${changeKey}, skipping duplicate`);
@@ -321,7 +321,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
             // Create a unique key for this junction table change to prevent duplicates
             const changeKey = `junction:${junctionInfo.entity}:${parentId}`;
-            
+
             // Check if we already have a pending change for this parent entity
             if (this.pendingChanges.has(changeKey)) {
                 console.log(`Junction change already pending for ${changeKey}, skipping duplicate`);
@@ -383,7 +383,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             case "Comment":
                 return ["author", "post", "likedBy"];
             case "Chat":
-                return ["participants", "messages"];
+                return ["participants", "admins"];
             default:
                 return [];
         }

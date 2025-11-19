@@ -232,12 +232,32 @@ export class WebhookController {
                     ).filter((user): user is User => user !== null);
                 }
 
+                let admins: User[] = [];
+                if (
+                    local.data.admins &&
+                    Array.isArray(local.data.admins)
+                ) {
+                    const adminPromises = local.data.admins.map(
+                        async (ref: string) => {
+                            if (ref && typeof ref === "string") {
+                                const userId = ref.split("(")[1].split(")")[0];
+                                return await this.userService.findById(userId);
+                            }
+                            return null;
+                        }
+                    );
+                    admins = (
+                        await Promise.all(adminPromises)
+                    ).filter((user): user is User => user !== null);
+                }
+
                 if (localId) {
                     const chat = await this.chatService.findById(localId);
                     if (!chat) return res.status(500).send();
 
                     chat.name = local.data.name as string;
                     chat.participants = participants;
+                    chat.admins = admins;
                     chat.ename = local.data.ename as string;
 
                     this.adapter.addToLockedIds(localId);
@@ -253,6 +273,8 @@ export class WebhookController {
                         if (existingChat) {
                             // Use existing chat and store mapping
                             chat = existingChat;
+                            chat.admins = admins;
+                            await this.chatService.chatRepository.save(chat);
                             this.adapter.addToLockedIds(chat.id);
                             await this.adapter.mappingDb.storeMapping({
                                 localId: chat.id,
@@ -264,6 +286,8 @@ export class WebhookController {
                                 local.data.name as string,
                                 participantIds
                             );
+                            chat.admins = admins;
+                            await this.chatService.chatRepository.save(chat);
                             this.adapter.addToLockedIds(chat.id);
                             await this.adapter.mappingDb.storeMapping({
                                 localId: chat.id,
@@ -276,6 +300,8 @@ export class WebhookController {
                             local.data.name as string,
                             participantIds
                         );
+                        chat.admins = admins;
+                        await this.chatService.chatRepository.save(chat);
                         this.adapter.addToLockedIds(chat.id);
                         await this.adapter.mappingDb.storeMapping({
                             localId: chat.id,

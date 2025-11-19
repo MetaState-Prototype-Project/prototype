@@ -8,6 +8,8 @@ import {
     ManyToMany,
     JoinTable,
 } from "typeorm";
+import { Vote } from "./Vote";
+import { Poll } from "./Poll";
 
 @Entity("users")
 export class User {
@@ -68,4 +70,10 @@ export class User {
 
     @Column({ default: false })
     isArchived!: boolean;
+
+    @OneToMany(() => Vote, (vote) => vote.user)
+    votes!: Vote[];
+
+    @OneToMany(() => Poll, (poll) => poll.creator)
+    polls!: Poll[];
 }

@@ -3,7 +3,7 @@
 	import { CupertinoPane } from 'cupertino-pane';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils';
-	import { swipe } from 'svelte-gestures';
+	import { useSwipe } from 'svelte-gestures';
 	import type { SwipeCustomEvent } from 'svelte-gestures';
 
 	interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
@@ -24,6 +24,11 @@
 			drawer?.destroy({ animate: true });
 		}
 	};
+
+	const { swipe } = useSwipe(handleDrawerSwipe, () => ({
+		timeframe: 300,
+		minSwipeDistance: 60
+	}), undefined, true);
 
 	onMount(() => {
 		if (!drawerElement) return;
@@ -48,11 +53,7 @@
 <div
 	bind:this={drawerElement}
 	{...restProps}
-	use:swipe={() => ({
-		timeframe: 300,
-		minSwipeDistance: 60
-	})}
-	onswipe={handleDrawerSwipe}
+	use:swipe
 	class={cn(restProps.class)}
 >
 	<div class="h-[100%] overflow-y-scroll">
