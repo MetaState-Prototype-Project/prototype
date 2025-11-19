@@ -408,15 +408,6 @@ onMount(async () => {
                 Use Pre-Verification Code
             </ButtonAction>
         </div>
-    {:else if loading}
-        <div class="my-20">
-            <div
-                class="align-center flex w-full flex-col items-center justify-center gap-6"
-            >
-                <Shadow size={40} color="rgb(142, 82, 255);" />
-                <h4>Initializing security keys...</h4>
-            </div>
-        </div>
     {:else}
         <h4 class="mt-[2.3svh] mb-[0.5svh]">
             Your Digital Self begins with the Real You
