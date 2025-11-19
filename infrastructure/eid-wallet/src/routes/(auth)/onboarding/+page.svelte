@@ -189,42 +189,45 @@ onMount(async () => {
         loading = true;
         error = null;
 
-        // Initialize key manager for pre-verification context
-        await initializeKeyManager();
-        await ensureKeyForContext();
+        try {
+            // Initialize key manager for pre-verification context
+            await initializeKeyManager();
+            await ensureKeyForContext();
 
-        const {
-            data: { token: registryEntropy },
-        } = await axios.get(
-            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-        );
+            const entropyRes = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+            const registryEntropy = entropyRes.data.token;
 
-        const { data } = await axios
-            .post(new URL("/provision", PUBLIC_PROVISIONER_URL).toString(), {
-                registryEntropy,
-                namespace: uuidv4(),
-                verificationId,
-                publicKey: await getApplicationPublicKey(),
-            })
-            .catch(() => {
-                loading = false;
-                console.log("caught");
-                preVerified = false;
-                verificationId = "";
-                error = "Wrong pre-verification code";
-                setTimeout(() => {
-                    error = null;
-                }, 6_000);
-                return { data: null };
-            });
-        if (!data) return;
+            const provisionRes = await axios.post(
+                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                {
+                    registryEntropy,
+                    namespace: uuidv4(),
+                    verificationId,
+                    publicKey: await getApplicationPublicKey(),
+                },
+            );
 
-        // If verification is successful, show demo name input
-        if (data.success === true) {
-            loading = false;
+            if (!provisionRes.data?.success) {
+                throw new Error("Invalid verification code");
+            }
+
             verificationSuccess = true;
-            uri = data.uri;
-            ename = data.w3id;
+            uri = provisionRes.data.uri;
+            ename = provisionRes.data.w3id;
+        } catch (err) {
+            console.error("Pre-verification failed:", err);
+
+            preVerified = false;
+            verificationId = "";
+            error = "Wrong pre-verification code";
+
+            setTimeout(() => {
+                error = null;
+            }, 6000);
+        } finally {
+            loading = false;
         }
     };
 
