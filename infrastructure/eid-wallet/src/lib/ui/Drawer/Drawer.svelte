@@ -41,6 +41,12 @@ $effect(() => {
         buttonDestroy: false,
         showDraggable: dismissible,
         upperThanTop: true,
+        events: {
+            onBackdropTap: () => {
+                pane?.destroy();
+                isPaneOpen = false;
+            },
+        },
         breaks: {
             bottom: { enabled: true, height: 250 },
         },
