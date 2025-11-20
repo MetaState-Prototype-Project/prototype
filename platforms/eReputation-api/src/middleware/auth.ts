@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppDataSource } from "../database/data-source";
 import { User } from "../database/entities/User";
-import { verifyToken } from "../utils/jwt";
+import { verifyToken, AuthTokenPayload } from "../utils/jwt";
 
 export const authMiddleware = async (
     req: Request,
@@ -16,11 +16,7 @@ export const authMiddleware = async (
         }
 
         const token = authHeader.split(" ")[1];
-        const decoded = verifyToken(token) as { userId: string };
-
-        if (!decoded?.userId) {
-            return res.status(401).json({ error: "Invalid token" });
-        }
+        const decoded: AuthTokenPayload = verifyToken(token);
 
         const userRepository = AppDataSource.getRepository(User);
         const user = await userRepository.findOneBy({ id: decoded.userId });

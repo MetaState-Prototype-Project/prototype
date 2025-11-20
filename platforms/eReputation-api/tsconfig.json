@@ -5,6 +5,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "rootDir": "./src",
+    "baseUrl": "./src",
     "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

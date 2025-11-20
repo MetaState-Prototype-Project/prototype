@@ -15,6 +15,8 @@ import { GroupController } from "./controllers/GroupController";
 import { DashboardController } from "./controllers/DashboardController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
+import { JobQueueService } from "./services/JobQueueService";
+import { PollReputationWorker } from "./workers/PollReputationWorker";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -49,10 +51,14 @@ app.use(
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Initialize job queue and worker
+const jobQueueService = new JobQueueService();
+const pollReputationWorker = new PollReputationWorker(jobQueueService);
+
 // Controllers
 const userController = new UserController();
 const authController = new AuthController();
-const webhookController = new WebhookController();
+const webhookController = new WebhookController(jobQueueService);
 const referenceController = new ReferenceController();
 const calculationController = new CalculationController();
 const platformController = new PlatformController();

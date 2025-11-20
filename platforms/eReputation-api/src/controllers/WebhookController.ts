@@ -3,13 +3,11 @@ import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { VoteService } from "../services/VoteService";
 import { PollService } from "../services/PollService";
-import { VotingReputationService } from "../services/VotingReputationService";
-import { MessageService } from "../services/MessageService";
+import { JobQueueService } from "../services/JobQueueService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Poll } from "../database/entities/Poll";
-import { VoteReputationResult } from "../database/entities/VoteReputationResult";
 import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
@@ -18,17 +16,15 @@ export class WebhookController {
     groupService: GroupService;
     voteService: VoteService;
     pollService: PollService;
-    votingReputationService: VotingReputationService;
-    messageService: MessageService;
+    jobQueueService: JobQueueService;
     adapter: typeof adapter;
 
-    constructor() {
+    constructor(jobQueueService: JobQueueService) {
         this.userService = new UserService();
         this.groupService = new GroupService();
         this.voteService = new VoteService();
         this.pollService = new PollService();
-        this.votingReputationService = new VotingReputationService();
-        this.messageService = new MessageService();
+        this.jobQueueService = jobQueueService;
         this.adapter = adapter;
     }
 
@@ -37,12 +33,6 @@ export class WebhookController {
         const schemaId = req.body.schemaId;
         
         try {
-            console.log("🔔 eReputation Webhook received:", {
-                globalId,
-                schemaId,
-                tableName: req.body.data?.tableName
-            });
-
             // Forward to ANCHR if configured
             if (process.env.ANCHR_URL) {
                 try {
@@ -51,7 +41,6 @@ export class WebhookController {
                         req.body
                     );
                 } catch (error) {
-                    console.error("Failed to forward to ANCHR:", error);
                     // Don't fail the webhook if ANCHR forwarding fails
                 }
             }
@@ -60,17 +49,12 @@ export class WebhookController {
                 (m: any) => m.schemaId === schemaId
             ) as any;
 
-            console.log("Found mapping:", mapping?.tableName);
-            console.log("Available mappings:", Object.keys(this.adapter.mapping));
-
             if (!mapping) {
-                console.error("No mapping found for schemaId:", schemaId);
                 throw new Error("No mapping found");
             }
 
             // Check if this globalId is already locked (being processed)
             if (this.adapter.lockedIds.includes(globalId)) {
-                console.log("GlobalId already locked, skipping:", globalId);
                 return res.status(200).send();
             }
 
@@ -82,8 +66,7 @@ export class WebhookController {
             });
 
             let localId = await this.adapter.mappingDb.getLocalId(globalId);
-            console.log("Local ID for globalId", globalId, ":", localId);
-            let finalLocalId = localId; // Track the final local ID for completion
+            let finalLocalId = localId;
 
             if (mapping.tableName === "users") {
                 if (localId) {
@@ -134,19 +117,15 @@ export class WebhookController {
                     finalLocalId = user.id;
                 }
             } else if (mapping.tableName === "groups") {
-                console.log("Processing group with data:", local.data);
-
                 let participants: User[] = [];
                 if (
                     local.data.participants &&
                     Array.isArray(local.data.participants)
                 ) {
-                    console.log("Processing participants:", local.data.participants);
                     const participantPromises = local.data.participants.map(
                         async (ref: string) => {
                             if (ref && typeof ref === "string") {
                                 const userId = ref.split("(")[1].split(")")[0];
-                                console.log("Extracted userId:", userId);
                                 return await this.userService.getUserById(userId);
                             }
                             return null;
@@ -156,17 +135,14 @@ export class WebhookController {
                     participants = (
                         await Promise.all(participantPromises)
                     ).filter((user: User | null): user is User => user !== null);
-                    console.log("Found participants:", participants.length);
                 }
 
                 let adminIds = local?.data?.admins as string[] ?? []
                 adminIds = adminIds.map((a) => a.includes("(") ? a.split("(")[1].split(")")[0]: a)
 
                 if (localId) {
-                    console.log("Updating existing group with localId:", localId);
                     const group = await this.groupService.getGroupById(localId);
                     if (!group) {
-                        console.error("Group not found for localId:", localId);
                         return res.status(500).send();
                     }
 
@@ -180,7 +156,6 @@ export class WebhookController {
 
                     this.adapter.addToLockedIds(localId);
                     await this.groupService.groupRepository.save(group);
-                    console.log("Updated group:", group.id);
                     finalLocalId = group.id;
                 } else {
                     // Check if a group with the same name and description already exists
@@ -193,16 +168,13 @@ export class WebhookController {
                     });
 
                     if (existingGroup) {
-                        console.log("⏭️ Group with same name/description already exists, updating mapping instead");
                         this.adapter.addToLockedIds(existingGroup.id);
                         await this.adapter.mappingDb.storeMapping({
                             localId: existingGroup.id,
                             globalId: req.body.id,
                         });
-                        console.log("Stored mapping for existing group:", existingGroup.id, "->", req.body.id);
                         finalLocalId = existingGroup.id;
                     } else {
-                        console.log("Creating new group");
                         const group = await this.groupService.createGroup(
                             local.data.name as string,
                             local.data.description as string,
@@ -211,35 +183,26 @@ export class WebhookController {
                             participants.map(p => p.id),
                             local.data.charter as string | undefined,
                         );
-                        console.log("Created group with ID:", group.id);
-                        console.log(group)
                         this.adapter.addToLockedIds(group.id);
                         await this.adapter.mappingDb.storeMapping({
                             localId: group.id,
                             globalId: req.body.id,
                         });
-                        console.log("Stored mapping for group:", group.id, "->", req.body.id);
                         finalLocalId = group.id;
                     }
                 }
             } else if (mapping.tableName === "votes") {
-                console.log("Processing vote with data:", local.data);
-
                 if (localId) {
-                    console.log("Updating existing vote with localId:", localId);
                     const vote = await this.voteService.getVoteById(localId);
                     if (!vote) {
-                        console.error("Vote not found for localId:", localId);
                         return res.status(500).send();
                     }
 
                     vote.data = local.data.data as any;
                     vote.voterId = local.data.voterId as string;
                     await this.voteService.voteRepository.save(vote);
-                    console.log("Updated vote:", vote.id);
                     finalLocalId = vote.id;
                 } else {
-                    console.log("Creating new vote");
                     // Get userId from voterId or local.data.userId
                     const userId = local.data.userId as string;
                     const voterId = local.data.voterId as string;
@@ -247,7 +210,6 @@ export class WebhookController {
                     const voteData = local.data.data as any;
 
                     if (!userId || !voterId || !pollId || !voteData) {
-                        console.error("Missing required vote fields");
                         return res.status(400).send();
                     }
 
@@ -257,25 +219,14 @@ export class WebhookController {
                         voterId,
                         voteData
                     );
-                    console.log("Created vote with ID:", vote.id);
                     this.adapter.addToLockedIds(vote.id);
                     await this.adapter.mappingDb.storeMapping({
                         localId: vote.id,
                         globalId: req.body.id,
                     });
-                    console.log("Stored mapping for vote:", vote.id, "->", req.body.id);
                     finalLocalId = vote.id;
                 }
             } else if (mapping.tableName === "polls") {
-                console.log("📊 Processing poll webhook with data:", {
-                    localId,
-                    title: local.data.title,
-                    votingWeight: local.data.votingWeight,
-                    group: local.data.group,
-                    groupId: local.data.groupId,
-                    creatorId: local.data.creatorId
-                });
-                
                 const pollRepository = AppDataSource.getRepository(Poll);
                 
                 // Get groupId from group reference if present
@@ -289,11 +240,6 @@ export class WebhookController {
                 } else if (local.data.groupId) {
                     groupId = local.data.groupId as string;
                 }
-                
-                console.log("📊 Extracted poll data:", {
-                    groupId,
-                    votingWeight: local.data.votingWeight
-                });
                 
                 if (localId) {
                     // Update existing poll
@@ -315,24 +261,21 @@ export class WebhookController {
                         await pollRepository.save(poll);
                         finalLocalId = poll.id;
 
-                        // Check if this is an eReputation-weighted poll and calculate reputations
-                        console.log(`🔍 Checking if poll is eReputation-weighted:`, {
-                            pollId: poll.id,
-                            votingWeight: poll.votingWeight,
-                            groupId: poll.groupId,
-                            isWeighted: this.voteService.isEReputationWeighted(poll)
-                        });
+                        // Enqueue reputation calculation job if needed
                         if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
-                            console.log(`✅ Poll is eReputation-weighted, processing...`);
-                            await this.processEReputationWeightedPoll(poll);
-                        } else {
-                            console.log(`⏭️  Poll is not eReputation-weighted, skipping calculation`);
+                            try {
+                                await this.jobQueueService.enqueuePollReputationJob(
+                                    poll.id,
+                                    poll.groupId,
+                                    globalId // Use globalId as eventId for idempotency
+                                );
+                            } catch (error) {
+                                console.error(`Failed to enqueue reputation job for poll ${poll.id}:`, error);
+                            }
                         }
                     }
                 } else {
                     // Create new poll
-                    console.log("📝 Creating new poll...");
-                    
                     const poll = pollRepository.create({
                         title: local.data.title as string,
                         mode: local.data.mode as "normal" | "point" | "rank",
@@ -346,7 +289,6 @@ export class WebhookController {
                     });
                     
                     const savedPoll = await pollRepository.save(poll);
-                    console.log("✅ Poll saved with ID:", savedPoll.id);
                     
                     this.adapter.addToLockedIds(savedPoll.id);
                     await this.adapter.mappingDb.storeMapping({
@@ -355,306 +297,26 @@ export class WebhookController {
                     });
                     finalLocalId = savedPoll.id;
 
-                    // Check if this is an eReputation-weighted poll and calculate reputations
-                    console.log(`🔍 Checking if poll is eReputation-weighted:`, {
-                        pollId: savedPoll.id,
-                        votingWeight: savedPoll.votingWeight,
-                        groupId: savedPoll.groupId,
-                        isWeighted: this.voteService.isEReputationWeighted(savedPoll)
-                    });
+                    // Enqueue reputation calculation job if needed
                     if (this.voteService.isEReputationWeighted(savedPoll) && savedPoll.groupId) {
-                        console.log(`✅ Poll is eReputation-weighted, processing...`);
-                        await this.processEReputationWeightedPoll(savedPoll);
-                    } else {
-                        console.log(`⏭️  Poll is not eReputation-weighted, skipping calculation`);
+                        try {
+                            await this.jobQueueService.enqueuePollReputationJob(
+                                savedPoll.id,
+                                savedPoll.groupId,
+                                globalId // Use globalId as eventId for idempotency
+                            );
+                        } catch (error) {
+                            console.error(`Failed to enqueue reputation job for poll ${savedPoll.id}:`, error);
+                        }
                     }
                 }
             }
             
-            console.log(`✅ Webhook completed successfully`);
             res.status(200).send();
         } catch (e) {
-            console.error("eReputation Webhook error:", e);
+            console.error("Webhook error:", e);
             res.status(500).send();
         }
     };
 
-    /**
-     * Process eReputation-weighted poll: calculate reputations and transmit to eVoting
-     */
-    private async processEReputationWeightedPoll(poll: any): Promise<void> {
-        try {
-            console.log(`🔍 Processing eReputation-weighted poll: ${poll.id}`);
-            
-            if (!poll.groupId) {
-                console.error("Poll has no groupId, cannot calculate eReputation");
-                return;
-            }
-
-            // Get group with charter
-            const group = await this.groupService.getGroupById(poll.groupId);
-            if (!group) {
-                console.error("Group not found for poll");
-                return;
-            }
-
-            if (!group.charter) {
-                console.error("Group has no charter, cannot calculate eReputation");
-                return;
-            }
-
-            // Calculate reputations for all group members
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`📊 STARTING eReputation Calculation Process`);
-            console.log(`   Poll ID: ${poll.id}`);
-            console.log(`   Poll Title: ${poll.title}`);
-            console.log(`   Group ID: ${poll.groupId}`);
-            console.log(`   Group Name: ${group.name || "N/A"}`);
-            console.log(`${"=".repeat(80)}\n`);
-            
-            const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
-                poll.groupId,
-                group.charter
-            );
-
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`💾 SAVING eReputation Results`);
-            console.log(`   Poll ID: ${poll.id}`);
-            console.log(`   Group ID: ${poll.groupId}`);
-            console.log(`   Results count: ${reputationResults.length}`);
-            console.log(`${"=".repeat(80)}\n`);
-
-            // Save results
-            const voteReputationResult = await this.votingReputationService.saveReputationResults(
-                poll.id,
-                poll.groupId,
-                reputationResults
-            );
-
-            console.log(`✅ Saved reputation results with ID: ${voteReputationResult.id}`);
-            console.log(`   Created at: ${voteReputationResult.createdAt}`);
-            console.log(`   Updated at: ${voteReputationResult.updatedAt}`);
-
-            // Transmit results via web3adapter
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`📤 TRANSMITTING eReputation Results to eVoting`);
-            console.log(`   Result ID: ${voteReputationResult.id}`);
-            console.log(`   Poll ID: ${voteReputationResult.pollId}`);
-            console.log(`   Group ID: ${voteReputationResult.groupId}`);
-            console.log(`   Results to transmit: ${voteReputationResult.results.length} member reputations`);
-            console.log(`${"=".repeat(80)}\n`);
-            
-            await this.transmitReputationResults(voteReputationResult);
-
-            // Create system message with eReputation results
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`📨 CREATING SYSTEM MESSAGE WITH eReputation Results`);
-            console.log(`${"=".repeat(80)}\n`);
-            
-            try {
-                // Build message text with each person's eReputation
-                const messageLines: string[] = [];
-                messageLines.push(`eReputation scores calculated for poll: "${poll.title}"`);
-                messageLines.push(``);
-                
-                // Get user information for each result
-                for (const result of reputationResults) {
-                    const user = await this.userService.getUserByEname(result.ename);
-                    const userName = user?.name || "Unknown";
-                    const userEname = result.ename;
-                    const score = result.score;
-                    const justification = result.justification;
-                    
-                    messageLines.push(`${userName} (@${userEname}): ${score}/5`);
-                    messageLines.push(`  ${justification}`);
-                    messageLines.push(``);
-                }
-                
-                const messageText = messageLines.join('\n');
-                
-                // Create system message
-                await this.messageService.createSystemMessage({
-                    text: messageText,
-                    groupId: poll.groupId,
-                    voteId: poll.id
-                });
-                
-                console.log(`✅ System message created successfully`);
-                console.log(`   Group ID: ${poll.groupId}`);
-                console.log(`   Poll ID: ${poll.id}`);
-                console.log(`   Message includes ${reputationResults.length} eReputation scores`);
-            } catch (error) {
-                console.error(`❌ Failed to create system message:`, error);
-                // Don't throw - we don't want to fail the whole process if message creation fails
-            }
-
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`✅ SUCCESSFULLY COMPLETED eReputation Calculation & Transmission`);
-            console.log(`   Poll ID: ${poll.id}`);
-            console.log(`   Result ID: ${voteReputationResult.id}`);
-            console.log(`   Transmitted ${voteReputationResult.results.length} reputation scores to eVoting`);
-            console.log(`${"=".repeat(80)}\n`);
-        } catch (error) {
-            console.error("Error processing eReputation-weighted poll:", error);
-            // Don't throw - we don't want to fail the webhook if reputation calculation fails
-        }
-    }
-
-    /**
-     * Transmit reputation results to eVoting via web3adapter
-     */
-    private async transmitReputationResults(result: any): Promise<void> {
-        try {
-            console.log(`\n${"=".repeat(80)}`);
-            console.log(`📤 TRANSMITTING eReputation Results to eVoting API`);
-            console.log(`${"=".repeat(80)}`);
-            console.log(`   Preparing data for transmission...`);
-            
-            // Reload result with relations to ensure poll and group are loaded
-            const voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
-            const pollRepository = AppDataSource.getRepository(Poll);
-            const groupRepository = AppDataSource.getRepository(Group);
-            
-            console.log(`   🔍 Reloading result with relations...`);
-            console.log(`      - Result ID: ${result.id}`);
-            console.log(`      - Poll ID: ${result.pollId}`);
-            console.log(`      - Group ID: ${result.groupId}`);
-            
-            // Reload the result with poll and group relations
-            const reloadedResult = await voteReputationResultRepository.findOne({
-                where: { id: result.id },
-                relations: ["poll", "group"]
-            });
-            
-            if (!reloadedResult) {
-                console.error(`   ❌ Result not found: ${result.id}`);
-                throw new Error(`Result not found: ${result.id}`);
-            }
-            
-            // Ensure poll and group are loaded
-            let poll: Poll | null = reloadedResult.poll || null;
-            let group: Group | null = reloadedResult.group || null;
-            
-            // If relations weren't loaded, load them manually
-            if (!poll && reloadedResult.pollId) {
-                poll = await pollRepository.findOne({
-                    where: { id: reloadedResult.pollId }
-                });
-            }
-            
-            if (!group && reloadedResult.groupId) {
-                group = await groupRepository.findOne({
-                    where: { id: reloadedResult.groupId },
-                    select: ["id", "ename", "name"]
-                });
-            }
-            
-            if (!poll) {
-                console.error(`   ❌ Poll not found: ${reloadedResult.pollId}`);
-                throw new Error(`Poll not found: ${reloadedResult.pollId}`);
-            }
-            
-            if (!group) {
-                console.error(`   ❌ Group not found: ${reloadedResult.groupId}`);
-                throw new Error(`Group not found: ${reloadedResult.groupId}`);
-            }
-            
-            console.log(`   ✅ Loaded group:`, {
-                id: group.id,
-                name: group.name,
-                ename: group.ename || "NULL/MISSING"
-            });
-            
-            if (!group.ename) {
-                console.error(`   ⚠️  WARNING: Group ${group.id} has no ename! This will cause ownerEnamePath to fail.`);
-            }
-            
-            // Convert entity to plain object for web3adapter, using reloaded result with relations
-            // Stringify results array for Neo4j compatibility (can't store nested objects)
-            const data: any = {
-                id: reloadedResult.id,
-                pollId: reloadedResult.pollId,
-                groupId: reloadedResult.groupId,
-                results: JSON.stringify(reloadedResult.results), // Stringify for Neo4j
-                createdAt: reloadedResult.createdAt,
-                updatedAt: reloadedResult.updatedAt
-            };
-            
-            // Add poll with group for ownerEnamePath resolution (groups(poll.group.ename))
-            // The ownerEnamePath "groups(poll.group.ename)" will extract poll.group.ename from this structure
-            // We need to ensure the full structure is present for path resolution
-            data.poll = {
-                id: poll.id,
-                groupId: poll.groupId,
-                group: {
-                    id: group.id,
-                    ename: group.ename,
-                    name: group.name
-                }
-            };
-            
-            // Also ensure groupId is set for the mapping
-            if (!data.groupId) {
-                data.groupId = group.id;
-            }
-            
-            console.log(`   ✅ Results stringified for Neo4j compatibility`);
-            console.log(`      - Results as JSON string length: ${data.results.length} characters`);
-            
-            console.log(`   ✅ Data structure prepared for ownerEnamePath resolution:`);
-            console.log(`      - poll.id: ${data.poll.id}`);
-            console.log(`      - poll.group.id: ${data.poll.group.id}`);
-            console.log(`      - poll.group.ename: ${data.poll.group.ename || "NULL"}`);
-            console.log(`      - ownerEnamePath will resolve: groups(poll.group.ename) -> ${data.poll.group.ename || "NULL"}`);
-            
-            // Verify the path can be resolved
-            const testPath = "poll.group.ename";
-            const pathParts = testPath.split(".");
-            let testValue: any = data;
-            for (const part of pathParts) {
-                testValue = testValue?.[part];
-            }
-            console.log(`      - Path resolution test: poll.group.ename = ${testValue || "UNDEFINED"}`);
-
-            console.log(`\n   📦 Data prepared for transmission:`);
-            console.log(`      - Result ID: ${data.id}`);
-            console.log(`      - Poll ID: ${data.pollId}`);
-            console.log(`      - Group ID: ${data.groupId}`);
-            console.log(`      - Results count: ${reloadedResult.results.length} (stringified for transmission)`);
-            console.log(`\n   📋 Detailed eReputation Results being sent to eVoting:`);
-            // Use original array for logging, not stringified version
-            reloadedResult.results.forEach((memberResult: any, index: number) => {
-                console.log(`\n      ${index + 1}. User ename: ${memberResult.ename}`);
-                console.log(`         📊 eReputation Score: ${memberResult.score}/5`);
-                console.log(`         💬 Justification: "${memberResult.justification}"`);
-            });
-            
-            console.log(`\n   🚀 Sending via web3adapter to eVault (will forward to eVoting API)...`);
-            console.log(`   📋 Final data structure being sent:`);
-            console.log(`      - Has poll: ${!!data.poll}`);
-            console.log(`      - Has poll.group: ${!!data.poll?.group}`);
-            console.log(`      - poll.group.ename: ${data.poll?.group?.ename || "MISSING"}`);
-            console.log(`      - Full data keys: ${Object.keys(data).join(", ")}`);
-            if (data.poll) {
-                console.log(`      - poll keys: ${Object.keys(data.poll).join(", ")}`);
-                if (data.poll.group) {
-                    console.log(`      - poll.group keys: ${Object.keys(data.poll.group).join(", ")}`);
-                }
-            }
-
-            // Use web3adapter to sync to eVault (which will send webhook to eVoting)
-            await this.adapter.handleChange({
-                data,
-                tableName: "vote_reputation_results"
-            });
-
-            console.log(`\n   ✅ Successfully sent to web3adapter`);
-            console.log(`   ✅ Data will be synced to eVault and forwarded to eVoting API`);
-            console.log(`   ✅ eVoting will receive ${data.results.length} eReputation scores for weighted voting`);
-            console.log(`${"=".repeat(80)}\n`);
-        } catch (error) {
-            console.error(`\n   ❌ ERROR transmitting reputation results:`, error);
-            throw error;
-        }
-    }
 }

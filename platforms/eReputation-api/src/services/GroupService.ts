@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { Repository, In } from "typeorm";
 import { AppDataSource } from "../database/data-source";
 import { Group } from "../database/entities/Group";
 import { User } from "../database/entities/User";
@@ -23,8 +23,8 @@ export class GroupService {
         name: string,
         description: string,
         owner: string,
-        adminIds: string[],
-        participantIds: string[],
+        adminIds: string[] = [],
+        participantIds: string[] = [],
         charter?: string
     ): Promise<Group> {
         const group = this.groupRepository.create({
@@ -36,13 +36,13 @@ export class GroupService {
 
         // Add admins
         if (adminIds.length > 0) {
-            const admins = await this.userRepository.findByIds(adminIds);
+            const admins = await this.userRepository.findBy({ id: In(adminIds) });
             group.admins = admins;
         }
 
         // Add participants
         if (participantIds.length > 0) {
-            const participants = await this.userRepository.findByIds(participantIds);
+            const participants = await this.userRepository.findBy({ id: In(participantIds) });
             group.participants = participants;
         }
 

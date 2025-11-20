@@ -221,8 +221,21 @@ export class VotingReputationService {
                     ename = member?.ename || null;
                 }
                 
-                if (!ename || !item.score || typeof item.score !== 'number' || !item.justification || typeof item.justification !== 'string') {
-                    console.error(`   ❌ Invalid result at index ${index}:`, item);
+                // Explicit validation: ensure ename is a non-empty string
+                if (typeof ename !== 'string' || ename.trim() === '') {
+                    console.error(`   ❌ Invalid result at index ${index}: ename is not a non-empty string`, item);
+                    return;
+                }
+                
+                // Explicit validation: ensure score is a finite number
+                if (typeof item.score !== 'number' || !Number.isFinite(item.score)) {
+                    console.error(`   ❌ Invalid result at index ${index}: score is not a finite number`, item);
+                    return;
+                }
+                
+                // Explicit validation: ensure justification is a string
+                if (typeof item.justification !== 'string') {
+                    console.error(`   ❌ Invalid result at index ${index}: justification is not a string`, item);
                     return;
                 }
 
