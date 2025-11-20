@@ -2,8 +2,9 @@
 import { cn } from "$lib/utils";
 import { CupertinoPane } from "cupertino-pane";
 import type { Snippet } from "svelte";
-import { swipe } from "svelte-gestures";
+import { useSwipe } from "svelte-gestures";
 import type { HTMLAttributes } from "svelte/elements";
+import type { SwipeCustomEvent } from "svelte-gestures";
 
 interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
     isPaneOpen?: boolean;
@@ -22,6 +23,17 @@ let {
     dismissible = true,
     ...restProps
 }: IDrawerProps = $props();
+
+const handleDrawerSwipe = (event: SwipeCustomEvent) => {
+    if (event.detail.direction === "down") {
+        handleSwipe?.(isPaneOpen);
+    }
+};
+
+const { swipe } = useSwipe(handleDrawerSwipe, () => ({
+    timeframe: 300,
+    minSwipeDistance: 60,
+}), undefined, true);
 
 // Disabled click outside behavior to prevent white screen issues
 // const handleClickOutside = () => {
@@ -64,11 +76,7 @@ $effect(() => {
 
 <div
     {...restProps}
-    use:swipe={() => ({
-        timeframe: 300,
-        minSwipeDistance: 60,
-    })}
-    onswipe={() => handleSwipe?.(isPaneOpen)}
+    use:swipe
     bind:this={drawerElem}
     class={cn(restProps.class)}
 >
