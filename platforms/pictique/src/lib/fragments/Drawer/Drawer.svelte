@@ -25,10 +25,15 @@
 		}
 	};
 
-	const swipeResult = useSwipe(handleDrawerSwipe, () => ({
-		timeframe: 300,
-		minSwipeDistance: 60
-	}), undefined, true);
+	const swipeResult = useSwipe(
+		handleDrawerSwipe,
+		() => ({
+			timeframe: 300,
+			minSwipeDistance: 60
+		}),
+		undefined,
+		true
+	);
 	const swipe = swipeResult.swipe as any;
 
 	onMount(() => {
@@ -51,12 +56,7 @@
 	});
 </script>
 
-<div
-	bind:this={drawerElement}
-	{...restProps}
-	use:swipe
-	class={cn(restProps.class)}
->
+<div bind:this={drawerElement} {...restProps} use:swipe class={cn(restProps.class)}>
 	<div class="h-[100%] overflow-y-scroll">
 		{@render children?.()}
 	</div>
