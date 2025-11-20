@@ -16,7 +16,14 @@ export class GroupController {
                 return res.status(400).json({ error: "Query parameter 'q' is required" });
             }
 
-            const limitNum = limit ? parseInt(limit as string) : 10;
+            let limitNum = 10;
+            if (typeof limit === "string") {
+                const parsed = parseInt(limit, 10);
+                if (!Number.isNaN(parsed) && parsed > 0 && parsed <= 100) {
+                    limitNum = parsed;
+                }
+            }
+
             const groups = await this.groupService.searchGroups(q, limitNum);
 
             res.json(groups.map(group => ({
