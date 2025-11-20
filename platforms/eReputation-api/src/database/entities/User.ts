@@ -10,6 +10,7 @@ import {
 } from "typeorm";
 import { Vote } from "./Vote";
 import { Poll } from "./Poll";
+import { Wishlist } from "./Wishlist";
 
 @Entity("users")
 export class User {
@@ -73,4 +74,7 @@ export class User {
 
     @OneToMany(() => Vote, (vote) => vote.user)
     votes!: Vote[];
+
+    @OneToMany(() => Wishlist, (wishlist) => wishlist.user)
+    wishlists!: Wishlist[];
 }

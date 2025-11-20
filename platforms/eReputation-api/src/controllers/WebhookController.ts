@@ -10,6 +10,7 @@ import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Poll } from "../database/entities/Poll";
 import { VoteReputationResult } from "../database/entities/VoteReputationResult";
+import { Wishlist } from "../database/entities/Wishlist";
 import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
@@ -302,6 +303,150 @@ export class WebhookController {
                         });
                     }
                 }
+            } else if (mapping.tableName === "wishlists") {
+                console.log("📋 Processing wishlist webhook:");
+                console.log("   Global ID:", req.body.id);
+                console.log("   Local ID:", localId);
+                console.log("   Received data:", {
+                    title: local.data.title,
+                    content: local.data.content ? `${(local.data.content as string).substring(0, 100)}...` : null,
+                    contentLength: local.data.content ? (local.data.content as string).length : 0,
+                    isActive: local.data.isActive,
+                    isPublic: local.data.isPublic,
+                    user: local.data.user,
+                    userId: local.data.userId
+                });
+                
+                const wishlistRepository = AppDataSource.getRepository(Wishlist);
+                const userRepository = AppDataSource.getRepository(User);
+                
+                // Get userId from user reference
+                let userId: string | null = null;
+                if (local.data.user) {
+                    if (typeof local.data.user === "string" && local.data.user.includes("(")) {
+                        userId = local.data.user.split("(")[1].split(")")[0];
+                    } else if (typeof local.data.user === "object" && local.data.user !== null && "id" in local.data.user) {
+                        userId = (local.data.user as { id: string }).id;
+                    }
+                } else if (local.data.userId) {
+                    userId = local.data.userId as string;
+                }
+                
+                console.log("   Extracted userId:", userId);
+                
+                if (!userId) {
+                    console.error("   ❌ No userId found in wishlist data");
+                    return res.status(400).send();
+                }
+                
+                // Load user relation
+                const user = await userRepository.findOne({ where: { id: userId } });
+                if (!user) {
+                    console.error("   ❌ User not found for userId:", userId);
+                    return res.status(400).send();
+                }
+                
+                console.log("   ✅ User found:", {
+                    id: user.id,
+                    name: user.name,
+                    ename: user.ename,
+                    handle: user.handle
+                });
+                
+                if (localId) {
+                    // Update existing wishlist
+                    console.log("   🔄 Updating existing wishlist:", localId);
+                    const wishlist = await wishlistRepository.findOne({
+                        where: { id: localId },
+                        relations: ["user"]
+                    });
+                    
+                    if (wishlist) {
+                        console.log("   Current wishlist user mapping:", {
+                            wishlistId: wishlist.id,
+                            currentUserId: wishlist.userId,
+                            currentUserName: wishlist.user?.name,
+                            currentUserEname: wishlist.user?.ename
+                        });
+                        
+                        wishlist.title = local.data.title as string;
+                        wishlist.content = local.data.content as string;
+                        wishlist.isActive = local.data.isActive as boolean ?? true;
+                        wishlist.isPublic = local.data.isPublic as boolean ?? false;
+                        wishlist.metadata = local.data.metadata as any;
+                        wishlist.user = user;
+                        wishlist.userId = userId;
+                        
+                        const savedWishlist = await wishlistRepository.save(wishlist);
+                        
+                        // Reload with relations to verify
+                        const verifiedWishlist = await wishlistRepository.findOne({
+                            where: { id: savedWishlist.id },
+                            relations: ["user"]
+                        });
+                        
+                        console.log("   ✅ Wishlist updated successfully:");
+                        console.log("      Wishlist ID:", verifiedWishlist?.id);
+                        console.log("      Title:", verifiedWishlist?.title);
+                        console.log("      Content preview:", verifiedWishlist?.content ? `${verifiedWishlist.content.substring(0, 100)}...` : null);
+                        console.log("      Content length:", verifiedWishlist?.content?.length || 0);
+                        console.log("      isActive:", verifiedWishlist?.isActive);
+                        console.log("      isPublic:", verifiedWishlist?.isPublic);
+                        console.log("      User mapping:", {
+                            userId: verifiedWishlist?.userId,
+                            userName: verifiedWishlist?.user?.name,
+                            userEname: verifiedWishlist?.user?.ename,
+                            userHandle: verifiedWishlist?.user?.handle,
+                            userMatch: verifiedWishlist?.userId === userId && verifiedWishlist?.user?.id === user.id ? "✅ CORRECT" : "❌ MISMATCH"
+                        });
+                        
+                        finalLocalId = wishlist.id;
+                    } else {
+                        console.error("   ❌ Wishlist not found for localId:", localId);
+                    }
+                } else {
+                    // Create new wishlist
+                    console.log("   ➕ Creating new wishlist");
+                    const wishlist = wishlistRepository.create({
+                        title: local.data.title as string,
+                        content: local.data.content as string,
+                        isActive: local.data.isActive as boolean ?? true,
+                        isPublic: local.data.isPublic as boolean ?? false,
+                        metadata: local.data.metadata as any,
+                        user: user,
+                        userId: userId
+                    });
+                    
+                    const savedWishlist = await wishlistRepository.save(wishlist);
+                    
+                    // Reload with relations to verify
+                    const verifiedWishlist = await wishlistRepository.findOne({
+                        where: { id: savedWishlist.id },
+                        relations: ["user"]
+                    });
+                    
+                    console.log("   ✅ Wishlist created successfully:");
+                    console.log("      Wishlist ID:", verifiedWishlist?.id);
+                    console.log("      Title:", verifiedWishlist?.title);
+                    console.log("      Content preview:", verifiedWishlist?.content ? `${verifiedWishlist.content.substring(0, 100)}...` : null);
+                    console.log("      Content length:", verifiedWishlist?.content?.length || 0);
+                    console.log("      isActive:", verifiedWishlist?.isActive);
+                    console.log("      isPublic:", verifiedWishlist?.isPublic);
+                    console.log("      User mapping:", {
+                        userId: verifiedWishlist?.userId,
+                        userName: verifiedWishlist?.user?.name,
+                        userEname: verifiedWishlist?.user?.ename,
+                        userHandle: verifiedWishlist?.user?.handle,
+                        userMatch: verifiedWishlist?.userId === userId && verifiedWishlist?.user?.id === user.id ? "✅ CORRECT" : "❌ MISMATCH"
+                    });
+                    
+                    this.adapter.addToLockedIds(savedWishlist.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: savedWishlist.id,
+                        globalId: req.body.id,
+                    });
+                    finalLocalId = savedWishlist.id;
+                }
             }
             
             res.status(200).send();
@@ -315,11 +460,12 @@ export class WebhookController {
         if (!poll.groupId) return;
 
         const group = await this.groupService.getGroupById(poll.groupId);
-        if (!group || !group.charter) return;
+        if (!group) return;
 
+        const charter = (group.charter && group.charter.trim()) ? group.charter : "";
         const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
             poll.groupId,
-            group.charter
+            charter
         );
 
         const voteReputationResult = await this.votingReputationService.saveReputationResults(

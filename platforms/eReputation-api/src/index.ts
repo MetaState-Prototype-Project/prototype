@@ -91,6 +91,7 @@ app.get("/api/users/me", authGuard, userController.currentUser);
 app.get("/api/users/search", userController.search);
 app.get("/api/users/:id", authGuard, userController.getProfileById);
 app.patch("/api/users", authGuard, userController.updateProfile);
+app.get("/api/users/me/wishlist", authGuard, userController.getMyWishlist);
 
 // Group routes
 app.get("/api/groups/search", groupController.search);

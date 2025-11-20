@@ -73,6 +73,28 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 }
             }
 
+            // Special handling for Wishlist entities to ensure user relation is loaded
+            if (tableName === "wishlists") {
+                const wishlistRepository = AppDataSource.getRepository("Wishlist");
+                const fullWishlist = await wishlistRepository.findOne({
+                    where: { id: entity.id },
+                    relations: ["user"]
+                });
+                
+                if (fullWishlist && fullWishlist.user) {
+                    enrichedEntity.user = fullWishlist.user;
+                } else if (entity.userId) {
+                    // Fallback: load user by userId if relation wasn't loaded
+                    const userRepository = AppDataSource.getRepository("User");
+                    const user = await userRepository.findOne({
+                        where: { id: entity.userId }
+                    });
+                    if (user) {
+                        enrichedEntity.user = user;
+                    }
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
