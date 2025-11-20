@@ -181,7 +181,7 @@ export default function LoginScreen() {
           </p>
         </div>
 
-        <div className="p-4 rounded-xl bg-gray-100 text-gray-700 mt-4">
+        <div className="p-4 rounded-xl text-xs text-center bg-gray-100 text-gray-500 mt-4">
           You are entering Group Charter - a group charter management
           platform built on the Web 3.0 Data Space (W3DS)
           architecture. This system is designed around the principle
