@@ -10,6 +10,7 @@ import { Vote } from "./entities/Vote";
 import { PollVotingState } from "./entities/PollVotingState";
 import { MetaEnvelopeMap } from "./entities/MetaEnvelopeMap";
 import { Message } from "./entities/Message";
+import { VoteReputationResult } from "./entities/VoteReputationResult";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
@@ -18,7 +19,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.EVOTING_DATABASE_URL,
     synchronize: false,
-    entities: [User, Group, Verification, Poll, Vote, PollVotingState, MetaEnvelopeMap, Message],
+    entities: [User, Group, Verification, Poll, Vote, PollVotingState, MetaEnvelopeMap, Message, VoteReputationResult],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiClient } from "@/lib/apiClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import SelfCalculationModal from "@/components/modals/self-calculation-modal";
 import OtherCalculationModal from "@/components/modals/other-calculation-modal";
 import ReferenceModal from "@/components/modals/reference-modal";
 import ReferenceViewModal from "@/components/modals/reference-view-modal";
@@ -27,22 +27,25 @@ import ReferenceViewModal from "@/components/modals/reference-view-modal";
 export default function Dashboard() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [selfModalOpen, setSelfModalOpen] = useState(false);
   const [otherModalOpen, setOtherModalOpen] = useState(false);
   const [referenceModalOpen, setReferenceModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [referenceViewModal, setReferenceViewModal] = useState<any>(null);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // This page is only rendered when authenticated, no need for redirect logic
 
-  const { data: stats } = useQuery<{currentScore: string; totalReferences: string}>({
+  const { data: stats } = useQuery<{totalReferences: string}>({
     queryKey: ["/api/dashboard/stats"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/dashboard/stats");
+      return response.data;
+    },
     enabled: isAuthenticated,
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  
   const { data: activitiesResponse, refetch: refetchActivities } = useQuery<{
     activities: any[];
     pagination: {
@@ -54,12 +57,15 @@ export default function Dashboard() {
       hasPrev: boolean;
     };
   }>({
-    queryKey: ["/api/dashboard/activities", currentPage],
+    queryKey: ["/api/dashboard/activities", currentPage, activeFilter],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/dashboard/activities?page=${currentPage}&filter=${activeFilter}`);
+      return response.data;
+    },
     enabled: isAuthenticated,
     refetchOnWindowFocus: true,
     refetchInterval: 5000, // Poll every 5 seconds for updates
     staleTime: 0, // Always consider data stale
-    queryFn: () => fetch(`/api/dashboard/activities?page=${currentPage}`).then(res => res.json())
   });
 
   const activities = activitiesResponse?.activities || [];
@@ -71,12 +77,14 @@ export default function Dashboard() {
 
   const handleViewActivity = (activity: any) => {
     // For reference activities, show reference details modal
-    if (activity.type === 'reference' || activity.activity === 'Reference Provided') {
+    if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
       const referenceData = activity.data; // This contains the full reference object
       setReferenceViewModal({
         id: activity.id,
-        type: 'Sent',
-        forFrom: activity.target,
+        type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
+        forFrom: activity.activity === 'Reference Received' 
+          ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
+          : activity.target,
         date: new Date(activity.date).toLocaleDateString(),
         status: activity.status || 'Signed',
         referenceType: referenceData?.referenceType || 'general',
@@ -87,19 +95,29 @@ export default function Dashboard() {
     }
     
     // For calculation activities, show the original details modal
+    // Double-check this is not a reference (shouldn't happen, but safety check)
+    if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
+      // This shouldn't happen, but if it does, show reference modal instead
+      const referenceData = activity.data;
+      setReferenceViewModal({
+        id: activity.id,
+        type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
+        forFrom: activity.activity === 'Reference Received' 
+          ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
+          : activity.target,
+        date: new Date(activity.date).toLocaleDateString(),
+        status: activity.status || 'Signed',
+        referenceType: referenceData?.referenceType || 'general',
+        content: referenceData?.content || 'Reference content not available',
+        targetType: referenceData?.targetType || 'user'
+      });
+      return;
+    }
+    
     setSelectedActivity(activity);
     setViewModalOpen(true);
   };
 
-  const handleShareActivity = (activity: any) => {
-    const shareText = `My eReputation calculation: ${activity.result} for ${activity.target}`;
-    navigator.clipboard.writeText(shareText).then(() => {
-      // Could show a toast here instead
-      console.log('Results copied to clipboard!');
-    }).catch(() => {
-      console.log('Share feature coming soon!');
-    });
-  };
 
   // Number counting animation hook
   const useCountUp = (end: number, duration: number = 2000) => {
@@ -134,9 +152,7 @@ export default function Dashboard() {
     return count;
   };
 
-  const currentScore = parseFloat(stats?.currentScore || "0");
   const totalReferences = parseInt(stats?.totalReferences || "0");
-  const animatedScore = useCountUp(currentScore * 10, 800) / 10; // Convert to decimal for animation
   const animatedReferences = useCountUp(totalReferences, 600);
 
   const getStatusBadge = (status: string) => {
@@ -155,9 +171,11 @@ export default function Dashboard() {
   };
 
   // Helper function to get score color based on percentage
-  const getScoreColor = (result: string) => {
+  const getScoreColor = (result: string | undefined | null) => {
+    if (!result) return 'text-gray-500 font-black'; // Default gray for undefined/null
+    
     const score = parseFloat(result.replace('Score: ', '')) || 0;
-    const percentage = (score / 10) * 100;
+    const percentage = (score / 5) * 100; // Scores are out of 5, not 10
     
     if (percentage <= 25) return 'text-red-500 font-black'; // Red (0-25%)
     if (percentage <= 50) return 'text-orange-500 font-black'; // Orange (25-50%)
@@ -181,6 +199,8 @@ export default function Dashboard() {
         return <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" /></svg>;
       case "Reference Provided":
         return <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>;
+      case "Reference Received":
+        return <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" /></svg>;
       default:
         return <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>;
     }
@@ -247,13 +267,6 @@ export default function Dashboard() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => window.location.href = '/references'}>
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    My References
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
@@ -278,21 +291,7 @@ export default function Dashboard() {
           </div>
           
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full lg:w-auto">
-            <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{backgroundColor: '#4C3F54'}}>
-              <div className="text-xs sm:text-sm text-white/80 font-medium">Current eReputation</div>
-              <div className="text-xl sm:text-3xl font-black text-white">
-                {animatedScore.toFixed(1)}
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 sm:w-4 sm:h-4 bg-white/20 rounded-lg flex items-center justify-center shadow-sm transform rotate-12 border border-swiss-cheese/30 mr-1">
-                  <svg className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                </div>
-                <span className="text-xs text-white/70">out of 10</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 w-full lg:w-auto">
             <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{backgroundColor: '#4C3F54'}}>
               <div className="text-xs sm:text-sm text-white/80 font-medium">Total eReferences</div>
               <div className="text-xl sm:text-3xl font-black text-white">
@@ -311,24 +310,7 @@ export default function Dashboard() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 items-center">
-          <button 
-            onClick={() => setSelfModalOpen(true)}
-            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
-          >
-            <div className="flex items-center gap-3 h-full">
-              <div className="w-12 h-12 bg-fig rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 transform rotate-12">
-                <svg className="w-6 h-6 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <h3 className="font-black text-lg mb-1 text-fig leading-tight">Calculate My eReputation</h3>
-                <p className="text-fig/70 text-sm font-medium leading-tight">Calculate your current eReputation throughout the W3DS</p>
-              </div>
-            </div>
-          </button>
-
+        <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8 items-center">
           <button 
             onClick={() => setOtherModalOpen(true)}
             className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
@@ -348,7 +330,7 @@ export default function Dashboard() {
 
           <button 
             onClick={() => setReferenceModalOpen(true)}
-            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 sm:col-span-2 lg:col-span-1 h-32 w-full max-w-sm sm:max-w-none"
+            className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
           >
             <div className="flex items-center gap-3 h-full">
               <div className="w-12 h-12 bg-fig rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 transform rotate-12">
@@ -367,8 +349,94 @@ export default function Dashboard() {
         {/* Activity History Table */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="px-4 sm:px-6 py-6 border-b border-gray-200 bg-gradient-to-r from-fig/5 to-white">
-            <h3 className="text-xl sm:text-2xl font-black text-fig">Recent Activity</h3>
-            <p className="text-gray-700 text-sm mt-2 font-medium">Your latest eReputation activities and calculations</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 className="text-xl sm:text-2xl font-black text-fig">Recent Activity</h3>
+                <p className="text-gray-700 text-sm mt-2 font-medium">Your latest eReputation activities and calculations</p>
+              </div>
+              
+              {/* Quick Filters */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    setActiveFilter('all');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'all'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('sent-references');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'sent-references'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Sent References
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('received-references');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'received-references'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Received
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('analysis');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'analysis'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Analysis
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('self-evaluation');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'self-evaluation'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Self Evaluation
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveFilter('other-evaluations');
+                    setCurrentPage(1);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeFilter === 'other-evaluations'
+                      ? 'bg-fig text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Other Evaluations
+                </button>
+              </div>
+            </div>
           </div>
           
           {activities.length === 0 ? (
@@ -380,23 +448,35 @@ export default function Dashboard() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-gray-700 mb-2">No activities yet</p>
-                  <p className="text-gray-500">Start by calculating your reputation or providing a reference</p>
+                  <p className="text-lg font-semibold text-gray-700 mb-2">
+                    {activeFilter !== 'all' ? 'No activities match this filter' : 'No activities yet'}
+                  </p>
+                  <p className="text-gray-500">
+                    {activeFilter !== 'all' 
+                      ? 'Try selecting a different filter or clear filters to see all activities'
+                      : 'Start by calculating your reputation or providing a reference'}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-3 mt-4">
+                {activeFilter !== 'all' ? (
                   <button 
-                    onClick={() => setSelfModalOpen(true)}
-                    className="px-4 py-2 bg-apple-red text-white rounded-lg font-medium hover:bg-apple-red/90 transition-colors"
+                    onClick={() => {
+                      setActiveFilter('all');
+                      setCurrentPage(1);
+                    }}
+                    className="px-4 py-2 bg-fig text-white rounded-lg font-medium hover:bg-fig/90 transition-colors"
                   >
-                    Calculate My Score
+                    Show All Activities
                   </button>
-                  <button 
-                    onClick={() => setReferenceModalOpen(true)}
-                    className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
-                  >
-                    Provide Reference
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    <button 
+                      onClick={() => setReferenceModalOpen(true)}
+                      className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
+                    >
+                      Provide Reference
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -427,7 +507,7 @@ export default function Dashboard() {
                               ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
                               : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
                               ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                              : activity.activity === 'Reference Provided'
+                              : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
                               ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
                               : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
                           }`}>
@@ -439,20 +519,22 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {activity.target}
+                        {activity.activity === 'Reference Received' 
+                          ? 'You'
+                          : activity.target || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(activity.date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {activity.activity === 'Reference Provided' ? (
+                        {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
                           <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7"
                                 style={{
                                   borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
                                   backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
                                   color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
                                 }}>
-                            {activity.status === 'Revoked' ? 'revoked' : 'signed'}
+                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
                           </span>
                         ) : (
                           <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black ${getScoreColor(activity.result)} bg-white border-2 w-20 h-7`}
@@ -464,7 +546,7 @@ export default function Dashboard() {
                                                  getScoreColor(activity.result).includes('orange') ? '#fff7ed' :
                                                  getScoreColor(activity.result).includes('yellow') ? '#fefce8' : '#f0fdf4'
                                 }}>
-                            {activity.result}
+                            {activity.result || 'Calculating...'}
                           </span>
                         )}
                       </td>
@@ -485,14 +567,6 @@ export default function Dashboard() {
                               </svg>
                               View Details
                             </DropdownMenuItem>
-                            {activity.type === 'calculation' && activity.status === 'complete' && (
-                              <DropdownMenuItem onClick={() => handleShareActivity(activity)}>
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                                </svg>
-                                Share Results
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -517,15 +591,19 @@ export default function Dashboard() {
                             ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
                             : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
                             ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                            : activity.activity === 'Reference Provided'
-                            ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                            : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
+                            : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
+                              ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                              : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
                         }`}>
                           {getActivityIcon(activity.activity)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-bold text-fig mb-1">{activity.activity}</div>
-                          <div className="text-xs text-gray-600 font-medium">{activity.target}</div>
+                          <div className="text-xs text-gray-600 font-medium">
+                            {activity.activity === 'Reference Received' 
+                              ? 'You'
+                              : activity.target || 'Unknown'}
+                          </div>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
@@ -545,26 +623,18 @@ export default function Dashboard() {
                               </svg>
                               View Details
                             </DropdownMenuItem>
-                            {activity.type === 'calculation' && activity.status === 'complete' && (
-                              <DropdownMenuItem onClick={() => handleShareActivity(activity)}>
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                                </svg>
-                                Share Results
-                              </DropdownMenuItem>
-                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <div className="flex items-center gap-2">
                           <div className="text-xs text-gray-500">{new Date(activity.date).toLocaleDateString()}</div>
-                          {activity.activity === 'Reference Provided' ? (
+                          {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
                             <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"
                                   style={{
                                     borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
                                     backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
                                     color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
                                   }}>
-                              {activity.status === 'Revoked' ? 'revoked' : 'signed'}
+                              {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
                             </span>
                           ) : (
                             <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"
@@ -622,7 +692,6 @@ export default function Dashboard() {
       </div>
 
       {/* Modals */}
-      <SelfCalculationModal open={selfModalOpen} onOpenChange={setSelfModalOpen} />
       <OtherCalculationModal open={otherModalOpen} onOpenChange={setOtherModalOpen} />
       <ReferenceModal open={referenceModalOpen} onOpenChange={setReferenceModalOpen} />
       
@@ -633,10 +702,10 @@ export default function Dashboard() {
         reference={referenceViewModal}
       />
       
-      {/* Activity Details Modal */}
+      {/* Activity Details Modal - Only for calculations, not references */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50 border-2 border-fig/20">
-          <DialogHeader className="text-center pb-6">
+        <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50 border-2 border-fig/20 max-h-[85vh] flex flex-col">
+          <DialogHeader className="text-center pb-6 flex-shrink-0">
             <DialogTitle className="flex items-center justify-center gap-3 text-fig text-xl font-black">
               <div className="w-8 h-8 bg-fig rounded-lg flex items-center justify-center transform rotate-12">
                 <svg className="w-5 h-5 text-swiss-cheese transform -rotate-12" fill="currentColor" viewBox="0 0 20 20">
@@ -651,23 +720,24 @@ export default function Dashboard() {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedActivity && (
-            <div className="space-y-6">
+          {selectedActivity && (selectedActivity as any).type !== 'reference' && (selectedActivity as any).activity !== 'Reference Provided' && (selectedActivity as any).activity !== 'Reference Received' ? (
+            <div className="space-y-6 overflow-y-auto flex-1">
               
               {/* Score Visualization */}
               <div className="bg-gradient-to-br from-fig/5 to-apple-red/5 rounded-2xl p-6 border border-fig/10">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-black text-fig">Reputation Score</h3>
                   <span className="text-2xl font-black text-fig">
-                    {(selectedActivity as any).result}
+                    {(selectedActivity as any).result || 'Calculating...'}
                   </span>
                 </div>
                 
                 {/* Animated Circle Progress with Dynamic Gradient */}
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
-                    const score = parseFloat((selectedActivity as any).result.replace('Score: ', '')) || 5;
-                    const percentage = (score / 10) * 100;
+                    const resultStr = (selectedActivity as any).result || '';
+                    const score = parseFloat(resultStr.replace('Score: ', '')) || 0;
+                    const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
                     const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
                     
@@ -797,80 +867,53 @@ export default function Dashboard() {
                   
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-2xl font-black text-fig">
-                      {Math.round(((parseFloat((selectedActivity as any).result.replace('Score: ', '')) || 5) / 10) * 100)}%
+                      {Math.round(((parseFloat(((selectedActivity as any).result || '').replace('Score: ', '')) || 0) / 5) * 100)}%
                     </span>
                     <span className="text-xs font-medium text-gray-500 mt-1">SCORE</span>
                   </div>
                 </div>
               </div>
 
-              {/* Activity Information Cards */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-apple-red/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-3 h-3 text-apple-red" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm6 7a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1zm-3 3a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-4-3a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Activity Type</label>
-                  </div>
-                  <p className="text-sm font-black text-fig">{(selectedActivity as any).activity}</p>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 bg-swiss-cheese/20 rounded-lg flex items-center justify-center">
+              {/* AI Explanation/Justification */}
+              {(selectedActivity as any).explanation && (
+                <div className="bg-fig-10 rounded-xl p-4 border-2 border-fig/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 bg-fig/20 rounded-lg flex items-center justify-center">
                       <svg className="w-3 h-3 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Date</label>
+                    <label className="text-xs font-bold text-fig uppercase tracking-wider">Score Justification</label>
                   </div>
-                  <p className="text-sm font-black text-gray-900">
-                    {new Date((selectedActivity as any).date).toLocaleDateString('en-US', { 
-                      weekday: 'short', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })}
+                  <p className="text-sm text-fig/90 leading-relaxed whitespace-pre-wrap">
+                    {(selectedActivity as any).explanation}
                   </p>
                 </div>
-              </div>
-              
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-basil/20 rounded-lg flex items-center justify-center">
-                    <svg className="w-3 h-3 text-basil" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Target Profile</label>
-                </div>
-                <p className="text-sm font-black text-gray-900">{(selectedActivity as any).target}</p>
-              </div>
-
-              {/* Remove status badge section */}
+              )}
               
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <Button 
-                  onClick={() => handleShareActivity(selectedActivity)}
-                  variant="outline" 
-                  className="flex-1 border-fig text-fig hover:bg-fig hover:text-white transition-all"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-                  </svg>
-                  Share Results
-                </Button>
-                <Button 
                   onClick={() => setViewModalOpen(false)}
-                  className="flex-1 bg-fig hover:bg-fig/90 text-white font-bold"
+                  className="w-full bg-fig hover:bg-fig/90 text-white font-bold"
                 >
                   Close
                 </Button>
               </div>
             </div>
-          )}
+          ) : selectedActivity ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">This activity is a reference, not a calculation.</p>
+              <Button 
+                onClick={() => {
+                  setViewModalOpen(false);
+                  setSelectedActivity(null);
+                }}
+                className="mt-4"
+              >
+                Close
+              </Button>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

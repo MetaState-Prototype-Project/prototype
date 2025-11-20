@@ -105,7 +105,17 @@ export default function Home() {
                         <div className="flex items-center space-x-2">
                             <Button
                                 asChild
-                                className="bg-(--crimson) text-white hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border transition-colors"
+                                className="text-white border transition-colors"
+                                style={{ backgroundColor: 'var(--crimson)' }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--crimson-50)';
+                                    e.currentTarget.style.color = 'var(--crimson)';
+                                    e.currentTarget.style.borderColor = 'var(--crimson)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--crimson)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
                             >
                                 <Link href="/create">
                                     + Create New Poll
@@ -123,7 +133,7 @@ export default function Home() {
                 <CardContent>
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--crimson)" />
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--crimson)' }} />
                         </div>
                     ) : !pollsData || pollsData.polls.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
@@ -180,7 +190,7 @@ export default function Home() {
                                                     <td className="py-3 px-4">
                                                         <Link 
                                                             href={`/${poll.id}`}
-                                                            className="font-medium text-gray-900 hover:text-(--crimson) transition-colors cursor-pointer"
+                                                            className="font-medium text-gray-900 transition-colors cursor-pointer hover:text-[var(--crimson)]"
                                                         >
                                                             {poll.title}
                                                         </Link>

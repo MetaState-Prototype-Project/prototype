@@ -28,13 +28,9 @@ const JUNCTION_TABLE_MAP = {
 
 @EventSubscriber()
 export class PostgresSubscriber implements EntitySubscriberInterface {
-    static {
-        console.log("🔧 PostgresSubscriber class is being loaded");
-    }
     private adapter: Web3Adapter;
 
     constructor() {
-        console.log("🚀 PostgresSubscriber constructor called - subscriber is being instantiated");
         this.adapter = adapter;
     }
 
@@ -73,6 +69,53 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 }
             }
 
+            // Special handling for Poll entities to ensure group with ename is loaded
+            if (tableName === "polls" && (entity.groupId || entity.group)) {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const groupId = entity.group?.id || entity.groupId;
+                
+                if (groupId) {
+                    const fullGroup = await groupRepository.findOne({
+                        where: { id: groupId },
+                        select: ["id", "ename", "name"]
+                    });
+                    
+                    if (fullGroup) {
+                        enrichedEntity.group = fullGroup;
+                    }
+                }
+            }
+
+            // Special handling for Vote entities to ensure poll and group are loaded
+            if (tableName === "votes" && (entity.pollId || entity.poll)) {
+                const pollRepository = AppDataSource.getRepository("Poll");
+                const groupRepository = AppDataSource.getRepository("Group");
+                const pollId = entity.poll?.id || entity.pollId;
+                
+                if (pollId) {
+                    const fullPoll = await pollRepository.findOne({
+                        where: { id: pollId },
+                        relations: ["group"]
+                    });
+                    
+                    if (fullPoll) {
+                        enrichedEntity.poll = fullPoll;
+                        
+                        // If poll has groupId, load the group with ename
+                        if (fullPoll.groupId) {
+                            const fullGroup = await groupRepository.findOne({
+                                where: { id: fullPoll.groupId },
+                                select: ["id", "ename", "name"]
+                            });
+                            
+                            if (fullGroup) {
+                                enrichedEntity.poll.group = fullGroup;
+                            }
+                        }
+                    }
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
@@ -97,7 +140,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 
                 if (fullGroup) {
                     enrichedMessage.group = fullGroup;
-                    console.log("📝 Message group enriched with admins:", fullGroup.admins?.length || 0);
                 }
             }
             
@@ -121,10 +163,82 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     /**
+     * Special enrichment method for Poll entities to ensure group with ename is loaded
+     */
+    private async enrichPollEntity(pollEntity: any): Promise<any> {
+        try {
+            const enrichedPoll = { ...pollEntity };
+            const groupRepository = AppDataSource.getRepository("Group");
+            
+            // Load group if we have groupId or group reference
+            const groupId = enrichedPoll.group?.id || enrichedPoll.groupId;
+            if (groupId) {
+                const fullGroup = await groupRepository.findOne({
+                    where: { id: groupId },
+                    select: ["id", "ename", "name"]
+                });
+                
+                if (fullGroup) {
+                    enrichedPoll.group = fullGroup;
+                }
+            }
+            
+            return enrichedPoll;
+        } catch (error) {
+            console.error("Error enriching Poll entity:", error);
+            return pollEntity;
+        }
+    }
+
+    /**
+     * Special enrichment method for Vote entities to ensure poll and group are loaded
+     */
+    private async enrichVoteEntity(voteEntity: any): Promise<any> {
+        try {
+            const enrichedVote = { ...voteEntity };
+            const pollRepository = AppDataSource.getRepository("Poll");
+            const groupRepository = AppDataSource.getRepository("Group");
+            
+            // Load poll if we have pollId or poll reference
+            const pollId = enrichedVote.poll?.id || enrichedVote.pollId;
+            if (pollId) {
+                const fullPoll = await pollRepository.findOne({
+                    where: { id: pollId },
+                    relations: ["group"]
+                });
+                
+                if (fullPoll) {
+                    enrichedVote.poll = fullPoll;
+                    
+                    // If poll has groupId, load the group with ename
+                    if (fullPoll.groupId) {
+                        const fullGroup = await groupRepository.findOne({
+                            where: { id: fullPoll.groupId },
+                            select: ["id", "ename", "name"]
+                        });
+                        
+                        if (fullGroup) {
+                            enrichedVote.poll.group = fullGroup;
+                        }
+                    }
+                }
+            }
+            
+            return enrichedVote;
+        } catch (error) {
+            console.error("Error enriching Vote entity:", error);
+            return voteEntity;
+        }
+    }
+
+    /**
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
-        console.log("afterInsert?")
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
+        
         let entity = event.entity;
         if (entity) {
             entity = (await this.enrichEntity(
@@ -136,16 +250,23 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         
         // Special handling for Message entities to ensure complete data
         if (event.metadata.tableName === "messages" && entity) {
-            console.log("📝 Enriching Message entity after insert");
             entity = await this.enrichMessageEntity(entity);
         }
         
-        this.handleChange(
+        // Special handling for Poll entities to ensure group is loaded
+        if (event.metadata.tableName === "polls" && entity) {
+            entity = await this.enrichPollEntity(entity);
+        }
+        
+        // Special handling for Vote entities to ensure poll and group are loaded
+        if (event.metadata.tableName === "votes" && entity) {
+            entity = await this.enrichVoteEntity(entity);
+        }
+        
+        await this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
+            tableName
         );
     }
 
@@ -160,13 +281,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity update.
      */
     async afterUpdate(event: UpdateEvent<any>) {
-        console.log("🔍 afterUpdate triggered:", {
-            hasEntity: !!event.entity,
-            entityId: event.entity?.id,
-            databaseEntity: event.databaseEntity?.id,
-            tableName: event.metadata.tableName,
-            target: event.metadata.target
-        });
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
 
         // For updates, we need to reload the full entity since event.entity only contains changed fields
         let entity = event.entity;
@@ -175,10 +292,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         let entityId = event.entity?.id || event.databaseEntity?.id;
         
         if (!entityId && event.entity) {
-            // If we have the entity but no ID, try to extract it from the entity object
-            const entityKeys = Object.keys(event.entity);
-            console.log("🔍 Entity keys:", entityKeys);
-            
             // Look for common ID field names
             entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
         }
@@ -186,13 +299,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         // If still no ID, try to find the entity by matching the changed data
         if (!entityId && event.entity) {
             try {
-                console.log("🔍 Trying to find entity by matching changed data...");
                 const repository = AppDataSource.getRepository(event.metadata.target);
                 const changedData = event.entity;
                 
                 // For Group entities, try to find by charter content
                 if (changedData.charter) {
-                    console.log("🔍 Looking for group with charter content...");
                     const matchingEntity = await repository.findOne({
                         where: { charter: changedData.charter },
                         select: ['id']
@@ -200,15 +311,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     
                     if (matchingEntity) {
                         entityId = matchingEntity.id;
-                        console.log("🔍 Found entity by charter match:", entityId);
                     }
                 }
             } catch (error) {
-                console.log("❌ Error finding entity by changed data:", error);
+                // Ignore errors
             }
         }
-        
-        console.log("🔍 Final entityId:", entityId);
         
         if (entityId) {
             // Reload the full entity from the database
@@ -217,15 +325,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 ? event.metadata.target.name 
                 : event.metadata.target;
             
-            console.log("🔍 Reloading entity:", { entityId, entityName });
-            
             const fullEntity = await repository.findOne({
                 where: { id: entityId },
                 relations: this.getRelationsForEntity(entityName)
             });
             
             if (fullEntity) {
-                console.log("✅ Full entity loaded:", { id: fullEntity.id, tableName: event.metadata.tableName });
                 entity = (await this.enrichEntity(
                     fullEntity,
                     event.metadata.tableName,
@@ -234,22 +339,25 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 
                 // Special handling for Message entities to ensure complete data
                 if (event.metadata.tableName === "messages" && entity) {
-                    console.log("📝 Enriching Message entity after update");
                     entity = await this.enrichMessageEntity(entity);
                 }
-            } else {
-                console.log("❌ Could not load full entity for ID:", entityId);
+                
+                // Special handling for Poll entities to ensure group is loaded
+                if (event.metadata.tableName === "polls" && entity) {
+                    entity = await this.enrichPollEntity(entity);
+                }
+                
+                // Special handling for Vote entities to ensure poll and group are loaded
+                if (event.metadata.tableName === "votes" && entity) {
+                    entity = await this.enrichVoteEntity(entity);
+                }
             }
-        } else {
-            console.log("❌ No entity ID found in update event");
         }
         
-        this.handleChange(
+        await this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
+            tableName
         );
     }
 
@@ -264,12 +372,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      * Called after entity removal.
      */
     async afterRemove(event: RemoveEvent<any>) {
-        this.handleChange(
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
+        
+        await this.handleChange(
             // @ts-ignore
             event.entityId,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
+            tableName
         );
     }
 
@@ -278,67 +388,48 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async handleChange(entity: any, tableName: string): Promise<void> {
         // Check if this is a junction table
-        if (tableName === "group_participants") return;
+        if (tableName === "group_participants") {
+            return;
+        }
         
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];
         if (junctionInfo) {
-            console.log("Processing junction table change:", tableName);
             await this.handleJunctionTableChange(entity, junctionInfo);
             return;
         }
         
         // Handle regular entity changes
         const data = this.entityToPlain(entity);
-        if (!data.id) return;
+        
+        if (!data.id) {
+            return;
+        }
         
         // For Message entities, only process if they are system messages
         if (tableName === "messages") {
             const isSystemMessage = data.text && data.text.includes('$$system-message$$');
             
             if (!isSystemMessage) {
-                console.log("📝 Skipping non-system message:", data.id);
                 return;
             }
-            
-            console.log("📝 Processing system message:", {
-                id: data.id,
-                hasGroup: !!data.group,
-                groupId: data.group?.id,
-                hasAdmins: !!data.group?.admins,
-                adminCount: data.group?.admins?.length || 0,
-                isSystemMessage: true
-            });
         }
-        
-        console.log("hmm?")
 
         try {
             setTimeout(async () => {
-                let globalId = await this.adapter.mappingDb.getGlobalId(
-                    entity.id
-                );
+                let globalId = await this.adapter.mappingDb.getGlobalId(data.id);
                 globalId = globalId ?? "";
 
                 if (this.adapter.lockedIds.includes(globalId)) {
-                    console.log("Entity already locked, skipping:", globalId, entity.id);
                     return;
                 }
 
                 // Check if this entity was recently created by a webhook
-                if (this.adapter.lockedIds.includes(entity.id)) {
-                    console.log("Local entity locked (webhook created), skipping:", entity.id);
+                if (this.adapter.lockedIds.includes(data.id)) {
                     return;
                 }
 
-                console.log(
-                    "sending packet for global Id",
-                    globalId,
-                    entity.id,
-                    "table:",
-                    tableName
-                );
-                const envelope = await this.adapter.handleChange({
+                await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),
                 });
@@ -358,7 +449,6 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         try {
             const parentId = entity[junctionInfo.idField];
             if (!parentId) {
-                console.error("No parent ID found in junction table change");
                 return;
             }
 
@@ -369,28 +459,17 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             });
 
             if (!parentEntity) {
-                console.error(`Parent entity not found: ${parentId}`);
                 return;
             }
 
-            let globalId = await this.adapter.mappingDb.getGlobalId(entity.id);
-            globalId = globalId ?? "";
-
             try {
                 setTimeout(async () => {
-                    let globalId = await this.adapter.mappingDb.getGlobalId(
-                        entity.id
-                    );
+                    let globalId = await this.adapter.mappingDb.getGlobalId(parentId);
                     globalId = globalId ?? "";
 
-                    if (this.adapter.lockedIds.includes(globalId))
-                        return console.log("locked skipping ", globalId);
-
-                    console.log(
-                        "sending packet for global Id",
-                        globalId,
-                        entity.id
-                    );
+                    if (this.adapter.lockedIds.includes(globalId)) {
+                        return;
+                    }
 
                     const tableName = `${junctionInfo.entity.toLowerCase()}s`;
                     await this.adapter.handleChange({
@@ -399,7 +478,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     });
                 }, 3_000);
             } catch (error) {
-                console.error(error);
+                console.error("Error in junction table timeout handler:", error);
             }
         } catch (error) {
             console.error("Error handling junction table change:", error);
@@ -417,6 +496,10 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["participants", "admins", "members"];
             case "Message":
                 return ["group", "sender"];
+            case "Poll":
+                return ["group", "creator", "votes"];
+            case "Vote":
+                return ["poll", "user"];
             default:
                 return [];
         }

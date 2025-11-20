@@ -1,0 +1,15 @@
+{
+    "tableName": "votes",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440005",
+    "localToUniversalMap": {
+        "id": "id",
+        "pollId": "pollId",
+        "userId": "userId",
+        "voterId": "voterId",
+        "data": "data",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    },
+    "readOnly": false
+}
+

@@ -5,6 +5,7 @@ export interface Poll {
   title: string;
   mode: "normal" | "point" | "rank";
   visibility: "public" | "private";
+  votingWeight: "1p1v" | "ereputation";
   options: string[];
   deadline?: string | null;
   creatorId: string;
@@ -55,6 +56,7 @@ export interface CreatePollData {
   title: string;
   mode: "normal" | "point" | "rank";
   visibility: "public" | "private";
+  votingWeight: "1p1v" | "ereputation";
   options: string[];
   deadline?: string;
   groupId: string;

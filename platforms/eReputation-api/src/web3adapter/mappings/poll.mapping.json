@@ -1,0 +1,18 @@
+{
+    "tableName": "polls",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440100",
+    "ownerEnamePath": "groups(group.ename)",
+    "localToUniversalMap": {
+        "title": "title",
+        "mode": "mode",
+        "visibility": "visibility",
+        "votingWeight": "votingWeight",
+        "options": "options",
+        "deadline": "deadline",
+        "creatorId": "creatorId",
+        "group": "groups(group.id),group",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    },
+    "readOnly": false
+}

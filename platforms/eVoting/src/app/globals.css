@@ -93,11 +93,24 @@
 }
 
 @utility btn-primary {
-    @apply bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+    @apply border text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+    background-color: var(--crimson);
+    
+    &:hover {
+        background-color: var(--crimson-50);
+        color: var(--crimson);
+        border-color: var(--crimson);
+    }
 }
 
 @utility btn-secondary {
-    @apply bg-white text-(--crimson) border-2 border-(--crimson) hover:bg-(--crimson-50) font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+    @apply bg-white border-2 font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105 shadow-lg;
+    color: var(--crimson);
+    border-color: var(--crimson);
+    
+    &:hover {
+        background-color: var(--crimson-50);
+    }
 }
 
 @utility card {
