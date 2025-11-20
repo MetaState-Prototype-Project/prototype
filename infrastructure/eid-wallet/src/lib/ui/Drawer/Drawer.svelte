@@ -3,8 +3,8 @@ import { cn } from "$lib/utils";
 import { CupertinoPane } from "cupertino-pane";
 import type { Snippet } from "svelte";
 import { useSwipe } from "svelte-gestures";
-import type { HTMLAttributes } from "svelte/elements";
 import type { SwipeCustomEvent } from "svelte-gestures";
+import type { HTMLAttributes } from "svelte/elements";
 
 interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
     isPaneOpen?: boolean;
@@ -25,15 +25,22 @@ let {
 }: IDrawerProps = $props();
 
 const handleDrawerSwipe = (event: SwipeCustomEvent) => {
-    if (event.detail.direction === "down") {
+    if (event.detail.direction === ("down" as string)) {
         handleSwipe?.(isPaneOpen);
     }
 };
 
-const { swipe } = useSwipe(handleDrawerSwipe, () => ({
-    timeframe: 300,
-    minSwipeDistance: 60,
-}), undefined, true);
+const swipeResult = useSwipe(
+    handleDrawerSwipe,
+    () => ({
+        timeframe: 300,
+        minSwipeDistance: 60,
+    }),
+    undefined,
+    true,
+);
+// biome-ignore lint/suspicious/noExplicitAny: svelte-gestures type definitions are incomplete
+const swipe = swipeResult.swipe as any;
 
 // Disabled click outside behavior to prevent white screen issues
 // const handleClickOutside = () => {

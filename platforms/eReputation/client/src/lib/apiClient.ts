@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
 
 const baseURL = import.meta.env.VITE_EREPUTATION_BASE_URL || "http://localhost:8765";
 
@@ -17,7 +17,7 @@ export const apiClient = axios.create({
 
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
-    (config: AxiosRequestConfig) => {
+    (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem("ereputation_token");
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;

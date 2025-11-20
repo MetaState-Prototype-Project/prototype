@@ -25,10 +25,11 @@
 		}
 	};
 
-	const { swipe } = useSwipe(handleDrawerSwipe, () => ({
+	const swipeResult = useSwipe(handleDrawerSwipe, () => ({
 		timeframe: 300,
 		minSwipeDistance: 60
 	}), undefined, true);
+	const swipe = swipeResult.swipe as any;
 
 	onMount(() => {
 		if (!drawerElement) return;
