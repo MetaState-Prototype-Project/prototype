@@ -5,11 +5,8 @@ import {
     OneToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
-    ManyToOne,
-    JoinColumn,
 } from "typeorm";
 import { Vote } from "./Vote";
-import { User } from "./User";
 
 @Entity("polls")
 export class Poll {
@@ -46,13 +43,6 @@ export class Poll {
     @Column({ type: "boolean", default: false })
     deadlineMessageSent!: boolean;
 
-    @ManyToOne(() => User, (user) => user.polls)
-    @JoinColumn({ name: "creatorId" })
-    creator!: User;
-
-    @Column("uuid")
-    creatorId!: string;
-
     @Column("uuid", { nullable: true })
     groupId!: string | null; // Group this poll belongs to
 
@@ -68,3 +58,5 @@ export class Poll {
     @UpdateDateColumn()
     updatedAt!: Date;
 }
+
+

@@ -53,10 +53,10 @@ export class PollController {
     createPoll = async (req: Request, res: Response) => {
         try {
             console.log('🔍 Full request body:', req.body);
-            const { title, mode, visibility, options, deadline, groupId } = req.body;
+            const { title, mode, visibility, votingWeight, options, deadline, groupId } = req.body;
             const creatorId = (req as any).user.id;
             
-            console.log('🔍 Extracted data:', { title, mode, visibility, options, deadline, groupId, creatorId });
+            console.log('🔍 Extracted data:', { title, mode, visibility, votingWeight, options, deadline, groupId, creatorId });
             console.log('🔍 groupId type:', typeof groupId, 'value:', groupId);
 
             // groupId is optional - only required for system messages
@@ -65,6 +65,7 @@ export class PollController {
                 title,
                 mode,
                 visibility,
+                votingWeight,
                 options,
                 deadline,
                 creatorId,
@@ -76,11 +77,18 @@ export class PollController {
         } catch (error) {
             console.error("Error creating poll:", error);
             
-            // Handle specific charter validation error
-            if (error instanceof Error && error.message === "Only chartered groups can create polls") {
-                return res.status(400).json({ 
-                    error: "Only chartered groups can create polls. Please select a group with a charter." 
-                });
+            // Handle specific validation errors
+            if (error instanceof Error) {
+                if (error.message === "Only chartered groups can create polls") {
+                    return res.status(400).json({ 
+                        error: "Only chartered groups can create polls. Please select a group with a charter." 
+                    });
+                }
+                if (error.message.includes("eReputation weighted voting cannot be combined")) {
+                    return res.status(400).json({ 
+                        error: error.message
+                    });
+                }
             }
             
             res.status(500).json({ error: "Failed to create poll" });

@@ -4,6 +4,7 @@ import { Vote, VoteDataByMode, NormalVoteData, PointVoteData, RankVoteData } fro
 import { Poll } from "../database/entities/Poll";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
+import { VoteReputationResult, MemberReputation } from "../database/entities/VoteReputationResult";
 import { VotingSystem, VoteData } from 'blindvote';
 
 export class VoteService {
@@ -11,6 +12,7 @@ export class VoteService {
   private pollRepository: Repository<Poll>;
   private userRepository: Repository<User>;
   private groupRepository: Repository<Group>;
+  private voteReputationResultRepository: Repository<VoteReputationResult>;
   
   // Store VotingSystem instances per poll
   private votingSystems = new Map<string, VotingSystem>();
@@ -20,6 +22,42 @@ export class VoteService {
     this.pollRepository = AppDataSource.getRepository(Poll);
     this.userRepository = AppDataSource.getRepository(User);
     this.groupRepository = AppDataSource.getRepository(Group);
+    this.voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
+  }
+
+  /**
+   * Check if a poll is eReputation-weighted
+   */
+  isEReputationWeighted(poll: Poll): boolean {
+    return poll.votingWeight === "ereputation";
+  }
+
+  /**
+   * Get reputation results for a poll
+   */
+  async getReputationResults(pollId: string): Promise<VoteReputationResult | null> {
+    return await this.voteReputationResultRepository.findOne({
+      where: { pollId },
+      relations: ["poll", "group"]
+    });
+  }
+
+  /**
+   * Get reputation score for a user from reputation results using ename
+   */
+  private getReputationScore(ename: string, reputationResults: VoteReputationResult | null): number {
+    if (!reputationResults || !reputationResults.results) {
+      return 1.0; // Default weight if no reputation data
+    }
+
+    const memberRep = reputationResults.results.find((r: MemberReputation) => r.ename === ename);
+    if (!memberRep) {
+      return 1.0; // Default weight if user not found in reputation results
+    }
+
+    // Normalize score to a weight (assuming score is 0-5, convert to 0-1 weight)
+    // You can adjust this formula based on your needs
+    return Math.max(0.1, memberRep.score / 5.0); // Minimum weight of 0.1, max of 1.0
   }
 
   /**
@@ -167,9 +205,13 @@ export class VoteService {
     if (poll.groupId) {
       totalEligibleVoters = await this.getGroupMemberCount(poll.groupId);
     }
+
+    // Check if this is an eReputation-weighted poll and get reputation results
+    const isWeighted = this.isEReputationWeighted(poll);
+    const reputationResults = isWeighted ? await this.getReputationResults(pollId) : null;
     
     if (poll.mode === "normal") {
-      // Count votes for each option
+      // Count votes for each option (with reputation weighting if applicable)
       const optionCounts: Record<string, number> = {};
       poll.options.forEach((option, index) => {
         optionCounts[option] = 0;
@@ -177,100 +219,75 @@ export class VoteService {
 
       votes.forEach(vote => {
         if (vote.data.mode === "normal" && Array.isArray(vote.data.data)) {
+          // Get reputation weight for this voter using ename
+          const userEname = vote.user?.ename || null;
+          const weight = isWeighted && userEname ? this.getReputationScore(userEname, reputationResults) : 1.0;
+          
           vote.data.data.forEach(optionIndex => {
             const option = poll.options[parseInt(optionIndex)];
             if (option) {
-              optionCounts[option]++;
+              optionCounts[option] += weight; // Add weighted vote instead of 1
             }
           });
         }
       });
 
-      const totalVotes = votes.length;
+      const totalWeightedVotes = Object.values(optionCounts).reduce((sum, count) => sum + count, 0);
       const results = poll.options.map((option, index) => {
-        const votes = optionCounts[option] || 0;
-        const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
+        const weightedVotes = optionCounts[option] || 0;
+        const percentage = totalWeightedVotes > 0 ? (weightedVotes / totalWeightedVotes) * 100 : 0;
         return {
           option,
-          votes,
+          votes: weightedVotes, // This is now weighted votes
           percentage
         };
       });
 
       return {
         pollId,
-        totalVotes,
+        totalVotes: votes.length, // Actual number of votes cast
+        totalWeightedVotes: totalWeightedVotes, // Sum of all weighted votes
         totalEligibleVoters,
-        turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
+        turnout: totalEligibleVoters > 0 ? (votes.length / totalEligibleVoters) * 100 : 0,
+        mode: isWeighted ? "ereputation" : "normal",
         results
       };
     } else if (poll.mode === "point") {
-      // Calculate point-based voting results
-      console.log('=== POINTS-BASED VOTING DEBUG ===');
-      console.log('Poll ID:', pollId);
-      console.log('Poll options:', poll.options);
-      console.log('Total votes to process:', votes.length);
+      // Calculate point-based voting results (with reputation weighting if applicable)
+      const isWeighted = this.isEReputationWeighted(poll);
+      const reputationResults = isWeighted ? await this.getReputationResults(pollId) : null;
       
       const optionPoints: Record<string, number> = {};
       poll.options.forEach((option, index) => {
         optionPoints[option] = 0;
-        console.log(`Initialized option ${index}: "${option}" with 0 points`);
       });
 
-      votes.forEach((vote, voteIndex) => {
-        console.log(`\n--- Processing Vote ${voteIndex + 1} ---`);
-        console.log('Vote ID:', vote.id);
-        console.log('Vote data:', JSON.stringify(vote.data, null, 2));
-        console.log('Vote data type:', typeof vote.data);
-        console.log('Vote data.mode:', (vote.data as any).mode);
-        console.log('Vote data.data:', (vote.data as any).data);
-        console.log('Vote data.data type:', typeof (vote.data as any).data);
-        console.log('Is vote.data.data array?', Array.isArray((vote.data as any).data));
-        
+      votes.forEach((vote) => {
         if (vote.data.mode === "point") {
-          console.log('✅ This is a point vote, processing...');
+          // Get reputation weight for this voter using ename
+          const userEname = vote.user?.ename || null;
+          const weight = isWeighted && userEname ? this.getReputationScore(userEname, reputationResults) : 1.0;
           
           // Handle the actual stored format: {"0": 10, "1": 10, "2": 50, "3": 20, "5": 10}
           if (typeof vote.data.data === 'object' && !Array.isArray(vote.data.data)) {
-            console.log('✅ Processing direct object format vote data');
-            console.log('Points object entries:', Object.entries(vote.data.data));
-            
             Object.entries(vote.data.data).forEach(([optionIndex, points]) => {
               const index = parseInt(optionIndex);
               const option = poll.options[index];
-              console.log(`Processing optionIndex: "${optionIndex}" -> parsed index: ${index}`);
-              console.log(`Option at index ${index}:`, option);
-              console.log(`Points value:`, points, `(type: ${typeof points})`);
               
               if (option && typeof points === 'number') {
-                const oldPoints = optionPoints[option];
-                optionPoints[option] += points;
-                console.log(`✅ Option "${option}" gets ${points} points: ${oldPoints} + ${points} = ${optionPoints[option]}`);
-              } else {
-                console.log(`❌ Skipping invalid option "${optionIndex}" or points ${points}`);
-                console.log(`  - option exists: ${!!option}`);
-                console.log(`  - points is number: ${typeof points === 'number'}`);
+                optionPoints[option] += points * weight; // Multiply points by reputation weight
               }
             });
-          } else {
-            console.log('❌ Unexpected data format for point vote');
-            console.log('  - Expected: object and not array');
-            console.log('  - Got: type =', typeof vote.data.data, ', isArray =', Array.isArray(vote.data.data));
           }
-        } else {
-          console.log('❌ This is NOT a point vote, skipping');
         }
       });
 
       const totalVotes = votes.length;
-      console.log('\n=== FINAL CALCULATION ===');
-      console.log('Total votes:', totalVotes);
-      console.log('Final optionPoints object:', optionPoints);
+      const totalWeightedPoints = Object.values(optionPoints).reduce((sum, points) => sum + points, 0);
       
       const results = poll.options.map((option, index) => {
         const points = optionPoints[option] || 0;
         const averagePoints = totalVotes > 0 ? points / totalVotes : 0;
-        console.log(`Option "${option}": ${points} total points, ${averagePoints} average points`);
         return {
           option,
           totalPoints: points,
@@ -281,15 +298,14 @@ export class VoteService {
 
       // Sort by total points (highest first)
       results.sort((a, b) => b.totalPoints - a.totalPoints);
-      console.log('\n=== FINAL RESULTS ===');
-      console.log('Sorted results:', JSON.stringify(results, null, 2));
 
       return {
         pollId,
         totalVotes,
+        totalWeightedPoints,
         totalEligibleVoters,
         turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
-        mode: "point",
+        mode: isWeighted ? "ereputation" : "point",
         results
       };
     } else if (poll.mode === "rank") {

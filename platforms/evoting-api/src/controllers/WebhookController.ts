@@ -1,19 +1,29 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
+import { PollService } from "../services/PollService";
+import { VoteService } from "../services/VoteService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
+import { Poll } from "../database/entities/Poll";
+import { Vote } from "../database/entities/Vote";
+import { VoteReputationResult, MemberReputation } from "../database/entities/VoteReputationResult";
+import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
 export class WebhookController {
     userService: UserService;
     groupService: GroupService;
+    pollService: PollService;
+    voteService: VoteService;
     adapter: typeof adapter;
 
     constructor() {
         this.userService = new UserService();
         this.groupService = new GroupService();
+        this.pollService = new PollService();
+        this.voteService = new VoteService();
         this.adapter = adapter;
     }
 
@@ -174,6 +184,161 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for group:", group.id, "->", req.body.id);
+                }
+            } else if (mapping.tableName === "vote_reputation_results") {
+                console.log("Processing vote_reputation_results with data:", local.data);
+                
+                const voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
+                
+                // Parse results if it's a string (from Neo4j)
+                let results: MemberReputation[];
+                if (typeof local.data.results === "string") {
+                    try {
+                        results = JSON.parse(local.data.results);
+                        console.log("Parsed results from JSON string:", results.length, "items");
+                    } catch (error) {
+                        console.error("Failed to parse results JSON:", error);
+                        return res.status(400).send();
+                    }
+                } else if (Array.isArray(local.data.results)) {
+                    results = local.data.results as MemberReputation[];
+                } else {
+                    console.error("Invalid results format:", typeof local.data.results);
+                    return res.status(400).send();
+                }
+                
+                // Resolve pollId from global to local ID
+                let pollId: string | null = null;
+                if (local.data.pollId && typeof local.data.pollId === "string") {
+                    // Handle format like "polls(ID)" or direct ID
+                    const pollIdValue = local.data.pollId.includes("(") 
+                        ? local.data.pollId.split("(")[1].split(")")[0]
+                        : local.data.pollId;
+                    pollId = await this.adapter.mappingDb.getLocalId(pollIdValue);
+                    if (!pollId) {
+                        console.error("Poll not found for globalId:", pollIdValue);
+                        return res.status(400).send();
+                    }
+                }
+                
+                // Resolve groupId from global to local ID
+                let groupId: string | null = null;
+                if (local.data.groupId && typeof local.data.groupId === "string") {
+                    // Handle format like "groups(ID)" or direct ID
+                    const groupIdValue = local.data.groupId.includes("(") 
+                        ? local.data.groupId.split("(")[1].split(")")[0]
+                        : local.data.groupId;
+                    groupId = await this.adapter.mappingDb.getLocalId(groupIdValue);
+                    if (!groupId) {
+                        console.error("Group not found for globalId:", groupIdValue);
+                        return res.status(400).send();
+                    }
+                }
+                
+                if (!pollId || !groupId) {
+                    console.error("Missing pollId or groupId:", { pollId, groupId });
+                    return res.status(400).send();
+                }
+                
+                if (localId) {
+                    // Update existing result
+                    const result = await voteReputationResultRepository.findOne({
+                        where: { id: localId },
+                        relations: ["poll", "group"]
+                    });
+                    
+                    if (result) {
+                        result.pollId = pollId;
+                        result.groupId = groupId;
+                        result.results = results;
+                        await voteReputationResultRepository.save(result);
+                        console.log("Updated vote_reputation_result:", result.id);
+                    }
+                } else {
+                    // Create new result
+                    const newResult = voteReputationResultRepository.create({
+                        pollId: pollId,
+                        groupId: groupId,
+                        results: results
+                    });
+                    
+                    const savedResult = await voteReputationResultRepository.save(newResult) as VoteReputationResult;
+                    this.adapter.addToLockedIds(savedResult.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: savedResult.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Created vote_reputation_result:", savedResult.id);
+                }
+            } else if (mapping.tableName === "votes") {
+                console.log("Processing vote with data:", local.data);
+                
+                const voteRepository = AppDataSource.getRepository(Vote);
+                
+                // Get poll
+                let poll: Poll | null = null;
+                if (local.data.pollId && typeof local.data.pollId === "string") {
+                    const pollId = local.data.pollId.includes("(") 
+                        ? local.data.pollId.split("(")[1].split(")")[0]
+                        : local.data.pollId;
+                    poll = await this.pollService.getPollById(pollId);
+                }
+                
+                if (!poll) {
+                    console.error("Poll not found for vote");
+                    return res.status(400).send();
+                }
+                
+                // Get user
+                let user: User | null = null;
+                if (local.data.userId && typeof local.data.userId === "string") {
+                    const userId = local.data.userId.includes("(") 
+                        ? local.data.userId.split("(")[1].split(")")[0]
+                        : local.data.userId;
+                    user = await this.userService.getUserById(userId);
+                }
+                
+                if (!user) {
+                    console.error("User not found for vote");
+                    return res.status(400).send();
+                }
+                
+                if (localId) {
+                    // Update existing vote
+                    const vote = await voteRepository.findOne({
+                        where: { id: localId },
+                        relations: ["poll", "user"]
+                    });
+                    
+                    if (vote) {
+                        vote.poll = poll;
+                        vote.pollId = poll.id;
+                        vote.user = user;
+                        vote.userId = user.id;
+                        vote.voterId = local.data.voterId as string;
+                        vote.data = local.data.data as any;
+                        
+                        await voteRepository.save(vote);
+                        console.log("Updated vote:", vote.id);
+                    }
+                } else {
+                    // Create new vote
+                    const vote = voteRepository.create({
+                        poll: poll,
+                        pollId: poll.id,
+                        user: user,
+                        userId: user.id,
+                        voterId: local.data.voterId as string,
+                        data: local.data.data as any
+                    });
+                    
+                    const savedVote = await voteRepository.save(vote);
+                    this.adapter.addToLockedIds(savedVote.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: savedVote.id,
+                        globalId: req.body.id,
+                    });
+                    console.log("Created vote:", savedVote.id);
                 }
             }
             res.status(200).send();

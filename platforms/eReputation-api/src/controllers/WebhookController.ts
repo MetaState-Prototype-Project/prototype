@@ -7,6 +7,9 @@ import { VotingReputationService } from "../services/VotingReputationService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
+import { Poll } from "../database/entities/Poll";
+import { VoteReputationResult } from "../database/entities/VoteReputationResult";
+import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
 export class WebhookController {
@@ -261,66 +264,106 @@ export class WebhookController {
                     finalLocalId = vote.id;
                 }
             } else if (mapping.tableName === "polls") {
-                console.log("Processing poll with data:", local.data);
-
-                if (localId) {
-                    console.log("Updating existing poll with localId:", localId);
-                    const poll = await this.pollService.getPollById(localId);
-                    if (!poll) {
-                        console.error("Poll not found for localId:", localId);
-                        return res.status(500).send();
+                console.log("📊 Processing poll webhook with data:", {
+                    localId,
+                    title: local.data.title,
+                    votingWeight: local.data.votingWeight,
+                    group: local.data.group,
+                    groupId: local.data.groupId,
+                    creatorId: local.data.creatorId
+                });
+                
+                const pollRepository = AppDataSource.getRepository(Poll);
+                
+                // Get groupId from group reference if present
+                let groupId: string | null = null;
+                if (local.data.group) {
+                    if (typeof local.data.group === "string" && local.data.group.includes("(")) {
+                        groupId = local.data.group.split("(")[1].split(")")[0];
+                    } else if (typeof local.data.group === "object" && local.data.group !== null && "id" in local.data.group) {
+                        groupId = (local.data.group as { id: string }).id;
                     }
+                } else if (local.data.groupId) {
+                    groupId = local.data.groupId as string;
+                }
+                
+                console.log("📊 Extracted poll data:", {
+                    groupId,
+                    votingWeight: local.data.votingWeight
+                });
+                
+                if (localId) {
+                    // Update existing poll
+                    const poll = await pollRepository.findOne({
+                        where: { id: localId }
+                    });
+                    
+                    if (poll) {
+                        poll.title = local.data.title as string;
+                        poll.mode = local.data.mode as "normal" | "point" | "rank";
+                        poll.visibility = local.data.visibility as "public" | "private";
+                        poll.votingWeight = (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation";
+                        poll.options = Array.isArray(local.data.options) 
+                            ? local.data.options 
+                            : (local.data.options as string).split(",");
+                        poll.deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
+                        poll.groupId = groupId;
+                        
+                        await pollRepository.save(poll);
+                        finalLocalId = poll.id;
 
-                    poll.title = local.data.title as string;
-                    poll.mode = local.data.mode as "normal" | "point" | "rank";
-                    poll.visibility = local.data.visibility as "public" | "private";
-                    poll.options = local.data.options as string[];
-                    poll.deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
-                    poll.groupId = local.data.groupId as string | null;
-                    await this.pollService.pollRepository.save(poll);
-                    console.log("Updated poll:", poll.id);
-                    finalLocalId = poll.id;
-
-                    // Check if this is an eReputation-weighted poll and calculate reputations
-                    if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
-                        await this.processEReputationWeightedPoll(poll);
+                        // Check if this is an eReputation-weighted poll and calculate reputations
+                        console.log(`🔍 Checking if poll is eReputation-weighted:`, {
+                            pollId: poll.id,
+                            votingWeight: poll.votingWeight,
+                            groupId: poll.groupId,
+                            isWeighted: this.voteService.isEReputationWeighted(poll)
+                        });
+                        if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
+                            console.log(`✅ Poll is eReputation-weighted, processing...`);
+                            await this.processEReputationWeightedPoll(poll);
+                        } else {
+                            console.log(`⏭️  Poll is not eReputation-weighted, skipping calculation`);
+                        }
                     }
                 } else {
-                    console.log("Creating new poll");
-                    const title = local.data.title as string;
-                    const mode = local.data.mode as "normal" | "point" | "rank";
-                    const visibility = local.data.visibility as "public" | "private";
-                    const options = local.data.options as string[];
-                    const creatorId = local.data.creatorId as string;
-                    const groupId = local.data.groupId as string | null | undefined;
-                    const deadline = local.data.deadline ? new Date(local.data.deadline as string) : null;
-
-                    if (!title || !mode || !visibility || !options || !creatorId) {
-                        console.error("Missing required poll fields");
-                        return res.status(400).send();
-                    }
-
-                    const poll = await this.pollService.createPoll(
-                        title,
-                        mode,
-                        visibility,
-                        options,
-                        creatorId,
-                        groupId,
-                        deadline
-                    );
-                    console.log("Created poll with ID:", poll.id);
-                    this.adapter.addToLockedIds(poll.id);
+                    // Create new poll
+                    console.log("📝 Creating new poll...");
+                    
+                    const poll = pollRepository.create({
+                        title: local.data.title as string,
+                        mode: local.data.mode as "normal" | "point" | "rank",
+                        visibility: local.data.visibility as "public" | "private",
+                        votingWeight: (local.data.votingWeight || "1p1v") as "1p1v" | "ereputation",
+                        options: Array.isArray(local.data.options) 
+                            ? local.data.options 
+                            : (local.data.options as string).split(","),
+                        deadline: local.data.deadline ? new Date(local.data.deadline as string) : null,
+                        groupId: groupId
+                    });
+                    
+                    const savedPoll = await pollRepository.save(poll);
+                    console.log("✅ Poll saved with ID:", savedPoll.id);
+                    
+                    this.adapter.addToLockedIds(savedPoll.id);
                     await this.adapter.mappingDb.storeMapping({
-                        localId: poll.id,
+                        localId: savedPoll.id,
                         globalId: req.body.id,
                     });
-                    console.log("Stored mapping for poll:", poll.id, "->", req.body.id);
-                    finalLocalId = poll.id;
+                    finalLocalId = savedPoll.id;
 
                     // Check if this is an eReputation-weighted poll and calculate reputations
-                    if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
-                        await this.processEReputationWeightedPoll(poll);
+                    console.log(`🔍 Checking if poll is eReputation-weighted:`, {
+                        pollId: savedPoll.id,
+                        votingWeight: savedPoll.votingWeight,
+                        groupId: savedPoll.groupId,
+                        isWeighted: this.voteService.isEReputationWeighted(savedPoll)
+                    });
+                    if (this.voteService.isEReputationWeighted(savedPoll) && savedPoll.groupId) {
+                        console.log(`✅ Poll is eReputation-weighted, processing...`);
+                        await this.processEReputationWeightedPoll(savedPoll);
+                    } else {
+                        console.log(`⏭️  Poll is not eReputation-weighted, skipping calculation`);
                     }
                 }
             }
@@ -358,13 +401,25 @@ export class WebhookController {
             }
 
             // Calculate reputations for all group members
-            console.log(`📊 Calculating eReputation for group members...`);
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`📊 STARTING eReputation Calculation Process`);
+            console.log(`   Poll ID: ${poll.id}`);
+            console.log(`   Poll Title: ${poll.title}`);
+            console.log(`   Group ID: ${poll.groupId}`);
+            console.log(`   Group Name: ${group.name || "N/A"}`);
+            console.log(`${"=".repeat(80)}\n`);
+            
             const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
                 poll.groupId,
                 group.charter
             );
 
-            console.log(`✅ Calculated ${reputationResults.length} reputation scores`);
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`💾 SAVING eReputation Results`);
+            console.log(`   Poll ID: ${poll.id}`);
+            console.log(`   Group ID: ${poll.groupId}`);
+            console.log(`   Results count: ${reputationResults.length}`);
+            console.log(`${"=".repeat(80)}\n`);
 
             // Save results
             const voteReputationResult = await this.votingReputationService.saveReputationResults(
@@ -373,12 +428,27 @@ export class WebhookController {
                 reputationResults
             );
 
-            console.log(`💾 Saved reputation results: ${voteReputationResult.id}`);
+            console.log(`✅ Saved reputation results with ID: ${voteReputationResult.id}`);
+            console.log(`   Created at: ${voteReputationResult.createdAt}`);
+            console.log(`   Updated at: ${voteReputationResult.updatedAt}`);
 
             // Transmit results via web3adapter
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`📤 TRANSMITTING eReputation Results to eVoting`);
+            console.log(`   Result ID: ${voteReputationResult.id}`);
+            console.log(`   Poll ID: ${voteReputationResult.pollId}`);
+            console.log(`   Group ID: ${voteReputationResult.groupId}`);
+            console.log(`   Results to transmit: ${voteReputationResult.results.length} member reputations`);
+            console.log(`${"=".repeat(80)}\n`);
+            
             await this.transmitReputationResults(voteReputationResult);
 
-            console.log(`📤 Transmitted reputation results to eVoting`);
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`✅ SUCCESSFULLY COMPLETED eReputation Calculation & Transmission`);
+            console.log(`   Poll ID: ${poll.id}`);
+            console.log(`   Result ID: ${voteReputationResult.id}`);
+            console.log(`   Transmitted ${voteReputationResult.results.length} reputation scores to eVoting`);
+            console.log(`${"=".repeat(80)}\n`);
         } catch (error) {
             console.error("Error processing eReputation-weighted poll:", error);
             // Don't throw - we don't want to fail the webhook if reputation calculation fails
@@ -390,15 +460,142 @@ export class WebhookController {
      */
     private async transmitReputationResults(result: any): Promise<void> {
         try {
-            // Convert entity to plain object for web3adapter
-            const data = {
-                id: result.id,
-                pollId: result.pollId,
-                groupId: result.groupId,
-                results: result.results,
-                createdAt: result.createdAt,
-                updatedAt: result.updatedAt
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`📤 TRANSMITTING eReputation Results to eVoting API`);
+            console.log(`${"=".repeat(80)}`);
+            console.log(`   Preparing data for transmission...`);
+            
+            // Reload result with relations to ensure poll and group are loaded
+            const voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
+            const pollRepository = AppDataSource.getRepository(Poll);
+            const groupRepository = AppDataSource.getRepository(Group);
+            
+            console.log(`   🔍 Reloading result with relations...`);
+            console.log(`      - Result ID: ${result.id}`);
+            console.log(`      - Poll ID: ${result.pollId}`);
+            console.log(`      - Group ID: ${result.groupId}`);
+            
+            // Reload the result with poll and group relations
+            const reloadedResult = await voteReputationResultRepository.findOne({
+                where: { id: result.id },
+                relations: ["poll", "group"]
+            });
+            
+            if (!reloadedResult) {
+                console.error(`   ❌ Result not found: ${result.id}`);
+                throw new Error(`Result not found: ${result.id}`);
+            }
+            
+            // Ensure poll and group are loaded
+            let poll: Poll | null = reloadedResult.poll || null;
+            let group: Group | null = reloadedResult.group || null;
+            
+            // If relations weren't loaded, load them manually
+            if (!poll && reloadedResult.pollId) {
+                poll = await pollRepository.findOne({
+                    where: { id: reloadedResult.pollId }
+                });
+            }
+            
+            if (!group && reloadedResult.groupId) {
+                group = await groupRepository.findOne({
+                    where: { id: reloadedResult.groupId },
+                    select: ["id", "ename", "name"]
+                });
+            }
+            
+            if (!poll) {
+                console.error(`   ❌ Poll not found: ${reloadedResult.pollId}`);
+                throw new Error(`Poll not found: ${reloadedResult.pollId}`);
+            }
+            
+            if (!group) {
+                console.error(`   ❌ Group not found: ${reloadedResult.groupId}`);
+                throw new Error(`Group not found: ${reloadedResult.groupId}`);
+            }
+            
+            console.log(`   ✅ Loaded group:`, {
+                id: group.id,
+                name: group.name,
+                ename: group.ename || "NULL/MISSING"
+            });
+            
+            if (!group.ename) {
+                console.error(`   ⚠️  WARNING: Group ${group.id} has no ename! This will cause ownerEnamePath to fail.`);
+            }
+            
+            // Convert entity to plain object for web3adapter, using reloaded result with relations
+            // Stringify results array for Neo4j compatibility (can't store nested objects)
+            const data: any = {
+                id: reloadedResult.id,
+                pollId: reloadedResult.pollId,
+                groupId: reloadedResult.groupId,
+                results: JSON.stringify(reloadedResult.results), // Stringify for Neo4j
+                createdAt: reloadedResult.createdAt,
+                updatedAt: reloadedResult.updatedAt
             };
+            
+            // Add poll with group for ownerEnamePath resolution (groups(poll.group.ename))
+            // The ownerEnamePath "groups(poll.group.ename)" will extract poll.group.ename from this structure
+            // We need to ensure the full structure is present for path resolution
+            data.poll = {
+                id: poll.id,
+                groupId: poll.groupId,
+                group: {
+                    id: group.id,
+                    ename: group.ename,
+                    name: group.name
+                }
+            };
+            
+            // Also ensure groupId is set for the mapping
+            if (!data.groupId) {
+                data.groupId = group.id;
+            }
+            
+            console.log(`   ✅ Results stringified for Neo4j compatibility`);
+            console.log(`      - Results as JSON string length: ${data.results.length} characters`);
+            
+            console.log(`   ✅ Data structure prepared for ownerEnamePath resolution:`);
+            console.log(`      - poll.id: ${data.poll.id}`);
+            console.log(`      - poll.group.id: ${data.poll.group.id}`);
+            console.log(`      - poll.group.ename: ${data.poll.group.ename || "NULL"}`);
+            console.log(`      - ownerEnamePath will resolve: groups(poll.group.ename) -> ${data.poll.group.ename || "NULL"}`);
+            
+            // Verify the path can be resolved
+            const testPath = "poll.group.ename";
+            const pathParts = testPath.split(".");
+            let testValue: any = data;
+            for (const part of pathParts) {
+                testValue = testValue?.[part];
+            }
+            console.log(`      - Path resolution test: poll.group.ename = ${testValue || "UNDEFINED"}`);
+
+            console.log(`\n   📦 Data prepared for transmission:`);
+            console.log(`      - Result ID: ${data.id}`);
+            console.log(`      - Poll ID: ${data.pollId}`);
+            console.log(`      - Group ID: ${data.groupId}`);
+            console.log(`      - Results count: ${reloadedResult.results.length} (stringified for transmission)`);
+            console.log(`\n   📋 Detailed eReputation Results being sent to eVoting:`);
+            // Use original array for logging, not stringified version
+            reloadedResult.results.forEach((memberResult: any, index: number) => {
+                console.log(`\n      ${index + 1}. User ename: ${memberResult.ename}`);
+                console.log(`         📊 eReputation Score: ${memberResult.score}/5`);
+                console.log(`         💬 Justification: "${memberResult.justification}"`);
+            });
+            
+            console.log(`\n   🚀 Sending via web3adapter to eVault (will forward to eVoting API)...`);
+            console.log(`   📋 Final data structure being sent:`);
+            console.log(`      - Has poll: ${!!data.poll}`);
+            console.log(`      - Has poll.group: ${!!data.poll?.group}`);
+            console.log(`      - poll.group.ename: ${data.poll?.group?.ename || "MISSING"}`);
+            console.log(`      - Full data keys: ${Object.keys(data).join(", ")}`);
+            if (data.poll) {
+                console.log(`      - poll keys: ${Object.keys(data.poll).join(", ")}`);
+                if (data.poll.group) {
+                    console.log(`      - poll.group keys: ${Object.keys(data.poll.group).join(", ")}`);
+                }
+            }
 
             // Use web3adapter to sync to eVault (which will send webhook to eVoting)
             await this.adapter.handleChange({
@@ -406,9 +603,12 @@ export class WebhookController {
                 tableName: "vote_reputation_results"
             });
 
-            console.log(`✅ Reputation results synced via web3adapter`);
+            console.log(`\n   ✅ Successfully sent to web3adapter`);
+            console.log(`   ✅ Data will be synced to eVault and forwarded to eVoting API`);
+            console.log(`   ✅ eVoting will receive ${data.results.length} eReputation scores for weighted voting`);
+            console.log(`${"=".repeat(80)}\n`);
         } catch (error) {
-            console.error("Error transmitting reputation results:", error);
+            console.error(`\n   ❌ ERROR transmitting reputation results:`, error);
             throw error;
         }
     }
