@@ -23,7 +23,7 @@
 		drawer?.destroy({ animate: true });
 	}
 
-	const swipeResult = useSwipe(
+	const swipeActions = useSwipe(
 		() => {},
 		() => ({
 			timeframe: 300,
@@ -33,7 +33,6 @@
 			onswipedown: downSwipeHandler
 		}
 	);
-	const swipe = swipeResult.swipe as any;
 
 	onMount(() => {
 		if (!drawerElement) return;
@@ -55,7 +54,7 @@
 	});
 </script>
 
-<div bind:this={drawerElement} {...restProps} use:swipe class={cn(restProps.class)}>
+<div bind:this={drawerElement} {...restProps} {...swipeActions} class={cn(restProps.class)}>
 	<div class="h-[100%] overflow-y-scroll">
 		{@render children?.()}
 	</div>
