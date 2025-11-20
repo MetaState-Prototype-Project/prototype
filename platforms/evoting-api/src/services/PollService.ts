@@ -179,6 +179,7 @@ export class PollService {
         title: string;
         mode: string;
         visibility: string;
+        votingWeight?: string;
         options: string[];
         deadline?: string;
         creatorId: string;
@@ -209,10 +210,17 @@ export class PollService {
             }
         }
 
+        // Validate that eReputation weighted and Rank Based Voting are not combined
+        const votingWeight = (pollData.votingWeight || "1p1v") as "1p1v" | "ereputation";
+        if (votingWeight === "ereputation" && pollData.mode === "rank") {
+            throw new Error("eReputation weighted voting cannot be combined with Rank Based Voting (RBV). Please use Simple or PBV mode instead.");
+        }
+
         const pollDataForEntity = {
             title: pollData.title,
             mode: pollData.mode as "normal" | "point" | "rank",
             visibility: pollData.visibility as "public" | "private",
+            votingWeight: votingWeight,
             options: pollData.options,
             deadline: pollData.deadline ? new Date(pollData.deadline) : null,
             creator,

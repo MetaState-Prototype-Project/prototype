@@ -7,7 +7,7 @@
         "name": "name",
         "type": "type",
         "participants": "users(participants[].id),participantIds",
-        "admins": "users(admins),admins",
+        "admins": "users(admins[].id),admins",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt",
         "ename": "ename"

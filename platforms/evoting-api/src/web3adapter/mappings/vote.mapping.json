@@ -1,25 +1,16 @@
 {
-    "entity": "Vote",
-    "ontology": "votes",
-    "fields": {
+    "tableName": "votes",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440101",
+    "ownerEnamePath": "groups(poll.group.ename)",
+    "localToUniversalMap": {
         "id": "id",
         "pollId": "pollId",
+        "poll": "polls(poll.id),poll",
         "userId": "userId",
         "voterId": "voterId",
         "data": "data",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },
-    "relations": {
-        "poll": {
-            "type": "manyToOne",
-            "target": "Poll",
-            "foreignKey": "pollId"
-        },
-        "user": {
-            "type": "manyToOne",
-            "target": "User",
-            "foreignKey": "userId"
-        }
-    }
+    "readOnly": false
 }

@@ -30,6 +30,14 @@ export class Chat {
     })
     participants!: User[];
 
+    @ManyToMany(() => User)
+    @JoinTable({
+        name: "chat_admins",
+        joinColumn: { name: "chat_id", referencedColumnName: "id" },
+        inverseJoinColumn: { name: "user_id", referencedColumnName: "id" }
+    })
+    admins!: User[];
+
     @Column({ nullable: true })
     ename!: string;
 

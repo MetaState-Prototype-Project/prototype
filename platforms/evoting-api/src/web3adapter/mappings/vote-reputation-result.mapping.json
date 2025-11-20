@@ -1,0 +1,12 @@
+{
+    "tableName": "vote_reputation_results",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440102",
+    "localToUniversalMap": {
+        "pollId": "pollId",
+        "groupId": "groupId",
+        "results": "results",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    },
+    "readOnly": false
+}

@@ -31,6 +31,12 @@ export class Poll {
     })
     visibility!: "public" | "private";
 
+    @Column("enum", {
+        enum: ["1p1v", "ereputation"],
+        default: "1p1v",
+    })
+    votingWeight!: "1p1v" | "ereputation";
+
     @Column("simple-array")
     options!: string[]; // stored as comma-separated values
 

@@ -33,6 +33,7 @@ const createPollSchema = z.object({
         // This will be validated in the onSubmit function with the actual groups data
         return true;
     }, "Please select a valid group"),
+    votingWeight: z.enum(["1p1v", "ereputation"]).default("1p1v"),
     options: z
         .array(z.string()
             .min(1, "Option cannot be empty")
@@ -71,6 +72,7 @@ export default function CreatePoll() {
             mode: "normal",
             visibility: "public",
             groupId: "",
+            votingWeight: "1p1v",
             options: ["", ""],
             deadline: "",
         },
@@ -119,6 +121,7 @@ export default function CreatePoll() {
 
     const watchedMode = watch("mode");
     const watchedVisibility = watch("visibility");
+    const watchedVotingWeight = watch("votingWeight");
 
     // Force simple voting when private visibility is selected
     React.useEffect(() => {
@@ -126,6 +129,17 @@ export default function CreatePoll() {
             setValue("mode", "normal");
         }
     }, [watchedVisibility, watchedMode, setValue]);
+
+    // Prevent eReputation weighted + Rank Based Voting combination
+    React.useEffect(() => {
+        if (watchedVotingWeight === "ereputation" && watchedMode === "rank") {
+            // If eReputation is selected and user tries to select rank, force to normal
+            setValue("mode", "normal");
+        } else if (watchedMode === "rank" && watchedVotingWeight === "ereputation") {
+            // If rank is selected and user tries to select eReputation, force to 1p1v
+            setValue("votingWeight", "1p1v");
+        }
+    }, [watchedVotingWeight, watchedMode, setValue]);
 
     const addOption = () => {
         const newOptions = [...options, ""];
@@ -194,6 +208,7 @@ export default function CreatePoll() {
                 title: data.title,
                 mode: data.mode,
                 visibility: data.visibility,
+                votingWeight: data.votingWeight,
                 groupId: data.groupId,
                 options: data.options.filter(option => option.trim() !== ""),
                 deadline: utcDeadline
@@ -469,7 +484,7 @@ export default function CreatePoll() {
                         <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
                             watchedMode === "rank" 
                                 ? "border-(--crimson) bg-(--crimson) text-white" 
-                                : watchedVisibility === "private"
+                                : watchedVisibility === "private" || watchedVotingWeight === "ereputation"
                                 ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
                                 : "border-gray-300 hover:border-gray-400"
                         }`}>
@@ -478,13 +493,17 @@ export default function CreatePoll() {
                                 value="rank"
                                 {...register("mode")}
                                 className="sr-only"
-                                disabled={watchedVisibility === "private"}
+                                disabled={watchedVisibility === "private" || watchedVotingWeight === "ereputation"}
                             />
                             <div className="flex items-center">
                                 <ListOrdered className="w-6 h-6 mr-3" />
                                 <div>
                                     <div className="font-semibold">RBV</div>
-                                    <div className="text-sm opacity-90">Voters can rank order the choices</div>
+                                    <div className="text-sm opacity-90">
+                                        {watchedVotingWeight === "ereputation" 
+                                            ? "Not available with eReputation weighted" 
+                                            : "Voters can rank order the choices"}
+                                    </div>
                                 </div>
                             </div>
                         </Label>
@@ -502,54 +521,74 @@ export default function CreatePoll() {
                         Voting Weight
                     </Label>
                     <RadioGroup
-                        value=""
-                        disabled
+                        value={watchedVotingWeight}
+                        onValueChange={(value) => setValue("votingWeight", value as "1p1v" | "ereputation")}
                         className="mt-2"
                     >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Label className="flex items-center cursor-not-allowed opacity-50">
-                                <RadioGroupItem
+                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                                watchedVotingWeight === "1p1v" 
+                                    ? "border-(--crimson) bg-(--crimson) text-white" 
+                                    : "border-gray-300 hover:border-gray-400"
+                            }`}>
+                                <input
+                                    type="radio"
                                     value="1p1v"
+                                    {...register("votingWeight")}
                                     className="sr-only"
-                                    disabled
                                 />
-                                <div className="border-2 border-gray-300 rounded-lg p-4 w-full h-24 bg-gray-50">
-                                    <div className="flex items-center">
-                                        <CircleUser className="text-gray-400 w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-500">
-                                                1P 1V
-                                            </div>
-                                            <div className="text-sm text-gray-400">
-                                                One person, one vote
-                                            </div>
+                                <div className="flex items-center">
+                                    <CircleUser className="w-6 h-6 mr-3" />
+                                    <div>
+                                        <div className="font-semibold">
+                                            1P 1V
+                                        </div>
+                                        <div className="text-sm opacity-90">
+                                            One person, one vote
                                         </div>
                                     </div>
                                 </div>
                             </Label>
-                            <Label className="flex items-center cursor-not-allowed opacity-50">
-                                <RadioGroupItem
+                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
+                                watchedVotingWeight === "ereputation" 
+                                    ? "border-(--crimson) bg-(--crimson) text-white" 
+                                    : watchedMode === "rank"
+                                    ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
+                                    : "border-gray-300 hover:border-gray-400"
+                            }`}>
+                                <input
+                                    type="radio"
                                     value="ereputation"
+                                    {...register("votingWeight")}
                                     className="sr-only"
-                                    disabled
+                                    disabled={watchedMode === "rank"}
                                 />
-                                <div className="border-2 border-gray-300 rounded-lg p-4 w-full h-24 bg-gray-50">
-                                    <div className="flex items-center">
-                                        <ChartLine className="text-gray-400 w-6 h-6 mr-3" />
-                                        <div>
-                                            <div className="font-semibold text-gray-500">
-                                                eReputation Weighted
-                                            </div>
-                                            <div className="text-sm text-gray-400">
-                                                Votes weighted by eReputation
-                                            </div>
+                                <div className="flex items-center">
+                                    <ChartLine className="w-6 h-6 mr-3" />
+                                    <div>
+                                        <div className="font-semibold">
+                                            eReputation Weighted
+                                        </div>
+                                        <div className="text-sm opacity-90">
+                                            {watchedMode === "rank" 
+                                                ? "Not available with Rank Based Voting" 
+                                                : "Votes weighted by eReputation"}
                                         </div>
                                     </div>
                                 </div>
                             </Label>
                         </div>
                     </RadioGroup>
-                    <p className="mt-2 text-sm text-gray-500">Coming soon - currently disabled</p>
+                    {watchedVotingWeight === "ereputation" && (
+                        <p className="mt-2 text-sm text-gray-600">
+                            Votes will be weighted by each voter's eReputation score. The poll title will automatically include "(eReputation Weighted)".
+                        </p>
+                    )}
+                    {errors.votingWeight && (
+                        <p className="mt-1 text-sm text-red-600">
+                            {errors.votingWeight.message}
+                        </p>
+                    )}
                 </div>
 
                 {/* Vote Options */}

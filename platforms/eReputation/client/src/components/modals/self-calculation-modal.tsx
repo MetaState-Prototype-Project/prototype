@@ -47,11 +47,13 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
 
   const calculateMutation = useMutation({
     mutationFn: async () => {
+      // Convert variables array to a userValues string
+      const userValues = ALL_VARIABLES.join(", ");
       const response = await apiRequest("POST", "/api/reputation/calculate", {
         targetType: "self",
         targetId: null,
         targetName: null,
-        variables: ALL_VARIABLES
+        userValues: userValues
       });
       return response.json();
     },

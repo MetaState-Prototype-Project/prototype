@@ -42,12 +42,12 @@ export default function Navigation() {
     };
 
     return (
-        <nav className="bg-white shadow-lg border-b-2 border-(--crimson) mb-8">
+        <nav className="bg-white shadow-lg border-b-2 mb-8" style={{ borderColor: 'var(--crimson)' }}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center">
                         <div className="shrink-0 flex items-center">
-                            <div className="bg-(--crimson) p-2 rounded-md mr-3">
+                            <div className="p-2 rounded-md mr-3" style={{ backgroundColor: 'var(--crimson)' }}>
                                 <Vote
                                     className="h-6 w-6 text-white font-bold"
                                     strokeWidth={2.5}
@@ -64,7 +64,7 @@ export default function Navigation() {
                         <div className="ml-10 flex items-baseline space-x-4">
                             {isAuthenticated ? (
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-(--crimson) transition-colors cursor-pointer">
+                                    <DropdownMenuTrigger className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 transition-colors cursor-pointer hover:text-[var(--crimson)]">
                                         {user?.avatarUrl ? (
                                             <img
                                                 src={user.avatarUrl}
@@ -110,7 +110,10 @@ export default function Navigation() {
                             ) : (
                                 <Link
                                     href="/login"
-                                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-white bg-(--crimson) hover:bg-(--crimson-700) transition-colors"
+                                    className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-white transition-colors"
+                                    style={{ backgroundColor: 'var(--crimson)' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--crimson-700)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--crimson)'; }}
                                 >
                                     <User className="w-4 h-4 mr-1" />
                                     Sign In
@@ -124,7 +127,7 @@ export default function Navigation() {
                         <button
                             type="button"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            className="text-gray-700 hover:text-(--crimson) p-2"
+                            className="text-gray-700 p-2 hover:text-[var(--crimson)]"
                         >
                             {mobileMenuOpen ? (
                                 <X className="h-6 w-6" />
@@ -151,9 +154,20 @@ export default function Navigation() {
                                                     type="button"
                                                     className={`flex items-center px-3 py-2 rounded-md text-base font-medium w-full text-left cursor-pointer ${
                                                         isActive(path)
-                                                            ? "text-(--crimson) bg-(--crimson-50)"
-                                                            : "text-gray-700 hover:text-(--crimson)"
+                                                            ? "text-gray-700"
+                                                            : "text-gray-700"
                                                     }`}
+                                                    style={isActive(path) ? { color: 'var(--crimson)', backgroundColor: 'var(--crimson-50)' } : {}}
+                                                    onMouseEnter={(e) => {
+                                                        if (!isActive(path)) {
+                                                            e.currentTarget.style.color = 'var(--crimson)';
+                                                        }
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        if (!isActive(path)) {
+                                                            e.currentTarget.style.color = '';
+                                                        }
+                                                    }}
                                                     onClick={() =>
                                                         setMobileMenuOpen(false)
                                                     }
@@ -182,7 +196,7 @@ export default function Navigation() {
                                         </div>
                                         <button
                                             type="button"
-                                            className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-(--crimson) w-full text-left"
+                                            className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 w-full text-left hover:text-[var(--crimson)]"
                                             onClick={() => {
                                                 handleLogout();
                                                 setMobileMenuOpen(false);
@@ -196,7 +210,10 @@ export default function Navigation() {
                             ) : (
                                 <Link
                                     href="/login"
-                                    className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white bg-(--crimson) hover:bg-(--crimson-700) w-full text-left"
+                                    className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white w-full text-left"
+                                    style={{ backgroundColor: 'var(--crimson)' }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--crimson-700)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--crimson)'; }}
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
                                     <User className="w-5 h-5 mr-2" />

@@ -1,27 +1,19 @@
 {
-    "entity": "Poll",
-    "ontology": "polls",
-    "fields": {
+    "tableName": "polls",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440100",
+    "ownerEnamePath": "groups(group.ename)",
+    "localToUniversalMap": {
         "id": "id",
         "title": "title",
         "mode": "mode",
         "visibility": "visibility",
+        "votingWeight": "votingWeight",
         "options": "options",
         "deadline": "deadline",
         "creatorId": "creatorId",
+        "group": "groups(group.id),group",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"
     },
-    "relations": {
-        "creator": {
-            "type": "manyToOne",
-            "target": "User",
-            "foreignKey": "creatorId"
-        },
-        "votes": {
-            "type": "oneToMany",
-            "target": "Vote",
-            "foreignKey": "pollId"
-        }
-    }
+    "readOnly": false
 }

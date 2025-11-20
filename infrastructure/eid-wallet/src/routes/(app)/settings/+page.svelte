@@ -12,6 +12,7 @@ import {
     Shield01Icon,
 } from "@hugeicons/core-free-icons";
 import { getContext } from "svelte";
+import { onDestroy } from "svelte";
 
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
@@ -26,6 +27,7 @@ let tapCount = $state(0);
 let lastTapTime = $state(0);
 let isRetrying = $state(false);
 let retryMessage = $state("");
+let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 function showDeleteConfirmation() {
     isDeleteConfirmationOpen = true;
@@ -48,10 +50,15 @@ function cancelDelete() {
     isFinalConfirmationOpen = false;
 }
 
+// Cleanup on unmount
+onDestroy(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+});
+
 async function handleVersionTap() {
     const now = Date.now();
 
-    // Reset counter if more than 3 seconds between taps
+    // Reset if more than 3s between taps
     if (now - lastTapTime > 3000) {
         tapCount = 0;
     }
@@ -59,12 +66,12 @@ async function handleVersionTap() {
     tapCount++;
     lastTapTime = now;
 
-    // Show tap count feedback (only visible to user)
+    // Show feedback after 5 taps
     if (tapCount >= 5) {
         retryMessage = `Taps: ${tapCount}/10`;
     }
 
-    // Trigger eVault profile retry after 10 taps
+    // Trigger hidden action at 10 taps
     if (tapCount === 10) {
         isRetrying = true;
         retryMessage = "Retrying eVault profile setup...";
@@ -73,8 +80,10 @@ async function handleVersionTap() {
             await globalState.vaultController.retryProfileCreation();
             retryMessage = "✅ eVault profile setup completed successfully!";
 
-            // Reset after success
-            setTimeout(() => {
+            // Clear previous timeout if exists
+            if (timeoutId) clearTimeout(timeoutId);
+
+            timeoutId = setTimeout(() => {
                 tapCount = 0;
                 retryMessage = "";
                 isRetrying = false;
@@ -84,8 +93,10 @@ async function handleVersionTap() {
             retryMessage =
                 "❌ Failed to setup eVault profile. Check console for details.";
 
-            // Reset after error
-            setTimeout(() => {
+            // Clear previous timeout if exists
+            if (timeoutId) clearTimeout(timeoutId);
+
+            timeoutId = setTimeout(() => {
                 tapCount = 0;
                 retryMessage = "";
                 isRetrying = false;
@@ -146,59 +157,63 @@ $effect(() => {
 </main>
 
 <!-- First Confirmation Drawer -->
-<Drawer bind:isPaneOpen={isDeleteConfirmationOpen}>
-    <div class="text-center">
-        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-            ⚠️ Delete Account Warning
-        </h4>
-        <p class="text-black-700 mb-4">
-            Are you sure you want to delete your account? This action will:
-        </p>
-        <ul class="text-left text-black-700 mb-6 space-y-2">
-            <li>• Permanently delete all your personal data</li>
-            <li>• Remove your ePassport and eVault access</li>
-            <li>• Delete your eName and all associated credentials</li>
-            <li>• Make your data inaccessible within 24 hours</li>
-            <li>• This action cannot be undone</li>
-        </ul>
-        <div class="flex gap-3">
-            <ButtonAction class="flex-1" callback={cancelDelete}
-                >Cancel</ButtonAction
-            >
-            <ButtonAction
-                class="flex-1 bg-red-600 hover:bg-red-700"
-                callback={confirmDelete}>Continue</ButtonAction
-            >
+{#if isDeleteConfirmationOpen}
+    <Drawer bind:isPaneOpen={isDeleteConfirmationOpen}>
+        <div class="text-center">
+            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+                ⚠️ Delete Account Warning
+            </h4>
+            <p class="text-black-700 mb-4">
+                Are you sure you want to delete your account? This action will:
+            </p>
+            <ul class="text-left text-black-700 mb-6 space-y-2">
+                <li>• Permanently delete all your personal data</li>
+                <li>• Remove your ePassport and eVault access</li>
+                <li>• Delete your eName and all associated credentials</li>
+                <li>• Make your data inaccessible within 24 hours</li>
+                <li>• This action cannot be undone</li>
+            </ul>
+            <div class="flex gap-3">
+                <ButtonAction class="flex-1" callback={cancelDelete}
+                    >Cancel</ButtonAction
+                >
+                <ButtonAction
+                    class="flex-1 bg-red-600 hover:bg-red-700"
+                    callback={confirmDelete}>Continue</ButtonAction
+                >
+            </div>
         </div>
-    </div>
-</Drawer>
+    </Drawer>
+{/if}
 
 <!-- Final Confirmation Drawer -->
-<Drawer bind:isPaneOpen={isFinalConfirmationOpen}>
-    <div class="text-center">
-        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-            🚨 Final Confirmation
-        </h4>
-        <p class="text-black-700 mb-4">
-            This is your final warning. Once you confirm:
-        </p>
-        <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <p class="text-red-800 font-medium">
-                All your data will be permanently deleted and you will lose
-                access to your ePassport, eVault, and eName forever.
+{#if isFinalConfirmationOpen}
+    <Drawer bind:isPaneOpen={isFinalConfirmationOpen}>
+        <div class="text-center">
+            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+                🚨 Final Confirmation
+            </h4>
+            <p class="text-black-700 mb-4">
+                This is your final warning. Once you confirm:
             </p>
+            <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                <p class="text-red-800 font-medium">
+                    All your data will be permanently deleted and you will lose
+                    access to your ePassport, eVault, and eName forever.
+                </p>
+            </div>
+            <p class="text-black-700 mb-6">
+                Are you absolutely certain you want to proceed?
+            </p>
+            <div class="flex gap-3">
+                <ButtonAction class="flex-1" callback={cancelDelete}
+                    >Cancel</ButtonAction
+                >
+                <ButtonAction
+                    class="flex-1 bg-red-600 hover:bg-red-700"
+                    callback={nukeWallet}>Delete</ButtonAction
+                >
+            </div>
         </div>
-        <p class="text-black-700 mb-6">
-            Are you absolutely certain you want to proceed?
-        </p>
-        <div class="flex gap-3">
-            <ButtonAction class="flex-1" callback={cancelDelete}
-                >Cancel</ButtonAction
-            >
-            <ButtonAction
-                class="flex-1 bg-red-600 hover:bg-red-700"
-                callback={nukeWallet}>Delete</ButtonAction
-            >
-        </div>
-    </div>
-</Drawer>
+    </Drawer>
+{/if}
