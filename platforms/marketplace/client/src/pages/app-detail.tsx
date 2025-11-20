@@ -1,7 +1,9 @@
 import { useRoute, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, ArrowLeft, Store } from "lucide-react";
+import { ExternalLink, ArrowLeft, Store, Star, MessageSquare } from "lucide-react";
 import appsData from "@/data/apps.json";
+import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 
 // Mock detailed descriptions for each app
 const appDetails: Record<string, { fullDescription: string; screenshots: string[] }> = {
@@ -37,6 +39,14 @@ export default function AppDetailPage() {
 
   const app = appsData.find(a => a.id === appId);
   const details = appId ? appDetails[appId] : null;
+
+  // Fetch platform references from eReputation
+  const { data: referencesData, isLoading: referencesLoading } = useQuery({
+    queryKey: [`/api/platforms/${appId}/references`],
+    enabled: !!appId,
+  });
+
+  const references = (referencesData as any)?.references || [];
 
 
   if (!app) {
@@ -133,12 +143,71 @@ export default function AppDetailPage() {
           </div>
         )}
 
-        {/* Reviews Section - Coming Soon */}
+        {/* Platform eReferences Section */}
         <div className="bg-white rounded-3xl p-8 border border-gray-100">
-          <div className="text-center py-12">
-            <h3 className="text-2xl font-black text-black mb-4">Reviews & Ratings</h3>
-            <p className="text-gray-600 font-medium text-lg">Reviews feature coming soon</p>
+          <div className="flex items-center gap-3 mb-6">
+            <MessageSquare className="w-6 h-6 text-black" />
+            <h3 className="text-2xl font-black text-black">Platform eReferences</h3>
+            {references.length > 0 && (
+              <span className="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {references.length} {references.length === 1 ? 'reference' : 'references'}
+              </span>
+            )}
           </div>
+
+          {referencesLoading ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 font-medium">Loading references...</p>
+            </div>
+          ) : references.length === 0 ? (
+            <div className="text-center py-12">
+              <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 font-medium text-lg mb-2">No references yet</p>
+              <p className="text-gray-500 text-sm">Be the first to share your experience with this platform</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {references.map((ref: any) => (
+                <div key={ref.id} className="border border-gray-200 rounded-2xl p-6 hover:border-gray-300 transition-colors">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                        <MessageSquare className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-black">
+                          {ref.author?.name || 'Anonymous'}
+                        </div>
+                        {ref.author?.ename && (
+                          <div className="text-sm text-gray-500">
+                            @{ref.author.ename}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {ref.numericScore && (
+                      <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold text-black">{ref.numericScore}/5</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">
+                    {ref.content}
+                  </p>
+                  {ref.createdAt && (
+                    <div className="mt-4 text-xs text-gray-500">
+                      {new Date(ref.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 
