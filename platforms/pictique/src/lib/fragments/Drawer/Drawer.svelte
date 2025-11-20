@@ -19,20 +19,19 @@
 		if (drawer) drawer.destroy({ animate: true });
 	}
 
-	const handleDrawerSwipe = (event: SwipeCustomEvent) => {
-		if (event.detail.direction === ('down' as string)) {
-			drawer?.destroy({ animate: true });
-		}
-	};
+	function downSwipeHandler() {
+		drawer?.destroy({ animate: true });
+	}
 
 	const swipeResult = useSwipe(
-		handleDrawerSwipe,
+		() => {},
 		() => ({
 			timeframe: 300,
 			minSwipeDistance: 60
 		}),
-		undefined,
-		true
+		{
+			onswipedown: downSwipeHandler
+		}
 	);
 	const swipe = swipeResult.swipe as any;
 

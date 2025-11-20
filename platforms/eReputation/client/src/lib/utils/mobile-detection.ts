@@ -27,19 +27,17 @@ export function getDeepLinkUrl(qrData: string): string {
 }
 
 export function getAppStoreLink(): string {
+  const defaultLink = "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+  
   if (typeof window === 'undefined') {
-    return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+    return defaultLink;
   }
   
   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-  
-  if (/android/i.test(userAgent)) {
-    return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
-  }
   
   if (/iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream) {
     return "https://apps.apple.com/in/app/eid-for-w3ds/id6747748667";
   }
   
-  return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
+  return defaultLink;
 }
