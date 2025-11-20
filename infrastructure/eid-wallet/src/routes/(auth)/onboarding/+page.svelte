@@ -189,42 +189,45 @@ onMount(async () => {
         loading = true;
         error = null;
 
-        // Initialize key manager for pre-verification context
-        await initializeKeyManager();
-        await ensureKeyForContext();
+        try {
+            // Initialize key manager for pre-verification context
+            await initializeKeyManager();
+            await ensureKeyForContext();
 
-        const {
-            data: { token: registryEntropy },
-        } = await axios.get(
-            new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-        );
+            const entropyRes = await axios.get(
+                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
+            );
+            const registryEntropy = entropyRes.data.token;
 
-        const { data } = await axios
-            .post(new URL("/provision", PUBLIC_PROVISIONER_URL).toString(), {
-                registryEntropy,
-                namespace: uuidv4(),
-                verificationId,
-                publicKey: await getApplicationPublicKey(),
-            })
-            .catch(() => {
-                loading = false;
-                console.log("caught");
-                preVerified = false;
-                verificationId = "";
-                error = "Wrong pre-verification code";
-                setTimeout(() => {
-                    error = null;
-                }, 6_000);
-                return { data: null };
-            });
-        if (!data) return;
+            const provisionRes = await axios.post(
+                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
+                {
+                    registryEntropy,
+                    namespace: uuidv4(),
+                    verificationId,
+                    publicKey: await getApplicationPublicKey(),
+                },
+            );
 
-        // If verification is successful, show demo name input
-        if (data.success === true) {
-            loading = false;
+            if (!provisionRes.data?.success) {
+                throw new Error("Invalid verification code");
+            }
+
             verificationSuccess = true;
-            uri = data.uri;
-            ename = data.w3id;
+            uri = provisionRes.data.uri;
+            ename = provisionRes.data.w3id;
+        } catch (err) {
+            console.error("Pre-verification failed:", err);
+
+            preVerified = false;
+            verificationId = "";
+            error = "Wrong pre-verification code";
+
+            setTimeout(() => {
+                error = null;
+            }, 6000);
+        } finally {
+            loading = false;
         }
     };
 
@@ -302,8 +305,8 @@ onMount(async () => {
             >
         </p>
         <div class="flex justify-center whitespace-nowrap mt-1">
-            <ButtonAction 
-                class="w-full" 
+            <ButtonAction
+                class="w-full"
                 callback={handleGetStarted}
                 disabled={checkingHardware}
             >
@@ -349,8 +352,11 @@ onMount(async () => {
                 placeholder="Enter your demo name for ePassport"
             />
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction class="w-full" callback={handleFinalSubmit}
-                    >Continue</ButtonAction
+                <ButtonAction
+                    variant={demoName.length === 0 ? "soft" : "solid"}
+                    disabled={demoName.length === 0}
+                    class="w-full"
+                    callback={handleFinalSubmit}>Continue</ButtonAction
                 >
             </div>
         {:else}
@@ -365,69 +371,61 @@ onMount(async () => {
                 placeholder="Enter verification code"
             />
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction class="w-full" callback={handleContinue}
-                    >Next</ButtonAction
+                <ButtonAction
+                    variant={verificationId.length === 0 ? "soft" : "solid"}
+                    disabled={verificationId.length === 0}
+                    class="w-full"
+                    callback={handleContinue}>Next</ButtonAction
                 >
             </div>
         {/if}
+    {:else if checkingHardware}
+        <div class="my-20">
+            <div
+                class="align-center flex w-full flex-col items-center justify-center gap-6"
+            >
+                <Shadow size={40} color="rgb(142, 82, 255);" />
+                <h4>Checking device capabilities...</h4>
+            </div>
+        </div>
+    {:else if showHardwareError}
+        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
+            Hardware Security Not Available
+        </h4>
+        <p class="text-black-700 mb-4">
+            Your phone doesn't support hardware crypto keys, which is a
+            requirement for verified IDs.
+        </p>
+        <p class="text-black-700 mb-4">
+            Please use the pre-verification code option to create a demo account
+            instead.
+        </p>
+        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+            <ButtonAction
+                class="w-full"
+                callback={() => {
+                    isPaneOpen = false;
+                    handlePreVerified();
+                }}
+            >
+                Use Pre-Verification Code
+            </ButtonAction>
+        </div>
     {:else}
-        {#if checkingHardware}
-            <div class="my-20">
-                <div
-                    class="align-center flex w-full flex-col items-center justify-center gap-6"
-                >
-                    <Shadow size={40} color="rgb(142, 82, 255);" />
-                    <h4>Checking device capabilities...</h4>
-                </div>
-            </div>
-        {:else if showHardwareError}
-            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-                Hardware Security Not Available
-            </h4>
-            <p class="text-black-700 mb-4">
-                Your phone doesn't support hardware crypto keys, which is a requirement for verified IDs.
-            </p>
-            <p class="text-black-700 mb-4">
-                Please use the pre-verification code option to create a demo account instead.
-            </p>
-            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction 
-                    class="w-full" 
-                    callback={() => {
-                        isPaneOpen = false;
-                        handlePreVerified();
-                    }}
-                >
-                    Use Pre-Verification Code
-                </ButtonAction>
-            </div>
-        {:else}
-            {#if loading}
-                <div class="my-20">
-                    <div
-                        class="align-center flex w-full flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
-                        <h4>Initializing security keys...</h4>
-                    </div>
-                </div>
-            {:else}
-                <h4 class="mt-[2.3svh] mb-[0.5svh]">
-                    Your Digital Self begins with the Real You
-                </h4>
-                <p class="text-black-700">
-                    In the Web 3.0 Data Space, identity is linked to reality. We begin
-                    by verifying your real-world passport, which serves as the
-                    foundation for issuing your secure ePassport. At the same time, we
-                    generate your eName – a unique digital identifier – and create your
-                    eVault to store and protect your personal data.
-                </p>
-                <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                    <ButtonAction class="w-full" callback={handleNext}
-                        >Next</ButtonAction
-                    >
-                </div>
-            {/if}
-        {/if}
+        <h4 class="mt-[2.3svh] mb-[0.5svh]">
+            Your Digital Self begins with the Real You
+        </h4>
+        <p class="text-black-700">
+            In the Web 3.0 Data Space, identity is linked to reality. We begin
+            by verifying your real-world passport, which serves as the
+            foundation for issuing your secure ePassport. At the same time, we
+            generate your eName – a unique digital identifier – and create your
+            eVault to store and protect your personal data.
+        </p>
+        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
+            <ButtonAction class="w-full" callback={handleNext}
+                >Next</ButtonAction
+            >
+        </div>
     {/if}
 </Drawer>
