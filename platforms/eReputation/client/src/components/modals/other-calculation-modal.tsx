@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useDebouncedCallback } from 'use-debounce';
+import ReactMarkdown from "react-markdown";
 import { apiClient } from "@/lib/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -553,8 +554,24 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
                 {wishlistExpanded && (
                   <div className="mt-3 pt-3 border-t border-fig/10">
                     <p className="text-sm font-semibold text-fig mb-2">Wishlist Content:</p>
-                    <div className="bg-white/50 rounded-lg p-3 max-h-48 overflow-y-auto text-sm text-fig/80 whitespace-pre-wrap">
-                      {wishlist.content}
+                    <div className="bg-white/50 rounded-lg p-3 max-h-48 overflow-y-auto text-sm text-fig/80 prose prose-sm prose-fig max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-base font-bold mb-2 mt-3 first:mt-0">{children}</h1>,
+                          h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-sm font-bold mb-2 mt-3 first:mt-0">{children}</h2>,
+                          h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h3>,
+                          ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                          li: ({ children }: { children?: React.ReactNode }) => <li className="ml-2">{children}</li>,
+                          strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
+                          code: ({ children }: { children?: React.ReactNode }) => <code className="bg-fig/10 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                          blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-2 border-fig/30 pl-3 italic my-2">{children}</blockquote>,
+                        }}
+                      >
+                        {wishlist.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 )}
