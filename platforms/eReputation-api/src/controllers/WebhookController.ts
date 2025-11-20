@@ -3,11 +3,13 @@ import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { VoteService } from "../services/VoteService";
 import { PollService } from "../services/PollService";
-import { JobQueueService } from "../services/JobQueueService";
+import { VotingReputationService } from "../services/VotingReputationService";
+import { MessageService } from "../services/MessageService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Poll } from "../database/entities/Poll";
+import { VoteReputationResult } from "../database/entities/VoteReputationResult";
 import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
@@ -16,15 +18,17 @@ export class WebhookController {
     groupService: GroupService;
     voteService: VoteService;
     pollService: PollService;
-    jobQueueService: JobQueueService;
+    votingReputationService: VotingReputationService;
+    messageService: MessageService;
     adapter: typeof adapter;
 
-    constructor(jobQueueService: JobQueueService) {
+    constructor() {
         this.userService = new UserService();
         this.groupService = new GroupService();
         this.voteService = new VoteService();
         this.pollService = new PollService();
-        this.jobQueueService = jobQueueService;
+        this.votingReputationService = new VotingReputationService();
+        this.messageService = new MessageService();
         this.adapter = adapter;
     }
 
@@ -261,17 +265,11 @@ export class WebhookController {
                         await pollRepository.save(poll);
                         finalLocalId = poll.id;
 
-                        // Enqueue reputation calculation job if needed
+                        // Process eReputation calculation if needed
                         if (this.voteService.isEReputationWeighted(poll) && poll.groupId) {
-                            try {
-                                await this.jobQueueService.enqueuePollReputationJob(
-                                    poll.id,
-                                    poll.groupId,
-                                    globalId // Use globalId as eventId for idempotency
-                                );
-                            } catch (error) {
-                                console.error(`Failed to enqueue reputation job for poll ${poll.id}:`, error);
-                            }
+                            this.processEReputationWeightedPoll(poll).catch((error) => {
+                                console.error(`Error processing eReputation for poll ${poll.id}:`, error);
+                            });
                         }
                     }
                 } else {
@@ -297,17 +295,11 @@ export class WebhookController {
                     });
                     finalLocalId = savedPoll.id;
 
-                    // Enqueue reputation calculation job if needed
+                    // Process eReputation calculation if needed
                     if (this.voteService.isEReputationWeighted(savedPoll) && savedPoll.groupId) {
-                        try {
-                            await this.jobQueueService.enqueuePollReputationJob(
-                                savedPoll.id,
-                                savedPoll.groupId,
-                                globalId // Use globalId as eventId for idempotency
-                            );
-                        } catch (error) {
-                            console.error(`Failed to enqueue reputation job for poll ${savedPoll.id}:`, error);
-                        }
+                        this.processEReputationWeightedPoll(savedPoll).catch((error) => {
+                            console.error(`Error processing eReputation for poll ${savedPoll.id}:`, error);
+                        });
                     }
                 }
             }
@@ -319,4 +311,115 @@ export class WebhookController {
         }
     };
 
+    private async processEReputationWeightedPoll(poll: Poll): Promise<void> {
+        if (!poll.groupId) return;
+
+        const group = await this.groupService.getGroupById(poll.groupId);
+        if (!group || !group.charter) return;
+
+        const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
+            poll.groupId,
+            group.charter
+        );
+
+        const voteReputationResult = await this.votingReputationService.saveReputationResults(
+            poll.id,
+            poll.groupId,
+            reputationResults
+        );
+
+        await this.transmitReputationResults(voteReputationResult, poll, group);
+        await this.createReputationMessage(poll, reputationResults);
+    }
+
+    private async transmitReputationResults(
+        result: VoteReputationResult,
+        poll: Poll,
+        group: Group
+    ): Promise<void> {
+        const voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
+        const pollRepository = AppDataSource.getRepository(Poll);
+        const groupRepository = AppDataSource.getRepository(Group);
+
+        const reloadedResult = await voteReputationResultRepository.findOne({
+            where: { id: result.id },
+            relations: ["poll", "group"]
+        });
+
+        if (!reloadedResult) throw new Error(`Result not found: ${result.id}`);
+
+        let pollEntity: Poll | null = reloadedResult.poll || null;
+        let groupEntity: Group | null = reloadedResult.group || null;
+
+        if (!pollEntity && reloadedResult.pollId) {
+            pollEntity = await pollRepository.findOne({ where: { id: reloadedResult.pollId } });
+        }
+
+        if (!groupEntity && reloadedResult.groupId) {
+            groupEntity = await groupRepository.findOne({
+                where: { id: reloadedResult.groupId },
+                select: ["id", "ename", "name"]
+            });
+        }
+
+        if (!pollEntity || !groupEntity || !groupEntity.ename) {
+            throw new Error("Missing required data for transmission");
+        }
+
+        const data: any = {
+            id: reloadedResult.id,
+            pollId: reloadedResult.pollId,
+            groupId: reloadedResult.groupId,
+            results: JSON.stringify(reloadedResult.results),
+            createdAt: reloadedResult.createdAt,
+            updatedAt: reloadedResult.updatedAt,
+            poll: {
+                id: pollEntity.id,
+                groupId: pollEntity.groupId,
+                group: {
+                    id: groupEntity.id,
+                    ename: groupEntity.ename,
+                    name: groupEntity.name
+                }
+            }
+        };
+
+        if (!data.groupId) {
+            data.groupId = groupEntity.id;
+        }
+
+        await this.adapter.handleChange({
+            data,
+            tableName: "vote_reputation_results"
+        });
+    }
+
+    private async createReputationMessage(
+        poll: Poll,
+        reputationResults: Array<{ ename: string; score: number; justification: string }>
+    ): Promise<void> {
+        if (!poll.groupId) return;
+
+        try {
+            const messageLines: string[] = [];
+            messageLines.push(`eReputation scores calculated for poll: "${poll.title}"`);
+            messageLines.push(``);
+
+            for (const result of reputationResults) {
+                const user = await this.userService.getUserByEname(result.ename);
+                const userName = user?.name || "Unknown";
+                messageLines.push(`${userName} (@${result.ename}): ${result.score}/5`);
+                messageLines.push(`  ${result.justification}`);
+                messageLines.push(``);
+            }
+
+            await this.messageService.createSystemMessage({
+                text: messageLines.join('\n'),
+                groupId: poll.groupId,
+                voteId: poll.id
+            });
+        } catch (error) {
+            console.error(`Failed to create system message for poll ${poll.id}:`, error);
+        }
+    }
 }
