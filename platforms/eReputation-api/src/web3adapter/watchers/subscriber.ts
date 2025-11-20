@@ -169,6 +169,16 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     private async handleChange(entity: any, tableName: string): Promise<void> {
         console.log(`🔍 handleChange called for: ${tableName}, entityId: ${entity?.id}`);
         
+        // For Message entities, only process if they are system messages
+        if (tableName === "messages") {
+            const isSystemMessage = entity.text && entity.text.includes('$$system-message$$');
+            
+            if (!isSystemMessage) {
+                console.log(`⏭️ Skipping non-system message: ${entity.id}`);
+                return;
+            }
+        }
+        
         // Handle junction table changes
         // @ts-ignore
         const junctionInfo = JUNCTION_TABLE_MAP[tableName];

@@ -4,6 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { VoteService } from "../services/VoteService";
 import { PollService } from "../services/PollService";
 import { VotingReputationService } from "../services/VotingReputationService";
+import { MessageService } from "../services/MessageService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -18,6 +19,7 @@ export class WebhookController {
     voteService: VoteService;
     pollService: PollService;
     votingReputationService: VotingReputationService;
+    messageService: MessageService;
     adapter: typeof adapter;
 
     constructor() {
@@ -26,6 +28,7 @@ export class WebhookController {
         this.voteService = new VoteService();
         this.pollService = new PollService();
         this.votingReputationService = new VotingReputationService();
+        this.messageService = new MessageService();
         this.adapter = adapter;
     }
 
@@ -442,6 +445,48 @@ export class WebhookController {
             console.log(`${"=".repeat(80)}\n`);
             
             await this.transmitReputationResults(voteReputationResult);
+
+            // Create system message with eReputation results
+            console.log(`\n${"=".repeat(80)}`);
+            console.log(`📨 CREATING SYSTEM MESSAGE WITH eReputation Results`);
+            console.log(`${"=".repeat(80)}\n`);
+            
+            try {
+                // Build message text with each person's eReputation
+                const messageLines: string[] = [];
+                messageLines.push(`eReputation scores calculated for poll: "${poll.title}"`);
+                messageLines.push(``);
+                
+                // Get user information for each result
+                for (const result of reputationResults) {
+                    const user = await this.userService.getUserByEname(result.ename);
+                    const userName = user?.name || "Unknown";
+                    const userEname = result.ename;
+                    const score = result.score;
+                    const justification = result.justification;
+                    
+                    messageLines.push(`${userName} (@${userEname}): ${score}/5`);
+                    messageLines.push(`  ${justification}`);
+                    messageLines.push(``);
+                }
+                
+                const messageText = messageLines.join('\n');
+                
+                // Create system message
+                await this.messageService.createSystemMessage({
+                    text: messageText,
+                    groupId: poll.groupId,
+                    voteId: poll.id
+                });
+                
+                console.log(`✅ System message created successfully`);
+                console.log(`   Group ID: ${poll.groupId}`);
+                console.log(`   Poll ID: ${poll.id}`);
+                console.log(`   Message includes ${reputationResults.length} eReputation scores`);
+            } catch (error) {
+                console.error(`❌ Failed to create system message:`, error);
+                // Don't throw - we don't want to fail the whole process if message creation fails
+            }
 
             console.log(`\n${"=".repeat(80)}`);
             console.log(`✅ SUCCESSFULLY COMPLETED eReputation Calculation & Transmission`);
