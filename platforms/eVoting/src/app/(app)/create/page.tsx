@@ -563,7 +563,7 @@ export default function CreatePoll() {
                             <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
                                 watchedVotingWeight === "ereputation" 
                                     ? "border-(--crimson) bg-(--crimson) text-white" 
-                                    : watchedMode === "rank"
+                                    : watchedMode === "rank" || watchedVisibility === "private"
                                     ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
                                     : "border-gray-300 hover:border-gray-400"
                             }`}>
@@ -572,7 +572,7 @@ export default function CreatePoll() {
                                     value="ereputation"
                                     {...register("votingWeight")}
                                     className="sr-only"
-                                    disabled={watchedMode === "rank"}
+                                    disabled={watchedMode === "rank" || watchedVisibility === "private"}
                                 />
                                 <div className="flex items-center">
                                     <ChartLine className="w-6 h-6 mr-3" />
@@ -583,6 +583,8 @@ export default function CreatePoll() {
                                         <div className="text-sm opacity-90">
                                             {watchedMode === "rank" 
                                                 ? "Not available with Rank Based Voting" 
+                                                : watchedVisibility === "private"
+                                                ? "Not available with Blind Voting"
                                                 : "Votes weighted by eReputation"}
                                         </div>
                                     </div>

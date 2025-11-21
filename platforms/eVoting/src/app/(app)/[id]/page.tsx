@@ -520,10 +520,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     percentage = totalAllPoints > 0 ? (totalPoints / totalAllPoints) * 100 : 0;
                                                 } else {
                                                     // Normal voting (including eReputation weighted normal voting): show votes and percentage
-                                                    // For eReputation weighted normal voting, use totalWeightedVotes for percentage calculation
                                                     const voteCount = result.votes || 0;
                                                     displayValue = `${voteCount} votes`;
-                                                    const totalVotesForPercentage = resultsData.totalWeightedVotes || resultsData.totalVotes || 1;
+                                                    // Calculate total from results array for percentage (handles both weighted and non-weighted)
+                                                    const totalVotesForPercentage = resultsData.results.reduce((sum, r) => sum + (r.votes || 0), 0);
                                                     isWinner = voteCount === Math.max(...resultsData.results.map(r => r.votes || 0));
                                                     percentage = totalVotesForPercentage > 0 ? (voteCount / totalVotesForPercentage) * 100 : 0;
                                                 }
