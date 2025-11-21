@@ -48,18 +48,15 @@ export class VoteService {
    */
   private getReputationScore(ename: string, reputationResults: VoteReputationResult | null): number {
     if (!reputationResults || !reputationResults.results) {
-      console.log(`[getReputationScore] No reputation results for ename: ${ename}, returning default 1.0`);
       return 1.0; // Default score if no reputation data
     }
 
     const memberRep = reputationResults.results.find((r: MemberReputation) => r.ename === ename);
     if (!memberRep) {
-      console.log(`[getReputationScore] User ${ename} not found in reputation results. Available enames: ${reputationResults.results.map(r => r.ename).join(', ')}, returning default 1.0`);
       return 1.0; // Default score if user not found in reputation results
     }
 
     // Return the actual eReputation score (1-5) to multiply votes/points by
-    console.log(`[getReputationScore] Found reputation for ${ename}: score=${memberRep.score}`);
     return memberRep.score;
   }
 
@@ -218,9 +215,6 @@ export class VoteService {
       throw new Error("eReputation calculation is not yet complete. Results will be available once the calculation finishes.");
     }
     
-    // Debug logging
-    console.log(`[getPollResults] pollId: ${pollId}, isWeighted: ${isWeighted}, hasReputationResults: ${!!reputationResults}, reputationResultsCount: ${reputationResults?.results?.length || 0}`);
-    
     if (poll.mode === "normal") {
       // STEP 1: Calculate results normally (without eReputation weighting)
       const optionCounts: Record<string, number> = {};
@@ -236,16 +230,12 @@ export class VoteService {
           const userEname = vote.user?.ename || null;
           const weight = isWeighted && userEname ? this.getReputationScore(userEname, reputationResults) : 1.0;
           
-          // Debug logging for normal voting
-          console.log(`[normal voting] userEname: ${userEname}, weight: ${weight}, isWeighted: ${isWeighted}, hasReputationResults: ${!!reputationResults}`);
-          
           vote.data.data.forEach(optionIndex => {
             const option = poll.options[parseInt(optionIndex)];
             if (option) {
               // For weighted: multiply each vote by the voter's weight
               // For non-weighted: just add 1
               const weightedVote = isWeighted ? weight : 1.0;
-              console.log(`[normal voting] option: ${option}, weightedVote: ${weightedVote}, adding to optionCounts`);
               optionCounts[option] += weightedVote;
             }
           });
@@ -309,9 +299,6 @@ export class VoteService {
           const userEname = vote.user?.ename || null;
           const weight = isWeighted && userEname ? this.getReputationScore(userEname, reputationResults) : 1.0;
           
-          // Debug logging for points-based voting
-          console.log(`[points voting] userEname: ${userEname}, weight: ${weight}, isWeighted: ${isWeighted}, hasReputationResults: ${!!reputationResults}`);
-          
           // Handle the actual stored format: {"0": 10, "1": 10, "2": 50, "3": 20, "5": 10}
           if (typeof vote.data.data === 'object' && !Array.isArray(vote.data.data)) {
             Object.entries(vote.data.data).forEach(([optionIndex, points]) => {
@@ -322,7 +309,6 @@ export class VoteService {
                 // For non-weighted: just add points
                 // For weighted: multiply points by weight, then add
                 const weightedPoints = isWeighted ? points * weight : points;
-                console.log(`[points voting] option: ${option}, points: ${points}, weight: ${weight}, weightedPoints: ${weightedPoints}, adding to optionPoints`);
                 optionPoints[option] += weightedPoints;
                 
                 if (isWeighted && userEname) {
