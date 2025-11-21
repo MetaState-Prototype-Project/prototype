@@ -29,6 +29,7 @@ export class GroupController {
             res.json(groups.map(group => ({
                 id: group.id,
                 name: group.name,
+                ename: group.ename,
                 description: group.description,
                 charter: group.charter,
                 createdAt: group.createdAt,
