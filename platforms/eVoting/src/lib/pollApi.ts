@@ -114,6 +114,7 @@ export interface VoterDetail {
 export interface PollResults {
   poll: Poll;
   totalVotes: number;
+  totalWeightedVotes?: number;
   totalEligibleVoters?: number;
   turnout?: number;
   mode?: "normal" | "point" | "rank" | "ereputation";
