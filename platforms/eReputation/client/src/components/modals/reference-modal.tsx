@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiClient } from "@/lib/apiClient";
+import { QRCodeSVG } from "qrcode.react";
+import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -62,6 +64,10 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [referenceText, setReferenceText] = useState("");
   const [referenceType, setReferenceType] = useState("");
+  const [signingSession, setSigningSession] = useState<{ sessionId: string; qrData: string; expiresAt: string } | null>(null);
+  const [signingStatus, setSigningStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error" | "security_violation">("pending");
+  const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutes in seconds
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -95,15 +101,23 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
       const response = await apiClient.post('/api/references', data);
       return response.data;
     },
-    onSuccess: () => {
-      toast({
-        title: "Reference Submitted",
-        description: "Your professional reference has been successfully submitted.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/activities"] });
-      onOpenChange(false);
-      resetForm();
+    onSuccess: (data) => {
+      // Reference created, now we need to sign it
+      if (data.signingSession) {
+        setSigningSession(data.signingSession);
+        setSigningStatus("pending");
+        const expiresAt = new Date(data.signingSession.expiresAt);
+        const now = new Date();
+        const secondsRemaining = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
+        setTimeRemaining(Math.max(0, secondsRemaining));
+        startSSEConnection(data.signingSession.sessionId);
+      } else {
+        // Fallback if no signing session (shouldn't happen)
+        toast({
+          title: "Reference Created",
+          description: "Your reference has been created. Please sign it to complete.",
+        });
+      }
     },
     onError: (error) => {
       if (isUnauthorizedError(error)) {
@@ -125,12 +139,136 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
     },
   });
 
+  const startSSEConnection = (sessionId: string) => {
+    // Prevent multiple SSE connections
+    if (eventSource) {
+      eventSource.close();
+    }
+    
+    // Connect to the backend SSE endpoint for signing status
+    const baseURL = import.meta.env.VITE_EREPUTATION_BASE_URL || "http://localhost:8765";
+    const sseUrl = `${baseURL}/api/references/signing/session/${sessionId}/status`;
+    
+    const newEventSource = new EventSource(sseUrl);
+    
+    newEventSource.onopen = () => {
+      console.log("SSE connection established for reference signing");
+    };
+    
+    newEventSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        
+        if (data.type === "signed" && data.status === "completed") {
+          setSigningStatus("signed");
+          newEventSource.close();
+          
+          toast({
+            title: "Reference Signed!",
+            description: "Your eReference has been successfully signed and submitted.",
+          });
+          
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/activities"] });
+          
+          // Close modal and reset after a short delay
+          setTimeout(() => {
+            onOpenChange(false);
+            resetForm();
+          }, 1500);
+        } else if (data.type === "expired") {
+          setSigningStatus("expired");
+          newEventSource.close();
+          toast({
+            title: "Session Expired",
+            description: "The signing session has expired. Please try again.",
+            variant: "destructive",
+          });
+        } else if (data.type === "security_violation") {
+          setSigningStatus("security_violation");
+          newEventSource.close();
+          toast({
+            title: "eName Verification Failed",
+            description: "eName verification failed. Please check your eID.",
+            variant: "destructive",
+          });
+        } else {
+          console.log("SSE message:", data);
+        }
+      } catch (error) {
+        console.error("Error parsing SSE data:", error);
+      }
+    };
+
+    newEventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+      setSigningStatus("error");
+    };
+
+    setEventSource(newEventSource);
+  };
+
+  // Countdown timer
+  useEffect(() => {
+    if (signingStatus === "pending" && timeRemaining > 0 && signingSession) {
+      const timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            setSigningStatus("expired");
+            if (eventSource) {
+              eventSource.close();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [signingStatus, timeRemaining, signingSession, eventSource]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [eventSource]);
+
+  // Reset signing state when modal closes
+  useEffect(() => {
+    if (!open) {
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+      setSigningSession(null);
+      setSigningStatus("pending");
+      setTimeRemaining(900);
+    }
+  }, [open, eventSource]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const resetForm = () => {
     setTargetType("");
     setSearchQuery("");
     setSelectedTarget(null);
     setReferenceText("");
     setReferenceType("");
+    setSigningSession(null);
+    setSigningStatus("pending");
+    setTimeRemaining(900);
+    if (eventSource) {
+      eventSource.close();
+      setEventSource(null);
+    }
   };
 
   const handleSearchChange = (value: string) => {
@@ -213,7 +351,101 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
         </DialogHeader>
         
         <div className="p-3 sm:p-6 flex-1 overflow-y-auto">
-          <div className="space-y-4 sm:space-y-6">
+          {signingSession ? (
+            // Signing Interface
+            <div className="flex flex-col items-center justify-center space-y-6 py-8">
+              <div className="text-center">
+                <h3 className="text-xl font-black text-fig mb-2">Sign Your eReference</h3>
+                <p className="text-sm text-fig/70">
+                  Scan this QR code with your eID Wallet to sign your eReference
+                </p>
+              </div>
+
+              {signingSession.qrData && (
+                <>
+                  {isMobileDevice() ? (
+                    <div className="flex flex-col gap-4 items-center">
+                      <a
+                        href={getDeepLinkUrl(signingSession.qrData)}
+                        className="px-6 py-3 bg-fig text-white rounded-xl hover:bg-fig/90 transition-colors text-center font-bold"
+                      >
+                        Sign eReference with eID Wallet
+                      </a>
+                      <div className="text-xs text-fig/70 text-center max-w-xs">
+                        Click the button to open your eID wallet app and sign your eReference
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white p-4 rounded-xl border-2 border-fig/20">
+                      <QRCodeSVG
+                        value={signingSession.qrData}
+                        size={200}
+                        level="M"
+                        includeMargin={true}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="space-y-2 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 text-fig/70" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm text-fig/70">
+                    Session expires in {formatTime(timeRemaining)}
+                  </span>
+                </div>
+                
+                {signingStatus === "signed" && (
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-bold">Reference Signed Successfully!</span>
+                  </div>
+                )}
+
+                {signingStatus === "expired" && (
+                  <div className="flex items-center justify-center gap-2 text-red-600">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-bold">Session Expired</span>
+                  </div>
+                )}
+
+                {signingStatus === "security_violation" && (
+                  <div className="flex items-center justify-center gap-2 text-red-600">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-bold">eName Verification Failed</span>
+                  </div>
+                )}
+              </div>
+
+              {(signingStatus === "expired" || signingStatus === "security_violation" || signingStatus === "error") && (
+                <Button
+                  onClick={() => {
+                    setSigningSession(null);
+                    setSigningStatus("pending");
+                    setTimeRemaining(900);
+                    if (eventSource) {
+                      eventSource.close();
+                      setEventSource(null);
+                    }
+                  }}
+                  className="bg-fig hover:bg-fig/90 text-white"
+                >
+                  Try Again
+                </Button>
+              )}
+            </div>
+          ) : (
+            // Reference Form
+            <div className="space-y-4 sm:space-y-6">
             {/* Target Selection */}
             <div>
               <h4 className="text-base sm:text-lg font-black text-fig mb-3 sm:mb-4">Select eReference Target</h4>
@@ -342,40 +574,62 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                 {referenceText.length} / 500 characters
               </div>
             </div>
-          </div>
+            </div>
+          )}
         </div>
         
-        <div className="border-t-2 border-fig/20 p-4 sm:p-6 bg-fig-10 -m-6 mt-0 rounded-b-xl flex-shrink-0">
-          <div className="flex flex-col sm:flex-row gap-3">
+        {!signingSession && (
+          <div className="border-t-2 border-fig/20 p-4 sm:p-6 bg-fig-10 -m-6 mt-0 rounded-b-xl flex-shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={submitMutation.isPending}
+                className="order-2 sm:order-1 flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11 sm:h-12 opacity-80"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit}
+                disabled={submitMutation.isPending || !targetType || !selectedTarget || !referenceText.trim()}
+                className="order-1 sm:order-2 flex-1 bg-fig hover:bg-fig/90 text-white font-bold h-11 sm:h-12 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {submitMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                    Sign & Submit eReference
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {signingSession && signingStatus !== "signed" && (
+          <div className="border-t-2 border-fig/20 p-4 sm:p-6 bg-fig-10 -m-6 mt-0 rounded-b-xl flex-shrink-0">
             <Button 
               variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={submitMutation.isPending}
-              className="order-2 sm:order-1 flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11 sm:h-12 opacity-80"
+              onClick={() => {
+                setSigningSession(null);
+                setSigningStatus("pending");
+                if (eventSource) {
+                  eventSource.close();
+                  setEventSource(null);
+                }
+              }}
+              className="w-full border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11 sm:h-12"
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmit}
-              disabled={submitMutation.isPending || !targetType || !selectedTarget || !referenceText.trim()}
-              className="order-1 sm:order-2 flex-1 bg-fig hover:bg-fig/90 text-white font-bold h-11 sm:h-12 shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              {submitMutation.isPending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                  </svg>
-                  Sign & Submit eReference
-                </>
-              )}
-            </Button>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
