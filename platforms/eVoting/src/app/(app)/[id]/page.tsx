@@ -510,19 +510,22 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         // If multiple rounds, there might have been ties
                                                         console.log(`[IRV Debug] Poll had ${resultsData.irvDetails.rounds.length} rounds, check console for tie warnings`);
                                                     }
-                                                } else if (resultsData.mode === "point" || resultsData.mode === "ereputation") {
+                                                } else if (resultsData.mode === "point" || (resultsData.mode === "ereputation" && result.totalPoints !== undefined)) {
                                                     // Point-based voting: show total points and average
-                                                    // Check for eReputation weighted points-based voting (mode: "ereputation")
+                                                    // For eReputation mode, only treat as points if totalPoints exists
                                                     const totalPoints = result.totalPoints || 0;
                                                     displayValue = `${totalPoints} points${result.averagePoints !== undefined ? ` (avg: ${result.averagePoints})` : ''}`;
                                                     isWinner = totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
                                                     const totalAllPoints = resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0);
                                                     percentage = totalAllPoints > 0 ? (totalPoints / totalAllPoints) * 100 : 0;
                                                 } else {
-                                                    // Normal voting: show votes and percentage
-                                                    displayValue = `${result.votes} votes`;
-                                                    isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes || 0));
-                                                    percentage = resultsData.totalVotes > 0 ? (result.votes / resultsData.totalVotes) * 100 : 0;
+                                                    // Normal voting (including eReputation weighted normal voting): show votes and percentage
+                                                    // For eReputation weighted normal voting, use totalWeightedVotes for percentage calculation
+                                                    const voteCount = result.votes || 0;
+                                                    displayValue = `${voteCount} votes`;
+                                                    const totalVotesForPercentage = resultsData.totalWeightedVotes || resultsData.totalVotes || 1;
+                                                    isWinner = voteCount === Math.max(...resultsData.results.map(r => r.votes || 0));
+                                                    percentage = totalVotesForPercentage > 0 ? (voteCount / totalVotesForPercentage) * 100 : 0;
                                                 }
 
                                                 return (
