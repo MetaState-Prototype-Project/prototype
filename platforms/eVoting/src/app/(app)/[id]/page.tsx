@@ -493,11 +493,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 let isWinner: boolean;
                                                 let percentage: number;
 
-                                                if (resultsData.mode === "point") {
+                                                if (resultsData.mode === "point" || resultsData.mode === "ereputation" || result.totalPoints !== undefined) {
                                                     // Point-based voting: show total points and average
-                                                    displayValue = `${result.totalPoints} points (avg: ${result.averagePoints})`;
-                                                    isWinner = result.totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
-                                                    percentage = resultsData.totalVotes > 0 ? ((result.totalPoints || 0) / resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0)) * 100 : 0;
+                                                    // Check for totalPoints to handle eReputation weighted points-based voting (mode: "ereputation")
+                                                    const totalPoints = result.totalPoints || 0;
+                                                    displayValue = `${totalPoints} points${result.averagePoints !== undefined ? ` (avg: ${result.averagePoints})` : ''}`;
+                                                    isWinner = totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
+                                                    const totalAllPoints = resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0);
+                                                    percentage = totalAllPoints > 0 ? (totalPoints / totalAllPoints) * 100 : 0;
                                                 } else if (resultsData.mode === "rank") {
                                                     // Rank-based voting: show winner status instead of misleading vote counts
                                                     if (result.isTied) {
