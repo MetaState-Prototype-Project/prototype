@@ -493,15 +493,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 let isWinner: boolean;
                                                 let percentage: number;
 
-                                                if (resultsData.mode === "point" || resultsData.mode === "ereputation" || result.totalPoints !== undefined) {
-                                                    // Point-based voting: show total points and average
-                                                    // Check for totalPoints to handle eReputation weighted points-based voting (mode: "ereputation")
-                                                    const totalPoints = result.totalPoints || 0;
-                                                    displayValue = `${totalPoints} points${result.averagePoints !== undefined ? ` (avg: ${result.averagePoints})` : ''}`;
-                                                    isWinner = totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
-                                                    const totalAllPoints = resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0);
-                                                    percentage = totalAllPoints > 0 ? (totalPoints / totalAllPoints) * 100 : 0;
-                                                } else if (resultsData.mode === "rank") {
+                                                if (resultsData.mode === "rank") {
                                                     // Rank-based voting: show winner status instead of misleading vote counts
                                                     if (result.isTied) {
                                                         displayValue = "🏆 Tied Winner";
@@ -518,10 +510,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         // If multiple rounds, there might have been ties
                                                         console.log(`[IRV Debug] Poll had ${resultsData.irvDetails.rounds.length} rounds, check console for tie warnings`);
                                                     }
+                                                } else if (resultsData.mode === "point" || resultsData.mode === "ereputation") {
+                                                    // Point-based voting: show total points and average
+                                                    // Check for eReputation weighted points-based voting (mode: "ereputation")
+                                                    const totalPoints = result.totalPoints || 0;
+                                                    displayValue = `${totalPoints} points${result.averagePoints !== undefined ? ` (avg: ${result.averagePoints})` : ''}`;
+                                                    isWinner = totalPoints === Math.max(...resultsData.results.map(r => r.totalPoints || 0));
+                                                    const totalAllPoints = resultsData.results.reduce((sum, r) => sum + (r.totalPoints || 0), 0);
+                                                    percentage = totalAllPoints > 0 ? (totalPoints / totalAllPoints) * 100 : 0;
                                                 } else {
                                                     // Normal voting: show votes and percentage
                                                     displayValue = `${result.votes} votes`;
-                                                    isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes));
+                                                    isWinner = result.votes === Math.max(...resultsData.results.map(r => r.votes || 0));
                                                     percentage = resultsData.totalVotes > 0 ? (result.votes / resultsData.totalVotes) * 100 : 0;
                                                 }
 
