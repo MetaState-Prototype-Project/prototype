@@ -228,36 +228,23 @@ export class VoteService {
           vote.data.data.forEach(optionIndex => {
             const option = poll.options[parseInt(optionIndex)];
             if (option) {
-              optionCounts[option] += 1; // Count normally first
-              if (isWeighted && userEname) {
-                optionVoters[option].push({ ename: userEname, weight });
-              }
+              // For weighted: multiply each vote by the voter's weight
+              // For non-weighted: just add 1
+              const weightedVote = isWeighted ? weight : 1.0;
+              optionCounts[option] += weightedVote;
             }
           });
         }
       });
 
-      // STEP 2: Apply eReputation multipliers post-calculation if weighted
+      // STEP 2: Format results (votes already weighted if applicable)
       let finalResults;
       if (isWeighted) {
-        // Calculate weighted totals by multiplying vote counts with average eReputation weights
-        const weightedCounts: Record<string, number> = {};
-        let totalWeightedVotes = 0;
+        // Votes are already weighted in the loop above
+        const totalWeightedVotes = Object.values(optionCounts).reduce((sum, count) => sum + count, 0);
         
-        poll.options.forEach((option) => {
-          const voteCount = optionCounts[option] || 0;
-          if (voteCount > 0 && optionVoters[option].length > 0) {
-            // Calculate average eReputation weight for voters of this option
-            const avgWeight = optionVoters[option].reduce((sum, voter) => sum + voter.weight, 0) / optionVoters[option].length;
-            weightedCounts[option] = voteCount * avgWeight;
-          } else {
-            weightedCounts[option] = 0;
-          }
-          totalWeightedVotes += weightedCounts[option];
-        });
-
         finalResults = poll.options.map((option) => {
-          const weightedVotes = weightedCounts[option] || 0;
+          const weightedVotes = optionCounts[option] || 0;
           const percentage = totalWeightedVotes > 0 ? (weightedVotes / totalWeightedVotes) * 100 : 0;
           return {
             option,
@@ -314,7 +301,11 @@ export class VoteService {
               const option = poll.options[index];
               
               if (option && typeof points === 'number') {
-                optionPoints[option] += points; // Count points normally first
+                // For non-weighted: just add points
+                // For weighted: multiply points by weight, then add
+                const weightedPoints = isWeighted ? points * weight : points;
+                optionPoints[option] += weightedPoints;
+                
                 if (isWeighted && userEname) {
                   optionVoters[option].push({ ename: userEname, weight, points });
                 }
@@ -324,28 +315,15 @@ export class VoteService {
         }
       });
 
-      // STEP 2: Apply eReputation multipliers post-calculation if weighted
+      // STEP 2: Format results (points already weighted if applicable)
       let finalResults;
       if (isWeighted) {
-        // Calculate weighted totals by multiplying points with average eReputation weights
-        const weightedPoints: Record<string, number> = {};
-        
-        poll.options.forEach((option) => {
-          const totalPoints = optionPoints[option] || 0;
-          if (totalPoints > 0 && optionVoters[option].length > 0) {
-            // Calculate weighted average: sum of (points * weight) / number of voters
-            const weightedSum = optionVoters[option].reduce((sum, voter) => sum + (voter.points * voter.weight), 0);
-            weightedPoints[option] = weightedSum;
-          } else {
-            weightedPoints[option] = 0;
-          }
-        });
-
+        // Points are already weighted in the loop above
         const totalVotes = votes.length;
-        const totalWeightedPoints = Object.values(weightedPoints).reduce((sum, points) => sum + points, 0);
+        const totalWeightedPoints = Object.values(optionPoints).reduce((sum, points) => sum + points, 0);
         
         finalResults = poll.options.map((option) => {
-          const points = weightedPoints[option] || 0;
+          const points = optionPoints[option] || 0;
           const averagePoints = totalVotes > 0 ? points / totalVotes : 0;
           return {
             option,

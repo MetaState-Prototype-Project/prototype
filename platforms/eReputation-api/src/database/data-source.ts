@@ -11,6 +11,7 @@ import { Poll } from "./entities/Poll";
 import { VoteReputationResult } from "./entities/VoteReputationResult";
 import { Message } from "./entities/Message";
 import { Wishlist } from "./entities/Wishlist";
+import { ReferenceSignature } from "./entities/ReferenceSignature";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 // Use absolute path for better CLI compatibility
@@ -21,7 +22,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.EREPUTATION_DATABASE_URL,
     synchronize: false, // Auto-sync in development
-        entities: [User, Group, Reference, Calculation, Vote, Poll, VoteReputationResult, Message, Wishlist],
+        entities: [User, Group, Reference, Calculation, Vote, Poll, VoteReputationResult, Message, Wishlist, ReferenceSignature],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],

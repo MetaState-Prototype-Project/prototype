@@ -1,0 +1,17 @@
+{
+    "tableName": "reference_signatures",
+    "schemaId": "2e94fada-581d-49b0-b6f5-1fe0766da35f",
+    "ownerEnamePath": "users(userId.ename)",
+    "localToUniversalMap": {
+        "id": "id",
+        "referenceId": "references(referenceId),reference",
+        "userId": "users(userId.id),user",
+        "referenceHash": "referenceHash",
+        "signature": "signature",
+        "publicKey": "publicKey",
+        "message": "message",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    }
+}
+

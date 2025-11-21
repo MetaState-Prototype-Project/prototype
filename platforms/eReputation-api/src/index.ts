@@ -13,6 +13,7 @@ import { CalculationController } from "./controllers/CalculationController";
 import { PlatformController } from "./controllers/PlatformController";
 import { GroupController } from "./controllers/GroupController";
 import { DashboardController } from "./controllers/DashboardController";
+import { ReferenceSigningController } from "./controllers/ReferenceSigningController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 
@@ -58,6 +59,7 @@ const calculationController = new CalculationController();
 const platformController = new PlatformController();
 const groupController = new GroupController();
 const dashboardController = new DashboardController();
+const referenceSigningController = new ReferenceSigningController();
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -105,6 +107,12 @@ app.post("/api/references", authGuard, referenceController.createReference);
 app.get("/api/references/target/:targetType/:targetId", referenceController.getReferencesForTarget);
 app.get("/api/references/my", authGuard, referenceController.getUserReferences);
 app.patch("/api/references/:referenceId/revoke", authGuard, referenceController.revokeReference);
+
+// Reference signing routes
+app.post("/api/references/signing/session", authGuard, referenceSigningController.createSigningSession.bind(referenceSigningController));
+app.get("/api/references/signing/session/:sessionId/status", referenceSigningController.getSigningSessionStatus.bind(referenceSigningController));
+app.post("/api/references/signing/callback", referenceSigningController.handleSignedPayload.bind(referenceSigningController));
+app.get("/api/references/signing/session/:sessionId", referenceSigningController.getSigningSession.bind(referenceSigningController));
 
 // Calculation routes
 app.post("/api/reputation/calculate", authGuard, calculationController.calculateReputation);

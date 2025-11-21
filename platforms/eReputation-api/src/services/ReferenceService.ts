@@ -18,16 +18,22 @@ export class ReferenceService {
         numericScore?: number;
         authorId: string;
     }): Promise<Reference> {
+        // References start as "pending" and require a signature to become "signed"
         const reference = this.referenceRepository.create({
             ...data,
-            status: "signed"
+            status: "pending"
         });
         return await this.referenceRepository.save(reference);
     }
 
-    async getReferencesForTarget(targetType: string, targetId: string): Promise<Reference[]> {
+    async getReferencesForTarget(targetType: string, targetId: string, onlySigned: boolean = true): Promise<Reference[]> {
+        const whereClause: any = { targetType, targetId };
+        if (onlySigned) {
+            whereClause.status = "signed";
+        }
+        
         return await this.referenceRepository.find({
-            where: { targetType, targetId },
+            where: whereClause,
             relations: ["author"],
             order: { createdAt: "DESC" }
         });

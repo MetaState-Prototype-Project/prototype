@@ -1,12 +1,15 @@
 import { Request, Response } from "express";
 import { ReferenceService } from "../services/ReferenceService";
+import { ReferenceSigningSessionService } from "../services/ReferenceSigningSessionService";
 import { authGuard } from "../middleware/auth";
 
 export class ReferenceController {
     private referenceService: ReferenceService;
+    private signingSessionService: ReferenceSigningSessionService;
 
     constructor() {
         this.referenceService = new ReferenceService();
+        this.signingSessionService = new ReferenceSigningSessionService();
     }
 
     createReference = async (req: Request, res: Response) => {
@@ -22,6 +25,7 @@ export class ReferenceController {
                 return res.status(400).json({ error: "Numeric score must be between 1 and 5" });
             }
 
+            // Create reference with "pending" status (requires signature)
             const reference = await this.referenceService.createReference({
                 targetType,
                 targetId,
@@ -32,8 +36,22 @@ export class ReferenceController {
                 authorId
             });
 
+            // Create signing session for the reference
+            const signingSession = await this.signingSessionService.createSession(
+                reference.id,
+                {
+                    targetType,
+                    targetId,
+                    targetName,
+                    content,
+                    referenceType: referenceType || "general",
+                    numericScore
+                },
+                authorId
+            );
+
             res.status(201).json({
-                message: "Reference created successfully",
+                message: "Reference created successfully. Please sign to complete.",
                 reference: {
                     id: reference.id,
                     targetType: reference.targetType,
@@ -42,6 +60,11 @@ export class ReferenceController {
                     numericScore: reference.numericScore,
                     status: reference.status,
                     createdAt: reference.createdAt
+                },
+                signingSession: {
+                    sessionId: signingSession.sessionId,
+                    qrData: signingSession.qrData,
+                    expiresAt: signingSession.expiresAt
                 }
             });
         } catch (error) {
