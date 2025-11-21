@@ -235,8 +235,8 @@ export class WebhookController {
                     }
                 }
                 
-                if (!pollId || !groupId) {
-                    console.error("Missing pollId or groupId:", { pollId, groupId });
+                if (!pollId) {
+                    console.error("Missing pollId:", { pollId, groupId });
                     return res.status(400).send();
                 }
                 
@@ -258,7 +258,7 @@ export class WebhookController {
                     // Create new result
                     const newResult = voteReputationResultRepository.create({
                         pollId: pollId,
-                        groupId: groupId,
+                        groupId: groupId || null,
                         results: results
                     });
                     

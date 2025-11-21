@@ -28,12 +28,12 @@ export class VoteReputationResult {
     @Column("uuid")
     pollId!: string;
 
-    @ManyToOne(() => Group)
+    @ManyToOne(() => Group, { nullable: true })
     @JoinColumn({ name: "groupId" })
-    group!: Group;
+    group!: Group | null;
 
-    @Column("uuid")
-    groupId!: string;
+    @Column("uuid", { nullable: true })
+    groupId!: string | null;
 
     /**
      * Array of reputation scores for each group member
