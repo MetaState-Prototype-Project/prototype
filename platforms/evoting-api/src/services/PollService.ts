@@ -216,6 +216,11 @@ export class PollService {
             throw new Error("eReputation weighted voting cannot be combined with Rank Based Voting (RBV). Please use Simple or PBV mode instead.");
         }
 
+        // Validate that blind voting (private visibility) and eReputation weighted are not combined
+        if (pollData.visibility === "private" && votingWeight === "ereputation") {
+            throw new Error("Blind voting (private visibility) cannot be combined with eReputation weighted voting.");
+        }
+
         const pollDataForEntity = {
             title: pollData.title,
             mode: pollData.mode as "normal" | "point" | "rank",

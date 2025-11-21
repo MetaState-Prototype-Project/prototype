@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Vote, BarChart3, LogOut, Eye, UserX, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Vote, BarChart3, LogOut, Eye, UserX, Search, ChevronLeft, ChevronRight, ChartLine, CircleUser } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,6 +166,11 @@ export default function Home() {
                                             <th 
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                             >
+                                                Voting Weight
+                                            </th>
+                                            <th 
+                                                className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
+                                            >
                                                 Group
                                             </th>
                                             <th 
@@ -208,6 +213,15 @@ export default function Home() {
                                                                 <><Eye className="w-3 h-3 mr-1" />Public</>
                                                             ) : (
                                                                 <><UserX className="w-3 h-3 mr-1" />Private</>
+                                                            )}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <Badge variant={poll.votingWeight === "ereputation" ? "default" : "secondary"} className="text-xs">
+                                                            {poll.votingWeight === "ereputation" ? (
+                                                                <><ChartLine className="w-3 h-3 mr-1" />eReputation Weighted</>
+                                                            ) : (
+                                                                <><CircleUser className="w-3 h-3 mr-1" />1P 1V</>
                                                             )}
                                                         </Badge>
                                                     </td>
