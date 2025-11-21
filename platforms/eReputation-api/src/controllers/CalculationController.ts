@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { CalculationService } from "../services/CalculationService";
 import { authGuard } from "../middleware/auth";
+import { AppDataSource } from "../database/data-source";
+import { Wishlist } from "../database/entities/Wishlist";
 
 export class CalculationController {
     private calculationService: CalculationService;
@@ -25,16 +27,36 @@ export class CalculationController {
                 finalTargetType = "self";
             }
 
-            if (!finalTargetType || !finalTargetId || !finalTargetName || !userValues) {
+            if (!finalTargetType || !finalTargetId || !finalTargetName) {
                 return res.status(400).json({ error: "Missing required fields" });
             }
 
+            // If userValues is empty, check if wishlist exists
+            if (!userValues || !userValues.trim()) {
+                const wishlistRepository = AppDataSource.getRepository(Wishlist);
+                const wishlists = await wishlistRepository.find({
+                    where: {
+                        userId: calculatorId,
+                        isActive: true
+                    },
+                    order: { updatedAt: "DESC" },
+                    take: 1
+                });
+
+                if (wishlists.length === 0 || !wishlists[0].content || !wishlists[0].content.trim()) {
+                    return res.status(400).json({ 
+                        error: "Either provide values you care about, or ensure you have an active wishlist in dreamSync" 
+                    });
+                }
+            }
+
             // Create calculation record
+            // If userValues is empty, pass empty string - service will use wishlist
             const calculation = await this.calculationService.createCalculation({
                 targetType: finalTargetType,
                 targetId: finalTargetId,
                 targetName: finalTargetName,
-                userValues,
+                userValues: userValues || "",
                 calculatorId
             });
 

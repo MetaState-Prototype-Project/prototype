@@ -2,16 +2,19 @@ import { Repository } from "typeorm";
 import { AppDataSource } from "../database/data-source";
 import { Calculation } from "../database/entities/Calculation";
 import { Reference } from "../database/entities/Reference";
+import { Wishlist } from "../database/entities/Wishlist";
 import OpenAI from "openai";
 
 export class CalculationService {
     calculationRepository: Repository<Calculation>;
     referenceRepository: Repository<Reference>;
+    wishlistRepository: Repository<Wishlist>;
     private openai: OpenAI;
 
     constructor() {
         this.calculationRepository = AppDataSource.getRepository(Calculation);
         this.referenceRepository = AppDataSource.getRepository(Reference);
+        this.wishlistRepository = AppDataSource.getRepository(Wishlist);
         
         if (!process.env.OPENAI_API_KEY) {
             throw new Error("OPENAI_API_KEY environment variable is required");
@@ -76,7 +79,26 @@ export class CalculationService {
                 author: ref.author.ename || ref.author.name || "Anonymous"
             }));
 
-            const prompt = this.buildPrompt(calculation.userValues, referencesData, calculation.targetName);
+            // Fetch user's wishlist if userValues is not provided or empty
+            let effectiveUserValues = calculation.userValues;
+            if (!effectiveUserValues || !effectiveUserValues.trim()) {
+                const wishlists = await this.wishlistRepository.find({
+                    where: {
+                        userId: calculation.calculatorId,
+                        isActive: true
+                    },
+                    order: { updatedAt: "DESC" },
+                    take: 1 // Get the most recent active wishlist
+                });
+                
+                if (wishlists.length > 0 && wishlists[0].content && wishlists[0].content.trim()) {
+                    effectiveUserValues = wishlists[0].content;
+                } else {
+                    effectiveUserValues = "General good qualities: integrity, reliability, constructive contributions, respectfulness, and positive interactions.";
+                }
+            }
+
+            const prompt = this.buildPrompt(effectiveUserValues, referencesData, calculation.targetName);
 
             const response = await this.openai.chat.completions.create({
                 model: "gpt-4",

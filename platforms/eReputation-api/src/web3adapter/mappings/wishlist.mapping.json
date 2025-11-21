@@ -1,0 +1,17 @@
+{
+    "tableName": "wishlists",
+    "schemaId": "770e8400-e29b-41d4-a716-446655440000",
+    "ownerEnamePath": "users(user.ename)",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "title": "title",
+        "content": "content",
+        "isActive": "isActive",
+        "isPublic": "isPublic",
+        "metadata": "metadata",
+        "user": "users(user.id),userId",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt"
+    }
+}
+

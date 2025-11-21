@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useDebouncedCallback } from 'use-debounce';
+import ReactMarkdown from "react-markdown";
 import { apiClient } from "@/lib/apiClient";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -103,6 +104,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
   const [showViewModal, setShowViewModal] = useState(false);
   const [reputationResult, setReputationResult] = useState<any>(null);
   const [userValues, setUserValues] = useState("");
+  const [wishlistExpanded, setWishlistExpanded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -118,6 +120,23 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
     }
   }, [isCalculating, currentStep]);
 
+
+  // Fetch user's wishlist
+  const { data: wishlistData } = useQuery({
+    queryKey: ['wishlist', 'me'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get("/api/users/me/wishlist");
+        return response.data;
+      } catch (error) {
+        // If wishlist doesn't exist, return null
+        return { wishlist: null };
+      }
+    },
+    enabled: open, // Only fetch when modal is open
+  });
+
+  const wishlist = wishlistData?.wishlist;
 
   const { data: searchResults = [], refetch, isLoading: isSearching } = useQuery({
     queryKey: ['search', targetType, searchQuery],
@@ -203,6 +222,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
     setProgress(0);
     setReputationResult(null);
     setUserValues("");
+    setWishlistExpanded(false);
   };
 
   const handleSearchChange = (value: string) => {
@@ -238,10 +258,11 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
       return;
     }
 
-    if (!userValues.trim()) {
+    // Allow empty userValues if wishlist exists (backend will use wishlist)
+    if (!wishlist && !userValues.trim()) {
       toast({
         title: "Missing Values",
-        description: "Please describe what qualities you value in people",
+        description: "Please describe what qualities you value in people, or ensure your wishlist is available",
         variant: "destructive",
       });
       return;
@@ -393,8 +414,8 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
                     <Label
                       key={type.value}
                       className={`flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 border-2 rounded-2xl cursor-pointer transition-all duration-200 ${targetType === type.value
-                          ? 'border-fig/40 bg-fig-30'
-                          : 'border-fig/20 hover:border-fig/30 hover:bg-fig-10'
+                        ? 'border-fig/40 bg-fig-30'
+                        : 'border-fig/20 hover:border-fig/30 hover:bg-fig-10'
                         }`}
                     >
                       <RadioGroupItem value={type.value} className="sr-only" />
@@ -495,13 +516,75 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
               )}
             </div>
 
+            {/* Wishlist Detection */}
+            {wishlist && (
+              <div className="bg-fig/5 border-2 border-fig/20 rounded-xl p-4 mb-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <Label className="block text-sm font-black text-fig">
+                        Wishlist Detected
+                      </Label>
+                      <p className="text-xs text-fig/70 mt-0.5">
+                        Your wishlist "{wishlist.title}" will be used to determine what you value
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setWishlistExpanded(!wishlistExpanded)}
+                    className="text-fig hover:text-fig/80 h-auto p-1"
+                  >
+                    {wishlistExpanded ? (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </Button>
+                </div>
+                {wishlistExpanded && (
+                  <div className="mt-3 pt-3 border-t border-fig/10">
+                    <p className="text-sm font-semibold text-fig mb-2">Wishlist Content:</p>
+                    <div className="bg-white/50 rounded-lg p-3 max-h-48 overflow-y-auto text-sm text-fig/80 prose prose-sm prose-fig max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-base font-bold mb-2 mt-3 first:mt-0">{children}</h1>,
+                          h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-sm font-bold mb-2 mt-3 first:mt-0">{children}</h2>,
+                          h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h3>,
+                          ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                          ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                          li: ({ children }: { children?: React.ReactNode }) => <li className="ml-2">{children}</li>,
+                          strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold">{children}</strong>,
+                          em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
+                          code: ({ children }: { children?: React.ReactNode }) => <code className="bg-fig/10 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                          blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-2 border-fig/30 pl-3 italic my-2">{children}</blockquote>,
+                        }}
+                      >
+                        {wishlist.content}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* User Values Input */}
             <div>
               <Label className="block text-sm font-black text-fig mb-2">
-                What Qualities Do You Value?
+                What Qualities Do You Value? {wishlist && <span className="text-xs font-normal text-fig/60">(Optional - your wishlist will be used if left empty)</span>}
               </Label>
               <Textarea
-                placeholder="Describe what qualities you value in people (e.g., punctuality, creativity, honesty, leadership, technical skills, communication, etc.). This will be used to calculate the eReputation score based on your personal values..."
+                placeholder={wishlist ? "Optionally override your wishlist with custom values..." : "Describe what qualities you value in people (e.g., punctuality, creativity, honesty, leadership, technical skills, communication, etc.). This will be used to calculate the eReputation score based on your personal values..."}
                 value={userValues}
                 onChange={(e) => setUserValues(e.target.value)}
                 className="h-24 resize-none border-2 border-fig/20 focus:border-fig/40 focus:ring-fig/20 rounded-2xl"
@@ -526,7 +609,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
             </Button>
             <Button
               onClick={handleStartCalculation}
-              disabled={isCalculating || !targetType || !selectedTarget || !userValues.trim()}
+              disabled={isCalculating || !targetType || !selectedTarget || (!wishlist && !userValues.trim())}
               className="order-1 sm:order-2 flex-1 bg-fig hover:bg-fig/90 text-white font-bold h-11 sm:h-12 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               {isCalculating ? (

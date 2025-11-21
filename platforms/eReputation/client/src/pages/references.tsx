@@ -123,26 +123,13 @@ export default function References() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 sm:gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-gray-300 overflow-hidden bg-gray-100 flex items-center justify-center">
-                      {(user as any)?.profileImageUrl ? (
-                        <img 
-                          src={(user as any).profileImageUrl} 
-                          alt="User Avatar" 
-                          className="w-full h-full object-cover" 
-                        />
-                      ) : (
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
                     <div className="hidden sm:block text-left">
                       <div className="font-semibold text-sm text-gray-900">
-                        {(user as any)?.firstName && (user as any)?.lastName 
-                          ? `${(user as any).firstName} ${(user as any).lastName}` 
-                          : (user as any)?.email?.split('@')[0] || 'User'
-                        }
+                        {user?.name || user?.handle || user?.ename || 'User'}
                       </div>
+                      {user?.ename && user.name && (
+                        <div className="text-xs text-gray-500">@{user.ename}</div>
+                      )}
                     </div>
                     <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />

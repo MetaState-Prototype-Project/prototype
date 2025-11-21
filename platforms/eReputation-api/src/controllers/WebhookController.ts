@@ -10,6 +10,7 @@ import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Poll } from "../database/entities/Poll";
 import { VoteReputationResult } from "../database/entities/VoteReputationResult";
+import { Wishlist } from "../database/entities/Wishlist";
 import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
@@ -302,6 +303,72 @@ export class WebhookController {
                         });
                     }
                 }
+            } else if (mapping.tableName === "wishlists") {
+                const wishlistRepository = AppDataSource.getRepository(Wishlist);
+                const userRepository = AppDataSource.getRepository(User);
+                
+                // Get userId from user reference
+                let userId: string | null = null;
+                if (local.data.user) {
+                    if (typeof local.data.user === "string" && local.data.user.includes("(")) {
+                        userId = local.data.user.split("(")[1].split(")")[0];
+                    } else if (typeof local.data.user === "object" && local.data.user !== null && "id" in local.data.user) {
+                        userId = (local.data.user as { id: string }).id;
+                    }
+                } else if (local.data.userId) {
+                    userId = local.data.userId as string;
+                }
+                
+                if (!userId) {
+                    return res.status(400).send();
+                }
+                
+                // Load user relation
+                const user = await userRepository.findOne({ where: { id: userId } });
+                if (!user) {
+                    return res.status(400).send();
+                }
+                
+                if (localId) {
+                    // Update existing wishlist
+                    const wishlist = await wishlistRepository.findOne({
+                        where: { id: localId },
+                        relations: ["user"]
+                    });
+                    
+                    if (wishlist) {
+                        wishlist.title = local.data.title as string;
+                        wishlist.content = local.data.content as string;
+                        wishlist.isActive = local.data.isActive as boolean ?? true;
+                        wishlist.isPublic = local.data.isPublic as boolean ?? false;
+                        wishlist.metadata = local.data.metadata as any;
+                        wishlist.user = user;
+                        wishlist.userId = userId;
+                        
+                        await wishlistRepository.save(wishlist);
+                        finalLocalId = wishlist.id;
+                    }
+                } else {
+                    // Create new wishlist
+                    const wishlist = wishlistRepository.create({
+                        title: local.data.title as string,
+                        content: local.data.content as string,
+                        isActive: local.data.isActive as boolean ?? true,
+                        isPublic: local.data.isPublic as boolean ?? false,
+                        metadata: local.data.metadata as any,
+                        user: user,
+                        userId: userId
+                    });
+                    
+                    const savedWishlist = await wishlistRepository.save(wishlist);
+                    
+                    this.adapter.addToLockedIds(savedWishlist.id);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: savedWishlist.id,
+                        globalId: req.body.id,
+                    });
+                    finalLocalId = savedWishlist.id;
+                }
             }
             
             res.status(200).send();
@@ -315,11 +382,12 @@ export class WebhookController {
         if (!poll.groupId) return;
 
         const group = await this.groupService.getGroupById(poll.groupId);
-        if (!group || !group.charter) return;
+        if (!group) return;
 
+        const charter = (group.charter && group.charter.trim()) ? group.charter : "";
         const reputationResults = await this.votingReputationService.calculateGroupMemberReputations(
             poll.groupId,
-            group.charter
+            charter
         );
 
         const voteReputationResult = await this.votingReputationService.saveReputationResults(

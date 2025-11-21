@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
+import { AppDataSource } from "../database/data-source";
+import { Wishlist } from "../database/entities/Wishlist";
 
 export class UserController {
     private userService: UserService;
@@ -134,6 +136,44 @@ export class UserController {
             });
         } catch (error) {
             console.error("Error updating profile:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    getMyWishlist = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const wishlistRepository = AppDataSource.getRepository(Wishlist);
+            const wishlists = await wishlistRepository.find({
+                where: {
+                    userId: req.user.id,
+                    isActive: true
+                },
+                order: { updatedAt: "DESC" },
+                take: 1 // Get the most recent active wishlist
+            });
+
+            if (wishlists.length === 0) {
+                return res.json({ wishlist: null });
+            }
+
+            const wishlist = wishlists[0];
+            res.json({
+                wishlist: {
+                    id: wishlist.id,
+                    title: wishlist.title,
+                    content: wishlist.content,
+                    isActive: wishlist.isActive,
+                    isPublic: wishlist.isPublic,
+                    createdAt: wishlist.createdAt,
+                    updatedAt: wishlist.updatedAt,
+                }
+            });
+        } catch (error) {
+            console.error("Error getting user wishlist:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     };
