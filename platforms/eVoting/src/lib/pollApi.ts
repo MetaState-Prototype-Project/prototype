@@ -116,7 +116,7 @@ export interface PollResults {
   totalVotes: number;
   totalEligibleVoters?: number;
   turnout?: number;
-  mode?: "normal" | "point" | "rank";
+  mode?: "normal" | "point" | "rank" | "ereputation";
   results: PollResultOption[];
   irvDetails?: IRVDetails;
   voterDetails?: VoterDetail[];
