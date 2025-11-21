@@ -38,8 +38,10 @@ export interface ReferenceSigningResult {
     type: "signed" | "security_violation";
 }
 
+// Module-level singleton session storage - shared across all service instances
+const sessionStorage: Map<string, ReferenceSigningSession> = new Map();
+
 export class ReferenceSigningSessionService {
-    private sessions: Map<string, ReferenceSigningSession> = new Map();
     private signatureService = new ReferenceSignatureService();
 
     async createSession(referenceId: string, referenceData: any, userId: string): Promise<ReferenceSigningSession> {
@@ -55,7 +57,7 @@ export class ReferenceSigningSessionService {
         });
 
         const base64Data = Buffer.from(messageData).toString('base64');
-        const apiBaseUrl = process.env.PUBLIC_EREPUTATION_BASE_URL || "http://localhost:8765";
+        const apiBaseUrl = process.env.VITE_EREPUTATION_BASE_URL;
         const redirectUri = `${apiBaseUrl}/api/references/signing/callback`;
 
         const qrData = `w3ds://sign?session=${sessionId}&data=${base64Data}&redirect_uri=${encodeURIComponent(redirectUri)}`;
@@ -71,15 +73,15 @@ export class ReferenceSigningSessionService {
             status: "pending"
         };
 
-        this.sessions.set(sessionId, session);
-        console.log(`Created reference signing session ${sessionId}, total sessions: ${this.sessions.size}`);
+        sessionStorage.set(sessionId, session);
+        console.log(`Created reference signing session ${sessionId}, total sessions: ${sessionStorage.size}`);
 
         // Set up expiration cleanup
         setTimeout(() => {
-            const session = this.sessions.get(sessionId);
+            const session = sessionStorage.get(sessionId);
             if (session && session.status === "pending") {
                 session.status = "expired";
-                this.sessions.set(sessionId, session);
+                sessionStorage.set(sessionId, session);
             }
         }, 15 * 60 * 1000);
 
@@ -87,7 +89,7 @@ export class ReferenceSigningSessionService {
     }
 
     async getSession(sessionId: string): Promise<ReferenceSigningSession | null> {
-        const session = this.sessions.get(sessionId);
+        const session = sessionStorage.get(sessionId);
 
         if (!session) {
             return null;
@@ -96,7 +98,7 @@ export class ReferenceSigningSessionService {
         // Check if session has expired
         if (session.status === "pending" && new Date() > session.expiresAt) {
             session.status = "expired";
-            this.sessions.set(sessionId, session);
+            sessionStorage.set(sessionId, session);
         }
 
         return session;
@@ -104,10 +106,13 @@ export class ReferenceSigningSessionService {
 
     async processSignedPayload(sessionId: string, signature: string, publicKey: string, message: string): Promise<ReferenceSigningResult> {
         console.log(`Processing signed payload for reference session: ${sessionId}`);
+        console.log(`Current session storage size: ${sessionStorage.size}`);
+        console.log(`Session IDs in storage:`, Array.from(sessionStorage.keys()));
 
         const session = await this.getSession(sessionId);
 
         if (!session) {
+            console.error(`Session ${sessionId} not found in storage. Available sessions:`, Array.from(sessionStorage.keys()));
             throw new Error("Session not found");
         }
 
@@ -145,7 +150,7 @@ export class ReferenceSigningSessionService {
 
                 // Update session status to indicate security violation
                 session.status = "security_violation";
-                this.sessions.set(sessionId, session);
+                sessionStorage.set(sessionId, session);
 
                 // Return error result instead of throwing
                 return {
@@ -184,7 +189,7 @@ export class ReferenceSigningSessionService {
 
         // Update session status
         session.status = "completed";
-        this.sessions.set(sessionId, session);
+        sessionStorage.set(sessionId, session);
 
         const result: ReferenceSigningResult = {
             success: true,
