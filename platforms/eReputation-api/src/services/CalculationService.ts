@@ -155,7 +155,7 @@ export class CalculationService {
 
     private buildPrompt(userValues: string, references: any[], targetName: string): string {
         return `
-You are analyzing the reputation of "${targetName}" based on the following user values and references.
+You are analyzing the reputation of "${targetName}" based on the following user values and references. Remember that the user may also supply a wishlist, only focus on the part of the wishlist and values which mentions what the user values in a person, group, or platform, depending on what type of profile it is that you are evaluating, do not care about anything else in the wishlist.
 
 USER VALUES (what the evaluator cares about):
 ${userValues}
