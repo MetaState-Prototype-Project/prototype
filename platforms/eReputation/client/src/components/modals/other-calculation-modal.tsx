@@ -474,9 +474,15 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
                                 </svg>
                               )}
                             </div>
-                            <div>
-                              <div className="font-bold text-fig">{result.name || result.ename || result.handle || 'Unknown'}</div>
-                              <div className="text-xs text-fig/70 capitalize">{result.type || result.category || targetType}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-fig truncate">{result.name || result.ename || result.handle || 'Unknown'}</div>
+                              <div className="text-xs text-fig/70">
+                                {(targetType === 'user' || targetType === 'group') ? (
+                                  result.ename ? result.ename : 'no ename'
+                                ) : (
+                                  <span className="capitalize">{result.type || result.category || targetType}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>

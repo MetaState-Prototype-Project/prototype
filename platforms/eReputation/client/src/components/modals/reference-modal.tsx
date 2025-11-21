@@ -521,8 +521,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                                 {result.name || result.ename || result.handle || 'Unknown'}
                               </div>
                               <div className="text-xs text-fig/70">
-                                {targetType === 'user' && result.ename ? (
-                                  result.ename
+                                {(targetType === 'user' || targetType === 'group') ? (
+                                  result.ename ? result.ename : 'no ename'
                                 ) : (
                                   <span className="capitalize">{result.type || result.category || targetType}</span>
                                 )}
