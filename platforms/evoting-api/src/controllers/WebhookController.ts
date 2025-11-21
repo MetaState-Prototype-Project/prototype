@@ -214,11 +214,7 @@ export class WebhookController {
                     const pollIdValue = local.data.pollId.includes("(") 
                         ? local.data.pollId.split("(")[1].split(")")[0]
                         : local.data.pollId;
-                    pollId = await this.adapter.mappingDb.getLocalId(pollIdValue);
-                    if (!pollId) {
-                        console.error("Poll not found for globalId:", pollIdValue);
-                        return res.status(400).send();
-                    }
+                    pollId = pollIdValue;
                 }
                 
                 // Resolve groupId from global to local ID
