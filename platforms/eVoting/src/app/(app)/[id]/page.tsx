@@ -585,15 +585,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     You voted:{" "}
                                                     {
                                                         (() => {
-                                                            if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
-                                                                const optionIndex = parseInt(voteStatus.vote.data.data[0] || "0");
+                                                            const voteData = voteStatus?.vote?.data;
+                                                            if (!voteData) return "Unknown option";
+                                                            
+                                                            if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                                const optionIndex = parseInt(voteData.data[0] || "0");
                                                                 return selectedPoll.options[optionIndex] || "Unknown option";
-                                                            } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                                const pointData = voteStatus.vote.data.data as PointVoteData[];
-                                                                const totalPoints = pointData.reduce((sum, item) => sum + (item.points || 0), 0);
+                                                            } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
+                                                                // Point voting stores data as { "0": 50, "1": 50 } format
+                                                                const totalPoints = Object.values(voteData.data as Record<string, number>).reduce((sum, points) => sum + (points || 0), 0);
                                                                 return `distributed ${totalPoints} points across options`;
-                                                            } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
-                                                                const rankData = voteStatus.vote.data.data;
+                                                            } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                                const rankData = voteData.data;
                                                                 const sortedRanks = [...rankData].sort((a, b) => a.points - b.points);
                                                                 const topChoice = selectedPoll.options[parseInt(sortedRanks[0]?.option || "0")];
                                                                 return `ranked options (${topChoice} as 1st choice)`;
@@ -621,29 +624,36 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     <div className="space-y-3">
                                         {selectedPoll.options.map((option, index) => {
                                             const isUserChoice = (() => {
-                                                if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    return voteStatus.vote.data.data.includes(index.toString());
-                                                } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const pointData = voteStatus.vote.data.data as PointVoteData[];
-                                                    const optionPoints = pointData.find(item => item.option === index.toString())?.points || 0;
-                                                    return optionPoints > 0;
-                                                } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const rankData = voteStatus.vote.data.data as PointVoteData[];
-                                                    return rankData.some(item => item.option === index.toString());
+                                                const voteData = voteStatus?.vote?.data;
+                                                if (!voteData) return false;
+                                                
+                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                    return voteData.data.includes(index.toString());
+                                                } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
+                                                    // Point voting stores data as { "0": 50, "1": 50 } format
+                                                    const points = (voteData.data as Record<string, number>)[index.toString()];
+                                                    return points > 0;
+                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                    const rankData = voteData.data;
+                                                    return rankData.some((item: any) => item.option === index.toString());
                                                 }
                                                 return false;
                                             })();
 
                                             const userChoiceDetails = (() => {
-                                                if (voteStatus?.vote?.data?.mode === "normal" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    return voteStatus.vote.data.data.includes(index.toString()) ? "← You voted for this option" : null;
-                                                } else if (voteStatus?.vote?.data?.mode === "point" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const pointData = voteStatus.vote.data.data as PointVoteData[];
-                                                    const optionPoints = pointData.find(item => item.option === index.toString())?.points || 0;
-                                                    return optionPoints > 0 ? `← You gave ${optionPoints} points` : null;
-                                                } else if (voteStatus?.vote?.data?.mode === "rank" && Array.isArray(voteStatus.vote.data.data)) {
-                                                    const rankData = voteStatus.vote.data.data as PointVoteData[];
-                                                    const optionRank = rankData.find(item => item.option === index.toString())?.points;
+                                                const voteData = voteStatus?.vote?.data;
+                                                if (!voteData) return null;
+                                                
+                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+                                                    return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
+                                                } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
+                                                    // Point voting stores data as { "0": 50, "1": 50 } format
+                                                    const points = (voteData.data as Record<string, number>)[index.toString()];
+                                                    return points > 0 ? `← You gave ${points} points` : null;
+                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                    const rankData = voteData.data;
+                                                    const rankItem = rankData.find((item: any) => item.option === index.toString());
+                                                    const optionRank = rankItem?.points;
                                                     return optionRank ? `← You ranked this ${optionRank}${optionRank === 1 ? 'st' : optionRank === 2 ? 'nd' : optionRank === 3 ? 'rd' : 'th'}` : null;
                                                 }
                                                 return null;
@@ -1270,23 +1280,34 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             ? { ranks: rankVotes }
                                             : { points: pointVotes }
                                 }
-                                onSigningComplete={(voteId) => {
+                                onSigningComplete={async (voteId) => {
                                     setShowSigningInterface(false);
-
-                                    // Add a small delay to ensure backend has processed the vote
-                                    setTimeout(async () => {
-                                        try {
-                                            await fetchPoll();
-                                            await fetchVoteData();
-                                        } catch (error) {
-                                            console.error("Error during data refresh:", error);
-                                        }
-                                    }, 2000); // 2 second delay
 
                                     toast({
                                         title: "Success!",
                                         description: "Your vote has been signed and submitted.",
                                     });
+
+                                    // Immediately try to fetch vote data, then retry after a short delay if needed
+                                    const fetchWithRetry = async (retries = 3, delay = 1000) => {
+                                        for (let i = 0; i < retries; i++) {
+                                            try {
+                                                await fetchPoll();
+                                                await fetchVoteData();
+                                                // If successful, break out of retry loop
+                                                break;
+                                            } catch (error) {
+                                                console.error(`Error during data refresh (attempt ${i + 1}/${retries}):`, error);
+                                                if (i < retries - 1) {
+                                                    // Wait before retrying
+                                                    await new Promise(resolve => setTimeout(resolve, delay));
+                                                }
+                                            }
+                                        }
+                                    };
+
+                                    // Try immediately, then retry if needed
+                                    await fetchWithRetry();
                                 }}
                                 onCancel={() => {
                                     setShowSigningInterface(false);
