@@ -141,6 +141,17 @@ export default function CreatePoll() {
         }
     }, [watchedVotingWeight, watchedMode, setValue]);
 
+    // Prevent blind voting (private visibility) + eReputation weighted combination
+    React.useEffect(() => {
+        if (watchedVisibility === "private" && watchedVotingWeight === "ereputation") {
+            // If private visibility is selected and user tries to select eReputation, force to 1p1v
+            setValue("votingWeight", "1p1v");
+        } else if (watchedVotingWeight === "ereputation" && watchedVisibility === "private") {
+            // If eReputation is selected and user tries to select private visibility, force to public
+            setValue("visibility", "public");
+        }
+    }, [watchedVisibility, watchedVotingWeight, setValue]);
+
     const addOption = () => {
         const newOptions = [...options, ""];
         setOptions(newOptions);
@@ -581,7 +592,7 @@ export default function CreatePoll() {
                     </RadioGroup>
                     {watchedVotingWeight === "ereputation" && (
                         <p className="mt-2 text-sm text-gray-600">
-                            Votes will be weighted by each voter's eReputation score. The poll title will automatically include "(eReputation Weighted)".
+                            Votes will be weighted by each voter's eReputation score.
                         </p>
                     )}
                     {errors.votingWeight && (

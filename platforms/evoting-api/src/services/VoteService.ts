@@ -44,20 +44,20 @@ export class VoteService {
 
   /**
    * Get reputation score for a user from reputation results using ename
+   * Returns the actual eReputation score (1-5) to be used as a multiplier
    */
   private getReputationScore(ename: string, reputationResults: VoteReputationResult | null): number {
     if (!reputationResults || !reputationResults.results) {
-      return 1.0; // Default weight if no reputation data
+      return 1.0; // Default score if no reputation data
     }
 
     const memberRep = reputationResults.results.find((r: MemberReputation) => r.ename === ename);
     if (!memberRep) {
-      return 1.0; // Default weight if user not found in reputation results
+      return 1.0; // Default score if user not found in reputation results
     }
 
-    // Normalize score to a weight (assuming score is 0-5, convert to 0-1 weight)
-    // You can adjust this formula based on your needs
-    return Math.max(0.1, memberRep.score / 5.0); // Minimum weight of 0.1, max of 1.0
+    // Return the actual eReputation score (1-5) to multiply votes/points by
+    return memberRep.score;
   }
 
   /**

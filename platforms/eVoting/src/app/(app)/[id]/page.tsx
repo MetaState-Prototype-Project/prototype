@@ -11,6 +11,8 @@ import {
     Users,
     BarChart3,
     Shield,
+    ChartLine,
+    CircleUser,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -308,23 +310,42 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         Back to Home
                     </Button>
                 </Link>
-                <Badge
-                    variant={
-                        selectedPoll.visibility === "public" ? "default" : "secondary"
-                    }
-                >
-                    {selectedPoll.visibility === "public" ? (
-                        <>
-                            <Eye className="w-3 h-3 mr-1" />
-                            Public
-                        </>
-                    ) : (
-                        <>
-                            <UserX className="w-3 h-3 mr-1" />
-                            Private
-                        </>
-                    )}
-                </Badge>
+                <div className="flex items-center gap-2">
+                    <Badge
+                        variant={
+                            selectedPoll.visibility === "public" ? "default" : "secondary"
+                        }
+                    >
+                        {selectedPoll.visibility === "public" ? (
+                            <>
+                                <Eye className="w-3 h-3 mr-1" />
+                                Public
+                            </>
+                        ) : (
+                            <>
+                                <UserX className="w-3 h-3 mr-1" />
+                                Private
+                            </>
+                        )}
+                    </Badge>
+                    <Badge
+                        variant={
+                            selectedPoll.votingWeight === "ereputation" ? "default" : "secondary"
+                        }
+                    >
+                        {selectedPoll.votingWeight === "ereputation" ? (
+                            <>
+                                <ChartLine className="w-3 h-3 mr-1" />
+                                eReputation Weighted
+                            </>
+                        ) : (
+                            <>
+                                <CircleUser className="w-3 h-3 mr-1" />
+                                1P 1V
+                            </>
+                        )}
+                    </Badge>
+                </div>
             </div>
 
             <div className="card p-8">
