@@ -63,11 +63,23 @@ export class CalculationService {
             });
 
             if (references.length === 0) {
+                // Determine target type for explanation message
+                let targetTypeLabel = "person";
+                if (calculation.targetType === "group") {
+                    targetTypeLabel = "group";
+                } else if (calculation.targetType === "platform") {
+                    targetTypeLabel = "platform";
+                } else if (calculation.targetType === "self") {
+                    targetTypeLabel = "person";
+                }
+                
                 calculation.calculatedScore = 0;
                 calculation.status = "complete";
                 calculation.calculationDetails = JSON.stringify({
-                    message: "No references found for this target",
-                    referencesCount: 0
+                    explanation: `This ${targetTypeLabel} has no eReferences, so the score is inconclusive.`,
+                    referencesCount: 0,
+                    referencesAnalyzed: 0,
+                    userValues: calculation.userValues
                 });
                 return await this.calculationRepository.save(calculation);
             }
