@@ -533,7 +533,11 @@ export default function Dashboard() {
                                                  getScoreColor(activity.result).includes('orange') ? '#fff7ed' :
                                                  getScoreColor(activity.result).includes('yellow') ? '#fefce8' : '#f0fdf4'
                                 }}>
-                            {activity.result === 'No score' ? 'No score' : (activity.result || 'Calculating...')}
+                            {(() => {
+                              const calculatedScore = activity.data?.calculatedScore;
+                              const hasNoScore = activity.result === 'No score' || calculatedScore === 0;
+                              return hasNoScore ? 'No score' : (activity.result || 'Calculating...');
+                            })()}
                           </span>
                         )}
                       </td>
@@ -633,7 +637,11 @@ export default function Dashboard() {
                                                    activity.result && activity.result.includes('moderate') ? '#fff7ed' :
                                                    activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'
                                   }}>
-                              {activity.result === 'No score' ? 'No score' : (activity.result ? activity.result.replace('Score: ', '') : 'Calculating...')}
+                              {(() => {
+                                const calculatedScore = activity.data?.calculatedScore;
+                                const hasNoScore = activity.result === 'No score' || calculatedScore === 0;
+                                return hasNoScore ? 'No score' : (activity.result ? activity.result.replace('Score: ', '') : 'Calculating...');
+                              })()}
                             </span>
                           )}
                         </div>
@@ -717,7 +725,10 @@ export default function Dashboard() {
                   <span className="text-2xl font-black text-fig">
                     {(() => {
                       const result = (selectedActivity as any).result;
-                      if (result === 'No score') {
+                      const calculatedScore = (selectedActivity as any).data?.calculatedScore;
+                      const hasNoScore = result === 'No score' || calculatedScore === 0;
+                      
+                      if (hasNoScore) {
                         const targetType = (selectedActivity as any).targetType || 'user';
                         const targetLabel = targetType === 'group' ? 'group' : targetType === 'platform' ? 'platform' : 'person';
                         return `No score for this ${targetLabel}`;
@@ -731,7 +742,10 @@ export default function Dashboard() {
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
                     const resultStr = (selectedActivity as any).result || '';
-                    if (resultStr === 'No score') {
+                    const calculatedScore = (selectedActivity as any).data?.calculatedScore;
+                    const hasNoScore = resultStr === 'No score' || calculatedScore === 0;
+                    
+                    if (hasNoScore) {
                       // Show empty/gray circle for no score
                       return (
                         <div className="relative w-32 h-32">
@@ -891,8 +905,9 @@ export default function Dashboard() {
               {/* AI Explanation/Justification */}
               {(() => {
                 const result = (selectedActivity as any).result;
+                const calculatedScore = (selectedActivity as any).data?.calculatedScore;
                 const explanation = (selectedActivity as any).explanation;
-                const hasNoScore = result === 'No score';
+                const hasNoScore = result === 'No score' || calculatedScore === 0;
                 
                 if (hasNoScore || explanation) {
                   return (
