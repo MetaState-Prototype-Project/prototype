@@ -720,42 +720,36 @@ export default function Dashboard() {
               
               {/* Score Visualization */}
               <div className="bg-gradient-to-br from-fig/5 to-apple-red/5 rounded-2xl p-6 border border-fig/10">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-black text-fig">Reputation Score</h3>
-                  <span className="text-2xl font-black text-fig">
-                    {(() => {
-                      const result = (selectedActivity as any).result;
-                      const calculatedScore = (selectedActivity as any).data?.calculatedScore;
-                      const hasNoScore = result === 'No score' || calculatedScore === 0;
+                {(() => {
+                  const result = (selectedActivity as any).result;
+                  const calculatedScore = (selectedActivity as any).data?.calculatedScore;
+                  const hasNoScore = result === 'No score' || calculatedScore === 0;
+                  
+                  if (hasNoScore) {
+                    const targetType = (selectedActivity as any).targetType || 'user';
+                    const targetLabel = targetType === 'group' ? 'group' : targetType === 'platform' ? 'platform' : 'person';
+                    return (
+                      <div className="text-center">
+                        <span className="text-2xl font-black text-fig">
+                          No score for this {targetLabel}
+                        </span>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-black text-fig">Reputation Score</h3>
+                        <span className="text-2xl font-black text-fig">
+                          {result || 'Calculating...'}
+                        </span>
+                      </div>
                       
-                      if (hasNoScore) {
-                        const targetType = (selectedActivity as any).targetType || 'user';
-                        const targetLabel = targetType === 'group' ? 'group' : targetType === 'platform' ? 'platform' : 'person';
-                        return `No score for this ${targetLabel}`;
-                      }
-                      return result || 'Calculating...';
-                    })()}
-                  </span>
-                </div>
-                
-                {/* Animated Circle Progress with Dynamic Gradient */}
-                <div className="relative w-32 h-32 mx-auto mb-4">
-                  {(() => {
-                    const resultStr = (selectedActivity as any).result || '';
-                    const calculatedScore = (selectedActivity as any).data?.calculatedScore;
-                    const hasNoScore = resultStr === 'No score' || calculatedScore === 0;
-                    
-                    if (hasNoScore) {
-                      // Show empty/gray circle for no score
-                      return (
-                        <div className="relative w-32 h-32">
-                          <div className="absolute inset-0 rounded-full bg-gray-200"></div>
-                          <div className="absolute inset-2 rounded-full bg-white flex items-center justify-center">
-                            <span className="text-xs text-gray-500 font-medium">No score</span>
-                          </div>
-                        </div>
-                      );
-                    }
+                      {/* Animated Circle Progress with Dynamic Gradient */}
+                      <div className="relative w-32 h-32 mx-auto mb-4">
+                        {(() => {
+                          const resultStr = (selectedActivity as any).result || '';
                     const score = parseFloat(resultStr.replace('Score: ', '')) || 0;
                     const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
@@ -900,6 +894,9 @@ export default function Dashboard() {
                     );
                   })()}
                 </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* AI Explanation/Justification */}
@@ -924,7 +921,7 @@ export default function Dashboard() {
                       </div>
                       <p className="text-sm text-fig/90 leading-relaxed whitespace-pre-wrap">
                         {hasNoScore 
-                          ? 'The score is inconclusive due to insufficient data.'
+                          ? 'There are no eReferences found.'
                           : explanation
                         }
                       </p>
