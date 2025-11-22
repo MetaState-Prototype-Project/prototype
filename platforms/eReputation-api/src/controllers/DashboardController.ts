@@ -125,7 +125,7 @@ export class DashboardController {
                         targetType: calc.targetType,
                         date: calc.createdAt,
                         status: calc.status,
-                        result: calc.calculatedScore ? `Score: ${calc.calculatedScore}/5` : 'Calculating...',
+                        result: calc.calculatedScore === 0 ? 'No score' : (calc.calculatedScore ? `Score: ${calc.calculatedScore}/5` : 'Calculating...'),
                         explanation: explanation,
                         data: calc
                     });

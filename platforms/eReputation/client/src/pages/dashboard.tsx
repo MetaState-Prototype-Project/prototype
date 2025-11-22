@@ -533,7 +533,7 @@ export default function Dashboard() {
                                                  getScoreColor(activity.result).includes('orange') ? '#fff7ed' :
                                                  getScoreColor(activity.result).includes('yellow') ? '#fefce8' : '#f0fdf4'
                                 }}>
-                            {activity.result || 'Calculating...'}
+                            {activity.result === 'No score' ? 'No score' : (activity.result || 'Calculating...')}
                           </span>
                         )}
                       </td>
@@ -633,7 +633,7 @@ export default function Dashboard() {
                                                    activity.result && activity.result.includes('moderate') ? '#fff7ed' :
                                                    activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'
                                   }}>
-                              {activity.result ? activity.result.replace('Score: ', '') : 'Calculating...'}
+                              {activity.result === 'No score' ? 'No score' : (activity.result ? activity.result.replace('Score: ', '') : 'Calculating...')}
                             </span>
                           )}
                         </div>
@@ -715,7 +715,15 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-black text-fig">Reputation Score</h3>
                   <span className="text-2xl font-black text-fig">
-                    {(selectedActivity as any).result || 'Calculating...'}
+                    {(() => {
+                      const result = (selectedActivity as any).result;
+                      if (result === 'No score') {
+                        const targetType = (selectedActivity as any).targetType || 'user';
+                        const targetLabel = targetType === 'group' ? 'group' : targetType === 'platform' ? 'platform' : 'person';
+                        return `No score for this ${targetLabel}`;
+                      }
+                      return result || 'Calculating...';
+                    })()}
                   </span>
                 </div>
                 
@@ -723,6 +731,17 @@ export default function Dashboard() {
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
                     const resultStr = (selectedActivity as any).result || '';
+                    if (resultStr === 'No score') {
+                      // Show empty/gray circle for no score
+                      return (
+                        <div className="relative w-32 h-32">
+                          <div className="absolute inset-0 rounded-full bg-gray-200"></div>
+                          <div className="absolute inset-2 rounded-full bg-white flex items-center justify-center">
+                            <span className="text-xs text-gray-500 font-medium">No score</span>
+                          </div>
+                        </div>
+                      );
+                    }
                     const score = parseFloat(resultStr.replace('Score: ', '')) || 0;
                     const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
@@ -852,31 +871,53 @@ export default function Dashboard() {
                     );
                   })()}
                   
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-black text-fig">
-                      {Math.round(((parseFloat(((selectedActivity as any).result || '').replace('Score: ', '')) || 0) / 5) * 100)}%
-                    </span>
-                    <span className="text-xs font-medium text-gray-500 mt-1">SCORE</span>
-                  </div>
+                  {(() => {
+                    const resultStr = (selectedActivity as any).result || '';
+                    if (resultStr === 'No score') {
+                      return null; // Don't show percentage for no score
+                    }
+                    return (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-black text-fig">
+                          {Math.round(((parseFloat(resultStr.replace('Score: ', '')) || 0) / 5) * 100)}%
+                        </span>
+                        <span className="text-xs font-medium text-gray-500 mt-1">SCORE</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
               {/* AI Explanation/Justification */}
-              {(selectedActivity as any).explanation && (
-                <div className="bg-fig-10 rounded-xl p-4 border-2 border-fig/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 bg-fig/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-3 h-3 text-fig" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
+              {(() => {
+                const result = (selectedActivity as any).result;
+                const explanation = (selectedActivity as any).explanation;
+                const hasNoScore = result === 'No score';
+                
+                if (hasNoScore || explanation) {
+                  return (
+                    <div className="bg-fig-10 rounded-xl p-4 border-2 border-fig/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 bg-fig/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-3 h-3 text-fig" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <label className="text-xs font-bold text-fig uppercase tracking-wider">
+                          {hasNoScore ? 'Score Information' : 'Score Justification'}
+                        </label>
+                      </div>
+                      <p className="text-sm text-fig/90 leading-relaxed whitespace-pre-wrap">
+                        {hasNoScore 
+                          ? 'The score is inconclusive due to insufficient data.'
+                          : explanation
+                        }
+                      </p>
                     </div>
-                    <label className="text-xs font-bold text-fig uppercase tracking-wider">Score Justification</label>
-                  </div>
-                  <p className="text-sm text-fig/90 leading-relaxed whitespace-pre-wrap">
-                    {(selectedActivity as any).explanation}
-                  </p>
-                </div>
-              )}
+                  );
+                }
+                return null;
+              })()}
               
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <Button 
