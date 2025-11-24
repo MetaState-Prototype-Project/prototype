@@ -21,6 +21,7 @@ import fastify, {
     FastifyRequest,
     FastifyReply,
 } from "fastify";
+import fastifyCors from "@fastify/cors";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { connectWithRetry } from "./core/db/retry-neo4j";
 import neo4j, { Driver } from "neo4j-driver";
@@ -114,6 +115,14 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     
     fastifyServer = fastify({
         logger: true,
+    });
+
+    // Register CORS plugin with relaxed settings
+    await fastifyServer.register(fastifyCors, {
+        origin: true, // Allow all origins
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        credentials: true,
     });
 
     // Register HTTP routes with provisioning service if available
