@@ -1,4 +1,4 @@
-import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL, EID_WALLET_TOKEN } from "$env/static/public";
+import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL, PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
@@ -141,9 +141,9 @@ export class VaultController {
             }
 
             // Get authentication token from environment variable
-            const authToken = EID_WALLET_TOKEN || null;
+            const authToken = PUBLIC_EID_WALLET_TOKEN || null;
             if (!authToken) {
-                console.warn("EID_WALLET_TOKEN not set, request may fail authentication");
+                console.warn("PUBLIC_EID_WALLET_TOKEN not set, request may fail authentication");
             }
 
             // Call PATCH /public-key to save the public key
