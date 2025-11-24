@@ -118,10 +118,25 @@ export class VaultController {
                 return;
             }
 
-            // Get public key from KeyService
-            const publicKey = await this.#keyService.getPublicKey(eName, "signing");
+            // Get public key using the exact same logic as onboarding/verification flow
+            // KEY_ID is always "default", context depends on whether user is pre-verification
+            const KEY_ID = "default";
+            
+            // Determine context: check if user is pre-verification (fake/demo user)
+            const isFake = await this.#userController.isFake;
+            const context = isFake ? "pre-verification" : "onboarding";
+
+            // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
+            let publicKey: string | undefined;
+            try {
+                publicKey = await this.#keyService.getPublicKey(KEY_ID, context);
+            } catch (error) {
+                console.error(`Failed to get public key for ${KEY_ID} with context ${context}:`, error);
+                return;
+            }
+
             if (!publicKey) {
-                console.warn(`No public key found for ${eName}, cannot sync`);
+                console.warn(`No public key found for ${KEY_ID} with context ${context}, cannot sync`);
                 return;
             }
 
