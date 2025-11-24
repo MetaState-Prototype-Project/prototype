@@ -89,13 +89,7 @@ export class PollService {
             const aIsActive = !a.deadline || new Date(a.deadline) > now;
             const bIsActive = !b.deadline || new Date(b.deadline) > now;
             
-            // ALWAYS show active polls first, UNLESS sorting by status
-            if (sortField !== "status") {
-                if (aIsActive && !bIsActive) return -1;
-                if (!aIsActive && bIsActive) return 1;
-            }
-            
-            // If both are active or both are ended, apply the user's chosen sorting
+            // Apply the user's chosen sorting
             let comparison = 0;
             
             switch (sortField) {

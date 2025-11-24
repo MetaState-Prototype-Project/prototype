@@ -17,8 +17,18 @@ export default function Home() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-    const [sortField, setSortField] = useState<string>("deadline");
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+    const [sortField, setSortField] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("evoting_sortField") || "deadline";
+        }
+        return "deadline";
+    });
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
+        if (typeof window !== "undefined") {
+            return (localStorage.getItem("evoting_sortDirection") as "asc" | "desc") || "asc";
+        }
+        return "asc";
+    });
     const itemsPerPage = 15;
 
     useEffect(() => {
@@ -75,10 +85,18 @@ export default function Home() {
 
     const handleSort = (field: string) => {
         if (sortField === field) {
-            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+            const newDirection = sortDirection === "asc" ? "desc" : "asc";
+            setSortDirection(newDirection);
+            if (typeof window !== "undefined") {
+                localStorage.setItem("evoting_sortDirection", newDirection);
+            }
         } else {
             setSortField(field);
             setSortDirection("asc");
+            if (typeof window !== "undefined") {
+                localStorage.setItem("evoting_sortField", field);
+                localStorage.setItem("evoting_sortDirection", "asc");
+            }
         }
     };
 
