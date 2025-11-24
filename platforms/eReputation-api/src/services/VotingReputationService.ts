@@ -386,6 +386,7 @@ export class VotingReputationService {
         charter: string,
         membersData: Array<{ ename: string; userName: string; userId: string; references: Array<{ content: string; numericScore?: number; author: string }> }>
     ): string {
+        console.log("Building bulk voting prompt for charter");
         const membersCSV = membersData.map(member => {
             const refsText = member.references.length > 0
                 ? member.references.map(ref => 
@@ -412,9 +413,12 @@ Based on the group charter and the references provided, calculate a reputation s
 
 IMPORTANT: 
 - Each score must be between 1 and 5 (inclusive)
-- Consider how well the references align with the group's charter and values
+- Only consider the values mentioned in the charter for eVoting explicitly do not consider anything else, and only consider the references that are relevant to the values mentioned in the charter for eVoting.
 - Focus on voting-relevant reputation factors mentioned in the charter
 - Provide a ONE SENTENCE justification explaining each score
+- Only consider values and ereferences which match one to one, and do not consider things where you need to make a guess or assumption, if you are not sure always err to caution.
+- If the charter has explicit instructions on what they consider for eVoting, DO NOT consider any other group values to make a reference. 
+- If someone has no references give them a score of 1, unless explcitly stated in the charter that they shall get another score.
 
 Respond with a JSON array in this exact format:
 [
@@ -458,6 +462,8 @@ IMPORTANT:
 - The score must be between 1 and 5 (inclusive)
 - Consider how well the references align with the group's charter and values
 - Focus on voting-relevant reputation factors mentioned in the charter
+- If the charter has explicit instructions on what they consider for eVoting, DO NOT consider any other group values to make a reference. 
+- If someone has no references give them a score of 1, unless explcitly stated in the charter that they shall get another score.
 - Provide a ONE SENTENCE justification explaining the score
 
 Respond with a JSON object in this exact format:
