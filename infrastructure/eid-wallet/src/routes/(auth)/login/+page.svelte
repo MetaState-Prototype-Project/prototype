@@ -98,6 +98,16 @@ onMount(async () => {
                         }
                         // For other errors, continue to app - non-blocking
                     }
+
+                    // Sync public key to eVault core
+                    try {
+                        await globalState.vaultController.syncPublicKey(
+                            vault.ename,
+                        );
+                    } catch (error) {
+                        console.error("Error syncing public key:", error);
+                        // Continue to app even if sync fails - non-blocking
+                    }
                 }
             } catch (error) {
                 console.error("Error during eVault health check:", error);
@@ -169,6 +179,16 @@ onMount(async () => {
                             return; // Don't continue to app
                         }
                         // For other errors, continue to app - non-blocking
+                    }
+
+                    // Sync public key to eVault core
+                    try {
+                        await globalState.vaultController.syncPublicKey(
+                            vault.ename,
+                        );
+                    } catch (error) {
+                        console.error("Error syncing public key:", error);
+                        // Continue to app even if sync fails - non-blocking
                     }
                 }
             } catch (error) {

@@ -16,6 +16,7 @@
         "migration:revert": "npm run typeorm migration:revert -- -d dist/config/database.js"
     },
     "dependencies": {
+        "@fastify/cors": "^8.5.0",
         "@fastify/formbody": "^8.0.2",
         "@fastify/swagger": "^8.14.0",
         "@fastify/swagger-ui": "^3.0.0",

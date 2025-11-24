@@ -286,30 +286,50 @@ export async function registerHttpRoutes(
   // Helper function to validate JWT token
   async function validateToken(authHeader: string | null): Promise<any | null> {
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("Token validation: Missing or invalid Authorization header format");
       return null;
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     try {
-      if (!process.env.REGISTRY_URL) {
-        console.error("REGISTRY_URL is not set");
+      // Try REGISTRY_URL first, fallback to PUBLIC_REGISTRY_URL
+      const registryUrl = process.env.REGISTRY_URL || process.env.PUBLIC_REGISTRY_URL;
+      if (!registryUrl) {
+        console.error("Token validation: REGISTRY_URL or PUBLIC_REGISTRY_URL is not set");
         return null;
       }
 
-      const jwksResponse = await axios.get(
-        new URL(
-          `/.well-known/jwks.json`,
-          process.env.REGISTRY_URL
-        ).toString()
-      );
+      const jwksUrl = new URL(`/.well-known/jwks.json`, registryUrl).toString();
+      console.log(`Token validation: Fetching JWKS from ${jwksUrl}`);
 
+      const jwksResponse = await axios.get(jwksUrl, {
+        timeout: 5000,
+      });
+
+      console.log(`Token validation: JWKS response keys count: ${jwksResponse.data?.keys?.length || 0}`);
+      
       const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+      
+      // Decode token header to see what kid it's using
+      const decodedHeader = jose.decodeProtectedHeader(token);
+      console.log(`Token validation: Token header - alg: ${decodedHeader.alg}, kid: ${decodedHeader.kid}`);
+      
       const { payload } = await jose.jwtVerify(token, JWKS);
-
+      
+      console.log(`Token validation: Token verified successfully, payload:`, payload);
       return payload;
-    } catch (error) {
-      console.error("Token validation failed:", error);
+    } catch (error: any) {
+      console.error("Token validation failed:", error.message || error);
+      if (error.code) {
+        console.error(`Token validation error code: ${error.code}`);
+      }
+      if (error.response) {
+        console.error(`Token validation HTTP error: ${error.response.status} - ${error.response.statusText}`);
+      }
+      if (error.cause) {
+        console.error(`Token validation error cause:`, error.cause);
+      }
       return null;
     }
   }

@@ -35,7 +35,11 @@ export class GlobalState {
         this.securityController = new SecurityController(store);
         this.userController = new UserController(store);
         this.keyService = keyService;
-        this.vaultController = new VaultController(store, this.userController, keyService);
+        this.vaultController = new VaultController(
+            store,
+            this.userController,
+            keyService,
+        );
         this.notificationService = NotificationService.getInstance();
     }
 

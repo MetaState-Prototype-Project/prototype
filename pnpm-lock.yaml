@@ -365,6 +365,9 @@ importers:
 
   infrastructure/evault-core:
     dependencies:
+      '@fastify/cors':
+        specifier: ^8.5.0
+        version: 8.5.0
       '@fastify/formbody':
         specifier: ^8.0.2
         version: 8.0.2
@@ -465,6 +468,25 @@ importers:
       typeorm-ts-node-commonjs:
         specifier: ^0.3.20
         version: 0.3.20
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+      vitest:
+        specifier: ^1.6.1
+        version: 1.6.1(@types/node@20.16.11)(jsdom@19.0.0(bufferutil@4.0.9))(lightningcss@1.30.2)(sass@1.94.1)
+
+  infrastructure/signature-validator:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      multiformats:
+        specifier: ^13.3.2
+        version: 13.4.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.16.11
       typescript:
         specifier: ^5.3.3
         version: 5.8.2
