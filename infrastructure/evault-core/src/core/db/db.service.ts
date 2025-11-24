@@ -591,6 +591,48 @@ export class DbService {
     }
 
     /**
+     * Gets the public key for a given eName.
+     * @param eName - The eName identifier
+     * @returns The public key string, or null if not found
+     */
+    async getPublicKey(eName: string): Promise<string | null> {
+        if (!eName) {
+            throw new Error("eName is required for getting public key");
+        }
+
+        const result = await this.runQuery(
+            `MATCH (u:User { eName: $eName }) RETURN u.publicKey AS publicKey`,
+            { eName }
+        );
+
+        if (!result.records[0]) {
+            return null;
+        }
+
+        return result.records[0].get("publicKey") || null;
+    }
+
+    /**
+     * Sets or updates the public key for a given eName.
+     * @param eName - The eName identifier
+     * @param publicKey - The public key to store
+     */
+    async setPublicKey(eName: string, publicKey: string): Promise<void> {
+        if (!eName) {
+            throw new Error("eName is required for setting public key");
+        }
+        if (!publicKey) {
+            throw new Error("publicKey is required");
+        }
+
+        await this.runQuery(
+            `MERGE (u:User { eName: $eName })
+             SET u.publicKey = $publicKey`,
+            { eName, publicKey }
+        );
+    }
+
+    /**
      * Closes the database connection.
      */
     async close(): Promise<void> {

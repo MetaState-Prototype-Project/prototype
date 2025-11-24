@@ -3,6 +3,9 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { WatcherRequest, TypedRequest, TypedReply } from "./types";
 import { ProvisioningService, ProvisionRequest } from "../../services/ProvisioningService";
+import { DbService } from "../db/db.service";
+import * as jose from "jose";
+import axios from "axios";
 
 interface WatcherSignatureRequest {
   w3id: string;
@@ -17,7 +20,8 @@ interface WatcherSignatureRequest {
 export async function registerHttpRoutes(
   server: FastifyInstance,
   evault: any, // EVault instance to access publicKey
-  provisioningService?: ProvisioningService
+  provisioningService?: ProvisioningService,
+  dbService?: DbService
 ): Promise<void> {
   // Register Swagger
   await server.register(swagger, {
@@ -52,29 +56,51 @@ export async function registerHttpRoutes(
       schema: {
         tags: ["identity"],
         description: "Get eVault W3ID identifier and public key",
+        headers: {
+          type: "object",
+          required: ["X-ENAME"],
+          properties: {
+            "X-ENAME": { type: "string" },
+          },
+        },
         response: {
           200: {
             type: "object",
             properties: {
               w3id: { type: "string" },
-              publicKey: { type: "string" },
-              message: { type: "string" },
+              publicKey: { type: "string", nullable: true },
+            },
+          },
+          400: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
             },
           },
         },
       },
     },
     async (request: TypedRequest<{}>, reply: TypedReply) => {
+      const eName = request.headers["x-ename"] || request.headers["X-ENAME"];
+      
+      if (!eName || typeof eName !== "string") {
+        return reply.status(400).send({ error: "X-ENAME header is required" });
+      }
+
+      // Get public key from database if dbService is available
+      let publicKey: string | null = null;
+      if (dbService) {
+        try {
+          publicKey = await dbService.getPublicKey(eName);
+        } catch (error) {
+          console.error("Error getting public key from database:", error);
+          // Continue with null publicKey
+        }
+      }
+
       const result = {
-        w3id: evault.w3id,
-        publicKey: evault.publicKey,
-        message: evault.w3id && evault.publicKey 
-          ? "eVault identified by W3ID and public key" 
-          : evault.w3id 
-            ? "eVault identified by W3ID only (no public key)"
-            : evault.publicKey
-              ? "eVault identified by public key only (no W3ID)"
-              : "eVault has no associated identifier or public key",
+        w3id: eName,
+        publicKey: publicKey,
       };
       console.log("Whois request:", result);
       return result;
@@ -256,6 +282,122 @@ export async function registerHttpRoutes(
     }
   );
   */
+
+  // Helper function to validate JWT token
+  async function validateToken(authHeader: string | null): Promise<any | null> {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    try {
+      if (!process.env.REGISTRY_URL) {
+        console.error("REGISTRY_URL is not set");
+        return null;
+      }
+
+      const jwksResponse = await axios.get(
+        new URL(
+          `/.well-known/jwks.json`,
+          process.env.REGISTRY_URL
+        ).toString()
+      );
+
+      const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+      const { payload } = await jose.jwtVerify(token, JWKS);
+
+      return payload;
+    } catch (error) {
+      console.error("Token validation failed:", error);
+      return null;
+    }
+  }
+
+  // PATCH endpoint to save public key
+  server.patch<{ Body: { publicKey: string } }>(
+    "/public-key",
+    {
+      schema: {
+        tags: ["identity"],
+        description: "Save public key for a user's eName",
+        headers: {
+          type: "object",
+          required: ["X-ENAME", "Authorization"],
+          properties: {
+            "X-ENAME": { type: "string" },
+            "Authorization": { type: "string" },
+          },
+        },
+        body: {
+          type: "object",
+          required: ["publicKey"],
+          properties: {
+            publicKey: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              success: { type: "boolean" },
+              message: { type: "string" },
+            },
+          },
+          400: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+            },
+          },
+          401: {
+            type: "object",
+            properties: {
+              error: { type: "string" },
+            },
+          },
+        },
+      },
+    },
+    async (request: TypedRequest<{ publicKey: string }>, reply: TypedReply) => {
+      const eName = request.headers["x-ename"] || request.headers["X-ENAME"];
+      
+      if (!eName || typeof eName !== "string") {
+        return reply.status(400).send({ error: "X-ENAME header is required" });
+      }
+
+      const authHeader = request.headers.authorization || request.headers["Authorization"];
+      const tokenPayload = await validateToken(
+        typeof authHeader === "string" ? authHeader : null
+      );
+
+      if (!tokenPayload) {
+        return reply.status(401).send({ error: "Invalid or missing authentication token" });
+      }
+
+      const { publicKey } = request.body;
+      if (!publicKey) {
+        return reply.status(400).send({ error: "publicKey is required in request body" });
+      }
+
+      if (!dbService) {
+        return reply.status(500).send({ error: "Database service not available" });
+      }
+
+      try {
+        await dbService.setPublicKey(eName, publicKey);
+        return {
+          success: true,
+          message: "Public key saved successfully",
+        };
+      } catch (error) {
+        console.error("Error saving public key:", error);
+        return reply.status(500).send({
+          error: error instanceof Error ? error.message : "Failed to save public key",
+        });
+      }
+    }
+  );
 
   // Provision eVault endpoint
   if (provisioningService) {

@@ -1,9 +1,10 @@
-import { PUBLIC_REGISTRY_URL } from "$env/static/public";
+import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import NotificationService from "../../services/NotificationService";
 import type { UserController } from "./user";
+import type { KeyService } from "./key";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -47,12 +48,14 @@ export class VaultController {
     #client: GraphQLClient | null = null;
     #endpoint: string | null = null;
     #userController: UserController;
+    #keyService: KeyService | null = null;
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
     #notificationService: NotificationService;
 
-    constructor(store: Store, userController: UserController) {
+    constructor(store: Store, userController: UserController, keyService?: KeyService) {
         this.#store = store;
         this.#userController = userController;
+        this.#keyService = keyService || null;
         this.#notificationService = NotificationService.getInstance();
     }
 
@@ -72,6 +75,92 @@ export class VaultController {
         | "success"
         | "failed") {
         this.#profileCreationStatus = status;
+    }
+
+    /**
+     * Sync public key to eVault core
+     * Checks if public key was already saved, calls /whois, and PATCH if needed
+     */
+    private async syncPublicKey(eName: string): Promise<void> {
+        try {
+            // Check if we've already saved the public key
+            const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
+            if (savedKey === "true") {
+                console.log(`Public key already saved for ${eName}, skipping sync`);
+                return;
+            }
+
+            if (!this.#keyService) {
+                console.warn("KeyService not available, cannot sync public key");
+                return;
+            }
+
+            // Get the eVault URI
+            const vault = await this.vault;
+            if (!vault?.uri) {
+                console.warn("No vault URI available, cannot sync public key");
+                return;
+            }
+
+            // Call /whois to check if public key exists
+            const whoisUrl = new URL("/whois", vault.uri).toString();
+            const whoisResponse = await axios.get(whoisUrl, {
+                headers: {
+                    "X-ENAME": eName,
+                },
+            });
+
+            const existingPublicKey = whoisResponse.data?.publicKey;
+            if (existingPublicKey) {
+                // Public key already exists, mark as saved
+                localStorage.setItem(`publicKeySaved_${eName}`, "true");
+                console.log(`Public key already exists for ${eName}`);
+                return;
+            }
+
+            // Get public key from KeyService
+            const publicKey = await this.#keyService.getPublicKey(eName, "signing");
+            if (!publicKey) {
+                console.warn(`No public key found for ${eName}, cannot sync`);
+                return;
+            }
+
+            // Get authentication token from registry
+            let authToken: string | null = null;
+            try {
+                const entropyResponse = await axios.get(
+                    new URL("/entropy", PUBLIC_REGISTRY_URL).toString()
+                );
+                authToken = entropyResponse.data?.token || null;
+            } catch (error) {
+                console.error("Failed to get auth token from registry:", error);
+                // Continue without token - server will reject if auth is required
+            }
+
+            // Call PATCH /public-key to save the public key
+            const patchUrl = new URL("/public-key", vault.uri).toString();
+            const headers: Record<string, string> = {
+                "X-ENAME": eName,
+                "Content-Type": "application/json",
+            };
+
+            if (authToken) {
+                headers["Authorization"] = `Bearer ${authToken}`;
+            }
+
+            await axios.patch(
+                patchUrl,
+                { publicKey },
+                { headers }
+            );
+
+            // Mark as saved
+            localStorage.setItem(`publicKeySaved_${eName}`, "true");
+            console.log(`Public key synced successfully for ${eName}`);
+        } catch (error) {
+            console.error("Failed to sync public key:", error);
+            // Don't throw - this is a non-critical operation
+        }
     }
 
     /**
@@ -351,6 +440,9 @@ export class VaultController {
 
             // Register device for notifications
             this.registerDeviceForNotifications(vault.ename);
+
+            // Sync public key to eVault core
+            this.syncPublicKey(vault.ename);
 
             if (this.profileCreationStatus === "success") return;
             // Set loading status

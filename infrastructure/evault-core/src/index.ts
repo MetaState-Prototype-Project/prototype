@@ -92,6 +92,14 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
         console.warn("Failed to create eName index:", error);
     }
 
+    // Create User index for public key lookups
+    try {
+        const { createUserIndex } = await import("./core/db/migrations/add-user-index");
+        await createUserIndex(driver);
+    } catch (error) {
+        console.warn("Failed to create User index:", error);
+    }
+
     const dbService = new DbService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
@@ -109,7 +117,7 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     });
 
     // Register HTTP routes with provisioning service if available
-    await registerHttpRoutes(fastifyServer, evaultInstance, provisioningServiceInstance);
+    await registerHttpRoutes(fastifyServer, evaultInstance, provisioningServiceInstance, dbService);
 
     // Setup GraphQL
     const yoga = graphqlServer.init();

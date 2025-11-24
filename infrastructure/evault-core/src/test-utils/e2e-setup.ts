@@ -121,7 +121,7 @@ export async function setupE2ETestServer(
 
     // Setup Fastify server
     const fastifyServer = fastify({ logger: false });
-    await registerHttpRoutes(fastifyServer, evaultInstance, provisioningService);
+    await registerHttpRoutes(fastifyServer, evaultInstance, provisioningService, dbService);
 
     // Register GraphQL endpoint
     fastifyServer.route({
