@@ -8,11 +8,7 @@ type SEOProps = {
     description?: string;
 };
 
-export function SEO({
-    title,
-    image,
-    description
-}: SEOProps): JSX.Element {
+export function SEO({ title, image, description }: SEOProps): JSX.Element {
     const { asPath } = useRouter();
 
     return (

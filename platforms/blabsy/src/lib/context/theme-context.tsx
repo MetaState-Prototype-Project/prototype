@@ -57,7 +57,7 @@ export function ThemeContextProvider({
             const root = document.documentElement;
             // Always use dark theme
             const forcedTheme: Theme = 'dark';
-            
+
             // Always ensure dark class is present and never remove it
             root.classList.add('dark');
             // Prevent any accidental removal
@@ -95,7 +95,7 @@ export function ThemeContextProvider({
         // Ensure dark class is always applied on mount and updates
         const root = document.documentElement;
         root.classList.add('dark');
-        
+
         return () => clearTimeout(timeoutId);
     }, [userId]);
 

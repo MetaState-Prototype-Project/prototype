@@ -1,4 +1,8 @@
-import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL, PUBLIC_EID_WALLET_TOKEN } from "$env/static/public";
+import {
+    PUBLIC_REGISTRY_URL,
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_EID_WALLET_TOKEN,
+} from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
@@ -52,7 +56,11 @@ export class VaultController {
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
     #notificationService: NotificationService;
 
-    constructor(store: Store, userController: UserController, keyService?: KeyService) {
+    constructor(
+        store: Store,
+        userController: UserController,
+        keyService?: KeyService,
+    ) {
         this.#store = store;
         this.#userController = userController;
         this.#keyService = keyService || null;
@@ -86,12 +94,16 @@ export class VaultController {
             // Check if we've already saved the public key
             const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
             if (savedKey === "true") {
-                console.log(`Public key already saved for ${eName}, skipping sync`);
+                console.log(
+                    `Public key already saved for ${eName}, skipping sync`,
+                );
                 return;
             }
 
             if (!this.#keyService) {
-                console.warn("KeyService not available, cannot sync public key");
+                console.warn(
+                    "KeyService not available, cannot sync public key",
+                );
                 return;
             }
 
@@ -121,7 +133,7 @@ export class VaultController {
             // Get public key using the exact same logic as onboarding/verification flow
             // KEY_ID is always "default", context depends on whether user is pre-verification
             const KEY_ID = "default";
-            
+
             // Determine context: check if user is pre-verification (fake/demo user)
             const isFake = await this.#userController.isFake;
             const context = isFake ? "pre-verification" : "onboarding";
@@ -129,21 +141,31 @@ export class VaultController {
             // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
             let publicKey: string | undefined;
             try {
-                publicKey = await this.#keyService.getPublicKey(KEY_ID, context);
+                publicKey = await this.#keyService.getPublicKey(
+                    KEY_ID,
+                    context,
+                );
             } catch (error) {
-                console.error(`Failed to get public key for ${KEY_ID} with context ${context}:`, error);
+                console.error(
+                    `Failed to get public key for ${KEY_ID} with context ${context}:`,
+                    error,
+                );
                 return;
             }
 
             if (!publicKey) {
-                console.warn(`No public key found for ${KEY_ID} with context ${context}, cannot sync`);
+                console.warn(
+                    `No public key found for ${KEY_ID} with context ${context}, cannot sync`,
+                );
                 return;
             }
 
             // Get authentication token from environment variable
             const authToken = PUBLIC_EID_WALLET_TOKEN || null;
             if (!authToken) {
-                console.warn("PUBLIC_EID_WALLET_TOKEN not set, request may fail authentication");
+                console.warn(
+                    "PUBLIC_EID_WALLET_TOKEN not set, request may fail authentication",
+                );
             }
 
             // Call PATCH /public-key to save the public key
@@ -157,11 +179,7 @@ export class VaultController {
                 headers["Authorization"] = `Bearer ${authToken}`;
             }
 
-            await axios.patch(
-                patchUrl,
-                { publicKey },
-                { headers }
-            );
+            await axios.patch(patchUrl, { publicKey }, { headers });
 
             // Mark as saved
             localStorage.setItem(`publicKeySaved_${eName}`, "true");

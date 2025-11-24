@@ -101,7 +101,9 @@ onMount(async () => {
 
                     // Sync public key to eVault core
                     try {
-                        await globalState.vaultController.syncPublicKey(vault.ename);
+                        await globalState.vaultController.syncPublicKey(
+                            vault.ename,
+                        );
                     } catch (error) {
                         console.error("Error syncing public key:", error);
                         // Continue to app even if sync fails - non-blocking
@@ -181,7 +183,9 @@ onMount(async () => {
 
                     // Sync public key to eVault core
                     try {
-                        await globalState.vaultController.syncPublicKey(vault.ename);
+                        await globalState.vaultController.syncPublicKey(
+                            vault.ename,
+                        );
                     } catch (error) {
                         console.error("Error syncing public key:", error);
                         // Continue to app even if sync fails - non-blocking
