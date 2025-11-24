@@ -1,4 +1,4 @@
-import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { PUBLIC_REGISTRY_URL, PUBLIC_PROVISIONER_URL, EID_WALLET_TOKEN } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
@@ -140,16 +140,10 @@ export class VaultController {
                 return;
             }
 
-            // Get authentication token from registry
-            let authToken: string | null = null;
-            try {
-                const entropyResponse = await axios.get(
-                    new URL("/entropy", PUBLIC_REGISTRY_URL).toString()
-                );
-                authToken = entropyResponse.data?.token || null;
-            } catch (error) {
-                console.error("Failed to get auth token from registry:", error);
-                // Continue without token - server will reject if auth is required
+            // Get authentication token from environment variable
+            const authToken = EID_WALLET_TOKEN || null;
+            if (!authToken) {
+                console.warn("EID_WALLET_TOKEN not set, request may fail authentication");
             }
 
             // Call PATCH /public-key to save the public key
