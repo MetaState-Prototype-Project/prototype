@@ -81,7 +81,7 @@ export class VaultController {
      * Sync public key to eVault core
      * Checks if public key was already saved, calls /whois, and PATCH if needed
      */
-    private async syncPublicKey(eName: string): Promise<void> {
+    async syncPublicKey(eName: string): Promise<void> {
         try {
             // Check if we've already saved the public key
             const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
