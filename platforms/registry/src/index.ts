@@ -1,19 +1,22 @@
-import fastify from "fastify";
-import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
-import dotenv from "dotenv";
 import path from "node:path";
-import { AppDataSource } from "./config/database";
-import { VaultService } from "./services/VaultService";
-import { UriResolutionService } from "./services/UriResolutionService";
 import cors from "@fastify/cors";
+import dotenv from "dotenv";
+import fastify from "fastify";
+import { AppDataSource } from "./config/database";
+import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
+import { UriResolutionService } from "./services/UriResolutionService";
+import { VaultService } from "./services/VaultService";
 
 import fs from "node:fs";
 
 function loadMotdJSON() {
-    const motdJSON = fs.readFileSync(path.resolve(__dirname, "../motd.json"), "utf8");
+    const motdJSON = fs.readFileSync(
+        path.resolve(__dirname, "../motd.json"),
+        "utf8",
+    );
     return JSON.parse(motdJSON) as {
-        status: "up" | "maintenance"
-        message: string
+        status: "up" | "maintenance";
+        message: string;
     };
 }
 
@@ -41,7 +44,10 @@ const initializeDatabase = async () => {
         await AppDataSource.initialize();
         server.log.info("Database connection initialized");
     } catch (error) {
-        server.log.error({message: "Error during database initialization", detail: error});
+        server.log.error({
+            message: "Error during database initialization",
+            detail: error,
+        });
         process.exit(1);
     }
 };
@@ -102,6 +108,7 @@ server.post(
 
 // Generate and return a signed JWT with entropy
 server.get("/entropy", async (request, reply) => {
+    console.log("Generating entropy");
     try {
         const token = await generateEntropy();
         return { token };
@@ -123,20 +130,18 @@ server.post("/platforms/certification", async (request, reply) => {
 });
 
 server.get("/platforms", async (request, reply) => {
-    const platforms = [ 
-        process.env.PUBLIC_PICTIQUE_BASE_URL, 
-        process.env.PUBLIC_BLABSY_BASE_URL, 
-        process.env.PUBLIC_GROUP_CHARTER_BASE_URL, 
-        process.env.PUBLIC_CERBERUS_BASE_URL, 
+    const platforms = [
+        process.env.PUBLIC_PICTIQUE_BASE_URL,
+        process.env.PUBLIC_BLABSY_BASE_URL,
+        process.env.PUBLIC_GROUP_CHARTER_BASE_URL,
+        process.env.PUBLIC_CERBERUS_BASE_URL,
         process.env.PUBLIC_EVOTING_BASE_URL,
         process.env.VITE_DREAMSYNC_BASE_URL,
-        process.env.VITE_EREPUTATION_BASE_URL
-    ]
+        process.env.VITE_EREPUTATION_BASE_URL,
+    ];
 
-    return platforms
+    return platforms;
 });
-
-
 
 // Expose the JWK used for signing
 server.get("/.well-known/jwks.json", async (request, reply) => {
@@ -184,11 +189,13 @@ server.get("/resolve", async (request, reply) => {
 server.get("/list", async (request, reply) => {
     try {
         const vaults = await vaultService.findAll();
-        
+
         // Resolve URIs for all vaults
         const resolvedVaults = await Promise.all(
             vaults.map(async (vault) => {
-                const resolvedUri = await uriResolutionService.resolveUri(vault.uri);
+                const resolvedUri = await uriResolutionService.resolveUri(
+                    vault.uri,
+                );
                 return {
                     ename: vault.ename,
                     uri: resolvedUri,
@@ -196,9 +203,9 @@ server.get("/list", async (request, reply) => {
                     originalUri: vault.uri,
                     resolved: resolvedUri !== vault.uri,
                 };
-            })
+            }),
         );
-        
+
         return resolvedVaults;
     } catch (error) {
         server.log.error(error);
