@@ -126,6 +126,19 @@ services:
     networks:
       - metastate-network
     <<: *common-host-access
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Remove any stale PID files before starting Neo4j
+        # Neo4j stores PID files in /var/lib/neo4j/run/neo4j.pid
+        rm -f /var/lib/neo4j/run/neo4j.pid 2>/dev/null || true
+        rm -f /var/lib/neo4j/data/run/neo4j.pid 2>/dev/null || true
+        rm -f /var/lib/neo4j/data/neo4j.pid 2>/dev/null || true
+        # Also clean up any other PID files
+        find /var/lib/neo4j -name "*.pid" -type f -delete 2>/dev/null || true
+        find /var/lib/neo4j/data -name "*.pid" -type f -delete 2>/dev/null || true
+        # Start Neo4j with the original entrypoint
+        exec /startup/docker-entrypoint.sh neo4j
     healthcheck:
       test: [ "CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1" ]
       interval: 10s

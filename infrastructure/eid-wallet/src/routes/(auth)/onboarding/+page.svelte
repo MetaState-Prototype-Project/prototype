@@ -198,6 +198,7 @@ onMount(async () => {
                 new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
             );
             const registryEntropy = entropyRes.data.token;
+            console.log("Registry entropy:", registryEntropy);
 
             const provisionRes = await axios.post(
                 new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
@@ -208,6 +209,7 @@ onMount(async () => {
                     publicKey: await getApplicationPublicKey(),
                 },
             );
+            console.log("Provision response:", provisionRes.data);
 
             if (!provisionRes.data?.success) {
                 throw new Error("Invalid verification code");
