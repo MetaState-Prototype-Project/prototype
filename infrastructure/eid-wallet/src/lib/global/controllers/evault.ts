@@ -1,14 +1,14 @@
 import {
-    PUBLIC_REGISTRY_URL,
-    PUBLIC_PROVISIONER_URL,
     PUBLIC_EID_WALLET_TOKEN,
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import NotificationService from "../../services/NotificationService";
-import type { UserController } from "./user";
 import type { KeyService } from "./key";
+import type { UserController } from "./user";
 
 const STORE_META_ENVELOPE = `
   mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
@@ -176,7 +176,7 @@ export class VaultController {
             };
 
             if (authToken) {
-                headers["Authorization"] = `Bearer ${authToken}`;
+                headers.Authorization = `Bearer ${authToken}`;
             }
 
             await axios.patch(patchUrl, { publicKey }, { headers });
