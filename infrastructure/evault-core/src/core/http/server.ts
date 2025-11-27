@@ -7,7 +7,8 @@ import type {
     ProvisionRequest,
     ProvisioningService,
 } from "../../services/ProvisioningService";
-import type { DbService } from "../db/db.service";
+import { DbService } from "../db/db.service";
+import { connectWithRetry } from "../db/retry-neo4j";
 import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
 
 interface WatcherSignatureRequest {
@@ -341,7 +342,7 @@ export async function registerHttpRoutes(
             const { payload } = await jose.jwtVerify(token, JWKS);
 
             console.log(
-                `Token validation: Token verified successfully, payload:`,
+                "Token validation: Token verified successfully, payload:",
                 payload,
             );
             return payload;
@@ -356,7 +357,7 @@ export async function registerHttpRoutes(
                 );
             }
             if (error.cause) {
-                console.error(`Token validation error cause:`, error.cause);
+                console.error("Token validation error cause:", error.cause);
             }
             return null;
         }
@@ -421,8 +422,7 @@ export async function registerHttpRoutes(
             }
 
             const authHeader =
-                request.headers.authorization ||
-                request.headers["Authorization"];
+                request.headers.authorization || request.headers.Authorization;
             const tokenPayload = await validateToken(
                 typeof authHeader === "string" ? authHeader : null,
             );
@@ -516,4 +516,192 @@ export async function registerHttpRoutes(
             },
         );
     }
+
+    // Emover endpoint - Copy metaEnvelopes to new evault instance
+    server.post<{
+        Body: {
+            eName: string;
+            targetNeo4jUri: string;
+            targetNeo4jUser: string;
+            targetNeo4jPassword: string;
+        };
+    }>(
+        "/emover",
+        {
+            schema: {
+                tags: ["migration"],
+                description:
+                    "Copy all metaEnvelopes for an eName to a new evault instance",
+                body: {
+                    type: "object",
+                    required: [
+                        "eName",
+                        "targetNeo4jUri",
+                        "targetNeo4jUser",
+                        "targetNeo4jPassword",
+                    ],
+                    properties: {
+                        eName: { type: "string" },
+                        targetNeo4jUri: { type: "string" },
+                        targetNeo4jUser: { type: "string" },
+                        targetNeo4jPassword: { type: "string" },
+                    },
+                },
+                response: {
+                    200: {
+                        type: "object",
+                        properties: {
+                            success: { type: "boolean" },
+                            count: { type: "number" },
+                            message: { type: "string" },
+                        },
+                    },
+                    400: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                    500: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                },
+            },
+        },
+        async (
+            request: TypedRequest<{
+                eName: string;
+                targetNeo4jUri: string;
+                targetNeo4jUser: string;
+                targetNeo4jPassword: string;
+            }>,
+            reply: TypedReply,
+        ) => {
+            const {
+                eName,
+                targetNeo4jUri,
+                targetNeo4jUser,
+                targetNeo4jPassword,
+            } = request.body;
+
+            if (!dbService) {
+                return reply.status(500).send({
+                    error: "Database service not available",
+                });
+            }
+
+            try {
+                console.log(
+                    `[MIGRATION] Starting migration for eName: ${eName} to target evault`,
+                );
+
+                // Step 1: Validate eName exists in current evault
+                const existingMetaEnvelopes =
+                    await dbService.findAllMetaEnvelopesByEName(eName);
+                if (existingMetaEnvelopes.length === 0) {
+                    console.log(
+                        `[MIGRATION] No metaEnvelopes found for eName: ${eName}`,
+                    );
+                    return reply.status(400).send({
+                        error: `No metaEnvelopes found for eName: ${eName}`,
+                    });
+                }
+
+                console.log(
+                    `[MIGRATION] Found ${existingMetaEnvelopes.length} metaEnvelopes for eName: ${eName}`,
+                );
+
+                // Step 2: Create connection to target evault's Neo4j
+                console.log(
+                    `[MIGRATION] Connecting to target Neo4j at: ${targetNeo4jUri}`,
+                );
+                const targetDriver = await connectWithRetry(
+                    targetNeo4jUri,
+                    targetNeo4jUser,
+                    targetNeo4jPassword,
+                );
+                const targetDbService = new DbService(targetDriver);
+
+                try {
+                    // Step 3: Copy all metaEnvelopes to target evault
+                    console.log(
+                        `[MIGRATION] Copying ${existingMetaEnvelopes.length} metaEnvelopes to target evault`,
+                    );
+                    const copiedCount =
+                        await dbService.copyMetaEnvelopesToNewEvaultInstance(
+                            eName,
+                            targetDbService,
+                        );
+
+                    // Step 4: Verify copy
+                    console.log(
+                        `[MIGRATION] Verifying copy: checking ${copiedCount} metaEnvelopes in target evault`,
+                    );
+                    const targetMetaEnvelopes =
+                        await targetDbService.findAllMetaEnvelopesByEName(
+                            eName,
+                        );
+
+                    if (
+                        targetMetaEnvelopes.length !==
+                        existingMetaEnvelopes.length
+                    ) {
+                        const error = `Copy verification failed: expected ${existingMetaEnvelopes.length} metaEnvelopes, found ${targetMetaEnvelopes.length}`;
+                        console.error(`[MIGRATION ERROR] ${error}`);
+                        return reply.status(500).send({ error });
+                    }
+
+                    // Verify IDs match
+                    const sourceIds = new Set(
+                        existingMetaEnvelopes.map((m) => m.id),
+                    );
+                    const targetIds = new Set(
+                        targetMetaEnvelopes.map((m) => m.id),
+                    );
+
+                    if (sourceIds.size !== targetIds.size) {
+                        const error =
+                            "Copy verification failed: ID count mismatch";
+                        console.error(`[MIGRATION ERROR] ${error}`);
+                        return reply.status(500).send({ error });
+                    }
+
+                    for (const id of sourceIds) {
+                        if (!targetIds.has(id)) {
+                            const error = `Copy verification failed: missing metaEnvelope ID: ${id}`;
+                            console.error(`[MIGRATION ERROR] ${error}`);
+                            return reply.status(500).send({ error });
+                        }
+                    }
+
+                    console.log(
+                        `[MIGRATION] Verification successful: ${copiedCount} metaEnvelopes copied and verified`,
+                    );
+
+                    // Close target connection
+                    await targetDriver.close();
+
+                    return {
+                        success: true,
+                        count: copiedCount,
+                        message: `Successfully copied ${copiedCount} metaEnvelopes to target evault`,
+                    };
+                } catch (copyError) {
+                    await targetDriver.close();
+                    throw copyError;
+                }
+            } catch (error) {
+                console.error(`[MIGRATION ERROR] Migration failed:`, error);
+                return reply.status(500).send({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to migrate metaEnvelopes",
+                });
+            }
+        },
+    );
 }
