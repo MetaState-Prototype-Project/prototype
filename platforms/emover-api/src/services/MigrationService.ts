@@ -69,13 +69,52 @@ export class MigrationService extends EventEmitter {
                 message: "Provisioning new evault...",
             });
 
+            // Get public key from old evault
+            console.log(
+                `[MIGRATION] Retrieving public key from old evault for ${eName}`,
+            );
+            let publicKey = "0x0000000000000000000000000000000000000000"; // Default fallback
+
+            try {
+                const whoisResponse = await axios.get(
+                    new URL("/whois", migration.oldEvaultUri || "").toString(),
+                    {
+                        headers: {
+                            "X-ENAME": eName,
+                        },
+                    },
+                );
+                if (whoisResponse.data.publicKey) {
+                    publicKey = whoisResponse.data.publicKey;
+                    console.log(
+                        `[MIGRATION] Retrieved public key from old evault: ${publicKey.substring(0, 20)}...`,
+                    );
+                    migration.logs += `[MIGRATION] Retrieved public key from old evault\n`;
+                } else {
+                    console.warn(
+                        `[MIGRATION] No public key found in old evault, using default`,
+                    );
+                    migration.logs += `[MIGRATION] Warning: No public key found in old evault, using default\n`;
+                }
+            } catch (error) {
+                console.error(
+                    `[MIGRATION ERROR] Failed to retrieve public key from old evault:`,
+                    error,
+                );
+                migration.logs += `[MIGRATION ERROR] Failed to retrieve public key, using default\n`;
+                // Continue with default public key - don't fail the migration
+            }
+
             // Get entropy from registry
             const entropyResponse = await axios.get(
                 new URL("/entropy", this.registryUrl).toString(),
             );
             const registryEntropy = entropyResponse.data.token;
 
-            // Provision new evault
+            // Provision new evault with preserved public key
+            console.log(
+                `[MIGRATION] Provisioning new evault with public key: ${publicKey.substring(0, 20)}...`,
+            );
             const provisionResponse = await axios.post(
                 new URL("/provision", provisionerUrl).toString(),
                 {
@@ -84,7 +123,7 @@ export class MigrationService extends EventEmitter {
                     verificationId:
                         process.env.DEMO_VERIFICATION_CODE ||
                         "d66b7138-538a-465f-a6ce-f6985854c3f4",
-                    publicKey: "0x0000000000000000000000000000000000000000",
+                    publicKey: publicKey,
                 },
             );
 
@@ -103,7 +142,11 @@ export class MigrationService extends EventEmitter {
             migration.newEvaultId = evaultId;
             migration.newEvaultUri = uri;
             migration.logs += `[MIGRATION] New evault provisioned: ${evaultId}, URI: ${uri}\n`;
+            migration.logs += `[MIGRATION] Public key preserved: ${publicKey.substring(0, 20)}...\n`;
             await this.migrationRepository.save(migration);
+
+            // Note: Public key will be copied automatically when copying metaEnvelopes
+            // (User node is copied as part of the copyMetaEnvelopes operation)
 
             console.log(
                 `[MIGRATION] New evault provisioned: ${evaultId} for ${eName}`,

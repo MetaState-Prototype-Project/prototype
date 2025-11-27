@@ -799,6 +799,34 @@ export class DbService {
             }
         }
 
+        // Copy User node with public key if it exists
+        try {
+            const userResult = await this.runQueryInternal(
+                `MATCH (u:User { eName: $eName }) RETURN u.publicKey AS publicKey`,
+                { eName },
+            );
+
+            if (userResult.records.length > 0) {
+                const publicKey = userResult.records[0].get("publicKey");
+                if (publicKey) {
+                    console.log(
+                        `[MIGRATION] Copying User node with public key for eName: ${eName}`,
+                    );
+                    await targetDbService.runQuery(
+                        `MERGE (u:User { eName: $eName })
+                         SET u.publicKey = $publicKey`,
+                        { eName, publicKey },
+                    );
+                    console.log(
+                        `[MIGRATION] User node with public key copied successfully`,
+                    );
+                }
+            }
+        } catch (error) {
+            console.error(`[MIGRATION ERROR] Failed to copy User node:`, error);
+            // Don't fail the migration if User node copy fails
+        }
+
         console.log(
             `[MIGRATION] Successfully copied ${count} metaEnvelopes for eName: ${eName}`,
         );
