@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
+import { EventEmitter } from "node:events";
+import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { MigrationService } from "../services/MigrationService";
 import { SigningService } from "../services/SigningService";
-import { EventEmitter } from "events";
 
 export class MigrationController {
     private migrationService: MigrationService;
@@ -15,20 +15,27 @@ export class MigrationController {
         this.eventEmitter = new EventEmitter();
 
         // Forward migration service events
-        this.migrationService.on("migration-update", (migrationId: string, data: unknown) => {
-            this.eventEmitter.emit(migrationId, data);
-        });
+        this.migrationService.on(
+            "migration-update",
+            (migrationId: string, data: unknown) => {
+                this.eventEmitter.emit(migrationId, data);
+            },
+        );
     }
 
     initiate = async (req: Request, res: Response) => {
         try {
             if (!req.user) {
-                return res.status(401).json({ error: "Authentication required" });
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
             }
 
             const { provisionerUrl } = req.body;
             if (!provisionerUrl) {
-                return res.status(400).json({ error: "provisionerUrl is required" });
+                return res
+                    .status(400)
+                    .json({ error: "provisionerUrl is required" });
             }
 
             const eName = req.user.ename;
@@ -47,7 +54,9 @@ export class MigrationController {
             console.error("Error initiating migration:", error);
             return res.status(500).json({
                 error:
-                    error instanceof Error ? error.message : "Internal server error",
+                    error instanceof Error
+                        ? error.message
+                        : "Internal server error",
             });
         }
     };
@@ -55,15 +64,20 @@ export class MigrationController {
     sign = async (req: Request, res: Response) => {
         try {
             if (!req.user) {
-                return res.status(401).json({ error: "Authentication required" });
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
             }
 
             const { migrationId } = req.body;
             if (!migrationId) {
-                return res.status(400).json({ error: "migrationId is required" });
+                return res
+                    .status(400)
+                    .json({ error: "migrationId is required" });
             }
 
-            const migration = await this.migrationService.getMigrationById(migrationId);
+            const migration =
+                await this.migrationService.getMigrationById(migrationId);
             if (!migration) {
                 return res.status(404).json({ error: "Migration not found" });
             }
@@ -149,6 +163,13 @@ export class MigrationController {
 
             // Start migration process
             const migrationId = result.migrationId;
+            if (!migrationId) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Migration ID not found in signing result",
+                });
+            }
+
             await this.processMigration(migrationId);
 
             return res.status(200).json({
@@ -188,15 +209,20 @@ export class MigrationController {
     deleteOld = async (req: Request, res: Response) => {
         try {
             if (!req.user) {
-                return res.status(401).json({ error: "Authentication required" });
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
             }
 
             const { migrationId } = req.body;
             if (!migrationId) {
-                return res.status(400).json({ error: "migrationId is required" });
+                return res
+                    .status(400)
+                    .json({ error: "migrationId is required" });
             }
 
-            const migration = await this.migrationService.getMigrationById(migrationId);
+            const migration =
+                await this.migrationService.getMigrationById(migrationId);
             if (!migration) {
                 return res.status(404).json({ error: "Migration not found" });
             }
@@ -206,7 +232,9 @@ export class MigrationController {
             }
 
             if (!migration.oldEvaultId) {
-                return res.status(400).json({ error: "Old evault ID not found" });
+                return res
+                    .status(400)
+                    .json({ error: "Old evault ID not found" });
             }
 
             await this.migrationService.deleteOldEvault(
@@ -222,7 +250,8 @@ export class MigrationController {
     };
 
     private async processMigration(migrationId: string): Promise<void> {
-        const migration = await this.migrationService.getMigrationById(migrationId);
+        const migration =
+            await this.migrationService.getMigrationById(migrationId);
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -232,7 +261,7 @@ export class MigrationController {
             if (!migration.provisionerUrl) {
                 throw new Error("Provisioner URL not found in migration");
             }
-            
+
             const { evaultId, uri: newEvaultUri } =
                 await this.migrationService.provisionNewEvault(
                     migrationId,
@@ -277,9 +306,11 @@ export class MigrationController {
                 evaultId,
             );
         } catch (error) {
-            console.error(`[MIGRATION ERROR] Migration ${migrationId} failed:`, error);
+            console.error(
+                `[MIGRATION ERROR] Migration ${migrationId} failed:`,
+                error,
+            );
             throw error;
         }
     }
 }
-
