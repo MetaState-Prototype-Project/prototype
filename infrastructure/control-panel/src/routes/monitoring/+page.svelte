@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { SvelteFlow, Background, Controls } from '@xyflow/svelte';
 	import { goto } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
+	import { Background, Controls, SvelteFlow } from '@xyflow/svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import '@xyflow/svelte/dist/style.css';
-	import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 	import { Logs, VaultNode } from '$lib/fragments';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import type { LogEvent } from '$lib/types';
+	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { Edge, Node, NodeTypes } from '@xyflow/svelte';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
@@ -507,18 +507,46 @@
 		console.log('Cleaned w3id:', cleanW3id);
 
 		// Match against ename (w3id), evault, or id fields
-		const index = selectedEVaults.findIndex((e) => {
+		// Helper to normalize IDs by removing @ symbol for comparison
+		const normalize = (id: string | undefined) => id?.replace('@', '') || '';
+
+		const index = selectedEVaults.findIndex((e, idx) => {
 			// Check if ename (w3id) matches (with or without @)
-			const enameMatch = e.ename && (e.ename === cleanW3id || e.ename === w3id || e.ename.replace('@', '') === cleanW3id);
-			// Check if evault field matches
-			const evaultMatch = e.evault && e.evault === cleanW3id;
-			// Check if id field matches
-			const idMatch = e.id && e.id === cleanW3id;
+			// The event's w3id should match the eVault's ename
+			const normalizedEname = normalize(e.ename);
+			const enameMatch =
+				e.ename &&
+				(e.ename === w3id || e.ename === cleanW3id || normalizedEname === cleanW3id);
+
+			// Check if evault field matches (normalize both sides)
+			const normalizedEvault = normalize(e.evault);
+			const evaultMatch = e.evault && (e.evault === w3id || normalizedEvault === cleanW3id);
+
+			// Check if id field matches (normalize both sides)
+			const normalizedId = normalize(e.id);
+			const idMatch = e.id && (e.id === w3id || normalizedId === cleanW3id);
 
 			const matches = enameMatch || evaultMatch || idMatch;
 
 			if (matches) {
-				console.log('Found matching eVault:', e);
+				console.log(`Found matching eVault at index ${idx}:`, {
+					ename: e.ename,
+					evault: e.evault,
+					id: e.id,
+					matchedBy: enameMatch ? 'ename' : evaultMatch ? 'evault' : 'id'
+				});
+			} else {
+				// Log why it didn't match for debugging
+				console.log(`eVault ${idx} didn't match:`, {
+					eventW3id: w3id,
+					eventCleanW3id: cleanW3id,
+					evaultEname: e.ename,
+					evaultEnameNormalized: normalizedEname,
+					evaultEvault: e.evault,
+					evaultEvaultNormalized: normalizedEvault,
+					evaultId: e.id,
+					evaultIdNormalized: normalizedId
+				});
 			}
 
 			return matches;
