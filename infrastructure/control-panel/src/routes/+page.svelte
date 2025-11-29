@@ -1,13 +1,13 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { TableCard, TableCardHeader } from '$lib/fragments';
-	import { Table } from '$lib/ui';
 	import { EVaultService } from '$lib/services/evaultService';
 	import { registryService } from '$lib/services/registry';
-	import type { EVault } from './api/evaults/+server';
 	import type { Platform } from '$lib/services/registry';
-	import { onMount } from 'svelte';
+	import { Table } from '$lib/ui';
 	import { RefreshCw } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import type { EVault } from './api/evaults/+server';
 
 	let evaultsSearchValue = $state('');
 	let platformsSearchQuery = $state('');
@@ -30,7 +30,7 @@
 	let selectedPlatforms = $state<string[]>([]);
 
 	// Filtered data for search
-		let filteredEVaults = $derived(() => {
+	let filteredEVaults = $derived(() => {
 		if (!evaultsSearchValue.trim()) return evaults;
 		return evaults.filter(
 			(evault) =>
@@ -71,18 +71,14 @@
 	let mappedEVaultsData = $derived(() => {
 		const paginated = paginatedEVaults();
 		return paginated.map((evault) => ({
-			Name: {
+			eVault: {
 				type: 'text',
-				value: evault.name || evault.ename || evault.evault,
+				value: evault.evault || evault.id || 'N/A',
 				className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
 			},
 			eName: {
 				type: 'text',
 				value: evault.ename || 'N/A'
-			},
-			Status: {
-				type: 'text',
-				value: evault.status || 'Unknown'
 			},
 			URI: {
 				type: 'link',
