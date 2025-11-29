@@ -100,8 +100,8 @@
 				id: `evault-${index + 1}`,
 				position: { x: 200, y: 500 + index * 180 },
 				data: {
-					label: evault.evaultId || evault.name || 'eVault',
-					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
+					label: evault.name || evault.ename || evault.evault || evault.id || 'eVault',
+					subLabel: evault.uri || evault.serviceUrl || 'Unknown',
 					type: 'evault',
 					selected: false
 				},
@@ -506,12 +506,19 @@
 		const cleanW3id = w3id.replace('@', '');
 		console.log('Cleaned w3id:', cleanW3id);
 
-		// Since evaultId is the same as w3id (without @), prioritize that match
+		// Match against ename (w3id), evault, or id fields
 		const index = selectedEVaults.findIndex((e) => {
-			const matches = e.evaultId === cleanW3id;
+			// Check if ename (w3id) matches (with or without @)
+			const enameMatch = e.ename && (e.ename === cleanW3id || e.ename === w3id || e.ename.replace('@', '') === cleanW3id);
+			// Check if evault field matches
+			const evaultMatch = e.evault && e.evault === cleanW3id;
+			// Check if id field matches
+			const idMatch = e.id && e.id === cleanW3id;
+
+			const matches = enameMatch || evaultMatch || idMatch;
 
 			if (matches) {
-				console.log('Found matching eVault by evaultId:', e);
+				console.log('Found matching eVault:', e);
 			}
 
 			return matches;
@@ -523,12 +530,17 @@
 			selectedEVaultsLength: selectedEVaults.length
 		});
 
-		// If no match found, log all available evaultIds for debugging
+		// If no match found, log all available evault identifiers for debugging
 		if (index === -1) {
 			console.log('No match found for cleaned w3id:', cleanW3id);
-			console.log('Available evaultIds:');
+			console.log('Available evault identifiers:');
 			selectedEVaults.forEach((evault, i) => {
-				console.log(`eVault ${i}: evaultId = "${evault.evaultId}"`);
+				console.log(`eVault ${i}:`, {
+					ename: evault.ename,
+					evault: evault.evault,
+					id: evault.id,
+					name: evault.name
+				});
 			});
 
 			// Return -1 to indicate no match found

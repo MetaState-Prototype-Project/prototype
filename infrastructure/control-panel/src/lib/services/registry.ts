@@ -1,119 +1,160 @@
-import { env } from '$env/dynamic/public';
+import { env } from "$env/dynamic/public";
 
 export interface Platform {
-	name: string;
-	url: string;
-	status: 'Active' | 'Inactive';
-	uptime: string;
+    name: string;
+    url: string;
+    status: "Active" | "Inactive";
+    uptime: string;
 }
 
 export interface RegistryVault {
-	ename: string;
-	uri: string;
-	evault: string;
-	originalUri?: string;
-	resolved?: boolean;
+    ename: string;
+    uri: string;
+    evault: string;
+    originalUri?: string;
+    resolved?: boolean;
 }
 
 export class RegistryService {
-	private baseUrl: string;
+    private baseUrl: string;
 
-	constructor() {
-		this.baseUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.staging.metastate.foundation';
-	}
+    constructor() {
+        this.baseUrl =
+            env.PUBLIC_REGISTRY_URL ||
+            "https://registry.staging.metastate.foundation";
+    }
 
-	async getEVaults(): Promise<RegistryVault[]> {
-		try {
-			const response = await fetch(`${this.baseUrl}/list`);
+    async getEVaults(): Promise<RegistryVault[]> {
+        try {
+            const response = await fetch(`${this.baseUrl}/list`);
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-			const vaults: RegistryVault[] = await response.json();
-			return vaults;
-		} catch (error) {
-			console.error('Error fetching evaults from registry:', error);
-			return [];
-		}
-	}
+            const vaults: RegistryVault[] = await response.json();
+            return vaults;
+        } catch (error) {
+            console.error("Error fetching evaults from registry:", error);
+            return [];
+        }
+    }
 
-	async getPlatforms(): Promise<Platform[]> {
-		try {
-			const response = await fetch(`${this.baseUrl}/platforms`);
+    async getPlatforms(): Promise<Platform[]> {
+        try {
+            const response = await fetch(`${this.baseUrl}/platforms`);
 
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-			const platformUrls: string[] = await response.json();
+            const platformUrls: (string | null | undefined)[] =
+                await response.json();
 
-			// Convert URLs to platform objects with friendly names
-			const platforms = platformUrls.map((url) => {
-				// Ensure URL has protocol
-				const urlWithProtocol =
-					url.startsWith('http://') || url.startsWith('https://') ? url : `http://${url}`;
-				const urlObj = new URL(urlWithProtocol);
-				const hostname = urlObj.hostname;
-				const port = urlObj.port;
-				const protocol = urlObj.protocol;
+            // Filter out null/undefined values and convert URLs to platform objects
+            const platforms = platformUrls
+                .filter(
+                    (url): url is string => url != null && url.trim() !== "",
+                )
+                .map((url) => {
+                    // Use the original URL from the registry (it already has the correct format)
+                    let displayUrl = url.trim();
 
-				// Extract platform name from hostname
-				let name = hostname.split('.')[0];
+                    // Ensure URL has protocol if it doesn't
+                    if (
+                        !displayUrl.startsWith("http://") &&
+                        !displayUrl.startsWith("https://")
+                    ) {
+                        displayUrl = `http://${displayUrl}`;
+                    }
 
-				// Capitalize and format the name
-				if (name === 'pictique') name = 'Pictique';
-				else if (name === 'blabsy') name = 'Blabsy';
-				else if (name === 'charter') name = 'Group Charter';
-				else if (name === 'cerberus') name = 'Cerberus';
-				else if (name === 'evoting') name = 'eVoting';
-				else name = name.charAt(0).toUpperCase() + name.slice(1);
+                    // Parse URL to extract platform name
+                    let name = "Unknown";
+                    try {
+                        const urlObj = new URL(displayUrl);
+                        const hostname = urlObj.hostname;
+                        // Extract platform name from hostname (remove port if present)
+                        const hostnameWithoutPort = hostname.split(":")[0];
+                        const namePart = hostnameWithoutPort.split(".")[0];
 
-				// Build the full URL with protocol and port
-				const fullUrl = port ? `${hostname}:${port}` : hostname;
-				const displayUrl = `${protocol}//${fullUrl}`;
+                        // Capitalize and format the name
+                        if (namePart === "pictique") name = "Pictique";
+                        else if (namePart === "blabsy") name = "Blabsy";
+                        else if (namePart === "charter") name = "Group Charter";
+                        else if (namePart === "cerberus") name = "Cerberus";
+                        else if (namePart === "evoting") name = "eVoting";
+                        else if (namePart === "dreamsync") name = "DreamSync";
+                        else if (namePart === "ereputation")
+                            name = "eReputation";
+                        else
+                            name =
+                                namePart.charAt(0).toUpperCase() +
+                                namePart.slice(1);
+                    } catch {
+                        // If URL parsing fails, try to extract name from the URL string
+                        const match = displayUrl.match(
+                            /(?:https?:\/\/)?([^:./]+)/,
+                        );
+                        if (match) {
+                            const namePart = match[1].toLowerCase();
+                            if (namePart === "pictique") name = "Pictique";
+                            else if (namePart === "blabsy") name = "Blabsy";
+                            else if (namePart === "charter")
+                                name = "Group Charter";
+                            else if (namePart === "cerberus") name = "Cerberus";
+                            else if (namePart === "evoting") name = "eVoting";
+                            else if (namePart === "dreamsync")
+                                name = "DreamSync";
+                            else if (namePart === "ereputation")
+                                name = "eReputation";
+                            else
+                                name =
+                                    namePart.charAt(0).toUpperCase() +
+                                    namePart.slice(1);
+                        }
+                    }
 
-				return {
-					name,
-					url: displayUrl,
-					status: 'Active' as const,
-					uptime: '24h'
-				};
-			});
+                    return {
+                        name,
+                        url: displayUrl,
+                        status: "Active" as const,
+                        uptime: "24h",
+                    };
+                });
 
-			return platforms;
-		} catch (error) {
-			console.error('Error fetching platforms from registry:', error);
+            return platforms;
+        } catch (error) {
+            console.error("Error fetching platforms from registry:", error);
 
-			// Return fallback platforms if registry is unavailable
-			return [
-				{
-					name: 'Blabsy',
-					url: 'http://192.168.0.235:4444',
-					status: 'Active',
-					uptime: '24h'
-				},
-				{
-					name: 'Pictique',
-					url: 'http://192.168.0.235:1111',
-					status: 'Active',
-					uptime: '24h'
-				},
-				{
-					name: 'Group Charter',
-					url: 'http://192.168.0.235:5555',
-					status: 'Active',
-					uptime: '24h'
-				},
-				{
-					name: 'Cerberus',
-					url: 'http://192.168.0.235:6666',
-					status: 'Active',
-					uptime: '24h'
-				}
-			];
-		}
-	}
+            // Return fallback platforms if registry is unavailable
+            return [
+                {
+                    name: "Blabsy",
+                    url: "http://192.168.0.235:4444",
+                    status: "Active",
+                    uptime: "24h",
+                },
+                {
+                    name: "Pictique",
+                    url: "http://192.168.0.235:1111",
+                    status: "Active",
+                    uptime: "24h",
+                },
+                {
+                    name: "Group Charter",
+                    url: "http://192.168.0.235:5555",
+                    status: "Active",
+                    uptime: "24h",
+                },
+                {
+                    name: "Cerberus",
+                    url: "http://192.168.0.235:6666",
+                    status: "Active",
+                    uptime: "24h",
+                },
+            ];
+        }
+    }
 }
 
 export const registryService = new RegistryService();
