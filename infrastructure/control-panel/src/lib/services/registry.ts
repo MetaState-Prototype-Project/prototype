@@ -7,11 +7,35 @@ export interface Platform {
 	uptime: string;
 }
 
+export interface RegistryVault {
+	ename: string;
+	uri: string;
+	evault: string;
+	originalUri?: string;
+	resolved?: boolean;
+}
+
 export class RegistryService {
 	private baseUrl: string;
 
 	constructor() {
 		this.baseUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.staging.metastate.foundation';
+	}
+
+	async getEVaults(): Promise<RegistryVault[]> {
+		try {
+			const response = await fetch(`${this.baseUrl}/list`);
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const vaults: RegistryVault[] = await response.json();
+			return vaults;
+		} catch (error) {
+			console.error('Error fetching evaults from registry:', error);
+			return [];
+		}
 	}
 
 	async getPlatforms(): Promise<Platform[]> {

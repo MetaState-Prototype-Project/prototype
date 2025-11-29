@@ -30,13 +30,14 @@
 	let selectedPlatforms = $state<string[]>([]);
 
 	// Filtered data for search
-	let filteredEVaults = $derived(() => {
+		let filteredEVaults = $derived(() => {
 		if (!evaultsSearchValue.trim()) return evaults;
 		return evaults.filter(
 			(evault) =>
-				evault.name.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
-				evault.evaultId.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
-				evault.namespace.toLowerCase().includes(evaultsSearchValue.toLowerCase())
+				evault.name?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.ename?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.evault?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.id?.toLowerCase().includes(evaultsSearchValue.toLowerCase())
 		);
 	});
 
@@ -70,23 +71,23 @@
 	let mappedEVaultsData = $derived(() => {
 		const paginated = paginatedEVaults();
 		return paginated.map((evault) => ({
-			eName: {
+			Name: {
 				type: 'text',
-				value: evault.evaultId,
+				value: evault.name || evault.ename || evault.evault,
 				className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
 			},
-			Uptime: {
+			eName: {
 				type: 'text',
-				value: evault.age
+				value: evault.ename || 'N/A'
 			},
-			IP: {
+			Status: {
 				type: 'text',
-				value: evault.ip
+				value: evault.status || 'Unknown'
 			},
 			URI: {
 				type: 'link',
-				value: evault.serviceUrl || 'N/A',
-				link: evault.serviceUrl || '#',
+				value: evault.uri || evault.serviceUrl || 'N/A',
+				link: evault.uri || evault.serviceUrl || '#',
 				external: true
 			}
 		}));
@@ -142,14 +143,16 @@
 		}
 
 		if (checked) {
-			selectedEVaults = [...selectedEVaults, selectedEVault.evaultId];
+			const evaultId = selectedEVault.evault || selectedEVault.ename || selectedEVault.id;
+			selectedEVaults = [...selectedEVaults, evaultId];
 		} else {
-			selectedEVaults = selectedEVaults.filter((id) => id !== selectedEVault.evaultId);
+			const evaultId = selectedEVault.evault || selectedEVault.ename || selectedEVault.id;
+			selectedEVaults = selectedEVaults.filter((id) => id !== evaultId);
 		}
 
 		// Store selections immediately in sessionStorage
 		const selectedEVaultData = selectedEVaults
-			.map((id) => evaults.find((e) => e.evaultId === id))
+			.map((id) => evaults.find((e) => (e.evault || e.ename || e.id) === id))
 			.filter(Boolean);
 		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
 	}
@@ -189,8 +192,8 @@
 		console.log('filtered eVaults length:', filtered.length);
 
 		if (checked) {
-			// Select all filtered eVaults by their evaultId
-			selectedEVaults = filtered.map((evault) => evault.evaultId);
+			// Select all filtered eVaults by their ID (evault or ename)
+			selectedEVaults = filtered.map((evault) => evault.evault || evault.ename || evault.id);
 			console.log('✅ Selected all filtered eVaults, selectedEVaults:', selectedEVaults);
 		} else {
 			// Deselect all eVaults
@@ -290,7 +293,7 @@
 					const mapped = {
 						eName: {
 							type: 'text',
-							value: evault.evaultId,
+							value: evault.evault || evault.ename || evault.id,
 							className:
 								'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
 						},
@@ -349,7 +352,9 @@
 		const paginated = paginatedEVaults();
 		const evault = paginated[index];
 		if (evault) {
-			goto(`/monitoring/${evault.namespace}/${evault.name}`);
+			// Use evault ID (evault field or ename) for navigation
+			const evaultId = evault.evault || evault.ename || evault.id;
+			goto(`/evaults/${encodeURIComponent(evaultId)}`);
 		}
 	}
 
@@ -403,9 +408,10 @@
 					onSelectionChange={handleEVaultSelectionChange}
 					onSelectAllChange={handleSelectAllEVaults}
 					selectedIndices={paginatedEVaults()
-						.map((evault, index) =>
-							selectedEVaults.includes(evault.evaultId) ? index : -1
-						)
+						.map((evault, index) => {
+							const evaultId = evault.evault || evault.ename || evault.id;
+							return selectedEVaults.includes(evaultId) ? index : -1;
+						})
 						.filter((index) => index !== -1)}
 				/>
 

@@ -557,6 +557,18 @@ services:
       - metastate-network
     <<: *common-host-access
 
+  # Loki for log aggregation
+  loki:
+    profiles:
+      - all
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - metastate-network
+    <<: *common-host-access
+
 volumes:
   postgres_data:
   neo4j_data:
