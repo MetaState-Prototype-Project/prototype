@@ -13,14 +13,18 @@ Frontend platform for evault migration, built with Next.js.
 
 ## Environment Variables
 
-- `NEXT_PUBLIC_EMOVER_BASE_URL` - Backend API base URL (default: http://localhost:4000)
+- `NEXT_PUBLIC_EMOVER_BASE_URL` - Backend API base URL (default: http://localhost:4003)
 
 ## Development
+
+The frontend runs on port **3006** by default.
 
 ```bash
 npm install
 npm run dev
 ```
+
+The dev server will be available at `http://localhost:3006`
 
 ## Pages
 

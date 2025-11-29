@@ -1,6 +1,6 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_EMOVER_BASE_URL || "http://localhost:4000";
+const baseURL = process.env.NEXT_PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
 
 export const apiClient = axios.create({
     baseURL,

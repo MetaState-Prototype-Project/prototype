@@ -18,6 +18,7 @@
 - **3003** - Group Charter Manager API
 - **4001** - DreamSync API
 - **4002** - eVoting API
+- **4003** - Emover API
 - **5000** - eReputation Service
 - **5001** - Marketplace Service
 - **1111** - Pictique API
@@ -27,6 +28,7 @@
 - **5173** - Pictique Frontend
 - **3004** - Group Charter Manager Frontend
 - **3005** - eVoting Frontend
+- **3006** - Emover Frontend
 
 ### Docker Compose Profiles
 

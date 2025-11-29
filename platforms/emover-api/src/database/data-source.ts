@@ -2,14 +2,14 @@ import "reflect-metadata";
 import path from "node:path";
 import { config } from "dotenv";
 import { DataSource, type DataSourceOptions } from "typeorm";
-import { User } from "./entities/User";
 import { Migration } from "./entities/Migration";
+import { User } from "./entities/User";
 
 config({ path: path.resolve(__dirname, "../../../../.env") });
 
 export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
-    url: process.env.EMOVER_DATABASE_URL || process.env.DATABASE_URL,
+    url: process.env.EMOVER_DATABASE_URL,
     synchronize: false,
     entities: [User, Migration],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
@@ -23,4 +23,3 @@ export const dataSourceOptions: DataSourceOptions = {
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);
-

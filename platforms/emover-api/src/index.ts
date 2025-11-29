@@ -3,17 +3,17 @@ import path from "node:path";
 import cors from "cors";
 import { config } from "dotenv";
 import express from "express";
-import { AppDataSource } from "./database/data-source";
 import { AuthController } from "./controllers/AuthController";
-import { UserController } from "./controllers/UserController";
 import { EvaultInfoController } from "./controllers/EvaultInfoController";
 import { MigrationController } from "./controllers/MigrationController";
-import { authMiddleware, authGuard } from "./middleware/auth";
+import { UserController } from "./controllers/UserController";
+import { AppDataSource } from "./database/data-source";
+import { authGuard, authMiddleware } from "./middleware/auth";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 4003;
 
 // Initialize database connection
 AppDataSource.initialize()
@@ -30,10 +30,7 @@ app.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: [
-            "Content-Type",
-            "Authorization",
-        ],
+        allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,
     }),
 );
@@ -73,4 +70,3 @@ app.get("/health", (req, res) => {
 app.listen(port, () => {
     console.log(`Emover API server running on port ${port}`);
 });
-

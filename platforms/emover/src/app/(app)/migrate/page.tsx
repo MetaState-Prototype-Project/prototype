@@ -57,7 +57,7 @@ function MigrateContent() {
     useEffect(() => {
         if (!sessionId) return;
 
-        const baseUrl = process.env.NEXT_PUBLIC_EMOVER_BASE_URL || "http://localhost:4000";
+        const baseUrl = process.env.NEXT_PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
         const eventSource = new EventSource(
             `${baseUrl}/api/migration/sessions/${sessionId}`
         );

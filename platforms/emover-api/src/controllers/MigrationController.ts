@@ -1,3 +1,4 @@
+/// <reference path="../types/express.d.ts" />
 import { EventEmitter } from "node:events";
 import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";

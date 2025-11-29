@@ -14,7 +14,7 @@ Backend API for the emover platform that handles evault migration operations.
 
 ## Environment Variables
 
-- `PORT` - Server port (default: 4000)
+- `PORT` - Server port (default: 4003)
 - `PUBLIC_EMOVER_BASE_URL` - Frontend base URL
 - `PUBLIC_REGISTRY_URL` - Registry service URL
 - `PROVISIONER_URL` or `PROVISIONER_URLS` - Provisioner URL(s)

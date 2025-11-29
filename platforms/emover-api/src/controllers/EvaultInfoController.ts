@@ -1,5 +1,6 @@
-import { Request, Response } from "express";
 import axios from "axios";
+/// <reference path="../types/express.d.ts" />
+import type { Request, Response } from "express";
 
 export class EvaultInfoController {
     private registryUrl: string;
@@ -12,7 +13,9 @@ export class EvaultInfoController {
     getCurrent = async (req: Request, res: Response) => {
         try {
             if (!req.user) {
-                return res.status(401).json({ error: "Authentication required" });
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
             }
 
             const eName = req.user.ename;
@@ -36,7 +39,9 @@ export class EvaultInfoController {
         } catch (error) {
             console.error("Error getting current evault info:", error);
             if (axios.isAxiosError(error) && error.response?.status === 404) {
-                return res.status(404).json({ error: "Evault not found in registry" });
+                return res
+                    .status(404)
+                    .json({ error: "Evault not found in registry" });
             }
             return res.status(500).json({ error: "Internal server error" });
         }
@@ -55,7 +60,9 @@ export class EvaultInfoController {
             }
 
             if (provisionerUrls) {
-                urls.push(...provisionerUrls.split(",").map((url) => url.trim()));
+                urls.push(
+                    ...provisionerUrls.split(",").map((url) => url.trim()),
+                );
             }
 
             // Remove duplicates
@@ -83,4 +90,3 @@ export class EvaultInfoController {
         }
     }
 }
-

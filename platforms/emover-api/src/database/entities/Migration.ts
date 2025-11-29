@@ -17,7 +17,7 @@ export enum MigrationStatus {
     FAILED = "failed",
 }
 
-@Entity("migrations")
+@Entity("evault_migrations")
 export class Migration {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
