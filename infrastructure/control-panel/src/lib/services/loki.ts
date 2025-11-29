@@ -98,6 +98,49 @@ export class LokiService {
 			.filter((event): event is FlowEvent => event !== null);
 	}
 
+	/**
+	 * Query logs for a specific evault by identifier
+	 * Supports querying by evault field or ename (w3id) in log labels
+	 */
+	async getEVaultLogs(
+		evaultId: string,
+		ename?: string,
+		limit: number = 100,
+		start?: string,
+		end?: string
+	): Promise<string[]> {
+		// Try multiple query patterns to find logs for this evault
+		// First try by evault field, then by ename/w3id
+		const queries = [
+			`{evault="${evaultId}"}`,
+			...(ename ? [`{ename="${ename}"}`, `{w3id="${ename}"}`] : [])
+		];
+
+		const allLogs: LogEntry[] = [];
+
+		// Try each query pattern
+		for (const query of queries) {
+			try {
+				const logs = await this.queryLogs(query, start, end);
+				allLogs.push(...logs);
+			} catch (error) {
+				console.log(`Query ${query} failed, trying next pattern`);
+			}
+		}
+
+		// Remove duplicates and sort by timestamp
+		const uniqueLogs = Array.from(
+			new Map(allLogs.map((log) => [`${log.timestamp}-${log.line}`, log])).values()
+		).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+		// Extract log lines and limit to requested number
+		const logLines = uniqueLogs
+			.map((log) => log.line)
+			.slice(-limit); // Get last N lines
+
+		return logLines;
+	}
+
 	parseLogEntry(log: LogEntry): FlowEvent | null {
 		try {
 			// Parse the JSON log line

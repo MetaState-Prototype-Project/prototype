@@ -138,7 +138,7 @@
 		<div class="py-8 text-center">
 			<p class="text-gray-500">No eVaults found</p>
 			<p class="mt-1 text-sm text-gray-400">
-				Try refreshing or check your Kubernetes connection
+				Try refreshing or check your registry connection
 			</p>
 		</div>
 	{:else}
@@ -155,7 +155,7 @@
 						<th
 							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
-							Namespace
+							eName (w3id)
 						</th>
 						<th
 							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
@@ -165,12 +165,7 @@
 						<th
 							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
 						>
-							Age
-						</th>
-						<th
-							class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-						>
-							Service URL
+							URI
 						</th>
 					</tr>
 				</thead>
@@ -180,38 +175,35 @@
 							<td
 								class="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900"
 							>
-								{evault.name}
+								{evault.name || evault.ename || evault.evault}
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-								{evault.namespace}
+								{evault.ename || 'N/A'}
 							</td>
 							<td class="px-6 py-4 whitespace-nowrap">
 								<span
 									class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {evault.status ===
-									'Running'
+									'Active'
 										? 'bg-green-100 text-green-800'
-										: evault.status === 'Pending'
-											? 'bg-yellow-100 text-yellow-800'
-											: 'bg-red-100 text-red-800'}"
+										: evault.status === 'Inactive'
+											? 'bg-red-100 text-red-800'
+											: 'bg-gray-100 text-gray-800'}"
 								>
-									{evault.status}
+									{evault.status || 'Unknown'}
 								</span>
 							</td>
 							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-								{evault.age || 'Unknown'}
-							</td>
-							<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-500">
-								{#if evault.serviceUrl}
+								{#if evault.uri || evault.serviceUrl}
 									<a
-										href={evault.serviceUrl}
+										href={evault.uri || evault.serviceUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										class="text-blue-600 underline hover:text-blue-800"
 									>
-										{evault.serviceUrl}
+										{evault.uri || evault.serviceUrl}
 									</a>
 								{:else}
-									<span class="text-gray-400">No external access</span>
+									<span class="text-gray-400">No URI available</span>
 								{/if}
 							</td>
 						</tr>

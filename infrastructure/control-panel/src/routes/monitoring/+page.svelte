@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { SvelteFlow, Background, Controls } from '@xyflow/svelte';
 	import { goto } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
+	import { Background, Controls, SvelteFlow } from '@xyflow/svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import '@xyflow/svelte/dist/style.css';
-	import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 	import { Logs, VaultNode } from '$lib/fragments';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import type { LogEvent } from '$lib/types';
+	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { Edge, Node, NodeTypes } from '@xyflow/svelte';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
@@ -100,8 +100,8 @@
 				id: `evault-${index + 1}`,
 				position: { x: 200, y: 500 + index * 180 },
 				data: {
-					label: evault.evaultId || evault.name || 'eVault',
-					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
+					label: evault.name || evault.ename || evault.evault || evault.id || 'eVault',
+					subLabel: evault.uri || evault.serviceUrl || 'Unknown',
 					type: 'evault',
 					selected: false
 				},
@@ -506,12 +506,47 @@
 		const cleanW3id = w3id.replace('@', '');
 		console.log('Cleaned w3id:', cleanW3id);
 
-		// Since evaultId is the same as w3id (without @), prioritize that match
-		const index = selectedEVaults.findIndex((e) => {
-			const matches = e.evaultId === cleanW3id;
+		// Match against ename (w3id), evault, or id fields
+		// Helper to normalize IDs by removing @ symbol for comparison
+		const normalize = (id: string | undefined) => id?.replace('@', '') || '';
+
+		const index = selectedEVaults.findIndex((e, idx) => {
+			// Check if ename (w3id) matches (with or without @)
+			// The event's w3id should match the eVault's ename
+			const normalizedEname = normalize(e.ename);
+			const enameMatch =
+				e.ename &&
+				(e.ename === w3id || e.ename === cleanW3id || normalizedEname === cleanW3id);
+
+			// Check if evault field matches (normalize both sides)
+			const normalizedEvault = normalize(e.evault);
+			const evaultMatch = e.evault && (e.evault === w3id || normalizedEvault === cleanW3id);
+
+			// Check if id field matches (normalize both sides)
+			const normalizedId = normalize(e.id);
+			const idMatch = e.id && (e.id === w3id || normalizedId === cleanW3id);
+
+			const matches = enameMatch || evaultMatch || idMatch;
 
 			if (matches) {
-				console.log('Found matching eVault by evaultId:', e);
+				console.log(`Found matching eVault at index ${idx}:`, {
+					ename: e.ename,
+					evault: e.evault,
+					id: e.id,
+					matchedBy: enameMatch ? 'ename' : evaultMatch ? 'evault' : 'id'
+				});
+			} else {
+				// Log why it didn't match for debugging
+				console.log(`eVault ${idx} didn't match:`, {
+					eventW3id: w3id,
+					eventCleanW3id: cleanW3id,
+					evaultEname: e.ename,
+					evaultEnameNormalized: normalizedEname,
+					evaultEvault: e.evault,
+					evaultEvaultNormalized: normalizedEvault,
+					evaultId: e.id,
+					evaultIdNormalized: normalizedId
+				});
 			}
 
 			return matches;
@@ -523,12 +558,17 @@
 			selectedEVaultsLength: selectedEVaults.length
 		});
 
-		// If no match found, log all available evaultIds for debugging
+		// If no match found, log all available evault identifiers for debugging
 		if (index === -1) {
 			console.log('No match found for cleaned w3id:', cleanW3id);
-			console.log('Available evaultIds:');
+			console.log('Available evault identifiers:');
 			selectedEVaults.forEach((evault, i) => {
-				console.log(`eVault ${i}: evaultId = "${evault.evaultId}"`);
+				console.log(`eVault ${i}:`, {
+					ename: evault.ename,
+					evault: evault.evault,
+					id: evault.id,
+					name: evault.name
+				});
 			});
 
 			// Return -1 to indicate no match found
