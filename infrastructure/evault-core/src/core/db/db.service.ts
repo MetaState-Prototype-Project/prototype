@@ -831,8 +831,48 @@ export class DbService {
             // Don't fail the migration if User node copy fails
         }
 
+        // Verify envelope relationships for each metaEnvelope
         console.log(
-            `[MIGRATION] Successfully copied ${count} metaEnvelopes for eName: ${eName}`,
+            `[MIGRATION] Verifying envelope relationships for ${count} metaEnvelopes`,
+        );
+        for (const metaEnvelope of metaEnvelopes) {
+            // Get envelope IDs from target
+            const targetEnvelopesResult = await targetDbService.runQuery(
+                `
+                MATCH (m:MetaEnvelope { id: $metaId, eName: $eName })-[:LINKS_TO]->(e:Envelope)
+                RETURN collect(e.id) AS envelopeIds
+                `,
+                { metaId: metaEnvelope.id, eName },
+            );
+
+            const targetEnvelopeIds = new Set(
+                targetEnvelopesResult.records[0]?.get("envelopeIds") || [],
+            );
+            const sourceEnvelopeIds = new Set(
+                metaEnvelope.envelopes.map((e) => e.id),
+            );
+
+            if (targetEnvelopeIds.size !== sourceEnvelopeIds.size) {
+                throw new Error(
+                    `Envelope count mismatch for metaEnvelope ${metaEnvelope.id}: expected ${sourceEnvelopeIds.size}, got ${targetEnvelopeIds.size}`,
+                );
+            }
+
+            for (const envelopeId of sourceEnvelopeIds) {
+                if (!targetEnvelopeIds.has(envelopeId)) {
+                    throw new Error(
+                        `Missing envelope ${envelopeId} for metaEnvelope ${metaEnvelope.id}`,
+                    );
+                }
+            }
+
+            console.log(
+                `[MIGRATION] Verified ${sourceEnvelopeIds.size} envelopes for metaEnvelope ${metaEnvelope.id}`,
+            );
+        }
+
+        console.log(
+            `[MIGRATION] Successfully copied and verified ${count} metaEnvelopes with all envelopes for eName: ${eName}`,
         );
 
         return count;

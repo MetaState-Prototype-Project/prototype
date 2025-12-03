@@ -677,8 +677,49 @@ export async function registerHttpRoutes(
                         }
                     }
 
+                    // Verify envelope relationships for each metaEnvelope
                     console.log(
-                        `[MIGRATION] Verification successful: ${copiedCount} metaEnvelopes copied and verified`,
+                        `[MIGRATION] Verifying envelope relationships for each metaEnvelope`,
+                    );
+                    for (const sourceMeta of existingMetaEnvelopes) {
+                        const sourceEnvelopeIds = new Set(
+                            sourceMeta.envelopes.map((e) => e.id),
+                        );
+
+                        const targetMeta = targetMetaEnvelopes.find(
+                            (m) => m.id === sourceMeta.id,
+                        );
+                        if (!targetMeta) {
+                            const error = `Copy verification failed: missing metaEnvelope ID: ${sourceMeta.id}`;
+                            console.error(`[MIGRATION ERROR] ${error}`);
+                            return reply.status(500).send({ error });
+                        }
+
+                        const targetEnvelopeIds = new Set(
+                            targetMeta.envelopes.map((e) => e.id),
+                        );
+
+                        if (sourceEnvelopeIds.size !== targetEnvelopeIds.size) {
+                            const error = `Copy verification failed: envelope count mismatch for metaEnvelope ${sourceMeta.id} - expected ${sourceEnvelopeIds.size}, got ${targetEnvelopeIds.size}`;
+                            console.error(`[MIGRATION ERROR] ${error}`);
+                            return reply.status(500).send({ error });
+                        }
+
+                        for (const envelopeId of sourceEnvelopeIds) {
+                            if (!targetEnvelopeIds.has(envelopeId)) {
+                                const error = `Copy verification failed: missing envelope ID ${envelopeId} for metaEnvelope ${sourceMeta.id}`;
+                                console.error(`[MIGRATION ERROR] ${error}`);
+                                return reply.status(500).send({ error });
+                            }
+                        }
+
+                        console.log(
+                            `[MIGRATION] Verified ${sourceEnvelopeIds.size} envelopes for metaEnvelope ${sourceMeta.id}`,
+                        );
+                    }
+
+                    console.log(
+                        `[MIGRATION] Verification successful: ${copiedCount} metaEnvelopes with all envelopes copied and verified`,
                     );
 
                     // Close target connection
