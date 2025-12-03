@@ -777,6 +777,10 @@ export class DbService {
                     envelope.value,
                 );
 
+                // Ensure value and valueType are explicitly null if undefined (Neo4j requires explicit null)
+                const valueParam = storedValue !== undefined ? storedValue : null;
+                const valueTypeParam = valueType !== undefined ? valueType : null;
+
                 await targetDbService.runQuery(
                     `
                     MERGE (e:Envelope { id: $envelopeId })
@@ -790,8 +794,8 @@ export class DbService {
                     {
                         envelopeId: envelope.id,
                         ontology: envelope.ontology,
-                        value: storedValue,
-                        valueType: valueType,
+                        value: valueParam,
+                        valueType: valueTypeParam,
                         metaId: metaEnvelope.id,
                         eName: eName,
                     },

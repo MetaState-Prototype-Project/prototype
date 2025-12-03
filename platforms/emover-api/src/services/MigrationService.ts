@@ -1,8 +1,8 @@
-import axios from "axios";
 import { randomUUID } from "crypto";
+import { EventEmitter } from "events";
+import axios from "axios";
 import { AppDataSource } from "../database/data-source";
 import { Migration, MigrationStatus } from "../database/entities/Migration";
-import { EventEmitter } from "events";
 
 export class MigrationService extends EventEmitter {
     private migrationRepository = AppDataSource.getRepository(Migration);
@@ -55,7 +55,9 @@ export class MigrationService extends EventEmitter {
         }
         console.log(`[MIGRATION] Provisioning new evault for ${eName}`);
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -111,6 +113,16 @@ export class MigrationService extends EventEmitter {
             );
             const registryEntropy = entropyResponse.data.token;
 
+            // Generate unique namespace to ensure a new eVault instance is created
+            // Even when using the same provisioner, each migration gets a fresh eVault
+            const namespace = randomUUID();
+            console.log(
+                `[MIGRATION] Provisioning new eVault instance with namespace: ${namespace}`,
+            );
+            console.log(
+                `[MIGRATION] Using provisioner: ${provisionerUrl} (will create new eVault ID)`,
+            );
+
             // Provision new evault with preserved public key
             console.log(
                 `[MIGRATION] Provisioning new evault with public key: ${publicKey.substring(0, 20)}...`,
@@ -119,7 +131,7 @@ export class MigrationService extends EventEmitter {
                 new URL("/provision", provisionerUrl).toString(),
                 {
                     registryEntropy,
-                    namespace: randomUUID(),
+                    namespace: namespace,
                     verificationId:
                         process.env.DEMO_VERIFICATION_CODE ||
                         "d66b7138-538a-465f-a6ce-f6985854c3f4",
@@ -139,11 +151,23 @@ export class MigrationService extends EventEmitter {
             );
             const evaultId = evaultInfo.data.evault;
 
+            // Verify that the new eVault ID is different from the old one
+            if (migration.oldEvaultId && evaultId === migration.oldEvaultId) {
+                throw new Error(
+                    `New eVault ID (${evaultId}) is the same as old eVault ID. This should not happen.`,
+                );
+            }
+
             migration.newEvaultId = evaultId;
             migration.newEvaultUri = uri;
             migration.logs += `[MIGRATION] New evault provisioned: ${evaultId}, URI: ${uri}\n`;
+            migration.logs += `[MIGRATION] Old evault ID: ${migration.oldEvaultId || "N/A"}, New evault ID: ${evaultId}\n`;
             migration.logs += `[MIGRATION] Public key preserved: ${publicKey.substring(0, 20)}...\n`;
             await this.migrationRepository.save(migration);
+
+            console.log(
+                `[MIGRATION] Successfully created new eVault instance: ${evaultId} (different from old: ${migration.oldEvaultId || "N/A"})`,
+            );
 
             // Note: Public key will be copied automatically when copying metaEnvelopes
             // (User node is copied as part of the copyMetaEnvelopes operation)
@@ -155,7 +179,8 @@ export class MigrationService extends EventEmitter {
             return { w3id, uri, evaultId };
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Provisioning failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -172,7 +197,9 @@ export class MigrationService extends EventEmitter {
             `[MIGRATION] Copying metaEnvelopes from ${oldEvaultUri} to ${newEvaultUri} for ${eName}`,
         );
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -187,15 +214,27 @@ export class MigrationService extends EventEmitter {
             });
 
             // Get Neo4j connection details
-            // TODO: In production, these should be retrieved from evault metadata or configuration
-            // For now, assume Neo4j is on the same host with standard port
-            const oldNeo4jUri = oldEvaultUri.replace(/:\d+$/, ":7687");
-            const newNeo4jUri = newEvaultUri.replace(/:\d+$/, ":7687");
+            // Neo4j uses bolt:// protocol, not http://
+            // Derive Neo4j URI from eVault URI: same host, port 7687
+            // TODO: In production, these should be retrieved from evault metadata or the provisioner response
+            const oldEvaultUrl = new URL(oldEvaultUri);
+            const newEvaultUrl = new URL(newEvaultUri);
+
+            const oldNeo4jUri = `bolt://${oldEvaultUrl.hostname}:7687`;
+            const newNeo4jUri = `bolt://${newEvaultUrl.hostname}:7687`;
+
+            // Neo4j credentials are typically consistent across eVaults in a deployment
             const neo4jUser = process.env.NEO4J_USER || "neo4j";
             const neo4jPassword = process.env.NEO4J_PASSWORD || "neo4j";
 
             console.log(
-                `[MIGRATION] Copying from ${oldNeo4jUri} to ${newNeo4jUri} for ${eName}`,
+                `[MIGRATION] Copying from old eVault (${oldEvaultUri}) to new eVault (${newEvaultUri})`,
+            );
+            console.log(
+                `[MIGRATION] Old Neo4j URI: ${oldNeo4jUri}, New Neo4j URI: ${newNeo4jUri}`,
+            );
+            console.log(
+                `[MIGRATION] Neo4j credentials: user=${neo4jUser}, password=${neo4jPassword ? "***" : "not set"}`,
             );
 
             // Call the emover endpoint on the old evault
@@ -206,6 +245,9 @@ export class MigrationService extends EventEmitter {
                     targetNeo4jUri: newNeo4jUri,
                     targetNeo4jUser: neo4jUser,
                     targetNeo4jPassword: neo4jPassword,
+                },
+                {
+                    timeout: 300000, // 5 minutes timeout for large migrations
                 },
             );
 
@@ -226,7 +268,8 @@ export class MigrationService extends EventEmitter {
             return count;
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Copy failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -243,7 +286,9 @@ export class MigrationService extends EventEmitter {
             `[MIGRATION] Verifying data copy for ${eName}, expecting ${expectedCount} metaEnvelopes`,
         );
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -272,7 +317,8 @@ export class MigrationService extends EventEmitter {
             return true;
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Verification failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -283,12 +329,15 @@ export class MigrationService extends EventEmitter {
         migrationId: string,
         eName: string,
         newEvaultId: string,
+        newW3id: string,
     ): Promise<void> {
         console.log(
             `[MIGRATION] Updating registry mapping for ${eName} to ${newEvaultId}`,
         );
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -317,6 +366,34 @@ export class MigrationService extends EventEmitter {
             );
 
             migration.logs += `[MIGRATION] Registry mapping updated successfully\n`;
+
+            // Delete the registry entry created by provisioner (w3id -> evault)
+            // This prevents duplicate mappings where both w3id and user's eName point to same evault
+            try {
+                await axios.delete(
+                    new URL(
+                        `/register?ename=${encodeURIComponent(newW3id)}`,
+                        this.registryUrl,
+                    ).toString(),
+                    {
+                        headers: {
+                            Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
+                        },
+                    },
+                );
+                migration.logs += `[MIGRATION] Deleted provisioner-created registry entry for w3id: ${newW3id}\n`;
+                console.log(
+                    `[MIGRATION] Deleted provisioner registry entry: ${newW3id}`,
+                );
+            } catch (error) {
+                // Log but don't fail if deletion fails (entry might not exist or already deleted)
+                console.warn(
+                    `[MIGRATION] Failed to delete provisioner registry entry:`,
+                    error,
+                );
+                migration.logs += `[MIGRATION] Warning: Could not delete provisioner registry entry for ${newW3id}\n`;
+            }
+
             await this.migrationRepository.save(migration);
 
             console.log(
@@ -324,7 +401,8 @@ export class MigrationService extends EventEmitter {
             );
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Registry update failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -340,7 +418,9 @@ export class MigrationService extends EventEmitter {
             `[MIGRATION] Verifying registry update for ${eName}, expecting evault ${expectedEvaultId}`,
         );
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -366,7 +446,8 @@ export class MigrationService extends EventEmitter {
             return true;
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Registry verification failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -380,7 +461,9 @@ export class MigrationService extends EventEmitter {
     ): Promise<void> {
         console.log(`[MIGRATION] Marking new evault as active for ${eName}`);
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -414,17 +497,23 @@ export class MigrationService extends EventEmitter {
             console.log(`[MIGRATION] New evault marked as active for ${eName}`);
         } catch (error) {
             migration.status = MigrationStatus.FAILED;
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Marking active failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
         }
     }
 
-    async deleteOldEvault(migrationId: string, oldEvaultId: string): Promise<void> {
+    async deleteOldEvault(
+        migrationId: string,
+        oldEvaultId: string,
+    ): Promise<void> {
         console.log(`[MIGRATION] Deleting old evault ${oldEvaultId}`);
 
-        const migration = await this.migrationRepository.findOneBy({ id: migrationId });
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
         if (!migration) {
             throw new Error("Migration not found");
         }
@@ -446,7 +535,8 @@ export class MigrationService extends EventEmitter {
 
             console.log(`[MIGRATION] Old evault ${oldEvaultId} deleted`);
         } catch (error) {
-            migration.error = error instanceof Error ? error.message : String(error);
+            migration.error =
+                error instanceof Error ? error.message : String(error);
             migration.logs += `[MIGRATION ERROR] Delete failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
@@ -473,4 +563,3 @@ export class MigrationService extends EventEmitter {
         }
     }
 }
-

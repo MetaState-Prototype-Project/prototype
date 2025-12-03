@@ -263,7 +263,7 @@ export class MigrationController {
                 throw new Error("Provisioner URL not found in migration");
             }
 
-            const { evaultId, uri: newEvaultUri } =
+            const { evaultId, uri: newEvaultUri, w3id: newW3id } =
                 await this.migrationService.provisionNewEvault(
                     migrationId,
                     migration.provisionerUrl,
@@ -291,6 +291,7 @@ export class MigrationController {
                 migrationId,
                 migration.eName,
                 evaultId,
+                newW3id,
             );
 
             // Step 5: Verify registry update

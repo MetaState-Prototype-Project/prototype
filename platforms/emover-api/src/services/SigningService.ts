@@ -19,11 +19,23 @@ export class SigningService extends EventEmitter {
     ): Promise<SigningSession> {
         const sessionId = uuidv4();
         const baseUrl =
-            process.env.PUBLIC_EMOVER_BASE_URL || "http://localhost:3000";
+            process.env.PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
 
-        const qrData = `w3ds://sign?redirect=${encodeURIComponent(
-            new URL("/api/migration/callback", baseUrl).toString(),
-        )}&session=${sessionId}&platform=emover`;
+        // Create message data for signing
+        const messageData = JSON.stringify({
+            migrationId,
+            ...data,
+            timestamp: Date.now(),
+        });
+
+        // Base64 encode the message data
+        const base64Data = Buffer.from(messageData).toString("base64");
+
+        // Create redirect URI
+        const redirectUri = `${baseUrl}/api/migration/callback`;
+
+        // Create QR data with correct format: session, data, and redirect_uri
+        const qrData = `w3ds://sign?session=${sessionId}&data=${base64Data}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
         const session: SigningSession = {
             id: sessionId,

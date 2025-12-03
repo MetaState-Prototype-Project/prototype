@@ -15,7 +15,7 @@ Backend API for the emover platform that handles evault migration operations.
 ## Environment Variables
 
 - `PORT` - Server port (default: 4003)
-- `PUBLIC_EMOVER_BASE_URL` - Frontend base URL
+- `PUBLIC_EMOVER_BASE_URL` - API base URL for authentication redirects (default: http://localhost:4003)
 - `PUBLIC_REGISTRY_URL` - Registry service URL
 - `PROVISIONER_URL` or `PROVISIONER_URLS` - Provisioner URL(s)
 - `EVAULT_BASE_URI` - Base URI for evault instances

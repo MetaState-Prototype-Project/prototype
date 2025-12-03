@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
+import { EventEmitter } from "events";
+import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { UserService } from "../services/UserService";
-import { EventEmitter } from "events";
 import { signToken } from "../utils/jwt";
 import { isVersionValid } from "../utils/version";
 
@@ -48,7 +48,7 @@ export class AuthController {
 
     getOffer = async (req: Request, res: Response) => {
         const baseUrl =
-            process.env.PUBLIC_EMOVER_BASE_URL || "http://localhost:3000";
+            process.env.PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
         const url = new URL("/api/auth", baseUrl).toString();
         const session = uuidv4();
         const offer = `w3ds://auth?redirect=${url}&session=${session}&platform=emover`;
@@ -59,6 +59,8 @@ export class AuthController {
         try {
             const { ename, session, appVersion } = req.body;
 
+            console.log(ename, session, appVersion);
+
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
             }
@@ -68,7 +70,10 @@ export class AuthController {
             }
 
             // Check app version
-            if (!appVersion || !isVersionValid(appVersion, MIN_REQUIRED_VERSION)) {
+            if (
+                !appVersion ||
+                !isVersionValid(appVersion, MIN_REQUIRED_VERSION)
+            ) {
                 const errorMessage = {
                     error: true,
                     message: `Your eID Wallet app version is outdated. Please update to version ${MIN_REQUIRED_VERSION} or later.`,
@@ -107,4 +112,3 @@ export class AuthController {
         }
     };
 }
-

@@ -33,7 +33,7 @@ const server = fastify({ logger: true });
 // Register CORS
 server.register(cors, {
     origin: "*",
-    methods: ["GET", "POST", "PATCH", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
 });
@@ -229,6 +229,40 @@ server.patch(
         } catch (error) {
             server.log.error(error);
             reply.status(500).send({ error: "Failed to update vault entry" });
+        }
+    },
+);
+
+// Delete vault entry by ename
+server.delete(
+    "/register",
+    {
+        preHandler: checkSharedSecret,
+    },
+    async (request, reply) => {
+        try {
+            const { ename } = request.query as { ename: string };
+            if (!ename) {
+                return reply.status(400).send({
+                    error: "ename query parameter is required",
+                });
+            }
+
+            const vault = await vaultService.findByEname(ename);
+            if (!vault) {
+                return reply.status(404).send({
+                    error: "Vault not found",
+                });
+            }
+
+            await vaultService.delete(vault.id);
+            return reply.status(200).send({
+                success: true,
+                message: `Vault entry for ${ename} deleted successfully`,
+            });
+        } catch (error) {
+            server.log.error(error);
+            reply.status(500).send({ error: "Failed to delete vault entry" });
         }
     },
 );
