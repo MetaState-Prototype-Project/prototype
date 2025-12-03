@@ -99,7 +99,7 @@ function MigrateContent() {
 
                         // Check if activation is complete
                         const activated = logLines.some(
-                            (log) =>
+                            (log: string) =>
                                 log.includes("marked as active") ||
                                 log.includes("New evault marked as active"),
                         );
