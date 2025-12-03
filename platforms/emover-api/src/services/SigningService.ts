@@ -22,8 +22,11 @@ export class SigningService extends EventEmitter {
             process.env.PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
 
         // Create message data for signing
+        // Include message and sessionId for eID wallet display
         const messageData = JSON.stringify({
             migrationId,
+            message: "eVault Transfer",
+            sessionId: sessionId,
             ...data,
             timestamp: Date.now(),
         });

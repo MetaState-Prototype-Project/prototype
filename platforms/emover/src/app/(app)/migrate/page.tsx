@@ -36,6 +36,7 @@ function MigrateContent() {
     const [logs, setLogs] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isSigned, setIsSigned] = useState(false);
+    const [isActivated, setIsActivated] = useState(false);
 
     useEffect(() => {
         if (!provisionerUrl) {
@@ -95,13 +96,23 @@ function MigrateContent() {
                             .split("\n")
                             .filter((line: string) => line.trim().length > 0);
                         setLogs(logLines);
+
+                        // Check if activation is complete
+                        const activated = logLines.some(
+                            (log) =>
+                                log.includes("marked as active") ||
+                                log.includes("New evault marked as active"),
+                        );
+                        if (activated) {
+                            setIsActivated(true);
+                            setQrData(null); // Hide QR code when activated
+                        }
                     }
 
                     // Check if migration is complete or failed
                     if (data.status === "completed") {
-                        setTimeout(() => {
-                            router.push("/");
-                        }, 3000); // Redirect after 3 seconds
+                        setIsActivated(true);
+                        setQrData(null);
                     } else if (data.status === "failed") {
                         setError(data.error || "Migration failed");
                     }
@@ -183,17 +194,36 @@ function MigrateContent() {
                 </div>
             )}
 
-            {migrationStatus && (
+            {(migrationStatus || isActivated) && (
                 <div
-                    className={`p-6 rounded-lg shadow mb-6 ${getStatusColor(migrationStatus)}`}
+                    className={`p-6 rounded-lg shadow mb-6 ${getStatusColor(
+                        isActivated ? "completed" : migrationStatus,
+                    )}`}
                 >
                     <h2 className="text-xl font-semibold mb-2">Status</h2>
                     <p className="text-lg font-medium">
-                        {STATUS_LABELS[migrationStatus]}
+                        {isActivated
+                            ? "eVault Activated"
+                            : STATUS_LABELS[migrationStatus || "initiated"]}
                     </p>
-                    {migrationStatus === "completed" && (
+                    {isActivated && (
+                        <div className="mt-4">
+                            <p className="mb-4 text-sm">
+                                Your eVault has been successfully migrated and
+                                activated!
+                            </p>
+                            <button
+                                onClick={() => router.push("/")}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                            >
+                                Go Back to Main Page
+                            </button>
+                        </div>
+                    )}
+                    {migrationStatus === "completed" && !isActivated && (
                         <p className="mt-2 text-sm">
-                            Migration completed successfully! Redirecting to main page...
+                            Migration completed successfully! Redirecting to main
+                            page...
                         </p>
                     )}
                     {migrationStatus === "failed" && error && (
