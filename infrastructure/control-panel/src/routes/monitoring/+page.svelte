@@ -8,6 +8,10 @@
 	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { Edge, Node, NodeTypes } from '@xyflow/svelte';
+	import { EVaultService } from '$lib/services/evaultService';
+	import { registryService } from '$lib/services/registry';
+	import type { EVault } from '../api/evaults/+server';
+	import type { Platform } from '$lib/services/registry';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
@@ -30,19 +34,65 @@
 	let highlightedNodeId = $state<string | null>(null);
 	let sequenceStarted = $state(false);
 
-	onMount(() => {
+	async function convertIDsToObjects() {
 		// Load selected items from sessionStorage
-		const evaultsData = sessionStorage.getItem('selectedEVaults');
-		const platformsData = sessionStorage.getItem('selectedPlatforms');
+		const evaultsData = sessionStorage.getItem('selectedEVaultsData') || sessionStorage.getItem('selectedEVaults');
+		const platformsData = sessionStorage.getItem('selectedPlatformsData') || sessionStorage.getItem('selectedPlatforms');
 
+		// Process eVaults
 		if (evaultsData) {
-			selectedEVaults = JSON.parse(evaultsData);
-			console.log('Loaded selectedEVaults from sessionStorage:', selectedEVaults);
+			const parsed = JSON.parse(evaultsData);
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				if (typeof parsed[0] === 'string') {
+					// It's an array of IDs - need to fetch and convert
+					const evaultIds: string[] = parsed;
+					try {
+						const allEVaults = await EVaultService.getEVaults();
+						selectedEVaults = evaultIds
+							.map((id) => allEVaults.find((e) => (e.evault || e.ename || e.id) === id))
+							.filter((e): e is EVault => e !== undefined);
+						console.log('Converted eVault IDs to objects:', selectedEVaults);
+					} catch (error) {
+						console.error('Error fetching evaults for conversion:', error);
+						selectedEVaults = [];
+					}
+				} else {
+					// It's already an array of objects
+					selectedEVaults = parsed;
+					console.log('Loaded selectedEVaults from sessionStorage:', selectedEVaults);
+				}
+			}
 		}
+
+		// Process Platforms
 		if (platformsData) {
-			selectedPlatforms = JSON.parse(platformsData);
-			console.log('Loaded selectedPlatforms from sessionStorage:', selectedPlatforms);
+			const parsed = JSON.parse(platformsData);
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				if (typeof parsed[0] === 'string') {
+					// It's an array of URLs - need to fetch and convert
+					const platformUrls: string[] = parsed;
+					try {
+						const allPlatforms = await registryService.getPlatforms();
+						selectedPlatforms = platformUrls
+							.map((url) => allPlatforms.find((p) => p.url === url))
+							.filter((p): p is Platform => p !== undefined);
+						console.log('Converted platform URLs to objects:', selectedPlatforms);
+					} catch (error) {
+						console.error('Error fetching platforms for conversion:', error);
+						selectedPlatforms = [];
+					}
+				} else {
+					// It's already an array of objects
+					selectedPlatforms = parsed;
+					console.log('Loaded selectedPlatforms from sessionStorage:', selectedPlatforms);
+				}
+			}
 		}
+	}
+
+	onMount(async () => {
+		// Convert IDs/URLs to full objects if needed
+		await convertIDsToObjects();
 
 		// Check if any items are selected, if not show selection interface
 		if (

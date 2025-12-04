@@ -31,7 +31,7 @@
 					size="sm"
 					class="whitespace-nowrap"
 					variant="solid"
-					callback={() => {
+					callback={async () => {
 						// Get selected items from the current page
 						const evaultsData = sessionStorage.getItem('selectedEVaults');
 						const platformsData = sessionStorage.getItem('selectedPlatforms');
@@ -45,6 +45,37 @@
 								'Please select eVaults and/or platforms first before starting monitoring.'
 							);
 							return;
+						}
+
+						// Fetch full objects and store them for monitoring page
+						try {
+							// Fetch evaults if we have IDs
+							if (evaultsData) {
+								const evaultIds = JSON.parse(evaultsData);
+								if (Array.isArray(evaultIds) && evaultIds.length > 0 && typeof evaultIds[0] === 'string') {
+									const { EVaultService } = await import('$lib/services/evaultService');
+									const allEVaults = await EVaultService.getEVaults();
+									const evaultObjects = evaultIds
+										.map((id: string) => allEVaults.find((e: any) => (e.evault || e.ename || e.id) === id))
+										.filter(Boolean);
+									sessionStorage.setItem('selectedEVaultsData', JSON.stringify(evaultObjects));
+								}
+							}
+
+							// Fetch platforms if we have URLs
+							if (platformsData) {
+								const platformUrls = JSON.parse(platformsData);
+								if (Array.isArray(platformUrls) && platformUrls.length > 0 && typeof platformUrls[0] === 'string') {
+									const { registryService } = await import('$lib/services/registry');
+									const allPlatforms = await registryService.getPlatforms();
+									const platformObjects = platformUrls
+										.map((url: string) => allPlatforms.find((p: any) => p.url === url))
+										.filter(Boolean);
+									sessionStorage.setItem('selectedPlatformsData', JSON.stringify(platformObjects));
+								}
+							}
+						} catch (error) {
+							console.error('Error fetching data for monitoring:', error);
 						}
 
 						// Navigate to monitoring
