@@ -421,12 +421,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <span className="font-medium text-gray-900">
                                                                     {result.optionText || `Option ${index + 1}`}
                                                                 </span>
-                                                                {result.isTied && (
+                                                                {result.isTied && blindVoteResults.totalVotes > 0 && (
                                                                     <Badge variant="success" className="bg-blue-500 text-white">
                                                                         🏆 Tied
                                                                     </Badge>
                                                                 )}
-                                                                {isWinner && !result.isTied && (
+                                                                {isWinner && !result.isTied && blindVoteResults.totalVotes > 0 && (
                                                                     <Badge variant="success" className="bg-green-500 text-white">
                                                                         🏆 Winner
                                                                     </Badge>
@@ -480,6 +480,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                     <div className="text-xs text-blue-600">
                                                         {resultsData.totalVotes || 0} of {resultsData.totalEligibleVoters} eligible voters
+                                                        {(resultsData.mode === "ereputation" || selectedPoll?.votingWeight === "ereputation") && resultsData.pointsVoted !== undefined && resultsData.totalEligiblePoints !== undefined && (
+                                                            <> ({resultsData.pointsVoted} points of {resultsData.totalEligiblePoints} total eligible points)</>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -521,7 +524,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 } else {
                                                     // Normal voting (including eReputation weighted normal voting): show votes and percentage
                                                     const voteCount = result.votes || 0;
-                                                    displayValue = `${voteCount} votes`;
+                                                    // For eReputation mode, show "Points" instead of "votes"
+                                                    displayValue = resultsData.mode === "ereputation" ? `${voteCount} Points` : `${voteCount} votes`;
                                                     // Calculate total from results array for percentage (handles both weighted and non-weighted)
                                                     const totalVotesForPercentage = resultsData.results.reduce((sum, r) => sum + (r.votes || 0), 0);
                                                     isWinner = voteCount === Math.max(...resultsData.results.map(r => r.votes || 0));
@@ -541,12 +545,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <span className="font-medium text-gray-900">
                                                                     {result.option}
                                                                 </span>
-                                                                {result.isTied && (
+                                                                {result.isTied && resultsData.totalVotes > 0 && (
                                                                     <Badge variant="success" className="bg-blue-500 text-white">
                                                                         🏆 Tied
                                                                     </Badge>
                                                                 )}
-                                                                {isWinner && !result.isTied && (
+                                                                {isWinner && !result.isTied && resultsData.totalVotes > 0 && (
                                                                     <Badge variant="success" className="bg-green-500 text-white">
                                                                         🏆 Winner
                                                                     </Badge>
