@@ -56,6 +56,8 @@ export class AuthController {
         try {
             const { ename, session, w3id, signature } = req.body;
 
+            console.log(signature, ename)
+
             if (!ename) {
                 return res.status(400).json({ error: "ename is required" });
             }

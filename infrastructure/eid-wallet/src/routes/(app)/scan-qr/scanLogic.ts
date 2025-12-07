@@ -252,11 +252,7 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            const sessionPayload = JSON.stringify({
-                session: get(session),
-                ename: vault.ename,
-                timestamp: Date.now(),
-            });
+            const sessionPayload = get(session) as string;
 
             const signature = await globalState.keyService.signPayload(
                 vault.ename,
@@ -458,15 +454,6 @@ export function createScanLogic({
                 }
 
                 signingData.set(decodedData);
-                console.log("🔍 DEBUG: Decoded signing data:", decodedData);
-                console.log(
-                    "🔍 DEBUG: Data keys:",
-                    Object.keys(decodedData || {}),
-                );
-                console.log(
-                    "🔍 DEBUG: Is poll request?",
-                    !!(decodedData?.pollId && decodedData?.voteData),
-                );
 
                 isSigningRequest.set(true);
                 signingDrawerOpen.set(true);
@@ -583,33 +570,17 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            let messageToSign: string;
+            const messageToSign= currentSigningSessionId;
 
-            if (currentSigningData.pollId && currentSigningData.voteData) {
-                messageToSign = JSON.stringify({
-                    pollId: currentSigningData.pollId,
-                    voteData: currentSigningData.voteData,
-                    userId: currentSigningData.userId,
-                    sessionId: currentSigningSessionId,
-                    timestamp: Date.now(),
-                });
-            } else {
-                messageToSign = JSON.stringify({
-                    message: currentSigningData.message,
-                    sessionId: currentSigningData.sessionId,
-                    timestamp: Date.now(),
-                });
-            }
 
             console.log(
-                "🔐 Starting cryptographic signing process with KeyManager...",
+                "🔐 Starting cryptographic signing pross with KeyManager...",
             );
-            console.log("✍️ Signing message:", messageToSign);
 
             const signature = await globalState.keyService.signPayload(
                 vault.ename,
                 "signing",
-                messageToSign,
+                currentSigningSessionId
             );
             console.log("✅ Message signed successfully");
 

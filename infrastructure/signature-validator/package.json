@@ -7,7 +7,9 @@
     "scripts": {
         "build": "tsc",
         "test": "vitest",
-        "dev": "tsc --watch"
+        "dev": "tsc --watch",
+        "test:signature": "tsx test-example.ts",
+        "test:signature:custom": "tsx test-signature.ts"
     },
     "dependencies": {
         "axios": "^1.6.7",
@@ -16,6 +18,7 @@
     "devDependencies": {
         "@types/node": "^20.11.24",
         "typescript": "^5.3.3",
+        "tsx": "^4.7.0",
         "vitest": "^1.6.1"
     }
 }

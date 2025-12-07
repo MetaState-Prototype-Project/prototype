@@ -12,7 +12,7 @@
     "sourceMap": true,
     "declaration": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test-*.ts"],
   "exclude": ["node_modules", "dist"]
 }
 
