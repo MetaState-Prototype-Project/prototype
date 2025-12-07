@@ -225,7 +225,7 @@ export default function Dashboard() {
 
         {/* Action Buttons Below Cards */}
         <div className="flex gap-3 mb-8">
-          {hasAdminGroups && (
+          {hasAdminGroups && accountContext?.type === "group" && (
             <button
               onClick={() => setCreateCurrencyOpen(true)}
               className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2"
