@@ -14,7 +14,7 @@ export default function HomePage() {
   const apps = appsData;
   const isLoadingApps = false;
 
-  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness"];
+  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness", "Finance"];
 
   const filteredApps = apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
