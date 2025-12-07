@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
 import NotFound from "@/pages/not-found";
+import DeeplinkLogin from "@/pages/deeplink-login";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -19,6 +20,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/deeplink-login" component={DeeplinkLogin} />
       <Route path="/" component={Dashboard} />
       <Route component={NotFound} />
     </Switch>

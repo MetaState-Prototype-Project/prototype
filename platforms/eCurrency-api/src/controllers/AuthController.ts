@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { UserService } from "../services/UserService";
 import { EventEmitter } from "events";
 import { signToken } from "../utils/jwt";
+import { verifySignature } from "signature-validator";
 
 export class AuthController {
     private userService: UserService;
@@ -66,6 +67,31 @@ export class AuthController {
                 return res.status(400).json({ error: "session is required" });
             }
 
+            if (!signature) {
+                return res.status(400).json({ error: "signature is required" });
+            }
+
+            const registryBaseUrl = process.env.PUBLIC_REGISTRY_URL;
+            if (!registryBaseUrl) {
+                console.error("PUBLIC_REGISTRY_URL not configured");
+                return res.status(500).json({ error: "Server configuration error" });
+            }
+
+            const verificationResult = await verifySignature({
+                eName: ename,
+                signature: signature,
+                payload: session,
+                registryBaseUrl: registryBaseUrl,
+            });
+
+            if (!verificationResult.valid) {
+                console.error("Signature validation failed:", verificationResult.error);
+                return res.status(401).json({ 
+                    error: "Invalid signature", 
+                    message: verificationResult.error 
+                });
+            }
+
             // Only find existing users - don't create new ones during auth
             const user = await this.userService.findUser(ename);
             
@@ -97,8 +123,10 @@ export class AuthController {
                 },
                 token,
             };
+            // Emit via SSE for backward compatibility
             this.eventEmitter.emit(session, data);
-            res.status(200).send();
+            // Return JSON response for direct POST requests
+            res.status(200).json(data);
         } catch (error) {
             console.error("Error during login:", error);
             res.status(500).json({ error: "Internal server error" });

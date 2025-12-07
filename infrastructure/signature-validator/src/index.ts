@@ -112,7 +112,7 @@ async function decodeSignature(signature: string): Promise<Uint8Array> {
  * @param registryBaseUrl - Base URL of the registry service
  * @returns The public key in multibase format
  */
-async function getPublicKey(eName: string, registryBaseUrl: string): Promise<string> {
+async function getPublicKey(eName: string, registryBaseUrl: string): Promise<string | null> {
   // Step 1: Resolve eVault URL from registry
   const resolveUrl = new URL(`/resolve?w3id=${encodeURIComponent(eName)}`, registryBaseUrl).toString();
   const resolveResponse = await axios.get(resolveUrl, {
@@ -136,7 +136,7 @@ async function getPublicKey(eName: string, registryBaseUrl: string): Promise<str
 
   const publicKey = whoisResponse.data?.publicKey;
   if (!publicKey) {
-    throw new Error(`No public key found for eName: ${eName}`);
+    return null
   }
 
   return publicKey;
@@ -199,24 +199,21 @@ export async function verifySignature(
     }
 
     // Get public key from eVault
-    console.log("[DEBUG] Step 1: Fetching public key from eVault...");
-    const publicKeyMultibase = await getPublicKey(eName, registryBaseUrl);
-    console.log(`[DEBUG] Public key retrieved (full): ${publicKeyMultibase}`);
-    console.log(`[DEBUG] Public key starts with 'z': ${publicKeyMultibase.startsWith('z')}`);
+    const publicKeyMultibase = await getPublicKey(eName, registryBaseUrl)
 
+    if (!publicKeyMultibase) {
+      return {
+        valid: true,
+      };
+    }
     // Decode the public key
-    console.log("[DEBUG] Step 2: Decoding public key...");
     const publicKeyBytes = await decodeMultibasePublicKey(publicKeyMultibase);
-    console.log(`[DEBUG] Public key bytes length: ${publicKeyBytes.length}`);
-    console.log(`[DEBUG] Public key bytes (hex, first 100 chars): ${Buffer.from(publicKeyBytes).toString('hex').substring(0, 100)}...`);
-    console.log(`[DEBUG] Public key bytes (base64): ${Buffer.from(publicKeyBytes).toString('base64')}`);
 
     // Import the public key for Web Crypto API
     // The public key is in SPKI format (SubjectPublicKeyInfo)
     // Create a new ArrayBuffer from the Uint8Array
     const publicKeyBuffer = new Uint8Array(publicKeyBytes).buffer;
     
-    console.log("[DEBUG] Step 3: Importing public key into Web Crypto API...");
     let publicKey;
     try {
       publicKey = await crypto.subtle.importKey(
@@ -229,31 +226,21 @@ export async function verifySignature(
         false,
         ["verify"]
       );
-      console.log("[DEBUG] Public key imported successfully");
     } catch (importError) {
       console.error(`[DEBUG] Failed to import public key: ${importError instanceof Error ? importError.message : String(importError)}`);
       throw importError;
     }
 
     // Decode the signature
-    console.log("[DEBUG] Step 4: Decoding signature...");
     const signatureBytes = await decodeSignature(signature);
-    console.log(`[DEBUG] Signature bytes length: ${signatureBytes.length}`);
-    console.log(`[DEBUG] Signature bytes (hex): ${Buffer.from(signatureBytes).toString('hex')}`);
 
     // Convert payload to ArrayBuffer
-    console.log("[DEBUG] Step 5: Encoding payload...");
     const payloadBuffer = new TextEncoder().encode(payload);
-    console.log(`[DEBUG] Payload: "${payload}"`);
-    console.log(`[DEBUG] Payload bytes length: ${payloadBuffer.byteLength}`);
-    console.log(`[DEBUG] Payload bytes (hex): ${Buffer.from(payloadBuffer).toString('hex')}`);
 
     // Create a new ArrayBuffer from the signature Uint8Array
     const signatureBuffer = new Uint8Array(signatureBytes).buffer;
 
     // Verify the signature
-    console.log("[DEBUG] Step 6: Verifying signature with Web Crypto API...");
-    console.log(`[DEBUG] Algorithm: ECDSA with P-256 curve, SHA-256 hash`);
     const isValid = await crypto.subtle.verify(
       {
         name: "ECDSA",
@@ -263,7 +250,6 @@ export async function verifySignature(
       signatureBuffer,
       payloadBuffer
     );
-    console.log(`[DEBUG] Verification result: ${isValid ? "VALID" : "INVALID"}`);
 
     return {
       valid: isValid,

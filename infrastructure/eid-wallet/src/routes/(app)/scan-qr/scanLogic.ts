@@ -7,6 +7,7 @@ import {
     requestPermissions,
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import axios from "axios";
 import { type Writable, get, writable } from "svelte/store";
 
@@ -272,13 +273,6 @@ export function createScanLogic({
                 sessionPayload,
             );
 
-            const authPayload = {
-                ename: vault.ename,
-                session: get(session),
-                signature: signature,
-                appVersion: "0.4.0",
-            };
-
             const redirectUrl = get(redirect);
             if (!redirectUrl) {
                 throw new Error(
@@ -286,7 +280,17 @@ export function createScanLogic({
                 );
             }
 
-            await axios.post(redirectUrl, authPayload);
+            // Strip path from redirectUri and append /deeplink-login
+            const loginUrl = new URL("/deeplink-login", redirectUrl);
+            loginUrl.searchParams.set("ename", vault.ename);
+            loginUrl.searchParams.set("session", get(session) as string);
+            loginUrl.searchParams.set("signature", signature);
+            loginUrl.searchParams.set("appVersion", "0.4.0");
+
+            console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
+
+            // Open URL in browser using tauri opener
+            await openUrl(loginUrl.toString());
 
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);

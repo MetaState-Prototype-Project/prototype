@@ -14,7 +14,8 @@
     "deep-link:default",
     "crypto-hw:default",
     "notification:default",
-    "process:default"
+    "process:default",
+    "opener:allow-default-urls"
   ],
   "platforms": [
     "iOS",

@@ -11,29 +11,91 @@ export function LoginScreen() {
   const [sessionId, setSessionId] = useState<string>("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Check for query parameters and auto-login
   useEffect(() => {
-    const getAuthOffer = async () => {
-      try {
-        console.log("🔍 Getting auth offer from:", apiClient.defaults.baseURL);
-        const response = await apiClient.get("/api/auth/offer");
-        console.log("✅ Auth offer response:", response.data);
-        setQrCode(response.data.offer);
-        setSessionId(response.data.sessionId);
-        setIsLoading(false);
-      } catch (error: unknown) {
-        console.error("❌ Failed to get auth offer:", error);
-        if (error && typeof error === 'object' && 'response' in error) {
-          const axiosError = error as { response?: { data?: unknown; status?: number } };
-          console.error("❌ Error details:", axiosError.response?.data);
-          console.error("❌ Error status:", axiosError.response?.status);
-        }
-        setIsLoading(false);
-      }
-    };
+    const params = new URLSearchParams(window.location.search);
+    const ename = params.get('ename');
+    const session = params.get('session');
+    const signature = params.get('signature');
+    const appVersion = params.get('appVersion');
 
+    if (ename && session && signature) {
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Auto-submit login
+      handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
+      return;
+    }
+
+    // If no query params, proceed with normal flow
     getAuthOffer();
   }, []);
+
+  const getAuthOffer = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      console.log("🔍 Getting auth offer from:", apiClient.defaults.baseURL);
+      const response = await apiClient.get("/api/auth/offer");
+      console.log("✅ Auth offer response:", response.data);
+      if (response.data.offer && response.data.sessionId) {
+        setQrCode(response.data.offer);
+        setSessionId(response.data.sessionId);
+        setError(null);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (error: unknown) {
+      console.error("❌ Failed to get auth offer:", error);
+      let errorMessage = "Failed to load login. Please try again.";
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number } };
+        console.error("❌ Error details:", axiosError.response?.data);
+        console.error("❌ Error status:", axiosError.response?.status);
+        if (axiosError.response?.status === 0 || !axiosError.response) {
+          errorMessage = "Cannot connect to server. Please check your connection.";
+        }
+      }
+      setError(errorMessage);
+      setQrCode("");
+      setSessionId("");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
+    setIsConnecting(true);
+    try {
+      const apiBaseUrl = import.meta.env.VITE_ECURRENCY_API_URL || "http://localhost:8989";
+      const response = await fetch(`${apiBaseUrl}/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ename, session, signature, appVersion })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token && data.user) {
+          localStorage.setItem("ecurrency_token", data.token);
+          localStorage.setItem("ecurrency_user", JSON.stringify(data.user));
+          window.location.href = "/dashboard";
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        setIsConnecting(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Login request failed:', error);
+      setIsConnecting(false);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!sessionId) return;
@@ -105,36 +167,82 @@ export function LoginScreen() {
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
           <p className="text-gray-600">
-            Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login
+            {isMobileDevice() 
+              ? "Login using your eID Wallet app"
+              : "Scan the QR code using your eID App to login"
+            }
           </p>
         </div>
 
-        {qrCode && (
-          <div className="flex justify-center mb-6">
-            {isMobileDevice() ? (
-              <div className="flex flex-col gap-4 items-center">
-                <a
-                  href={getDeepLinkUrl(qrCode)}
-                  className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-center"
-                >
-                  Login with eID Wallet
-                </a>
-                <div className="text-xs text-gray-500 text-center max-w-xs">
-                  Click the button to open your eID wallet app
+        <div className="flex justify-center mb-6">
+          {isMobileDevice() ? (
+            <div className="flex flex-col gap-4 items-center w-full">
+              {error ? (
+                <div className="flex flex-col gap-3 items-center w-full">
+                  <div className="text-red-600 text-sm text-center">{error}</div>
+                  <button
+                    onClick={getAuthOffer}
+                    className="w-full px-6 py-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-center font-semibold text-lg shadow-lg"
+                  >
+                    Retry
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white p-4 rounded-lg border">
-                <QRCodeSVG
-                  value={qrCode}
-                  size={200}
-                  level="M"
-                  includeMargin={true}
-                />
-              </div>
-            )}
-          </div>
-        )}
+              ) : qrCode ? (
+                <>
+                  <a
+                    href={getDeepLinkUrl(qrCode)}
+                    className="w-full px-6 py-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-center font-semibold text-lg shadow-lg"
+                  >
+                    Login with eID Wallet
+                  </a>
+                  <div className="text-xs text-gray-500 text-center max-w-xs">
+                    Click the button to open your eID wallet app
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    disabled
+                    className="w-full px-6 py-4 bg-gray-400 text-white rounded-lg text-center font-semibold text-lg cursor-not-allowed"
+                  >
+                    {isLoading ? "Loading..." : "Preparing login..."}
+                  </button>
+                  <div className="text-xs text-gray-500 text-center max-w-xs">
+                    {isLoading ? "Connecting to server..." : "Preparing login..."}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              {error ? (
+                <div className="flex flex-col gap-3 items-center">
+                  <div className="text-red-600 text-sm text-center mb-2">{error}</div>
+                  <button
+                    onClick={getAuthOffer}
+                    className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-center font-semibold"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : qrCode ? (
+                <div className="bg-white p-4 rounded-lg border">
+                  <QRCodeSVG
+                    value={qrCode}
+                    size={200}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading QR code...</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <div className="text-center">
           <p className="text-sm text-gray-500">

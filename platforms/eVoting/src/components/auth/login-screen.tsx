@@ -12,7 +12,26 @@ export function LoginScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Check for query parameters and auto-login
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const ename = params.get('ename');
+    const session = params.get('session');
+    const signature = params.get('signature');
+    const appVersion = params.get('appVersion');
+
+    if (ename && session && signature) {
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Auto-submit login
+      handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
+      return;
+    }
+
+    // If no query params, proceed with normal flow
     const getAuthOffer = async () => {
       try {
         const response = await apiClient.get("/api/auth/offer");
@@ -25,6 +44,37 @@ export function LoginScreen() {
 
     getAuthOffer();
   }, []);
+
+  const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
+    setIsConnecting(true);
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_EVOTING_BASE_URL || "http://localhost:4000";
+      const response = await fetch(`${baseUrl}/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ename, session, signature, appVersion })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token && data.user) {
+          localStorage.setItem("evoting_token", data.token);
+          localStorage.setItem("evoting_user_id", data.user.id);
+          window.location.href = "/";
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        if (errorData.error && errorData.type === 'version_mismatch') {
+          setErrorMessage(errorData.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+        }
+        setIsConnecting(false);
+      }
+    } catch (error) {
+      console.error('Login request failed:', error);
+      setIsConnecting(false);
+    }
+  };
 
   useEffect(() => {
     if (!sessionId) return;

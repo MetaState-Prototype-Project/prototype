@@ -6,6 +6,7 @@ import AuthPage from "./pages/auth-page";
 import Dashboard from "./pages/dashboard";
 import Currencies from "./pages/currencies";
 import CurrencyDetail from "./pages/currency-detail";
+import DeeplinkLogin from "./pages/deeplink-login";
 
 const queryClient = new QueryClient();
 
@@ -19,6 +20,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/deeplink-login" component={DeeplinkLogin} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/currencies" component={Currencies} />
       <Route path="/currency/:currencyId" component={CurrencyDetail} />

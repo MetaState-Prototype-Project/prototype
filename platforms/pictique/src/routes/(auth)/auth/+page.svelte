@@ -35,10 +35,54 @@
 		return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
 	}
 
+	async function handleAutoLogin(ename: string, session: string, signature: string, appVersion: string) {
+		try {
+			const response = await fetch(`${PUBLIC_PICTIQUE_BASE_URL}/api/auth`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ename, session, signature, appVersion })
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				if (data.token && data.user) {
+					setAuthId(data.user.id);
+					setAuthToken(data.token);
+					goto('/home');
+				}
+			} else {
+				const errorData = await response.json();
+				console.error('Login failed:', errorData);
+				if (errorData.error && errorData.type === 'version_mismatch') {
+					errorMessage = errorData.message || 'Your eID Wallet app version is outdated. Please update to continue.';
+				}
+			}
+		} catch (error) {
+			console.error('Login request failed:', error);
+		}
+	}
+
 	onMount(async () => {
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
 
+		// Check for query parameters and auto-login
+		const params = new URLSearchParams(window.location.search);
+		const ename = params.get('ename');
+		const session = params.get('session');
+		const signature = params.get('signature');
+		const appVersion = params.get('appVersion');
+
+		if (ename && session && signature) {
+			// Clean up URL
+			window.history.replaceState({}, '', window.location.pathname);
+			
+			// Auto-submit login
+			await handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
+			return;
+		}
+
+		// If no query params, proceed with normal flow
 		const { data } = await apiClient.get('/api/auth/offer');
 		qrData = data.uri;
 
@@ -83,7 +127,7 @@
 
 		onDestroy(() => {
 			window.removeEventListener('resize', checkMobile);
-		});
+});
 	});
 </script>
 

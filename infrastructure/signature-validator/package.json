@@ -6,6 +6,7 @@
     "types": "dist/index.d.ts",
     "scripts": {
         "build": "tsc",
+        "postinstall": "npm run build",
         "test": "vitest",
         "dev": "tsc --watch",
         "test:signature": "tsx test-example.ts",
