@@ -1,5 +1,14 @@
 import axios from "axios";
-import { base58btc } from "multiformats/bases/base58";
+
+// Lazy initialization for base58btc to handle ESM module resolution
+let base58btcModule: { base58btc: { decode: (input: string) => Uint8Array } } | null = null;
+
+async function getBase58btc() {
+  if (!base58btcModule) {
+    base58btcModule = await import("multiformats/bases/base58");
+  }
+  return base58btcModule.base58btc;
+}
 
 /**
  * Options for signature verification
@@ -32,7 +41,7 @@ export interface VerifySignatureResult {
  * Supports 'z' prefix for base58btc or hex encoding
  * Based on the format used in SoftwareKeyManager: 'z' + hex
  */
-function decodeMultibasePublicKey(multibaseKey: string): Uint8Array {
+async function decodeMultibasePublicKey(multibaseKey: string): Promise<Uint8Array> {
   if (!multibaseKey.startsWith("z")) {
     throw new Error("Public key must start with 'z' multibase prefix");
   }
@@ -58,6 +67,7 @@ function decodeMultibasePublicKey(multibaseKey: string): Uint8Array {
 
   // Try base58btc (standard multibase 'z' prefix)
   try {
+    const base58btc = await getBase58btc();
     return base58btc.decode(encoded);
   } catch (error) {
     throw new Error(
@@ -67,20 +77,23 @@ function decodeMultibasePublicKey(multibaseKey: string): Uint8Array {
 }
 
 /**
- * Decodes a multibase-encoded signature
- * Supports base58btc or base64
+ * Decodes a signature
+ * Supports:
+ * - Multibase base58btc (starts with 'z')
+ * - Base64 (default for software keys)
  */
-function decodeSignature(signature: string): Uint8Array {
+async function decodeSignature(signature: string): Promise<Uint8Array> {
   // If it starts with 'z', it's multibase base58btc
   if (signature.startsWith("z")) {
     try {
+      const base58btc = await getBase58btc();
       return base58btc.decode(signature.slice(1));
     } catch (error) {
       throw new Error(`Failed to decode multibase signature: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  // Otherwise, try base64 (software keys return base64)
+  // Default: decode as base64 (software keys return base64-encoded signatures)
   try {
     const binaryString = atob(signature);
     const bytes = new Uint8Array(binaryString.length);
@@ -189,7 +202,7 @@ export async function verifySignature(
     const publicKeyMultibase = await getPublicKey(eName, registryBaseUrl);
 
     // Decode the public key
-    const publicKeyBytes = decodeMultibasePublicKey(publicKeyMultibase);
+    const publicKeyBytes = await decodeMultibasePublicKey(publicKeyMultibase);
 
     // Import the public key for Web Crypto API
     // The public key is in SPKI format (SubjectPublicKeyInfo)
@@ -208,7 +221,7 @@ export async function verifySignature(
     );
 
     // Decode the signature
-    const signatureBytes = decodeSignature(signature);
+    const signatureBytes = await decodeSignature(signature);
 
     // Convert payload to ArrayBuffer
     const payloadBuffer = new TextEncoder().encode(payload);
