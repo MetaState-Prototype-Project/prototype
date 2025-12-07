@@ -114,4 +114,42 @@ export class EVaultService {
 			throw error;
 		}
 	}
+
+	/**
+	 * Get logs for a specific eVault by namespace and podName
+	 */
+	static async getEVaultLogsByPod(namespace: string, podName: string): Promise<string[]> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs`
+			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.logs || [];
+		} catch (error) {
+			console.error('Failed to fetch eVault logs by pod:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get metrics for a specific eVault by namespace and podName
+	 */
+	static async getEVaultMetrics(namespace: string, podName: string): Promise<any> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/metrics`
+			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.metrics || {};
+		} catch (error) {
+			console.error('Failed to fetch eVault metrics:', error);
+			throw error;
+		}
+	}
 }

@@ -4,9 +4,9 @@
 	import { onMount } from 'svelte';
 	import type { EVault } from '../../api/evaults/+server';
 
-	let evault: EVault | null = null;
-	let logs: string[] = [];
-	let details: any = null;
+	let evault = $state<EVault | null>(null);
+	let logs = $state<string[]>([]);
+	let details = $state<any>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 	let selectedTab = $state('logs');

@@ -2,53 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { EVaultService } from '$lib/services/evaultService';
 
-	// Debug: Check if methods exist
-	console.log('🔍 EVaultService imported:', EVaultService);
-	console.log('🔍 getEVaultLogs exists:', typeof EVaultService.getEVaultLogs);
-	console.log('🔍 getEVaultMetrics exists:', typeof EVaultService.getEVaultMetrics);
-
-	// Temporary workaround: Add methods directly if they don't exist
-	if (!EVaultService.getEVaultLogs) {
-		console.log('⚠️ Adding getEVaultLogs method directly');
-		EVaultService.getEVaultLogs = async (namespace: string, podName: string) => {
-			console.log('🔍 Direct getEVaultLogs called with:', { namespace, podName });
-			try {
-				const response = await fetch(
-					`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs`
-				);
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				const responseData = await response.json();
-				console.log('✅ Direct logs fetched successfully:', responseData);
-				return responseData.logs || [];
-			} catch (error) {
-				console.error('❌ Direct logs fetch failed:', error);
-				throw error;
-			}
-		};
-	}
-
-	if (!EVaultService.getEVaultMetrics) {
-		console.log('⚠️ Adding getEVaultMetrics method directly');
-		EVaultService.getEVaultMetrics = async (namespace: string, podName: string) => {
-			console.log('🔍 Direct getEVaultMetrics called with:', { namespace, podName });
-			try {
-				const response = await fetch(
-					`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/metrics`
-				);
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				const responseData = await response.json();
-				console.log('✅ Direct metrics fetched successfully:', responseData);
-				return responseData.metrics || {};
-			} catch (error) {
-				console.error('❌ Direct metrics fetch failed:', error);
-				throw error;
-			}
-		};
-	}
 	import { ButtonAction } from '$lib/ui';
 	import { RefreshCw, Clock, Activity, Server, Globe, ArrowLeft } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
@@ -113,12 +66,12 @@
 			}
 
 			console.log(
-				'Calling EVaultService.getEVaultLogs with namespace:',
+				'Calling EVaultService.getEVaultLogsByPod with namespace:',
 				namespace,
 				'pod:',
 				evaultData.podName
 			);
-			const logsArray = await EVaultService.getEVaultLogs(namespace, evaultData.podName);
+			const logsArray = await EVaultService.getEVaultLogsByPod(namespace, evaultData.podName);
 			console.log('Got logs array:', logsArray);
 
 			if (logsArray && logsArray.length > 0) {
