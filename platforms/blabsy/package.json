@@ -44,7 +44,7 @@
         "autoprefixer": "^10.4.8",
         "concurrently": "^8.2.1",
         "eslint": "8.21.0",
-        "eslint-config-next": "15.4.2",
+        "eslint-config-next": "15.5.7",
         "eslint-import-resolver-typescript": "^3.4.0",
         "eslint-plugin-import": "^2.26.0",
         "husky": "^8.0.1",
