@@ -251,7 +251,7 @@ export function createScanLogic({
             console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
             console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
             console.log(
-                `⚠️  This ensures we use the SAME key that was synced to eVault`,
+                "⚠️  This ensures we use the SAME key that was synced to eVault",
             );
             console.log("=".repeat(70));
 
@@ -589,7 +589,7 @@ export function createScanLogic({
             console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
             console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
             console.log(
-                `⚠️  This ensures we use the SAME key that was synced to eVault`,
+                "⚠️  This ensures we use the SAME key that was synced to eVault",
             );
             console.log("=".repeat(70));
 

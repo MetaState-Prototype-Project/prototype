@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 
-export default function DeeplinkLogin(): JSX.Element {
+export default function DeeplinkLogin(): JSX.Element | null {
     const { signInWithCustomToken } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
