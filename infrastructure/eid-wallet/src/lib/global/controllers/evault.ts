@@ -153,7 +153,9 @@ export class VaultController {
                     KEY_ID,
                     context,
                 );
-                console.log(`Public key retrieved: ${publicKey?.substring(0, 60)}...`);
+                console.log(
+                    `Public key retrieved: ${publicKey?.substring(0, 60)}...`,
+                );
                 console.log(`Public key (full): ${publicKey}`);
             } catch (error) {
                 console.error(

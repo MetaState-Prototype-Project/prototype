@@ -96,7 +96,7 @@ export function LoginMain(): JSX.Element {
         if (ename && session && signature) {
             // Clean up URL
             window.history.replaceState({}, '', window.location.pathname);
-            
+
             // Auto-submit login
             handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
             return;
@@ -108,7 +108,12 @@ export function LoginMain(): JSX.Element {
         );
     }, []);
 
-    const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
+    const handleAutoLogin = async (
+        ename: string,
+        session: string,
+        signature: string,
+        appVersion: string
+    ) => {
         try {
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
             if (!baseUrl) {
@@ -131,7 +136,10 @@ export function LoginMain(): JSX.Element {
                 const errorData = await response.json();
                 console.error('Login failed:', errorData);
                 if (errorData.error && errorData.type === 'version_mismatch') {
-                    setErrorMessage(errorData.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+                    setErrorMessage(
+                        errorData.message ||
+                            'Your eID Wallet app version is outdated. Please update to continue.'
+                    );
                 }
             }
         } catch (error) {

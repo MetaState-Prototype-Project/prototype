@@ -134,9 +134,7 @@ export class LokiService {
 		).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
 		// Extract log lines and limit to requested number
-		const logLines = uniqueLogs
-			.map((log) => log.line)
-			.slice(-limit); // Get last N lines
+		const logLines = uniqueLogs.map((log) => log.line).slice(-limit); // Get last N lines
 
 		return logLines;
 	}

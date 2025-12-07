@@ -74,7 +74,7 @@ export class HardwareKeyManager implements KeyManager {
                 .map((b) => b.toString(16).padStart(2, "0"))
                 .join("");
             console.log(`Payload (hex): ${payloadHex}`);
-            
+
             // Get and log the public key
             try {
                 const publicKey = await this.getPublicKey(keyId);
@@ -85,9 +85,11 @@ export class HardwareKeyManager implements KeyManager {
                     console.log("⚠️  Public key not available");
                 }
             } catch (error) {
-                console.log(`⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`);
+                console.log(
+                    `⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`,
+                );
             }
-            
+
             console.log("Signing with hardware key...");
             const signature = await hwSignPayload(keyId, payload);
             console.log(`✅ Hardware signature created for ${keyId}`);

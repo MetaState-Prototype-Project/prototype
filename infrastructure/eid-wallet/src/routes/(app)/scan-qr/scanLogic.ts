@@ -242,13 +242,17 @@ export function createScanLogic({
             const KEY_ID = "default";
             const isFake = await globalState.userController.isFake;
             const signingContext = isFake ? "pre-verification" : "onboarding";
-            
+
             console.log("=".repeat(70));
-            console.log("🔐 [scanLogic] handleAuth - Preparing to sign payload");
+            console.log(
+                "🔐 [scanLogic] handleAuth - Preparing to sign payload",
+            );
             console.log("=".repeat(70));
             console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
             console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
-            console.log(`⚠️  This ensures we use the SAME key that was synced to eVault`);
+            console.log(
+                `⚠️  This ensures we use the SAME key that was synced to eVault`,
+            );
             console.log("=".repeat(70));
 
             const { created } = await globalState.keyService.ensureKey(
@@ -578,13 +582,15 @@ export function createScanLogic({
             const KEY_ID = "default";
             const isFake = await globalState.userController.isFake;
             const signingContext = isFake ? "pre-verification" : "onboarding";
-            
+
             console.log("=".repeat(70));
             console.log("🔐 [scanLogic] Preparing to sign payload");
             console.log("=".repeat(70));
             console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
             console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
-            console.log(`⚠️  This ensures we use the SAME key that was synced to eVault`);
+            console.log(
+                `⚠️  This ensures we use the SAME key that was synced to eVault`,
+            );
             console.log("=".repeat(70));
 
             const { created } = await globalState.keyService.ensureKey(
@@ -601,8 +607,7 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            const messageToSign= currentSigningSessionId;
-
+            const messageToSign = currentSigningSessionId;
 
             console.log(
                 "🔐 Starting cryptographic signing process with KeyManager...",
@@ -611,7 +616,7 @@ export function createScanLogic({
             const signature = await globalState.keyService.signPayload(
                 KEY_ID,
                 signingContext,
-                currentSigningSessionId
+                currentSigningSessionId,
             );
             console.log("✅ Message signed successfully");
 

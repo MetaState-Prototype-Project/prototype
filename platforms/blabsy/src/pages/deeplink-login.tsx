@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@lib/context/auth-context";
+import { useEffect, useState } from 'react';
+import { useAuth } from '@lib/context/auth-context';
 
 export default function DeeplinkLogin(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
@@ -44,7 +44,7 @@ export default function DeeplinkLogin(): JSX.Element {
                 const appVersion = params.get('appVersion');
 
                 if (!ename || !session || !signature) {
-                    setError("Missing required authentication parameters");
+                    setError('Missing required authentication parameters');
                     setIsLoading(false);
                     return;
                 }
@@ -55,13 +55,18 @@ export default function DeeplinkLogin(): JSX.Element {
                 // Make POST request to login endpoint
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
                 if (!baseUrl) {
-                    setError("Server configuration error");
+                    setError('Server configuration error');
                     setIsLoading(false);
                     return;
                 }
 
                 const loginUrl = `${baseUrl}/api/auth`;
-                const requestBody = { ename, session, signature, appVersion: appVersion || '0.4.0' };
+                const requestBody = {
+                    ename,
+                    session,
+                    signature,
+                    appVersion: appVersion || '0.4.0'
+                };
 
                 const response = await fetch(loginUrl, {
                     method: 'POST',
@@ -74,7 +79,7 @@ export default function DeeplinkLogin(): JSX.Element {
                     if (data.token) {
                         await signInWithCustomToken(data.token);
                     } else {
-                        setError("Invalid response from server");
+                        setError('Invalid response from server');
                         setIsLoading(false);
                     }
                 } else {
@@ -82,14 +87,16 @@ export default function DeeplinkLogin(): JSX.Element {
                     try {
                         errorData = await response.json();
                     } catch (parseError) {
-                        errorData = { error: `Server error: ${response.status}` };
+                        errorData = {
+                            error: `Server error: ${response.status}`
+                        };
                     }
-                    setError(errorData.error || "Authentication failed");
+                    setError(errorData.error || 'Authentication failed');
                     setIsLoading(false);
                 }
             } catch (error) {
                 console.error('Login request failed:', error);
-                setError("Failed to connect to server");
+                setError('Failed to connect to server');
                 setIsLoading(false);
             }
         };
@@ -99,10 +106,10 @@ export default function DeeplinkLogin(): JSX.Element {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-lg text-gray-600">Authenticating...</p>
+            <div className='flex h-screen items-center justify-center'>
+                <div className='text-center'>
+                    <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4'></div>
+                    <p className='text-lg text-gray-600'>Authenticating...</p>
                 </div>
             </div>
         );
@@ -110,12 +117,12 @@ export default function DeeplinkLogin(): JSX.Element {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-center">
-                    <div className="text-red-600 mb-4">{error}</div>
+            <div className='flex h-screen items-center justify-center'>
+                <div className='text-center'>
+                    <div className='text-red-600 mb-4'>{error}</div>
                     <button
-                        onClick={() => window.location.href = "/"}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        onClick={() => (window.location.href = '/')}
+                        className='px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
                     >
                         Go to Login
                     </button>

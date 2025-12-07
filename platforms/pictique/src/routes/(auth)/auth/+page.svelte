@@ -35,7 +35,12 @@
 		return 'https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet';
 	}
 
-	async function handleAutoLogin(ename: string, session: string, signature: string, appVersion: string) {
+	async function handleAutoLogin(
+		ename: string,
+		session: string,
+		signature: string,
+		appVersion: string
+	) {
 		try {
 			const response = await fetch(`${PUBLIC_PICTIQUE_BASE_URL}/api/auth`, {
 				method: 'POST',
@@ -54,7 +59,9 @@
 				const errorData = await response.json();
 				console.error('Login failed:', errorData);
 				if (errorData.error && errorData.type === 'version_mismatch') {
-					errorMessage = errorData.message || 'Your eID Wallet app version is outdated. Please update to continue.';
+					errorMessage =
+						errorData.message ||
+						'Your eID Wallet app version is outdated. Please update to continue.';
 				}
 			}
 		} catch (error) {
@@ -76,7 +83,7 @@
 		if (ename && session && signature) {
 			// Clean up URL
 			window.history.replaceState({}, '', window.location.pathname);
-			
+
 			// Auto-submit login
 			await handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
 			return;
@@ -127,7 +134,7 @@
 
 		onDestroy(() => {
 			window.removeEventListener('resize', checkMobile);
-});
+		});
 	});
 </script>
 

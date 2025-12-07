@@ -79,7 +79,10 @@ export class EVaultService {
 	 */
 	static async getEVaultLogs(evaultId: string, tail?: number): Promise<string[]> {
 		try {
-			const url = new URL(`/api/evaults/${encodeURIComponent(evaultId)}/logs`, window.location.origin);
+			const url = new URL(
+				`/api/evaults/${encodeURIComponent(evaultId)}/logs`,
+				window.location.origin
+			);
 			if (tail) {
 				url.searchParams.set('tail', tail.toString());
 			}
@@ -100,9 +103,7 @@ export class EVaultService {
 	 */
 	static async getEVaultDetails(evaultId: string): Promise<any> {
 		try {
-			const response = await fetch(
-				`/api/evaults/${encodeURIComponent(evaultId)}/details`
-			);
+			const response = await fetch(`/api/evaults/${encodeURIComponent(evaultId)}/details`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}

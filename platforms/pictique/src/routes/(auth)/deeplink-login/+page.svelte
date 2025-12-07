@@ -95,17 +95,19 @@
 {#if isLoading}
 	<div class="flex h-screen items-center justify-center">
 		<div class="text-center">
-			<div class="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
+			<div
+				class="mx-auto mb-4 h-32 w-32 animate-spin rounded-full border-b-2 border-gray-900"
+			></div>
 			<p class="text-lg text-gray-600">Authenticating...</p>
 		</div>
 	</div>
 {:else if error}
 	<div class="flex h-screen items-center justify-center">
 		<div class="text-center">
-			<div class="text-red-600 mb-4">{error}</div>
+			<div class="mb-4 text-red-600">{error}</div>
 			<button
 				onclick={() => goto('/auth')}
-				class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+				class="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
 			>
 				Go to Login
 			</button>

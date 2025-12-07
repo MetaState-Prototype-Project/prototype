@@ -125,7 +125,7 @@ export class SoftwareKeyManager implements KeyManager {
                 .map((b) => b.toString(16).padStart(2, "0"))
                 .join("");
             console.log(`Payload (hex): ${payloadHex}`);
-            
+
             const keyPair = await this.getKeyPair(keyId);
             if (!keyPair) {
                 throw new KeyManagerError(
@@ -136,15 +136,19 @@ export class SoftwareKeyManager implements KeyManager {
             }
 
             // Log the public key that corresponds to this private key
-            console.log(`Public key (base64): ${keyPair.publicKey.substring(0, 60)}...`);
+            console.log(
+                `Public key (base64): ${keyPair.publicKey.substring(0, 60)}...`,
+            );
             console.log(`Public key (full): ${keyPair.publicKey}`);
 
             // Import the private key
             const privateKeyBuffer = this.base64ToArrayBuffer(
                 keyPair.privateKey,
             );
-            console.log(`Private key buffer length: ${privateKeyBuffer.byteLength} bytes`);
-            
+            console.log(
+                `Private key buffer length: ${privateKeyBuffer.byteLength} bytes`,
+            );
+
             const privateKey = await crypto.subtle.importKey(
                 "pkcs8",
                 privateKeyBuffer,
@@ -159,8 +163,12 @@ export class SoftwareKeyManager implements KeyManager {
 
             // Convert payload to ArrayBuffer
             const payloadBuffer = new TextEncoder().encode(payload);
-            console.log(`Payload buffer length: ${payloadBuffer.byteLength} bytes`);
-            console.log(`Payload buffer (hex): ${this.arrayBufferToHex(payloadBuffer)}`);
+            console.log(
+                `Payload buffer length: ${payloadBuffer.byteLength} bytes`,
+            );
+            console.log(
+                `Payload buffer (hex): ${this.arrayBufferToHex(payloadBuffer)}`,
+            );
 
             // Sign the payload
             console.log("Signing with ECDSA P-256, SHA-256...");
@@ -173,13 +181,19 @@ export class SoftwareKeyManager implements KeyManager {
                 payloadBuffer,
             );
 
-            console.log(`Signature buffer length: ${signature.byteLength} bytes`);
-            console.log(`Signature buffer (hex): ${this.arrayBufferToHex(signature)}`);
+            console.log(
+                `Signature buffer length: ${signature.byteLength} bytes`,
+            );
+            console.log(
+                `Signature buffer (hex): ${this.arrayBufferToHex(signature)}`,
+            );
 
             // Convert signature to base64 string
             const signatureString = this.arrayBufferToBase64(signature);
             console.log(`✅ Software signature created for ${keyId}`);
-            console.log(`Signature (base64): ${signatureString.substring(0, 50)}...`);
+            console.log(
+                `Signature (base64): ${signatureString.substring(0, 50)}...`,
+            );
             console.log(`Signature (full): ${signatureString}`);
             console.log(`Signature length: ${signatureString.length} chars`);
             console.log("=".repeat(70));

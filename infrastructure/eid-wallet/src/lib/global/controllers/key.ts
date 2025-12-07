@@ -150,17 +150,17 @@ export class KeyService {
         console.log("=".repeat(70));
         console.log(`Key ID: ${keyId}`);
         console.log(`Context: ${context}`);
-            console.log(`Payload: "${payload}"`);
-            console.log(`Payload length: ${payload.length} bytes`);
-            const payloadHex = Array.from(new TextEncoder().encode(payload))
-                .map((b) => b.toString(16).padStart(2, "0"))
-                .join("");
-            console.log(`Payload (hex): ${payloadHex}`);
-        
+        console.log(`Payload: "${payload}"`);
+        console.log(`Payload length: ${payload.length} bytes`);
+        const payloadHex = Array.from(new TextEncoder().encode(payload))
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+        console.log(`Payload (hex): ${payloadHex}`);
+
         const manager = await this.getManager(keyId, context);
         const managerType = manager.getType();
         console.log(`Manager type: ${managerType}`);
-        
+
         // Get and log the public key that will be used for signing
         try {
             const publicKey = await manager.getPublicKey(keyId);
@@ -171,15 +171,19 @@ export class KeyService {
                 console.log("⚠️  Public key not available");
             }
         } catch (error) {
-            console.log(`⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`);
+            console.log(
+                `⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
-        
+
         console.log("=".repeat(70));
         const signature = await manager.signPayload(keyId, payload);
-        console.log(`✅ [KeyService] Signature created: ${signature.substring(0, 50)}...`);
+        console.log(
+            `✅ [KeyService] Signature created: ${signature.substring(0, 50)}...`,
+        );
         console.log(`Signature length: ${signature.length} chars`);
         console.log("=".repeat(70));
-        
+
         await this.#touchContext(this.#getCacheKey(keyId, context), manager);
         return signature;
     }

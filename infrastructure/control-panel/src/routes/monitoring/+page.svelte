@@ -36,8 +36,12 @@
 
 	async function convertIDsToObjects() {
 		// Load selected items from sessionStorage
-		const evaultsData = sessionStorage.getItem('selectedEVaultsData') || sessionStorage.getItem('selectedEVaults');
-		const platformsData = sessionStorage.getItem('selectedPlatformsData') || sessionStorage.getItem('selectedPlatforms');
+		const evaultsData =
+			sessionStorage.getItem('selectedEVaultsData') ||
+			sessionStorage.getItem('selectedEVaults');
+		const platformsData =
+			sessionStorage.getItem('selectedPlatformsData') ||
+			sessionStorage.getItem('selectedPlatforms');
 
 		// Process eVaults
 		if (evaultsData) {
@@ -49,7 +53,9 @@
 					try {
 						const allEVaults = await EVaultService.getEVaults();
 						selectedEVaults = evaultIds
-							.map((id) => allEVaults.find((e) => (e.evault || e.ename || e.id) === id))
+							.map((id) =>
+								allEVaults.find((e) => (e.evault || e.ename || e.id) === id)
+							)
 							.filter((e): e is EVault => e !== undefined);
 						console.log('Converted eVault IDs to objects:', selectedEVaults);
 					} catch (error) {
