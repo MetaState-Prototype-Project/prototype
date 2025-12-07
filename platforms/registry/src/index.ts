@@ -41,7 +41,7 @@ const initializeDatabase = async () => {
         await AppDataSource.initialize();
         server.log.info("Database connection initialized");
     } catch (error) {
-        server.log.error({message: "Error during database initialization", detail: error});
+        server.log.error({ message: "Error during database initialization", detail: error });
         process.exit(1);
     }
 };
@@ -123,20 +123,19 @@ server.post("/platforms/certification", async (request, reply) => {
 });
 
 server.get("/platforms", async (request, reply) => {
-    const platforms = [ 
-        process.env.PUBLIC_PICTIQUE_BASE_URL, 
-        process.env.PUBLIC_BLABSY_BASE_URL, 
-        process.env.PUBLIC_GROUP_CHARTER_BASE_URL, 
-        process.env.PUBLIC_CERBERUS_BASE_URL, 
+    const platforms = [
+        process.env.PUBLIC_PICTIQUE_BASE_URL,
+        process.env.PUBLIC_BLABSY_BASE_URL,
+        process.env.PUBLIC_GROUP_CHARTER_BASE_URL,
+        process.env.PUBLIC_CERBERUS_BASE_URL,
         process.env.PUBLIC_EVOTING_BASE_URL,
         process.env.VITE_DREAMSYNC_BASE_URL,
-        process.env.VITE_EREPUTATION_BASE_URL
-    ]
+        process.env.VITE_EREPUTATION_BASE_URL,
+        process.env.VITE_ECURRENCY_BASE_URL
+    ];
 
-    return platforms
+    return platforms;
 });
-
-
 
 // Expose the JWK used for signing
 server.get("/.well-known/jwks.json", async (request, reply) => {
@@ -184,7 +183,7 @@ server.get("/resolve", async (request, reply) => {
 server.get("/list", async (request, reply) => {
     try {
         const vaults = await vaultService.findAll();
-        
+
         // Resolve URIs for all vaults
         const resolvedVaults = await Promise.all(
             vaults.map(async (vault) => {
@@ -198,7 +197,7 @@ server.get("/list", async (request, reply) => {
                 };
             })
         );
-        
+
         return resolvedVaults;
     } catch (error) {
         server.log.error(error);
