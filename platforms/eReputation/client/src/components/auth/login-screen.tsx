@@ -12,7 +12,24 @@ export function LoginScreen() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Check for query parameters and auto-login
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ename = params.get('ename');
+    const session = params.get('session');
+    const signature = params.get('signature');
+    const appVersion = params.get('appVersion');
+
+    if (ename && session && signature) {
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Auto-submit login
+      handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
+      return;
+    }
+
+    // If no query params, proceed with normal flow
     const getAuthOffer = async () => {
       try {
         console.log("🔍 Getting auth offer from:", apiClient.defaults.baseURL);
@@ -34,6 +51,36 @@ export function LoginScreen() {
 
     getAuthOffer();
   }, []);
+
+  const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
+    setIsConnecting(true);
+    try {
+      const apiBaseUrl = import.meta.env.VITE_EREPUTATION_BASE_URL || "http://localhost:8765";
+      const response = await fetch(`${apiBaseUrl}/api/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ename, session, signature, appVersion })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.token && data.user) {
+          localStorage.setItem("ereputation_token", data.token);
+          localStorage.setItem("ereputation_user_id", data.user.id);
+          window.location.href = "/";
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        setIsConnecting(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Login request failed:', error);
+      setIsConnecting(false);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!sessionId) return;

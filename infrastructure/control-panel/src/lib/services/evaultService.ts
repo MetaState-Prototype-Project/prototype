@@ -79,7 +79,10 @@ export class EVaultService {
 	 */
 	static async getEVaultLogs(evaultId: string, tail?: number): Promise<string[]> {
 		try {
-			const url = new URL(`/api/evaults/${encodeURIComponent(evaultId)}/logs`, window.location.origin);
+			const url = new URL(
+				`/api/evaults/${encodeURIComponent(evaultId)}/logs`,
+				window.location.origin
+			);
 			if (tail) {
 				url.searchParams.set('tail', tail.toString());
 			}
@@ -100,9 +103,7 @@ export class EVaultService {
 	 */
 	static async getEVaultDetails(evaultId: string): Promise<any> {
 		try {
-			const response = await fetch(
-				`/api/evaults/${encodeURIComponent(evaultId)}/details`
-			);
+			const response = await fetch(`/api/evaults/${encodeURIComponent(evaultId)}/details`);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -110,6 +111,44 @@ export class EVaultService {
 			return data.evault || {};
 		} catch (error) {
 			console.error('Failed to fetch eVault details:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get logs for a specific eVault by namespace and podName
+	 */
+	static async getEVaultLogsByPod(namespace: string, podName: string): Promise<string[]> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs`
+			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.logs || [];
+		} catch (error) {
+			console.error('Failed to fetch eVault logs by pod:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get metrics for a specific eVault by namespace and podName
+	 */
+	static async getEVaultMetrics(namespace: string, podName: string): Promise<any> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/metrics`
+			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.metrics || {};
+		} catch (error) {
+			console.error('Failed to fetch eVault metrics:', error);
 			throw error;
 		}
 	}

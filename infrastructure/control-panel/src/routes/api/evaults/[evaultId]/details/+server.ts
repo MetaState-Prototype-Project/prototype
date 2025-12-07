@@ -8,9 +8,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	try {
 		// Get evault information from registry
 		const evaults = await registryService.getEVaults();
-		const evault = evaults.find(
-			(v) => v.evault === evaultId || v.ename === evaultId
-		);
+		const evault = evaults.find((v) => v.evault === evaultId || v.ename === evaultId);
 
 		if (!evault) {
 			return json({ error: `eVault '${evaultId}' not found in registry.` }, { status: 404 });
@@ -42,4 +40,3 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ error: 'Failed to fetch evault details' }, { status: 500 });
 	}
 };
-

@@ -19,7 +19,26 @@ export default function LoginPage() {
         setIsMobile(isMobileDevice());
     }, []);
 
+    // Check for query parameters and auto-login
     useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        const ename = params.get('ename');
+        const session = params.get('session');
+        const signature = params.get('signature');
+        const appVersion = params.get('appVersion');
+
+        if (ename && session && signature) {
+            // Clean up URL
+            window.history.replaceState({}, '', window.location.pathname);
+            
+            // Auto-submit login
+            handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
+            return;
+        }
+
+        // If no query params, proceed with normal flow
         const fetchQRCode = async () => {
             try {
                 const response = await fetch(
@@ -43,6 +62,43 @@ export default function LoginPage() {
 
         fetchQRCode();
     }, []);
+
+    const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
+        setIsLoading(true);
+        try {
+            const baseUrl = process.env.NEXT_PUBLIC_EVOTING_BASE_URL;
+            if (!baseUrl) {
+                console.error('NEXT_PUBLIC_EVOTING_BASE_URL not configured');
+                setIsLoading(false);
+                return;
+            }
+
+            const response = await fetch(`${baseUrl}/api/auth`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ename, session, signature, appVersion })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.token && data.user) {
+                    setAuthToken(data.token);
+                    setAuthId(data.user.id);
+                    window.location.href = "/";
+                }
+            } else {
+                const errorData = await response.json();
+                console.error('Login failed:', errorData);
+                if (errorData.error && errorData.type === 'version_mismatch') {
+                    setErrorMessage(errorData.message || 'Your eID Wallet app version is outdated. Please update to continue.');
+                }
+                setIsLoading(false);
+            }
+        } catch (error) {
+            console.error('Login request failed:', error);
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!sessionId) return;

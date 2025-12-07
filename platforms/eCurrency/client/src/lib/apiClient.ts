@@ -1,12 +1,6 @@
 import axios, { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const baseURL = import.meta.env.VITE_ECURRENCY_API_URL || "http://localhost:8989";
-
-console.log("🔍 Environment variables:", {
-  VITE_ECURRENCY_API_URL: import.meta.env.VITE_ECURRENCY_API_URL,
-  baseURL: baseURL,
-  allEnv: import.meta.env
-});
+const baseURL = import.meta.env.VITE_ECURRENCY_BASE_URL;
 
 export const apiClient = axios.create({
     baseURL,

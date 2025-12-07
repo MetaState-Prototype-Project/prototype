@@ -80,7 +80,8 @@
 
 						// Navigate to monitoring
 						goto('/monitoring');
-					}}>Start Monitoring</ButtonAction
+					}}
+					>Start Monitoring</ButtonAction
 				>
 			</div>
 		{:else}

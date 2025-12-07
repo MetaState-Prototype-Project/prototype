@@ -22,7 +22,7 @@ export const GET: RequestHandler = async () => {
 			registryVaults.map(async (vault) => {
 				// Use evault identifier as the primary ID, fallback to ename
 				const evaultId = vault.evault || vault.ename;
-				
+
 				// Determine display name (prefer ename, fallback to evault)
 				const displayName = vault.ename || vault.evault || 'Unknown';
 

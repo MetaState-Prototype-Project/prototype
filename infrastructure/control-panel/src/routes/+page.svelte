@@ -306,11 +306,11 @@
 						},
 						Uptime: {
 							type: 'text',
-							value: evault.age
+							value: 'N/A'
 						},
 						IP: {
 							type: 'text',
-							value: evault.ip
+							value: 'N/A'
 						},
 						URI: {
 							type: 'link',

@@ -10,9 +10,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 	try {
 		// Get evault information from registry to find ename
 		const evaults = await registryService.getEVaults();
-		const evault = evaults.find(
-			(v) => v.evault === evaultId || v.ename === evaultId
-		);
+		const evault = evaults.find((v) => v.evault === evaultId || v.ename === evaultId);
 
 		if (!evault) {
 			return json(
@@ -25,11 +23,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		}
 
 		// Query Loki for logs using evault identifier
-		const logs = await lokiService.getEVaultLogs(
-			evault.evault || evaultId,
-			evault.ename,
-			tail
-		);
+		const logs = await lokiService.getEVaultLogs(evault.evault || evaultId, evault.ename, tail);
 
 		return json({ logs });
 	} catch (error: any) {
@@ -44,4 +38,3 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		);
 	}
 };
-

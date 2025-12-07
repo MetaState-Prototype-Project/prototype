@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./lib/auth-context";
 import { useAuth } from "./hooks/useAuth";
@@ -6,11 +6,22 @@ import AuthPage from "./pages/auth-page";
 import Dashboard from "./pages/dashboard";
 import Currencies from "./pages/currencies";
 import CurrencyDetail from "./pages/currency-detail";
+import DeeplinkLogin from "./pages/deeplink-login";
 
 const queryClient = new QueryClient();
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  // Allow deeplink-login to be accessible even when not authenticated
+  if (location === "/deeplink-login") {
+    return (
+      <Switch>
+        <Route path="/deeplink-login" component={DeeplinkLogin} />
+      </Switch>
+    );
+  }
 
   // Show auth page if loading or not authenticated
   if (isLoading || !isAuthenticated) {
@@ -19,6 +30,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/deeplink-login" component={DeeplinkLogin} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/currencies" component={Currencies} />
       <Route path="/currency/:currencyId" component={CurrencyDetail} />
