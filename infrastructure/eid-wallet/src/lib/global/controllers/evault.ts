@@ -138,6 +138,14 @@ export class VaultController {
             const isFake = await this.#userController.isFake;
             const context = isFake ? "pre-verification" : "onboarding";
 
+            console.log("=".repeat(70));
+            console.log("🔄 [VaultController] syncPublicKey called");
+            console.log("=".repeat(70));
+            console.log(`eName: ${eName}`);
+            console.log(`Key ID for sync: ${KEY_ID}`);
+            console.log(`Context for sync: ${context}`);
+            console.log(`Is fake/pre-verification: ${isFake}`);
+
             // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
             let publicKey: string | undefined;
             try {
@@ -145,6 +153,8 @@ export class VaultController {
                     KEY_ID,
                     context,
                 );
+                console.log(`Public key retrieved: ${publicKey?.substring(0, 60)}...`);
+                console.log(`Public key (full): ${publicKey}`);
             } catch (error) {
                 console.error(
                     `Failed to get public key for ${KEY_ID} with context ${context}:`,
@@ -159,6 +169,7 @@ export class VaultController {
                 );
                 return;
             }
+            console.log("=".repeat(70));
 
             // Get authentication token from environment variable
             const authToken = PUBLIC_EID_WALLET_TOKEN || null;
