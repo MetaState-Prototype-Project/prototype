@@ -1,13 +1,17 @@
 <script lang="ts">
-	import { SvelteFlow, Background, Controls } from '@xyflow/svelte';
 	import { goto } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
+	import { Background, Controls, SvelteFlow } from '@xyflow/svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import '@xyflow/svelte/dist/style.css';
-	import type { Node, Edge, NodeTypes } from '@xyflow/svelte';
 	import { Logs, VaultNode } from '$lib/fragments';
-	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
 	import type { LogEvent } from '$lib/types';
+	import { Database01FreeIcons, PauseFreeIcons, PlayFreeIcons } from '@hugeicons/core-free-icons';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import type { Edge, Node, NodeTypes } from '@xyflow/svelte';
+	import { EVaultService } from '$lib/services/evaultService';
+	import { registryService } from '$lib/services/registry';
+	import type { EVault } from '../api/evaults/+server';
+	import type { Platform } from '$lib/services/registry';
 
 	let SvelteFlowComponent: typeof import('@xyflow/svelte').SvelteFlow | null = $state(null);
 
@@ -30,19 +34,65 @@
 	let highlightedNodeId = $state<string | null>(null);
 	let sequenceStarted = $state(false);
 
-	onMount(() => {
+	async function convertIDsToObjects() {
 		// Load selected items from sessionStorage
-		const evaultsData = sessionStorage.getItem('selectedEVaults');
-		const platformsData = sessionStorage.getItem('selectedPlatforms');
+		const evaultsData = sessionStorage.getItem('selectedEVaultsData') || sessionStorage.getItem('selectedEVaults');
+		const platformsData = sessionStorage.getItem('selectedPlatformsData') || sessionStorage.getItem('selectedPlatforms');
 
+		// Process eVaults
 		if (evaultsData) {
-			selectedEVaults = JSON.parse(evaultsData);
-			console.log('Loaded selectedEVaults from sessionStorage:', selectedEVaults);
+			const parsed = JSON.parse(evaultsData);
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				if (typeof parsed[0] === 'string') {
+					// It's an array of IDs - need to fetch and convert
+					const evaultIds: string[] = parsed;
+					try {
+						const allEVaults = await EVaultService.getEVaults();
+						selectedEVaults = evaultIds
+							.map((id) => allEVaults.find((e) => (e.evault || e.ename || e.id) === id))
+							.filter((e): e is EVault => e !== undefined);
+						console.log('Converted eVault IDs to objects:', selectedEVaults);
+					} catch (error) {
+						console.error('Error fetching evaults for conversion:', error);
+						selectedEVaults = [];
+					}
+				} else {
+					// It's already an array of objects
+					selectedEVaults = parsed;
+					console.log('Loaded selectedEVaults from sessionStorage:', selectedEVaults);
+				}
+			}
 		}
+
+		// Process Platforms
 		if (platformsData) {
-			selectedPlatforms = JSON.parse(platformsData);
-			console.log('Loaded selectedPlatforms from sessionStorage:', selectedPlatforms);
+			const parsed = JSON.parse(platformsData);
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				if (typeof parsed[0] === 'string') {
+					// It's an array of URLs - need to fetch and convert
+					const platformUrls: string[] = parsed;
+					try {
+						const allPlatforms = await registryService.getPlatforms();
+						selectedPlatforms = platformUrls
+							.map((url) => allPlatforms.find((p) => p.url === url))
+							.filter((p): p is Platform => p !== undefined);
+						console.log('Converted platform URLs to objects:', selectedPlatforms);
+					} catch (error) {
+						console.error('Error fetching platforms for conversion:', error);
+						selectedPlatforms = [];
+					}
+				} else {
+					// It's already an array of objects
+					selectedPlatforms = parsed;
+					console.log('Loaded selectedPlatforms from sessionStorage:', selectedPlatforms);
+				}
+			}
 		}
+	}
+
+	onMount(async () => {
+		// Convert IDs/URLs to full objects if needed
+		await convertIDsToObjects();
 
 		// Check if any items are selected, if not show selection interface
 		if (
@@ -100,8 +150,8 @@
 				id: `evault-${index + 1}`,
 				position: { x: 200, y: 500 + index * 180 },
 				data: {
-					label: evault.evaultId || evault.name || 'eVault',
-					subLabel: evault.serviceUrl || evault.ip || 'Unknown',
+					label: evault.name || evault.ename || evault.evault || evault.id || 'eVault',
+					subLabel: evault.uri || evault.serviceUrl || 'Unknown',
 					type: 'evault',
 					selected: false
 				},
@@ -506,12 +556,47 @@
 		const cleanW3id = w3id.replace('@', '');
 		console.log('Cleaned w3id:', cleanW3id);
 
-		// Since evaultId is the same as w3id (without @), prioritize that match
-		const index = selectedEVaults.findIndex((e) => {
-			const matches = e.evaultId === cleanW3id;
+		// Match against ename (w3id), evault, or id fields
+		// Helper to normalize IDs by removing @ symbol for comparison
+		const normalize = (id: string | undefined) => id?.replace('@', '') || '';
+
+		const index = selectedEVaults.findIndex((e, idx) => {
+			// Check if ename (w3id) matches (with or without @)
+			// The event's w3id should match the eVault's ename
+			const normalizedEname = normalize(e.ename);
+			const enameMatch =
+				e.ename &&
+				(e.ename === w3id || e.ename === cleanW3id || normalizedEname === cleanW3id);
+
+			// Check if evault field matches (normalize both sides)
+			const normalizedEvault = normalize(e.evault);
+			const evaultMatch = e.evault && (e.evault === w3id || normalizedEvault === cleanW3id);
+
+			// Check if id field matches (normalize both sides)
+			const normalizedId = normalize(e.id);
+			const idMatch = e.id && (e.id === w3id || normalizedId === cleanW3id);
+
+			const matches = enameMatch || evaultMatch || idMatch;
 
 			if (matches) {
-				console.log('Found matching eVault by evaultId:', e);
+				console.log(`Found matching eVault at index ${idx}:`, {
+					ename: e.ename,
+					evault: e.evault,
+					id: e.id,
+					matchedBy: enameMatch ? 'ename' : evaultMatch ? 'evault' : 'id'
+				});
+			} else {
+				// Log why it didn't match for debugging
+				console.log(`eVault ${idx} didn't match:`, {
+					eventW3id: w3id,
+					eventCleanW3id: cleanW3id,
+					evaultEname: e.ename,
+					evaultEnameNormalized: normalizedEname,
+					evaultEvault: e.evault,
+					evaultEvaultNormalized: normalizedEvault,
+					evaultId: e.id,
+					evaultIdNormalized: normalizedId
+				});
 			}
 
 			return matches;
@@ -523,12 +608,17 @@
 			selectedEVaultsLength: selectedEVaults.length
 		});
 
-		// If no match found, log all available evaultIds for debugging
+		// If no match found, log all available evault identifiers for debugging
 		if (index === -1) {
 			console.log('No match found for cleaned w3id:', cleanW3id);
-			console.log('Available evaultIds:');
+			console.log('Available evault identifiers:');
 			selectedEVaults.forEach((evault, i) => {
-				console.log(`eVault ${i}: evaultId = "${evault.evaultId}"`);
+				console.log(`eVault ${i}:`, {
+					ename: evault.ename,
+					evault: evault.evault,
+					id: evault.id,
+					name: evault.name
+				});
 			});
 
 			// Return -1 to indicate no match found
