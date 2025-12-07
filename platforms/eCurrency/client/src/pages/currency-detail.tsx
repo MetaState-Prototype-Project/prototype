@@ -1,0 +1,296 @@
+import { useQuery } from "@tanstack/react-query";
+import { useLocation, useRoute } from "wouter";
+import { apiClient } from "../lib/apiClient";
+import { useAuth } from "../hooks/useAuth";
+import TransferModal from "../components/currency/transfer-modal";
+import TransactionDetailModal from "../components/currency/transaction-detail-modal";
+import MintCurrencyModal from "../components/currency/mint-currency-modal";
+import UserMenuDropdown from "../components/user-menu-dropdown";
+import { Send, Wallet, Sparkles, ChevronLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { formatEName } from "../lib/utils";
+import TransactionCard from "../components/currency/transaction-card";
+
+export default function CurrencyDetail() {
+  const [, params] = useRoute("/currency/:currencyId");
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [mintOpen, setMintOpen] = useState(false);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [transactionOffset, setTransactionOffset] = useState(0);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const PAGE_SIZE = 10;
+
+  // Load account context from localStorage
+  const [accountContext, setAccountContext] = useState<{ type: "user" | "group"; id: string } | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("ecurrency_account_context");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+
+  // Set default to user account if no context is set and user is available
+  useEffect(() => {
+    if (user && !accountContext) {
+      const defaultContext = { type: "user" as const, id: user.id };
+      setAccountContext(defaultContext);
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
+    }
+  }, [user, accountContext]);
+
+  // Save account context to localStorage whenever it changes
+  const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
+    // If null is passed, default to user account
+    const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
+    setAccountContext(finalContext);
+    if (finalContext) {
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
+    } else {
+      localStorage.removeItem("ecurrency_account_context");
+    }
+  };
+
+  const currencyId = params?.currencyId;
+
+  const { data: currency } = useQuery({
+    queryKey: ["currency", currencyId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/currencies/${currencyId}`);
+      return response.data;
+    },
+    enabled: !!currencyId,
+  });
+
+  const { data: accountDetails } = useQuery({
+    queryKey: ["accountDetails", currencyId, accountContext],
+    queryFn: async () => {
+      const params = accountContext?.type === "group"
+        ? `?accountType=group&accountId=${accountContext.id}`
+        : "";
+      const response = await apiClient.get(`/api/ledger/account-details/${currencyId}${params}`);
+      return response.data;
+    },
+    enabled: !!currencyId,
+  });
+
+  const { data: balance } = useQuery({
+    queryKey: ["balance", currencyId, accountContext],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("currencyId", currencyId || "");
+      if (accountContext?.type === "group") {
+        params.append("accountType", "group");
+        params.append("accountId", accountContext.id);
+      }
+      const response = await apiClient.get(`/api/ledger/balance?${params.toString()}`);
+      return response.data;
+    },
+    enabled: !!currencyId,
+  });
+
+  const { data: groups } = useQuery({
+    queryKey: ["userGroups"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/groups/my");
+      return response.data;
+    },
+  });
+
+  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+    queryKey: ["history", currencyId, accountContext, transactionOffset],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("currencyId", currencyId || "");
+      params.append("limit", String(PAGE_SIZE));
+      params.append("offset", String(transactionOffset));
+      if (accountContext?.type === "group") {
+        params.append("accountType", "group");
+        params.append("accountId", accountContext.id);
+      }
+      const response = await apiClient.get(`/api/ledger/history?${params.toString()}`);
+      return response.data;
+    },
+    enabled: !!currencyId,
+  });
+
+  // Reset offset and transactions when currency or account context changes
+  useEffect(() => {
+    setTransactionOffset(0);
+    setAllTransactions([]);
+  }, [currencyId, accountContext]);
+
+  // Accumulate transactions when new data arrives
+  useEffect(() => {
+    if (transactions) {
+      if (transactionOffset === 0) {
+        // First page - replace all
+        setAllTransactions(transactions);
+      } else {
+        // Subsequent pages - append
+        setAllTransactions(prev => [...prev, ...transactions]);
+      }
+    }
+  }, [transactions, transactionOffset]);
+
+  const isAdminOfCurrency = currency && groups?.some((g: any) => g.id === currency.groupId && g.isAdmin);
+
+  if (!currencyId) {
+    return <div>Currency not found</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header - Same as dashboard */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex gap-4 justify-center items-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-teal-100 via-cyan-100 to-blue-100 rounded-xl flex items-center justify-center shadow-sm">
+                <Wallet className="h-5 w-5 text-teal-600" />
+              </div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-700 via-cyan-700 to-blue-700 bg-clip-text text-transparent">eCurrency</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <UserMenuDropdown 
+                accountContext={accountContext} 
+                onAccountContextChange={handleAccountContextChange} 
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Back Button */}
+        <button
+          onClick={() => setLocation("/")}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span>Back to Dashboard</span>
+        </button>
+
+        {/* Account Details */}
+        {accountDetails && currency && (
+          <div className="bg-white border rounded-lg p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Your {currency.name} Account details</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Currency eName</h3>
+                <p className="font-mono text-lg">{formatEName(currency.ename)}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Account Balance</h3>
+                <p className="text-2xl font-bold">
+                  {balance?.balance
+                    ? Number(balance.balance).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : "0.00"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Transactions */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Transactions</h2>
+            <div className="flex gap-2">
+              {isAdminOfCurrency && (
+              <button
+                onClick={() => setMintOpen(true)}
+                className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
+              >
+                <Sparkles className="h-4 w-4" />
+                Mint
+              </button>
+              )}
+              <button
+                onClick={() => setTransferOpen(true)}
+                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
+              >
+                <Send className="h-4 w-4" />
+                Make a transfer
+              </button>
+            </div>
+          </div>
+
+          {transactionsLoading && transactionOffset === 0 && allTransactions.length === 0 ? (
+            <div className="bg-white border rounded-lg p-12 text-center">
+              <div className="text-muted-foreground">Loading transactions...</div>
+            </div>
+          ) : allTransactions.length > 0 ? (
+            <>
+              <div className="bg-white border rounded-lg divide-y">
+                {allTransactions.map((transaction: any) => (
+                  <TransactionCard
+                    key={transaction.id}
+                    transaction={transaction}
+                    onClick={() => setSelectedTransactionId(transaction.id)}
+                  />
+                ))}
+              </div>
+              {transactions && transactions.length === PAGE_SIZE && (
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => setTransactionOffset(prev => prev + PAGE_SIZE)}
+                    disabled={transactionsLoading}
+                    className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {transactionsLoading ? "Loading..." : "Load more"}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-white border rounded-lg p-12 text-center">
+              <Wallet className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-50" />
+              <h3 className="text-lg font-medium mb-2">No transactions yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Your transaction history for this currency will appear here.
+              </p>
+              <button
+                onClick={() => setTransferOpen(true)}
+                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 inline-flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                Make your first transfer
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <TransferModal
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        fromCurrencyId={currencyId}
+        accountContext={accountContext}
+      />
+      <TransactionDetailModal
+        open={!!selectedTransactionId}
+        onOpenChange={(open) => !open && setSelectedTransactionId(null)}
+        transactionId={selectedTransactionId || undefined}
+      />
+      {currencyId && (
+        <MintCurrencyModal
+          open={mintOpen}
+          onOpenChange={setMintOpen}
+          currencyId={currencyId}
+        />
+      )}
+    </div>
+  );
+}
+

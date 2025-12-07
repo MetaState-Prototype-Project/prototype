@@ -1,0 +1,18 @@
+{
+    "tableName": "ledger",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440005",
+    "ownerEnamePath": "currency.ename",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "currencyId": "currencyId",
+        "accountId": "accountId",
+        "accountType": "accountType",
+        "amount": "amount",
+        "type": "type",
+        "description": "description",
+        "balance": "balance",
+        "createdAt": "createdAt"
+    },
+    "readOnly": false
+}
+
