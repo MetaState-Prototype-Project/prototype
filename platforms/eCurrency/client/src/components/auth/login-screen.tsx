@@ -24,7 +24,7 @@ export function LoginScreen() {
     if (ename && session && signature) {
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
-      
+
       // Auto-submit login
       handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
       return;
@@ -70,7 +70,7 @@ export function LoginScreen() {
   const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
     setIsConnecting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_ECURRENCY_API_URL || "http://localhost:8989";
+      const apiBaseUrl = import.meta.env.VITE_ECURRENCY_BASE_URL;
       const response = await fetch(`${apiBaseUrl}/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ export function LoginScreen() {
   useEffect(() => {
     if (!sessionId) return;
 
-    const apiBaseUrl = import.meta.env.VITE_ECURRENCY_API_URL || "http://localhost:8989";
+    const apiBaseUrl = import.meta.env.VITE_ECURRENCY_BASE_URL;
     const eventSource = new EventSource(
       `${apiBaseUrl}/api/auth/sessions/${sessionId}`
     );
@@ -163,11 +163,11 @@ export function LoginScreen() {
           Manage your currencies in the MetaState
         </p>
       </div>
-      
+
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
           <p className="text-gray-600">
-            {isMobileDevice() 
+            {isMobileDevice()
               ? "Login using your eID Wallet app"
               : "Scan the QR code using your eID App to login"
             }
