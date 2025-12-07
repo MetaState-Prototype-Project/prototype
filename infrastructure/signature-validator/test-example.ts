@@ -10,9 +10,9 @@ import { verifySignature } from "./src/index";
 // CONFIGURATION - Edit these values to test different signatures
 // ============================================================================
 
-const SIGNATURE = "Aa+ggCam4LJXA5TfXZpiiQcdAwVOln6JY8IUBVBPJNkRLLHIejIzb4vO58xl0k26o/LlKOVRP/Aw6qXncPEmpg=="
+const SIGNATURE = "WS/lLXhE6P++PPgyud1rEkKBUNgaKyvxunDadKltFq+beBJXcowf+0aneGyRB3hK+Cu6SRNL7e8QYjdpOZNvcQ=="
 const ENAME = "@d12057f3-7447-5c87-b12b-32f59ea15294";
-const PAYLOAD = "b156890e-0dbf-416f-bc25-eae93929cbf8"; // Replace with the actual payload that was signed
+const PAYLOAD = "03edefec-92ab-4ebd-a758-3bf60547c07e"; // Replace with the actual payload that was signed
 
 // Registry URL - defaults to staging
 const REGISTRY_BASE_URL = process.env.REGISTRY_BASE_URL || "http://localhost:4321";
@@ -31,16 +31,27 @@ async function testSignature() {
   console.log("");
 
   try {
-    console.log("Fetching public key from eVault...");
-    console.log("Verifying signature...");
-    console.log("");
-
+    console.log("Step 1: Fetching public key from eVault...");
     const result = await verifySignature({
       eName: ENAME,
       signature: SIGNATURE,
       payload: PAYLOAD,
       registryBaseUrl: REGISTRY_BASE_URL,
     });
+    
+    console.log("");
+    console.log("=".repeat(70));
+    console.log("DEBUG INFO");
+    console.log("=".repeat(70));
+    console.log(`Payload length: ${PAYLOAD.length} bytes`);
+    console.log(`Payload (hex): ${Buffer.from(PAYLOAD, 'utf8').toString('hex')}`);
+    console.log(`Signature length: ${SIGNATURE.length} chars`);
+    console.log(`Signature (first 20 chars): ${SIGNATURE.substring(0, 20)}...`);
+    if (result.publicKey) {
+      console.log(`Public key retrieved: ${result.publicKey.substring(0, 50)}...`);
+    }
+    console.log("=".repeat(70));
+    console.log("");
 
     if (result.valid) {
       console.log("✅ SUCCESS: Signature is VALID");
@@ -56,8 +67,19 @@ async function testSignature() {
         console.log(`Error: ${result.error}`);
       }
       console.log("");
-      console.log("Note: Make sure the payload matches exactly what was signed.");
-      console.log("      Edit the PAYLOAD variable at the top of the script to test different payloads.");
+      console.log("=".repeat(70));
+      console.log("TROUBLESHOOTING");
+      console.log("=".repeat(70));
+      console.log("Possible issues:");
+      console.log("1. Public key from eVault doesn't match the key used to sign");
+      console.log("2. Payload encoding mismatch (check for whitespace, case, etc.)");
+      console.log("3. Signature was created with a different key than stored in eVault");
+      console.log("");
+      console.log("To debug:");
+      console.log("- Verify the public key in eVault matches the signing key");
+      console.log("- Check if payload has any hidden characters or encoding differences");
+      console.log("- Ensure the signature was created with the same key stored in eVault");
+      console.log("=".repeat(70));
       process.exit(1);
     }
   } catch (error) {
