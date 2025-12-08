@@ -42,6 +42,3 @@ echo "PUBLIC_EID_WALLET_TOKEN=\"$TOKEN\""
 echo ""
 echo "Or use it directly:"
 echo "$TOKEN"
-
-
-

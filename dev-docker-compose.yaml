@@ -157,7 +157,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_MULTIPLE_DATABASES=registry,pictique,evoting,dreamsync,cerberus,group_charter_manager,blabsy_auth,ereputation,marketplace
+      - POSTGRES_MULTIPLE_DATABASES=registry,pictique,evoting,dreamsync,cerberus,group_charter_manager,blabsy_auth,ereputation,marketplace,emover
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
