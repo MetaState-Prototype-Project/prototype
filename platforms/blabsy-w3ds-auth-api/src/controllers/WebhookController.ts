@@ -161,6 +161,27 @@ export class WebhookController {
             // Check for existing DM (2 participants, no name) before creating
             const participants = mappedData.participants || [];
             const isDM = participants.length === 2 && !mappedData.name;
+            const chatName = mappedData.name;
+            
+            // For eCurrency Chat groups, check by name first
+            if (chatName && (chatName.startsWith("eCurrency Chat") || chatName.includes("eCurrency Chat"))) {
+                const existingChatsQuery = collection.where('name', '==', chatName);
+                const existingChatsSnapshot = await existingChatsQuery.get();
+                
+                if (!existingChatsSnapshot.empty) {
+                    // Use existing chat and store mapping
+                    const existingDoc = existingChatsSnapshot.docs[0];
+                    console.log(`⚠️ eCurrency Chat with name "${chatName}" already exists, using existing: ${existingDoc.id}`);
+                    docRef = collection.doc(existingDoc.id);
+                    adapter.addToLockedIds(docRef.id);
+                    adapter.addToLockedIds(globalId);
+                    await adapter.mappingDb.storeMapping({
+                        globalId: globalId,
+                        localId: docRef.id,
+                    });
+                    return; // Exit early, don't create new chat
+                }
+            }
             
             if (isDM) {
                 // Query for existing chats with these participants
