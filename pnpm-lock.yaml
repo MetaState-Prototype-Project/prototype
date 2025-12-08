@@ -1159,8 +1159,8 @@ importers:
         specifier: ^0.2.7
         version: 0.2.8
       '@replit/vite-plugin-runtime-error-modal':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.19(tailwindcss@3.4.18(tsx@4.20.6)(yaml@2.8.1))
@@ -1644,8 +1644,8 @@ importers:
         specifier: ^0.2.7
         version: 0.2.8
       '@replit/vite-plugin-runtime-error-modal':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.19(tailwindcss@3.4.18(tsx@4.20.6)(yaml@2.8.1))
@@ -2445,8 +2445,8 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8
       '@replit/vite-plugin-runtime-error-modal':
-        specifier: ^0.0.3
-        version: 0.0.3
+        specifier: ^0.0.4
+        version: 0.0.4
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.19(tailwindcss@3.4.18(tsx@4.20.6)(yaml@2.8.1))
@@ -5853,8 +5853,8 @@ packages:
   '@replit/vite-plugin-cartographer@0.2.8':
     resolution: {integrity: sha512-eNr3OAhJFv5b6tbDZ0Bc7DR4O0jxBN17LtBhHagf6FWdpOStNw8Pxsnd8pood7veHRDFbMB9+nsKsWKcB/j1xw==}
 
-  '@replit/vite-plugin-runtime-error-modal@0.0.3':
-    resolution: {integrity: sha512-4wZHGuI9W4o9p8g4Ma/qj++7SP015+FMDGYobj7iap5oEsxXMm0B02TO5Y5PW8eqBPd4wX5l3UGco/hlC0qapw==}
+  '@replit/vite-plugin-runtime-error-modal@0.0.4':
+    resolution: {integrity: sha512-Xqf8M7GOfU7qhq2QMiWUkOb47Vq5rxTz1ZX8yUUqRAYJg80jHa8vidXQ3eKsGNXSDs4Y2cQKTV0IqTekN2Yqgw==}
 
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -18395,7 +18395,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@replit/vite-plugin-runtime-error-modal@0.0.3':
+  '@replit/vite-plugin-runtime-error-modal@0.0.4':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
 

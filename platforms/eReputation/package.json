@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.2.7",
-    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
+    "@replit/vite-plugin-runtime-error-modal": "^0.0.4",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
     "@types/node": "^20.16.11",
