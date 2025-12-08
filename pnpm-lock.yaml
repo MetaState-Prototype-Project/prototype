@@ -144,7 +144,7 @@ importers:
         version: 9.1.16(eslint@9.39.1(jiti@2.6.1))(storybook@9.1.16(@testing-library/dom@10.4.1)(bufferutil@4.0.9)(prettier@3.6.2)(vite@7.2.2(@types/node@22.19.1)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.94.1)(tsx@4.20.6)(yaml@2.8.1)))(typescript@5.8.2)
       eslint-plugin-svelte:
         specifier: ^3.0.0
-        version: 3.13.0(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.8.2))
+        version: 3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.8.2))
       globals:
         specifier: ^16.0.0
         version: 16.5.0
@@ -2707,7 +2707,7 @@ importers:
         version: 10.1.8(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-svelte:
         specifier: ^3.0.0
-        version: 3.13.0(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@24.10.1)(typescript@5.8.2))
+        version: 3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@24.10.1)(typescript@5.8.2))
       globals:
         specifier: ^16.0.0
         version: 16.5.0
@@ -4921,14 +4921,8 @@ packages:
   '@milkdown/plugin-upload@7.17.3':
     resolution: {integrity: sha512-NrnrSPYqA3pxbuUT6wGJthtOyRunQFCWT+VEAPUM99qJPp/4f4+WTDDslrZfAzUps2OykPIbCXYPu+hLN2c6mQ==}
 
-  '@milkdown/preset-commonmark@7.17.2':
-    resolution: {integrity: sha512-0CE6wfmuvJRN+Y+vszHRwDmkEGcxugiCa2VZ5ZFJtk0eakiwVxQx04KVnbaAQJQ44NIZLyrBD7oL9gTG2HxN8g==}
-
   '@milkdown/preset-commonmark@7.17.3':
     resolution: {integrity: sha512-f875wPTwg5kxKYuDWs0S9AFVcaY0PjQ1YpO0NsAdVgDANwurUpqUY9/KoRKJGAFDRiE59Yq5YD9Lx5vnQ07OuQ==}
-
-  '@milkdown/preset-gfm@7.17.2':
-    resolution: {integrity: sha512-g0p9EFeV//2fAYpdXVEZH+KOhs9T89rOmMBXRucJSB2RS6czrnIzuUCJoKNoQ/WjFRjEh6BOYFI/ZcbeJQ5TEA==}
 
   '@milkdown/preset-gfm@7.17.3':
     resolution: {integrity: sha512-IY+Hyhe6cCUF2Fi+KNfzbFdTaepKCkYNbbv65Dze7Dkb0VgoPfyiRdzznKiX7luXJnZv8Y+QHr+8KXirxzKVfg==}
@@ -4953,9 +4947,6 @@ packages:
 
   '@milkdown/transformer@7.17.3':
     resolution: {integrity: sha512-XIeMV/X6R9YhaYSTytZGOwVMsVCXBgXVaP9OpABMceXR9hYfbrZZlurXirTMJYayYZ3IVZZJHQ56/wQ4URD2pg==}
-
-  '@milkdown/utils@7.17.2':
-    resolution: {integrity: sha512-DmPYFbcFKN8VnahtBQ96DH2ohGX46D5D2UB4PYeNHuZj6mO1rC1AeZP+e7pLFvCq4cV6BiKmIxKy1+WHej9MKA==}
 
   '@milkdown/utils@7.17.3':
     resolution: {integrity: sha512-8JWqfhdupzoZMv7btqYAAXRyqhaOGffh2zpSoD+t9enL0MFvIHsenWS8W8h7XRTL6E6+N6kFZ1qyBHMg6E5Idg==}
@@ -9452,8 +9443,8 @@ packages:
       eslint: '>=8'
       storybook: ^9.1.16
 
-  eslint-plugin-svelte@3.13.0:
-    resolution: {integrity: sha512-2ohCCQJJTNbIpQCSDSTWj+FN0OVfPmSO03lmSNT7ytqMaWF6kpT86LdzDqtm4sh7TVPl/OEWJ/d7R87bXP2Vjg==}
+  eslint-plugin-svelte@3.13.1:
+    resolution: {integrity: sha512-Ng+kV/qGS8P/isbNYVE3sJORtubB+yLEcYICMkUWNaDTb0SwZni/JhAYXh/Dz/q2eThUwWY0VMPZ//KYD1n3eQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: ^8.57.1 || ^9.0.0
@@ -12278,8 +12269,8 @@ packages:
     resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
     engines: {node: '>=4'}
 
-  postcss-selector-parser@7.1.0:
-    resolution: {integrity: sha512-8sLjZwK0R+JlxlYcTuVnyT2v+htpdrjDOKuMcOVdYjt52Lh8hWRYpxBPoKx/Zg+bcjc3wx6fmQevMmUztS/ccA==}
+  postcss-selector-parser@7.1.1:
+    resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
     engines: {node: '>=4'}
 
   postcss-value-parser@4.2.0:
@@ -13525,9 +13516,9 @@ packages:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
 
-  svelte-eslint-parser@1.4.0:
-    resolution: {integrity: sha512-fjPzOfipR5S7gQ/JvI9r2H8y9gMGXO3JtmrylHLLyahEMquXI0lrebcjT+9/hNgDej0H7abTyox5HpHmW1PSWA==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0, pnpm: 10.18.3}
+  svelte-eslint-parser@1.4.1:
+    resolution: {integrity: sha512-1eqkfQ93goAhjAXxZiu1SaKI9+0/sxp4JIWQwUpsz7ybehRE5L8dNuz7Iry7K22R47p5/+s9EM+38nHV2OlgXA==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0, pnpm: 10.24.0}
     peerDependencies:
       svelte: ^3.37.0 || ^4.0.0 || ^5.0.0
     peerDependenciesMeta:
@@ -17402,20 +17393,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milkdown/preset-commonmark@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      '@milkdown/utils': 7.17.2
-      remark-inline-links: 7.0.0
-      unist-util-visit: 5.0.0
-      unist-util-visit-parents: 6.0.2
-    transitivePeerDependencies:
-      - supports-color
-
   '@milkdown/preset-commonmark@7.17.3':
     dependencies:
       '@milkdown/core': 7.17.3
@@ -17427,20 +17404,6 @@ snapshots:
       remark-inline-links: 7.0.0
       unist-util-visit: 5.0.0
       unist-util-visit-parents: 6.0.2
-    transitivePeerDependencies:
-      - supports-color
-
-  '@milkdown/preset-gfm@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/preset-commonmark': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      '@milkdown/utils': 7.17.2
-      prosemirror-safari-ime-span: 1.0.2
-      remark-gfm: 4.0.1
     transitivePeerDependencies:
       - supports-color
 
@@ -17532,17 +17495,6 @@ snapshots:
       '@milkdown/prose': 7.17.3
       remark: 15.0.1
       unified: 11.0.5
-    transitivePeerDependencies:
-      - supports-color
-
-  '@milkdown/utils@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      nanoid: 5.1.6
     transitivePeerDependencies:
       - supports-color
 
@@ -23116,7 +23068,7 @@ snapshots:
       - supports-color
       - typescript
 
-  eslint-plugin-svelte@3.13.0(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.8.2)):
+  eslint-plugin-svelte@3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.8.2)):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.0(eslint@9.39.1(jiti@2.6.1))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -23128,13 +23080,13 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)(ts-node@10.9.2(@types/node@22.19.1)(typescript@5.8.2))
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.3
-      svelte-eslint-parser: 1.4.0(svelte@5.43.12)
+      svelte-eslint-parser: 1.4.1(svelte@5.43.12)
     optionalDependencies:
       svelte: 5.43.12
     transitivePeerDependencies:
       - ts-node
 
-  eslint-plugin-svelte@3.13.0(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@24.10.1)(typescript@5.8.2)):
+  eslint-plugin-svelte@3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.43.12)(ts-node@10.9.2(@types/node@24.10.1)(typescript@5.8.2)):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.0(eslint@9.39.1(jiti@2.6.1))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -23146,7 +23098,7 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)(ts-node@10.9.2(@types/node@24.10.1)(typescript@5.8.2))
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.3
-      svelte-eslint-parser: 1.4.0(svelte@5.43.12)
+      svelte-eslint-parser: 1.4.1(svelte@5.43.12)
     optionalDependencies:
       svelte: 5.43.12
     transitivePeerDependencies:
@@ -27149,7 +27101,7 @@ snapshots:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
 
-  postcss-selector-parser@7.1.0:
+  postcss-selector-parser@7.1.1:
     dependencies:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
@@ -28704,14 +28656,14 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-eslint-parser@1.4.0(svelte@5.43.12):
+  svelte-eslint-parser@1.4.1(svelte@5.43.12):
     dependencies:
       eslint-scope: 8.4.0
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
       postcss: 8.5.6
       postcss-scss: 4.0.9(postcss@8.5.6)
-      postcss-selector-parser: 7.1.0
+      postcss-selector-parser: 7.1.1
     optionalDependencies:
       svelte: 5.43.12
 
