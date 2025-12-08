@@ -13,6 +13,7 @@ import { CurrencyController } from "./controllers/CurrencyController";
 import { LedgerController } from "./controllers/LedgerController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
+import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -24,6 +25,23 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
+        
+        // Initialize platform eVault for eCurrency
+        try {
+            const platformService = PlatformEVaultService.getInstance();
+            const exists = await platformService.checkPlatformEVaultExists();
+            
+            if (!exists) {
+                console.log("🔧 Creating platform eVault for eCurrency...");
+                const result = await platformService.createPlatformEVault();
+                console.log(`✅ Platform eVault created successfully: ${result.w3id}`);
+            } else {
+                console.log("✅ Platform eVault already exists for eCurrency");
+            }
+        } catch (error) {
+            console.error("❌ Failed to initialize platform eVault:", error);
+            // Don't exit the process, just log the error
+        }
     })
     .catch((error: unknown) => {
         console.error("Error during initialization:", error);

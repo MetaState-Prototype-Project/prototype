@@ -1410,6 +1410,9 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.21.2
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
@@ -4921,14 +4924,8 @@ packages:
   '@milkdown/plugin-upload@7.17.3':
     resolution: {integrity: sha512-NrnrSPYqA3pxbuUT6wGJthtOyRunQFCWT+VEAPUM99qJPp/4f4+WTDDslrZfAzUps2OykPIbCXYPu+hLN2c6mQ==}
 
-  '@milkdown/preset-commonmark@7.17.2':
-    resolution: {integrity: sha512-0CE6wfmuvJRN+Y+vszHRwDmkEGcxugiCa2VZ5ZFJtk0eakiwVxQx04KVnbaAQJQ44NIZLyrBD7oL9gTG2HxN8g==}
-
   '@milkdown/preset-commonmark@7.17.3':
     resolution: {integrity: sha512-f875wPTwg5kxKYuDWs0S9AFVcaY0PjQ1YpO0NsAdVgDANwurUpqUY9/KoRKJGAFDRiE59Yq5YD9Lx5vnQ07OuQ==}
-
-  '@milkdown/preset-gfm@7.17.2':
-    resolution: {integrity: sha512-g0p9EFeV//2fAYpdXVEZH+KOhs9T89rOmMBXRucJSB2RS6czrnIzuUCJoKNoQ/WjFRjEh6BOYFI/ZcbeJQ5TEA==}
 
   '@milkdown/preset-gfm@7.17.3':
     resolution: {integrity: sha512-IY+Hyhe6cCUF2Fi+KNfzbFdTaepKCkYNbbv65Dze7Dkb0VgoPfyiRdzznKiX7luXJnZv8Y+QHr+8KXirxzKVfg==}
@@ -4953,9 +4950,6 @@ packages:
 
   '@milkdown/transformer@7.17.3':
     resolution: {integrity: sha512-XIeMV/X6R9YhaYSTytZGOwVMsVCXBgXVaP9OpABMceXR9hYfbrZZlurXirTMJYayYZ3IVZZJHQ56/wQ4URD2pg==}
-
-  '@milkdown/utils@7.17.2':
-    resolution: {integrity: sha512-DmPYFbcFKN8VnahtBQ96DH2ohGX46D5D2UB4PYeNHuZj6mO1rC1AeZP+e7pLFvCq4cV6BiKmIxKy1+WHej9MKA==}
 
   '@milkdown/utils@7.17.3':
     resolution: {integrity: sha512-8JWqfhdupzoZMv7btqYAAXRyqhaOGffh2zpSoD+t9enL0MFvIHsenWS8W8h7XRTL6E6+N6kFZ1qyBHMg6E5Idg==}
@@ -17402,20 +17396,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milkdown/preset-commonmark@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      '@milkdown/utils': 7.17.2
-      remark-inline-links: 7.0.0
-      unist-util-visit: 5.0.0
-      unist-util-visit-parents: 6.0.2
-    transitivePeerDependencies:
-      - supports-color
-
   '@milkdown/preset-commonmark@7.17.3':
     dependencies:
       '@milkdown/core': 7.17.3
@@ -17427,20 +17407,6 @@ snapshots:
       remark-inline-links: 7.0.0
       unist-util-visit: 5.0.0
       unist-util-visit-parents: 6.0.2
-    transitivePeerDependencies:
-      - supports-color
-
-  '@milkdown/preset-gfm@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/preset-commonmark': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      '@milkdown/utils': 7.17.2
-      prosemirror-safari-ime-span: 1.0.2
-      remark-gfm: 4.0.1
     transitivePeerDependencies:
       - supports-color
 
@@ -17532,17 +17498,6 @@ snapshots:
       '@milkdown/prose': 7.17.3
       remark: 15.0.1
       unified: 11.0.5
-    transitivePeerDependencies:
-      - supports-color
-
-  '@milkdown/utils@7.17.2':
-    dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      nanoid: 5.1.6
     transitivePeerDependencies:
       - supports-color
 
