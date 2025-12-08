@@ -75,16 +75,18 @@ export class EVaultService {
 	}
 
 	/**
-	 * Get logs for a specific eVault pod
+	 * Get logs for a specific eVault by evaultId
 	 */
-	/**
-	 * Get logs for a specific eVault pod
-	 */
-	static async getEVaultLogs(namespace: string, podName: string): Promise<string[]> {
+	static async getEVaultLogs(evaultId: string, tail?: number): Promise<string[]> {
 		try {
-			const response = await fetch(
-				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs`
+			const url = new URL(
+				`/api/evaults/${encodeURIComponent(evaultId)}/logs`,
+				window.location.origin
 			);
+			if (tail) {
+				url.searchParams.set('tail', tail.toString());
+			}
+			const response = await fetch(url.toString());
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
@@ -97,7 +99,43 @@ export class EVaultService {
 	}
 
 	/**
-	 * Get metrics for a specific eVault pod
+	 * Get details for a specific eVault by evaultId
+	 */
+	static async getEVaultDetails(evaultId: string): Promise<any> {
+		try {
+			const response = await fetch(`/api/evaults/${encodeURIComponent(evaultId)}/details`);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.evault || {};
+		} catch (error) {
+			console.error('Failed to fetch eVault details:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get logs for a specific eVault by namespace and podName
+	 */
+	static async getEVaultLogsByPod(namespace: string, podName: string): Promise<string[]> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(namespace)}/${encodeURIComponent(podName)}/logs`
+			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.logs || [];
+		} catch (error) {
+			console.error('Failed to fetch eVault logs by pod:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get metrics for a specific eVault by namespace and podName
 	 */
 	static async getEVaultMetrics(namespace: string, podName: string): Promise<any> {
 		try {

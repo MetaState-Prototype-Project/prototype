@@ -64,11 +64,42 @@ export class HardwareKeyManager implements KeyManager {
 
     async signPayload(keyId: string, payload: string): Promise<string> {
         try {
+            console.log("=".repeat(70));
+            console.log("🔐 [HardwareKeyManager] signPayload called");
+            console.log("=".repeat(70));
+            console.log(`Key ID: ${keyId}`);
+            console.log(`Payload: "${payload}"`);
+            console.log(`Payload length: ${payload.length} bytes`);
+            const payloadHex = Array.from(new TextEncoder().encode(payload))
+                .map((b) => b.toString(16).padStart(2, "0"))
+                .join("");
+            console.log(`Payload (hex): ${payloadHex}`);
+
+            // Get and log the public key
+            try {
+                const publicKey = await this.getPublicKey(keyId);
+                if (publicKey) {
+                    console.log(`Public key: ${publicKey.substring(0, 60)}...`);
+                    console.log(`Public key (full): ${publicKey}`);
+                } else {
+                    console.log("⚠️  Public key not available");
+                }
+            } catch (error) {
+                console.log(
+                    `⚠️  Failed to get public key: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            }
+
+            console.log("Signing with hardware key...");
             const signature = await hwSignPayload(keyId, payload);
-            console.log(`Hardware signature created for ${keyId}`);
+            console.log(`✅ Hardware signature created for ${keyId}`);
+            console.log(`Signature: ${signature.substring(0, 50)}...`);
+            console.log(`Signature (full): ${signature}`);
+            console.log(`Signature length: ${signature.length} chars`);
+            console.log("=".repeat(70));
             return signature;
         } catch (error) {
-            console.error("Hardware signing failed:", error);
+            console.error("❌ Hardware signing failed:", error);
             throw new KeyManagerError(
                 "Failed to sign payload with hardware key",
                 KeyManagerErrorCodes.SIGNING_FAILED,

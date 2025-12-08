@@ -9,6 +9,7 @@ import { Heart } from "lucide-react";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import WishlistEditor from "@/pages/wishlist-editor";
+import DeeplinkLogin from "@/pages/deeplink-login";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,6 +29,7 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/deeplink-login" component={DeeplinkLogin} />
       {!isAuthenticated ? (
         <Route path="/" component={Login} />
       ) : (

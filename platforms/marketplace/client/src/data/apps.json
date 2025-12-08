@@ -47,5 +47,21 @@
     "category": "Wellness",
     "logoUrl": null,
     "url": "https://dreamsync.w3ds.metastate.foundation"
+  },
+  {
+    "id": "ecurrency",
+    "name": "eCurrency",
+    "description": "Multi-currency management platform for creating, managing, and transferring digital currencies on the W3DS ecosystem.",
+    "category": "Finance",
+    "logoUrl": "/ecurrency.png",
+    "url": "https://ecurrency.w3ds.metastate.foundation"
+  },
+  {
+    "id": "ereputation",
+    "name": "eReputation",
+    "description": "Calculate and manage your social reputation throughout the W3DS ecosystem with verifiable references and transparent scoring.",
+    "category": "Social",
+    "logoUrl": "/ereputation.png",
+    "url": "https://ereputation.w3ds.metastate.foundation"
   }
 ]

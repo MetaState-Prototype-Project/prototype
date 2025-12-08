@@ -7,6 +7,7 @@ import {
     requestPermissions,
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import axios from "axios";
 import { type Writable, get, writable } from "svelte/store";
 
@@ -238,9 +239,25 @@ export function createScanLogic({
         authLoading.set(true);
 
         try {
+            const KEY_ID = "default";
+            const isFake = await globalState.userController.isFake;
+            const signingContext = isFake ? "pre-verification" : "onboarding";
+
+            console.log("=".repeat(70));
+            console.log(
+                "🔐 [scanLogic] handleAuth - Preparing to sign payload",
+            );
+            console.log("=".repeat(70));
+            console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
+            console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
+            console.log(
+                "⚠️  This ensures we use the SAME key that was synced to eVault",
+            );
+            console.log("=".repeat(70));
+
             const { created } = await globalState.keyService.ensureKey(
-                vault.ename,
-                "signing",
+                KEY_ID,
+                signingContext,
             );
             console.log(
                 "Key generation result for signing:",
@@ -252,24 +269,13 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            const sessionPayload = JSON.stringify({
-                session: get(session),
-                ename: vault.ename,
-                timestamp: Date.now(),
-            });
+            const sessionPayload = get(session) as string;
 
             const signature = await globalState.keyService.signPayload(
-                vault.ename,
-                "signing",
+                KEY_ID,
+                signingContext,
                 sessionPayload,
             );
-
-            const authPayload = {
-                ename: vault.ename,
-                session: get(session),
-                signature: signature,
-                appVersion: "0.4.0",
-            };
 
             const redirectUrl = get(redirect);
             if (!redirectUrl) {
@@ -278,7 +284,17 @@ export function createScanLogic({
                 );
             }
 
-            await axios.post(redirectUrl, authPayload);
+            // Strip path from redirectUri and append /deeplink-login
+            const loginUrl = new URL("/deeplink-login", redirectUrl);
+            loginUrl.searchParams.set("ename", vault.ename);
+            loginUrl.searchParams.set("session", get(session) as string);
+            loginUrl.searchParams.set("signature", signature);
+            loginUrl.searchParams.set("appVersion", "0.4.0");
+
+            console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
+
+            // Open URL in browser using tauri opener
+            await openUrl(loginUrl.toString());
 
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
@@ -458,15 +474,6 @@ export function createScanLogic({
                 }
 
                 signingData.set(decodedData);
-                console.log("🔍 DEBUG: Decoded signing data:", decodedData);
-                console.log(
-                    "🔍 DEBUG: Data keys:",
-                    Object.keys(decodedData || {}),
-                );
-                console.log(
-                    "🔍 DEBUG: Is poll request?",
-                    !!(decodedData?.pollId && decodedData?.voteData),
-                );
 
                 isSigningRequest.set(true);
                 signingDrawerOpen.set(true);
@@ -569,9 +576,26 @@ export function createScanLogic({
                 throw new Error("No vault available for signing");
             }
 
+            // ⚠️ CRITICAL: Use the SAME keyId and context that was synced to eVault!
+            // The key synced to eVault uses keyId="default" with context="onboarding" or "pre-verification"
+            // NOT vault.ename with context="signing"!
+            const KEY_ID = "default";
+            const isFake = await globalState.userController.isFake;
+            const signingContext = isFake ? "pre-verification" : "onboarding";
+
+            console.log("=".repeat(70));
+            console.log("🔐 [scanLogic] Preparing to sign payload");
+            console.log("=".repeat(70));
+            console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
+            console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
+            console.log(
+                "⚠️  This ensures we use the SAME key that was synced to eVault",
+            );
+            console.log("=".repeat(70));
+
             const { created } = await globalState.keyService.ensureKey(
-                vault.ename,
-                "signing",
+                KEY_ID,
+                signingContext,
             );
             console.log(
                 "Key generation result for signing:",
@@ -583,33 +607,16 @@ export function createScanLogic({
                 throw new Error("Failed to get W3ID");
             }
 
-            let messageToSign: string;
-
-            if (currentSigningData.pollId && currentSigningData.voteData) {
-                messageToSign = JSON.stringify({
-                    pollId: currentSigningData.pollId,
-                    voteData: currentSigningData.voteData,
-                    userId: currentSigningData.userId,
-                    sessionId: currentSigningSessionId,
-                    timestamp: Date.now(),
-                });
-            } else {
-                messageToSign = JSON.stringify({
-                    message: currentSigningData.message,
-                    sessionId: currentSigningData.sessionId,
-                    timestamp: Date.now(),
-                });
-            }
+            const messageToSign = currentSigningSessionId;
 
             console.log(
                 "🔐 Starting cryptographic signing process with KeyManager...",
             );
-            console.log("✍️ Signing message:", messageToSign);
 
             const signature = await globalState.keyService.signPayload(
-                vault.ename,
-                "signing",
-                messageToSign,
+                KEY_ID,
+                signingContext,
+                currentSigningSessionId,
             );
             console.log("✅ Message signed successfully");
 

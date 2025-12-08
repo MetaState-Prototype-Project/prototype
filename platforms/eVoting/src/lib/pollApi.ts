@@ -121,6 +121,8 @@ export interface PollResults {
   results: PollResultOption[];
   irvDetails?: IRVDetails;
   voterDetails?: VoterDetail[];
+  pointsVoted?: number;
+  totalEligiblePoints?: number;
 }
 
 export interface BlindVoteOptionResult {

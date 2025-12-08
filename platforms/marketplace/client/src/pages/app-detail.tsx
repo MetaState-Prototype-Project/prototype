@@ -30,6 +30,14 @@ const appDetails: Record<string, { fullDescription: string; screenshots: string[
   "dreamsync": {
     fullDescription: "DreamSync helps you discover meaningful connections based on shared interests, values, and aspirations. Navigate the W3DS ecosystem to find individuals who resonate with your vision and collaborate on projects that matter.\n\nConnect, collaborate, and create together in the decentralized future.",
     screenshots: []
+  },
+  "ecurrency": {
+    fullDescription: "eCurrency is a comprehensive multi-currency management platform built on the Web 3.0 Data Space (W3DS) architecture. Create your own digital currencies, manage multiple currency accounts, and execute secure transfers across the MetaState ecosystem.\n\nDesigned around the principle of data-platform separation, all your financial data is stored in your own sovereign eVault, ensuring complete control and privacy. Experience decentralized finance with full transparency and cryptographic security.",
+    screenshots: []
+  },
+  "ereputation": {
+    fullDescription: "eReputation is a social reputation platform built on the Web 3.0 Data Space (W3DS) architecture. Calculate, manage, and share your reputation across the MetaState ecosystem through verifiable references and transparent scoring mechanisms.\n\nBuilt around the principle of data-platform separation, all your reputation data is stored in your own sovereign eVault. Create references, calculate reputation scores, and build trust in the decentralized future with complete transparency and user control.",
+    screenshots: []
   }
 };
 

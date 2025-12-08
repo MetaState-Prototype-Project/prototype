@@ -1,13 +1,13 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { TableCard, TableCardHeader } from '$lib/fragments';
-	import { Table } from '$lib/ui';
 	import { EVaultService } from '$lib/services/evaultService';
 	import { registryService } from '$lib/services/registry';
-	import type { EVault } from './api/evaults/+server';
 	import type { Platform } from '$lib/services/registry';
-	import { onMount } from 'svelte';
+	import { Table } from '$lib/ui';
 	import { RefreshCw } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import type { EVault } from './api/evaults/+server';
 
 	let evaultsSearchValue = $state('');
 	let platformsSearchQuery = $state('');
@@ -34,9 +34,10 @@
 		if (!evaultsSearchValue.trim()) return evaults;
 		return evaults.filter(
 			(evault) =>
-				evault.name.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
-				evault.evaultId.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
-				evault.namespace.toLowerCase().includes(evaultsSearchValue.toLowerCase())
+				evault.name?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.ename?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.evault?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.id?.toLowerCase().includes(evaultsSearchValue.toLowerCase())
 		);
 	});
 
@@ -70,23 +71,19 @@
 	let mappedEVaultsData = $derived(() => {
 		const paginated = paginatedEVaults();
 		return paginated.map((evault) => ({
-			eName: {
+			eVault: {
 				type: 'text',
-				value: evault.evaultId,
+				value: evault.evault || evault.id || 'N/A',
 				className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
 			},
-			Uptime: {
+			eName: {
 				type: 'text',
-				value: evault.age
-			},
-			IP: {
-				type: 'text',
-				value: evault.ip
+				value: evault.ename || 'N/A'
 			},
 			URI: {
 				type: 'link',
-				value: evault.serviceUrl || 'N/A',
-				link: evault.serviceUrl || '#',
+				value: evault.uri || evault.serviceUrl || 'N/A',
+				link: evault.uri || evault.serviceUrl || '#',
 				external: true
 			}
 		}));
@@ -116,6 +113,22 @@
 		}));
 	});
 
+	// Derived values for selected indices to ensure reactivity
+	const selectedEVaultIndices = $derived(
+		paginatedEVaults()
+			.map((evault, index) => {
+				const evaultId = evault.evault || evault.ename || evault.id;
+				return selectedEVaults.includes(evaultId) ? index : -1;
+			})
+			.filter((index) => index !== -1)
+	);
+
+	const selectedPlatformIndices = $derived(
+		filteredPlatforms()
+			.map((platform, index) => (selectedPlatforms.includes(platform.url) ? index : -1))
+			.filter((index) => index !== -1)
+	);
+
 	const handlePreviousPage = async () => {
 		if (currentPage > 1) {
 			currentPage--;
@@ -142,16 +155,15 @@
 		}
 
 		if (checked) {
-			selectedEVaults = [...selectedEVaults, selectedEVault.evaultId];
+			const evaultId = selectedEVault.evault || selectedEVault.ename || selectedEVault.id;
+			selectedEVaults = [...selectedEVaults, evaultId];
 		} else {
-			selectedEVaults = selectedEVaults.filter((id) => id !== selectedEVault.evaultId);
+			const evaultId = selectedEVault.evault || selectedEVault.ename || selectedEVault.id;
+			selectedEVaults = selectedEVaults.filter((id) => id !== evaultId);
 		}
 
-		// Store selections immediately in sessionStorage
-		const selectedEVaultData = selectedEVaults
-			.map((id) => evaults.find((e) => e.evaultId === id))
-			.filter(Boolean);
-		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
+		// Store selections immediately in sessionStorage (store as simple array of IDs)
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaults));
 	}
 
 	// Handle platform selection changes
@@ -168,16 +180,13 @@
 		}
 
 		if (checked) {
-			selectedPlatforms = [...selectedPlatforms, selectedPlatform.name];
+			selectedPlatforms = [...selectedPlatforms, selectedPlatform.url];
 		} else {
-			selectedPlatforms = selectedPlatforms.filter((name) => name !== selectedPlatform.name);
+			selectedPlatforms = selectedPlatforms.filter((url) => url !== selectedPlatform.url);
 		}
 
-		// Store selections immediately in sessionStorage
-		const selectedPlatformData = selectedPlatforms
-			.map((name) => platforms.find((p) => p.name === name))
-			.filter(Boolean);
-		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
+		// Store selections immediately in sessionStorage (store as simple array of URLs)
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatforms));
 	}
 
 	// Handle select all eVaults
@@ -189,8 +198,8 @@
 		console.log('filtered eVaults length:', filtered.length);
 
 		if (checked) {
-			// Select all filtered eVaults by their evaultId
-			selectedEVaults = filtered.map((evault) => evault.evaultId);
+			// Select all filtered eVaults by their ID (evault or ename)
+			selectedEVaults = filtered.map((evault) => evault.evault || evault.ename || evault.id);
 			console.log('✅ Selected all filtered eVaults, selectedEVaults:', selectedEVaults);
 		} else {
 			// Deselect all eVaults
@@ -198,12 +207,9 @@
 			console.log('❌ Deselected all eVaults, selectedEVaults:', selectedEVaults);
 		}
 
-		// Store selections immediately in sessionStorage
-		const selectedEVaultData = selectedEVaults
-			.map((id) => evaults.find((e) => e.evaultId === id))
-			.filter(Boolean);
-		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
-		console.log('💾 Stored in sessionStorage:', selectedEVaultData);
+		// Store selections immediately in sessionStorage (store as simple array of IDs)
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaults));
+		console.log('💾 Stored in sessionStorage:', selectedEVaults);
 	}
 
 	// Handle select all platforms
@@ -215,8 +221,8 @@
 		console.log('filtered platforms length:', filtered.length);
 
 		if (checked) {
-			// Select all filtered platforms by their name
-			selectedPlatforms = filtered.map((platform) => platform.name);
+			// Select all filtered platforms by their URL
+			selectedPlatforms = filtered.map((platform) => platform.url);
 			console.log(
 				'✅ Selected all filtered platforms, selectedPlatforms:',
 				selectedPlatforms
@@ -227,38 +233,42 @@
 			console.log('❌ Deselected all platforms, selectedPlatforms:', selectedPlatforms);
 		}
 
-		// Store selections immediately in sessionStorage
-		const selectedPlatformData = selectedPlatforms
-			.map((name) => platforms.find((p) => p.name === name))
-			.filter(Boolean);
-		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
-		console.log('💾 Stored in sessionStorage:', selectedPlatformData);
+		// Store selections immediately in sessionStorage (store as simple array of URLs)
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatforms));
+		console.log('💾 Stored in sessionStorage:', selectedPlatforms);
 	}
 
 	// Clear eVault selection
 	function clearEVaultSelection() {
 		selectedEVaults = [];
 		sessionStorage.removeItem('selectedEVaults');
+		sessionStorage.removeItem('selectedEVaultsData');
 	}
 
 	// Clear platform selection
 	function clearPlatformSelection() {
 		selectedPlatforms = [];
 		sessionStorage.removeItem('selectedPlatforms');
+		sessionStorage.removeItem('selectedPlatformsData');
 	}
 
 	// Navigate to monitoring with selected items
 	function goToMonitoring() {
+		// Convert IDs/URLs to full objects for monitoring page
 		const selectedEVaultData = selectedEVaults
-			.map((id) => evaults.find((e) => e.evaultId === id))
+			.map((id) => evaults.find((e) => (e.evault || e.ename || e.id) === id))
 			.filter(Boolean);
 		const selectedPlatformData = selectedPlatforms
-			.map((name) => platforms.find((p) => p.name === name))
+			.map((url) => platforms.find((p) => p.url === url))
 			.filter(Boolean);
 
-		// Store selected data in sessionStorage to pass to monitoring page
-		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaultData));
-		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatformData));
+		// Store full objects in sessionStorage for monitoring page (it expects objects)
+		// But also keep the simple arrays for persistence when returning
+		sessionStorage.setItem('selectedEVaultsData', JSON.stringify(selectedEVaultData));
+		sessionStorage.setItem('selectedPlatformsData', JSON.stringify(selectedPlatformData));
+		// Keep simple arrays for persistence
+		sessionStorage.setItem('selectedEVaults', JSON.stringify(selectedEVaults));
+		sessionStorage.setItem('selectedPlatforms', JSON.stringify(selectedPlatforms));
 
 		goto('/monitoring');
 	}
@@ -290,17 +300,17 @@
 					const mapped = {
 						eName: {
 							type: 'text',
-							value: evault.evaultId,
+							value: evault.evault || evault.ename || evault.id,
 							className:
 								'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
 						},
 						Uptime: {
 							type: 'text',
-							value: evault.age
+							value: 'N/A'
 						},
 						IP: {
 							type: 'text',
-							value: evault.ip
+							value: 'N/A'
 						},
 						URI: {
 							type: 'link',
@@ -349,9 +359,98 @@
 		const paginated = paginatedEVaults();
 		const evault = paginated[index];
 		if (evault) {
-			goto(`/monitoring/${evault.namespace}/${evault.name}`);
+			// Use evault ID (evault field or ename) for navigation
+			const evaultId = evault.evault || evault.ename || evault.id;
+			goto(`/evaults/${encodeURIComponent(evaultId)}`);
 		}
 	}
+
+	// Restore selections from sessionStorage
+	// Use an effect to restore selections when data is loaded
+	let hasRestoredSelections = $state(false);
+	$effect(() => {
+		// Only restore once when both datasets are loaded
+		// The flag prevents multiple restorations, and will reset on component remount
+		if (
+			!isLoading &&
+			!platformsLoading &&
+			evaults.length >= 0 &&
+			platforms.length >= 0 &&
+			!hasRestoredSelections
+		) {
+			hasRestoredSelections = true;
+
+			// Restore eVault selections - try simple array first, fallback to object array for backwards compatibility
+			const storedEVaults = sessionStorage.getItem('selectedEVaults');
+			if (storedEVaults && evaults.length > 0) {
+				try {
+					const storedData = JSON.parse(storedEVaults);
+
+					// Check if it's a simple array of IDs or array of objects
+					if (Array.isArray(storedData) && storedData.length > 0) {
+						if (typeof storedData[0] === 'string') {
+							// Simple array of IDs - filter to only include IDs that exist in current evaults
+							selectedEVaults = storedData.filter((id: string) =>
+								evaults.some((e) => (e.evault || e.ename || e.id) === id)
+							);
+						} else {
+							// Array of objects (backwards compatibility) - extract IDs
+							selectedEVaults = storedData
+								.map((stored: any) => {
+									const match = evaults.find(
+										(e) =>
+											(stored.evault && e.evault === stored.evault) ||
+											(stored.ename && e.ename === stored.ename) ||
+											(stored.id && e.id === stored.id) ||
+											(stored.serviceUrl &&
+												e.serviceUrl === stored.serviceUrl)
+									);
+									return match ? match.evault || match.ename || match.id : null;
+								})
+								.filter((id: string | null): id is string => id !== null);
+						}
+					}
+					console.log('✅ Restored eVault selections:', selectedEVaults);
+				} catch (error) {
+					console.error('Error restoring eVault selections:', error);
+				}
+			}
+
+			// Restore platform selections - try simple array first, fallback to object array for backwards compatibility
+			const storedPlatforms = sessionStorage.getItem('selectedPlatforms');
+			if (storedPlatforms && platforms.length > 0) {
+				try {
+					const storedData = JSON.parse(storedPlatforms);
+
+					// Check if it's a simple array of URLs or array of objects
+					if (Array.isArray(storedData) && storedData.length > 0) {
+						if (typeof storedData[0] === 'string') {
+							// Simple array of URLs - filter to only include URLs that exist in current platforms
+							selectedPlatforms = storedData.filter((url: string) =>
+								platforms.some((p) => p.url === url)
+							);
+						} else {
+							// Array of objects (backwards compatibility) - extract URLs
+							selectedPlatforms = storedData
+								.map((stored: any) => {
+									// Try to match by URL first, then by name for backwards compatibility
+									const match = platforms.find(
+										(p) =>
+											p.url === stored.url ||
+											(stored.name && p.name === stored.name)
+									);
+									return match ? match.url : null;
+								})
+								.filter((url: string | null): url is string => url !== null);
+						}
+					}
+					console.log('✅ Restored platform selections:', selectedPlatforms);
+				} catch (error) {
+					console.error('Error restoring platform selections:', error);
+				}
+			}
+		}
+	});
 
 	onMount(() => {
 		fetchEVaults();
@@ -402,11 +501,7 @@
 					handleSelectedRow={handleEVaultRowClick}
 					onSelectionChange={handleEVaultSelectionChange}
 					onSelectAllChange={handleSelectAllEVaults}
-					selectedIndices={paginatedEVaults()
-						.map((evault, index) =>
-							selectedEVaults.includes(evault.evaultId) ? index : -1
-						)
-						.filter((index) => index !== -1)}
+					selectedIndices={selectedEVaultIndices}
 				/>
 
 				<!-- Pagination Info -->
@@ -478,11 +573,7 @@
 					withPagination={false}
 					onSelectionChange={handlePlatformSelectionChange}
 					onSelectAllChange={handleSelectAllPlatforms}
-					selectedIndices={filteredPlatforms()
-						.map((platform, index) =>
-							selectedPlatforms.includes(platform.name) ? index : -1
-						)
-						.filter((index) => index !== -1)}
+					selectedIndices={selectedPlatformIndices}
 				/>
 			{/if}
 		</TableCard>

@@ -1,0 +1,2 @@
+export { adapter } from "./watchers/subscriber";
+

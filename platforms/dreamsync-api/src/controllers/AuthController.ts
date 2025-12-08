@@ -4,6 +4,7 @@ import { UserService } from "../services/UserService";
 import { EventEmitter } from "events";
 import { signToken } from "../utils/jwt";
 import { isVersionValid } from "../utils/version";
+import { verifySignature } from "signature-validator";
 
 const MIN_REQUIRED_VERSION = "0.4.0";
 
@@ -66,6 +67,10 @@ export class AuthController {
                 return res.status(400).json({ error: "session is required" });
             }
 
+            if (!signature) {
+                return res.status(400).json({ error: "signature is required" });
+            }
+
             // Check app version - missing version is treated as old version
             if (!appVersion || !isVersionValid(appVersion, MIN_REQUIRED_VERSION)) {
                 const errorMessage = {
@@ -77,6 +82,27 @@ export class AuthController {
                 return res.status(400).json({ 
                     error: "App version too old", 
                     message: errorMessage.message 
+                });
+            }
+
+            const registryBaseUrl = process.env.PUBLIC_REGISTRY_URL;
+            if (!registryBaseUrl) {
+                console.error("PUBLIC_REGISTRY_URL not configured");
+                return res.status(500).json({ error: "Server configuration error" });
+            }
+
+            const verificationResult = await verifySignature({
+                eName: ename,
+                signature: signature,
+                payload: session,
+                registryBaseUrl: registryBaseUrl,
+            });
+
+            if (!verificationResult.valid) {
+                console.error("Signature validation failed:", verificationResult.error);
+                return res.status(401).json({ 
+                    error: "Invalid signature", 
+                    message: verificationResult.error 
                 });
             }
 
@@ -111,8 +137,10 @@ export class AuthController {
                 },
                 token,
             };
+            // Emit via SSE for backward compatibility
             this.eventEmitter.emit(session, data);
-            res.status(200).send();
+            // Return JSON response for direct POST requests
+            res.status(200).json(data);
         } catch (error) {
             console.error("Error during login:", error);
             res.status(500).json({ error: "Internal server error" });

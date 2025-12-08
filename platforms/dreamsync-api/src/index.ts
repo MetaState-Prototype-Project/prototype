@@ -13,6 +13,7 @@ import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { MatchingJob } from "./services/MatchingJob";
 import { PlatformEVaultService } from "./services/PlatformEVaultService";
+import { WishlistSummaryService } from "./services/WishlistSummaryService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -40,6 +41,14 @@ AppDataSource.initialize()
         } catch (error) {
             console.error("❌ Failed to initialize platform eVault:", error);
             // Don't exit the process, just log the error
+        }
+        
+        // Backfill wishlist summaries for existing records
+        try {
+            const wishlistSummaryService = WishlistSummaryService.getInstance();
+            await wishlistSummaryService.backfillMissingSummaries();
+        } catch (error) {
+            console.error("❌ Failed to backfill wishlist summaries:", error);
         }
         
         // Start AI matching job (disabled automatic startup)

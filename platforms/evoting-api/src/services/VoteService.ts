@@ -275,6 +275,15 @@ export class VoteService {
         ? Object.values(finalResults).reduce((sum, r) => sum + r.votes, 0)
         : Object.values(optionCounts).reduce((sum, count) => sum + count, 0);
 
+      // Calculate totalEligiblePoints and pointsVoted for eReputation
+      let totalEligiblePoints: number | undefined;
+      let pointsVoted: number | undefined;
+      if (isWeighted && reputationResults) {
+        // eReputation weighted normal voting: sum of all scores
+        totalEligiblePoints = reputationResults.results.reduce((sum, r) => sum + r.score, 0);
+        pointsVoted = totalWeightedVotes; // Sum of weighted votes
+      }
+
       return {
         pollId,
         totalVotes: votes.length, // Actual number of votes cast
@@ -282,7 +291,9 @@ export class VoteService {
         totalEligibleVoters,
         turnout: totalEligibleVoters > 0 ? (votes.length / totalEligibleVoters) * 100 : 0,
         mode: isWeighted ? "ereputation" : "normal",
-        results: finalResults
+        results: finalResults,
+        ...(totalEligiblePoints !== undefined && { totalEligiblePoints }),
+        ...(pointsVoted !== undefined && { pointsVoted })
       };
     } else if (poll.mode === "point") {
       // STEP 1: Calculate point-based results normally (without eReputation weighting)
@@ -341,6 +352,15 @@ export class VoteService {
         // Sort by total points (highest first)
         finalResults.sort((a, b) => b.totalPoints - a.totalPoints);
 
+        // Calculate totalEligiblePoints and pointsVoted for eReputation weighted points-based voting
+        let totalEligiblePoints: number | undefined;
+        let pointsVoted: number | undefined;
+        if (reputationResults) {
+          // eReputation weighted points-based voting: sum of all scores * 100 (each user has 100 points)
+          totalEligiblePoints = reputationResults.results.reduce((sum, r) => sum + r.score, 0) * 100;
+          pointsVoted = totalWeightedPoints; // Sum of weighted points
+        }
+
         return {
           pollId,
           totalVotes,
@@ -348,7 +368,9 @@ export class VoteService {
           totalEligibleVoters,
           turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
           mode: "ereputation",
-          results: finalResults
+          results: finalResults,
+          ...(totalEligiblePoints !== undefined && { totalEligiblePoints }),
+          ...(pointsVoted !== undefined && { pointsVoted })
         };
       } else {
         // No weighting - use normal points
@@ -369,6 +391,11 @@ export class VoteService {
         // Sort by total points (highest first)
         finalResults.sort((a, b) => b.totalPoints - a.totalPoints);
 
+        // Calculate totalEligiblePoints for simple points-based voting (not eReputation)
+        // Each user has 100 points by default
+        const totalEligiblePoints = totalEligibleVoters * 100;
+        const pointsVoted = totalPoints; // Sum of all points distributed
+
         return {
           pollId,
           totalVotes,
@@ -376,7 +403,9 @@ export class VoteService {
           totalEligibleVoters,
           turnout: totalEligibleVoters > 0 ? (totalVotes / totalEligibleVoters) * 100 : 0,
           mode: "point",
-          results: finalResults
+          results: finalResults,
+          totalEligiblePoints,
+          pointsVoted
         };
       }
     } else if (poll.mode === "rank") {

@@ -28,6 +28,7 @@
         "reflect-metadata": "^0.2.1",
         "typeorm": "^0.3.24",
         "uuid": "^9.0.1",
+        "signature-validator": "workspace:*",
         "web3-adapter": "link:../../infrastructure/web3-adapter"
     },
     "devDependencies": {
