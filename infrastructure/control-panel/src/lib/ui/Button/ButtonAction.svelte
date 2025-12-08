@@ -9,6 +9,7 @@
 		blockingClick?: boolean;
 		type?: 'button' | 'submit' | 'reset';
 		size?: 'sm' | 'md';
+		disableBlur?: boolean;
 	}
 
 	const {
@@ -19,6 +20,7 @@
 		blockingClick,
 		type = 'button',
 		size = 'md',
+		disableBlur = false,
 		children = undefined,
 		...restProps
 	}: IButtonProps = $props();
@@ -93,7 +95,7 @@
 	<div class="relative flex items-center justify-center">
 		<div
 			class="flex items-center justify-center duration-100"
-			class:blur-xs={isLoading || isSubmitting}
+			class:blur-xs={!disableBlur && (isLoading || isSubmitting)}
 		>
 			{@render children?.()}
 		</div>

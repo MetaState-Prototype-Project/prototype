@@ -5,6 +5,7 @@
 	type ToastState = { message: string; variant: ToastVariant };
 
 	const DREAMSYNC_ENDPOINT = 'https://dreamsync.w3ds.metastate.foundation/api/matches/trigger';
+	const NETWORK_TIMEOUT = 4 * 60 * 1000; // 4 minutes in milliseconds
 
 	let isTriggering = $state(false);
 	let toast = $state<ToastState | null>(null);
@@ -25,8 +26,21 @@
 	const triggerDreamSync = async () => {
 		isTriggering = true;
 
+		const controller = new AbortController();
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
 		try {
-			const response = await fetch(DREAMSYNC_ENDPOINT, { method: 'POST' });
+			timeoutId = setTimeout(() => controller.abort(), NETWORK_TIMEOUT);
+
+			const response = await fetch(DREAMSYNC_ENDPOINT, {
+				method: 'POST',
+				signal: controller.signal
+			});
+
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
 
 			if (!response.ok) {
 				throw new Error(`DreamSync responded with ${response.status}`);
@@ -34,8 +48,18 @@
 
 			showToast('DreamSync matchmaking triggered successfully.', 'success');
 		} catch (error) {
-			console.error('Failed to trigger DreamSync matchmaking', error);
-			showToast('Could not trigger DreamSync matchmaking. Please try again.', 'error');
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
+			if (error instanceof Error && error.name === 'AbortError') {
+				showToast(
+					'Request timed out. Matchmaking may still be processing. Please wait a few minutes and check the status.',
+					'error'
+				);
+			} else {
+				console.error('Failed to trigger DreamSync matchmaking', error);
+				showToast('Could not trigger DreamSync matchmaking. Please try again.', 'error');
+			}
 		} finally {
 			isTriggering = false;
 		}
@@ -49,18 +73,23 @@
 			Manual actions for orchestrating DreamSync. Trigger matchmaking directly from the control panel.
 		</p>
 
-		<div class="mt-6 flex items-center gap-4">
-			<ButtonAction
-				variant="solid"
-				size="sm"
-				isLoading={isTriggering}
-				blockingClick
-				callback={triggerDreamSync}
-				class="whitespace-nowrap"
-			>
-				Trigger DreamSync
-			</ButtonAction>
-			<span class="text-sm text-black-500">Sends a POST to {DREAMSYNC_ENDPOINT}</span>
+		<div class="mt-6 space-y-4">
+			<div class="flex items-center gap-4">
+				<ButtonAction
+					variant="solid"
+					size="sm"
+					isLoading={isTriggering}
+					disableBlur
+					blockingClick
+					callback={triggerDreamSync}
+					class="whitespace-nowrap"
+				>
+					Trigger DreamSync
+				</ButtonAction>
+			</div>
+			<p class="text-sm text-black-500">
+				Note: Matchmaking can take up to 4 minutes to complete. Please wait for the process to finish.
+			</p>
 		</div>
 	</div>
 </section>
