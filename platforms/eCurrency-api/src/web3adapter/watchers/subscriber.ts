@@ -58,6 +58,45 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     /**
+     * Special enrichment method for Message entities to ensure group and admin data is loaded
+     */
+    private async enrichMessageEntity(messageEntity: any): Promise<any> {
+        try {
+            const enrichedMessage = { ...messageEntity };
+            
+            // If the message has a group, load the full group with admins and members
+            if (enrichedMessage.group && enrichedMessage.group.id) {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const fullGroup = await groupRepository.findOne({
+                    where: { id: enrichedMessage.group.id },
+                    relations: ["admins", "members", "participants"]
+                });
+                
+                if (fullGroup) {
+                    enrichedMessage.group = fullGroup;
+                }
+            }
+            
+            // If the message has a sender, ensure it's loaded
+            if (enrichedMessage.sender && enrichedMessage.sender.id) {
+                const userRepository = AppDataSource.getRepository("User");
+                const fullSender = await userRepository.findOne({
+                    where: { id: enrichedMessage.sender.id }
+                });
+                
+                if (fullSender) {
+                    enrichedMessage.sender = fullSender;
+                }
+            }
+            
+            return enrichedMessage;
+        } catch (error) {
+            console.error("Error enriching Message entity:", error);
+            return messageEntity;
+        }
+    }
+
+    /**
      * Called after entity insertion.
      */
     async afterInsert(event: InsertEvent<any>) {
@@ -69,6 +108,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 event.metadata.target
             )) as ObjectLiteral;
         }
+        
+        // Special handling for Message entities to ensure complete data
+        if (event.metadata.tableName === "messages" && entity) {
+            entity = await this.enrichMessageEntity(entity);
+        }
+        
         
         this.handleChange(
             // @ts-ignore
@@ -333,6 +378,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["followers", "following"];
             case "Group":
                 return ["participants", "admins", "members"];
+            case "Message":
+                return ["sender", "group"];
             case "Currency":
                 return ["group", "creator"];
             case "Ledger":

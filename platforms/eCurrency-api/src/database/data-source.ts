@@ -6,6 +6,8 @@ import { User } from "./entities/User";
 import { Group } from "./entities/Group";
 import { Currency } from "./entities/Currency";
 import { Ledger } from "./entities/Ledger";
+import { Message } from "./entities/Message";
+import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 // Use absolute path for better CLI compatibility
@@ -16,7 +18,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.ECURRENCY_DATABASE_URL,
     synchronize: false, // Auto-sync in development
-    entities: [User, Group, Currency, Ledger],
+    entities: [User, Group, Currency, Ledger, Message, UserEVaultMapping],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],
