@@ -141,7 +141,7 @@ offers: <succinct offers summary>
 
     private cleanFragment(fragment: string): string {
         return fragment
-            .replaceAll(DELIMITER, " ")
+            .replace(new RegExp(DELIMITER, "g"), " ")
             .replace(/\s+/g, " ")
             .replace(/[,\n\r]+/g, " ")
             .trim()

@@ -171,7 +171,7 @@ Be thorough and find ALL potential matches!
     private sanitizeField(value?: string): string {
         if (!value) return "";
         return value
-            .replaceAll("<|>", " ")
+            .replace(/<\|>/g, " ")
             .replace(/\s+/g, " ")
             .trim();
     }
