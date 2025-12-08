@@ -67,7 +67,7 @@
   {
     "id": "emover",
     "name": "Emover",
-    "description": "Secure evault migration platform for transferring your encrypted data vault between providers while maintaining full control and sovereignty.",
+    "description": "eVault migration platform for transferring your data between providers or eVaults..",
     "category": "Identity",
     "logoUrl": "/emover.svg",
     "url": "https://emover.w3ds.metastate.foundation"
