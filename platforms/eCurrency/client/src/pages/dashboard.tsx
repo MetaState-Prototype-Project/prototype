@@ -205,6 +205,11 @@ export default function Dashboard() {
                     })}
                   </div>
                   <div className="text-xs text-white/80 mt-1">{formatEName(balance.currency.ename)}</div>
+                  {balance.currency.allowNegative !== undefined && (
+                    <div className="text-xs px-2 py-0.5 rounded bg-white/20 text-white/90 mt-1 inline-block">
+                      {balance.currency.allowNegative ? "Negative Allowed" : "No Negative"}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

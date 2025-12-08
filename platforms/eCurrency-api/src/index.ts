@@ -121,6 +121,7 @@ app.get("/api/ledger/history", authGuard, ledgerController.getHistory);
 app.get("/api/ledger/history/:currencyId", authGuard, ledgerController.getHistory);
 app.get("/api/ledger/transaction/:id", authGuard, ledgerController.getTransactionById);
 app.get("/api/ledger/account-details/:currencyId", authGuard, ledgerController.getAccountDetails);
+app.get("/api/ledger/total-supply/:currencyId", authGuard, ledgerController.getTotalSupply);
 app.post("/api/ledger/initialize", authGuard, ledgerController.initializeAccount);
 
 // Start server

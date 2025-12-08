@@ -44,6 +44,7 @@ export class LedgerController {
                         id: b.currency.id,
                         name: b.currency.name,
                         ename: b.currency.ename,
+                        allowNegative: b.currency.allowNegative,
                     },
                     balance: b.balance,
                 })));
@@ -350,6 +351,22 @@ export class LedgerController {
             });
         } catch (error) {
             console.error("Error getting account details:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    getTotalSupply = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { currencyId } = req.params;
+            const totalSupply = await this.ledgerService.getTotalSupply(currencyId);
+
+            res.json({ currencyId, totalSupply });
+        } catch (error) {
+            console.error("Error getting total supply:", error);
             res.status(500).json({ error: "Internal server error" });
         }
     };

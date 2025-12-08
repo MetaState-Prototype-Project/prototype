@@ -104,6 +104,17 @@ export default function CurrencyDetail() {
     },
   });
 
+  const { data: totalSupplyData, isLoading: totalSupplyLoading } = useQuery({
+    queryKey: ["totalSupply", currencyId],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/ledger/total-supply/${currencyId}`);
+      return response.data;
+    },
+    enabled: !!currencyId,
+  });
+
+  const totalSupply = totalSupplyData?.totalSupply ?? 0;
+
   const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ["history", currencyId, accountContext, transactionOffset],
     queryFn: async () => {
@@ -196,6 +207,27 @@ export default function CurrencyDetail() {
                         maximumFractionDigits: 2,
                       })
                     : "0.00"}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Negative Balance Allowed</h3>
+                <p className={`text-lg font-medium ${
+                  currency.allowNegative ? "text-yellow-600" : "text-green-600"
+                }`}>
+                  {currency.allowNegative ? "Yes" : "No"}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Currency Supply</h3>
+                <p className="text-lg font-semibold">
+                  {totalSupplyLoading ? (
+                    <span className="text-muted-foreground">Loading...</span>
+                  ) : (
+                    Number(totalSupply).toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  )}
                 </p>
               </div>
             </div>
