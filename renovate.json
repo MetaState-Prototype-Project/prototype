@@ -1,17 +1,19 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:base",
-    ":dependencyDashboard"                 
-  ],
-  "lockFileMaintenance": {
-    "enabled": true,
-    "rebaseStalePrs": true,
-  },
-  "packageRules": [
-    {
-      "matchUpdateTypes": ["major"],
-      "enabled": false
-    }
-  ]
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:recommended",
+        ":dependencyDashboard"
+    ],
+    "lockFileMaintenance": {
+        "enabled": true,
+        "rebaseWhen": "behind-base-branch"
+    },
+    "packageRules": [
+        {
+            "matchUpdateTypes": [
+                "major"
+            ],
+            "enabled": false
+        }
+    ]
 }
