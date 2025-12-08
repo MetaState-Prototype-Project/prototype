@@ -2032,7 +2032,7 @@ importers:
         version: 7.17.2
       '@milkdown/plugin-listener':
         specifier: ^7.15.2
-        version: 7.17.1
+        version: 7.17.2
       '@milkdown/preset-gfm':
         specifier: ^7.15.2
         version: 7.17.1
@@ -4778,6 +4778,9 @@ packages:
   '@milkdown/plugin-listener@7.17.1':
     resolution: {integrity: sha512-v0ga+efth4D2Cr+ffCvM7BHSoqOQX+ySy/gzRH2yiBH0dLnLHgJP5V5O6U4Z4r8UH/Wx0BgZ0FIRngUEhh/Aqw==}
 
+  '@milkdown/plugin-listener@7.17.2':
+    resolution: {integrity: sha512-1ViQ+7eK5lPB3K17Y7GSq7kVn6LgLgG1YUKNRjJYrN/kCiYeaqbogxeI1Aeow8mDDtXONTplI3Yq4yIjxBv50A==}
+
   '@milkdown/plugin-slash@7.17.1':
     resolution: {integrity: sha512-gJ4uD7Q1pM91nZXFBjJdAp7U35gw1Ejfl9BtxE1OnqMjGlDvSdSamOb2WsdGS/xlAJgG9RhE0ZK6y3ymIoIp1w==}
 
@@ -6974,8 +6977,8 @@ packages:
   '@types/lodash-es@4.17.12':
     resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
 
-  '@types/lodash@4.17.20':
-    resolution: {integrity: sha512-H3MHACvFUEiujabxhaI/ImO6gUrd8oOurg7LQtS7mbwIXA/cUqWrvBsaeJ23aZEPk1TAYkurjfMbSELfoCXlGA==}
+  '@types/lodash@4.17.21':
+    resolution: {integrity: sha512-FOvQ0YPD5NOfPgMzJihoT+Za5pdkDJWcbpuj1DjaKZIr/gxodQjY/uWEFlTNqW2ugXHUiL8lRQgw63dzKHZdeQ==}
 
   '@types/long@4.0.2':
     resolution: {integrity: sha512-MqTGEo5bj5t157U6fA/BiDynNkn0YknVdh48CMPkTSpFTVmvao5UQmm7uEF6xBEo7qIMAlY/JSleYaE6VOdpaA==}
@@ -17210,6 +17213,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@milkdown/plugin-listener@7.17.2':
+    dependencies:
+      '@milkdown/core': 7.17.2
+      '@milkdown/ctx': 7.17.2
+      '@milkdown/prose': 7.17.2
+      '@types/lodash-es': 4.17.12
+      lodash-es: 4.17.21
+    transitivePeerDependencies:
+      - supports-color
+
   '@milkdown/plugin-slash@7.17.1':
     dependencies:
       '@floating-ui/dom': 1.7.4
@@ -19826,9 +19839,9 @@ snapshots:
 
   '@types/lodash-es@4.17.12':
     dependencies:
-      '@types/lodash': 4.17.20
+      '@types/lodash': 4.17.21
 
-  '@types/lodash@4.17.20': {}
+  '@types/lodash@4.17.21': {}
 
   '@types/long@4.0.2': {}
 
