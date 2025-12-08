@@ -2041,7 +2041,7 @@ importers:
         version: 7.17.1(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.8)(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
       '@milkdown/theme-nord':
         specifier: ^7.15.2
-        version: 7.17.1
+        version: 7.17.2
       '@next/env':
         specifier: ^15.4.7
         version: 15.5.6
@@ -4811,8 +4811,8 @@ packages:
       react: 18.3.1
       react-dom: 18.3.1
 
-  '@milkdown/theme-nord@7.17.1':
-    resolution: {integrity: sha512-axiJjpBIi54z6EFZS/zvmp9Xeo0W2ZaO5jyyAC62yUOsm5clyTaq4vep6v0CDLoOyAtzIgCwRdKyO+C6tbpHeA==}
+  '@milkdown/theme-nord@7.17.2':
+    resolution: {integrity: sha512-o+m05aJA7HvcUrZttbslYBmOABxhvUnp52VFbnVnQRDfe1L2ynhoWOI/c/zpqOM9B/iyVYjGDi3z7XI8fwqAgQ==}
 
   '@milkdown/transformer@7.17.1':
     resolution: {integrity: sha512-RfKo+v1R0UWlLgpbKSFSTtKc3Hd7RAd0vRLR/d5ku4/5IpOGYplGEUsxF77qVgik6/yiox79R3HqkQNJ5e4/3Q==}
@@ -17341,11 +17341,11 @@ snapshots:
       - supports-color
       - typescript
 
-  '@milkdown/theme-nord@7.17.1':
+  '@milkdown/theme-nord@7.17.2':
     dependencies:
-      '@milkdown/core': 7.17.1
-      '@milkdown/ctx': 7.17.1
-      '@milkdown/prose': 7.17.1
+      '@milkdown/core': 7.17.2
+      '@milkdown/ctx': 7.17.2
+      '@milkdown/prose': 7.17.2
       clsx: 2.1.1
     transitivePeerDependencies:
       - supports-color
