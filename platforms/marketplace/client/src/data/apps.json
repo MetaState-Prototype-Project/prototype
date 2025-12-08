@@ -63,5 +63,13 @@
     "category": "Social",
     "logoUrl": "/ereputation.png",
     "url": "https://ereputation.w3ds.metastate.foundation"
+  },
+  {
+    "id": "emover",
+    "name": "Emover",
+    "description": "eVault migration platform for transferring your data between providers or eVaults..",
+    "category": "Identity",
+    "logoUrl": "/emover.svg",
+    "url": "https://emover.w3ds.metastate.foundation"
   }
 ]
