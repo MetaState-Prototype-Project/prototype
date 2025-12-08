@@ -13,6 +13,8 @@ export interface MatchResult {
 export interface WishlistData {
     id: string;
     content: string;
+    summaryWants: string;
+    summaryOffers: string;
     userId: string;
     user: {
         id: string;

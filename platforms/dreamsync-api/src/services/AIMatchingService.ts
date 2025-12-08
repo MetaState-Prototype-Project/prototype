@@ -7,6 +7,7 @@ import { MatchNotificationService } from "./MatchNotificationService";
 import { MatchingService, MatchResult, WishlistData, GroupData } from "./MatchingService";
 import { withOperationContext } from "../context/OperationContext";
 import OpenAI from "openai";
+import { WishlistSummaryService } from "./WishlistSummaryService";
 
 export class AIMatchingService {
     private matchingService: MatchingService;
@@ -15,6 +16,7 @@ export class AIMatchingService {
     private groupRepository: Repository<Group>;
     private notificationService: MatchNotificationService;
     private openai: OpenAI;
+    private wishlistSummaryService: WishlistSummaryService;
 
     constructor() {
         this.matchingService = new MatchingService();
@@ -25,6 +27,7 @@ export class AIMatchingService {
         this.openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY,
         });
+        this.wishlistSummaryService = WishlistSummaryService.getInstance();
     }
 
     async findMatches(): Promise<void> {
@@ -36,6 +39,7 @@ export class AIMatchingService {
         return withOperationContext('AIMatchingService', operationId, async () => {
             const wishlists = await this.getWishlistsForMatching();
             console.log(`📋 Found ${wishlists.length} wishlists to analyze`);
+            await this.ensureWishlistSummaries(wishlists);
 
             // Get existing groups for context
             const existingGroups = await this.getExistingGroups();
@@ -45,6 +49,8 @@ export class AIMatchingService {
             const wishlistData: WishlistData[] = wishlists.map(wishlist => ({
                 id: wishlist.id,
                 content: wishlist.content,
+                summaryWants: wishlist.summaryWants || "",
+                summaryOffers: wishlist.summaryOffers || "",
                 userId: wishlist.userId,
                 user: {
                     id: wishlist.user.id,
@@ -214,6 +220,18 @@ export class AIMatchingService {
             memberIds: group.members?.map(m => m.id) || [],
             createdAt: group.createdAt
         }));
+    }
+
+    private async ensureWishlistSummaries(wishlists: Wishlist[]): Promise<void> {
+        for (const wishlist of wishlists) {
+            if (!wishlist.summaryWants || !wishlist.summaryOffers) {
+                try {
+                    await this.wishlistSummaryService.ensureSummaries(wishlist);
+                } catch (error) {
+                    console.error(`Failed to ensure summary for wishlist ${wishlist.id}`, error);
+                }
+            }
+        }
     }
 
     private extractActivityCategory(groupName: string): string {

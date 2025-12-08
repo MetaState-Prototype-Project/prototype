@@ -15,6 +15,8 @@ export interface MatchResult {
 export interface WishlistData {
     id: string;
     content: string;
+    summaryWants: string;
+    summaryOffers: string;
     userId: string;
     user: {
         id: string;
@@ -64,12 +66,18 @@ export class MatchingService {
     }
 
     private buildAllMatchesPrompt(wishlists: WishlistData[], existingGroups?: GroupData[]): string {
-        const wishlistTexts = wishlists.map((wishlist, index) => 
-            `Wishlist ${index + 1} (User: ${wishlist.user.name}, ID: ${wishlist.userId}):
-${wishlist.content}
-    
----`
-        ).join('\n\n');
+        const delimiter = "<|>";
+        const header = `userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
+        const rows = wishlists.map((wishlist) => {
+            const wants = wishlist.summaryWants || wishlist.content;
+            const offers = wishlist.summaryOffers || wishlist.content;
+            return [
+                this.sanitizeField(wishlist.user.ename),
+                this.sanitizeField(wishlist.user.name || wishlist.user.ename),
+                this.sanitizeField(wants),
+                this.sanitizeField(offers),
+            ].join(delimiter);
+        }).join("\n");
 
         let existingGroupsText = '';
         if (existingGroups && existingGroups.length > 0) {
@@ -102,7 +110,13 @@ However, if users want to collaborate on a DIFFERENT activity than existing grou
         return `
 You are an AI matching assistant. Analyze ALL the wishlists below and find meaningful connections between users.
 
-${wishlistTexts}${existingGroupsText}
+The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
+Columns: userEname${delimiter}userName${delimiter}wants${delimiter}offers
+
+${header}
+${rows}
+
+Use ONLY the summary rows above (not full prose) to infer matches.${existingGroupsText}
 
 TASK: Find ALL meaningful matches between these users based on their wishlists.
 
@@ -152,6 +166,14 @@ EXAMPLE: If there's an existing group for an activity and a new user wants the s
 
 Be thorough and find ALL potential matches!
         `.trim();
+    }
+
+    private sanitizeField(value?: string): string {
+        if (!value) return "";
+        return value
+            .replaceAll("<|>", " ")
+            .replace(/\s+/g, " ")
+            .trim();
     }
 
     private async analyzeAllMatches(wishlists: WishlistData[], existingGroups?: GroupData[]): Promise<MatchResult[]> {
