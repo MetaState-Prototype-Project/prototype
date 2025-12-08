@@ -67,11 +67,12 @@ export class MatchingService {
 
     private buildAllMatchesPrompt(wishlists: WishlistData[], existingGroups?: GroupData[]): string {
         const delimiter = "<|>";
-        const header = `userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
-        const rows = wishlists.map((wishlist) => {
+        const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
+        const wishlistRows = wishlists.map((wishlist) => {
             const wants = wishlist.summaryWants || wishlist.content;
             const offers = wishlist.summaryOffers || wishlist.content;
             return [
+                this.sanitizeField(wishlist.userId),
                 this.sanitizeField(wishlist.user.ename),
                 this.sanitizeField(wishlist.user.name || wishlist.user.ename),
                 this.sanitizeField(wants),
@@ -81,29 +82,25 @@ export class MatchingService {
 
         let existingGroupsText = '';
         if (existingGroups && existingGroups.length > 0) {
-            const groupsText = existingGroups.map((group, index) => 
-                `Existing Group ${index + 1}:
-- Name: ${group.name}
-- Activity: ${group.activityCategory}
-- Members: ${group.memberCount} people
-- Description: ${group.description}
-- Created: ${group.createdAt.toISOString().split('T')[0]}
-- Group ID: ${group.id}
-    
----`
-            ).join('\n\n');
-            
+            const groupHeader = `groupId${delimiter}name${delimiter}activityCategory${delimiter}description${delimiter}memberCount`;
+            const groupRows = existingGroups.map(group =>
+                [
+                    this.sanitizeField(group.id),
+                    this.sanitizeField(group.name),
+                    this.sanitizeField(group.activityCategory),
+                    this.sanitizeField(group.description),
+                    group.memberCount.toString(),
+                ].join(delimiter)
+            ).join("\n");
+
             existingGroupsText = `
 
-EXISTING GROUPS TO CONSIDER:
-${groupsText}
+EXISTING GROUPS TO CONSIDER (delimiter: "${delimiter}"):
+${groupHeader}
+${groupRows}
 
 IMPORTANT: If users match an existing group's activity, suggest they JOIN that group instead of creating a new one!
-Use the format: "JOIN_EXISTING_GROUP:${existingGroups[0].id}" in the suggestedActivities field.
-
-This applies even if the user is NOT currently a member of the group - they can still join existing groups for the same activity.
-
-However, if users want to collaborate on a DIFFERENT activity than existing groups, create a NEW group for that specific activity.
+Use the exact groupId from the table above in the format: "JOIN_EXISTING_GROUP:<groupId>" in suggestedActivities.
 `;
         }
 
@@ -111,12 +108,13 @@ However, if users want to collaborate on a DIFFERENT activity than existing grou
 You are an AI matching assistant. Analyze ALL the wishlists below and find meaningful connections between users.
 
 The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
-Columns: userEname${delimiter}userName${delimiter}wants${delimiter}offers
+Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers
 
-${header}
-${rows}
+${wishlistHeader}
+${wishlistRows}
 
-Use ONLY the summary rows above (not full prose) to infer matches.${existingGroupsText}
+Use ONLY the rows above (not full prose) to infer matches.
+Return userIds EXACTLY as provided in the table (no new IDs, no missing IDs).${existingGroupsText}
 
 TASK: Find ALL meaningful matches between these users based on their wishlists.
 
