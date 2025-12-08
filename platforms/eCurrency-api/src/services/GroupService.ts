@@ -18,17 +18,17 @@ export class GroupService {
             return null;
         }
 
-        // Use a more efficient query to find groups with exactly these members
         const sortedMemberIds = memberIds.sort();
         
-        // For 2-member groups (DMs), use a more efficient query
+        // For 2-member groups (DMs), use a precise query that ensures exact match
         if (sortedMemberIds.length === 2) {
-            // Use a subquery to find groups where both members are present
+            // Find groups that are private and have exactly these 2 members
             const groups = await this.groupRepository
                 .createQueryBuilder("group")
                 .leftJoinAndSelect("group.members", "members")
                 .where("group.isPrivate = :isPrivate", { isPrivate: true })
                 .andWhere((qb) => {
+                    // Subquery to find groups where both members are present
                     const subQuery = qb.subQuery()
                         .select("gm.group_id")
                         .from("group_members", "gm")
@@ -42,7 +42,7 @@ export class GroupService {
                 })
                 .getMany();
 
-            // Filter groups that have exactly the same 2 members
+            // Filter groups that have exactly the same 2 members (no more, no less)
             for (const group of groups) {
                 if (group.members && group.members.length === 2) {
                     const groupMemberIds = group.members.map((m: User) => m.id).sort();
@@ -55,15 +55,15 @@ export class GroupService {
             }
         }
 
-        // Fallback to general search for other group sizes
-        const groups = await this.groupRepository
+        // Fallback: get all private groups and filter in memory
+        const allPrivateGroups = await this.groupRepository
             .createQueryBuilder("group")
             .leftJoinAndSelect("group.members", "members")
             .where("group.isPrivate = :isPrivate", { isPrivate: true })
             .getMany();
 
         // Filter groups that have exactly the same members (order doesn't matter)
-        for (const group of groups) {
+        for (const group of allPrivateGroups) {
             if (!group.members || group.members.length !== sortedMemberIds.length) {
                 continue;
             }
@@ -99,16 +99,75 @@ export class GroupService {
         bannerUrl?: string,
         originalMatchParticipants?: string[],
     ): Promise<Group> {
-        // For eCurrency Chat groups, check if a DM already exists between these users
-        // This prevents duplicate chat creation in race conditions
+        // For eCurrency Chat groups, use a transaction to prevent race conditions
         if (isPrivate && (name.startsWith("eCurrency Chat") || name.includes("eCurrency Chat")) && memberIds.length === 2) {
-            const existingDM = await this.findGroupByMembers(memberIds);
-            if (existingDM) {
-                console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${existingDM.id}`);
-                return existingDM;
-            }
+            return await AppDataSource.transaction(async (transactionalEntityManager) => {
+                // Check again within transaction to prevent race conditions
+                const sortedMemberIds = memberIds.sort();
+                const existingGroups = await transactionalEntityManager
+                    .createQueryBuilder(Group, "group")
+                    .leftJoinAndSelect("group.members", "members")
+                    .where("group.isPrivate = :isPrivate", { isPrivate: true })
+                    .andWhere((qb) => {
+                        const subQuery = qb.subQuery()
+                            .select("gm.group_id")
+                            .from("group_members", "gm")
+                            .where("gm.user_id IN (:...memberIds)", { 
+                                memberIds: sortedMemberIds 
+                            })
+                            .groupBy("gm.group_id")
+                            .having("COUNT(DISTINCT gm.user_id) = :memberCount", { memberCount: 2 })
+                            .getQuery();
+                        return "group.id IN " + subQuery;
+                    })
+                    .getMany();
+
+                // Check if any group has exactly these 2 members
+                for (const group of existingGroups) {
+                    if (group.members && group.members.length === 2) {
+                        const groupMemberIds = group.members.map((m: User) => m.id).sort();
+                        if (groupMemberIds.length === sortedMemberIds.length &&
+                            groupMemberIds.every((id: string, index: number) => id === sortedMemberIds[index])) {
+                            console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${group.id}`);
+                            return group;
+                        }
+                    }
+                }
+
+                // No existing group found, create new one
+                const members = await transactionalEntityManager.findBy(User, {
+                    id: In(memberIds),
+                });
+                if (members.length !== memberIds.length) {
+                    throw new Error("One or more members not found");
+                }
+
+                const admins = await transactionalEntityManager.findBy(User, {
+                    id: In(adminIds),
+                });
+                if (admins.length !== adminIds.length) {
+                    throw new Error("One or more admins not found");
+                }
+
+                const group = transactionalEntityManager.create(Group, {
+                    name,
+                    description,
+                    owner,
+                    charter,
+                    members,
+                    admins,
+                    participants: members,
+                    isPrivate,
+                    visibility,
+                    avatarUrl,
+                    bannerUrl,
+                    originalMatchParticipants: originalMatchParticipants || [],
+                });
+                return await transactionalEntityManager.save(Group, group);
+            });
         }
 
+        // For non-DM groups, proceed normally
         const members = await this.userRepository.findBy({
             id: In(memberIds),
         });
