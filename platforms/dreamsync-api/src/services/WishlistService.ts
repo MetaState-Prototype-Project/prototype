@@ -2,14 +2,17 @@ import { AppDataSource } from "../database/data-source";
 import { Wishlist } from "../database/entities/Wishlist";
 import { User } from "../database/entities/User";
 import { Repository } from "typeorm";
+import { WishlistSummaryService } from "./WishlistSummaryService";
 
 export class WishlistService {
     private wishlistRepository: Repository<Wishlist>;
     private userRepository: Repository<User>;
+    private wishlistSummaryService: WishlistSummaryService;
 
     constructor() {
         this.wishlistRepository = AppDataSource.getRepository(Wishlist);
         this.userRepository = AppDataSource.getRepository(User);
+        this.wishlistSummaryService = WishlistSummaryService.getInstance();
     }
 
     async createWishlist(
@@ -35,7 +38,7 @@ export class WishlistService {
             }
         });
 
-        return await this.wishlistRepository.save(wishlist);
+        return await this.wishlistSummaryService.summarizeAndPersist(wishlist);
     }
 
     async updateWishlist(
@@ -58,7 +61,7 @@ export class WishlistService {
         }
 
         Object.assign(wishlist, updates);
-        return await this.wishlistRepository.save(wishlist);
+        return await this.wishlistSummaryService.summarizeAndPersist(wishlist);
     }
 
     async getUserWishlists(userId: string): Promise<Wishlist[]> {

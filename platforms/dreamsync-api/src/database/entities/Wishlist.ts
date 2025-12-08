@@ -22,6 +22,12 @@ export class Wishlist {
     @Column({ type: "text" })
     content: string; // Markdown content
 
+    @Column({ type: "text", nullable: true })
+    summaryWants: string | null;
+
+    @Column({ type: "text", nullable: true })
+    summaryOffers: string | null;
+
     @Column({ type: "boolean", default: true })
     isActive: boolean;
 
