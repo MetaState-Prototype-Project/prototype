@@ -130,9 +130,10 @@ export class LedgerService {
 
         // Send transaction notifications for all transfer types
         // (USER-to-USER, USER-to-GROUP, GROUP-to-USER, GROUP-to-GROUP)
-        try {
+        // Fire-and-forget: don't block the transfer response
+        setImmediate(() => {
             const notificationService = new TransactionNotificationService();
-            await notificationService.sendTransactionNotifications(
+            notificationService.sendTransactionNotifications(
                 amount,
                 currency,
                 fromAccountId,
@@ -140,11 +141,11 @@ export class LedgerService {
                 toAccountId,
                 toAccountType,
                 description
-            );
-        } catch (error) {
-            // Don't fail the transfer if notification fails
-            console.error("Error sending transaction notifications:", error);
-        }
+            ).catch(error => {
+                // Don't fail the transfer if notification fails
+                console.error("Error sending transaction notifications:", error);
+            });
+        });
 
         return { debit, credit };
     }
