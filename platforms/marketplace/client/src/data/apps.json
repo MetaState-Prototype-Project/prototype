@@ -63,5 +63,13 @@
     "category": "Social",
     "logoUrl": "/ereputation.png",
     "url": "https://ereputation.w3ds.metastate.foundation"
+  },
+  {
+    "id": "emover",
+    "name": "Emover",
+    "description": "Secure evault migration platform for transferring your encrypted data vault between providers while maintaining full control and sovereignty.",
+    "category": "Identity",
+    "logoUrl": "/emover.svg",
+    "url": "https://emover.w3ds.metastate.foundation"
   }
 ]
