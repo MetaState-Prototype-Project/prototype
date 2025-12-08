@@ -1156,8 +1156,8 @@ importers:
         version: 3.5.4(zod@3.25.76)
     devDependencies:
       '@replit/vite-plugin-cartographer':
-        specifier: ^0.2.7
-        version: 0.2.8
+        specifier: ^0.4.0
+        version: 0.4.4
       '@replit/vite-plugin-runtime-error-modal':
         specifier: ^0.0.4
         version: 0.0.4
@@ -1644,8 +1644,8 @@ importers:
         version: 3.5.4(zod@3.25.76)
     devDependencies:
       '@replit/vite-plugin-cartographer':
-        specifier: ^0.2.7
-        version: 0.2.8
+        specifier: ^0.4.0
+        version: 0.4.4
       '@replit/vite-plugin-runtime-error-modal':
         specifier: ^0.0.4
         version: 0.0.4
@@ -2576,8 +2576,8 @@ importers:
         version: 3.5.4(zod@3.25.76)
     devDependencies:
       '@replit/vite-plugin-cartographer':
-        specifier: ^0.2.8
-        version: 0.2.8
+        specifier: ^0.4.0
+        version: 0.4.4
       '@replit/vite-plugin-runtime-error-modal':
         specifier: ^0.0.4
         version: 0.0.4
@@ -5960,8 +5960,8 @@ packages:
   '@repeaterjs/repeater@3.0.6':
     resolution: {integrity: sha512-Javneu5lsuhwNCryN+pXH93VPQ8g0dBX7wItHFgYiwQmzE1sVdg5tWHiOgHywzL2W21XQopa7IwIEnNbmeUJYA==}
 
-  '@replit/vite-plugin-cartographer@0.2.8':
-    resolution: {integrity: sha512-eNr3OAhJFv5b6tbDZ0Bc7DR4O0jxBN17LtBhHagf6FWdpOStNw8Pxsnd8pood7veHRDFbMB9+nsKsWKcB/j1xw==}
+  '@replit/vite-plugin-cartographer@0.4.4':
+    resolution: {integrity: sha512-Dn3i3gULFUlf+LvQ85S5k+ghmsrgNZwtmVTJyoUlpa04IB5tUMZrQFUWcYCzgpOW9aMKPX6ClSo173k/b9a2eg==}
 
   '@replit/vite-plugin-runtime-error-modal@0.0.4':
     resolution: {integrity: sha512-Xqf8M7GOfU7qhq2QMiWUkOb47Vq5rxTz1ZX8yUUqRAYJg80jHa8vidXQ3eKsGNXSDs4Y2cQKTV0IqTekN2Yqgw==}
@@ -18455,7 +18455,7 @@ snapshots:
 
   '@repeaterjs/repeater@3.0.6': {}
 
-  '@replit/vite-plugin-cartographer@0.2.8':
+  '@replit/vite-plugin-cartographer@0.4.4':
     dependencies:
       '@babel/parser': 7.28.5
       '@babel/traverse': 7.28.5
