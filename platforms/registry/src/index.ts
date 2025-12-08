@@ -138,7 +138,8 @@ server.get("/platforms", async (request, reply) => {
         process.env.PUBLIC_EVOTING_BASE_URL,
         process.env.VITE_DREAMSYNC_BASE_URL,
         process.env.VITE_EREPUTATION_BASE_URL,
-        process.env.VITE_ECURRENCY_BASE_URL
+        process.env.VITE_ECURRENCY_BASE_URL,
+        process.env.PUBLIC_EMOVER_BASE_URL
     ];
 
     return platforms;
