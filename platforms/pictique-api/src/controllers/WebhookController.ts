@@ -297,18 +297,53 @@ export class WebhookController {
                             });
                         }
                     } else {
-                        // Group chat - always create new
-                        chat = await this.chatService.createChat(
-                            local.data.name as string,
-                            participantIds
-                        );
-                        chat.admins = admins;
-                        await this.chatService.chatRepository.save(chat);
-                        this.adapter.addToLockedIds(chat.id);
-                        await this.adapter.mappingDb.storeMapping({
-                            localId: chat.id,
-                            globalId: req.body.id,
-                        });
+                        // Group chat - check for eCurrency Chat duplicates by name
+                        const chatName = local.data.name as string;
+                        if (chatName && (chatName.startsWith("eCurrency Chat") || chatName.includes("eCurrency Chat"))) {
+                            // Check if chat with this name already exists
+                            const existingChat = await this.chatService.chatRepository.findOne({
+                                where: { name: chatName },
+                                relations: ["participants", "admins"]
+                            });
+                            
+                            if (existingChat) {
+                                console.log(`⚠️ eCurrency Chat with name "${chatName}" already exists, using existing: ${existingChat.id}`);
+                                chat = existingChat;
+                                chat.admins = admins;
+                                await this.chatService.chatRepository.save(chat);
+                                this.adapter.addToLockedIds(chat.id);
+                                await this.adapter.mappingDb.storeMapping({
+                                    localId: chat.id,
+                                    globalId: req.body.id,
+                                });
+                            } else {
+                                // Create new chat
+                                chat = await this.chatService.createChat(
+                                    chatName,
+                                    participantIds
+                                );
+                                chat.admins = admins;
+                                await this.chatService.chatRepository.save(chat);
+                                this.adapter.addToLockedIds(chat.id);
+                                await this.adapter.mappingDb.storeMapping({
+                                    localId: chat.id,
+                                    globalId: req.body.id,
+                                });
+                            }
+                        } else {
+                            // Regular group chat - always create new
+                            chat = await this.chatService.createChat(
+                                chatName,
+                                participantIds
+                            );
+                            chat.admins = admins;
+                            await this.chatService.chatRepository.save(chat);
+                            this.adapter.addToLockedIds(chat.id);
+                            await this.adapter.mappingDb.storeMapping({
+                                localId: chat.id,
+                                globalId: req.body.id,
+                            });
+                        }
                     }
                 }
             } else if (mapping.tableName === "messages") {

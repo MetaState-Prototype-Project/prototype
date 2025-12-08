@@ -61,6 +61,47 @@ export class ChatService {
         participantIds: string[] = [],
         creatorId?: string
     ): Promise<Chat> {
+        // For eCurrency Chat groups, check if a chat with the same name already exists
+        // This prevents duplicate chat creation
+        if (name && (name.startsWith("eCurrency Chat") || name.includes("eCurrency Chat"))) {
+            return await AppDataSource.transaction(async (transactionalEntityManager) => {
+                // Check if a chat with this exact name already exists
+                const existingChat = await transactionalEntityManager.findOne(Chat, {
+                    where: { name },
+                    relations: ["participants", "admins"]
+                });
+
+                if (existingChat) {
+                    console.log(`⚠️ Chat with name "${name}" already exists, returning existing chat: ${existingChat.id}`);
+                    return existingChat;
+                }
+
+                // No existing chat found, create new one
+                const participants = await transactionalEntityManager.findBy(User, {
+                    id: In(participantIds),
+                });
+                if (participants.length !== participantIds.length) {
+                    throw new Error("One or more participants not found");
+                }
+
+                let admins: User[] = [];
+                if (creatorId) {
+                    const creator = await transactionalEntityManager.findOneBy(User, { id: creatorId });
+                    if (creator) {
+                        admins = [creator];
+                    }
+                }
+
+                const chat = transactionalEntityManager.create(Chat, {
+                    name: name,
+                    participants,
+                    admins,
+                });
+                return await transactionalEntityManager.save(Chat, chat);
+            });
+        }
+
+        // For non-eCurrency Chat groups, proceed normally
         const participants = await this.userRepository.findBy({
             id: In(participantIds),
         });
