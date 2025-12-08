@@ -2032,7 +2032,7 @@ importers:
         version: 7.17.3
       '@milkdown/plugin-listener':
         specifier: ^7.15.2
-        version: 7.17.2
+        version: 7.17.3
       '@milkdown/preset-gfm':
         specifier: ^7.15.2
         version: 7.17.2
@@ -4777,6 +4777,9 @@ packages:
 
   '@milkdown/plugin-listener@7.17.2':
     resolution: {integrity: sha512-1ViQ+7eK5lPB3K17Y7GSq7kVn6LgLgG1YUKNRjJYrN/kCiYeaqbogxeI1Aeow8mDDtXONTplI3Yq4yIjxBv50A==}
+
+  '@milkdown/plugin-listener@7.17.3':
+    resolution: {integrity: sha512-plThVsl9JDopMfienFxlEpzq/k9sAqaG3VF9kknVR/ELLsJ6Qq07n1wXBHiC4P9TZqzLzR+WNOmeMNj0lNI4jg==}
 
   '@milkdown/plugin-slash@7.17.2':
     resolution: {integrity: sha512-w2NDrkZMyVYeXw81zhOrahGEXNnunDY7CL5e6dTC08YeWl/OKAdmnAfbfILCI0de8ZMj0nmMoK/KHJS53yD9EA==}
@@ -17217,6 +17220,16 @@ snapshots:
       '@milkdown/core': 7.17.2
       '@milkdown/ctx': 7.17.2
       '@milkdown/prose': 7.17.2
+      '@types/lodash-es': 4.17.12
+      lodash-es: 4.17.21
+    transitivePeerDependencies:
+      - supports-color
+
+  '@milkdown/plugin-listener@7.17.3':
+    dependencies:
+      '@milkdown/core': 7.17.3
+      '@milkdown/ctx': 7.17.3
+      '@milkdown/prose': 7.17.3
       '@types/lodash-es': 4.17.12
       lodash-es: 4.17.21
     transitivePeerDependencies:
