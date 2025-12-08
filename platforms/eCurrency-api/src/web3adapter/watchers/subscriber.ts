@@ -114,6 +114,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             entity = await this.enrichMessageEntity(entity);
         }
         
+        
         this.handleChange(
             // @ts-ignore
             entity ?? event.entityId,

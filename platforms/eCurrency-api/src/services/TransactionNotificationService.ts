@@ -3,6 +3,7 @@ import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";
 import { Currency } from "../database/entities/Currency";
+import { AccountType } from "../database/entities/Ledger";
 import { UserService } from "./UserService";
 import { GroupService } from "./GroupService";
 import { MessageService } from "./MessageService";
@@ -104,6 +105,19 @@ export class TransactionNotificationService {
                 [] // originalMatchParticipants
             );
 
+            // Double-check: if createGroup returned an existing chat (due to race condition), verify it's the right one
+            if (mutualChat.id) {
+                const verifyChat = await this.groupService.findGroupByMembers([
+                    ecurrencyUser.id,
+                    targetUserId
+                ]);
+                
+                if (verifyChat && verifyChat.id !== mutualChat.id) {
+                    console.log(`⚠️ Race condition detected: found different chat ${verifyChat.id}, using it instead`);
+                    return { chat: verifyChat, wasCreated: false };
+                }
+            }
+
             console.log(`✅ Created new mutual chat: ${mutualChat.id}`);
             console.log(`📋 New chat details: Name="${mutualChat.name}", Private=${mutualChat.isPrivate}, Members=${mutualChat.members?.length || 0}`);
             return { chat: mutualChat, wasCreated: true };
@@ -123,11 +137,15 @@ export class TransactionNotificationService {
             currency: Currency;
             description?: string;
             senderId: string;
+            senderAccountType: AccountType;
             receiverId: string;
+            receiverAccountType: AccountType;
             senderName?: string;
             receiverName?: string;
             timestamp: Date;
             isSender: boolean;
+            accountId?: string; // The account this notification is about (for group admins)
+            accountType?: AccountType; // The account type this notification is about
         }
     ): Promise<void> {
         try {
@@ -155,7 +173,11 @@ export class TransactionNotificationService {
             }
 
             // Generate the transaction message
-            const messageContent = this.generateTransactionMessage(transactionDetails);
+            const messageContent = this.generateTransactionMessage({
+                ...transactionDetails,
+                accountId: transactionDetails.accountId,
+                accountType: transactionDetails.accountType,
+            });
 
             console.log(`💾 Creating transaction notification message...`);
             const messageRepository = AppDataSource.getRepository(Message);
@@ -185,13 +207,17 @@ export class TransactionNotificationService {
         currency: Currency;
         description?: string;
         senderId: string;
+        senderAccountType: AccountType;
         receiverId: string;
+        receiverAccountType: AccountType;
         senderName?: string;
         receiverName?: string;
         timestamp: Date;
         isSender: boolean;
+        accountId?: string; // The account this notification is about
+        accountType?: AccountType; // The account type this notification is about
     }): string {
-        const { amount, currency, description, senderName, receiverName, timestamp, isSender } = details;
+        const { amount, currency, senderName, receiverName, timestamp, isSender, accountType, senderAccountType, receiverAccountType } = details;
         
         const formattedAmount = amount.toLocaleString('en-US', {
             minimumFractionDigits: 2,
@@ -206,83 +232,127 @@ export class TransactionNotificationService {
             minute: '2-digit'
         });
 
-        if (isSender) {
-            return `$$system-message$$
+        const emoji = isSender ? '💸' : '💰';
+        const action = isSender ? 'Sent' : 'Received';
+        
+        // Determine account type text
+        let accountText = 'personal account';
+        if (accountType === AccountType.GROUP) {
+            const accountName = isSender ? senderName : receiverName;
+            accountText = `group account of ${accountName || 'Group'}`;
+        }
 
-💸 Transaction Sent
+        // Determine sender/recipient info
+        const otherPartyName = isSender 
+            ? (receiverAccountType === AccountType.GROUP ? `${receiverName} (Group)` : receiverName || 'User')
+            : (senderAccountType === AccountType.GROUP ? `${senderName} (Group)` : senderName || 'User');
+        
+        const otherPartyLabel = isSender ? 'recipient' : 'sender';
 
-Amount: ${formattedAmount} ${currency.name}
-To: ${receiverName || 'User'}
-Currency: ${currency.name}
-${description ? `Description: ${description}` : ''}
-Time: ${formattedTime}
+        return `$$system-message$$
 
-Your transaction has been successfully processed.
+${emoji} ${currency.name} ${action}
 
-Best regards,
-eCurrency Platform`;
+Transaction for your ${accountText} has been processed.
+
+${isSender ? 'sent amount' : 'received amount'}: ${formattedAmount}
+currency: ${currency.name} (${currency.ename})
+time: ${formattedTime}
+${otherPartyLabel}: ${otherPartyName}`;
+    }
+
+    /**
+     * Get users to notify for an account (user or group admins)
+     */
+    private async getUsersToNotify(accountId: string, accountType: AccountType): Promise<User[]> {
+        if (accountType === AccountType.USER) {
+            const user = await this.userService.getUserById(accountId);
+            return user ? [user] : [];
         } else {
-            return `$$system-message$$
+            // For groups, get all admins
+            const group = await this.groupService.getGroupById(accountId);
+            if (!group || !group.admins || group.admins.length === 0) {
+                console.warn(`⚠️ Group ${accountId} has no admins, cannot send notification`);
+                return [];
+            }
+            return group.admins;
+        }
+    }
 
-💰 Transaction Received
-
-Amount: ${formattedAmount} ${currency.name}
-From: ${senderName || 'User'}
-Currency: ${currency.name}
-${description ? `Description: ${description}` : ''}
-Time: ${formattedTime}
-
-You have received a new transaction.
-
-Best regards,
-eCurrency Platform`;
+    /**
+     * Get account display name (user name or group name)
+     */
+    private async getAccountDisplayName(accountId: string, accountType: AccountType): Promise<string> {
+        if (accountType === AccountType.USER) {
+            const user = await this.userService.getUserById(accountId);
+            return user ? (user.name || user.ename) : 'User';
+        } else {
+            const group = await this.groupService.getGroupById(accountId);
+            return group ? (group.name || 'Group') : 'Group';
         }
     }
 
     /**
      * Send transaction notifications to both sender and receiver
+     * Handles USER-to-USER, USER-to-GROUP, GROUP-to-USER, and GROUP-to-GROUP transfers
      */
     async sendTransactionNotifications(
         amount: number,
         currency: Currency,
         senderId: string,
+        senderAccountType: AccountType,
         receiverId: string,
+        receiverAccountType: AccountType,
         description?: string
     ): Promise<void> {
         try {
-            // Get sender and receiver user details
-            const sender = await this.userService.getUserById(senderId);
-            const receiver = await this.userService.getUserById(receiverId);
+            // Get users to notify for sender and receiver
+            const senderUsers = await this.getUsersToNotify(senderId, senderAccountType);
+            const receiverUsers = await this.getUsersToNotify(receiverId, receiverAccountType);
 
-            if (!sender || !receiver) {
-                console.error("❌ Cannot send notifications: sender or receiver not found");
+            if (senderUsers.length === 0 && receiverUsers.length === 0) {
+                console.error("❌ Cannot send notifications: no users found for sender or receiver");
                 return;
             }
+
+            // Get display names
+            const senderName = await this.getAccountDisplayName(senderId, senderAccountType);
+            const receiverName = await this.getAccountDisplayName(receiverId, receiverAccountType);
 
             const transactionDetails = {
                 amount,
                 currency,
                 description,
                 senderId,
+                senderAccountType,
                 receiverId,
-                senderName: sender.name || sender.ename,
-                receiverName: receiver.name || receiver.ename,
+                receiverAccountType,
+                senderName,
+                receiverName,
                 timestamp: new Date(),
             };
 
-            // Send notification to sender
-            console.log(`📤 Sending transaction notification to sender: ${senderId}`);
-            await this.sendNotificationToUser(senderId, {
-                ...transactionDetails,
-                isSender: true,
-            });
+            // Send notification to all sender users (user or group admins)
+            for (const senderUser of senderUsers) {
+                console.log(`📤 Sending transaction notification to sender: ${senderUser.id} (${senderAccountType}:${senderId})`);
+                await this.sendNotificationToUser(senderUser.id, {
+                    ...transactionDetails,
+                    isSender: true,
+                    accountId: senderId, // The account this notification is about
+                    accountType: senderAccountType,
+                });
+            }
 
-            // Send notification to receiver
-            console.log(`📥 Sending transaction notification to receiver: ${receiverId}`);
-            await this.sendNotificationToUser(receiverId, {
-                ...transactionDetails,
-                isSender: false,
-            });
+            // Send notification to all receiver users (user or group admins)
+            for (const receiverUser of receiverUsers) {
+                console.log(`📥 Sending transaction notification to receiver: ${receiverUser.id} (${receiverAccountType}:${receiverId})`);
+                await this.sendNotificationToUser(receiverUser.id, {
+                    ...transactionDetails,
+                    isSender: false,
+                    accountId: receiverId, // The account this notification is about
+                    accountType: receiverAccountType,
+                });
+            }
 
             console.log(`✅ Transaction notifications sent successfully`);
         } catch (error) {

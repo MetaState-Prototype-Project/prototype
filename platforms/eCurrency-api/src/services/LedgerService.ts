@@ -128,21 +128,22 @@ export class LedgerService {
             toAccountType // receiver type
         );
 
-        // Send transaction notifications for USER to USER transfers
-        if (fromAccountType === AccountType.USER && toAccountType === AccountType.USER) {
-            try {
-                const notificationService = new TransactionNotificationService();
-                await notificationService.sendTransactionNotifications(
-                    amount,
-                    currency,
-                    fromAccountId,
-                    toAccountId,
-                    description
-                );
-            } catch (error) {
-                // Don't fail the transfer if notification fails
-                console.error("Error sending transaction notifications:", error);
-            }
+        // Send transaction notifications for all transfer types
+        // (USER-to-USER, USER-to-GROUP, GROUP-to-USER, GROUP-to-GROUP)
+        try {
+            const notificationService = new TransactionNotificationService();
+            await notificationService.sendTransactionNotifications(
+                amount,
+                currency,
+                fromAccountId,
+                fromAccountType,
+                toAccountId,
+                toAccountType,
+                description
+            );
+        } catch (error) {
+            // Don't fail the transfer if notification fails
+            console.error("Error sending transaction notifications:", error);
         }
 
         return { debit, credit };

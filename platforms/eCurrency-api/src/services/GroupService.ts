@@ -21,18 +21,30 @@ export class GroupService {
         // Use a more efficient query to find groups with exactly these members
         const sortedMemberIds = memberIds.sort();
         
-        // First, try to find groups that have exactly 2 members (for DMs)
+        // For 2-member groups (DMs), use a more efficient query
         if (sortedMemberIds.length === 2) {
+            // Use a subquery to find groups where both members are present
             const groups = await this.groupRepository
                 .createQueryBuilder("group")
                 .leftJoinAndSelect("group.members", "members")
                 .where("group.isPrivate = :isPrivate", { isPrivate: true })
-                .andWhere("group.name LIKE :namePattern", { namePattern: "eCurrency Chat%" })
+                .andWhere((qb) => {
+                    const subQuery = qb.subQuery()
+                        .select("gm.group_id")
+                        .from("group_members", "gm")
+                        .where("gm.user_id IN (:...memberIds)", { 
+                            memberIds: sortedMemberIds 
+                        })
+                        .groupBy("gm.group_id")
+                        .having("COUNT(DISTINCT gm.user_id) = :memberCount", { memberCount: 2 })
+                        .getQuery();
+                    return "group.id IN " + subQuery;
+                })
                 .getMany();
 
             // Filter groups that have exactly the same 2 members
             for (const group of groups) {
-                if (group.members.length === 2) {
+                if (group.members && group.members.length === 2) {
                     const groupMemberIds = group.members.map((m: User) => m.id).sort();
                     
                     if (groupMemberIds.length === sortedMemberIds.length &&
@@ -52,6 +64,10 @@ export class GroupService {
 
         // Filter groups that have exactly the same members (order doesn't matter)
         for (const group of groups) {
+            if (!group.members || group.members.length !== sortedMemberIds.length) {
+                continue;
+            }
+            
             const groupMemberIds = group.members.map((m: User) => m.id).sort();
             
             if (groupMemberIds.length === sortedMemberIds.length &&
@@ -84,7 +100,8 @@ export class GroupService {
         originalMatchParticipants?: string[],
     ): Promise<Group> {
         // For eCurrency Chat groups, check if a DM already exists between these users
-        if (isPrivate && name.startsWith("eCurrency Chat") && memberIds.length === 2) {
+        // This prevents duplicate chat creation in race conditions
+        if (isPrivate && (name.startsWith("eCurrency Chat") || name.includes("eCurrency Chat")) && memberIds.length === 2) {
             const existingDM = await this.findGroupByMembers(memberIds);
             if (existingDM) {
                 console.log(`⚠️ DM already exists between users ${memberIds.join(", ")}, returning existing DM: ${existingDM.id}`);
