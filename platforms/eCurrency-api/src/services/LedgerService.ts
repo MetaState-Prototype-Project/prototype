@@ -274,5 +274,32 @@ export class LedgerService {
             return await groupRepository.findOne({ where: { id: accountId } });
         }
     }
+
+    /**
+     * Get total supply for a currency by summing all account balances
+     */
+    async getTotalSupply(currencyId: string): Promise<number> {
+        // Get all unique account combinations for this currency
+        const distinctAccounts = await this.ledgerRepository
+            .createQueryBuilder("ledger")
+            .select("ledger.accountId", "accountId")
+            .addSelect("ledger.accountType", "accountType")
+            .where("ledger.currencyId = :currencyId", { currencyId })
+            .distinct(true)
+            .getRawMany();
+
+        // Sum all balances
+        let totalSupply = 0;
+        for (const account of distinctAccounts) {
+            const balance = await this.getAccountBalance(
+                currencyId,
+                account.accountId,
+                account.accountType as AccountType
+            );
+            totalSupply += Number(balance);
+        }
+
+        return totalSupply;
+    }
 }
 

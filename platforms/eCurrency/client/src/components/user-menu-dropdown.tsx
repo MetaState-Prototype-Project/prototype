@@ -25,9 +25,9 @@ export default function UserMenuDropdown({ accountContext, onAccountContextChang
   const adminGroups = groups?.filter((g: any) => g.isAdmin) || [];
   const hasAdminGroups = adminGroups.length > 0;
 
-  const currentLabel = accountContext?.type === "user"
-    ? "My Account"
-    : adminGroups.find((g: any) => g.id === accountContext?.id)?.name || "My Account";
+  const currentAccountName = accountContext?.type === "user"
+    ? (user?.name || user?.ename || "Personal Account")
+    : (groups?.find((g: any) => g.id === accountContext?.id)?.name || "Group");
 
   if (!user) {
     return null;
@@ -39,7 +39,7 @@ export default function UserMenuDropdown({ accountContext, onAccountContextChang
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
       >
-        <span className="text-sm font-medium">{user?.name || user?.ename || "Account"}</span>
+        <span className="text-sm font-medium">Currently managing: {currentAccountName}</span>
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
