@@ -158,6 +158,15 @@ export class WebhookController {
         if (tableName === "users") {
             docRef = collection.doc(data.ename);
         } else if (tableName === "chats") {
+            // Check if this is a DM with DM ID in description (already processed)
+            // This prevents duplicate chat creation when webhooks arrive from eCurrency
+            const description = data.description || mappedData.description;
+            if (description && typeof description === 'string' && description.startsWith('DM ID:')) {
+                console.log("⏭️ Skipping DM creation - this DM has DM ID in description (already processed)");
+                adapter.addToLockedIds(globalId);
+                return; // Exit early, don't create new chat
+            }
+
             // Check for existing DM (2 participants, no name) before creating
             const participants = mappedData.participants || [];
             const isDM = participants.length === 2 && !mappedData.name;

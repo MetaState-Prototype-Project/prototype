@@ -351,6 +351,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
      */
     private async sendGroupWebhook(data: any): Promise<void> {
         try {
+            // Skip DMs with DM ID in description (already processed, prevents duplicate webhooks)
+            if (data.description && typeof data.description === 'string' && data.description.startsWith('DM ID:')) {
+                console.log(`🔍 Skipping DM webhook - has DM ID in description: ${data.description}`);
+                return;
+            }
+
             let globalId = await this.adapter.mappingDb.getGlobalId(data.id);
             globalId = globalId ?? "";
 

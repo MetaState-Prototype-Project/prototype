@@ -215,6 +215,13 @@ export class WebhookController {
                     }
                 }
             } else if (mapping.tableName === "chats") {
+                // Check if this is a DM with DM ID in description (already processed)
+                // This prevents duplicate chat creation when webhooks arrive from eCurrency
+                if (local.data.description && typeof local.data.description === 'string' && local.data.description.startsWith('DM ID:')) {
+                    console.log("⏭️ Skipping DM creation - this DM has DM ID in description (already processed)");
+                    return res.status(200).send("Skipped DM ID group");
+                }
+
                 let participants: User[] = [];
                 if (
                     local.data.participants &&
@@ -265,30 +272,20 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.chatService.chatRepository.save(chat);
                 } else {
-                    // Check for existing DM (2 participants, no name) before creating
-                    const participantIds = participants.map((p) => p.id);
-                    const isDM = participantIds.length === 2 && !local.data.name;
-
-                    let chat;
-                    if (isDM) {
-                        const existingChat = await this.chatService.findChatByParticipants(participantIds);
+                    let chat: Chat | null = null;
+                    
+                    // First, check if a mapping already exists for this globalId
+                    // This prevents duplicates when webhooks arrive simultaneously from multiple platforms
+                    const existingLocalId = await this.adapter.mappingDb.getLocalId(globalId);
+                    if (existingLocalId) {
+                        const existingChat = await this.chatService.findById(existingLocalId);
                         if (existingChat) {
-                            // Use existing chat and store mapping
+                            console.log(`⚠️ Chat mapping already exists for globalId ${globalId}, using existing chat: ${existingChat.id}`);
                             chat = existingChat;
+                            chat.name = local.data.name as string;
+                            chat.participants = participants;
                             chat.admins = admins;
-                            await this.chatService.chatRepository.save(chat);
-                            this.adapter.addToLockedIds(chat.id);
-                            await this.adapter.mappingDb.storeMapping({
-                                localId: chat.id,
-                                globalId: req.body.id,
-                            });
-                        } else {
-                            // Create new chat
-                            chat = await this.chatService.createChat(
-                                local.data.name as string,
-                                participantIds
-                            );
-                            chat.admins = admins;
+                            chat.ename = local.data.ename as string;
                             await this.chatService.chatRepository.save(chat);
                             this.adapter.addToLockedIds(chat.id);
                             await this.adapter.mappingDb.storeMapping({
@@ -297,17 +294,15 @@ export class WebhookController {
                             });
                         }
                     } else {
-                        // Group chat - check for eCurrency Chat duplicates by name
-                        const chatName = local.data.name as string;
-                        if (chatName && (chatName.startsWith("eCurrency Chat") || chatName.includes("eCurrency Chat"))) {
-                            // Check if chat with this name already exists
-                            const existingChat = await this.chatService.chatRepository.findOne({
-                                where: { name: chatName },
-                                relations: ["participants", "admins"]
-                            });
-                            
+                        // Check for existing DM (2 participants, no name) before creating
+                        const participantIds = participants.map((p) => p.id);
+                        const isDM = participantIds.length === 2 && !local.data.name;
+
+                        let chat;
+                        if (isDM) {
+                            const existingChat = await this.chatService.findChatByParticipants(participantIds);
                             if (existingChat) {
-                                console.log(`⚠️ eCurrency Chat with name "${chatName}" already exists, using existing: ${existingChat.id}`);
+                                // Use existing chat and store mapping
                                 chat = existingChat;
                                 chat.admins = admins;
                                 await this.chatService.chatRepository.save(chat);
@@ -318,6 +313,54 @@ export class WebhookController {
                                 });
                             } else {
                                 // Create new chat
+                                chat = await this.chatService.createChat(
+                                    local.data.name as string,
+                                    participantIds
+                                );
+                                chat.admins = admins;
+                                await this.chatService.chatRepository.save(chat);
+                                this.adapter.addToLockedIds(chat.id);
+                                await this.adapter.mappingDb.storeMapping({
+                                    localId: chat.id,
+                                    globalId: req.body.id,
+                                });
+                            }
+                        } else {
+                            // Group chat - check for eCurrency Chat duplicates by name
+                            const chatName = local.data.name as string;
+                            if (chatName && (chatName.startsWith("eCurrency Chat") || chatName.includes("eCurrency Chat"))) {
+                                // Check if chat with this name already exists
+                                const existingChat = await this.chatService.chatRepository.findOne({
+                                    where: { name: chatName },
+                                    relations: ["participants", "admins"]
+                                });
+                                
+                                if (existingChat) {
+                                    console.log(`⚠️ eCurrency Chat with name "${chatName}" already exists, using existing: ${existingChat.id}`);
+                                    chat = existingChat;
+                                    chat.admins = admins;
+                                    await this.chatService.chatRepository.save(chat);
+                                    this.adapter.addToLockedIds(chat.id);
+                                    await this.adapter.mappingDb.storeMapping({
+                                        localId: chat.id,
+                                        globalId: req.body.id,
+                                    });
+                                } else {
+                                    // Create new chat
+                                    chat = await this.chatService.createChat(
+                                        chatName,
+                                        participantIds
+                                    );
+                                    chat.admins = admins;
+                                    await this.chatService.chatRepository.save(chat);
+                                    this.adapter.addToLockedIds(chat.id);
+                                    await this.adapter.mappingDb.storeMapping({
+                                        localId: chat.id,
+                                        globalId: req.body.id,
+                                    });
+                                }
+                            } else {
+                                // Regular group chat - always create new
                                 chat = await this.chatService.createChat(
                                     chatName,
                                     participantIds
@@ -330,19 +373,6 @@ export class WebhookController {
                                     globalId: req.body.id,
                                 });
                             }
-                        } else {
-                            // Regular group chat - always create new
-                            chat = await this.chatService.createChat(
-                                chatName,
-                                participantIds
-                            );
-                            chat.admins = admins;
-                            await this.chatService.chatRepository.save(chat);
-                            this.adapter.addToLockedIds(chat.id);
-                            await this.adapter.mappingDb.storeMapping({
-                                localId: chat.id,
-                                globalId: req.body.id,
-                            });
                         }
                     }
                 }
