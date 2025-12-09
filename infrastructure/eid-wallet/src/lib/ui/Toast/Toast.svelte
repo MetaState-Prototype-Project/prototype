@@ -4,7 +4,14 @@
     import { Cancel01Icon } from "@hugeicons/core-free-icons";
     import { HugeiconsIcon } from "@hugeicons/svelte";
 
-    let toasts = $state<Array<{ id: string; message: string; type?: "success" | "error" | "info"; duration?: number }>>([]);
+    let toasts = $state<
+        Array<{
+            id: string;
+            message: string;
+            type?: "success" | "error" | "info";
+            duration?: number;
+        }>
+    >([]);
 
     $effect(() => {
         const unsubscribe = toastStore.subscribe((value) => {
@@ -80,7 +87,8 @@
     }
 
     .animate-in {
-        animation: slide-in-from-top-2 0.3s ease-out, fade-in 0.3s ease-out;
+        animation:
+            slide-in-from-top-2 0.3s ease-out,
+            fade-in 0.3s ease-out;
     }
 </style>
-

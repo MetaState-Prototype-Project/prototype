@@ -74,6 +74,21 @@ $effect(() => {
         initialBreak: "bottom",
     });
 
+    // Add class to pane element based on fullScreen prop
+    // Use setTimeout to ensure pane element is created
+    setTimeout(() => {
+        const paneElement = document.querySelector(".pane") as HTMLElement;
+        if (paneElement) {
+            if (fullScreen) {
+                paneElement.classList.add("drawer-fullscreen");
+                paneElement.classList.remove("drawer-normal");
+            } else {
+                paneElement.classList.add("drawer-normal");
+                paneElement.classList.remove("drawer-fullscreen");
+            }
+        }
+    }, 0);
+
     return () => pane?.destroy();
 });
 
@@ -81,8 +96,33 @@ $effect(() => {
 $effect(() => {
     if (!pane) return;
 
+    // Update fullscreen class when prop changes
+    const paneElement = document.querySelector(".pane") as HTMLElement;
+    if (paneElement) {
+        if (fullScreen) {
+            paneElement.classList.add("drawer-fullscreen");
+            paneElement.classList.remove("drawer-normal");
+        } else {
+            paneElement.classList.add("drawer-normal");
+            paneElement.classList.remove("drawer-fullscreen");
+        }
+    }
+
     if (isPaneOpen) {
         pane.present({ animate: true });
+        // Update class after presenting
+        setTimeout(() => {
+            const paneEl = document.querySelector(".pane") as HTMLElement;
+            if (paneEl) {
+                if (fullScreen) {
+                    paneEl.classList.add("drawer-fullscreen");
+                    paneEl.classList.remove("drawer-normal");
+                } else {
+                    paneEl.classList.add("drawer-normal");
+                    paneEl.classList.remove("drawer-fullscreen");
+                }
+            }
+        }, 0);
     } else {
         pane.destroy({ animate: true });
     }
@@ -93,7 +133,7 @@ $effect(() => {
     {...restProps}
     use:swipe
     bind:this={drawerElem}
-    class={cn(restProps.class)}
+    class={cn(restProps.class, fullScreen ? "drawer-fullscreen" : "drawer-normal")}
 >
     <div class="px-6">
         {@render children?.()}
@@ -102,21 +142,36 @@ $effect(() => {
 
 <style>
     :global(.pane) {
-        width: {fullScreen ? "100%" : "95%"} !important;
-        max-height: {fullScreen ? "100vh" : "600px"} !important;
-        min-height: {fullScreen ? "100vh" : "250px"} !important;
-        height: {fullScreen ? "100vh" : "auto"} !important;
         position: fixed !important;
-        bottom: {fullScreen ? "0" : "30px"} !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        border-radius: {fullScreen ? "0" : "32px"} !important;
-        padding-block-start: {fullScreen ? "0" : "50px"} !important;
-        padding-block-end: {fullScreen ? "0" : "20px"} !important;
         background-color: var(--color-white) !important;
         overflow-y: auto !important; /* vertical scroll if needed */
         overflow-x: hidden !important; /* prevent sideways scroll */
         -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+    }
+
+    :global(.pane.drawer-normal),
+    :global(.pane:not(.drawer-fullscreen)) {
+        width: 95% !important;
+        max-height: 600px !important;
+        min-height: 250px !important;
+        height: auto !important;
+        bottom: 30px !important;
+        border-radius: 32px !important;
+        padding-block-start: 50px !important;
+        padding-block-end: 20px !important;
+    }
+
+    :global(.pane.drawer-fullscreen) {
+        width: 100% !important;
+        max-height: 100vh !important;
+        min-height: 100vh !important;
+        height: 100vh !important;
+        bottom: 0 !important;
+        border-radius: 0 !important;
+        padding-block-start: 0 !important;
+        padding-block-end: 0 !important;
     }
 
     :global(.move) {
