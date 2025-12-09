@@ -1,17 +1,40 @@
 <script lang="ts">
 import { ButtonAction } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { documentType, verifStep } from "../store";
+import { getContext } from "svelte";
+
+let showVeriffModal = getContext<{ value: boolean }>("showVeriffModal");
 
 function selectDocumentType(type: "passport" | "id" | "permit" | "dl") {
     documentType.set(type);
     verifStep.set(1); // Move to document capture step
 }
+
+function goBack() {
+    if (showVeriffModal) {
+        showVeriffModal.value = false;
+    } else {
+        // Fallback: just go back in history
+        window.history.back();
+    }
+}
 </script>
 
 <div class="flex flex-col gap-5">
-    <div>
-        <h3>Choose Document Type</h3>
-        <p>Select the type of identity document you will be presenting</p>
+    <div class="flex items-start gap-3 mb-2">
+        <Button.Icon
+            icon={ArrowLeft01Icon}
+            iconColor="black"
+            strokeWidth={2}
+            onclick={goBack}
+            class="cursor-pointer mt-1"
+        />
+        <div class="flex-1">
+            <h3>Choose Document Type</h3>
+            <p>Select the type of identity document you will be presenting</p>
+        </div>
     </div>
 
     <div class="flex flex-col gap-3">

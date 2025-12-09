@@ -99,15 +99,9 @@ $effect(() => {
 });
 
 async function handleAuthDrawerDecline() {
-    // If there's an error, "Okay" button closes modal and navigates to main
-    if ($authError) {
-        setCodeScannedDrawerOpen(false);
-        await goto("/main");
-    } else {
-        // Otherwise, "Decline" closes modal and restarts scanning
-        setCodeScannedDrawerOpen(false);
-        startScan();
-    }
+    // Cancel button always navigates to main dashboard
+    setCodeScannedDrawerOpen(false);
+    await goto("/main");
 }
 
 function handleAuthDrawerOpenChange(value: boolean) {
@@ -126,15 +120,9 @@ function handleLoggedInDrawerOpenChange(value: boolean) {
 }
 
 async function handleSigningDrawerDecline() {
-    // If there's an error, "Okay" button closes modal and navigates to main
-    if ($signingError) {
-        setSigningDrawerOpen(false);
-        await goto("/main");
-    } else {
-        // Otherwise, "Decline" closes modal and restarts scanning
-        setSigningDrawerOpen(false);
-        startScan();
-    }
+    // Cancel button always navigates to main dashboard
+    setSigningDrawerOpen(false);
+    await goto("/main");
 }
 
 function handleSigningDrawerOpenChange(value: boolean) {
@@ -148,9 +136,9 @@ function handleBlindVoteOptionChange(index: number) {
     handleBlindVoteSelection(index);
 }
 
-function handleRevealDrawerCancel() {
+async function handleRevealDrawerCancel() {
     setRevealRequestOpen(false);
-    window.history.back();
+    await goto("/main");
 }
 
 function handleRevealDrawerOpenChange(value: boolean) {

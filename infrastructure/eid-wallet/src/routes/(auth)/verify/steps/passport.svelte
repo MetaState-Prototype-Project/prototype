@@ -1,6 +1,8 @@
 <script lang="ts">
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import { ButtonAction } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import axios from "axios";
 import { onMount } from "svelte";
 import { writable } from "svelte/store";
@@ -225,8 +227,17 @@ onMount(() => {
     {/if}
     <div class="flex flex-col h-[90vh]">
         <div class="flex flex-col items-center gap-1">
-            <div class="mb-10">
-                <h3>
+            <div class="mb-10 w-full">
+                <div class="flex items-start gap-3 mb-4">
+                    <Button.Icon
+                        icon={ArrowLeft01Icon}
+                        iconColor="black"
+                        strokeWidth={2}
+                        onclick={() => verifStep.set(0)}
+                        class="cursor-pointer mt-1"
+                    />
+                    <div class="flex-1">
+                        <h3>
                     {#if $documentType === "passport"}
                         Present your Passport
                     {:else if $documentType === "id"}
@@ -241,6 +252,8 @@ onMount(() => {
                     Please place your document's {$DocFront ? "back" : "photo"} page within the rectangle
                     and press the take photo button
                 </p>
+                    </div>
+                </div>
             </div>
             <div class="relative flex flex-col items-center justify-center">
                 <!-- svelte-ignore a11y-media-has-caption -->

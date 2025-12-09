@@ -45,9 +45,10 @@ async function nukeWallet() {
     goto("/onboarding");
 }
 
-function cancelDelete() {
+async function cancelDelete() {
     isDeleteConfirmationOpen = false;
     isFinalConfirmationOpen = false;
+    await goto("/main");
 }
 
 // Cleanup on unmount

@@ -12,7 +12,7 @@ import { ButtonAction } from "$lib/ui";
 import Drawer from "$lib/ui/Drawer/Drawer.svelte";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
-import { getContext, onMount } from "svelte";
+import { getContext, onMount, setContext } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import DocumentType from "./steps/document-type.svelte";
@@ -253,6 +253,16 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
 
+    // Provide showVeriffModal context to child components
+    setContext("showVeriffModal", {
+        get value() {
+            return showVeriffModal;
+        },
+        set value(v: boolean) {
+            showVeriffModal = v;
+        },
+    });
+
     // Check hardware key support first
     await checkHardwareKeySupport();
 
@@ -391,7 +401,7 @@ onMount(async () => {
             >I'm ready</ButtonAction
         >
     {/if}
-    <Drawer bind:isPaneOpen={showVeriffModal}>
+    <Drawer bind:isPaneOpen={showVeriffModal} fullScreen={$verifStep === 1 || $verifStep === 2}>
         <div class="overflow-y-scroll">
             {#if $verifStep === 0}
                 <DocumentType />

@@ -1,5 +1,6 @@
 <script lang="ts">
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
+import Toast from "$lib/ui/Toast/Toast.svelte";
 import { getContext, onDestroy, onMount, setContext } from "svelte";
 import "../app.css";
 import { goto, onNavigate } from "$app/navigation";
@@ -392,13 +393,32 @@ const safeAreaTop = $derived.by(
 
 $effect(() => console.log("top", safeAreaTop));
 
-onNavigate((navigation) => {
+onNavigate(async (navigation) => {
     if (!document.startViewTransition) return;
 
     const from = navigation.from?.url.pathname;
     const to = navigation.to?.url.pathname;
 
     if (!from || !to || from === to) return;
+
+    // Prevent navigation to login/register/onboarding when logged in
+    if (to === "/login" || to === "/register" || to === "/onboarding") {
+        try {
+            const gs = getContext<() => GlobalState>("globalState");
+            if (gs) {
+                const state = gs();
+                const vault = await state.vaultController.vault;
+                if (vault) {
+                    // User is logged in, prevent navigation and redirect to main
+                    await goto("/main");
+                    return;
+                }
+            }
+        } catch (error) {
+            // If we can't check, allow navigation
+            console.error("Error checking auth state:", error);
+        }
+    }
 
     let direction: "left" | "right" = "right";
 
@@ -429,9 +449,75 @@ onNavigate((navigation) => {
 $effect(() => {
     if (mainWrapper) {
         swipedetect(mainWrapper, (dir: string) => {
-            if (dir === "right") window.history.back();
+            if (dir === "right") {
+                // Prevent going back to login/register/onboarding screens when logged in
+                const currentPath = window.location.pathname;
+                if (currentPath === "/login" || currentPath === "/register" || currentPath === "/onboarding") {
+                    // If we're on login/register/onboarding, allow back navigation
+                    window.history.back();
+                } else {
+                    // Check if we're logged in by checking if we can access globalState
+                    try {
+                        const gs = getContext<() => GlobalState>("globalState");
+                        if (gs) {
+                            // User is logged in, prevent going back to login/register/onboarding
+                            const historyLength = window.history.length;
+                            // Only allow back if we're not going to login/register/onboarding
+                            const previousPath = document.referrer;
+                            if (previousPath && 
+                                !previousPath.includes("/login") && 
+                                !previousPath.includes("/register") && 
+                                !previousPath.includes("/onboarding")) {
+                                window.history.back();
+                            } else {
+                                // Redirect to main instead
+                                goto("/main");
+                            }
+                        } else {
+                            window.history.back();
+                        }
+                    } catch {
+                        window.history.back();
+                    }
+                }
+            }
         });
     }
+});
+
+// Prevent browser back button from going to login/register/onboarding when logged in
+$effect(() => {
+    const handlePopState = async (event: PopStateEvent) => {
+        const currentPath = window.location.pathname;
+        
+        // If navigating to login, register, or onboarding, check if user is logged in
+        if (currentPath === "/login" || currentPath === "/register" || currentPath === "/onboarding") {
+            try {
+                const gs = getContext<() => GlobalState>("globalState");
+                if (gs) {
+                    const state = gs();
+                    // Check if user has vault (is logged in)
+                    const vault = await state.vaultController.vault;
+                    if (vault) {
+                        // User is logged in, prevent navigation to login/register/onboarding
+                        event.preventDefault();
+                        await goto("/main");
+                        // Push main to history to replace the restricted route
+                        window.history.pushState(null, "", "/main");
+                    }
+                }
+            } catch (error) {
+                // If we can't check, allow navigation
+                console.error("Error checking auth state:", error);
+            }
+        }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    
+    return () => {
+        window.removeEventListener("popstate", handlePopState);
+    };
 });
 </script>
 
@@ -450,6 +536,8 @@ $effect(() => {
         {/if}
     </div>
 {/if}
+
+<svelte:component this={Toast} />
 
 <style>
     :root {

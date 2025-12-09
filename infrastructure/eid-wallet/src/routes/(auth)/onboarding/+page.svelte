@@ -233,16 +233,34 @@ onMount(async () => {
         }
     };
 
+    // Validation function for demo name
+    const isValidName = (name: string): boolean => {
+        if (!name) return false;
+        const trimmed = name.trim();
+        if (trimmed.length === 0) return false;
+        // Check if name is not just whitespace, newlines, or enter characters
+        if (/^[\s\n\r]+$/.test(trimmed)) return false;
+        return true;
+    };
+
     // New function to handle final submission with demo name
     handleFinalSubmit = async () => {
+        // Validate name before proceeding
+        const trimmedName = demoName.trim();
+        if (!isValidName(trimmedName)) {
+            error = "Please enter a valid name (cannot be empty or only spaces)";
+            setTimeout(() => {
+                error = null;
+            }, 5000);
+            return;
+        }
+
         loading = true;
 
         const tenYearsLater = new Date();
         tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
         globalState.userController.user = {
-            name:
-                demoName ||
-                capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
+            name: trimmedName || capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
             "Date of Birth": new Date().toDateString(),
             "ID submitted": `Passport - ${falso.randCountryCode()}`,
             "Passport Number": generatePassportNumber(),
@@ -350,13 +368,19 @@ onMount(async () => {
             <input
                 type="text"
                 bind:value={demoName}
+                oninput={(e) => {
+                    demoName = (e.target as HTMLInputElement).value;
+                }}
                 class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
                 placeholder="Enter your demo name for ePassport"
             />
+            {#if error && error.includes("name")}
+                <p class="text-red-600 text-sm mt-1">{error}</p>
+            {/if}
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
                 <ButtonAction
-                    variant={demoName.length === 0 ? "soft" : "solid"}
-                    disabled={demoName.length === 0}
+                    variant={!demoName || !demoName.trim() || /^[\s\n\r]+$/.test(demoName.trim()) ? "soft" : "solid"}
+                    disabled={!demoName || !demoName.trim() || /^[\s\n\r]+$/.test(demoName.trim())}
                     class="w-full"
                     callback={handleFinalSubmit}>Continue</ButtonAction
                 >

@@ -1,6 +1,8 @@
 <script lang="ts">
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import { ButtonAction } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import axios from "axios";
 import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -71,12 +73,21 @@ async function captureImage() {
 
 <div class="flex flex-col gap-5">
     {#if !load}
-        <div>
-            <h3>Take a Selfie</h3>
-            <p>
-                Place your face in the center of the circle and press the take
-                photo button
-            </p>
+        <div class="flex items-start gap-3 mb-2">
+            <Button.Icon
+                icon={ArrowLeft01Icon}
+                iconColor="black"
+                strokeWidth={2}
+                onclick={() => verifStep.set(1)}
+                class="cursor-pointer mt-1"
+            />
+            <div class="flex-1">
+                <h3>Take a Selfie</h3>
+                <p>
+                    Place your face in the center of the circle and press the take
+                    photo button
+                </p>
+            </div>
         </div>
 
         <div class="flex flex-col gap-1">

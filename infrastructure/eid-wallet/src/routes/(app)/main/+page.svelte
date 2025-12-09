@@ -2,10 +2,8 @@
 import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
-    CircleArrowDataTransferDiagonalFreeIcons,
     QrCodeIcon,
     Settings02Icon,
 } from "@hugeicons/core-free-icons";
@@ -13,7 +11,6 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 import { type Snippet, getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import QrCode from "svelte-qrcode";
 
 let userData: Record<string, unknown> | undefined = $state(undefined);
 let greeting: string | undefined = $state(undefined);
@@ -21,14 +18,8 @@ let ename: string | undefined = $state(undefined);
 let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
 
-let shareQRdrawerOpen = $state(false);
 let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
-
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
-}
 
 async function retryProfileCreation() {
     try {
@@ -137,14 +128,11 @@ onDestroy(() => {
         <IdentityCard
             variant="eName"
             userId={ename ?? "Loading..."}
-            viewBtn={() => alert("View button clicked!")}
-            shareBtn={() => (shareQRdrawerOpen = true)}
         />
     {/snippet}
     {#snippet ePassport()}
         <IdentityCard
             variant="ePassport"
-            viewBtn={() => goto("/ePassport")}
             userData={userData as Record<string, string>}
         />
     {/snippet}
@@ -157,28 +145,6 @@ onDestroy(() => {
         {@render Section("ePassport", ePassport)}
         {@render Section("eVault", eVault)}
     </main>
-
-    <Drawer
-        title="Scan QR Code"
-        bind:isPaneOpen={shareQRdrawerOpen}
-        class="flex flex-col gap-4 items-center justify-center"
-    >
-        <div
-            class="flex justify-center relative items-center overflow-hidden h-full rounded-3xl p-8 pt-0"
-        >
-            <QrCode size={320} value={ename ?? ""} />
-        </div>
-
-        <h4 class="text-center mt-2">Share your eName</h4>
-        <p class="text-black-700 text-center">
-            Anyone scanning this can see your eName
-        </p>
-        <div class="flex justify-center items-center mt-4">
-            <Button.Action variant="solid" callback={shareQR} class="w-full">
-                Share
-            </Button.Action>
-        </div>
-    </Drawer>
 
     <Button.Nav href="/scan-qr">
         <Button.Action

@@ -1,10 +1,10 @@
 <script lang="ts">
 import * as Button from "$lib/ui/Button";
 import { cn } from "$lib/utils";
+import { toast } from "$lib/ui/Toast/toast";
 import {
     CheckmarkBadge02Icon,
-    Upload03Icon,
-    ViewIcon,
+    Copy01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
@@ -15,8 +15,6 @@ interface userData {
 interface IIdentityCard extends HTMLAttributes<HTMLElement> {
     variant?: "eName" | "ePassport" | "eVault";
     userId?: string;
-    viewBtn?: () => void;
-    shareBtn?: () => void;
     userData?: userData;
     totalStorage?: number;
     usedStorage?: number;
@@ -25,8 +23,6 @@ interface IIdentityCard extends HTMLAttributes<HTMLElement> {
 const {
     variant = "eName",
     userId,
-    viewBtn,
-    shareBtn,
     userData,
     totalStorage = 0,
     usedStorage = 0,
@@ -68,24 +64,22 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     className="text-secondary"
                     icon={CheckmarkBadge02Icon}
                 />
-                <div class="flex gap-3 items-center">
-                    {#if shareBtn}
-                        <Button.Icon
-                            icon={Upload03Icon}
-                            iconColor={"white"}
-                            strokeWidth={2}
-                            onclick={shareBtn}
-                        />
-                    {/if}
-                    {#if viewBtn}
-                        <Button.Icon
-                            icon={ViewIcon}
-                            iconColor={"white"}
-                            strokeWidth={2}
-                            onclick={viewBtn}
-                        />
-                    {/if}
-                </div>
+                <Button.Icon
+                    icon={Copy01Icon}
+                    iconColor={"white"}
+                    strokeWidth={2}
+                    onclick={async () => {
+                        if (userId) {
+                            try {
+                                await navigator.clipboard.writeText(userId);
+                                toast.success("eName copied to clipboard");
+                            } catch (error) {
+                                console.error("Failed to copy:", error);
+                                toast.error("Failed to copy eName");
+                            }
+                        }
+                    }}
+                />
             {:else if variant === "ePassport"}
                 <p
                     class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium"
@@ -94,14 +88,6 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                         {userData.isFake ? "DEMO ID" : "VERIFIED ID"}
                     {/if}
                 </p>
-                {#if viewBtn}
-                    <Button.Icon
-                        icon={ViewIcon}
-                        iconColor={"white"}
-                        strokeWidth={2}
-                        onclick={viewBtn}
-                    />
-                {/if}
             {:else if variant === "eVault"}
                 <h3 class="text-black-300 text-3xl font-semibold mb-3 z-[1]">
                     {state.progressWidth} Used

@@ -11,6 +11,7 @@ interface IDrawerProps extends HTMLAttributes<HTMLDivElement> {
     children?: Snippet;
     handleSwipe?: (isOpen: boolean | undefined) => void;
     dismissible?: boolean;
+    fullScreen?: boolean;
 }
 
 let drawerElem: HTMLDivElement;
@@ -21,6 +22,7 @@ let {
     children = undefined,
     handleSwipe,
     dismissible = true,
+    fullScreen = false,
     ...restProps
 }: IDrawerProps = $props();
 
@@ -100,17 +102,17 @@ $effect(() => {
 
 <style>
     :global(.pane) {
-        width: 95% !important;
-        max-height: 600px !important;
-        min-height: 250px !important;
-        height: auto !important;
+        width: {fullScreen ? "100%" : "95%"} !important;
+        max-height: {fullScreen ? "100vh" : "600px"} !important;
+        min-height: {fullScreen ? "100vh" : "250px"} !important;
+        height: {fullScreen ? "100vh" : "auto"} !important;
         position: fixed !important;
-        bottom: 30px !important;
+        bottom: {fullScreen ? "0" : "30px"} !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        border-radius: 32px !important;
-        padding-block-start: 50px !important;
-        padding-block-end: 20px !important;
+        border-radius: {fullScreen ? "0" : "32px"} !important;
+        padding-block-start: {fullScreen ? "0" : "50px"} !important;
+        padding-block-end: {fullScreen ? "0" : "20px"} !important;
         background-color: var(--color-white) !important;
         overflow-y: auto !important; /* vertical scroll if needed */
         overflow-x: hidden !important; /* prevent sideways scroll */
