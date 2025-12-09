@@ -230,16 +230,21 @@ onMount(() => {
         <div class="flex flex-col items-center gap-1">
             <div class="mb-10 w-full">
                 <div class="flex flex-col gap-2 mb-4">
-                    <Button.Icon
-                        icon={ArrowLeft01Icon}
-                        iconColor="black"
-                        strokeWidth={2}
+                    <button
                         onclick={() => {
                             stopCamera();
                             goto("/verify");
                         }}
-                        class="cursor-pointer self-start"
-                    />
+                        class="cursor-pointer self-start flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                        <Button.Icon
+                            icon={ArrowLeft01Icon}
+                            iconColor="currentColor"
+                            strokeWidth={2}
+                            class="w-4 h-4"
+                        />
+                        <span>go back</span>
+                    </button>
                     <div>
                         <h3>
                     {#if $documentType === "passport"}
@@ -323,7 +328,7 @@ onMount(() => {
                         callback={continueToSelfie}
                         class="flex-1"
                         color="primary"
-                    >Continue to Selfie</ButtonAction
+                    >Continue</ButtonAction
                     >
                 </div>
             {:else}

@@ -87,10 +87,7 @@ async function captureImage() {
 <div class="flex flex-col gap-5">
     {#if !load}
         <div class="flex flex-col gap-2 mb-2">
-            <Button.Icon
-                icon={ArrowLeft01Icon}
-                iconColor="black"
-                strokeWidth={2}
+            <button
                 onclick={() => {
                     if (stream) {
                         for (const track of stream.getTracks()) {
@@ -99,8 +96,16 @@ async function captureImage() {
                     }
                     goto("/verify/passport");
                 }}
-                class="cursor-pointer self-start"
-            />
+                class="cursor-pointer self-start flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+                <Button.Icon
+                    icon={ArrowLeft01Icon}
+                    iconColor="currentColor"
+                    strokeWidth={2}
+                    class="w-4 h-4"
+                />
+                <span>go back</span>
+            </button>
             <div>
                 <h3>Take a Selfie</h3>
                 <p>
