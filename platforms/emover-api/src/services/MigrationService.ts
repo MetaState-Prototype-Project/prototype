@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { EventEmitter } from "events";
 import axios from "axios";
+import * as jose from "jose";
 import { AppDataSource } from "../database/data-source";
 import { Migration, MigrationStatus } from "../database/entities/Migration";
 
@@ -86,17 +87,65 @@ export class MigrationService extends EventEmitter {
                         },
                     },
                 );
-                if (whoisResponse.data.publicKey) {
-                    publicKey = whoisResponse.data.publicKey;
-                    console.log(
-                        `[MIGRATION] Retrieved public key from old evault: ${publicKey.substring(0, 20)}...`,
-                    );
-                    migration.logs += `[MIGRATION] Retrieved public key from old evault\n`;
+                
+                // Extract public key from keyBindingCertificates array
+                const keyBindingCertificates = whoisResponse.data?.keyBindingCertificates;
+                if (keyBindingCertificates && Array.isArray(keyBindingCertificates) && keyBindingCertificates.length > 0) {
+                    try {
+                        // Get registry JWKS for JWT verification
+                        const jwksUrl = new URL("/.well-known/jwks.json", this.registryUrl).toString();
+                        const jwksResponse = await axios.get(jwksUrl, {
+                            timeout: 10000,
+                        });
+                        const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+
+                        // Extract public key from first certificate (or try all until one works)
+                        for (const jwt of keyBindingCertificates) {
+                            try {
+                                const { payload } = await jose.jwtVerify(jwt, JWKS);
+                                
+                                // Verify ename matches
+                                if (payload.ename !== eName) {
+                                    continue;
+                                }
+
+                                // Extract publicKey from JWT payload
+                                const extractedPublicKey = payload.publicKey as string;
+                                if (extractedPublicKey) {
+                                    publicKey = extractedPublicKey;
+                                    console.log(
+                                        `[MIGRATION] Retrieved public key from old evault: ${publicKey.substring(0, 20)}...`,
+                                    );
+                                    migration.logs += `[MIGRATION] Retrieved public key from old evault\n`;
+                                    break; // Found valid key, exit loop
+                                }
+                            } catch (error) {
+                                // JWT verification failed, try next certificate
+                                console.warn(
+                                    `[MIGRATION] Failed to verify key binding certificate, trying next...`,
+                                );
+                                continue;
+                            }
+                        }
+
+                        if (publicKey === "0x0000000000000000000000000000000000000000") {
+                            console.warn(
+                                `[MIGRATION] No valid public key found in certificates, using default`,
+                            );
+                            migration.logs += `[MIGRATION] Warning: No valid public key found in certificates, using default\n`;
+                        }
+                    } catch (error) {
+                        console.error(
+                            `[MIGRATION ERROR] Failed to verify key binding certificates:`,
+                            error,
+                        );
+                        migration.logs += `[MIGRATION ERROR] Failed to verify certificates, using default\n`;
+                    }
                 } else {
                     console.warn(
-                        `[MIGRATION] No public key found in old evault, using default`,
+                        `[MIGRATION] No key binding certificates found in old evault, using default`,
                     );
-                    migration.logs += `[MIGRATION] Warning: No public key found in old evault, using default\n`;
+                    migration.logs += `[MIGRATION] Warning: No key binding certificates found in old evault, using default\n`;
                 }
             } catch (error) {
                 console.error(
