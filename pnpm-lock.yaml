@@ -2181,7 +2181,7 @@ importers:
         version: 7.17.3(@codemirror/language@6.11.3)(@codemirror/state@6.5.2)(@codemirror/view@6.38.8)(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.8.2)
       '@milkdown/theme-nord':
         specifier: ^7.15.2
-        version: 7.17.2
+        version: 7.17.3
       '@next/env':
         specifier: ^15.4.7
         version: 15.5.7
@@ -4886,23 +4886,14 @@ packages:
       '@codemirror/state': ^6
       '@codemirror/view': ^6
 
-  '@milkdown/core@7.17.2':
-    resolution: {integrity: sha512-w2wt4wAaawH3h1wPXFACMMFlp+eUIzGEEOiSSmc57A+p2KxGbJIZEApFckN0dd9BF+pwSMs0WJrm7y0NkwuSUg==}
-
   '@milkdown/core@7.17.3':
     resolution: {integrity: sha512-jaXERBsH+I8wtJ20nHs30zoAQ8O3BWmO1DzuiCx3tmq6VB1M/xQQmU0yTiZBkL5SlC52AH+6YQgpC7L40BT02A==}
 
   '@milkdown/crepe@7.17.3':
     resolution: {integrity: sha512-q2QtoGB5s48EaI7WcQBLsXhZKmyhLLctLupHWzPPCiRRBUx7Qax8zoaFqNtXkoZnkgepvivAMwDSKoC+BTOaKA==}
 
-  '@milkdown/ctx@7.17.2':
-    resolution: {integrity: sha512-tisdi73GKANoBMqtwnl7I3/liifekRBm5bDBE7VHfd8iL5m9nw9pVF2XqtZogtLL78pn0oCdQmITobNfiLdJgg==}
-
   '@milkdown/ctx@7.17.3':
     resolution: {integrity: sha512-fIj/GkJhr218VtIbAvhEgakZD2joGXCfAh9Ay1XwM2DR2RnjxtnJuywjdUnhyswupTmYmp/k0mUHSFUa8qI9yQ==}
-
-  '@milkdown/exception@7.17.2':
-    resolution: {integrity: sha512-HAeiI8PmzSowEBQ53T4tbHtfSahFAQWdsOJhiDevxYo3Oje3HG+XXJZQcX2YufShfphawjDe0U6YkHQS53amTg==}
 
   '@milkdown/exception@7.17.3':
     resolution: {integrity: sha512-LDtyId/VZdOcVsctRg7gBGtq1C1zxBghKlOTdB50Uc36Hp2QAqc2IjD4cv3TwQblneUxs0X16MXnxCA9Q8bw2g==}
@@ -4946,9 +4937,6 @@ packages:
   '@milkdown/preset-gfm@7.17.3':
     resolution: {integrity: sha512-IY+Hyhe6cCUF2Fi+KNfzbFdTaepKCkYNbbv65Dze7Dkb0VgoPfyiRdzznKiX7luXJnZv8Y+QHr+8KXirxzKVfg==}
 
-  '@milkdown/prose@7.17.2':
-    resolution: {integrity: sha512-XHUcoTEZsYZOSzKvxOjRQRRDX5wi3y4d6s0zEcaAoTyTpi/pp140Cw4ASXzhOhdHcgOezcfvgOsGtA8DRjl5wQ==}
-
   '@milkdown/prose@7.17.3':
     resolution: {integrity: sha512-ZgHUJGKWwIo52TrBzeStz7wsrKBineJ1b1FJMtsJjC9RElXaYzZZEmT7vP1aItknX8UXDr1m0a4fWKcCtykcjw==}
 
@@ -4958,11 +4946,8 @@ packages:
       react: 18.3.1
       react-dom: 18.3.1
 
-  '@milkdown/theme-nord@7.17.2':
-    resolution: {integrity: sha512-o+m05aJA7HvcUrZttbslYBmOABxhvUnp52VFbnVnQRDfe1L2ynhoWOI/c/zpqOM9B/iyVYjGDi3z7XI8fwqAgQ==}
-
-  '@milkdown/transformer@7.17.2':
-    resolution: {integrity: sha512-D7mS4r4cJyvnoGvD7Bo+rlfiKNHAgDd8YgGQLITu83nuaYXicd/ybnARzJCO+w7BixIZFsbwl9B+MdP4qlI+cA==}
+  '@milkdown/theme-nord@7.17.3':
+    resolution: {integrity: sha512-gdCLQQ6N0NB1BLasjFGzf4jxbokA5DuI2Nl33kinvtJmzQQMuTx2fZqhztollLQnlMf9odGqX6gu5rD6xWRjkg==}
 
   '@milkdown/transformer@7.17.3':
     resolution: {integrity: sha512-XIeMV/X6R9YhaYSTytZGOwVMsVCXBgXVaP9OpABMceXR9hYfbrZZlurXirTMJYayYZ3IVZZJHQ56/wQ4URD2pg==}
@@ -17139,18 +17124,6 @@ snapshots:
       - supports-color
       - typescript
 
-  '@milkdown/core@7.17.2':
-    dependencies:
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      '@milkdown/transformer': 7.17.2
-      remark-parse: 11.0.0
-      remark-stringify: 11.0.0
-      unified: 11.0.5
-    transitivePeerDependencies:
-      - supports-color
-
   '@milkdown/core@7.17.3':
     dependencies:
       '@milkdown/ctx': 7.17.3
@@ -17188,15 +17161,9 @@ snapshots:
       - supports-color
       - typescript
 
-  '@milkdown/ctx@7.17.2':
-    dependencies:
-      '@milkdown/exception': 7.17.2
-
   '@milkdown/ctx@7.17.3':
     dependencies:
       '@milkdown/exception': 7.17.3
-
-  '@milkdown/exception@7.17.2': {}
 
   '@milkdown/exception@7.17.3': {}
 
@@ -17352,23 +17319,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milkdown/prose@7.17.2':
-    dependencies:
-      '@milkdown/exception': 7.17.2
-      prosemirror-changeset: 2.3.1
-      prosemirror-commands: 1.7.1
-      prosemirror-dropcursor: 1.8.2
-      prosemirror-gapcursor: 1.4.0
-      prosemirror-history: 1.5.0
-      prosemirror-inputrules: 1.5.1
-      prosemirror-keymap: 1.2.3
-      prosemirror-model: 1.25.4
-      prosemirror-schema-list: 1.5.1
-      prosemirror-state: 1.4.4
-      prosemirror-tables: 1.8.3
-      prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.4
-
   '@milkdown/prose@7.17.3':
     dependencies:
       '@milkdown/exception': 7.17.3
@@ -17402,21 +17352,12 @@ snapshots:
       - supports-color
       - typescript
 
-  '@milkdown/theme-nord@7.17.2':
+  '@milkdown/theme-nord@7.17.3':
     dependencies:
-      '@milkdown/core': 7.17.2
-      '@milkdown/ctx': 7.17.2
-      '@milkdown/prose': 7.17.2
+      '@milkdown/core': 7.17.3
+      '@milkdown/ctx': 7.17.3
+      '@milkdown/prose': 7.17.3
       clsx: 2.1.1
-    transitivePeerDependencies:
-      - supports-color
-
-  '@milkdown/transformer@7.17.2':
-    dependencies:
-      '@milkdown/exception': 7.17.2
-      '@milkdown/prose': 7.17.2
-      remark: 15.0.1
-      unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
 
