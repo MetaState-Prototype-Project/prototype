@@ -73,15 +73,15 @@ async function captureImage() {
 
 <div class="flex flex-col gap-5">
     {#if !load}
-        <div class="flex items-start gap-3 mb-2">
+        <div class="flex flex-col gap-2 mb-2">
             <Button.Icon
                 icon={ArrowLeft01Icon}
                 iconColor="black"
                 strokeWidth={2}
                 onclick={() => verifStep.set(1)}
-                class="cursor-pointer mt-1"
+                class="cursor-pointer self-start"
             />
-            <div class="flex-1">
+            <div>
                 <h3>Take a Selfie</h3>
                 <p>
                     Place your face in the center of the circle and press the take

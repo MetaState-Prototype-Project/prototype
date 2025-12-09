@@ -402,7 +402,7 @@ onMount(async () => {
         >
     {/if}
     <Drawer bind:isPaneOpen={showVeriffModal} fullScreen={$verifStep === 1 || $verifStep === 2}>
-        <div class="overflow-y-scroll">
+        <div>
             {#if $verifStep === 0}
                 <DocumentType />
             {:else if $verifStep === 1}

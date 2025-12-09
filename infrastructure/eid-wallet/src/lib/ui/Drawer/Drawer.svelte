@@ -53,8 +53,11 @@ const swipe = swipeResult.swipe as any;
 // Initialize pane only once when element is available
 $effect(() => {
     if (!drawerElem) return;
+    const screenHeight = window.innerHeight;
+    const fullScreenHeight = Math.floor(screenHeight * 0.9); // 90vh
+    
     pane = new CupertinoPane(drawerElem, {
-        fitHeight: true,
+        fitHeight: fullScreen,
         backdrop: true,
         backdropOpacity: dismissible ? 0.5 : 0.8,
         backdropBlur: true,
@@ -68,10 +71,14 @@ $effect(() => {
                 isPaneOpen = false;
             },
         },
-        breaks: {
-            bottom: { enabled: true, height: 250 },
-        },
-        initialBreak: "bottom",
+        breaks: fullScreen
+            ? {
+                  top: { enabled: true, height: fullScreenHeight },
+              }
+            : {
+                  bottom: { enabled: true, height: 250 },
+              },
+        initialBreak: fullScreen ? "top" : "bottom",
     });
 
     // Add class to pane element based on fullScreen prop
@@ -165,10 +172,11 @@ $effect(() => {
 
     :global(.pane.drawer-fullscreen) {
         width: 100% !important;
-        max-height: 100vh !important;
-        min-height: 100vh !important;
-        height: 100vh !important;
+        max-height: 90vh !important;
+        min-height: 90vh !important;
+        height: 90vh !important;
         bottom: 0 !important;
+        top: auto !important;
         border-radius: 0 !important;
         padding-block-start: 0 !important;
         padding-block-end: 0 !important;

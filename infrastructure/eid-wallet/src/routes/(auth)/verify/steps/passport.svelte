@@ -225,18 +225,18 @@ onMount(() => {
             {error}
         </div>
     {/if}
-    <div class="flex flex-col h-[90vh]">
+    <div class="flex flex-col">
         <div class="flex flex-col items-center gap-1">
             <div class="mb-10 w-full">
-                <div class="flex items-start gap-3 mb-4">
+                <div class="flex flex-col gap-2 mb-4">
                     <Button.Icon
                         icon={ArrowLeft01Icon}
                         iconColor="black"
                         strokeWidth={2}
                         onclick={() => verifStep.set(0)}
-                        class="cursor-pointer mt-1"
+                        class="cursor-pointer self-start"
                     />
-                    <div class="flex-1">
+                    <div>
                         <h3>
                     {#if $documentType === "passport"}
                         Present your Passport
