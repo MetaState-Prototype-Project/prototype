@@ -65,7 +65,6 @@ async function captureImage() {
     if (image === 1) {
         const context = canvas.getContext("2d");
         if (context) {
-            load = true; // Show loading immediately
             try {
                 context.drawImage(video, 0, 0, 1920, 1080);
                 canvas.width = video.videoWidth;
@@ -73,6 +72,7 @@ async function captureImage() {
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL("image/png");
                 Selfie.set(dataUrl);
+                load = true; // Show loading AFTER capturing image
                 
                 await axios.post(
                     new URL(
@@ -104,7 +104,8 @@ async function captureImage() {
 
 async function getApplicationPublicKey(): Promise<string> {
     if (!globalState) throw new Error("Global state is not defined");
-    const keyManager = globalState.keyService.getKeyManagerForContext("verification");
+    const keyManager = await globalState.keyService.getKeyManager("verification");
+    if (!keyManager) throw new Error("Key manager not found for verification context");
     const publicKey = await keyManager.getPublicKey("default");
     return publicKey;
 }
@@ -268,8 +269,8 @@ async function handleContinue() {
             Please make sure that your face is in the frame and clearly visible.
         </div>
 
-        <ButtonAction class="w-full" callback={captureImage} disabled={load}
-            >{load ? "Uploading..." : "Take Photo"}</ButtonAction
+        <ButtonAction class="w-full" callback={captureImage}
+            >Take Photo</ButtonAction
         >
     {:else if load && !showResults}
         <div class="fixed inset-0 flex items-center justify-center bg-white z-50">
