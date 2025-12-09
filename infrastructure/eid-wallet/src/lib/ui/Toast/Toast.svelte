@@ -48,7 +48,7 @@
                 aria-label="Close toast"
             >
                 <HugeiconsIcon
-                    icon={Close01Icon}
+                    icon={Cancel01Icon}
                     size={20}
                     strokeWidth={2}
                     className="text-current"
