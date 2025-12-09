@@ -170,9 +170,8 @@ function watchEventStream(id: string) {
             SelfiePic.set(null);
         }
         verifStep.set(3);
-        // Navigate to verify page and show drawer with results immediately
-        showVeriffModal = true;
-        goto("/verify");
+        // Data is now available in stores for selfie page to use
+        // Don't navigate - stay on selfie page which will show results
     };
 }
 
@@ -254,11 +253,6 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
 
-    // If verification is complete (step 3), show drawer immediately
-    if ($verifStep === 3) {
-        showVeriffModal = true;
-    }
-
     // Provide showVeriffModal context to child components
     setContext("showVeriffModal", {
         get value() {
@@ -266,6 +260,19 @@ onMount(async () => {
         },
         set value(v: boolean) {
             showVeriffModal = v;
+        },
+    });
+
+    // Provide verification data context for selfie page
+    setContext("verifyData", {
+        get person() {
+            return person;
+        },
+        get document() {
+            return document;
+        },
+        get websocketData() {
+            return websocketData;
         },
     });
 
@@ -411,54 +418,6 @@ onMount(async () => {
         <div>
             {#if $verifStep === 0}
                 <DocumentType />
-            {:else if loading}
-                <div class="my-20">
-                    <div
-                        class="align-center flex w-full flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
-                        <h3>Generating your eName</h3>
-                    </div>
-                </div>
-            {:else}
-                <div class="flex flex-col gap-6">
-                    {#if $status === "approved"}
-                        <div>
-                            <h3>Your verification was a success</h3>
-                            <p>You can now continue on to create your eName</p>
-                        </div>
-                    {:else if $status === "duplicate"}
-                        <div>
-                            <h3>Old eVault Found</h3>
-                            <p>
-                                We found an existing eVault associated with your
-                                identity. You can claim it back to continue
-                                using your account.
-                            </p>
-                        </div>
-                    {:else if $status === "resubmission_requested"}
-                        <h3>Your verification failed due to the reason</h3>
-                        <p>{$reason}</p>
-                    {:else}
-                        <h3>Your verification failed</h3>
-
-                        <p>{$reason}</p>
-                    {/if}
-                </div>
-                <div class="flex w-full flex-col pt-4">
-                    {#if $status !== "declined"}
-                        <ButtonAction
-                            class="w-[100%]"
-                            callback={handleContinue}
-                            color="primary"
-                            >{$status === "approved"
-                                ? "Continue"
-                                : $status === "duplicate"
-                                  ? "Claim old eVault"
-                                  : "Retry"}</ButtonAction
-                        >
-                    {/if}
-                </div>
             {/if}
         </div>
     </Drawer>

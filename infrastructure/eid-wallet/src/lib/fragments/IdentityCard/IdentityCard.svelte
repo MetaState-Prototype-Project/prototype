@@ -67,10 +67,10 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     className="text-secondary"
                     icon={CheckmarkBadge02Icon}
                 />
-                <Button.Icon
+                        <Button.Icon
                     icon={Copy01Icon}
-                    iconColor={"white"}
-                    strokeWidth={2}
+                            iconColor={"white"}
+                            strokeWidth={2}
                     onclick={async () => {
                         if (userId) {
                             try {
@@ -82,7 +82,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                             }
                         }
                     }}
-                />
+                        />
             {:else if variant === "ePassport"}
                 <p
                     class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium"

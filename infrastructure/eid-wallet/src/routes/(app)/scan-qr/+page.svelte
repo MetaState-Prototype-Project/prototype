@@ -100,8 +100,8 @@ $effect(() => {
 
 async function handleAuthDrawerDecline() {
     // Cancel button always navigates to main dashboard
-    setCodeScannedDrawerOpen(false);
-    await goto("/main");
+        setCodeScannedDrawerOpen(false);
+        await goto("/main");
 }
 
 function handleAuthDrawerOpenChange(value: boolean) {
@@ -121,8 +121,8 @@ function handleLoggedInDrawerOpenChange(value: boolean) {
 
 async function handleSigningDrawerDecline() {
     // Cancel button always navigates to main dashboard
-    setSigningDrawerOpen(false);
-    await goto("/main");
+        setSigningDrawerOpen(false);
+        await goto("/main");
 }
 
 function handleSigningDrawerOpenChange(value: boolean) {

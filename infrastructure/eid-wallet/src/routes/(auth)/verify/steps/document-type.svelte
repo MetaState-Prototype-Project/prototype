@@ -44,8 +44,8 @@ function goBack() {
             <span>go back</span>
         </button>
         <div class="flex-1">
-            <h3>Choose Document Type</h3>
-            <p>Select the type of identity document you will be presenting</p>
+        <h3>Choose Document Type</h3>
+        <p>Select the type of identity document you will be presenting</p>
         </div>
     </div>
 

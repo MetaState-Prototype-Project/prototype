@@ -246,7 +246,7 @@ onMount(() => {
                         <span>go back</span>
                     </button>
                     <div>
-                        <h3>
+                <h3>
                     {#if $documentType === "passport"}
                         Present your Passport
                     {:else if $documentType === "id"}
