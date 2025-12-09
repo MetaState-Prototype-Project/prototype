@@ -239,7 +239,7 @@ export default function CurrencyDetail() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Transactions</h2>
             <div className="flex gap-2">
-              {isAdminOfCurrency && (
+              {isAdminOfCurrency && accountContext?.type === "group" && (
               <button
                 onClick={() => setMintOpen(true)}
                 className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"

@@ -115,13 +115,15 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIsSearchOpen(false)}>
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Header with currency name and balance */}
-        {fromCurrencyData && fromBalance && (
+        {/* Header with currency name and balance (hidden for allowNegative currencies) */}
+        {fromCurrencyData && fromBalance && !fromCurrencyData.allowNegative && (
           <div className="mb-4">
             <h2 className="text-lg font-semibold">
               {fromCurrencyData.name} - {Number(fromBalance.balance).toLocaleString()} available
             </h2>
-            <p className="text-sm text-muted-foreground">Balance: {Number(fromBalance.balance).toLocaleString()} {fromCurrencyData.name}.</p>
+            <p className="text-sm text-muted-foreground">
+              Balance: {Number(fromBalance.balance).toLocaleString()} {fromCurrencyData.name}.
+            </p>
           </div>
         )}
 
