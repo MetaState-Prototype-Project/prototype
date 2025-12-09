@@ -6,6 +6,7 @@ import {
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
+import * as jose from "jose";
 import NotificationService from "../../services/NotificationService";
 import type { KeyService } from "./key";
 import type { UserController } from "./user";
@@ -122,21 +123,93 @@ export class VaultController {
                 },
             });
 
-            const existingPublicKey = whoisResponse.data?.publicKey;
-            if (existingPublicKey) {
-                // Public key already exists, mark as saved
-                localStorage.setItem(`publicKeySaved_${eName}`, "true");
-                console.log(`Public key already exists for ${eName}`);
-                return;
-            }
+            // Get key binding certificates array from whois response
+            const keyBindingCertificates =
+                whoisResponse.data?.keyBindingCertificates;
 
-            // Get public key using the exact same logic as onboarding/verification flow
-            // KEY_ID is always "default", context depends on whether user is pre-verification
+            // Get current device's public key to check if it already exists
             const KEY_ID = "default";
-
-            // Determine context: check if user is pre-verification (fake/demo user)
             const isFake = await this.#userController.isFake;
             const context = isFake ? "pre-verification" : "onboarding";
+
+            let currentPublicKey: string | undefined;
+            try {
+                currentPublicKey = await this.#keyService.getPublicKey(
+                    KEY_ID,
+                    context,
+                );
+            } catch (error) {
+                console.error(
+                    "Failed to get current public key for comparison:",
+                    error,
+                );
+                // Continue to sync anyway
+            }
+
+            // If we have certificates and current key, check if it already exists
+            if (
+                keyBindingCertificates &&
+                Array.isArray(keyBindingCertificates) &&
+                keyBindingCertificates.length > 0 &&
+                currentPublicKey
+            ) {
+                try {
+                    // Get registry JWKS for JWT verification
+                    const registryUrl = PUBLIC_REGISTRY_URL;
+                    if (registryUrl) {
+                        const jwksUrl = new URL(
+                            "/.well-known/jwks.json",
+                            registryUrl,
+                        ).toString();
+                        const jwksResponse = await axios.get(jwksUrl, {
+                            timeout: 10000,
+                        });
+                        const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+
+                        // Extract public keys from certificates and check if current key exists
+                        for (const jwt of keyBindingCertificates) {
+                            try {
+                                const { payload } = await jose.jwtVerify(
+                                    jwt,
+                                    JWKS,
+                                );
+
+                                // Verify ename matches
+                                if (payload.ename !== eName) {
+                                    continue;
+                                }
+
+                                // Extract publicKey from JWT payload
+                                const extractedPublicKey =
+                                    payload.publicKey as string;
+                                if (extractedPublicKey === currentPublicKey) {
+                                    // Current device's key already exists, mark as saved
+                                    localStorage.setItem(
+                                        `publicKeySaved_${eName}`,
+                                        "true",
+                                    );
+                                    console.log(
+                                        `Public key already exists for ${eName}`,
+                                    );
+                                    return;
+                                }
+                            } catch (error) {
+                                // JWT verification failed, try next certificate
+                                console.warn(
+                                    "Failed to verify key binding certificate:",
+                                    error,
+                                );
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(
+                        "Error checking existing public keys:",
+                        error,
+                    );
+                    // Continue to sync anyway
+                }
+            }
 
             console.log("=".repeat(70));
             console.log("🔄 [VaultController] syncPublicKey called");

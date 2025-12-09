@@ -676,43 +676,53 @@ export class DbService {
     }
 
     /**
-     * Gets the public key for a given eName.
+     * Gets all public keys for a given eName.
      * @param eName - The eName identifier
-     * @returns The public key string, or null if not found
+     * @returns Array of public key strings, or empty array if not found
      */
-    async getPublicKey(eName: string): Promise<string | null> {
+    async getPublicKeys(eName: string): Promise<string[]> {
         if (!eName) {
-            throw new Error("eName is required for getting public key");
+            throw new Error("eName is required for getting public keys");
         }
 
         const result = await this.runQueryInternal(
-            `MATCH (u:User { eName: $eName }) RETURN u.publicKey AS publicKey`,
+            `MATCH (u:User { eName: $eName }) RETURN u.publicKeys AS publicKeys`,
             { eName },
         );
 
         if (!result.records[0]) {
-            return null;
+            return [];
         }
 
-        return result.records[0].get("publicKey") || null;
+        const publicKeys = result.records[0].get("publicKeys");
+        // Handle null/undefined and ensure we return an array
+        if (!publicKeys || !Array.isArray(publicKeys)) {
+            return [];
+        }
+
+        return publicKeys;
     }
 
     /**
-     * Sets or updates the public key for a given eName.
+     * Adds a public key to the array for a given eName (appends, avoids duplicates).
      * @param eName - The eName identifier
-     * @param publicKey - The public key to store
+     * @param publicKey - The public key to add
      */
-    async setPublicKey(eName: string, publicKey: string): Promise<void> {
+    async addPublicKey(eName: string, publicKey: string): Promise<void> {
         if (!eName) {
-            throw new Error("eName is required for setting public key");
+            throw new Error("eName is required for adding public key");
         }
         if (!publicKey) {
             throw new Error("publicKey is required");
         }
 
+        // Use MERGE to create User if doesn't exist, then append publicKey if not already in array
         await this.runQueryInternal(
             `MERGE (u:User { eName: $eName })
-             SET u.publicKey = $publicKey`,
+             ON CREATE SET u.publicKeys = []
+             WITH u
+             WHERE NOT $publicKey IN u.publicKeys
+             SET u.publicKeys = u.publicKeys + $publicKey`,
             { eName, publicKey },
         );
     }
@@ -803,26 +813,26 @@ export class DbService {
             }
         }
 
-        // Copy User node with public key if it exists
+        // Copy User node with public keys if it exists
         try {
             const userResult = await this.runQueryInternal(
-                `MATCH (u:User { eName: $eName }) RETURN u.publicKey AS publicKey`,
+                `MATCH (u:User { eName: $eName }) RETURN u.publicKeys AS publicKeys`,
                 { eName },
             );
 
             if (userResult.records.length > 0) {
-                const publicKey = userResult.records[0].get("publicKey");
-                if (publicKey) {
+                const publicKeys = userResult.records[0].get("publicKeys");
+                if (publicKeys && Array.isArray(publicKeys) && publicKeys.length > 0) {
                     console.log(
-                        `[MIGRATION] Copying User node with public key for eName: ${eName}`,
+                        `[MIGRATION] Copying User node with public keys for eName: ${eName}`,
                     );
                     await targetDbService.runQuery(
                         `MERGE (u:User { eName: $eName })
-                         SET u.publicKey = $publicKey`,
-                        { eName, publicKey },
+                         SET u.publicKeys = $publicKeys`,
+                        { eName, publicKeys },
                     );
                     console.log(
-                        `[MIGRATION] User node with public key copied successfully`,
+                        `[MIGRATION] User node with public keys copied successfully`,
                     );
                 }
             }
