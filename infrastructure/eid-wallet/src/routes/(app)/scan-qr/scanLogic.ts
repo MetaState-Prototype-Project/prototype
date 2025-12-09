@@ -298,7 +298,7 @@ export function createScanLogic({
                 };
 
                 console.log(`📤 Making POST request to: ${redirectUrl}`);
-                console.log(`📦 Payload:`, payload);
+                console.log("📦 Payload:", payload);
 
                 const response = await fetch(redirectUrl, {
                     method: "POST",
@@ -314,27 +314,26 @@ export function createScanLogic({
                     );
                 }
 
-                console.log(`✅ POST request successful`);
+                console.log("✅ POST request successful");
 
                 // For scan: Close drawer and show success, skip deeplink redirect logic
                 codeScannedDrawerOpen.set(false);
                 loggedInDrawerOpen.set(true);
                 startScan();
                 return;
-            } else {
-                // For deeplink: Open URL with encoded URI
-                // Strip path from redirectUri and append /deeplink-login
-                const loginUrl = new URL("/deeplink-login", redirectUrl);
-                loginUrl.searchParams.set("ename", vault.ename);
-                loginUrl.searchParams.set("session", get(session) as string);
-                loginUrl.searchParams.set("signature", signature);
-                loginUrl.searchParams.set("appVersion", "0.4.0");
-
-                console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
-
-                // Open URL in browser using tauri opener
-                await openUrl(loginUrl.toString());
             }
+            // For deeplink: Open URL with encoded URI
+            // Strip path from redirectUri and append /deeplink-login
+            const loginUrl = new URL("/deeplink-login", redirectUrl);
+            loginUrl.searchParams.set("ename", vault.ename);
+            loginUrl.searchParams.set("session", get(session) as string);
+            loginUrl.searchParams.set("signature", signature);
+            loginUrl.searchParams.set("appVersion", "0.4.0");
+
+            console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
+
+            // Open URL in browser using tauri opener
+            await openUrl(loginUrl.toString());
 
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
