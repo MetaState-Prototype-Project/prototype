@@ -548,7 +548,7 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
             const hasOnlyTrigger = messages.length === 1 && this.isCerberusTrigger(messages[0].text);
 
             if (hasNoMessages || hasOnlyTrigger) {
-                const skipMessage = `$$system-message$$ Cerberus: check skipped, no messages were sent since the last checki`;
+                const skipMessage = `$$system-message$$ Cerberus: check skipped, no messages were sent since the last check`;
                 await this.messageService.createSystemMessageWithoutPrefix({
                     text: skipMessage,
                     groupId: triggerMessage.group.id,
