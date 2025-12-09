@@ -92,14 +92,9 @@ export class VaultController {
      */
     async syncPublicKey(eName: string): Promise<void> {
         try {
-            // Check if we've already saved the public key
+            // Note: We always check the actual source (whois endpoint) instead of relying on localStorage
+            // localStorage flag is only used as a hint, but we verify against the server
             const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
-            if (savedKey === "true") {
-                console.log(
-                    `Public key already saved for ${eName}, skipping sync`,
-                );
-                return;
-            }
 
             if (!this.#keyService) {
                 console.warn(
@@ -211,14 +206,6 @@ export class VaultController {
                 }
             }
 
-            console.log("=".repeat(70));
-            console.log("🔄 [VaultController] syncPublicKey called");
-            console.log("=".repeat(70));
-            console.log(`eName: ${eName}`);
-            console.log(`Key ID for sync: ${KEY_ID}`);
-            console.log(`Context for sync: ${context}`);
-            console.log(`Is fake/pre-verification: ${isFake}`);
-
             // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
             let publicKey: string | undefined;
             try {
@@ -226,10 +213,6 @@ export class VaultController {
                     KEY_ID,
                     context,
                 );
-                console.log(
-                    `Public key retrieved: ${publicKey?.substring(0, 60)}...`,
-                );
-                console.log(`Public key (full): ${publicKey}`);
             } catch (error) {
                 console.error(
                     `Failed to get public key for ${KEY_ID} with context ${context}:`,
@@ -244,7 +227,6 @@ export class VaultController {
                 );
                 return;
             }
-            console.log("=".repeat(70));
 
             // Get authentication token from environment variable
             const authToken = PUBLIC_EID_WALLET_TOKEN || null;

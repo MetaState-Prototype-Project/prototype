@@ -72,7 +72,10 @@ export async function registerHttpRoutes(
                         type: "object",
                         properties: {
                             w3id: { type: "string" },
-                            publicKey: { type: "string", nullable: true },
+                            keyBindingCertificates: {
+                                type: "array",
+                                items: { type: "string" },
+                            },
                         },
                     },
                     400: {
@@ -154,7 +157,6 @@ export async function registerHttpRoutes(
                 w3id: eName,
                 keyBindingCertificates: keyBindingCertificates,
             };
-            console.log("Whois request:", result);
             return result;
         },
     );
