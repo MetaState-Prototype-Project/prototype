@@ -142,9 +142,9 @@ async function captureImage() {
             >{"Take Photo"}</ButtonAction
         >
     {:else}
-        <div class="my-20">
+        <div class="fixed inset-0 flex items-center justify-center bg-white z-50">
             <div
-                class="align-center flex w-full flex-col items-center justify-center gap-6"
+                class="flex flex-col items-center justify-center gap-6"
             >
                 <Shadow size={40} color="rgb(142, 82, 255);" />
                 <h3>Verifying your identity</h3>
