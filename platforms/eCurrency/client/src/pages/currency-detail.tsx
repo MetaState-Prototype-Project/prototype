@@ -170,9 +170,9 @@ export default function CurrencyDetail() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-700 via-cyan-700 to-blue-700 bg-clip-text text-transparent">eCurrency</h1>
             </div>
             <div className="flex items-center gap-4">
-              <UserMenuDropdown 
-                accountContext={accountContext} 
-                onAccountContextChange={handleAccountContextChange} 
+              <UserMenuDropdown
+                accountContext={accountContext}
+                onAccountContextChange={handleAccountContextChange}
               />
             </div>
           </div>
@@ -203,17 +203,16 @@ export default function CurrencyDetail() {
                 <p className="text-2xl font-bold">
                   {balance?.balance
                     ? Number(balance.balance).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
                     : "0.00"}
                 </p>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-1">Negative Balance Allowed</h3>
-                <p className={`text-lg font-medium ${
-                  currency.allowNegative ? "text-yellow-600" : "text-green-600"
-                }`}>
+                <p className={`text-lg font-medium ${currency.allowNegative ? "text-yellow-600" : "text-green-600"
+                  }`}>
                   {currency.allowNegative ? "Yes" : "No"}
                 </p>
               </div>
@@ -239,14 +238,14 @@ export default function CurrencyDetail() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Transactions</h2>
             <div className="flex gap-2">
-              {isAdminOfCurrency && accountContext?.type === "group" && (
-              <button
-                onClick={() => setMintOpen(true)}
-                className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
-              >
-                <Sparkles className="h-4 w-4" />
-                Mint
-              </button>
+              {isAdminOfCurrency && accountContext?.type === "group" && accountContext.id === currency.groupId && (
+                <button
+                  onClick={() => setMintOpen(true)}
+                  className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Mint
+                </button>
               )}
               <button
                 onClick={() => setTransferOpen(true)}
