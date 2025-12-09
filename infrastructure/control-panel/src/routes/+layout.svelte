@@ -15,12 +15,11 @@
 		{ label: 'Actions', href: '/actions' }
 	];
 
-	const isActive = (href: string) =>
-		href === '/' ? pageUrl === '/' : pageUrl.startsWith(href);
+	const isActive = (href: string) => (href === '/' ? pageUrl === '/' : pageUrl.startsWith(href));
 </script>
 
 <main class="flex min-h-screen bg-gray-50">
-	<aside class="w-64 border-black-100 border-r bg-white px-8 py-10">
+	<aside class="border-black-100 w-64 border-r bg-white px-8 py-10">
 		<h4 class="text-lg font-semibold text-black">Navigation</h4>
 		<nav class="mt-6 flex flex-col gap-2">
 			{#each navLinks as link}

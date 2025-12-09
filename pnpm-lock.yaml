@@ -250,6 +250,9 @@ importers:
       import:
         specifier: ^0.0.6
         version: 0.0.6
+      jose:
+        specifier: ^5.2.0
+        version: 5.10.0
       svelte-loading-spinners:
         specifier: ^0.3.6
         version: 0.3.6
@@ -480,6 +483,9 @@ importers:
       axios:
         specifier: ^1.6.7
         version: 1.13.2
+      jose:
+        specifier: ^5.2.0
+        version: 5.10.0
       multiformats:
         specifier: ^13.3.2
         version: 13.4.1

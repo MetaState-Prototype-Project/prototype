@@ -42,6 +42,7 @@
         "graphql-request": "^6.1.0",
         "html5-qrcode": "^2.3.8",
         "import": "^0.0.6",
+        "jose": "^5.2.0",
         "svelte-loading-spinners": "^0.3.6",
         "svelte-qrcode": "^1.0.1",
         "tailwind-merge": "^3.0.2",

@@ -66,6 +66,20 @@ export async function generatePlatformToken(platform: string): Promise<string> {
   return token;
 }
 
+// Generate and sign a JWT binding ename and publicKey together
+export async function generateKeyBindingCertificate(
+  ename: string,
+  publicKey: string
+): Promise<string> {
+  await initializeKeys();
+  const token = await new SignJWT({ ename, publicKey })
+    .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(privateKey);
+  return token;
+}
+
 // Get the JWK for verification
 export async function getJWK(): Promise<any> {
   await initializeKeys();

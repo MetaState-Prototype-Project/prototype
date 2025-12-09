@@ -94,23 +94,65 @@ export async function registerHttpRoutes(
                     .send({ error: "X-ENAME header is required" });
             }
 
-            // Get public key from database if dbService is available
-            let publicKey: string | null = null;
+            // Get public keys from database if dbService is available
+            let publicKeys: string[] = [];
             if (dbService) {
                 try {
-                    publicKey = await dbService.getPublicKey(eName);
+                    publicKeys = await dbService.getPublicKeys(eName);
                 } catch (error) {
                     console.error(
-                        "Error getting public key from database:",
+                        "Error getting public keys from database:",
                         error,
                     );
-                    // Continue with null publicKey
+                    // Continue with empty array
+                }
+            }
+
+            // Generate key binding certificates for each public key
+            const keyBindingCertificates: string[] = [];
+            const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
+
+            if (registryUrl && sharedSecret && publicKeys.length > 0) {
+                try {
+                    for (const publicKey of publicKeys) {
+                        try {
+                            const response = await axios.post(
+                                new URL("/key-binding-certificate", registryUrl).toString(),
+                                {
+                                    ename: eName,
+                                    publicKey: publicKey,
+                                },
+                                {
+                                    headers: {
+                                        Authorization: `Bearer ${sharedSecret}`,
+                                    },
+                                    timeout: 10000,
+                                }
+                            );
+                            if (response.data?.token) {
+                                keyBindingCertificates.push(response.data.token);
+                            }
+                        } catch (error) {
+                            console.error(
+                                `Error generating key binding certificate for public key:`,
+                                error,
+                            );
+                            // Continue with other keys even if one fails
+                        }
+                    }
+                } catch (error) {
+                    console.error(
+                        "Error generating key binding certificates:",
+                        error,
+                    );
+                    // Return empty array if generation fails
                 }
             }
 
             const result = {
                 w3id: eName,
-                publicKey: publicKey,
+                keyBindingCertificates: keyBindingCertificates,
             };
             console.log("Whois request:", result);
             return result;
@@ -447,18 +489,18 @@ export async function registerHttpRoutes(
             }
 
             try {
-                await dbService.setPublicKey(eName, publicKey);
+                await dbService.addPublicKey(eName, publicKey);
                 return {
                     success: true,
-                    message: "Public key saved successfully",
+                    message: "Public key added successfully",
                 };
             } catch (error) {
-                console.error("Error saving public key:", error);
+                console.error("Error adding public key:", error);
                 return reply.status(500).send({
                     error:
                         error instanceof Error
                             ? error.message
-                            : "Failed to save public key",
+                            : "Failed to add public key",
                 });
             }
         },

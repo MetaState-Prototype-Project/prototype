@@ -3,7 +3,7 @@ import cors from "@fastify/cors";
 import dotenv from "dotenv";
 import fastify from "fastify";
 import { AppDataSource } from "./config/database";
-import { generateEntropy, generatePlatformToken, getJWK } from "./jwt";
+import { generateEntropy, generatePlatformToken, generateKeyBindingCertificate, getJWK } from "./jwt";
 import { UriResolutionService } from "./services/UriResolutionService";
 import { VaultService } from "./services/VaultService";
 
@@ -128,6 +128,36 @@ server.post("/platforms/certification", async (request, reply) => {
         reply.status(500).send({ error: "Failed to generate platform token" });
     }
 });
+
+// Generate key binding certificate (JWT binding ename and publicKey)
+server.post(
+    "/key-binding-certificate",
+    {
+        preHandler: checkSharedSecret,
+    },
+    async (request, reply) => {
+        try {
+            const { ename, publicKey } = request.body as {
+                ename: string;
+                publicKey: string;
+            };
+
+            if (!ename || !publicKey) {
+                return reply.status(400).send({
+                    error: "ename and publicKey are required",
+                });
+            }
+
+            const token = await generateKeyBindingCertificate(ename, publicKey);
+            return { token };
+        } catch (error) {
+            server.log.error(error);
+            reply.status(500).send({
+                error: "Failed to generate key binding certificate",
+            });
+        }
+    },
+);
 
 server.get("/platforms", async (request, reply) => {
     const platforms = [

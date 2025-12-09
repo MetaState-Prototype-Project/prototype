@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as jose from "jose";
 
 // Lazy initialization for base58btc to handle ESM module resolution
 let base58btcModule: { base58btc: { decode: (input: string) => Uint8Array } } | null = null;
@@ -107,12 +108,12 @@ async function decodeSignature(signature: string): Promise<Uint8Array> {
 }
 
 /**
- * Retrieves the public key for a given eName
+ * Retrieves key binding certificates for a given eName
  * @param eName - The eName (W3ID) of the user
  * @param registryBaseUrl - Base URL of the registry service
- * @returns The public key in multibase format
+ * @returns Array of JWT tokens (key binding certificates)
  */
-async function getPublicKey(eName: string, registryBaseUrl: string): Promise<string | null> {
+async function getKeyBindingCertificates(eName: string, registryBaseUrl: string): Promise<string[]> {
   // Step 1: Resolve eVault URL from registry
   const resolveUrl = new URL(`/resolve?w3id=${encodeURIComponent(eName)}`, registryBaseUrl).toString();
   const resolveResponse = await axios.get(resolveUrl, {
@@ -125,7 +126,7 @@ async function getPublicKey(eName: string, registryBaseUrl: string): Promise<str
 
   const evaultUrl = resolveResponse.data.uri;
 
-  // Step 2: Get public key from eVault /whois endpoint
+  // Step 2: Get key binding certificates from eVault /whois endpoint
   const whoisUrl = new URL("/whois", evaultUrl).toString();
   const whoisResponse = await axios.get(whoisUrl, {
     headers: {
@@ -134,12 +135,12 @@ async function getPublicKey(eName: string, registryBaseUrl: string): Promise<str
     timeout: 10000,
   });
 
-  const publicKey = whoisResponse.data?.publicKey;
-  if (!publicKey) {
-    return null
+  const keyBindingCertificates = whoisResponse.data?.keyBindingCertificates;
+  if (!keyBindingCertificates || !Array.isArray(keyBindingCertificates)) {
+    return [];
   }
 
-  return publicKey;
+  return keyBindingCertificates;
 }
 
 /**
@@ -198,63 +199,104 @@ export async function verifySignature(
       };
     }
 
-    // Get public key from eVault
-    const publicKeyMultibase = await getPublicKey(eName, registryBaseUrl)
+    // Get key binding certificates from eVault
+    const keyBindingCertificates = await getKeyBindingCertificates(eName, registryBaseUrl);
 
-    if (!publicKeyMultibase) {
+    if (keyBindingCertificates.length === 0) {
       return {
         valid: true,
       };
     }
-    // Decode the public key
-    const publicKeyBytes = await decodeMultibasePublicKey(publicKeyMultibase);
 
-    // Import the public key for Web Crypto API
-    // The public key is in SPKI format (SubjectPublicKeyInfo)
-    // Create a new ArrayBuffer from the Uint8Array
-    const publicKeyBuffer = new Uint8Array(publicKeyBytes).buffer;
-    
-    let publicKey;
-    try {
-      publicKey = await crypto.subtle.importKey(
-        "spki",
-        publicKeyBuffer,
-        {
-          name: "ECDSA",
-          namedCurve: "P-256",
-        },
-        false,
-        ["verify"]
-      );
-    } catch (importError) {
-      console.error(`[DEBUG] Failed to import public key: ${importError instanceof Error ? importError.message : String(importError)}`);
-      throw importError;
-    }
+    // Get registry JWKS for JWT verification
+    const jwksUrl = new URL("/.well-known/jwks.json", registryBaseUrl).toString();
+    const jwksResponse = await axios.get(jwksUrl, {
+      timeout: 10000,
+    });
 
-    // Decode the signature
+    const JWKS = jose.createLocalJWKSet(jwksResponse.data);
+
+    // Decode the signature once (used for all attempts)
     const signatureBytes = await decodeSignature(signature);
-
-    // Convert payload to ArrayBuffer
+    const signatureBuffer = new Uint8Array(signatureBytes).buffer;
     const payloadBuffer = new TextEncoder().encode(payload);
 
-    // Create a new ArrayBuffer from the signature Uint8Array
-    const signatureBuffer = new Uint8Array(signatureBytes).buffer;
+    // Try each certificate until one succeeds
+    let lastError: string | undefined;
+    let successfulPublicKey: string | undefined;
 
-    // Verify the signature
-    const isValid = await crypto.subtle.verify(
-      {
-        name: "ECDSA",
-        hash: "SHA-256",
-      },
-      publicKey,
-      signatureBuffer,
-      payloadBuffer
-    );
+    for (const jwt of keyBindingCertificates) {
+      try {
+        // Verify JWT signature and extract payload
+        const { payload: jwtPayload } = await jose.jwtVerify(jwt, JWKS);
 
+        // Verify ename matches
+        if (jwtPayload.ename !== eName) {
+          lastError = `JWT ename mismatch: expected ${eName}, got ${jwtPayload.ename}`;
+          continue;
+        }
+
+        // Extract publicKey from JWT payload
+        const publicKeyMultibase = jwtPayload.publicKey as string;
+        if (!publicKeyMultibase) {
+          lastError = "JWT payload missing publicKey";
+          continue;
+        }
+
+        // Decode the public key
+        const publicKeyBytes = await decodeMultibasePublicKey(publicKeyMultibase);
+        const publicKeyBuffer = new Uint8Array(publicKeyBytes).buffer;
+
+        // Import the public key for Web Crypto API
+        let publicKey;
+        try {
+          publicKey = await crypto.subtle.importKey(
+            "spki",
+            publicKeyBuffer,
+            {
+              name: "ECDSA",
+              namedCurve: "P-256",
+            },
+            false,
+            ["verify"]
+          );
+        } catch (importError) {
+          lastError = `Failed to import public key: ${importError instanceof Error ? importError.message : String(importError)}`;
+          continue;
+        }
+
+        // Verify the signature with this public key
+        const isValid = await crypto.subtle.verify(
+          {
+            name: "ECDSA",
+            hash: "SHA-256",
+          },
+          publicKey,
+          signatureBuffer,
+          payloadBuffer
+        );
+
+        if (isValid) {
+          // Success! Return immediately
+          return {
+            valid: true,
+            publicKey: publicKeyMultibase,
+          };
+        }
+
+        // Signature verification failed with this key, try next
+        lastError = "Signature verification failed";
+      } catch (error) {
+        // JWT verification or other error, try next certificate
+        lastError = error instanceof Error ? error.message : String(error);
+        continue;
+      }
+    }
+
+    // All certificates failed
     return {
-      valid: isValid,
-      publicKey: publicKeyMultibase,
-      error: isValid ? undefined : "Signature verification failed",
+      valid: false,
+      error: lastError || "All key binding certificates failed verification",
     };
   } catch (error) {
     return {

@@ -101,6 +101,14 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
         console.warn("Failed to create User index:", error);
     }
 
+    // Migrate publicKey (string) to publicKeys (array)
+    try {
+        const { migratePublicKeyToArray } = await import("./core/db/migrations/migrate-publickey-to-array");
+        await migratePublicKeyToArray(driver);
+    } catch (error) {
+        console.warn("Failed to migrate publicKey to publicKeys array:", error);
+    }
+
     const dbService = new DbService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;

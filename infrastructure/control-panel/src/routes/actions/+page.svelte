@@ -67,10 +67,11 @@
 </script>
 
 <section class="max-w-3xl space-y-6">
-	<div class="rounded-2xl border border-black-100 bg-white px-8 py-6 shadow-sm">
+	<div class="border-black-100 rounded-2xl border bg-white px-8 py-6 shadow-sm">
 		<h2 class="text-2xl font-semibold text-black">Actions</h2>
-		<p class="mt-2 text-black-700">
-			Manual actions for orchestrating DreamSync. Trigger matchmaking directly from the control panel.
+		<p class="text-black-700 mt-2">
+			Manual actions for orchestrating DreamSync. Trigger matchmaking directly from the
+			control panel.
 		</p>
 
 		<div class="mt-6 space-y-4">
@@ -87,8 +88,9 @@
 					Trigger DreamSync
 				</ButtonAction>
 			</div>
-			<p class="text-sm text-black-500">
-				Note: Matchmaking can take up to 4 minutes to complete. Please wait for the process to finish.
+			<p class="text-black-500 text-sm">
+				Note: Matchmaking can take up to 4 minutes to complete. Please wait for the process
+				to finish.
 			</p>
 		</div>
 	</div>
@@ -96,7 +98,7 @@
 
 {#if toast}
 	<div
-		class={`fixed right-6 top-24 z-50 rounded-lg border px-4 py-3 shadow-lg ${
+		class={`fixed top-24 right-6 z-50 rounded-lg border px-4 py-3 shadow-lg ${
 			toast.variant === 'success'
 				? 'border-green-200 bg-green-100 text-green-800'
 				: 'border-danger-200 bg-danger-100 text-danger-500'
@@ -105,4 +107,3 @@
 		<p class="font-semibold">{toast.message}</p>
 	</div>
 {/if}
-
