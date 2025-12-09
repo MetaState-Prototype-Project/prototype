@@ -65,33 +65,39 @@ async function captureImage() {
     if (image === 1) {
         const context = canvas.getContext("2d");
         if (context) {
-            context.drawImage(video, 0, 0, 1920, 1080);
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/png");
-            Selfie.set(dataUrl);
-            load = true;
-            await axios.post(
-                new URL(
-                    `/verification/${$verificaitonId}/media`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-                {
-                    img: dataUrl,
-                    type: "face",
-                },
-            );
-            await axios.patch(
-                new URL(
-                    `/verification/${$verificaitonId}`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-            );
-            stopCamera();
-            // Stay on this page and show spinner
-            // The verification step will be updated by the SSE response
-            // When status is set, showResults will be true
+            load = true; // Show loading immediately
+            try {
+                context.drawImage(video, 0, 0, 1920, 1080);
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataUrl = canvas.toDataURL("image/png");
+                Selfie.set(dataUrl);
+                
+                await axios.post(
+                    new URL(
+                        `/verification/${$verificaitonId}/media`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                    {
+                        img: dataUrl,
+                        type: "face",
+                    },
+                );
+                await axios.patch(
+                    new URL(
+                        `/verification/${$verificaitonId}`,
+                        PUBLIC_PROVISIONER_URL,
+                    ).toString(),
+                );
+                stopCamera();
+                // Stay on this page and show spinner
+                // The verification step will be updated by the SSE response
+                // When status is set, showResults will be true
+            } catch (error) {
+                console.error("Failed to upload selfie:", error);
+                load = false; // Reset loading state on error
+            }
         }
     }
 }
@@ -138,10 +144,22 @@ async function handleContinue() {
 
         if ($status === "duplicate") {
             // For duplicate case, skip provision and resolve the existing eVault URI
-            const existingW3id = $verificationWebsocketData?.w3id;
+            console.log("Websocket data:", $verificationWebsocketData);
+            console.log("Available keys:", Object.keys($verificationWebsocketData || {}));
+            
+            // Try different possible locations for w3id
+            const existingW3id = 
+                $verificationWebsocketData?.w3id || 
+                $verificationWebsocketData?.ename ||
+                ($verificationWebsocketData as any)?.verification?.w3id ||
+                ($verificationWebsocketData as any)?.verification?.ename;
+                
             if (!existingW3id) {
+                console.error("Full websocket data:", JSON.stringify($verificationWebsocketData, null, 2));
                 throw new Error("No w3id provided for duplicate eVault");
             }
+            
+            console.log("Found w3id:", existingW3id);
 
             // Resolve the eVault URI from the registry
             const response = await axios.get(
@@ -250,8 +268,8 @@ async function handleContinue() {
             Please make sure that your face is in the frame and clearly visible.
         </div>
 
-        <ButtonAction class="w-full" callback={captureImage}
-            >{"Take Photo"}</ButtonAction
+        <ButtonAction class="w-full" callback={captureImage} disabled={load}
+            >{load ? "Uploading..." : "Take Photo"}</ButtonAction
         >
     {:else if load && !showResults}
         <div class="fixed inset-0 flex items-center justify-center bg-white z-50">
