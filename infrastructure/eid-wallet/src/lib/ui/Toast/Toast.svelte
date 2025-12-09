@@ -1,7 +1,7 @@
 <script lang="ts">
     import { toastStore } from "./toast";
     import { cn } from "$lib/utils";
-    import { XIcon } from "@hugeicons/core-free-icons";
+    import { Close01Icon } from "@hugeicons/core-free-icons";
     import { HugeiconsIcon } from "@hugeicons/svelte";
 
     let toasts = $state<Array<{ id: string; message: string; type?: "success" | "error" | "info"; duration?: number }>>([]);
@@ -48,7 +48,7 @@
                 aria-label="Close toast"
             >
                 <HugeiconsIcon
-                    icon={XIcon}
+                    icon={Close01Icon}
                     size={20}
                     strokeWidth={2}
                     className="text-current"
