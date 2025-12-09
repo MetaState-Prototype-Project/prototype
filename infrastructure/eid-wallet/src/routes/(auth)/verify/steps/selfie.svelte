@@ -3,6 +3,7 @@ import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import { ButtonAction } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { goto } from "$app/navigation";
 import axios from "axios";
 import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -30,8 +31,20 @@ async function requestCameraPermission() {
     }
 }
 
+function stopCamera() {
+    if (stream) {
+        for (const track of stream.getTracks()) {
+            track.stop();
+        }
+    }
+}
+
 onMount(() => {
     requestCameraPermission();
+    
+    return () => {
+        stopCamera();
+    };
 });
 
 async function captureImage() {
@@ -61,9 +74,9 @@ async function captureImage() {
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
             );
-            for (const track of stream.getTracks()) {
-                track.stop();
-            }
+            stopCamera();
+            // Navigate back to verify page to show results in drawer
+            goto("/verify");
             // The verification step will be updated by the SSE response
             // verifStep will be set to 3 by the websocket event
         }
@@ -78,7 +91,14 @@ async function captureImage() {
                 icon={ArrowLeft01Icon}
                 iconColor="black"
                 strokeWidth={2}
-                onclick={() => verifStep.set(1)}
+                onclick={() => {
+                    if (stream) {
+                        for (const track of stream.getTracks()) {
+                            track.stop();
+                        }
+                    }
+                    goto("/verify/passport");
+                }}
                 class="cursor-pointer self-start"
             />
             <div>
@@ -114,7 +134,7 @@ async function captureImage() {
                 </div>
             </div>
         </div>
-        <div class="text-center text-xs text-white">
+        <div class="text-center text-xs text-black-700">
             Please make sure that your face is in the frame and clearly visible.
         </div>
 

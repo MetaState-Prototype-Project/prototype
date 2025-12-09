@@ -16,8 +16,6 @@ import { getContext, onMount, setContext } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import DocumentType from "./steps/document-type.svelte";
-import Passport from "./steps/passport.svelte";
-import Selfie from "./steps/selfie.svelte";
 import {
     DocBack,
     DocFront,
@@ -172,6 +170,8 @@ function watchEventStream(id: string) {
             SelfiePic.set(null);
         }
         verifStep.set(3);
+        // Show drawer with results
+        showVeriffModal = true;
     };
 }
 
@@ -401,14 +401,10 @@ onMount(async () => {
             >I'm ready</ButtonAction
         >
     {/if}
-    <Drawer bind:isPaneOpen={showVeriffModal} fullScreen={$verifStep === 1 || $verifStep === 2}>
+    <Drawer bind:isPaneOpen={showVeriffModal}>
         <div>
             {#if $verifStep === 0}
                 <DocumentType />
-            {:else if $verifStep === 1}
-                <Passport />
-            {:else if $verifStep === 2}
-                <Selfie />
             {:else if loading}
                 <div class="my-20">
                     <div

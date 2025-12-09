@@ -7,9 +7,16 @@ import { getContext } from "svelte";
 
 let showVeriffModal = getContext<{ value: boolean }>("showVeriffModal");
 
+import { goto } from "$app/navigation";
+
 function selectDocumentType(type: "passport" | "id" | "permit" | "dl") {
     documentType.set(type);
     verifStep.set(1); // Move to document capture step
+    // Close drawer and navigate to fullscreen passport page
+    if (showVeriffModal) {
+        showVeriffModal.value = false;
+    }
+    goto("/verify/passport");
 }
 
 function goBack() {

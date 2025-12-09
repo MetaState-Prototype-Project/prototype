@@ -50,11 +50,17 @@ const swipe = swipeResult.swipe as any;
 //     isPaneOpen = false;
 // };
 
-// Initialize pane only once when element is available
+// Initialize pane - destroy and recreate when fullScreen changes
 $effect(() => {
     if (!drawerElem) return;
+    
+    // Destroy existing pane if it exists
+    if (pane) {
+        pane.destroy();
+    }
+    
     const screenHeight = window.innerHeight;
-    const fullScreenHeight = Math.floor(screenHeight * 0.9); // 90vh
+    const fullScreenHeight = Math.floor(screenHeight * 0.8); // 80vh
     
     pane = new CupertinoPane(drawerElem, {
         fitHeight: fullScreen,
@@ -96,27 +102,52 @@ $effect(() => {
         }
     }, 0);
 
-    return () => pane?.destroy();
+    return () => {
+        if (pane) {
+            pane.destroy();
+        }
+    };
 });
 
 // Handle open/close state separately
 $effect(() => {
-    if (!pane) return;
-
-    // Update fullscreen class when prop changes
-    const paneElement = document.querySelector(".pane") as HTMLElement;
-    if (paneElement) {
-        if (fullScreen) {
-            paneElement.classList.add("drawer-fullscreen");
-            paneElement.classList.remove("drawer-normal");
-        } else {
-            paneElement.classList.add("drawer-normal");
-            paneElement.classList.remove("drawer-fullscreen");
-        }
-    }
+    if (!pane || !drawerElem) return;
 
     if (isPaneOpen) {
+        // Ensure pane exists before presenting
+        if (!pane.pane || !document.querySelector(".pane")) {
+            // Recreate pane if it was destroyed
+            const screenHeight = window.innerHeight;
+            const fullScreenHeight = Math.floor(screenHeight * 0.8);
+            pane.destroy();
+            pane = new CupertinoPane(drawerElem, {
+                fitHeight: fullScreen,
+                backdrop: true,
+                backdropOpacity: dismissible ? 0.5 : 0.8,
+                backdropBlur: true,
+                bottomClose: dismissible,
+                buttonDestroy: false,
+                showDraggable: dismissible,
+                upperThanTop: true,
+                events: {
+                    onBackdropTap: () => {
+                        pane?.destroy();
+                        isPaneOpen = false;
+                    },
+                },
+                breaks: fullScreen
+                    ? {
+                          top: { enabled: true, height: fullScreenHeight },
+                      }
+                    : {
+                          bottom: { enabled: true, height: 250 },
+                      },
+                initialBreak: fullScreen ? "top" : "bottom",
+            });
+        }
+        
         pane.present({ animate: true });
+        
         // Update class after presenting
         setTimeout(() => {
             const paneEl = document.querySelector(".pane") as HTMLElement;
@@ -131,7 +162,10 @@ $effect(() => {
             }
         }, 0);
     } else {
-        pane.destroy({ animate: true });
+        // Don't destroy, just hide - this keeps the pane available
+        if (pane.pane) {
+            pane.hide();
+        }
     }
 });
 </script>
@@ -172,9 +206,9 @@ $effect(() => {
 
     :global(.pane.drawer-fullscreen) {
         width: 100% !important;
-        max-height: 90vh !important;
-        min-height: 90vh !important;
-        height: 90vh !important;
+        max-height: 80vh !important;
+        min-height: 80vh !important;
+        height: 80vh !important;
         bottom: 0 !important;
         top: auto !important;
         border-radius: 0 !important;

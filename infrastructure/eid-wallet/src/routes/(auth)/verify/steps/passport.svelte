@@ -3,6 +3,7 @@ import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
 import { ButtonAction } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { goto } from "$app/navigation";
 import axios from "axios";
 import { onMount } from "svelte";
 import { writable } from "svelte/store";
@@ -206,7 +207,7 @@ function stopCamera() {
 
 function continueToSelfie() {
     stopCamera();
-    verifStep.set(2);
+    goto("/verify/selfie");
 }
 
 onMount(() => {
@@ -233,7 +234,10 @@ onMount(() => {
                         icon={ArrowLeft01Icon}
                         iconColor="black"
                         strokeWidth={2}
-                        onclick={() => verifStep.set(0)}
+                        onclick={() => {
+                            stopCamera();
+                            goto("/verify");
+                        }}
                         class="cursor-pointer self-start"
                     />
                     <div>
@@ -273,7 +277,7 @@ onMount(() => {
             <canvas bind:this={canvas1} class="hidden"></canvas>
             <canvas bind:this={canvas2} class="hidden"></canvas>
 
-            <div class="text-center text-xs text-gray-400 mb-4 px-4">
+            <div class="text-center text-xs text-black-700 mb-4 px-4">
                 <!-- Accepted documents: Driver's License, Residence Permit, Passport, ID Card. -->
                 {#if $documentType === "passport"}
                         Present your Passport's photo page
