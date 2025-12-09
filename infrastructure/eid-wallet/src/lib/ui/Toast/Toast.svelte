@@ -38,7 +38,8 @@
 </script>
 
 <div
-    class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-md px-4"
+    class="fixed left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-md px-4"
+    style="top: calc(env(safe-area-inset-top) + 44px);"
 >
     {#each toasts as toast (toast.id)}
         <div
