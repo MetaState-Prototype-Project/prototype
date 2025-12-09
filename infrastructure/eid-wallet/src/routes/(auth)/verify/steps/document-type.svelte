@@ -30,14 +30,19 @@ function goBack() {
 </script>
 
 <div class="flex flex-col gap-5">
-    <div class="flex items-start gap-3 mb-2">
-        <Button.Icon
-            icon={ArrowLeft01Icon}
-            iconColor="black"
-            strokeWidth={2}
+    <div class="flex flex-col gap-2 mb-2">
+        <button
             onclick={goBack}
-            class="cursor-pointer mt-1"
-        />
+            class="cursor-pointer self-start flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800"
+        >
+            <Button.Icon
+                icon={ArrowLeft01Icon}
+                iconColor="currentColor"
+                strokeWidth={2}
+                class="w-4 h-4"
+            />
+            <span>go back</span>
+        </button>
         <div class="flex-1">
             <h3>Choose Document Type</h3>
             <p>Select the type of identity document you will be presenting</p>
