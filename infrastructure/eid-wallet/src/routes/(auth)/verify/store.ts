@@ -11,3 +11,6 @@ export const reason = writable<string>();
 export const documentType = writable<
     "passport" | "id" | "permit" | "dl" | null
 >(null);
+export const verificationPerson = writable<any>(null);
+export const verificationDocument = writable<any>(null);
+export const verificationWebsocketData = writable<{ w3id?: string } | null>(null);

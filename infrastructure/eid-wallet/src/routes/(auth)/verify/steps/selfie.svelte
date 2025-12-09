@@ -8,7 +8,7 @@ import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { writable } from "svelte/store";
-import { Selfie, permissionGranted, verifStep, verificaitonId, status, reason } from "../store";
+import { Selfie, permissionGranted, verifStep, verificaitonId, status, reason, verificationPerson, verificationDocument, verificationWebsocketData } from "../store";
 import type { GlobalState } from "$lib/global";
 import { capitalize } from "$lib/utils";
 import { v4 as uuidv4 } from "uuid";
@@ -22,11 +22,6 @@ let stream: MediaStream;
 let showResults = $state(false);
 let loading = $state(false);
 let globalState: GlobalState | undefined = $state(undefined);
-
-// Store websocket data
-let person: any = $state(null);
-let document: any = $state(null);
-let websocketData: { w3id?: string } | null = $state(null);
 
 async function requestCameraPermission() {
     try {
@@ -54,13 +49,6 @@ function stopCamera() {
 $effect(() => {
     if ($status && $verifStep === 3) {
         showResults = true;
-        // Get person/document data from context if needed
-        const verifyContext = getContext<any>("verifyData");
-        if (verifyContext) {
-            person = verifyContext.person;
-            document = verifyContext.document;
-            websocketData = verifyContext.websocketData;
-        }
     }
 });
 
@@ -120,33 +108,37 @@ async function handleContinue() {
         return verifStep.set(0);
     }
     if (!globalState) throw new Error("Global state is not defined");
+    if (!$verificationPerson || !$verificationDocument) {
+        console.error("Missing verification data");
+        return;
+    }
 
     loading = true;
     
     try {
         globalState.userController.user = {
             name: capitalize(
-                `${person.firstName.value} ${person.lastName.value ?? ""}`,
+                `${$verificationPerson.firstName.value} ${$verificationPerson.lastName.value ?? ""}`,
             ),
-            "Date of Birth": new Date(person.dateOfBirth.value).toDateString(),
+            "Date of Birth": new Date($verificationPerson.dateOfBirth.value).toDateString(),
             "ID submitted":
-                document.type.value === "passport"
-                    ? `Passport - ${document.country.value}`
-                    : document.type.value === "drivers_license"
-                      ? `Driving License - ${document.country.value}`
-                      : `ID Card - ${document.country.value}`,
-            "Document Number": document.number.value,
+                $verificationDocument.type.value === "passport"
+                    ? `Passport - ${$verificationDocument.country.value}`
+                    : $verificationDocument.type.value === "drivers_license"
+                      ? `Driving License - ${$verificationDocument.country.value}`
+                      : `ID Card - ${$verificationDocument.country.value}`,
+            "Document Number": $verificationDocument.number.value,
         };
         globalState.userController.document = {
-            "Valid From": new Date(document.validFrom.value).toDateString(),
-            "Valid Until": new Date(document.validUntil.value).toDateString(),
+            "Valid From": new Date($verificationDocument.validFrom.value).toDateString(),
+            "Valid Until": new Date($verificationDocument.validUntil.value).toDateString(),
             "Verified On": new Date().toDateString(),
         };
         globalState.userController.isFake = false;
 
         if ($status === "duplicate") {
             // For duplicate case, skip provision and resolve the existing eVault URI
-            const existingW3id = websocketData?.w3id;
+            const existingW3id = $verificationWebsocketData?.w3id;
             if (!existingW3id) {
                 throw new Error("No w3id provided for duplicate eVault");
             }

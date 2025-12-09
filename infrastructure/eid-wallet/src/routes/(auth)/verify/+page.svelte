@@ -24,6 +24,9 @@ import {
     status,
     verifStep,
     verificaitonId,
+    verificationPerson,
+    verificationDocument,
+    verificationWebsocketData,
 } from "./store";
 
 type Document = {
@@ -164,6 +167,10 @@ function watchEventStream(id: string) {
         person = data.person;
         document = data.document;
         websocketData = data; // Store the full websocket data
+        // Also store in writable stores for selfie page
+        verificationPerson.set(data.person);
+        verificationDocument.set(data.document);
+        verificationWebsocketData.set(data);
         if (data.status === "resubmission_requested") {
             DocFront.set(null);
             DocBack.set(null);
