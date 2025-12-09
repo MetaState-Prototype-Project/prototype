@@ -24,6 +24,8 @@ export class FirestoreWatcher {
     // Track processed document IDs to prevent duplicates
     private processedIds = new Set<string>();
     private processingIds = new Set<string>();
+    private processedIdTimers = new Map<string, NodeJS.Timeout>();
+    private readonly duplicateBlockDurationMs = 5000; // Only block duplicates for 5s
     
     // Clean up old processed IDs periodically to prevent memory leaks
     private cleanupInterval: NodeJS.Timeout | null = null;
@@ -150,6 +152,9 @@ export class FirestoreWatcher {
             this.unsubscribe = null;
             console.log(`Successfully stopped watcher for ${collectionPath}`);
         }
+
+        // Clear any in-memory duplicate tracking
+        this.clearProcessedIds();
         
         // Stop cleanup interval
         if (this.cleanupInterval) {
@@ -174,7 +179,7 @@ export class FirestoreWatcher {
         // Clean up processed IDs every 5 minutes to prevent memory leaks
         this.cleanupInterval = setInterval(() => {
             const beforeSize = this.processedIds.size;
-            this.processedIds.clear();
+            this.clearProcessedIds();
             const afterSize = this.processedIds.size;
             console.log(`Cleaned up processed IDs: ${beforeSize} -> ${afterSize}`);
         }, 5 * 60 * 1000); // 5 minutes
@@ -309,6 +314,11 @@ export class FirestoreWatcher {
     clearProcessedIds(): void {
         const beforeSize = this.processedIds.size;
         this.processedIds.clear();
+        // Clear and reset any pending expiry timers
+        for (const timer of this.processedIdTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.processedIdTimers.clear();
         console.log(`Manually cleared processed IDs: ${beforeSize} -> 0`);
     }
 
@@ -419,7 +429,7 @@ export class FirestoreWatcher {
                             await this.handleCreateOrUpdate(doc, data);
                             
                             // Mark as processed
-                            this.processedIds.add(docId);
+                            this.markAsProcessed(docId);
                         } finally {
                             this.processingIds.delete(docId);
                         }
@@ -429,6 +439,11 @@ export class FirestoreWatcher {
                         console.log(`Document removed: ${docId}`);
                         // Remove from processed IDs when document is deleted
                         this.processedIds.delete(docId);
+                        const timer = this.processedIdTimers.get(docId);
+                        if (timer) {
+                            clearTimeout(timer);
+                            this.processedIdTimers.delete(docId);
+                        }
                         this.processingIds.delete(docId);
                         break;
                 }
@@ -450,6 +465,26 @@ export class FirestoreWatcher {
     private async processSnapshot(snapshot: QuerySnapshot): Promise<void> {
         const changes = snapshot.docChanges();
         await this.processChanges(changes);
+    }
+
+    /**
+     * Marks a document as processed and schedules its removal after a short window.
+     */
+    private markAsProcessed(docId: string): void {
+        // Reset any existing timer for this doc
+        const existingTimer = this.processedIdTimers.get(docId);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        this.processedIds.add(docId);
+
+        const timer = setTimeout(() => {
+            this.processedIds.delete(docId);
+            this.processedIdTimers.delete(docId);
+        }, this.duplicateBlockDurationMs);
+
+        this.processedIdTimers.set(docId, timer);
     }
 
 
