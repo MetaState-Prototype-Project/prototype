@@ -544,6 +544,18 @@ Be thorough and justify your reasoning. Provide clear, actionable recommendation
 
             console.log(`📝 Analyzing ${messages.length} messages since last Cerberus analysis`);
 
+            const hasNoMessages = messages.length === 0;
+            const hasOnlyTrigger = messages.length === 1 && this.isCerberusTrigger(messages[0].text);
+
+            if (hasNoMessages || hasOnlyTrigger) {
+                const skipMessage = `$$system-message$$ Cerberus: check skipped, no messages were sent since the last checki`;
+                await this.messageService.createSystemMessageWithoutPrefix({
+                    text: skipMessage,
+                    groupId: triggerMessage.group.id,
+                });
+                return;
+            }
+
             // Load the group with its charter content
             const groupWithCharter = await this.groupService.getGroupById(triggerMessage.group.id);
             if (!groupWithCharter) {
