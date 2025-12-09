@@ -133,6 +133,7 @@ onDestroy(() => {
     {#snippet ePassport()}
         <IdentityCard
             variant="ePassport"
+            viewBtn={() => goto("/ePassport")}
             userData={userData as Record<string, string>}
         />
     {/snippet}

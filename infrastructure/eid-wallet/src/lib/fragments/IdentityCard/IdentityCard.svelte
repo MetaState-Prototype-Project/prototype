@@ -5,6 +5,7 @@ import { toast } from "$lib/ui/Toast/toast";
 import {
     CheckmarkBadge02Icon,
     Copy01Icon,
+    ViewIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import type { HTMLAttributes } from "svelte/elements";
@@ -15,6 +16,7 @@ interface userData {
 interface IIdentityCard extends HTMLAttributes<HTMLElement> {
     variant?: "eName" | "ePassport" | "eVault";
     userId?: string;
+    viewBtn?: () => void;
     userData?: userData;
     totalStorage?: number;
     usedStorage?: number;
@@ -23,6 +25,7 @@ interface IIdentityCard extends HTMLAttributes<HTMLElement> {
 const {
     variant = "eName",
     userId,
+    viewBtn,
     userData,
     totalStorage = 0,
     usedStorage = 0,
@@ -88,6 +91,14 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                         {userData.isFake ? "DEMO ID" : "VERIFIED ID"}
                     {/if}
                 </p>
+                {#if viewBtn}
+                    <Button.Icon
+                        icon={ViewIcon}
+                        iconColor={"white"}
+                        strokeWidth={2}
+                        onclick={viewBtn}
+                    />
+                {/if}
             {:else if variant === "eVault"}
                 <h3 class="text-black-300 text-3xl font-semibold mb-3 z-[1]">
                     {state.progressWidth} Used
