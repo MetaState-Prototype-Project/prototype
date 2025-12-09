@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, LogOut, User } from "lucide-react";
+import { ChevronDown, LogOut, User, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
@@ -87,7 +87,7 @@ export default function UserMenuDropdown({ accountContext, onAccountContextChang
                       accountContext?.type === "group" && accountContext?.id === group.id ? "bg-primary/10" : ""
                     }`}
                   >
-                    <User className="h-4 w-4" />
+                    <Users className="h-4 w-4" />
                     {group.name}
                   </button>
                 ))}
