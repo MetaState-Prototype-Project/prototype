@@ -75,10 +75,10 @@ async function captureImage() {
                 ).toString(),
             );
             stopCamera();
-            // Navigate back to verify page to show results in drawer
-            goto("/verify");
+            // Stay on this page and show spinner
             // The verification step will be updated by the SSE response
             // verifStep will be set to 3 by the websocket event
+            // When results are ready, the verify page will handle showing the drawer
         }
     }
 }

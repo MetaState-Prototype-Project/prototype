@@ -170,8 +170,9 @@ function watchEventStream(id: string) {
             SelfiePic.set(null);
         }
         verifStep.set(3);
-        // Show drawer with results
+        // Navigate to verify page and show drawer with results immediately
         showVeriffModal = true;
+        goto("/verify");
     };
 }
 
@@ -252,6 +253,11 @@ let handleContinue: () => Promise<void> = $state(async () => {});
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
+
+    // If verification is complete (step 3), show drawer immediately
+    if ($verifStep === 3) {
+        showVeriffModal = true;
+    }
 
     // Provide showVeriffModal context to child components
     setContext("showVeriffModal", {
