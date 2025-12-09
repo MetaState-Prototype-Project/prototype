@@ -79,6 +79,7 @@ interface ScanStores {
     authError: Writable<string | null>;
     signingError: Writable<string | null>;
     authLoading: Writable<boolean>;
+    isFromScan: Writable<boolean>;
 }
 
 interface ScanActions {
@@ -143,6 +144,7 @@ export function createScanLogic({
     const authError = writable<string | null>(null);
     const signingError = writable<string | null>(null);
     const authLoading = writable(false);
+    const isFromScan = writable(false);
 
     let permissionsNullable: PermissionState | null = null;
 
@@ -284,17 +286,55 @@ export function createScanLogic({
                 );
             }
 
-            // Strip path from redirectUri and append /deeplink-login
-            const loginUrl = new URL("/deeplink-login", redirectUrl);
-            loginUrl.searchParams.set("ename", vault.ename);
-            loginUrl.searchParams.set("session", get(session) as string);
-            loginUrl.searchParams.set("signature", signature);
-            loginUrl.searchParams.set("appVersion", "0.4.0");
+            const fromScan = get(isFromScan);
 
-            console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
+            if (fromScan) {
+                // For scan: Make POST request with JSON payload
+                const payload = {
+                    ename: vault.ename,
+                    session: get(session) as string,
+                    signature: signature,
+                    appVersion: "0.4.0",
+                };
 
-            // Open URL in browser using tauri opener
-            await openUrl(loginUrl.toString());
+                console.log(`📤 Making POST request to: ${redirectUrl}`);
+                console.log(`📦 Payload:`, payload);
+
+                const response = await fetch(redirectUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Failed to submit authentication: ${response.status} ${response.statusText}`,
+                    );
+                }
+
+                console.log(`✅ POST request successful`);
+
+                // For scan: Close drawer and show success, skip deeplink redirect logic
+                codeScannedDrawerOpen.set(false);
+                loggedInDrawerOpen.set(true);
+                startScan();
+                return;
+            } else {
+                // For deeplink: Open URL with encoded URI
+                // Strip path from redirectUri and append /deeplink-login
+                const loginUrl = new URL("/deeplink-login", redirectUrl);
+                loginUrl.searchParams.set("ename", vault.ename);
+                loginUrl.searchParams.set("session", get(session) as string);
+                loginUrl.searchParams.set("signature", signature);
+                loginUrl.searchParams.set("appVersion", "0.4.0");
+
+                console.log(`🔗 Opening login URL: ${loginUrl.toString()}`);
+
+                // Open URL in browser using tauri opener
+                await openUrl(loginUrl.toString());
+            }
 
             // Close the auth drawer first
             codeScannedDrawerOpen.set(false);
@@ -417,6 +457,7 @@ export function createScanLogic({
         hostname.set(redirectUrl.hostname);
         isSigningRequest.set(false);
         authError.set(null); // Clear any previous auth errors
+        isFromScan.set(true); // Mark that this auth request came from scanning
         codeScannedDrawerOpen.set(true);
     }
 
@@ -1148,6 +1189,7 @@ export function createScanLogic({
 
             isSigningRequest.set(false);
             authError.set(null); // Clear any previous auth errors
+            isFromScan.set(false); // Mark that this auth request came from deeplink
             codeScannedDrawerOpen.set(true);
         } else if (data.type === "sign") {
             console.log("Handling signing deep link");
@@ -1395,6 +1437,7 @@ export function createScanLogic({
             authError,
             signingError,
             authLoading,
+            isFromScan,
         },
         actions: {
             startScan,
