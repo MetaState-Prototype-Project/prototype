@@ -91,36 +91,52 @@ export class VaultController {
      * Checks if public key was already saved, calls /whois, and PATCH if needed
      */
     async syncPublicKey(eName: string): Promise<void> {
+        console.log("=".repeat(70));
+        console.log(`🔄 [syncPublicKey] Called for eName: ${eName}`);
+        console.log("=".repeat(70));
+        
         try {
             // Check if we've already saved the public key
             const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
+            console.log(`[syncPublicKey] localStorage check: ${savedKey ? `found "${savedKey}"` : "not found"}`);
             if (savedKey === "true") {
                 console.log(
-                    `Public key already saved for ${eName}, skipping sync`,
+                    `[syncPublicKey] Public key already saved for ${eName}, skipping sync`,
                 );
                 return;
             }
 
             if (!this.#keyService) {
                 console.warn(
-                    "KeyService not available, cannot sync public key",
+                    "[syncPublicKey] KeyService not available, cannot sync public key",
                 );
                 return;
             }
+            console.log("[syncPublicKey] KeyService available ✓");
 
             // Get the eVault URI
             const vault = await this.vault;
+            console.log(`[syncPublicKey] Vault:`, vault ? { uri: vault.uri, ename: vault.ename } : "null");
             if (!vault?.uri) {
-                console.warn("No vault URI available, cannot sync public key");
+                console.warn("[syncPublicKey] No vault URI available, cannot sync public key");
                 return;
             }
+            console.log(`[syncPublicKey] Vault URI available: ${vault.uri} ✓`);
 
             // Call /whois to check if public key exists
             const whoisUrl = new URL("/whois", vault.uri).toString();
+            console.log(`[syncPublicKey] Calling whois: ${whoisUrl}`);
             const whoisResponse = await axios.get(whoisUrl, {
                 headers: {
                     "X-ENAME": eName,
                 },
+            });
+            console.log(`[syncPublicKey] Whois response status: ${whoisResponse.status}`);
+            console.log(`[syncPublicKey] Whois response data:`, {
+                w3id: whoisResponse.data?.w3id,
+                keyBindingCertificatesCount: Array.isArray(whoisResponse.data?.keyBindingCertificates) 
+                    ? whoisResponse.data.keyBindingCertificates.length 
+                    : "not an array or missing"
             });
 
             // Get key binding certificates array from whois response
@@ -131,28 +147,36 @@ export class VaultController {
             const KEY_ID = "default";
             const isFake = await this.#userController.isFake;
             const context = isFake ? "pre-verification" : "onboarding";
+            console.log(`[syncPublicKey] Key context: ${context} (isFake: ${isFake})`);
 
             let currentPublicKey: string | undefined;
             try {
+                console.log(`[syncPublicKey] Getting current device's public key...`);
                 currentPublicKey = await this.#keyService.getPublicKey(
                     KEY_ID,
                     context,
                 );
+                console.log(`[syncPublicKey] Current public key retrieved: ${currentPublicKey ? `${currentPublicKey.substring(0, 60)}...` : "null"}`);
             } catch (error) {
                 console.error(
-                    "Failed to get current public key for comparison:",
+                    "[syncPublicKey] Failed to get current public key for comparison:",
                     error,
                 );
                 // Continue to sync anyway
             }
 
             // If we have certificates and current key, check if it already exists
+            console.log(`[syncPublicKey] Checking if key exists in certificates...`);
+            console.log(`[syncPublicKey] - keyBindingCertificates: ${keyBindingCertificates ? (Array.isArray(keyBindingCertificates) ? `array with ${keyBindingCertificates.length} items` : "not an array") : "null/undefined"}`);
+            console.log(`[syncPublicKey] - currentPublicKey: ${currentPublicKey ? "exists" : "null/undefined"}`);
+            
             if (
                 keyBindingCertificates &&
                 Array.isArray(keyBindingCertificates) &&
                 keyBindingCertificates.length > 0 &&
                 currentPublicKey
             ) {
+                console.log(`[syncPublicKey] Verifying certificates to check if current key exists...`);
                 try {
                     // Get registry JWKS for JWT verification
                     const registryUrl = PUBLIC_REGISTRY_URL;
@@ -211,13 +235,8 @@ export class VaultController {
                 }
             }
 
-            console.log("=".repeat(70));
-            console.log("🔄 [VaultController] syncPublicKey called");
-            console.log("=".repeat(70));
-            console.log(`eName: ${eName}`);
-            console.log(`Key ID for sync: ${KEY_ID}`);
-            console.log(`Context for sync: ${context}`);
-            console.log(`Is fake/pre-verification: ${isFake}`);
+            console.log(`[syncPublicKey] Key not found in existing certificates, proceeding to sync...`);
+            console.log(`[syncPublicKey] Getting public key for sync (KEY_ID: ${KEY_ID}, context: ${context})...`);
 
             // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
             let publicKey: string | undefined;
@@ -227,12 +246,11 @@ export class VaultController {
                     context,
                 );
                 console.log(
-                    `Public key retrieved: ${publicKey?.substring(0, 60)}...`,
+                    `[syncPublicKey] Public key retrieved: ${publicKey ? `${publicKey.substring(0, 60)}...` : "null"}`,
                 );
-                console.log(`Public key (full): ${publicKey}`);
             } catch (error) {
                 console.error(
-                    `Failed to get public key for ${KEY_ID} with context ${context}:`,
+                    `[syncPublicKey] Failed to get public key for ${KEY_ID} with context ${context}:`,
                     error,
                 );
                 return;
@@ -240,11 +258,10 @@ export class VaultController {
 
             if (!publicKey) {
                 console.warn(
-                    `No public key found for ${KEY_ID} with context ${context}, cannot sync`,
+                    `[syncPublicKey] No public key found for ${KEY_ID} with context ${context}, cannot sync`,
                 );
                 return;
             }
-            console.log("=".repeat(70));
 
             // Get authentication token from environment variable
             const authToken = PUBLIC_EID_WALLET_TOKEN || null;
@@ -265,13 +282,17 @@ export class VaultController {
                 headers.Authorization = `Bearer ${authToken}`;
             }
 
+            console.log(`[syncPublicKey] Patching public key to: ${patchUrl}`);
             await axios.patch(patchUrl, { publicKey }, { headers });
+            console.log(`[syncPublicKey] PATCH request successful ✓`);
 
             // Mark as saved
             localStorage.setItem(`publicKeySaved_${eName}`, "true");
-            console.log(`Public key synced successfully for ${eName}`);
+            console.log(`[syncPublicKey] ✓ Public key synced successfully for ${eName}`);
+            console.log("=".repeat(70));
         } catch (error) {
-            console.error("Failed to sync public key:", error);
+            console.error("[syncPublicKey] ✗ Failed to sync public key:", error);
+            console.log("=".repeat(70));
             // Don't throw - this is a non-critical operation
         }
     }

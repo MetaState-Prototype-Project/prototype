@@ -94,18 +94,32 @@ export async function registerHttpRoutes(
                     .send({ error: "X-ENAME header is required" });
             }
 
+            console.log("=".repeat(70));
+            console.log(`[WHOIS] Request for eName: ${eName}`);
+            console.log("=".repeat(70));
+
             // Get public keys from database if dbService is available
             let publicKeys: string[] = [];
             if (dbService) {
                 try {
                     publicKeys = await dbService.getPublicKeys(eName);
+                    console.log(`[WHOIS] Retrieved ${publicKeys.length} public key(s) from database for ${eName}`);
+                    if (publicKeys.length > 0) {
+                        publicKeys.forEach((key, index) => {
+                            console.log(`[WHOIS] Public key ${index + 1}: ${key.substring(0, 60)}...`);
+                        });
+                    } else {
+                        console.log(`[WHOIS] No public keys found in database for ${eName}`);
+                    }
                 } catch (error) {
                     console.error(
-                        "Error getting public keys from database:",
+                        "[WHOIS] Error getting public keys from database:",
                         error,
                     );
                     // Continue with empty array
                 }
+            } else {
+                console.log("[WHOIS] dbService not available");
             }
 
             // Generate key binding certificates for each public key
@@ -113,10 +127,16 @@ export async function registerHttpRoutes(
             const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
             const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
 
+            console.log(`[WHOIS] Registry URL: ${registryUrl ? "configured" : "NOT configured"}`);
+            console.log(`[WHOIS] Shared secret: ${sharedSecret ? "configured" : "NOT configured"}`);
+
             if (registryUrl && sharedSecret && publicKeys.length > 0) {
+                console.log(`[WHOIS] Generating key binding certificates for ${publicKeys.length} public key(s)...`);
                 try {
-                    for (const publicKey of publicKeys) {
+                    for (let i = 0; i < publicKeys.length; i++) {
+                        const publicKey = publicKeys[i];
                         try {
+                            console.log(`[WHOIS] Generating certificate ${i + 1}/${publicKeys.length}...`);
                             const response = await axios.post(
                                 new URL("/key-binding-certificate", registryUrl).toString(),
                                 {
@@ -132,21 +152,34 @@ export async function registerHttpRoutes(
                             );
                             if (response.data?.token) {
                                 keyBindingCertificates.push(response.data.token);
+                                console.log(`[WHOIS] ✓ Certificate ${i + 1} generated successfully`);
+                            } else {
+                                console.warn(`[WHOIS] ✗ Certificate ${i + 1} response missing token`);
                             }
                         } catch (error) {
                             console.error(
-                                `Error generating key binding certificate for public key:`,
-                                error,
+                                `[WHOIS] ✗ Error generating key binding certificate ${i + 1}:`,
+                                error instanceof Error ? error.message : String(error),
                             );
                             // Continue with other keys even if one fails
                         }
                     }
                 } catch (error) {
                     console.error(
-                        "Error generating key binding certificates:",
+                        "[WHOIS] Error generating key binding certificates:",
                         error,
                     );
                     // Return empty array if generation fails
+                }
+            } else {
+                if (!registryUrl) {
+                    console.warn("[WHOIS] Cannot generate certificates: Registry URL not configured");
+                }
+                if (!sharedSecret) {
+                    console.warn("[WHOIS] Cannot generate certificates: Shared secret not configured");
+                }
+                if (publicKeys.length === 0) {
+                    console.log("[WHOIS] No public keys to generate certificates for");
                 }
             }
 
@@ -154,7 +187,8 @@ export async function registerHttpRoutes(
                 w3id: eName,
                 keyBindingCertificates: keyBindingCertificates,
             };
-            console.log("Whois request:", result);
+            console.log(`[WHOIS] Response: ${keyBindingCertificates.length} certificate(s) for ${eName}`);
+            console.log("=".repeat(70));
             return result;
         },
     );
