@@ -92,7 +92,7 @@ importers:
         version: 3.1.2(rollup@4.53.3)
       flowbite-svelte:
         specifier: ^1.10.7
-        version: 1.28.1(rollup@4.53.3)(svelte@5.43.12)(tailwindcss@4.1.17)
+        version: 1.30.0(rollup@4.53.3)(svelte@5.43.12)(tailwindcss@4.1.17)
       flowbite-svelte-icons:
         specifier: ^2.2.1
         version: 2.3.0(svelte@5.43.12)
@@ -9816,10 +9816,10 @@ packages:
     peerDependencies:
       svelte: ^5.0.0
 
-  flowbite-svelte@1.28.1:
-    resolution: {integrity: sha512-7zSa1A3tBjEBV7eVFVyE7O7vTkEZmP2a8pt58h4ul6VZcPZ6RVodk43AypWLGG/IKiSPm4L2GqPoNqbIpJ3FEA==}
+  flowbite-svelte@1.30.0:
+    resolution: {integrity: sha512-zwU9IUiKfNv5sGZAsrUqyeZZCcT/RkdUJxhXnpN5us+mH4S9aWh9siJhcByEaCsK9uk0VPWRhstNd1cyfnNzRw==}
     peerDependencies:
-      svelte: ^5.29.0
+      svelte: ^5.40.0
       tailwindcss: ^4.1.4
 
   flowbite@2.5.2:
@@ -13592,8 +13592,8 @@ packages:
   tailwind-merge@3.4.0:
     resolution: {integrity: sha512-uSaO4gnW+b3Y2aWoWfFpX62vn2sR3skfhbjsEnaBI81WD1wBLlHZe5sWf0AqjksNdYTbGBEd0UasQMT3SNV15g==}
 
-  tailwind-variants@3.1.1:
-    resolution: {integrity: sha512-ftLXe3krnqkMHsuBTEmaVUXYovXtPyTK7ckEfDRXS8PBZx0bAUas+A0jYxuKA5b8qg++wvQ3d2MQ7l/xeZxbZQ==}
+  tailwind-variants@3.2.2:
+    resolution: {integrity: sha512-Mi4kHeMTLvKlM98XPnK+7HoBPmf4gygdFmqQPaDivc3DpYS6aIY6KiG/PgThrGvii5YZJqRsPz0aPyhoFzmZgg==}
     engines: {node: '>=16.x', pnpm: '>=7.x'}
     peerDependencies:
       tailwind-merge: '>=3.0.0'
@@ -23637,7 +23637,7 @@ snapshots:
       svelte: 5.43.12
       tailwind-merge: 3.4.0
 
-  flowbite-svelte@1.28.1(rollup@4.53.3)(svelte@5.43.12)(tailwindcss@4.1.17):
+  flowbite-svelte@1.30.0(rollup@4.53.3)(svelte@5.43.12)(tailwindcss@4.1.17):
     dependencies:
       '@floating-ui/dom': 1.7.4
       '@floating-ui/utils': 0.2.10
@@ -23648,7 +23648,7 @@ snapshots:
       flowbite: 3.1.2(rollup@4.53.3)
       svelte: 5.43.12
       tailwind-merge: 3.4.0
-      tailwind-variants: 3.1.1(tailwind-merge@3.4.0)(tailwindcss@4.1.17)
+      tailwind-variants: 3.2.2(tailwind-merge@3.4.0)(tailwindcss@4.1.17)
       tailwindcss: 4.1.17
     transitivePeerDependencies:
       - rollup
@@ -28603,7 +28603,7 @@ snapshots:
 
   tailwind-merge@3.4.0: {}
 
-  tailwind-variants@3.1.1(tailwind-merge@3.4.0)(tailwindcss@4.1.17):
+  tailwind-variants@3.2.2(tailwind-merge@3.4.0)(tailwindcss@4.1.17):
     dependencies:
       tailwindcss: 4.1.17
     optionalDependencies:
