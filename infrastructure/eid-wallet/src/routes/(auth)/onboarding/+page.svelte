@@ -9,7 +9,9 @@ import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction, Drawer } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
@@ -186,6 +188,11 @@ onMount(async () => {
     // Don't initialize key manager here - wait until user chooses their path
 
     handleContinue = async () => {
+        // Require both verification code and name
+        if (!verificationId || !demoName || verificationId.length === 0 || demoName.length === 0) {
+            return;
+        }
+
         loading = true;
         error = null;
 
@@ -223,6 +230,7 @@ onMount(async () => {
 
             preVerified = false;
             verificationId = "";
+            demoName = "";
             error = "Wrong pre-verification code";
 
             setTimeout(() => {
@@ -346,17 +354,11 @@ onMount(async () => {
     {:else if preVerified}
         {#if verificationSuccess}
             <h4 class="mt-[2.3svh] mb-[0.5svh]">Verification Successful!</h4>
-            <p class="text-black-700">Enter Demo Name for your ePassport</p>
-            <input
-                type="text"
-                bind:value={demoName}
-                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
-                placeholder="Enter your demo name for ePassport"
-            />
+            <p class="text-black-700">Your demo name: <strong>{demoName}</strong></p>
+            <p class="text-black-700 mt-2">You can now continue to create your ePassport.</p>
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
                 <ButtonAction
-                    variant={demoName.length === 0 ? "soft" : "solid"}
-                    disabled={demoName.length === 0}
+                    variant="solid"
                     class="w-full"
                     callback={handleFinalSubmit}>Continue</ButtonAction
                 >
@@ -372,10 +374,17 @@ onMount(async () => {
                 class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
                 placeholder="Enter verification code"
             />
+            <p class="text-black-700 mt-4">Enter Demo Name for your ePassport</p>
+            <input
+                type="text"
+                bind:value={demoName}
+                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
+                placeholder="Enter your demo name for ePassport"
+            />
             <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
                 <ButtonAction
-                    variant={verificationId.length === 0 ? "soft" : "solid"}
-                    disabled={verificationId.length === 0}
+                    variant={verificationId.length === 0 || demoName.length === 0 ? "soft" : "solid"}
+                    disabled={verificationId.length === 0 || demoName.length === 0}
                     class="w-full"
                     callback={handleContinue}>Next</ButtonAction
                 >

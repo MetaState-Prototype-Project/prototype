@@ -9,8 +9,10 @@ import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
 import Drawer from "$lib/ui/Drawer/Drawer.svelte";
 import { capitalize } from "$lib/utils";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -433,10 +435,15 @@ onMount(async () => {
                         <p>{$reason}</p>
                     {/if}
                 </div>
-                <div class="flex w-full flex-col pt-4">
+                <div class="flex w-full items-center gap-3 pt-4">
                     {#if $status !== "declined"}
                         <ButtonAction
-                            class="w-[100%]"
+                            variant="soft"
+                            class="flex-1"
+                            callback={() => goto("/onboarding")}>Back</ButtonAction
+                        >
+                        <ButtonAction
+                            class="flex-1"
                             callback={handleContinue}
                             color="primary"
                             >{$status === "approved"

@@ -36,15 +36,29 @@ export default function DeeplinkLogin() {
         // Parse the search string
         params = new URLSearchParams(searchString);
 
-        const ename = params.get('ename');
-        const session = params.get('session');
-        const signature = params.get('signature');
+        let ename = params.get('ename');
+        let session = params.get('session');
+        let signature = params.get('signature');
         const appVersion = params.get('appVersion');
 
+        // Only set error after all parsing attempts have failed
+        // Try additional parsing methods if params are missing
         if (!ename || !session || !signature) {
-          setError("Missing required authentication parameters");
-          setIsLoading(false);
-          return;
+          // Try one more time with window.location directly
+          const directParams = new URLSearchParams(window.location.search);
+          const hashParams = window.location.hash.includes('?') 
+            ? new URLSearchParams(window.location.hash.substring(window.location.hash.indexOf('?') + 1))
+            : null;
+          
+          ename = ename || directParams.get('ename') || hashParams?.get('ename') || null;
+          session = session || directParams.get('session') || hashParams?.get('session') || null;
+          signature = signature || directParams.get('signature') || hashParams?.get('signature') || null;
+          
+          if (!ename || !session || !signature) {
+            setError("Missing required authentication parameters");
+            setIsLoading(false);
+            return;
+          }
         }
 
         // Clean up URL

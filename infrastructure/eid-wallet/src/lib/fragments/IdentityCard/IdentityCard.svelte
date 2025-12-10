@@ -3,7 +3,7 @@ import * as Button from "$lib/ui/Button";
 import { cn } from "$lib/utils";
 import {
     CheckmarkBadge02Icon,
-    Upload03Icon,
+    Copy01Icon,
     ViewIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -17,6 +17,7 @@ interface IIdentityCard extends HTMLAttributes<HTMLElement> {
     userId?: string;
     viewBtn?: () => void;
     shareBtn?: () => void;
+    copyBtn?: () => void;
     userData?: userData;
     totalStorage?: number;
     usedStorage?: number;
@@ -27,6 +28,7 @@ const {
     userId,
     viewBtn,
     shareBtn,
+    copyBtn,
     userData,
     totalStorage = 0,
     usedStorage = 0,
@@ -69,20 +71,12 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     icon={CheckmarkBadge02Icon}
                 />
                 <div class="flex gap-3 items-center">
-                    {#if shareBtn}
+                    {#if copyBtn}
                         <Button.Icon
-                            icon={Upload03Icon}
+                            icon={Copy01Icon}
                             iconColor={"white"}
                             strokeWidth={2}
-                            onclick={shareBtn}
-                        />
-                    {/if}
-                    {#if viewBtn}
-                        <Button.Icon
-                            icon={ViewIcon}
-                            iconColor={"white"}
-                            strokeWidth={2}
-                            onclick={viewBtn}
+                            onclick={copyBtn}
                         />
                     {/if}
                 </div>

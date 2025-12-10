@@ -1143,31 +1143,38 @@ export function createScanLogic({
     }
 
     async function handleDeepLinkData(data: DeepLinkData) {
-        console.log("Handling deep link data:", data);
-        console.log("Data type:", data.type);
-        console.log("Platform:", data.platform);
-        console.log("Session:", data.session);
-        console.log("Redirect:", data.redirect);
-        console.log("Redirect URI:", data.redirect_uri);
+        try {
+            console.log("Handling deep link data:", data);
+            console.log("Data type:", data.type);
+            console.log("Platform:", data.platform);
+            console.log("Session:", data.session);
+            console.log("Redirect:", data.redirect);
+            console.log("Redirect URI:", data.redirect_uri);
 
-        if (data.type === "auth" && get(codeScannedDrawerOpen)) {
-            console.log("Auth request already in progress, ignoring duplicate");
-            return;
-        }
-        if (data.type === "sign" && get(signingDrawerOpen)) {
-            console.log(
-                "Signing request already in progress, ignoring duplicate",
-            );
-            return;
-        }
-        if (data.type === "reveal" && get(isRevealRequest)) {
-            console.log(
-                "Reveal request already in progress, ignoring duplicate",
-            );
-            return;
-        }
+            // Ensure globalState is available
+            if (!globalState) {
+                console.error("GlobalState not available, cannot handle deep link");
+                return;
+            }
 
-        if (data.type === "auth") {
+            if (data.type === "auth" && get(codeScannedDrawerOpen)) {
+                console.log("Auth request already in progress, ignoring duplicate");
+                return;
+            }
+            if (data.type === "sign" && get(signingDrawerOpen)) {
+                console.log(
+                    "Signing request already in progress, ignoring duplicate",
+                );
+                return;
+            }
+            if (data.type === "reveal" && get(isRevealRequest)) {
+                console.log(
+                    "Reveal request already in progress, ignoring duplicate",
+                );
+                return;
+            }
+
+            if (data.type === "auth") {
             console.log("Handling auth deep link");
 
             // Close all other modals first
@@ -1186,27 +1193,27 @@ export function createScanLogic({
                 hostname.set("unknown");
             }
 
-            isSigningRequest.set(false);
-            authError.set(null); // Clear any previous auth errors
-            isFromScan.set(false); // Mark that this auth request came from deeplink
-            codeScannedDrawerOpen.set(true);
-        } else if (data.type === "sign") {
-            console.log("Handling signing deep link");
+                isSigningRequest.set(false);
+                authError.set(null); // Clear any previous auth errors
+                isFromScan.set(false); // Mark that this auth request came from deeplink
+                codeScannedDrawerOpen.set(true);
+            } else if (data.type === "sign") {
+                console.log("Handling signing deep link");
 
-            // Close all other modals first
-            codeScannedDrawerOpen.set(false);
-            loggedInDrawerOpen.set(false);
-            isRevealRequest.set(false);
+                // Close all other modals first
+                codeScannedDrawerOpen.set(false);
+                loggedInDrawerOpen.set(false);
+                isRevealRequest.set(false);
 
-            signingSessionId.set(data.session ?? null);
-            const base64Data = data.data;
-            const redirectUri = data.redirect_uri;
+                signingSessionId.set(data.session ?? null);
+                const base64Data = data.data;
+                const redirectUri = data.redirect_uri;
 
-            if (get(signingSessionId) && base64Data && redirectUri) {
-                redirect.set(redirectUri);
-                signingError.set(null); // Clear any previous signing errors
+                if (get(signingSessionId) && base64Data && redirectUri) {
+                    redirect.set(redirectUri);
+                    signingError.set(null); // Clear any previous signing errors
 
-                try {
+                    try {
                     const decodedString = atob(base64Data);
                     const parsedSigningData = JSON.parse(
                         decodedString,
@@ -1304,27 +1311,30 @@ export function createScanLogic({
                     console.error("Error decoding signing data:", error);
                     return;
                 }
+                }
+            } else if (data.type === "reveal") {
+                console.log("Handling reveal deep link");
+
+                // Close all other modals first
+                codeScannedDrawerOpen.set(false);
+                loggedInDrawerOpen.set(false);
+                signingDrawerOpen.set(false);
+
+                const pollId = data.pollId;
+
+                if (pollId) {
+                    console.log("🔍 Reveal request for poll:", pollId);
+
+                    revealError.set(null); // Clear any previous reveal errors
+                    revealPollId.set(pollId);
+                    isRevealRequest.set(true);
+                } else {
+                    console.error("Missing pollId in reveal request");
+                    revealError.set("Invalid reveal request. Poll ID is missing.");
+                }
             }
-        } else if (data.type === "reveal") {
-            console.log("Handling reveal deep link");
-
-            // Close all other modals first
-            codeScannedDrawerOpen.set(false);
-            loggedInDrawerOpen.set(false);
-            signingDrawerOpen.set(false);
-
-            const pollId = data.pollId;
-
-            if (pollId) {
-                console.log("🔍 Reveal request for poll:", pollId);
-
-                revealError.set(null); // Clear any previous reveal errors
-                revealPollId.set(pollId);
-                isRevealRequest.set(true);
-            } else {
-                console.error("Missing pollId in reveal request");
-                revealError.set("Invalid reveal request. Poll ID is missing.");
-            }
+        } catch (error) {
+            console.error("Error in handleDeepLinkData:", error);
         }
     }
 
