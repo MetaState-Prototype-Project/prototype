@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 
 export default function DeeplinkLogin(): JSX.Element | null {
-    const { signInWithCustomToken } = useAuth();
+    const { signInWithCustomToken, user } = useAuth();
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +81,13 @@ export default function DeeplinkLogin(): JSX.Element | null {
                     // Blabsy API returns { token } only (Firebase custom token)
                     if (data.token) {
                         await signInWithCustomToken(data.token);
+                        // Navigation will happen via auth state change, but ensure we navigate
+                        router.push('/home').catch(() => {
+                            // If push fails, try replace
+                            router.replace('/home').catch(() => {
+                                window.location.href = '/home';
+                            });
+                        });
                     } else {
                         setError('Invalid response from server');
                         setIsLoading(false);
@@ -103,7 +112,18 @@ export default function DeeplinkLogin(): JSX.Element | null {
         };
 
         handleDeeplinkLogin();
-    }, [signInWithCustomToken]);
+    }, [signInWithCustomToken, router]);
+
+    // If user is authenticated, navigate to home
+    useEffect(() => {
+        if (user) {
+            router.push('/home').catch(() => {
+                router.replace('/home').catch(() => {
+                    window.location.href = '/home';
+                });
+            });
+        }
+    }, [user, router]);
 
     if (isLoading) {
         return (
