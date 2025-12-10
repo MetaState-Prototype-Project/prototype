@@ -47,15 +47,33 @@ export default function DeeplinkLogin(): JSX.Element | null {
                 // Try additional parsing methods if params are missing
                 if (!ename || !session || !signature) {
                     // Try one more time with window.location directly
-                    const directParams = new URLSearchParams(window.location.search);
-                    const hashParams = window.location.hash.includes('?') 
-                        ? new URLSearchParams(window.location.hash.substring(window.location.hash.indexOf('?') + 1))
+                    const directParams = new URLSearchParams(
+                        window.location.search
+                    );
+                    const hashParams = window.location.hash.includes('?')
+                        ? new URLSearchParams(
+                              window.location.hash.substring(
+                                  window.location.hash.indexOf('?') + 1
+                              )
+                          )
                         : null;
-                    
-                    ename = ename || directParams.get('ename') || hashParams?.get('ename') || null;
-                    session = session || directParams.get('session') || hashParams?.get('session') || null;
-                    signature = signature || directParams.get('signature') || hashParams?.get('signature') || null;
-                    
+
+                    ename =
+                        ename ||
+                        directParams.get('ename') ||
+                        hashParams?.get('ename') ||
+                        null;
+                    session =
+                        session ||
+                        directParams.get('session') ||
+                        hashParams?.get('session') ||
+                        null;
+                    signature =
+                        signature ||
+                        directParams.get('signature') ||
+                        hashParams?.get('signature') ||
+                        null;
+
                     if (!ename || !session || !signature) {
                         setError('Missing required authentication parameters');
                         setIsLoading(false);

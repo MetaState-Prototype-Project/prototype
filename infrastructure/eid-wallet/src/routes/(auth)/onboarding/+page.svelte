@@ -189,7 +189,12 @@ onMount(async () => {
 
     handleContinue = async () => {
         // Require both verification code and name
-        if (!verificationId || !demoName || verificationId.length === 0 || demoName.length === 0) {
+        if (
+            !verificationId ||
+            !demoName ||
+            verificationId.length === 0 ||
+            demoName.length === 0
+        ) {
             return;
         }
 

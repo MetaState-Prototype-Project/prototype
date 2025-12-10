@@ -77,11 +77,17 @@ onMount(async () => {
                         handleDeepLink(urls[0]);
                     } else {
                         // Queue deep link if app isn't ready yet
-                        console.log("App not ready, queueing deep link:", urls[0]);
+                        console.log(
+                            "App not ready, queueing deep link:",
+                            urls[0],
+                        );
                         pendingDeepLinks = [...pendingDeepLinks, urls[0]];
                     }
                 } catch (error) {
-                    console.error("Error handling deep link from onOpenUrl:", error);
+                    console.error(
+                        "Error handling deep link from onOpenUrl:",
+                        error,
+                    );
                 }
             }
         });
@@ -91,10 +97,15 @@ onMount(async () => {
         globalDeepLinkHandler = (event: Event) => {
             try {
                 const customEvent = event as CustomEvent;
-                console.log("Global deep link event received:", customEvent.detail);
+                console.log(
+                    "Global deep link event received:",
+                    customEvent.detail,
+                );
 
                 if (!isAppReady || !globalState) {
-                    console.log("App not ready, storing deep link data for later");
+                    console.log(
+                        "App not ready, storing deep link data for later",
+                    );
                     sessionStorage.setItem(
                         "deepLinkData",
                         JSON.stringify(customEvent.detail),
@@ -105,14 +116,18 @@ onMount(async () => {
                 // Check if we're already on the scan page
                 if (window.location.pathname === "/scan-qr") {
                     // We're already on the scan page, dispatch the event directly
-                    console.log("Already on scan page, dispatching event directly");
+                    console.log(
+                        "Already on scan page, dispatching event directly",
+                    );
                     const directEvent = new CustomEvent("deepLinkReceived", {
                         detail: customEvent.detail,
                     });
                     window.dispatchEvent(directEvent);
                 } else {
                     // Store the deep link data and navigate to scan page
-                    console.log("Not on scan page, storing data and navigating");
+                    console.log(
+                        "Not on scan page, storing data and navigating",
+                    );
                     sessionStorage.setItem(
                         "deepLinkData",
                         JSON.stringify(customEvent.detail),
@@ -211,7 +226,10 @@ onMount(async () => {
                                 JSON.stringify(deepLinkData),
                             );
                             goto("/login").catch((error) => {
-                                console.error("Error navigating to login:", error);
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
                             });
                             return;
                         }
@@ -219,29 +237,39 @@ onMount(async () => {
                         try {
                             // Wait for globalState to be ready if it's not yet
                             if (!globalState) {
-                                console.log("GlobalState not ready, waiting...");
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
                                 // Wait a bit and retry, or just redirect to login
                                 let retries = 0;
                                 const maxRetries = 10;
                                 while (!globalState && retries < maxRetries) {
-                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
                                     retries++;
                                 }
-                                
+
                                 if (!globalState) {
-                                    console.log("GlobalState still not ready, storing deep link and redirecting to login");
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
                                     sessionStorage.setItem(
                                         "pendingDeepLink",
                                         JSON.stringify(deepLinkData),
                                     );
                                     goto("/login").catch((error) => {
-                                        console.error("Error navigating to login:", error);
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
                                     });
                                     return;
                                 }
                             }
-                            
-                            const vault = await globalState.vaultController.vault;
+
+                            const vault =
+                                await globalState.vaultController.vault;
                             if (vault) {
                                 // User is authenticated, dispatch event and navigate to scan page
                                 console.log(
@@ -264,7 +292,10 @@ onMount(async () => {
                                 );
 
                                 goto("/scan-qr").catch((error) => {
-                                    console.error("Error navigating to scan-qr:", error);
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
                                 });
                                 return;
                             }
@@ -329,7 +360,10 @@ onMount(async () => {
                                 JSON.stringify(deepLinkData),
                             );
                             goto("/login").catch((error) => {
-                                console.error("Error navigating to login:", error);
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
                             });
                             return;
                         }
@@ -337,29 +371,39 @@ onMount(async () => {
                         try {
                             // Wait for globalState to be ready if it's not yet
                             if (!globalState) {
-                                console.log("GlobalState not ready, waiting...");
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
                                 // Wait a bit and retry, or just redirect to login
                                 let retries = 0;
                                 const maxRetries = 10;
                                 while (!globalState && retries < maxRetries) {
-                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
                                     retries++;
                                 }
-                                
+
                                 if (!globalState) {
-                                    console.log("GlobalState still not ready, storing deep link and redirecting to login");
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
                                     sessionStorage.setItem(
                                         "pendingDeepLink",
                                         JSON.stringify(deepLinkData),
                                     );
                                     goto("/login").catch((error) => {
-                                        console.error("Error navigating to login:", error);
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
                                     });
                                     return;
                                 }
                             }
-                            
-                            const vault = await globalState.vaultController.vault;
+
+                            const vault =
+                                await globalState.vaultController.vault;
                             if (vault) {
                                 // User is authenticated, dispatch event and navigate to scan page
                                 console.log(
@@ -382,7 +426,10 @@ onMount(async () => {
                                 );
 
                                 goto("/scan-qr").catch((error) => {
-                                    console.error("Error navigating to scan-qr:", error);
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
                                 });
                                 return;
                             }
@@ -436,7 +483,10 @@ onMount(async () => {
                                 JSON.stringify(deepLinkData),
                             );
                             goto("/login").catch((error) => {
-                                console.error("Error navigating to login:", error);
+                                console.error(
+                                    "Error navigating to login:",
+                                    error,
+                                );
                             });
                             return;
                         }
@@ -444,29 +494,39 @@ onMount(async () => {
                         try {
                             // Wait for globalState to be ready if it's not yet
                             if (!globalState) {
-                                console.log("GlobalState not ready, waiting...");
+                                console.log(
+                                    "GlobalState not ready, waiting...",
+                                );
                                 // Wait a bit and retry, or just redirect to login
                                 let retries = 0;
                                 const maxRetries = 10;
                                 while (!globalState && retries < maxRetries) {
-                                    await new Promise(resolve => setTimeout(resolve, 100));
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 100),
+                                    );
                                     retries++;
                                 }
-                                
+
                                 if (!globalState) {
-                                    console.log("GlobalState still not ready, storing deep link and redirecting to login");
+                                    console.log(
+                                        "GlobalState still not ready, storing deep link and redirecting to login",
+                                    );
                                     sessionStorage.setItem(
                                         "pendingDeepLink",
                                         JSON.stringify(deepLinkData),
                                     );
                                     goto("/login").catch((error) => {
-                                        console.error("Error navigating to login:", error);
+                                        console.error(
+                                            "Error navigating to login:",
+                                            error,
+                                        );
                                     });
                                     return;
                                 }
                             }
-                            
-                            const vault = await globalState.vaultController.vault;
+
+                            const vault =
+                                await globalState.vaultController.vault;
                             if (vault) {
                                 // User is authenticated, dispatch event and navigate to scan page
                                 console.log(
@@ -489,7 +549,10 @@ onMount(async () => {
                                 );
 
                                 goto("/scan-qr").catch((error) => {
-                                    console.error("Error navigating to scan-qr:", error);
+                                    console.error(
+                                        "Error navigating to scan-qr:",
+                                        error,
+                                    );
                                 });
                                 return;
                             }
@@ -531,10 +594,10 @@ onMount(async () => {
     await Promise.all([loadData(), ensureMinimumDelay()]);
 
     showSplashScreen = false;
-    
+
     // Mark app as ready and process any pending deep links
     isAppReady = true;
-    
+
     // Process queued deep links
     if (pendingDeepLinks.length > 0 && globalState) {
         console.log("Processing", pendingDeepLinks.length, "queued deep links");

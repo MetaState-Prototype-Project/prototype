@@ -4,7 +4,11 @@ import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
-import { ArrowLeft01Icon, CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
+import {
+    ArrowLeft01Icon,
+    CircleLock01Icon,
+    FaceIdIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
@@ -218,7 +222,7 @@ onMount(async () => {
             <ButtonAction
                 variant="soft"
                 class="flex-1"
-                callback={() => (showDrawer = false)}>Back</ButtonAction
+                callback={() => { showDrawer = false; }}>Back</ButtonAction
             >
             <ButtonAction class="flex-1" callback={handleNext}>Next</ButtonAction>
         </div>
@@ -270,7 +274,7 @@ onMount(async () => {
                 <ButtonAction
                     variant="soft"
                     class="flex-1"
-                    callback={() => (showDrawer = false)}>Back</ButtonAction
+                    callback={() => { showDrawer = false; }}>Back</ButtonAction
                 >
                 <ButtonAction class="flex-1" callback={handleBiometricsAdded}
                     >Continue</ButtonAction

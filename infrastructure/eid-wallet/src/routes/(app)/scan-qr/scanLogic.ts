@@ -1153,12 +1153,16 @@ export function createScanLogic({
 
             // Ensure globalState is available
             if (!globalState) {
-                console.error("GlobalState not available, cannot handle deep link");
+                console.error(
+                    "GlobalState not available, cannot handle deep link",
+                );
                 return;
             }
 
             if (data.type === "auth" && get(codeScannedDrawerOpen)) {
-                console.log("Auth request already in progress, ignoring duplicate");
+                console.log(
+                    "Auth request already in progress, ignoring duplicate",
+                );
                 return;
             }
             if (data.type === "sign" && get(signingDrawerOpen)) {
@@ -1175,23 +1179,23 @@ export function createScanLogic({
             }
 
             if (data.type === "auth") {
-            console.log("Handling auth deep link");
+                console.log("Handling auth deep link");
 
-            // Close all other modals first
-            signingDrawerOpen.set(false);
-            loggedInDrawerOpen.set(false);
-            isRevealRequest.set(false);
+                // Close all other modals first
+                signingDrawerOpen.set(false);
+                loggedInDrawerOpen.set(false);
+                isRevealRequest.set(false);
 
-            platform.set(data.platform ?? null);
-            session.set(data.session ?? null);
-            redirect.set(data.redirect ?? null);
+                platform.set(data.platform ?? null);
+                session.set(data.session ?? null);
+                redirect.set(data.redirect ?? null);
 
-            try {
-                hostname.set(new URL(data.redirect || "").hostname);
-            } catch (error) {
-                console.error("Error parsing redirect URL:", error);
-                hostname.set("unknown");
-            }
+                try {
+                    hostname.set(new URL(data.redirect || "").hostname);
+                } catch (error) {
+                    console.error("Error parsing redirect URL:", error);
+                    hostname.set("unknown");
+                }
 
                 isSigningRequest.set(false);
                 authError.set(null); // Clear any previous auth errors
@@ -1214,103 +1218,108 @@ export function createScanLogic({
                     signingError.set(null); // Clear any previous signing errors
 
                     try {
-                    const decodedString = atob(base64Data);
-                    const parsedSigningData = JSON.parse(
-                        decodedString,
-                    ) as SigningData;
-                    console.log("Decoded signing data:", parsedSigningData);
+                        const decodedString = atob(base64Data);
+                        const parsedSigningData = JSON.parse(
+                            decodedString,
+                        ) as SigningData;
+                        console.log("Decoded signing data:", parsedSigningData);
 
-                    if (
-                        parsedSigningData &&
-                        parsedSigningData.type === "blind-vote"
-                    ) {
-                        console.log(
-                            "🔍 Blind voting request detected in sign deep link",
-                        );
-
-                        isBlindVotingRequest.set(true);
-                        selectedBlindVoteOption.set(null);
-                        signingDrawerOpen.set(true);
-                        blindVoteError.set(null);
-
-                        const platformUrlCandidate =
-                            parsedSigningData?.platformUrl?.trim();
-
-                        if (!platformUrlCandidate) {
-                            const errorMessage =
-                                "Missing platform URL in signing data and no PUBLIC_PLATFORM_URL configured.";
-                            blindVoteError.set(errorMessage);
-                            throw new Error(errorMessage);
-                        }
-
-                        let platformUrl: string;
-                        try {
-                            // Validate the URL and normalize trailing slashes for consistent API calls.
-                            const validatedUrl = new URL(platformUrlCandidate);
-                            platformUrl = validatedUrl
-                                .toString()
-                                .replace(/\/+$/, "");
-                        } catch (error) {
-                            const message =
-                                error instanceof Error
-                                    ? error.message
-                                    : String(error);
-                            const errorMessage = `Invalid platform URL "${platformUrlCandidate}": ${message}`;
-                            blindVoteError.set(
-                                "Invalid platform URL in signing request.",
+                        if (
+                            parsedSigningData &&
+                            parsedSigningData.type === "blind-vote"
+                        ) {
+                            console.log(
+                                "🔍 Blind voting request detected in sign deep link",
                             );
-                            throw new Error(errorMessage);
-                        }
 
-                        signingData.set({
-                            pollId: parsedSigningData?.pollId,
-                            sessionId: parsedSigningData?.sessionId,
-                            platform_url: platformUrl,
-                            redirect: redirectUri,
-                            pollDetails: {
-                                title: "Loading poll details...",
-                                creatorName: "Loading...",
-                                options: ["Loading..."],
-                            },
-                        });
+                            isBlindVotingRequest.set(true);
+                            selectedBlindVoteOption.set(null);
+                            signingDrawerOpen.set(true);
+                            blindVoteError.set(null);
 
-                        try {
-                            const pollResponse = await fetch(
-                                `${platformUrl}/api/polls/${get(signingData)?.pollId}`,
-                            );
-                            if (pollResponse.ok) {
-                                const pollDetails = await pollResponse.json();
-                                signingData.update((prev) =>
-                                    prev
-                                        ? {
-                                              ...prev,
-                                              pollDetails,
-                                          }
-                                        : prev,
+                            const platformUrlCandidate =
+                                parsedSigningData?.platformUrl?.trim();
+
+                            if (!platformUrlCandidate) {
+                                const errorMessage =
+                                    "Missing platform URL in signing data and no PUBLIC_PLATFORM_URL configured.";
+                                blindVoteError.set(errorMessage);
+                                throw new Error(errorMessage);
+                            }
+
+                            let platformUrl: string;
+                            try {
+                                // Validate the URL and normalize trailing slashes for consistent API calls.
+                                const validatedUrl = new URL(
+                                    platformUrlCandidate,
                                 );
-                                console.log(
-                                    "✅ Poll details fetched:",
-                                    pollDetails,
+                                platformUrl = validatedUrl
+                                    .toString()
+                                    .replace(/\/+$/, "");
+                            } catch (error) {
+                                const message =
+                                    error instanceof Error
+                                        ? error.message
+                                        : String(error);
+                                const errorMessage = `Invalid platform URL "${platformUrlCandidate}": ${message}`;
+                                blindVoteError.set(
+                                    "Invalid platform URL in signing request.",
+                                );
+                                throw new Error(errorMessage);
+                            }
+
+                            signingData.set({
+                                pollId: parsedSigningData?.pollId,
+                                sessionId: parsedSigningData?.sessionId,
+                                platform_url: platformUrl,
+                                redirect: redirectUri,
+                                pollDetails: {
+                                    title: "Loading poll details...",
+                                    creatorName: "Loading...",
+                                    options: ["Loading..."],
+                                },
+                            });
+
+                            try {
+                                const pollResponse = await fetch(
+                                    `${platformUrl}/api/polls/${get(signingData)?.pollId}`,
+                                );
+                                if (pollResponse.ok) {
+                                    const pollDetails =
+                                        await pollResponse.json();
+                                    signingData.update((prev) =>
+                                        prev
+                                            ? {
+                                                  ...prev,
+                                                  pollDetails,
+                                              }
+                                            : prev,
+                                    );
+                                    console.log(
+                                        "✅ Poll details fetched:",
+                                        pollDetails,
+                                    );
+                                }
+                            } catch (error) {
+                                console.error(
+                                    "Failed to fetch poll details:",
+                                    error,
+                                );
+                                blindVoteError.set(
+                                    "Failed to load poll details",
                                 );
                             }
-                        } catch (error) {
-                            console.error(
-                                "Failed to fetch poll details:",
-                                error,
-                            );
-                            blindVoteError.set("Failed to load poll details");
+
+                            return;
                         }
 
+                        signingData.set(parsedSigningData);
+                        isSigningRequest.set(true);
+                        signingDrawerOpen.set(true);
+                    } catch (error) {
+                        console.error("Error decoding signing data:", error);
                         return;
                     }
-
-                    signingData.set(parsedSigningData);
-                    isSigningRequest.set(true);
-                    signingDrawerOpen.set(true);
-                } catch (error) {
-                    console.error("Error decoding signing data:", error);
-                    return;
-                }
                 }
             } else if (data.type === "reveal") {
                 console.log("Handling reveal deep link");
@@ -1330,7 +1339,9 @@ export function createScanLogic({
                     isRevealRequest.set(true);
                 } else {
                     console.error("Missing pollId in reveal request");
-                    revealError.set("Invalid reveal request. Poll ID is missing.");
+                    revealError.set(
+                        "Invalid reveal request. Poll ID is missing.",
+                    );
                 }
             }
         } catch (error) {

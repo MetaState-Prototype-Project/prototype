@@ -1,32 +1,27 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import type { HTMLAttributes } from "svelte/elements";
+import { onMount } from "svelte";
+import type { HTMLAttributes } from "svelte/elements";
 
-    interface IToast extends HTMLAttributes<HTMLElement> {
-        message: string;
-        duration?: number;
-        onClose?: () => void;
-    }
+interface IToast extends HTMLAttributes<HTMLElement> {
+    message: string;
+    duration?: number;
+    onClose?: () => void;
+}
 
-    const {
-        message,
-        duration = 3000,
-        onClose,
-        ...restProps
-    }: IToast = $props();
+const { message, duration = 3000, onClose, ...restProps }: IToast = $props();
 
-    let isVisible = $state(true);
+let isVisible = $state(true);
 
-    onMount(() => {
-        const timer = setTimeout(() => {
-            isVisible = false;
-            setTimeout(() => {
-                onClose?.();
-            }, 300); // Wait for fade out animation
-        }, duration);
+onMount(() => {
+    const timer = setTimeout(() => {
+        isVisible = false;
+        setTimeout(() => {
+            onClose?.();
+        }, 300); // Wait for fade out animation
+    }, duration);
 
-        return () => clearTimeout(timer);
-    });
+    return () => clearTimeout(timer);
+});
 </script>
 
 {#if isVisible}
