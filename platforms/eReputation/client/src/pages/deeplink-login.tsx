@@ -77,6 +77,7 @@ export default function DeeplinkLogin() {
 
         if (response.ok) {
           const data = await response.json();
+          // Check for both token and user like pictique does
           if (data.token && data.user) {
             localStorage.setItem("ereputation_token", data.token);
             localStorage.setItem("ereputation_user_id", data.user.id);

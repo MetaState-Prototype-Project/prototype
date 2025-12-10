@@ -108,8 +108,8 @@ export default function DeeplinkLogin(): JSX.Element | null {
 
                 if (response.ok) {
                     const data = await response.json();
-                    // Check for both token and user like pictique does
-                    if (data.token && data.user) {
+                    // Blabsy API returns { token } only (Firebase custom token)
+                    if (data.token) {
                         await signInWithCustomToken(data.token);
                     } else {
                         setError('Invalid response from server');

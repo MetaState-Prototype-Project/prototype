@@ -78,10 +78,11 @@ export default function DeeplinkLogin() {
 
         if (response.ok) {
           const data = await response.json();
+          // Check for both token and user like pictique does
           if (data.token && data.user) {
             setAuthId(data.user.id);
             setAuthToken(data.token);
-            window.location.reload();
+            window.location.href = "/";
           } else {
             setError("Invalid response from server");
             setIsLoading(false);
