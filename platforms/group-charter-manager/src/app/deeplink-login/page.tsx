@@ -102,6 +102,7 @@ export default function DeeplinkLogin() {
               window.location.reload();
             }, 300);
           } else {
+            console.error("Auth response missing token or user:", data);
             setError("Invalid response from server");
             setIsLoading(false);
           }
@@ -117,6 +118,7 @@ export default function DeeplinkLogin() {
             window.location.href = "/";
             return;
           }
+          console.error("Auth request failed with status", response.status, "payload:", errorData);
           setError(errorData.error || "Authentication failed");
           setIsLoading(false);
         }
