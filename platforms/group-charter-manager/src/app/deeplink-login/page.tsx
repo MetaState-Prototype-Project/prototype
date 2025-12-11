@@ -82,8 +82,7 @@ export default function DeeplinkLogin() {
           let data: any;
           try {
             data = await response.json();
-          } catch (parseError) {
-            console.error("Failed to parse auth response JSON:", parseError);
+          } catch {
             const existingToken = localStorage.getItem("group_charter_auth_token");
             if (existingToken) {
               window.location.href = "/";
@@ -93,16 +92,13 @@ export default function DeeplinkLogin() {
             setIsLoading(false);
             return;
           }
-          // Check for both token and user like pictique does
           if (data.token && data.user) {
             setAuthId(data.user.id);
             setAuthToken(data.token);
-            // Use a longer delay and full reload to ensure AuthProvider initializes properly
             setTimeout(() => {
               window.location.reload();
             }, 300);
           } else {
-            console.error("Auth response missing token or user:", data);
             setError("Invalid response from server");
             setIsLoading(false);
           }
@@ -110,7 +106,7 @@ export default function DeeplinkLogin() {
           let errorData;
           try {
             errorData = await response.json();
-          } catch (parseError) {
+          } catch {
             errorData = { error: `Server error: ${response.status}` };
           }
           const existingToken = localStorage.getItem("group_charter_auth_token");
@@ -118,12 +114,10 @@ export default function DeeplinkLogin() {
             window.location.href = "/";
             return;
           }
-          console.error("Auth request failed with status", response.status, "payload:", errorData);
           setError(errorData.error || "Authentication failed");
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Login request failed:', error);
         const existingToken = localStorage.getItem("group_charter_auth_token");
         if (existingToken) {
           window.location.href = "/";

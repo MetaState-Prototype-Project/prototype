@@ -81,7 +81,6 @@ export default function DeeplinkLogin() {
               window.location.href = "/";
             }, 100);
           } else {
-            console.error("Auth response missing token or user:", data);
             setError("Invalid response from server");
             setIsLoading(false);
           }
@@ -93,11 +92,6 @@ export default function DeeplinkLogin() {
             return;
           }
           const axiosErr = err as any;
-          console.error("Login request failed:", {
-            status: axiosErr?.response?.status,
-            data: axiosErr?.response?.data,
-            message: axiosErr?.message,
-          });
           const msg =
             axiosErr?.response?.data?.error ||
             axiosErr?.message ||
@@ -112,7 +106,6 @@ export default function DeeplinkLogin() {
           window.location.href = "/";
           return;
         }
-        console.error('Login request failed:', error);
         setError("Failed to connect to server");
         setIsLoading(false);
       }

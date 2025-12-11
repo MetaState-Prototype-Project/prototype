@@ -13,6 +13,7 @@ import { getContext, onMount } from "svelte";
 
 let pin = $state("");
 let isError = $state(false);
+let isPostAuthLoading = $state(false);
 let clearPin = $state(async () => {});
 let handlePinInput = $state((pin: string) => {});
 let globalState: GlobalState | undefined = $state(undefined);
@@ -64,16 +65,20 @@ onMount(async () => {
     clearPin = async () => {
         pin = "";
         isError = false;
+        if (isPostAuthLoading) return;
     };
 
     handlePinInput = async (pin: string) => {
+        if (isPostAuthLoading) return;
         if (pin.length === 4) {
             isError = false;
+            isPostAuthLoading = true;
             const check = globalState
                 ? await globalState.securityController.verifyPin(pin)
                 : false;
             if (!check) {
                 isError = true;
+                isPostAuthLoading = false;
                 return;
             }
 
@@ -140,7 +145,9 @@ onMount(async () => {
 
             // No pending deep link, go to main page
             await goto("/main");
+            return;
         }
+        isPostAuthLoading = false;
     };
 
     // for some reason it's important for this to be done before the biometric stuff
@@ -158,6 +165,7 @@ onMount(async () => {
                 "You must authenticate with PIN first",
                 authOpts,
             );
+            isPostAuthLoading = true;
 
             // Check eVault health after successful biometric login
             try {
@@ -224,6 +232,7 @@ onMount(async () => {
             await goto("/main");
         } catch (e) {
             console.error("Biometric authentication failed", e);
+            isPostAuthLoading = false;
         }
     }
 });
@@ -235,47 +244,60 @@ onMount(async () => {
     <section>
         <Hero title="Log in to your account" class="mb-4">
             {#snippet subtitle()}
-                Enter your 4-digit PIN code
+                {#if isPostAuthLoading}
+                    Logging you in...
+                {:else}
+                    Enter your 4-digit PIN code
+                {/if}
             {/snippet}
         </Hero>
 
-        {#if hasPendingDeepLink}
-            <div
-                class="bg-primary-100 border border-primary-200 rounded-2xl p-4 mb-4"
-            >
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg
-                            class="h-5 w-5 text-primary"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                        >
-                            <path
-                                fill-rule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                clip-rule="evenodd"
-                            />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-primary">
-                            <strong>Authentication Request Pending</strong><br
-                            />
-                            Complete login to process the authentication request
-                        </p>
+        {#if isPostAuthLoading}
+            <div class="flex flex-col items-center gap-3 py-8">
+                <div class="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                <p class="text-primary text-sm">Logging you in...</p>
+            </div>
+        {:else}
+            {#if hasPendingDeepLink}
+                <div
+                    class="bg-primary-100 border border-primary-200 rounded-2xl p-4 mb-4"
+                >
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg
+                                class="h-5 w-5 text-primary"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-primary">
+                                <strong>Authentication Request Pending</strong><br
+                                />
+                                Complete login to process the authentication request
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        {/if}
+            {/if}
 
-        <InputPin bind:pin {isError} onchange={() => handlePinInput(pin)} />
-        <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>
-            Your PIN does not match, try again.
-        </p>
+            <InputPin bind:pin {isError} onchange={() => handlePinInput(pin)} />
+            <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>
+                Your PIN does not match, try again.
+            </p>
+        {/if}
     </section>
-    <Button.Action class={`w-full`} variant="danger" callback={clearPin}>
-        Clear PIN
-    </Button.Action>
+    {#if !isPostAuthLoading}
+        <Button.Action class={`w-full`} variant="danger" callback={clearPin}>
+            Clear PIN
+        </Button.Action>
+    {/if}
 </main>
 
 <!-- Deleted eVault Modal - Non-dismissible -->
