@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function DeeplinkLogin() {
@@ -66,38 +67,16 @@ export default function DeeplinkLogin() {
         // Clean up URL
         window.history.replaceState({}, '', window.location.pathname);
 
-        // Make POST request to login endpoint
+        // Make POST request to login endpoint using axios (auto JSON parsing)
         const apiBaseUrl = import.meta.env.VITE_EREPUTATION_BASE_URL;
         const loginUrl = `${apiBaseUrl}/api/auth`;
         const requestBody = { ename, session, signature, appVersion: appVersion || '0.4.0' };
 
-        const response = await fetch(loginUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (response.ok) {
-          let data: any;
-          try {
-            data = await response.json();
-          } catch (parseError) {
-            console.error("Failed to parse auth response JSON:", parseError);
-            // If token already exists, proceed; otherwise surface error
-            const existingToken = localStorage.getItem("ereputation_token");
-            if (existingToken) {
-              window.location.href = "/";
-              return;
-            }
-            setError("Invalid response from server");
-            setIsLoading(false);
-            return;
-          }
-          // Check for both token and user like pictique does
-          if (data.token && data.user) {
+        try {
+          const { data } = await apiClient.post(loginUrl, requestBody);
+          if (data?.token && data?.user) {
             localStorage.setItem("ereputation_token", data.token);
             localStorage.setItem("ereputation_user_id", data.user.id);
-            // Use setTimeout to ensure localStorage is written before navigation
             setTimeout(() => {
               window.location.href = "/";
             }, 100);
@@ -105,30 +84,30 @@ export default function DeeplinkLogin() {
             setError("Invalid response from server");
             setIsLoading(false);
           }
-        } else {
-          let errorData;
-          try {
-            errorData = await response.json();
-          } catch (parseError) {
-            errorData = { error: `Server error: ${response.status}` };
-          }
+        } catch (err) {
           // If token already exists, silently continue to home
           const existingToken = localStorage.getItem("ereputation_token");
           if (existingToken) {
             window.location.href = "/";
             return;
           }
-          setError(errorData.error || "Authentication failed");
+          console.error("Login request failed:", err);
+          const axiosErr = err as any;
+          const msg =
+            axiosErr?.response?.data?.error ||
+            axiosErr?.message ||
+            "Failed to connect to server";
+          setError(msg);
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Login request failed:', error);
         // If token already exists, silently continue to home
         const existingToken = localStorage.getItem("ereputation_token");
         if (existingToken) {
           window.location.href = "/";
           return;
         }
+        console.error('Login request failed:', error);
         setError("Failed to connect to server");
         setIsLoading(false);
       }
