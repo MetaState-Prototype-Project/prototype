@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { clearAuth } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiClient } from "@/lib/apiClient";
@@ -72,7 +73,8 @@ export default function Dashboard() {
   const pagination = activitiesResponse?.pagination;
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    clearAuth();
+    window.location.href = "/auth";
   };
 
   const handleViewActivity = (activity: any) => {
