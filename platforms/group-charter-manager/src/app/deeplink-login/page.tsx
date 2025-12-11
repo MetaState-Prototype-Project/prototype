@@ -79,7 +79,20 @@ export default function DeeplinkLogin() {
         });
 
         if (response.ok) {
-          const data = await response.json();
+          let data: any;
+          try {
+            data = await response.json();
+          } catch (parseError) {
+            console.error("Failed to parse auth response JSON:", parseError);
+            const existingToken = localStorage.getItem("group_charter_auth_token");
+            if (existingToken) {
+              window.location.href = "/";
+              return;
+            }
+            setError("Invalid response from server");
+            setIsLoading(false);
+            return;
+          }
           // Check for both token and user like pictique does
           if (data.token && data.user) {
             setAuthId(data.user.id);
@@ -99,11 +112,21 @@ export default function DeeplinkLogin() {
           } catch (parseError) {
             errorData = { error: `Server error: ${response.status}` };
           }
+          const existingToken = localStorage.getItem("group_charter_auth_token");
+          if (existingToken) {
+            window.location.href = "/";
+            return;
+          }
           setError(errorData.error || "Authentication failed");
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Login request failed:', error);
+        const existingToken = localStorage.getItem("group_charter_auth_token");
+        if (existingToken) {
+          window.location.href = "/";
+          return;
+        }
         setError("Failed to connect to server");
         setIsLoading(false);
       }
