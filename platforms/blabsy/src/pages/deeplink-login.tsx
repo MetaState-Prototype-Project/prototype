@@ -47,17 +47,25 @@ export default function DeeplinkLogin(): JSX.Element | null {
 
                 if (!ename || !session || !signature) {
                     // Add a small delay to allow URL to fully parse before showing error
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise((resolve) => setTimeout(resolve, 500));
                     // Re-check one more time after delay
-                    const finalParams = new URLSearchParams(window.location.search || (window.location.hash.includes('?') ? window.location.hash.substring(window.location.hash.indexOf('?') + 1) : '') || '');
+                    const finalParams = new URLSearchParams(
+                        window.location.search ||
+                            (window.location.hash.includes('?')
+                                ? window.location.hash.substring(
+                                      window.location.hash.indexOf('?') + 1
+                                  )
+                                : '') ||
+                            ''
+                    );
                     ename = finalParams.get('ename') || ename;
                     session = finalParams.get('session') || session;
                     signature = finalParams.get('signature') || signature;
 
-                if (!ename || !session || !signature) {
-                    setError('Missing required authentication parameters');
-                    setIsLoading(false);
-                    return;
+                    if (!ename || !session || !signature) {
+                        setError('Missing required authentication parameters');
+                        setIsLoading(false);
+                        return;
                     }
                 }
 

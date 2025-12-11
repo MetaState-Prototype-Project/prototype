@@ -13,7 +13,7 @@
 			console.log('[PICTIQUE DEEPLINK] Full URL:', window.location.href);
 			console.log('[PICTIQUE DEEPLINK] window.location.search:', window.location.search);
 			console.log('[PICTIQUE DEEPLINK] window.location.hash:', window.location.hash);
-			
+
 			// Try parsing from search string first
 			let params: URLSearchParams;
 			let searchString = window.location.search;
@@ -26,12 +26,18 @@
 				console.log('[PICTIQUE DEEPLINK] Hash value:', hash);
 				if (hash && hash.includes('?')) {
 					searchString = hash.substring(hash.indexOf('?'));
-					console.log('[PICTIQUE DEEPLINK] Extracted searchString from hash:', searchString);
+					console.log(
+						'[PICTIQUE DEEPLINK] Extracted searchString from hash:',
+						searchString
+					);
 				} else {
 					try {
 						const fullUrl = new URL(window.location.href);
 						searchString = fullUrl.search;
-						console.log('[PICTIQUE DEEPLINK] Extracted searchString from full URL:', searchString);
+						console.log(
+							'[PICTIQUE DEEPLINK] Extracted searchString from full URL:',
+							searchString
+						);
 					} catch (e) {
 						console.error('[PICTIQUE DEEPLINK] Error parsing full URL:', e);
 						// Ignore parsing errors
@@ -57,7 +63,10 @@
 			console.log('[PICTIQUE DEEPLINK] Extracted values:');
 			console.log('  - ename:', ename ? `${ename.substring(0, 10)}...` : 'MISSING');
 			console.log('  - session:', session ? `${session.substring(0, 10)}...` : 'MISSING');
-			console.log('  - signature:', signature ? `${signature.substring(0, 10)}...` : 'MISSING');
+			console.log(
+				'  - signature:',
+				signature ? `${signature.substring(0, 10)}...` : 'MISSING'
+			);
 			console.log('  - appVersion:', appVersion || 'not provided');
 
 			if (!ename || !session || !signature) {
@@ -91,7 +100,11 @@
 				body: JSON.stringify(requestBody)
 			});
 
-			console.log('[PICTIQUE DEEPLINK] Response status:', response.status, response.statusText);
+			console.log(
+				'[PICTIQUE DEEPLINK] Response status:',
+				response.status,
+				response.statusText
+			);
 
 			if (response.ok) {
 				const data = await response.json();
@@ -107,7 +120,9 @@
 					// setAuthToken already navigates to /home, so don't call goto() here
 					setAuthToken(data.token);
 				} else {
-					console.error('[PICTIQUE DEEPLINK] Invalid response structure - missing token or user');
+					console.error(
+						'[PICTIQUE DEEPLINK] Invalid response structure - missing token or user'
+					);
 					console.error('[PICTIQUE DEEPLINK] Response data:', data);
 					error = 'Invalid response from server';
 					isLoading = false;
@@ -118,7 +133,10 @@
 					errorData = await response.json();
 					console.error('[PICTIQUE DEEPLINK] Server error response:', errorData);
 				} catch (parseError) {
-					console.error('[PICTIQUE DEEPLINK] Failed to parse error response:', parseError);
+					console.error(
+						'[PICTIQUE DEEPLINK] Failed to parse error response:',
+						parseError
+					);
 					errorData = { error: `Server error: ${response.status}` };
 				}
 				error = errorData.error || 'Authentication failed';
@@ -126,7 +144,10 @@
 			}
 		} catch (err) {
 			console.error('[PICTIQUE DEEPLINK] Login request failed:', err);
-			console.error('[PICTIQUE DEEPLINK] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+			console.error(
+				'[PICTIQUE DEEPLINK] Error stack:',
+				err instanceof Error ? err.stack : 'No stack trace'
+			);
 			error = 'Failed to connect to server';
 			isLoading = false;
 		}

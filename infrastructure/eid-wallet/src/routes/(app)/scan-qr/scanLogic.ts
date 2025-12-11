@@ -334,7 +334,10 @@ export function createScanLogic({
 
             // Ensure we are on home before triggering external deeplink (non-blocking)
             goto("/main").catch((err) => {
-                console.error("Failed to navigate to home before deep link:", err);
+                console.error(
+                    "Failed to navigate to home before deep link:",
+                    err,
+                );
             });
 
             // Open URL in browser using tauri opener
