@@ -315,10 +315,10 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
 
 
 
-    if (referenceText.length > 500) {
+    if (referenceText.length > 5000) {
       toast({
         title: "Text Too Long",
-        description: "Please keep your reference under 500 characters",
+        description: "Please keep your reference under 5000 characters",
         variant: "destructive",
       });
       return;
@@ -578,10 +578,10 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                 value={referenceText}
                 onChange={(e) => setReferenceText(e.target.value)}
                 className="h-32 resize-none border-2 border-fig/20 focus:border-fig/40 focus:ring-fig/20 rounded-2xl"
-                maxLength={500}
+                maxLength={5000}
               />
-              <div className={`text-right text-sm mt-1 font-medium ${referenceText.length > 500 ? 'text-apple-red' : 'text-fig/70'}`}>
-                {referenceText.length} / 500 characters
+              <div className={`text-right text-sm mt-1 font-medium ${referenceText.length > 5000 ? 'text-apple-red' : 'text-fig/70'}`}>
+                {referenceText.length} / 5000 characters
               </div>
             </div>
             </div>
