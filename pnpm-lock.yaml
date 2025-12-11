@@ -1153,7 +1153,7 @@ importers:
         version: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       wouter:
         specifier: ^3.3.5
-        version: 3.7.1(react@18.3.1)
+        version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -1366,7 +1366,7 @@ importers:
         version: 1.0.7(tailwindcss@3.4.18(tsx@4.20.6)(yaml@2.8.1))
       wouter:
         specifier: ^3.3.5
-        version: 3.7.1(react@18.3.1)
+        version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -1641,7 +1641,7 @@ importers:
         version: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       wouter:
         specifier: ^3.3.5
-        version: 3.7.1(react@18.3.1)
+        version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -2576,7 +2576,7 @@ importers:
         version: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       wouter:
         specifier: ^3.3.5
-        version: 3.7.1(react@18.3.1)
+        version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -14618,8 +14618,8 @@ packages:
   wordwrap@1.0.0:
     resolution: {integrity: sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==}
 
-  wouter@3.7.1:
-    resolution: {integrity: sha512-od5LGmndSUzntZkE2R5CHhoiJ7YMuTIbiXsa0Anytc2RATekgv4sfWRAxLEULBrp7ADzinWQw8g470lkT8+fOw==}
+  wouter@3.8.1:
+    resolution: {integrity: sha512-4rIFV23qZqFMfiZ2jrLPsABULZGyogmU8TRWN3jJoPa+8izkQcWQ6zV5ZJFp/Ky9D6Zpt1mOHOqL9FHbOO3DNA==}
     peerDependencies:
       react: 18.3.1
 
@@ -29926,7 +29926,7 @@ snapshots:
 
   wordwrap@1.0.0: {}
 
-  wouter@3.7.1(react@18.3.1):
+  wouter@3.8.1(react@18.3.1):
     dependencies:
       mitt: 3.0.1
       react: 18.3.1
