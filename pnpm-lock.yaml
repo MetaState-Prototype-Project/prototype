@@ -825,7 +825,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -925,7 +925,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -1084,10 +1084,10 @@ importers:
         version: 3.6.0
       drizzle-orm:
         specifier: ^0.39.1
-        version: 0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
+        version: 0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
       drizzle-zod:
         specifier: ^0.7.0
-        version: 0.7.1(drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76)
+        version: 0.7.1(drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76)
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@18.3.1)
@@ -1279,7 +1279,7 @@ importers:
         version: 3.0.11
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -1455,7 +1455,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -1742,7 +1742,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -2060,7 +2060,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -2142,7 +2142,7 @@ importers:
         version: 3.0.11
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -2390,7 +2390,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -2813,7 +2813,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.2
-        version: 8.15.6
+        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
@@ -2880,7 +2880,7 @@ importers:
         version: 20.19.26
       '@types/pg':
         specifier: ^8.11.0
-        version: 8.15.6
+        version: 8.16.0
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.19.26)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -7162,8 +7162,8 @@ packages:
   '@types/pg@8.11.6':
     resolution: {integrity: sha512-/2WmmBXHLsfRqzfHW7BNZ8SbYzE8OSk7i3WjFYvfgRHj7S1xj+16Je5fUKv3lVdVzk/zn9TXOqf+avFCFIE0yQ==}
 
-  '@types/pg@8.15.6':
-    resolution: {integrity: sha512-NoaMtzhxOrubeL/7UZuNTrejB4MPAJ0RpxZqXQf2qXuVlTPuG6Y8p4u9dKRaue4yjmC7ZhzVO2/Yyyn25znrPQ==}
+  '@types/pg@8.16.0':
+    resolution: {integrity: sha512-RmhMd/wD+CF8Dfo+cVIy3RR5cl8CyfXQ0tGgW6XBL8L4LM/UTEbNXYRbLwU6w+CgrKBNbrQWt4FUtTfaU5jSYQ==}
 
   '@types/prettier@2.7.3':
     resolution: {integrity: sha512-+68kP9yzs4LMp7VNh8gdzMSPZFL44MLGqiHWvttYJe+6qnuVr4Ek9wSBQoveqY/r+LwjCcU29kNVkidwim+kYA==}
@@ -19976,7 +19976,7 @@ snapshots:
       pg-protocol: 1.10.3
       pg-types: 4.1.0
 
-  '@types/pg@8.15.6':
+  '@types/pg@8.16.0':
     dependencies:
       '@types/node': 20.19.26
       pg-protocol: 1.10.3
@@ -22387,18 +22387,18 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7):
+  drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7):
     optionalDependencies:
       '@neondatabase/serverless': 0.10.4
       '@opentelemetry/api': 1.9.0
-      '@types/pg': 8.15.6
+      '@types/pg': 8.16.0
       kysely: 0.27.6
       pg: 8.16.3
       sqlite3: 5.1.7
 
-  drizzle-zod@0.7.1(drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76):
+  drizzle-zod@0.7.1(drizzle-orm@0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76):
     dependencies:
-      drizzle-orm: 0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
+      drizzle-orm: 0.39.3(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
       zod: 3.25.76
 
   dunder-proto@1.0.1:
