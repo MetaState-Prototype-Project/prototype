@@ -78,7 +78,21 @@ export default function DeeplinkLogin() {
         });
 
         if (response.ok) {
-          const data = await response.json();
+          let data: any;
+          try {
+            data = await response.json();
+          } catch (parseError) {
+            console.error("Failed to parse auth response JSON:", parseError);
+            // If token already exists, proceed; otherwise surface error
+            const existingToken = localStorage.getItem("ereputation_token");
+            if (existingToken) {
+              window.location.href = "/";
+              return;
+            }
+            setError("Invalid response from server");
+            setIsLoading(false);
+            return;
+          }
           // Check for both token and user like pictique does
           if (data.token && data.user) {
             localStorage.setItem("ereputation_token", data.token);
