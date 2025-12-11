@@ -49,11 +49,11 @@ export default function DeeplinkLogin() {
           ename = finalParams.get('ename') || ename;
           session = finalParams.get('session') || session;
           signature = finalParams.get('signature') || signature;
-          
-          if (!ename || !session || !signature) {
-            setError("Missing required authentication parameters");
-            setIsLoading(false);
-            return;
+
+        if (!ename || !session || !signature) {
+          setError("Missing required authentication parameters");
+          setIsLoading(false);
+          return;
           }
         }
 
@@ -79,7 +79,7 @@ export default function DeeplinkLogin() {
             localStorage.setItem("ereputation_user_id", data.user.id);
             // Use setTimeout to ensure localStorage is written before navigation
             setTimeout(() => {
-              window.location.href = "/";
+            window.location.href = "/";
             }, 100);
           } else {
             setError("Invalid response from server");

@@ -53,11 +53,11 @@ export default function DeeplinkLogin(): JSX.Element | null {
                     ename = finalParams.get('ename') || ename;
                     session = finalParams.get('session') || session;
                     signature = finalParams.get('signature') || signature;
-                    
-                    if (!ename || !session || !signature) {
-                        setError('Missing required authentication parameters');
-                        setIsLoading(false);
-                        return;
+
+                if (!ename || !session || !signature) {
+                    setError('Missing required authentication parameters');
+                    setIsLoading(false);
+                    return;
                     }
                 }
 

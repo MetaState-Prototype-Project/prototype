@@ -78,10 +78,10 @@ export default function DeeplinkLogin() {
           if (data.token && data.user) {
             setAuthId(data.user.id);
             setAuthToken(data.token);
-            // Use setTimeout to ensure tokens are written before navigation
+            // Use a longer delay and full reload to ensure AuthProvider initializes properly
             setTimeout(() => {
-              window.location.href = "/";
-            }, 100);
+              window.location.reload();
+            }, 300);
           } else {
             setError("Invalid response from server");
             setIsLoading(false);

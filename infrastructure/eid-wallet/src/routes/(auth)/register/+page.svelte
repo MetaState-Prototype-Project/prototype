@@ -155,13 +155,13 @@ onMount(async () => {
                 class="flex-1"
                 callback={() => goto("/onboarding")}>Back</ButtonAction
             >
-            <ButtonAction
+        <ButtonAction
                 class="flex-1"
-                variant={btnVariant}
-                callback={handleFirstStep}
-            >
-                Confirm
-            </ButtonAction>
+            variant={btnVariant}
+            callback={handleFirstStep}
+        >
+            Confirm
+        </ButtonAction>
         </div>
     </main>
 {:else}
@@ -182,11 +182,11 @@ onMount(async () => {
                 class="flex-1"
                 callback={() => goto("/onboarding")}>Back</ButtonAction
             >
-            <ButtonAction
-                variant={btnVariant}
+        <ButtonAction
+            variant={btnVariant}
                 class="flex-1"
-                callback={handleConfirm}>Confirm</ButtonAction
-            >
+            callback={handleConfirm}>Confirm</ButtonAction
+        >
         </div>
     </main>
 {/if}
@@ -277,8 +277,8 @@ onMount(async () => {
                     callback={() => { showDrawer = false; }}>Back</ButtonAction
                 >
                 <ButtonAction class="flex-1" callback={handleBiometricsAdded}
-                    >Continue</ButtonAction
-                >
+                >Continue</ButtonAction
+            >
             </div>
         {/if}
     {/if}

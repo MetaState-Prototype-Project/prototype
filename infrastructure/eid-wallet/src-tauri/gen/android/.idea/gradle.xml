@@ -20,7 +20,7 @@
         <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
         <option name="modules">
           <set>
-            <option value="$USER_HOME$/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-2.9.3/mobile/android" />
+            <option value="$USER_HOME$/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-2.9.5/mobile/android" />
             <option value="$USER_HOME$/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-plugin-barcode-scanner-2.4.2/android" />
             <option value="$USER_HOME$/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-plugin-biometric-2.3.2/android" />
             <option value="$USER_HOME$/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tauri-plugin-crypto-hw-0.1.0/android" />
