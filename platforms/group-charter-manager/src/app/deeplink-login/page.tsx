@@ -43,17 +43,23 @@ export default function DeeplinkLogin() {
         const appVersion = params.get('appVersion');
 
         if (!ename || !session || !signature) {
-          // Add a small delay to allow URL to fully parse before showing error
+          // Add a small delay to allow URL to fully parse before deciding
           await new Promise(resolve => setTimeout(resolve, 500));
           // Re-check one more time after delay
-          const finalParams = new URLSearchParams(window.location.search || (window.location.hash.includes('?') ? window.location.hash.substring(window.location.hash.indexOf('?') + 1) : '') || '');
+          const finalParams = new URLSearchParams(
+            window.location.search ||
+              (window.location.hash.includes('?')
+                ? window.location.hash.substring(window.location.hash.indexOf('?') + 1)
+                : '') ||
+              '',
+          );
           ename = finalParams.get('ename') || ename;
           session = finalParams.get('session') || session;
           signature = finalParams.get('signature') || signature;
           
           if (!ename || !session || !signature) {
-            setError("Missing required authentication parameters");
-            setIsLoading(false);
+            // If still missing, silently redirect to home/login to avoid flashing error
+            window.location.href = "/";
             return;
           }
         }
