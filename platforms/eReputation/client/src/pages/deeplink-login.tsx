@@ -85,7 +85,7 @@ export default function DeeplinkLogin() {
             localStorage.setItem("ereputation_user_id", data.user.id);
             // Use setTimeout to ensure localStorage is written before navigation
             setTimeout(() => {
-            window.location.href = "/";
+              window.location.href = "/";
             }, 100);
           } else {
             setError("Invalid response from server");
@@ -98,11 +98,23 @@ export default function DeeplinkLogin() {
           } catch (parseError) {
             errorData = { error: `Server error: ${response.status}` };
           }
+          // If token already exists, silently continue to home
+          const existingToken = localStorage.getItem("ereputation_token");
+          if (existingToken) {
+            window.location.href = "/";
+            return;
+          }
           setError(errorData.error || "Authentication failed");
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Login request failed:', error);
+        // If token already exists, silently continue to home
+        const existingToken = localStorage.getItem("ereputation_token");
+        if (existingToken) {
+          window.location.href = "/";
+          return;
+        }
         setError("Failed to connect to server");
         setIsLoading(false);
       }
