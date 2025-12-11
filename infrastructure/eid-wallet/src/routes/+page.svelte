@@ -39,9 +39,3 @@ onMount(async () => {
     await goto("/login");
 });
 </script>
-
-<Button.Action class={`w-full`} variant="danger" callback={clearPin}>
-    Clear Pin
-</Button.Action>
-
-{cleared ? "Pin cleared, restart app" : "Login"}

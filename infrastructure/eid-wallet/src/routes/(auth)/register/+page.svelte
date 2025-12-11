@@ -3,7 +3,12 @@ import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { ButtonAction, Drawer, InputPin } from "$lib/ui";
-import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
+import * as Button from "$lib/ui/Button";
+import {
+    ArrowLeft01Icon,
+    CircleLock01Icon,
+    FaceIdIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
@@ -144,13 +149,20 @@ onMount(async () => {
                 Your PIN does not match, try again.
             </p>
         </section>
+        <div class="flex items-center gap-3">
+            <ButtonAction
+                variant="soft"
+                class="flex-1"
+                callback={() => goto("/onboarding")}>Back</ButtonAction
+            >
         <ButtonAction
-            class="w-full"
+                class="flex-1"
             variant={btnVariant}
             callback={handleFirstStep}
         >
             Confirm
         </ButtonAction>
+        </div>
     </main>
 {:else}
     <main
@@ -164,11 +176,18 @@ onMount(async () => {
             </Hero>
             <InputPin bind:pin={repeatPin} />
         </section>
+        <div class="flex items-center gap-3">
+            <ButtonAction
+                variant="soft"
+                class="flex-1"
+                callback={() => goto("/onboarding")}>Back</ButtonAction
+            >
         <ButtonAction
             variant={btnVariant}
-            class="w-full"
+                class="flex-1"
             callback={handleConfirm}>Confirm</ButtonAction
         >
+        </div>
     </main>
 {/if}
 
@@ -199,7 +218,14 @@ onMount(async () => {
             Your PIN has been created. You’ll use it to access your digital
             entity securely.
         </p>
-        <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
+        <div class="flex items-center gap-3">
+            <ButtonAction
+                variant="soft"
+                class="flex-1"
+                callback={() => { showDrawer = false; }}>Back</ButtonAction
+            >
+            <ButtonAction class="flex-1" callback={handleNext}>Next</ButtonAction>
+        </div>
     {:else}
         <div
             class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
@@ -244,9 +270,16 @@ onMount(async () => {
                 </div>
             </div>
         {:else}
-            <ButtonAction class="w-full" callback={handleBiometricsAdded}
+            <div class="flex items-center gap-3">
+                <ButtonAction
+                    variant="soft"
+                    class="flex-1"
+                    callback={() => { showDrawer = false; }}>Back</ButtonAction
+                >
+                <ButtonAction class="flex-1" callback={handleBiometricsAdded}
                 >Continue</ButtonAction
             >
+            </div>
         {/if}
     {/if}
 </Drawer>

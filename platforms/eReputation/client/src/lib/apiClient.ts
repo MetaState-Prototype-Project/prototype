@@ -2,12 +2,6 @@ import axios, { AxiosResponse, AxiosError, InternalAxiosRequestConfig } from "ax
 
 const baseURL = import.meta.env.VITE_EREPUTATION_BASE_URL || "http://localhost:8765";
 
-console.log("🔍 Environment variables:", {
-  VITE_EREPUTATION_BASE_URL: import.meta.env.VITE_EREPUTATION_BASE_URL,
-  baseURL: baseURL,
-  allEnv: import.meta.env
-});
-
 export const apiClient = axios.create({
     baseURL,
     headers: {

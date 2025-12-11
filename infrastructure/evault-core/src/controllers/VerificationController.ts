@@ -222,13 +222,15 @@ export class VerificationController {
                     let approved =
                         body.data.verification.decision === "approved";
                     if (process.env.DUPLICATES_POLICY !== "allow") {
-                        const verificationMatch =
-                            await this.verificationService.findOne({
+                        const [matches] =
+                            await this.verificationService.findManyAndCount({
                                 documentId:
                                     body.data.verification.document.number
                                         .value,
                             });
-                        console.log("matched", verificationMatch);
+                        const verificationMatch = matches.find(
+                            (v) => !!v.linkedEName,
+                        );
                         if (verificationMatch) {
                             status = "duplicate";
                             reason =

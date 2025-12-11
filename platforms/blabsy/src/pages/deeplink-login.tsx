@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '@lib/context/auth-context';
 
 export default function DeeplinkLogin(): JSX.Element | null {
-    const { signInWithCustomToken } = useAuth();
+    const { signInWithCustomToken, user } = useAuth();
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -38,15 +40,33 @@ export default function DeeplinkLogin(): JSX.Element | null {
                 // Parse the search string
                 params = new URLSearchParams(searchString);
 
-                const ename = params.get('ename');
-                const session = params.get('session');
-                const signature = params.get('signature');
+                let ename = params.get('ename');
+                let session = params.get('session');
+                let signature = params.get('signature');
                 const appVersion = params.get('appVersion');
 
                 if (!ename || !session || !signature) {
-                    setError('Missing required authentication parameters');
-                    setIsLoading(false);
-                    return;
+                    // Add a small delay to allow URL to fully parse before showing error
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    // Re-check one more time after delay
+                    const finalParams = new URLSearchParams(
+                        window.location.search ||
+                            (window.location.hash.includes('?')
+                                ? window.location.hash.substring(
+                                      window.location.hash.indexOf('?') + 1
+                                  )
+                                : '') ||
+                            ''
+                    );
+                    ename = finalParams.get('ename') || ename;
+                    session = finalParams.get('session') || session;
+                    signature = finalParams.get('signature') || signature;
+
+                    if (!ename || !session || !signature) {
+                        setError('Missing required authentication parameters');
+                        setIsLoading(false);
+                        return;
+                    }
                 }
 
                 // Clean up URL
@@ -76,8 +96,16 @@ export default function DeeplinkLogin(): JSX.Element | null {
 
                 if (response.ok) {
                     const data = await response.json();
+                    // Blabsy API returns { token } only (Firebase custom token)
                     if (data.token) {
                         await signInWithCustomToken(data.token);
+                        // Navigation will happen via auth state change, but ensure we navigate
+                        router.push('/home').catch(() => {
+                            // If push fails, try replace
+                            router.replace('/home').catch(() => {
+                                window.location.href = '/home';
+                            });
+                        });
                     } else {
                         setError('Invalid response from server');
                         setIsLoading(false);
@@ -102,7 +130,18 @@ export default function DeeplinkLogin(): JSX.Element | null {
         };
 
         handleDeeplinkLogin();
-    }, [signInWithCustomToken]);
+    }, [signInWithCustomToken, router]);
+
+    // If user is authenticated, navigate to home
+    useEffect(() => {
+        if (user) {
+            router.push('/home').catch(() => {
+                router.replace('/home').catch(() => {
+                    window.location.href = '/home';
+                });
+            });
+        }
+    }, [user, router]);
 
     if (isLoading) {
         return (

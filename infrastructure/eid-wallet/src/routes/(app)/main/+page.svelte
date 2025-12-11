@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer } from "$lib/ui";
+import { Drawer, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
     CircleArrowDataTransferDiagonalFreeIcons,
@@ -24,10 +24,29 @@ let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
 let shareQRdrawerOpen = $state(false);
 let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
+let showToast = $state(false);
+let toastMessage = $state("");
 
 function shareQR() {
     alert("QR Code shared!");
     shareQRdrawerOpen = false;
+}
+
+async function copyEName() {
+    if (!ename) return;
+    try {
+        await navigator.clipboard.writeText(ename);
+        toastMessage = "eName copied to clipboard!";
+        showToast = true;
+    } catch (error) {
+        console.error("Failed to copy eName:", error);
+        toastMessage = "Failed to copy eName";
+        showToast = true;
+    }
+}
+
+function handleToastClose() {
+    showToast = false;
 }
 
 async function retryProfileCreation() {
@@ -137,8 +156,7 @@ onDestroy(() => {
         <IdentityCard
             variant="eName"
             userId={ename ?? "Loading..."}
-            viewBtn={() => alert("View button clicked!")}
-            shareBtn={() => (shareQRdrawerOpen = true)}
+            copyBtn={copyEName}
         />
     {/snippet}
     {#snippet ePassport()}
@@ -196,4 +214,8 @@ onDestroy(() => {
             Scan to Login
         </Button.Action>
     </Button.Nav>
+{/if}
+
+{#if showToast}
+    <Toast message={toastMessage} onClose={handleToastClose} />
 {/if}

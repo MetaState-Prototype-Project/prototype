@@ -45,9 +45,10 @@ async function nukeWallet() {
     goto("/onboarding");
 }
 
-function cancelDelete() {
+async function cancelDelete() {
     isDeleteConfirmationOpen = false;
     isFinalConfirmationOpen = false;
+    await goto("/main");
 }
 
 // Cleanup on unmount
@@ -139,7 +140,7 @@ $effect(() => {
             onclick={handleVersionTap}
             disabled={isRetrying}
         >
-            Version v0.4.0.0
+            Version v0.5.0.0
         </button>
 
         {#if retryMessage}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { clearAuth } from "@/lib/authUtils";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
@@ -86,7 +87,8 @@ export default function References() {
   };
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    clearAuth();
+    window.location.href = "/auth";
   };
 
   if (isLoading) {

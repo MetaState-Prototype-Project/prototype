@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function DeeplinkLogin() {
@@ -36,53 +37,75 @@ export default function DeeplinkLogin() {
         // Parse the search string
         params = new URLSearchParams(searchString);
 
-        const ename = params.get('ename');
-        const session = params.get('session');
-        const signature = params.get('signature');
+        let ename = params.get('ename');
+        let session = params.get('session');
+        let signature = params.get('signature');
         const appVersion = params.get('appVersion');
 
         if (!ename || !session || !signature) {
-          setError("Missing required authentication parameters");
-          setIsLoading(false);
-          return;
+          // Add a small delay to allow URL to fully parse before deciding
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Re-check one more time after delay
+          const finalParams = new URLSearchParams(
+            window.location.search ||
+              (window.location.hash.includes('?')
+                ? window.location.hash.substring(window.location.hash.indexOf('?') + 1)
+                : '') ||
+              ''
+          );
+          ename = finalParams.get('ename') || ename;
+          session = finalParams.get('session') || session;
+          signature = finalParams.get('signature') || signature;
+          
+          if (!ename || !session || !signature) {
+            // If still missing, silently redirect to home/login to avoid flashing error
+            window.location.href = "/";
+            return;
+          }
         }
 
         // Clean up URL
         window.history.replaceState({}, '', window.location.pathname);
 
-        // Make POST request to login endpoint
+        // Make POST request to login endpoint using axios (auto JSON parsing)
         const apiBaseUrl = import.meta.env.VITE_EREPUTATION_BASE_URL;
         const loginUrl = `${apiBaseUrl}/api/auth`;
         const requestBody = { ename, session, signature, appVersion: appVersion || '0.4.0' };
 
-        const response = await fetch(loginUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.token && data.user) {
+        try {
+          const { data } = await apiClient.post(loginUrl, requestBody);
+          if (data?.token && data?.user) {
             localStorage.setItem("ereputation_token", data.token);
             localStorage.setItem("ereputation_user_id", data.user.id);
-            window.location.href = "/";
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 100);
           } else {
             setError("Invalid response from server");
             setIsLoading(false);
           }
-        } else {
-          let errorData;
-          try {
-            errorData = await response.json();
-          } catch (parseError) {
-            errorData = { error: `Server error: ${response.status}` };
+        } catch (err) {
+          // If token already exists, silently continue to home
+          const existingToken = localStorage.getItem("ereputation_token");
+          if (existingToken) {
+            window.location.href = "/";
+            return;
           }
-          setError(errorData.error || "Authentication failed");
+          const axiosErr = err as any;
+          const msg =
+            axiosErr?.response?.data?.error ||
+            axiosErr?.message ||
+            "Failed to connect to server";
+          setError(msg);
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Login request failed:', error);
+        // If token already exists, silently continue to home
+        const existingToken = localStorage.getItem("ereputation_token");
+        if (existingToken) {
+          window.location.href = "/";
+          return;
+        }
         setError("Failed to connect to server");
         setIsLoading(false);
       }

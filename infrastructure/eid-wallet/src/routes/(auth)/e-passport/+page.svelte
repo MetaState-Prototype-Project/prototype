@@ -4,6 +4,8 @@ import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import type { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { getContext, onMount } from "svelte";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
@@ -46,5 +48,12 @@ onMount(async () => {
 
         <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
     </section>
-    <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
+    <div class="flex items-center gap-3">
+        <ButtonAction
+            variant="soft"
+            class="flex-1"
+            callback={() => goto("/register")}>Back</ButtonAction
+        >
+        <ButtonAction class="flex-1" callback={handleFinish}>Finish</ButtonAction>
+    </div>
 </main>
