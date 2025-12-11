@@ -19,15 +19,15 @@ export default function Home() {
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
     const [sortField, setSortField] = useState<string>(() => {
         if (typeof window !== "undefined") {
-            return localStorage.getItem("evoting_sortField") || "deadline";
+            return localStorage.getItem("evoting_sortField") || "createdAt";
         }
-        return "deadline";
+        return "createdAt";
     });
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">(() => {
         if (typeof window !== "undefined") {
-            return (localStorage.getItem("evoting_sortDirection") as "asc" | "desc") || "asc";
+            return (localStorage.getItem("evoting_sortDirection") as "asc" | "desc") || "desc";
         }
-        return "asc";
+        return "desc";
     });
     const itemsPerPage = 15;
 

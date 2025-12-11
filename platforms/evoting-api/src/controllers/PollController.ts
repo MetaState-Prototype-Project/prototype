@@ -13,8 +13,8 @@ export class PollController {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 15; // Default to 15
             const search = req.query.search as string;
-            const sortField = req.query.sortField as string || "deadline";
-            const sortDirection = req.query.sortDirection as "asc" | "desc" || "asc";
+            const sortField = req.query.sortField as string || "createdAt";
+            const sortDirection = req.query.sortDirection as "asc" | "desc" || "desc";
 
             // Validate pagination parameters
             if (page < 1 || limit < 1 || limit > 100) {

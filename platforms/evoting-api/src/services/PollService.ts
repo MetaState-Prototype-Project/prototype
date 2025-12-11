@@ -18,7 +18,7 @@ export class PollService {
         this.messageService = new MessageService();
     }
 
-    async getAllPolls(page: number = 1, limit: number = 15, search?: string, sortField: string = "deadline", sortDirection: "asc" | "desc" = "asc", userId?: string): Promise<{ polls: Poll[]; total: number; page: number; limit: number; totalPages: number }> {
+    async getAllPolls(page: number = 1, limit: number = 15, search?: string, sortField: string = "createdAt", sortDirection: "asc" | "desc" = "desc", userId?: string): Promise<{ polls: Poll[]; total: number; page: number; limit: number; totalPages: number }> {
         // First, get all polls that match the search criteria (without pagination)
         let whereClause: any = {};
         if (search) {
@@ -112,6 +112,9 @@ export class PollService {
                     const aVotes = a.votes?.length || 0;
                     const bVotes = b.votes?.length || 0;
                     comparison = aVotes - bVotes;
+                    break;
+                case "createdAt":
+                    comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
                     break;
                 case "deadline":
                 default:
