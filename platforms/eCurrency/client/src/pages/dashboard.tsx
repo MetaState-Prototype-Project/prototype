@@ -39,14 +39,46 @@ export default function Dashboard() {
     return null;
   });
 
-  // Set default to user account if no context is set and user is available
+  const { data: groups } = useQuery({
+    queryKey: ["userGroups"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/groups/my");
+      return response.data;
+    },
+  });
+
+  // Validate account context after user and groups are loaded
   useEffect(() => {
-    if (user && !accountContext) {
+    if (!user) return;
+
+    const adminGroups = groups?.filter((g: any) => g.isAdmin) || [];
+
+    // If no context is set, default to user account
+    if (!accountContext) {
+      const defaultContext = { type: "user" as const, id: user.id };
+      setAccountContext(defaultContext);
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
+      return;
+    }
+
+    // Validate the saved context
+    let isValid = false;
+
+    if (accountContext.type === "user") {
+      // User context must match current user ID
+      isValid = accountContext.id === user.id;
+    } else if (accountContext.type === "group") {
+      // Group context must be in admin groups list
+      isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+    }
+
+    // If invalid, reset to user account
+    if (!isValid) {
       const defaultContext = { type: "user" as const, id: user.id };
       setAccountContext(defaultContext);
       localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
     }
-  }, [user, accountContext]);
+  }, [user, groups, accountContext]);
 
   // Save account context to localStorage whenever it changes
   const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
@@ -60,15 +92,6 @@ export default function Dashboard() {
     }
   };
 
-  // Ensure accountContext is set to user account if user loads and context is null
-  useEffect(() => {
-    if (user && !accountContext) {
-      const defaultContext = { type: "user" as const, id: user.id };
-      setAccountContext(defaultContext);
-      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
-    }
-  }, [user, accountContext]);
-
   const { data: balances, isLoading: balancesLoading } = useQuery({
     queryKey: ["balances", accountContext],
     queryFn: async () => {
@@ -76,14 +99,6 @@ export default function Dashboard() {
         ? `?accountType=group&accountId=${accountContext.id}`
         : "";
       const response = await apiClient.get(`/api/ledger/balance${params}`);
-      return response.data;
-    },
-  });
-
-  const { data: groups } = useQuery({
-    queryKey: ["userGroups"],
-    queryFn: async () => {
-      const response = await apiClient.get("/api/groups/my");
       return response.data;
     },
   });

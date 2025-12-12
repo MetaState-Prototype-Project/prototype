@@ -2,12 +2,20 @@ import axios from "axios";
 import * as jose from "jose";
 
 // Dynamic import for base58btc to handle ESM module in CommonJS context
+// Using Function constructor to preserve dynamic import() and avoid TypeScript transformation
 let base58btcCache: { decode: (input: string) => Uint8Array } | null = null;
 
-async function getBase58btc() {
+async function getBase58btc(): Promise<{ decode: (input: string) => Uint8Array }> {
   if (!base58btcCache) {
-    const base58Module = await import("multiformats/bases/base58");
-    base58btcCache = base58Module.base58btc;
+    // Use Function constructor to preserve dynamic import() syntax
+    // This prevents TypeScript from transforming it to require() in CommonJS output
+    // The string is evaluated at runtime, preserving the ESM import behavior
+    const dynamicImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<any>;
+    const base58Module = await dynamicImport("multiformats/bases/base58");
+    if (!base58Module?.base58btc) {
+      throw new Error("Failed to load base58btc from multiformats");
+    }
+    base58btcCache = base58Module.base58btc as { decode: (input: string) => Uint8Array };
   }
   return base58btcCache;
 }

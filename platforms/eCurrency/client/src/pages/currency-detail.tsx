@@ -37,27 +37,6 @@ export default function CurrencyDetail() {
     return null;
   });
 
-  // Set default to user account if no context is set and user is available
-  useEffect(() => {
-    if (user && !accountContext) {
-      const defaultContext = { type: "user" as const, id: user.id };
-      setAccountContext(defaultContext);
-      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
-    }
-  }, [user, accountContext]);
-
-  // Save account context to localStorage whenever it changes
-  const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
-    // If null is passed, default to user account
-    const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
-    setAccountContext(finalContext);
-    if (finalContext) {
-      localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
-    } else {
-      localStorage.removeItem("ecurrency_account_context");
-    }
-  };
-
   const currencyId = params?.currencyId;
 
   const { data: currency } = useQuery({
@@ -103,6 +82,51 @@ export default function CurrencyDetail() {
       return response.data;
     },
   });
+
+  // Validate account context after user and groups are loaded
+  useEffect(() => {
+    if (!user) return;
+
+    const adminGroups = groups?.filter((g: any) => g.isAdmin) || [];
+    
+    // If no context is set, default to user account
+    if (!accountContext) {
+      const defaultContext = { type: "user" as const, id: user.id };
+      setAccountContext(defaultContext);
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
+      return;
+    }
+
+    // Validate the saved context
+    let isValid = false;
+    
+    if (accountContext.type === "user") {
+      // User context must match current user ID
+      isValid = accountContext.id === user.id;
+    } else if (accountContext.type === "group") {
+      // Group context must be in admin groups list
+      isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+    }
+
+    // If invalid, reset to user account
+    if (!isValid) {
+      const defaultContext = { type: "user" as const, id: user.id };
+      setAccountContext(defaultContext);
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(defaultContext));
+    }
+  }, [user, groups, accountContext]);
+
+  // Save account context to localStorage whenever it changes
+  const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
+    // If null is passed, default to user account
+    const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
+    setAccountContext(finalContext);
+    if (finalContext) {
+      localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
+    } else {
+      localStorage.removeItem("ecurrency_account_context");
+    }
+  };
 
   const { data: totalSupplyData, isLoading: totalSupplyLoading } = useQuery({
     queryKey: ["totalSupply", currencyId],
