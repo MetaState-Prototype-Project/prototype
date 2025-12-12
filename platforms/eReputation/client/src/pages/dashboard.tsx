@@ -38,7 +38,7 @@ export default function Dashboard() {
 
   // This page is only rendered when authenticated, no need for redirect logic
 
-  const { data: stats } = useQuery<{totalReferences: string}>({
+  const { data: stats } = useQuery<{ totalReferences: string }>({
     queryKey: ["/api/dashboard/stats"],
     queryFn: async () => {
       const response = await apiClient.get("/api/dashboard/stats");
@@ -84,7 +84,7 @@ export default function Dashboard() {
       setReferenceViewModal({
         id: activity.id,
         type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
-        forFrom: activity.activity === 'Reference Received' 
+        forFrom: activity.activity === 'Reference Received'
           ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
           : activity.target,
         date: new Date(activity.date).toLocaleDateString(),
@@ -95,7 +95,7 @@ export default function Dashboard() {
       });
       return;
     }
-    
+
     // For calculation activities, show the original details modal
     // Double-check this is not a reference (shouldn't happen, but safety check)
     if (activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received') {
@@ -104,7 +104,7 @@ export default function Dashboard() {
       setReferenceViewModal({
         id: activity.id,
         type: activity.activity === 'Reference Received' ? 'Received' : 'Sent',
-        forFrom: activity.activity === 'Reference Received' 
+        forFrom: activity.activity === 'Reference Received'
           ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
           : activity.target,
         date: new Date(activity.date).toLocaleDateString(),
@@ -115,7 +115,7 @@ export default function Dashboard() {
       });
       return;
     }
-    
+
     setSelectedActivity(activity);
     setViewModalOpen(true);
   };
@@ -124,33 +124,33 @@ export default function Dashboard() {
   // Number counting animation hook
   const useCountUp = (end: number, duration: number = 2000) => {
     const [count, setCount] = useState(0);
-    
+
     useEffect(() => {
       if (end === 0) return;
-      
+
       let startTime: number;
       let animationFrame: number;
-      
+
       const animate = (currentTime: number) => {
         if (!startTime) startTime = currentTime;
         const progress = Math.min((currentTime - startTime) / duration, 1);
-        
+
         setCount(Math.floor(progress * end));
-        
+
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animate);
         }
       };
-      
+
       animationFrame = requestAnimationFrame(animate);
-      
+
       return () => {
         if (animationFrame) {
           cancelAnimationFrame(animationFrame);
         }
       };
     }, [end, duration]);
-    
+
     return count;
   };
 
@@ -175,10 +175,10 @@ export default function Dashboard() {
   // Helper function to get score color based on percentage
   const getScoreColor = (result: string | undefined | null) => {
     if (!result) return 'text-gray-500 font-black'; // Default gray for undefined/null
-    
+
     const score = parseFloat(result.replace('Score: ', '')) || 0;
     const percentage = (score / 5) * 100; // Scores are out of 5, not 10
-    
+
     if (percentage <= 25) return 'text-red-500 font-black'; // Red (0-25%)
     if (percentage <= 50) return 'text-orange-500 font-black'; // Orange (25-50%)
     if (percentage <= 75) return 'text-yellow-600 font-black'; // Yellow (50-75%)
@@ -237,7 +237,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 sm:gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -271,17 +271,17 @@ export default function Dashboard() {
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        
+
         {/* Dashboard Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Dashboard</h2>
             <p className="text-gray-700 mt-2 text-sm sm:text-base font-medium">Manage and monitor your W3DS eReputation</p>
           </div>
-          
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 gap-3 sm:gap-4 w-full lg:w-auto">
-            <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{backgroundColor: '#4C3F54'}}>
+            <div className="!bg-fig rounded-xl p-4 sm:p-6 shadow-lg border border-fig/20 w-full h-24 sm:h-28 flex flex-col justify-between overflow-hidden" style={{ backgroundColor: '#4C3F54' }}>
               <div className="text-xs sm:text-sm text-white/80 font-medium">Total eReferences</div>
               <div className="text-xl sm:text-3xl font-black text-white">
                 {animatedReferences}
@@ -300,7 +300,7 @@ export default function Dashboard() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 mb-8 items-center">
-          <button 
+          <button
             onClick={() => setOtherModalOpen(true)}
             className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
           >
@@ -317,7 +317,7 @@ export default function Dashboard() {
             </div>
           </button>
 
-          <button 
+          <button
             onClick={() => setReferenceModalOpen(true)}
             className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 h-32 w-full max-w-sm sm:max-w-none"
           >
@@ -343,7 +343,7 @@ export default function Dashboard() {
                 <h3 className="text-xl sm:text-2xl font-black text-fig">Recent Activity</h3>
                 <p className="text-gray-700 text-sm mt-2 font-medium">Your latest eReputation activities and calculations</p>
               </div>
-              
+
               {/* Quick Filters */}
               <div className="flex flex-wrap gap-2">
                 <button
@@ -351,11 +351,10 @@ export default function Dashboard() {
                     setActiveFilter('all');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'all'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'all'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   All
                 </button>
@@ -364,11 +363,10 @@ export default function Dashboard() {
                     setActiveFilter('sent-references');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'sent-references'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'sent-references'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   Sent References
                 </button>
@@ -377,11 +375,10 @@ export default function Dashboard() {
                     setActiveFilter('received-references');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'received-references'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'received-references'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   Received
                 </button>
@@ -390,11 +387,10 @@ export default function Dashboard() {
                     setActiveFilter('analysis');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'analysis'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'analysis'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   Analysis
                 </button>
@@ -403,11 +399,10 @@ export default function Dashboard() {
                     setActiveFilter('self-evaluation');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'self-evaluation'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'self-evaluation'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   Self Evaluation
                 </button>
@@ -416,18 +411,17 @@ export default function Dashboard() {
                     setActiveFilter('other-evaluations');
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    activeFilter === 'other-evaluations'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'other-evaluations'
                       ? 'bg-fig text-white shadow-md'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   Other Evaluations
                 </button>
               </div>
             </div>
           </div>
-          
+
           {activities.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <div className="flex flex-col items-center gap-4">
@@ -441,13 +435,13 @@ export default function Dashboard() {
                     {activeFilter !== 'all' ? 'No activities match this filter' : 'No activities yet'}
                   </p>
                   <p className="text-gray-500">
-                    {activeFilter !== 'all' 
+                    {activeFilter !== 'all'
                       ? 'Try selecting a different filter or clear filters to see all activities'
                       : 'Start by calculating your reputation or providing a reference'}
                   </p>
                 </div>
                 {activeFilter !== 'all' ? (
-                  <button 
+                  <button
                     onClick={() => {
                       setActiveFilter('all');
                       setCurrentPage(1);
@@ -458,7 +452,7 @@ export default function Dashboard() {
                   </button>
                 ) : (
                   <div className="flex flex-wrap gap-3 mt-4">
-                    <button 
+                    <button
                       onClick={() => setReferenceModalOpen(true)}
                       className="px-4 py-2 bg-basil text-white rounded-lg font-medium hover:bg-basil/90 transition-colors"
                     >
@@ -476,91 +470,90 @@ export default function Dashboard() {
                   <thead className="bg-gradient-to-r from-fig/10 to-fig/5">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/3">Evaluation Type</th>
-                      <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/4">Subject</th>
+                      <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/4">To / From</th>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/6">Date</th>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/6">Status</th>
                       <th className="px-6 py-4 w-16"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                  {activities.map((activity: any) => (
-                    <tr key={`${activity.type}-${activity.id}`} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                            activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
-                              ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
-                              : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
-                              ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                              : activity.activity === 'Group Evaluation'
-                              ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
-                              : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
-                              ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                              : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
-                              ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                              : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
-                          }`}>
-                            {getActivityIcon(activity.activity)}
+                    {activities.map((activity: any) => (
+                      <tr key={`${activity.type}-${activity.id}`} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
+                                ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
+                                : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
+                                  ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                  : activity.activity === 'Group Evaluation'
+                                    ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
+                                    : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
+                                      ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
+                                      : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
+                                        ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                        : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
+                              }`}>
+                              {getActivityIcon(activity.activity)}
+                            </div>
+                            <div>
+                              <div className="text-sm font-bold text-fig">{activity.activity}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-sm font-bold text-fig">{activity.activity}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                        {activity.activity === 'Reference Received' 
-                          ? 'You'
-                          : activity.target || 'Unknown'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(activity.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
-                          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7"
-                                style={{
-                                  borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
-                                  backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
-                                  color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
-                                }}>
-                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black ${getScoreColor(activity.result)} bg-white border-2 w-20 h-7`}
-                                style={{
-                                  borderColor: getScoreColor(activity.result).includes('red') ? '#ef4444' :
-                                             getScoreColor(activity.result).includes('orange') ? '#f97316' :
-                                             getScoreColor(activity.result).includes('yellow') ? '#eab308' : '#22c55e',
-                                  backgroundColor: getScoreColor(activity.result).includes('red') ? '#fef2f2' :
-                                                 getScoreColor(activity.result).includes('orange') ? '#fff7ed' :
-                                                 getScoreColor(activity.result).includes('yellow') ? '#fefce8' : '#f0fdf4'
-                                }}>
-                            {activity.result || 'Calculating...'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="text-gray-400 hover:text-gray-500 p-1 rounded">
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewActivity(activity)}>
-                              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                              </svg>
-                              View Details
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {activity.activity === 'Reference Received'
+                            ? (activity.target || 'Unknown')
+                            : activity.target || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(activity.date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
+                            <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7"
+                              style={{
+                                borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
+                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
+                                color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
+                              }}>
+                              {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black ${getScoreColor(activity.result)} bg-white border-2 w-20 h-7`}
+                              style={{
+                                borderColor: getScoreColor(activity.result).includes('red') ? '#ef4444' :
+                                  getScoreColor(activity.result).includes('orange') ? '#f97316' :
+                                    getScoreColor(activity.result).includes('yellow') ? '#eab308' : '#22c55e',
+                                backgroundColor: getScoreColor(activity.result).includes('red') ? '#fef2f2' :
+                                  getScoreColor(activity.result).includes('orange') ? '#fff7ed' :
+                                    getScoreColor(activity.result).includes('yellow') ? '#fefce8' : '#f0fdf4'
+                              }}>
+                              {activity.result || 'Calculating...'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="text-gray-400 hover:text-gray-500 p-1 rounded">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                </svg>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewActivity(activity)}>
+                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                                </svg>
+                                View Details
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -571,26 +564,25 @@ export default function Dashboard() {
                   <div key={`${activity.type}-${activity.id}`} className="bg-white rounded-xl p-4 shadow-lg ring-1 ring-black ring-opacity-5">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                          activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
                             ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
                             : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
-                            ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                            : activity.activity === 'Group Evaluation'
-                            ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
-                            : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
-                            ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                            : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
                               ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                              : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
-                        }`}>
+                              : activity.activity === 'Group Evaluation'
+                                ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
+                                : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
+                                  ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
+                                  : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
+                                    ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                    : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
+                          }`}>
                           {getActivityIcon(activity.activity)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-bold text-fig mb-1">{activity.activity}</div>
                           <div className="text-xs text-gray-600 font-medium">
-                            {activity.activity === 'Reference Received' 
-                              ? 'You'
+                            {activity.activity === 'Reference Received'
+                              ? (activity.target || 'Unknown')
                               : activity.target || 'Unknown'}
                           </div>
                         </div>
@@ -618,23 +610,23 @@ export default function Dashboard() {
                           <div className="text-xs text-gray-500">{new Date(activity.date).toLocaleDateString()}</div>
                           {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
                             <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"
-                                  style={{
-                                    borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
-                                    backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
-                                    color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
-                                  }}>
+                              style={{
+                                borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
+                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
+                                color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
+                              }}>
                               {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
                             </span>
                           ) : (
                             <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"
-                                  style={{
-                                    borderColor: activity.result && activity.result.includes('low') ? '#ef4444' :
-                                               activity.result && activity.result.includes('moderate') ? '#f97316' :
-                                               activity.result && activity.result.includes('fair') ? '#eab308' : '#22c55e',
-                                    backgroundColor: activity.result && activity.result.includes('low') ? '#fef2f2' :
-                                                   activity.result && activity.result.includes('moderate') ? '#fff7ed' :
-                                                   activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'
-                                  }}>
+                              style={{
+                                borderColor: activity.result && activity.result.includes('low') ? '#ef4444' :
+                                  activity.result && activity.result.includes('moderate') ? '#f97316' :
+                                    activity.result && activity.result.includes('fair') ? '#eab308' : '#22c55e',
+                                backgroundColor: activity.result && activity.result.includes('low') ? '#fef2f2' :
+                                  activity.result && activity.result.includes('moderate') ? '#fff7ed' :
+                                    activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'
+                              }}>
                               {activity.result ? activity.result.replace('Score: ', '') : 'Calculating...'}
                             </span>
                           )}
@@ -644,7 +636,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              
+
               {pagination && pagination.totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
                   <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
@@ -683,14 +675,14 @@ export default function Dashboard() {
       {/* Modals */}
       <OtherCalculationModal open={otherModalOpen} onOpenChange={setOtherModalOpen} />
       <ReferenceModal open={referenceModalOpen} onOpenChange={setReferenceModalOpen} />
-      
+
       {/* Reference View Modal */}
-      <ReferenceViewModal 
-        open={!!referenceViewModal} 
+      <ReferenceViewModal
+        open={!!referenceViewModal}
         onOpenChange={(open) => !open && setReferenceViewModal(null)}
         reference={referenceViewModal}
       />
-      
+
       {/* Activity Details Modal - Only for calculations, not references */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
         <DialogContent className="sm:max-w-lg bg-gradient-to-br from-white to-gray-50 border-2 border-fig/20 max-h-[85vh] flex flex-col">
@@ -701,17 +693,17 @@ export default function Dashboard() {
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
-              {selectedActivity 
-                ? ((selectedActivity as any).target === 'Personal Profile' 
-                  ? "Your eReputation" 
+              {selectedActivity
+                ? ((selectedActivity as any).target === 'Personal Profile'
+                  ? "Your eReputation"
                   : `${(selectedActivity as any).target} eReputation`)
                 : "Activity Details"}
             </DialogTitle>
           </DialogHeader>
-          
+
           {selectedActivity && (selectedActivity as any).type !== 'reference' && (selectedActivity as any).activity !== 'Reference Provided' && (selectedActivity as any).activity !== 'Reference Received' ? (
             <div className="space-y-6 overflow-y-auto flex-1">
-              
+
               {/* Score Visualization */}
               <div className="bg-gradient-to-br from-fig/5 to-apple-red/5 rounded-2xl p-6 border border-fig/10">
                 <div className="flex items-center justify-between mb-4">
@@ -720,7 +712,7 @@ export default function Dashboard() {
                     {(selectedActivity as any).result || 'Calculating...'}
                   </span>
                 </div>
-                
+
                 {/* Animated Circle Progress with Dynamic Gradient */}
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
@@ -729,10 +721,10 @@ export default function Dashboard() {
                     const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
                     const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
-                    
+
                     // Create dynamic gradient ID based on score
                     const gradientId = `scoreGradient${Math.round(percentage)}`;
-                    
+
                     // Determine gradient stops based on score percentage - ALWAYS starts with red
                     let gradientStops = [];
                     if (percentage <= 25) {
@@ -763,26 +755,26 @@ export default function Dashboard() {
                         { offset: "100%", color: "#22c55e" }
                       ];
                     }
-                    
+
                     // Calculate the path coordinates for the arc
                     const radius = 50;
                     const centerX = 60;
                     const centerY = 60;
                     const startAngle = -90; // Start at top (12 o'clock)
                     const endAngle = startAngle + (percentage * 3.6); // 3.6 degrees per percent
-                    
+
                     // Convert to radians
                     const startRad = (startAngle * Math.PI) / 180;
                     const endRad = (endAngle * Math.PI) / 180;
-                    
+
                     // Calculate arc path
                     const startX = centerX + radius * Math.cos(startRad);
                     const startY = centerY + radius * Math.sin(startRad);
                     const endX = centerX + radius * Math.cos(endRad);
                     const endY = centerY + radius * Math.sin(endRad);
-                    
+
                     const largeArcFlag = percentage > 50 ? 1 : 0;
-                    
+
                     return (
                       <svg className="w-32 h-32" viewBox="0 0 120 120">
                         {/* Background circle */}
@@ -795,14 +787,14 @@ export default function Dashboard() {
                           fill="transparent"
                           className="opacity-30"
                         />
-                        
+
                         <defs>
                           {/* Path-following gradient using coordinates */}
-                          <linearGradient 
-                            id={gradientId} 
-                            x1={startX} 
-                            y1={startY} 
-                            x2={endX} 
+                          <linearGradient
+                            id={gradientId}
+                            x1={startX}
+                            y1={startY}
+                            x2={endX}
                             y2={endY}
                             gradientUnits="userSpaceOnUse"
                           >
@@ -836,7 +828,7 @@ export default function Dashboard() {
                             )}
                           </linearGradient>
                         </defs>
-                        
+
                         {/* Progress arc with gradient following the path */}
                         <path
                           d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY}`}
@@ -853,7 +845,7 @@ export default function Dashboard() {
                       </svg>
                     );
                   })()}
-                  
+
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-2xl font-black text-fig">
                       {Math.round(((parseFloat(((selectedActivity as any).result || '').replace('Score: ', '')) || 0) / 5) * 100)}%
@@ -879,9 +871,9 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
-              
+
               <div className="flex gap-3 pt-4 border-t border-gray-200">
-                <Button 
+                <Button
                   onClick={() => setViewModalOpen(false)}
                   className="w-full bg-fig hover:bg-fig/90 text-white font-bold"
                 >
@@ -892,7 +884,7 @@ export default function Dashboard() {
           ) : selectedActivity ? (
             <div className="text-center py-8">
               <p className="text-gray-500">This activity is a reference, not a calculation.</p>
-              <Button 
+              <Button
                 onClick={() => {
                   setViewModalOpen(false);
                   setSelectedActivity(null);
