@@ -642,8 +642,8 @@ importers:
         specifier: ^2.0.11
         version: 2.2.0(react@18.3.1)
       '@sidekickicons/react':
-        specifier: ^0.13.0
-        version: 0.13.0(react@18.3.1)
+        specifier: ^0.14.0
+        version: 0.14.0(react@18.3.1)
       axios:
         specifier: ^1.6.7
         version: 1.13.2
@@ -6171,8 +6171,8 @@ packages:
   '@rushstack/eslint-patch@1.15.0':
     resolution: {integrity: sha512-ojSshQPKwVvSMR8yT2L/QtUkV5SXi/IfDiJ4/8d6UbTPjiHVmxZzUAzGD8Tzks1b9+qQkZa0isUOvYObedITaw==}
 
-  '@sidekickicons/react@0.13.0':
-    resolution: {integrity: sha512-v4KQZ+nfca5NAa2vT4S5UV1z2QxDWoAsNHQGToczOnfKN6mvZW2Jr48ZbYhYHzV2BUKp8Kywe8/+t+Ue73e3QQ==}
+  '@sidekickicons/react@0.14.0':
+    resolution: {integrity: sha512-GIRm466DxvdrhC9i9fO6qax+5XTtWtJziqdhu0nJgSlxpU+nG6J2yeUlKZORB7qBby0glyC37XedFRS25zeb0w==}
     peerDependencies:
       react: 18.3.1
 
@@ -18633,7 +18633,7 @@ snapshots:
 
   '@rushstack/eslint-patch@1.15.0': {}
 
-  '@sidekickicons/react@0.13.0(react@18.3.1)':
+  '@sidekickicons/react@0.14.0(react@18.3.1)':
     dependencies:
       react: 18.3.1
 
