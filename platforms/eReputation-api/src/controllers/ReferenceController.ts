@@ -100,6 +100,80 @@ export class ReferenceController {
         }
     };
 
+    /**
+     * Combined references (sent + received) for the authenticated user with pagination.
+     */
+    getAllUserReferences = async (req: Request, res: Response) => {
+        try {
+            const userId = req.user!.id;
+            const page = parseInt(req.query.page as string, 10) || 1;
+            const limit = parseInt(req.query.limit as string, 10) || 10;
+            const offset = (page - 1) * limit;
+
+            // Sent references (auth user is author)
+            const sentReferences = await this.referenceService.getUserReferences(userId);
+
+            // Received references (auth user is target) - author relation already loaded
+            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+
+            const formatted = [
+                ...sentReferences.map((ref) => ({
+                    id: ref.id,
+                    type: "Sent" as const,
+                    forFrom: ref.targetName,
+                    targetType: ref.targetType,
+                    targetName: ref.targetName,
+                    referenceType: ref.referenceType,
+                    numericScore: ref.numericScore,
+                    content: ref.content,
+                    status: ref.status === "revoked" ? "Revoked" : "Signed",
+                    date: ref.createdAt,
+                })),
+                ...receivedReferences.map((ref) => ({
+                    id: ref.id,
+                    type: "Received" as const,
+                    forFrom: ref.author?.name || ref.author?.ename || "Unknown",
+                    targetType: ref.targetType,
+                    targetName: ref.targetName,
+                    referenceType: ref.referenceType,
+                    numericScore: ref.numericScore,
+                    content: ref.content,
+                    status: ref.status === "revoked" ? "Revoked" : "Signed",
+                    date: ref.createdAt,
+                    author: {
+                        id: ref.author?.id,
+                        ename: ref.author?.ename,
+                        name: ref.author?.name,
+                    },
+                })),
+            ];
+
+            // Sort newest first
+            formatted.sort(
+                (a, b) => new Date(b.date as unknown as string).getTime() - new Date(a.date as unknown as string).getTime(),
+            );
+
+            const total = formatted.length;
+            const totalPages = Math.max(1, Math.ceil(total / limit));
+            const paginated = formatted.slice(offset, offset + limit);
+
+            res.json({
+                references: paginated,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1,
+                },
+            });
+        } catch (error) {
+            console.error("Error getting user references:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     getUserReferences = async (req: Request, res: Response) => {
         try {
             const userId = req.user!.id;
