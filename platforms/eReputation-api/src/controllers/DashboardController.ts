@@ -67,11 +67,13 @@ export class DashboardController {
             // Add received references (only if filter allows)
             if (filter === 'all' || filter === 'received-references') {
                 receivedReferences.forEach(ref => {
+                    // Get author name, preferring name over ename, with fallback
+                    const authorName = ref.author?.name || ref.author?.ename || ref.author?.handle || 'Unknown';
                     activities.push({
                         id: `ref-received-${ref.id}`,
                         type: 'reference',
                         activity: 'Reference Received',
-                        target: ref.author.ename || ref.author.name,
+                        target: authorName,
                         targetType: 'user',
                         date: ref.createdAt,
                         status: ref.status === 'revoked' ? 'Revoked' : 'Signed',
