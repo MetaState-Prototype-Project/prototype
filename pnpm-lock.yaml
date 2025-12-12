@@ -100,8 +100,8 @@ importers:
         specifier: ^7.0.1
         version: 7.0.1
       lucide-svelte:
-        specifier: ^0.539.0
-        version: 0.539.0(svelte@5.45.10)
+        specifier: ^0.561.0
+        version: 0.561.0(svelte@5.45.10)
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.4.0
@@ -1098,8 +1098,8 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       marked:
         specifier: ^16.1.2
         version: 16.4.2
@@ -1344,8 +1344,8 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       qrcode.react:
         specifier: ^4.2.0
         version: 4.2.0(react@18.3.1)
@@ -1592,8 +1592,8 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1870,8 +1870,8 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       next:
         specifier: 15.5.9
         version: 15.5.9(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.96.0)
@@ -1964,8 +1964,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       next:
         specifier: 15.5.9
         version: 15.5.9(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.96.0)
@@ -2252,8 +2252,8 @@ importers:
         specifier: ^0.11.7
         version: 0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       marked:
         specifier: ^16.1.1
         version: 16.4.2
@@ -2530,8 +2530,8 @@ importers:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
-        specifier: ^0.453.0
-        version: 0.453.0(react@18.3.1)
+        specifier: ^0.561.0
+        version: 0.561.0(react@18.3.1)
       memorystore:
         specifier: ^1.6.7
         version: 1.6.7
@@ -11307,13 +11307,13 @@ packages:
   lru-queue@0.1.0:
     resolution: {integrity: sha512-BpdYkt9EvGl8OfWHDQPISVpcl5xZthb+XPsbELj5AQXxIC8IriDZIQYjBJPEm5rS420sjZ0TLEzRcq5KdBhYrQ==}
 
-  lucide-react@0.453.0:
-    resolution: {integrity: sha512-kL+RGZCcJi9BvJtzg2kshO192Ddy9hv3ij+cPrVPWSRzgCWCVazoQJxOjAwgK53NomL07HB7GPHW120FimjNhQ==}
+  lucide-react@0.561.0:
+    resolution: {integrity: sha512-Y59gMY38tl4/i0qewcqohPdEbieBy7SovpBL9IFebhc2mDd8x4PZSOsiFRkpPcOq6bj1r/mjH/Rk73gSlIJP2A==}
     peerDependencies:
       react: 18.3.1
 
-  lucide-svelte@0.539.0:
-    resolution: {integrity: sha512-p4k3GOje/9Si1eIkg1W1OQUhozeja5Ka5shjVpfyP5X2ye+B7sfyMnX3d5D2et+MYJwUFGrMna5MIYgq6bLfqw==}
+  lucide-svelte@0.561.0:
+    resolution: {integrity: sha512-LxKemRvPNMNBjBa7JIVd4gZzBrTtwG1JA2ohpdM15jpQDcZCFWKyJz8eG1McaD0bq2weufkYSuVWQLclmmdUlw==}
     peerDependencies:
       svelte: ^3 || ^4 || ^5.0.0-next.42
 
@@ -25761,11 +25761,11 @@ snapshots:
     dependencies:
       es5-ext: 0.10.64
 
-  lucide-react@0.453.0(react@18.3.1):
+  lucide-react@0.561.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 
-  lucide-svelte@0.539.0(svelte@5.45.10):
+  lucide-svelte@0.561.0(svelte@5.45.10):
     dependencies:
       svelte: 5.45.10
 
