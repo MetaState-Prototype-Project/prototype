@@ -16,7 +16,7 @@
     },
     "dependencies": {
         "@fastify/cors": "^8.4.0",
-        "@kubernetes/client-node": "^0.20.0",
+        "@kubernetes/client-node": "^0.22.0",
         "@fastify/jwt": "^7.2.3",
         "axios": "^1.6.7",
         "dotenv": "^16.4.5",
