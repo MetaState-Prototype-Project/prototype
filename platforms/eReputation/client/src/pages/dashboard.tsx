@@ -352,8 +352,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'all'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   All
@@ -364,8 +364,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'sent-references'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   Sent References
@@ -376,8 +376,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'received-references'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   Received
@@ -388,8 +388,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'analysis'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   Analysis
@@ -400,8 +400,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'self-evaluation'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   Self Evaluation
@@ -412,8 +412,8 @@ export default function Dashboard() {
                     setCurrentPage(1);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeFilter === 'other-evaluations'
-                      ? 'bg-fig text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-fig text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                 >
                   Other Evaluations
@@ -470,7 +470,7 @@ export default function Dashboard() {
                   <thead className="bg-gradient-to-r from-fig/10 to-fig/5">
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/3">Evaluation Type</th>
-                      <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/4">To / From</th>
+                      <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/4">Context</th>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/6">Date</th>
                       <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/6">Status</th>
                       <th className="px-6 py-4 w-16"></th>
@@ -482,16 +482,16 @@ export default function Dashboard() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
-                                ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
-                                : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
-                                  ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                                  : activity.activity === 'Group Evaluation'
-                                    ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
-                                    : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
-                                      ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                                      : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
-                                        ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                                        : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
+                              ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
+                              : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
+                                ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                : activity.activity === 'Group Evaluation'
+                                  ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
+                                  : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
+                                    ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
+                                    : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
+                                      ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                      : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
                               }`}>
                               {getActivityIcon(activity.activity)}
                             </div>
@@ -502,8 +502,10 @@ export default function Dashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {activity.activity === 'Reference Received'
-                            ? (activity.target || 'Unknown')
-                            : activity.target || 'Unknown'}
+                            ? `From ${activity.target || 'Unknown'}`
+                            : activity.activity === 'Reference Provided'
+                              ? `To ${activity.target || 'Unknown'}`
+                              : activity.target || 'Unknown'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(activity.date).toLocaleDateString()}
@@ -565,16 +567,16 @@ export default function Dashboard() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${activity.activity === 'Self eReputation' || activity.activity === 'Self Calculation' || activity.activity === 'Self Evaluation'
-                            ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
-                            : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
-                              ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                              : activity.activity === 'Group Evaluation'
-                                ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
-                                : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
-                                  ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
-                                  : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
-                                    ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                                    : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
+                          ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
+                          : activity.activity === 'Other Evaluation' || activity.activity === 'User Evaluation'
+                            ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                            : activity.activity === 'Group Evaluation'
+                              ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/10 border-blue-500/20 text-blue-600'
+                              : activity.activity === 'Platform Analysis' || activity.activity === 'Post-Platform Evaluation'
+                                ? 'bg-gradient-to-br from-purple-500/15 to-purple-500/10 border-purple-500/20 text-purple-600'
+                                : activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' || activity.type === 'reference'
+                                  ? 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                                  : 'bg-gradient-to-br from-gray-500/15 to-gray-500/10 border-gray-500/20 text-gray-600'
                           }`}>
                           {getActivityIcon(activity.activity)}
                         </div>
@@ -582,8 +584,10 @@ export default function Dashboard() {
                           <div className="text-sm font-bold text-fig mb-1">{activity.activity}</div>
                           <div className="text-xs text-gray-600 font-medium">
                             {activity.activity === 'Reference Received'
-                              ? (activity.target || 'Unknown')
-                              : activity.target || 'Unknown'}
+                              ? `From ${activity.target || 'Unknown'}`
+                              : activity.activity === 'Reference Provided'
+                                ? `To ${activity.target || 'Unknown'}`
+                                : activity.target || 'Unknown'}
                           </div>
                         </div>
                       </div>
