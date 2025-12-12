@@ -106,6 +106,7 @@ app.get("/api/dashboard/activities", authGuard, dashboardController.getActivitie
 app.post("/api/references", authGuard, referenceController.createReference);
 app.get("/api/references/target/:targetType/:targetId", referenceController.getReferencesForTarget);
 app.get("/api/references/my", authGuard, referenceController.getUserReferences);
+app.get("/api/references", authGuard, referenceController.getAllUserReferences);
 app.patch("/api/references/:referenceId/revoke", authGuard, referenceController.revokeReference);
 
 // Reference signing routes

@@ -193,7 +193,7 @@ export default function References() {
               <thead className="bg-gradient-to-r from-fig/5 to-apple-red/5">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/4">Type</th>
-                  <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/3">Subject</th>
+                  <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider w-1/3">To / From</th>
                   <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider hidden sm:table-cell w-1/6">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-black text-fig uppercase tracking-wider hidden lg:table-cell w-1/6">Status</th>
                   <th className="px-6 py-4 w-16"></th>
@@ -374,7 +374,9 @@ export default function References() {
                 
                 <div className="space-y-2">
                   <div>
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Subject</div>
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      {reference.type === 'Received' ? 'From' : 'To'}
+                    </div>
                     <div className="text-sm font-medium text-gray-900">{reference.forFrom}</div>
                   </div>
                   <div className="flex justify-between items-center">
