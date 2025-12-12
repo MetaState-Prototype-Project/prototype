@@ -1,6 +1,16 @@
 import axios from "axios";
 import * as jose from "jose";
-import { base58btc } from "multiformats/bases/base58";
+
+// Dynamic import for base58btc to handle ESM module in CommonJS context
+let base58btcCache: { decode: (input: string) => Uint8Array } | null = null;
+
+async function getBase58btc() {
+  if (!base58btcCache) {
+    const base58Module = await import("multiformats/bases/base58");
+    base58btcCache = base58Module.base58btc;
+  }
+  return base58btcCache;
+}
 
 /**
  * Options for signature verification
@@ -59,6 +69,7 @@ async function decodeMultibasePublicKey(multibaseKey: string): Promise<Uint8Arra
 
   // Try base58btc (standard multibase 'z' prefix)
   try {
+    const base58btc = await getBase58btc();
     return base58btc.decode(encoded);
   } catch (error) {
     throw new Error(
@@ -77,6 +88,7 @@ async function decodeSignature(signature: string): Promise<Uint8Array> {
   // If it starts with 'z', it's multibase base58btc
   if (signature.startsWith("z")) {
     try {
+      const base58btc = await getBase58btc();
       return base58btc.decode(signature.slice(1));
     } catch (error) {
       throw new Error(`Failed to decode multibase signature: ${error instanceof Error ? error.message : String(error)}`);
