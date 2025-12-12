@@ -101,23 +101,52 @@ export class ReferenceController {
     };
 
     /**
+     * Maps reference status from DB format to display format.
+     */
+    private mapStatus(status: string): string {
+        switch (status?.toLowerCase()) {
+            case "revoked":
+                return "Revoked";
+            case "signed":
+            case "active":
+                return "Signed";
+            case "pending":
+                return "Pending";
+            default:
+                return "Unknown";
+        }
+    }
+
+    /**
      * Combined references (sent + received) for the authenticated user with pagination.
+     * Uses DB-level pagination to avoid loading all records into memory.
      */
     getAllUserReferences = async (req: Request, res: Response) => {
         try {
             const userId = req.user!.id;
-            const page = parseInt(req.query.page as string, 10) || 1;
-            const limit = parseInt(req.query.limit as string, 10) || 10;
+            const MAX_LIMIT = 100;
+            const MAX_FETCH = 500; // Maximum records to fetch for merging
+
+            // Sanitize and clamp inputs
+            let page = parseInt(req.query.page as string, 10) || 1;
+            let limit = parseInt(req.query.limit as string, 10) || 10;
+            page = Math.max(1, page);
+            limit = Math.min(Math.max(1, limit), MAX_LIMIT);
             const offset = (page - 1) * limit;
 
-            // Sent references (auth user is author)
-            const sentReferences = await this.referenceService.getUserReferences(userId);
+            // Calculate how many records we need to fetch to cover the requested page
+            // We need at least (page * limit) records from each query to ensure we have enough
+            // after merging, but cap it to avoid loading too much
+            const recordsNeeded = page * limit;
+            const fetchLimit = Math.min(Math.max(recordsNeeded, limit * 2), MAX_FETCH);
 
-            // Received references (auth user is target) - author relation already loaded
-            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+            // Fetch paginated results from both queries using DB-level pagination
+            const sentResult = await this.referenceService.getUserReferencesPaginated(userId, 1, fetchLimit);
+            const receivedResult = await this.referenceService.getReferencesForTargetPaginated("user", userId, 1, fetchLimit, false);
 
+            // Format and merge results
             const formatted = [
-                ...sentReferences.map((ref) => ({
+                ...sentResult.references.map((ref) => ({
                     id: ref.id,
                     type: "Sent" as const,
                     forFrom: ref.targetName,
@@ -126,10 +155,10 @@ export class ReferenceController {
                     referenceType: ref.referenceType,
                     numericScore: ref.numericScore,
                     content: ref.content,
-                    status: ref.status === "revoked" ? "Revoked" : "Signed",
+                    status: this.mapStatus(ref.status),
                     date: ref.createdAt,
                 })),
-                ...receivedReferences.map((ref) => ({
+                ...receivedResult.references.map((ref) => ({
                     id: ref.id,
                     type: "Received" as const,
                     forFrom: ref.author?.name || ref.author?.ename || "Unknown",
@@ -138,7 +167,7 @@ export class ReferenceController {
                     referenceType: ref.referenceType,
                     numericScore: ref.numericScore,
                     content: ref.content,
-                    status: ref.status === "revoked" ? "Revoked" : "Signed",
+                    status: this.mapStatus(ref.status),
                     date: ref.createdAt,
                     author: {
                         id: ref.author?.id,
@@ -148,12 +177,15 @@ export class ReferenceController {
                 })),
             ];
 
-            // Sort newest first
+            // Sort newest first (already sorted by DB, but merge may need re-sort)
             formatted.sort(
-                (a, b) => new Date(b.date as unknown as string).getTime() - new Date(a.date as unknown as string).getTime(),
+                (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
             );
 
-            const total = formatted.length;
+            // Calculate total from both queries
+            const total = sentResult.total + receivedResult.total;
+
+            // Apply final pagination to merged results
             const totalPages = Math.max(1, Math.ceil(total / limit));
             const paginated = formatted.slice(offset, offset + limit);
 

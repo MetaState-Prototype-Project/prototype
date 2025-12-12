@@ -46,6 +46,42 @@ export class ReferenceService {
         });
     }
 
+    async getUserReferencesPaginated(
+        authorId: string,
+        page: number,
+        limit: number
+    ): Promise<{ references: Reference[]; total: number }> {
+        const [references, total] = await this.referenceRepository.findAndCount({
+            where: { authorId },
+            order: { createdAt: "DESC" },
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+        return { references, total };
+    }
+
+    async getReferencesForTargetPaginated(
+        targetType: string,
+        targetId: string,
+        page: number,
+        limit: number,
+        onlySigned: boolean = true
+    ): Promise<{ references: Reference[]; total: number }> {
+        const whereClause: any = { targetType, targetId };
+        if (onlySigned) {
+            whereClause.status = "signed";
+        }
+
+        const [references, total] = await this.referenceRepository.findAndCount({
+            where: whereClause,
+            relations: ["author"],
+            order: { createdAt: "DESC" },
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+        return { references, total };
+    }
+
     async revokeReference(referenceId: string, authorId: string): Promise<Reference | null> {
         const reference = await this.referenceRepository.findOne({
             where: { id: referenceId, authorId }
