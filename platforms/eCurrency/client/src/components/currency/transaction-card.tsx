@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, Flame } from "lucide-react";
 import { formatEName } from "../../lib/utils";
 
 interface TransactionCardProps {
@@ -9,10 +9,15 @@ interface TransactionCardProps {
 
 export default function TransactionCard({ transaction, currencyName, onClick }: TransactionCardProps) {
   // For credits: show "Received from X", for debits: show "Sent to X"
-  // For minted: show "Minted"
+  // For minted: show "Minted", for burned: show "Burned"
   let mainText = "";
-  if (transaction.description?.includes("Minted")) {
+  const isMinted = transaction.description?.toLowerCase().includes("minted");
+  const isBurned = transaction.description?.toLowerCase().includes("burned") || transaction.description?.toLowerCase().includes("burn");
+  
+  if (isMinted) {
     mainText = "Minted";
+  } else if (isBurned) {
+    mainText = "Burned";
   } else if (transaction.type === "credit") {
     const senderName = transaction.sender?.name || formatEName(transaction.sender?.ename) || "Unknown";
     mainText = `Received from ${senderName}`;
@@ -20,8 +25,6 @@ export default function TransactionCard({ transaction, currencyName, onClick }: 
     const receiverName = transaction.receiver?.name || formatEName(transaction.receiver?.ename) || "Unknown";
     mainText = `Sent to ${receiverName}`;
   }
-
-  const isMinted = transaction.description?.includes("Minted");
 
   return (
     <div
@@ -34,13 +37,17 @@ export default function TransactionCard({ transaction, currencyName, onClick }: 
             className={`w-10 h-10 rounded-full flex items-center justify-center ${
               isMinted
                 ? "bg-purple-100"
-                : transaction.type === "credit"
-                  ? "bg-green-100"
-                  : "bg-blue-100"
+                : isBurned
+                  ? "bg-red-100"
+                  : transaction.type === "credit"
+                    ? "bg-green-100"
+                    : "bg-blue-100"
             }`}
           >
             {isMinted ? (
               <Sparkles className="h-5 w-5 text-purple-600" />
+            ) : isBurned ? (
+              <Flame className="h-5 w-5 text-red-600" />
             ) : transaction.type === "credit" ? (
               <ArrowLeft className="h-5 w-5 text-green-600" />
             ) : (
