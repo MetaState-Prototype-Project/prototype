@@ -237,8 +237,8 @@ export class LedgerService {
             burnDescription,
             groupId,
             AccountType.GROUP,
-            null,
-            null,
+            undefined,
+            undefined,
             currentBalance
         );
 
