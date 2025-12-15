@@ -6,7 +6,7 @@ import TransferModal from "../components/currency/transfer-modal";
 import TransactionDetailModal from "../components/currency/transaction-detail-modal";
 import MintCurrencyModal from "../components/currency/mint-currency-modal";
 import UserMenuDropdown from "../components/user-menu-dropdown";
-import { Send, Wallet, Sparkles, ChevronLeft } from "lucide-react";
+import { Send, Wallet, Sparkles, ChevronLeft, Flame } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatEName } from "../lib/utils";
 import TransactionCard from "../components/currency/transaction-card";
@@ -375,13 +375,25 @@ export default function CurrencyDetail() {
             <h2 className="text-xl font-semibold">Transactions</h2>
             <div className="flex gap-2">
               {isAdminOfCurrency && accountContext?.type === "group" && accountContext.id === currency.groupId && (
-                <button
-                  onClick={() => setMintOpen(true)}
-                  className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Mint
-                </button>
+                <>
+                  <button
+                    onClick={() => setMintOpen(true)}
+                    className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Mint
+                  </button>
+                  <button
+                    onClick={() => {
+                      // TODO: wire burn modal/flow when API is ready
+                    }}
+                    className="px-6 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2 font-medium"
+                    title="Burn from treasury (coming soon)"
+                  >
+                    <Flame className="h-4 w-4 text-red-500" />
+                    Burn
+                  </button>
+                </>
               )}
               <button
                 onClick={() => setTransferOpen(true)}
