@@ -97,7 +97,7 @@ async function decodeSignature(signature: string): Promise<Uint8Array> {
   if (signature.startsWith("z")) {
     try {
       const base58btc = await getBase58btc();
-      return base58btc.decode(signature.slice(1));
+      return base58btc.decode(signature);
     } catch (error) {
       throw new Error(`Failed to decode multibase signature: ${error instanceof Error ? error.message : String(error)}`);
     }
