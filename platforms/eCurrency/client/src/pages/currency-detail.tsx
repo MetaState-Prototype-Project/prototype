@@ -6,7 +6,7 @@ import TransferModal from "../components/currency/transfer-modal";
 import TransactionDetailModal from "../components/currency/transaction-detail-modal";
 import MintCurrencyModal from "../components/currency/mint-currency-modal";
 import UserMenuDropdown from "../components/user-menu-dropdown";
-import { Send, Wallet, Sparkles, ChevronLeft, Flame } from "lucide-react";
+import { Send, Wallet, Sparkles, ChevronLeft, Flame, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatEName } from "../lib/utils";
 import TransactionCard from "../components/currency/transaction-card";
