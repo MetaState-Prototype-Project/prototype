@@ -182,8 +182,6 @@ async function decodeSignature(signature: string): Promise<Uint8Array> {
     let base64Bytes: Uint8Array | null = null;
     if (base64urlPattern.test(signature)) {
         base64Bytes = tryDecodeBase64Like(signature);
-        if (base64Bytes) {
-        }
     }
 
     // Treat leading 'z' as base58 multibase only if the remainder is valid base58
