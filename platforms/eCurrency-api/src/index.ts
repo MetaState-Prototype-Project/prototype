@@ -112,6 +112,7 @@ app.get("/api/currencies", currencyController.getAllCurrencies);
 app.get("/api/currencies/:id", currencyController.getCurrencyById);
 app.get("/api/currencies/group/:groupId", currencyController.getCurrenciesByGroup);
 app.post("/api/currencies/:id/mint", authGuard, currencyController.mintCurrency);
+app.patch("/api/currencies/:id/max-negative", authGuard, currencyController.updateMaxNegativeBalance);
 
 // Ledger routes
 app.get("/api/ledger/balance", authGuard, ledgerController.getBalance);

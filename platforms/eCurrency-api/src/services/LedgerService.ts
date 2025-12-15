@@ -40,10 +40,13 @@ export class LedgerService {
         senderAccountId?: string,
         senderAccountType?: AccountType,
         receiverAccountId?: string,
-        receiverAccountType?: AccountType
+        receiverAccountType?: AccountType,
+        existingBalance?: number
     ): Promise<Ledger> {
         // Get current balance
-        const currentBalance = await this.getAccountBalance(currencyId, accountId, accountType);
+        const currentBalance = existingBalance !== undefined
+            ? existingBalance
+            : await this.getAccountBalance(currencyId, accountId, accountType);
         
         // Calculate new balance
         const newBalance = type === LedgerType.CREDIT 
@@ -90,11 +93,17 @@ export class LedgerService {
             throw new Error("Currency not found");
         }
 
-        // Only check balance if negative balances are not allowed
-        if (!currency.allowNegative) {
-            const currentBalance = await this.getAccountBalance(currencyId, fromAccountId, fromAccountType);
-            if (currentBalance < amount) {
-                throw new Error("Insufficient balance. This currency does not allow negative balances.");
+        const currentBalance = await this.getAccountBalance(currencyId, fromAccountId, fromAccountType);
+
+        // Validate debit bounds
+        if (!currency.allowNegative && currentBalance < amount) {
+            throw new Error("Insufficient balance. This currency does not allow negative balances.");
+        }
+
+        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+            const newBalance = currentBalance - amount;
+            if (newBalance < Number(currency.maxNegativeBalance)) {
+                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
             }
         }
 
@@ -110,7 +119,8 @@ export class LedgerService {
             fromAccountId, // sender
             fromAccountType, // sender type
             toAccountId, // receiver
-            toAccountType // receiver type
+            toAccountType, // receiver type
+            currentBalance
         );
 
         // Create credit entry (to receiver's account)

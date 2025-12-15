@@ -15,7 +15,7 @@ export class CurrencyController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const { name, description, groupId, allowNegative } = req.body;
+            const { name, description, groupId, allowNegative, maxNegativeBalance } = req.body;
 
             if (!name || !groupId) {
                 return res.status(400).json({ error: "Name and groupId are required" });
@@ -26,6 +26,7 @@ export class CurrencyController {
                 groupId,
                 req.user.id,
                 allowNegative || false,
+                maxNegativeBalance ?? null,
                 description
             );
 
@@ -36,6 +37,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
                 updatedAt: currency.updatedAt,
@@ -58,6 +60,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
                 updatedAt: currency.updatedAt,
@@ -84,6 +87,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
                 updatedAt: currency.updatedAt,
@@ -105,6 +109,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
                 updatedAt: currency.updatedAt,
@@ -139,6 +144,48 @@ export class CurrencyController {
         } catch (error: any) {
             console.error("Error minting currency:", error);
             if (error.message.includes("Only group admins") || error.message.includes("not found") || error.message.includes("must be positive")) {
+                return res.status(400).json({ error: error.message });
+            }
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    updateMaxNegativeBalance = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { id } = req.params;
+            const { value } = req.body;
+
+            // Allow null to clear; otherwise must be a number
+            const parsedValue = value === null || value === undefined ? null : Number(value);
+            if (parsedValue !== null && Number.isNaN(parsedValue)) {
+                return res.status(400).json({ error: "Invalid value for maxNegativeBalance" });
+            }
+
+            const updated = await this.currencyService.updateMaxNegativeBalance(
+                id,
+                parsedValue,
+                req.user.id
+            );
+
+            res.status(200).json({
+                id: updated.id,
+                name: updated.name,
+                description: updated.description,
+                ename: updated.ename,
+                groupId: updated.groupId,
+                allowNegative: updated.allowNegative,
+                maxNegativeBalance: updated.maxNegativeBalance,
+                createdBy: updated.createdBy,
+                createdAt: updated.createdAt,
+                updatedAt: updated.updatedAt,
+            });
+        } catch (error: any) {
+            console.error("Error updating max negative balance:", error);
+            if (error.message.includes("Only group admins") || error.message.includes("not found") || error.message.includes("Cannot set max negative") || error.message.includes("Max negative")) {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: "Internal server error" });
