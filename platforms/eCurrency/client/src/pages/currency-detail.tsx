@@ -22,7 +22,7 @@ export default function CurrencyDetail() {
   const [transactionOffset, setTransactionOffset] = useState(0);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const PAGE_SIZE = 10;
-  const MAX_NEGATIVE_SLIDER = 1_000_000;
+  const MAX_NEGATIVE_LIMIT = 1_000_000_000;
   const [maxNegativeInput, setMaxNegativeInput] = useState<string>("");
   const [maxNegativeSaving, setMaxNegativeSaving] = useState(false);
   const [maxNegativeError, setMaxNegativeError] = useState<string | null>(null);
@@ -208,7 +208,11 @@ export default function CurrencyDetail() {
           setMaxNegativeSaving(false);
           return;
         }
-        // Store as negative (or zero)
+        if (magnitude > MAX_NEGATIVE_LIMIT) {
+          setMaxNegativeError(`Maximum allowed is ${MAX_NEGATIVE_LIMIT.toLocaleString()}.`);
+          setMaxNegativeSaving(false);
+          return;
+        }
         payloadValue = magnitude === 0 ? 0 : -Math.abs(magnitude);
       }
 
@@ -321,36 +325,25 @@ export default function CurrencyDetail() {
           <div className="bg-white border rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-2">Set max negative balance</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Limit how far any account can go negative for this currency. Leave blank for no cap.
+              Limit how far any account can go negative for this currency. Enter the absolute value (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
+              Leave blank for no cap.
             </p>
             <div className="space-y-4">
-              <input
-                type="range"
-                min={0}
-                max={MAX_NEGATIVE_SLIDER}
-                step={0.01}
-                value={maxNegativeInput === "" ? 0 : Math.min(MAX_NEGATIVE_SLIDER, Math.max(0, Number(maxNegativeInput) || 0))}
-                onChange={(e) => setMaxNegativeInput(e.target.value)}
-                className="w-full"
-              />
-              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end">
                 <div className="flex-1">
                   <label className="block text-sm font-medium mb-1">Max negative (absolute value)</label>
                   <input
                     type="number"
                     min={0}
-                    max={MAX_NEGATIVE_SLIDER}
+                    max={MAX_NEGATIVE_LIMIT}
                     step={0.01}
                     value={maxNegativeInput}
                     onChange={(e) => setMaxNegativeInput(e.target.value)}
                     placeholder="Leave blank for no cap"
                     className="w-full px-4 py-2 border rounded-lg"
                   />
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Saved as negative value: {maxNegativeInput === "" ? "No cap" : `-${Math.abs(Number(maxNegativeInput) || 0).toLocaleString()}`}
-                  </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <button
                     onClick={saveMaxNegative}
                     disabled={maxNegativeSaving}
@@ -363,7 +356,7 @@ export default function CurrencyDetail() {
                     disabled={maxNegativeSaving}
                     className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Clear cap
+                    Clear
                   </button>
                 </div>
               </div>

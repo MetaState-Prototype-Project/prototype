@@ -34,6 +34,18 @@ export class CurrencyService {
         // Generate eName (UUID with @ prefix)
         const ename = `@${uuidv4()}`;
 
+        if (maxNegativeBalance !== null) {
+            if (!allowNegative) {
+                throw new Error("Cannot set max negative balance when negative balances are disabled");
+            }
+            if (maxNegativeBalance > 0) {
+                throw new Error("Max negative balance must be zero or negative");
+            }
+            if (maxNegativeBalance < -1_000_000_000) {
+                throw new Error("Max negative balance exceeds allowed limit");
+            }
+        }
+
         const currency = this.currencyRepository.create({
             name,
             description,
@@ -109,6 +121,9 @@ export class CurrencyService {
             }
             if (value > 0) {
                 throw new Error("Max negative balance must be zero or negative");
+            }
+            if (value < -1_000_000_000) {
+                throw new Error("Max negative balance exceeds allowed limit");
             }
         }
 

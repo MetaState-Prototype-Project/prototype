@@ -4,16 +4,24 @@ import { apiClient } from "@/lib/apiClient";
 import { X, Search, ChevronDown } from "lucide-react";
 import { formatEName } from "@/lib/utils";
 
+interface AccountContext {
+  type: "user" | "group";
+  id: string;
+}
+
 interface AddCurrencyAccountModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  accountContext?: AccountContext | null;
 }
 
-export default function AddCurrencyAccountModal({ open, onOpenChange }: AddCurrencyAccountModalProps) {
+export default function AddCurrencyAccountModal({ open, onOpenChange, accountContext }: AddCurrencyAccountModalProps) {
   const [currencyId, setCurrencyId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
+  const isGroupContext = accountContext?.type === "group";
+  const balancesQueryKey = ["balances", accountContext?.type, accountContext?.id];
 
   const { data: currencies } = useQuery({
     queryKey: ["currencies"],
@@ -24,9 +32,14 @@ export default function AddCurrencyAccountModal({ open, onOpenChange }: AddCurre
   });
 
   const { data: balances } = useQuery({
-    queryKey: ["balances"],
+    queryKey: balancesQueryKey,
     queryFn: async () => {
-      const response = await apiClient.get("/api/ledger/balance");
+      const params: Record<string, string> = {};
+      if (isGroupContext && accountContext?.id) {
+        params.accountType = "group";
+        params.accountId = accountContext.id;
+      }
+      const response = await apiClient.get("/api/ledger/balance", { params });
       return response.data;
     },
   });
@@ -48,12 +61,18 @@ export default function AddCurrencyAccountModal({ open, onOpenChange }: AddCurre
   const selectedCurrency = availableCurrencies.find((c: any) => c.id === currencyId);
 
   const initializeMutation = useMutation({
-    mutationFn: async (currencyId: string) => {
-      const response = await apiClient.post("/api/ledger/initialize", { currencyId });
+    mutationFn: async () => {
+      if (!currencyId) return;
+      const payload: Record<string, string> = { currencyId };
+      if (isGroupContext && accountContext?.id) {
+        payload.accountType = "group";
+        payload.accountId = accountContext.id;
+      }
+      const response = await apiClient.post("/api/ledger/initialize", payload);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["balances"] });
+      queryClient.invalidateQueries({ queryKey: balancesQueryKey });
       setCurrencyId("");
       setSearchQuery("");
       setIsOpen(false);
@@ -86,7 +105,7 @@ export default function AddCurrencyAccountModal({ open, onOpenChange }: AddCurre
           onSubmit={(e) => {
             e.preventDefault();
             if (currencyId) {
-              initializeMutation.mutate(currencyId);
+              initializeMutation.mutate();
             }
           }}
           className="space-y-4"

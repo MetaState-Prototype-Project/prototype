@@ -21,12 +21,33 @@ export class CurrencyController {
                 return res.status(400).json({ error: "Name and groupId are required" });
             }
 
+            const allowNegativeFlag = Boolean(allowNegative);
+            let normalizedMaxNegative: number | null = null;
+
+            if (maxNegativeBalance !== undefined && maxNegativeBalance !== null && maxNegativeBalance !== "") {
+                const parsedValue = Number(maxNegativeBalance);
+                if (Number.isNaN(parsedValue)) {
+                    return res.status(400).json({ error: "Invalid maxNegativeBalance value" });
+                }
+                if (parsedValue > 0) {
+                    return res.status(400).json({ error: "maxNegativeBalance must be zero or negative" });
+                }
+                if (parsedValue < -1_000_000_000) {
+                    return res.status(400).json({ error: "maxNegativeBalance exceeds allowed limit" });
+                }
+                normalizedMaxNegative = parsedValue;
+            }
+
+            if (!allowNegativeFlag) {
+                normalizedMaxNegative = null;
+            }
+
             const currency = await this.currencyService.createCurrency(
                 name,
                 groupId,
                 req.user.id,
-                allowNegative || false,
-                maxNegativeBalance ?? null,
+                allowNegativeFlag,
+                normalizedMaxNegative,
                 description
             );
 
@@ -163,6 +184,14 @@ export class CurrencyController {
             const parsedValue = value === null || value === undefined ? null : Number(value);
             if (parsedValue !== null && Number.isNaN(parsedValue)) {
                 return res.status(400).json({ error: "Invalid value for maxNegativeBalance" });
+            }
+            if (parsedValue !== null) {
+                if (parsedValue > 0) {
+                    return res.status(400).json({ error: "maxNegativeBalance must be zero or negative" });
+                }
+                if (parsedValue < -1_000_000_000) {
+                    return res.status(400).json({ error: "maxNegativeBalance exceeds allowed limit" });
+                }
             }
 
             const updated = await this.currencyService.updateMaxNegativeBalance(
