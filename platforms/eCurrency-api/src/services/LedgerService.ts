@@ -5,6 +5,7 @@ import { Currency } from "../database/entities/Currency";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { TransactionNotificationService } from "./TransactionNotificationService";
+import crypto from "crypto";
 
 export class LedgerService {
     ledgerRepository: Repository<Ledger>;
@@ -13,6 +14,18 @@ export class LedgerService {
     constructor() {
         this.ledgerRepository = AppDataSource.getRepository(Ledger);
         this.currencyRepository = AppDataSource.getRepository(Currency);
+    }
+
+    private computeHash(payload: any): string {
+        return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    }
+
+    private async getPrevHash(currencyId: string): Promise<string | null> {
+        const prev = await this.ledgerRepository.findOne({
+            where: { currencyId },
+            order: { createdAt: "DESC", id: "DESC" },
+        });
+        return prev?.hash ?? null;
     }
 
     async getAccountBalance(currencyId: string, accountId: string, accountType: AccountType): Promise<number> {
@@ -67,10 +80,34 @@ export class LedgerService {
             balance: newBalance,
         };
         
-        const entry = this.ledgerRepository.create(entryData);
+        // capture previous hash before inserting current entry
+        const prevHash = await this.getPrevHash(currencyId);
 
+        const entry = this.ledgerRepository.create(entryData);
         const saved = await this.ledgerRepository.save(entry);
-        return Array.isArray(saved) ? saved[0] : saved;
+
+        const hashPayload = {
+            id: saved.id,
+            currencyId: saved.currencyId,
+            accountId: saved.accountId,
+            accountType: saved.accountType,
+            amount: saved.amount,
+            type: saved.type,
+            description: saved.description,
+            senderAccountId: saved.senderAccountId,
+            senderAccountType: saved.senderAccountType,
+            receiverAccountId: saved.receiverAccountId,
+            receiverAccountType: saved.receiverAccountType,
+            balance: saved.balance,
+            createdAt: saved.createdAt,
+            prevHash,
+        };
+
+        saved.prevHash = prevHash;
+        saved.hash = this.computeHash(hashPayload);
+
+        const finalized = await this.ledgerRepository.save(saved);
+        return Array.isArray(finalized) ? finalized[0] : finalized;
     }
 
     async transfer(
@@ -158,6 +195,54 @@ export class LedgerService {
         });
 
         return { debit, credit };
+    }
+
+    async burn(
+        currencyId: string,
+        groupId: string,
+        amount: number,
+        description?: string
+    ): Promise<Ledger> {
+        const currency = await this.currencyRepository.findOne({ where: { id: currencyId } });
+        if (!currency) {
+            throw new Error("Currency not found");
+        }
+
+        // Ensure treasury account exists
+        await this.initializeAccount(currencyId, groupId, AccountType.GROUP);
+
+        const currentBalance = await this.getAccountBalance(currencyId, groupId, AccountType.GROUP);
+
+        // Enforce bounds
+        if (!currency.allowNegative && currentBalance < amount) {
+            throw new Error("Insufficient balance. Negative balances are not allowed.");
+        }
+
+        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+            const newBalance = currentBalance - amount;
+            if (newBalance < Number(currency.maxNegativeBalance)) {
+                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+            }
+        }
+
+        const burnDescription = description || `Burned ${amount} ${currency.name}`;
+
+        // Single debit entry against treasury
+        const debit = await this.addLedgerEntry(
+            currencyId,
+            groupId,
+            AccountType.GROUP,
+            amount,
+            LedgerType.DEBIT,
+            burnDescription,
+            groupId,
+            AccountType.GROUP,
+            undefined,
+            undefined,
+            currentBalance
+        );
+
+        return debit;
     }
 
     async getTransactionHistory(

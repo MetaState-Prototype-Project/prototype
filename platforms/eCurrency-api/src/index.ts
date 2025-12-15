@@ -118,6 +118,7 @@ app.patch("/api/currencies/:id/max-negative", authGuard, currencyController.upda
 app.get("/api/ledger/balance", authGuard, ledgerController.getBalance);
 app.get("/api/ledger/balance/:currencyId", authGuard, ledgerController.getBalanceByCurrencyId);
 app.post("/api/ledger/transfer", authGuard, ledgerController.transfer);
+app.post("/api/ledger/burn", authGuard, ledgerController.burn);
 app.get("/api/ledger/history", authGuard, ledgerController.getHistory);
 app.get("/api/ledger/history/:currencyId", authGuard, ledgerController.getHistory);
 app.get("/api/ledger/transaction/:id", authGuard, ledgerController.getTransactionById);

@@ -6,7 +6,7 @@ import TransferModal from "../components/currency/transfer-modal";
 import TransactionDetailModal from "../components/currency/transaction-detail-modal";
 import MintCurrencyModal from "../components/currency/mint-currency-modal";
 import UserMenuDropdown from "../components/user-menu-dropdown";
-import { Send, Wallet, Sparkles, ChevronLeft } from "lucide-react";
+import { Send, Wallet, Sparkles, ChevronLeft, Flame, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatEName } from "../lib/utils";
 import TransactionCard from "../components/currency/transaction-card";
@@ -18,6 +18,11 @@ export default function CurrencyDetail() {
   const queryClient = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
   const [mintOpen, setMintOpen] = useState(false);
+  const [burnOpen, setBurnOpen] = useState(false);
+  const [burnAmount, setBurnAmount] = useState("");
+  const [burnReason, setBurnReason] = useState("");
+  const [burnError, setBurnError] = useState<string | null>(null);
+  const [burnSaving, setBurnSaving] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const [transactionOffset, setTransactionOffset] = useState(0);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
@@ -135,11 +140,22 @@ export default function CurrencyDetail() {
   const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
     // If null is passed, default to user account
     const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
+    
+    // Check if context actually changed
+    const contextChanged = !accountContext || 
+      accountContext.type !== finalContext?.type || 
+      accountContext.id !== finalContext?.id;
+    
     setAccountContext(finalContext);
     if (finalContext) {
       localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
     } else {
       localStorage.removeItem("ecurrency_account_context");
+    }
+    
+    // Navigate to dashboard when context changes
+    if (contextChanged) {
+      setLocation("/");
     }
   };
 
@@ -233,6 +249,42 @@ export default function CurrencyDetail() {
   if (!currencyId) {
     return <div>Currency not found</div>;
   }
+
+  const handleBurn = async () => {
+    if (!currencyId) return;
+    setBurnError(null);
+    setBurnSaving(true);
+    try {
+      const amountNum = parseFloat(burnAmount);
+      if (Number.isNaN(amountNum) || amountNum <= 0) {
+        setBurnError("Enter a valid amount greater than zero.");
+        setBurnSaving(false);
+        return;
+      }
+
+      await apiClient.post("/api/ledger/burn", {
+        currencyId,
+        amount: amountNum,
+        description: burnReason || undefined,
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["balance", currencyId, accountContext] }),
+        queryClient.invalidateQueries({ queryKey: ["balances", accountContext] }),
+        queryClient.invalidateQueries({ queryKey: ["history", currencyId, accountContext, transactionOffset] }),
+        queryClient.invalidateQueries({ queryKey: ["totalSupply", currencyId] }),
+      ]);
+
+      setBurnAmount("");
+      setBurnReason("");
+      setBurnOpen(false);
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || "Burn failed";
+      setBurnError(message);
+    } finally {
+      setBurnSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -375,13 +427,23 @@ export default function CurrencyDetail() {
             <h2 className="text-xl font-semibold">Transactions</h2>
             <div className="flex gap-2">
               {isAdminOfCurrency && accountContext?.type === "group" && accountContext.id === currency.groupId && (
-                <button
-                  onClick={() => setMintOpen(true)}
-                  className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Mint
-                </button>
+                    <>
+                  <button
+                    onClick={() => setMintOpen(true)}
+                    className="px-6 py-2 bg-secondary text-secondary-foreground rounded-lg hover:opacity-90 flex items-center gap-2 font-medium"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Mint
+                  </button>
+                  <button
+                        onClick={() => setBurnOpen(true)}
+                        className="px-6 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2 font-medium"
+                        title="Burn from treasury"
+                  >
+                    <Flame className="h-4 w-4 text-red-500" />
+                    Burn
+                  </button>
+                    </>
               )}
               <button
                 onClick={() => setTransferOpen(true)}
@@ -456,6 +518,66 @@ export default function CurrencyDetail() {
           onOpenChange={setMintOpen}
           currencyId={currencyId}
         />
+      )}
+      {burnOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setBurnOpen(false)}>
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Burn from Treasury</h3>
+              <button onClick={() => setBurnOpen(false)} className="text-gray-500 hover:text-gray-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={burnAmount}
+                  onChange={(e) => setBurnAmount(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Reason (optional)</label>
+                <input
+                  type="text"
+                  value={burnReason}
+                  onChange={(e) => setBurnReason(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="e.g., supply reduction"
+                />
+              </div>
+              {burnError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md">
+                  {burnError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setBurnOpen(false)}
+                  className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                  disabled={burnSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBurn}
+                  disabled={burnSaving || !burnAmount}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
+                >
+                  {burnSaving ? "Burning..." : "Burn"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

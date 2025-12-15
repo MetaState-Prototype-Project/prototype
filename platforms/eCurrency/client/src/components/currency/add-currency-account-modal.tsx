@@ -72,7 +72,13 @@ export default function AddCurrencyAccountModal({ open, onOpenChange, accountCon
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: balancesQueryKey });
+      // Refresh balances and history for the active context right after adding
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey?.[0];
+          return key === "balances" || key === "history" || key === "accountDetails";
+        },
+      });
       setCurrencyId("");
       setSearchQuery("");
       setIsOpen(false);
