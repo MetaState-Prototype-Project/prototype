@@ -570,7 +570,7 @@ export default function CurrencyDetail() {
                 <button
                   onClick={handleBurn}
                   disabled={burnSaving || !burnAmount}
-                  className="px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
                 >
                   {burnSaving ? "Burning..." : "Burn"}
                 </button>

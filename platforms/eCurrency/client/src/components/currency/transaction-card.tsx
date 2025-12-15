@@ -11,8 +11,21 @@ export default function TransactionCard({ transaction, currencyName, onClick }: 
   // For credits: show "Received from X", for debits: show "Sent to X"
   // For minted: show "Minted", for burned: show "Burned"
   let mainText = "";
-  const isMinted = transaction.description?.toLowerCase().includes("minted");
-  const isBurned = transaction.description?.toLowerCase().includes("burned") || transaction.description?.toLowerCase().includes("burn");
+  const desc = transaction.description?.toLowerCase() || "";
+  // Check description for mint/burn keywords
+  const hasMintInDesc = desc.includes("minted") || desc.includes("mint");
+  const hasBurnInDesc = desc.includes("burned") || desc.includes("burn");
+  // Fallback: credit with no sender and group account type is likely a mint
+  const isLikelyMint = transaction.type === "credit" && 
+    (!transaction.sender || (!transaction.sender.name && !transaction.sender.ename)) &&
+    transaction.accountType === "group";
+  // Debit with no receiver and group account type is likely a burn
+  const isLikelyBurn = transaction.type === "debit" &&
+    (!transaction.receiver || (!transaction.receiver.name && !transaction.receiver.ename)) &&
+    transaction.accountType === "group";
+  
+  const isMinted = hasMintInDesc || isLikelyMint;
+  const isBurned = hasBurnInDesc || isLikelyBurn;
   
   if (isMinted) {
     mainText = "Minted";
