@@ -206,6 +206,8 @@ export class LedgerController {
                     description: entry.description,
                     balance: entry.balance,
                     createdAt: entry.createdAt,
+                    hash: entry.hash,
+                    prevHash: entry.prevHash,
                     sender: sender ? {
                         name: (sender as any).name || (sender as any).handle,
                         ename: (sender as any).ename,
@@ -272,6 +274,8 @@ export class LedgerController {
                 description: transaction.description,
                 balance: transaction.balance,
                 createdAt: transaction.createdAt,
+                hash: transaction.hash,
+                prevHash: transaction.prevHash,
                 sender: sender ? {
                     id: sender.id,
                     name: (sender as any).name || (sender as any).handle,

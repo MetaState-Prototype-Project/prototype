@@ -5,6 +5,7 @@ import { Currency } from "../database/entities/Currency";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { TransactionNotificationService } from "./TransactionNotificationService";
+import crypto from "crypto";
 
 export class LedgerService {
     ledgerRepository: Repository<Ledger>;
@@ -13,6 +14,18 @@ export class LedgerService {
     constructor() {
         this.ledgerRepository = AppDataSource.getRepository(Ledger);
         this.currencyRepository = AppDataSource.getRepository(Currency);
+    }
+
+    private computeHash(payload: any): string {
+        return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    }
+
+    private async getPrevHash(currencyId: string): Promise<string | null> {
+        const prev = await this.ledgerRepository.findOne({
+            where: { currencyId },
+            order: { createdAt: "DESC", id: "DESC" },
+        });
+        return prev?.hash ?? null;
     }
 
     async getAccountBalance(currencyId: string, accountId: string, accountType: AccountType): Promise<number> {
@@ -67,10 +80,34 @@ export class LedgerService {
             balance: newBalance,
         };
         
-        const entry = this.ledgerRepository.create(entryData);
+        // capture previous hash before inserting current entry
+        const prevHash = await this.getPrevHash(currencyId);
 
+        const entry = this.ledgerRepository.create(entryData);
         const saved = await this.ledgerRepository.save(entry);
-        return Array.isArray(saved) ? saved[0] : saved;
+
+        const hashPayload = {
+            id: saved.id,
+            currencyId: saved.currencyId,
+            accountId: saved.accountId,
+            accountType: saved.accountType,
+            amount: saved.amount,
+            type: saved.type,
+            description: saved.description,
+            senderAccountId: saved.senderAccountId,
+            senderAccountType: saved.senderAccountType,
+            receiverAccountId: saved.receiverAccountId,
+            receiverAccountType: saved.receiverAccountType,
+            balance: saved.balance,
+            createdAt: saved.createdAt,
+            prevHash,
+        };
+
+        saved.prevHash = prevHash;
+        saved.hash = this.computeHash(hashPayload);
+
+        const finalized = await this.ledgerRepository.save(saved);
+        return Array.isArray(finalized) ? finalized[0] : finalized;
     }
 
     async transfer(

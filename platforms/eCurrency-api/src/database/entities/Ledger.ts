@@ -76,6 +76,12 @@ export class Ledger {
     @Column("decimal", { precision: 18, scale: 2 })
     balance!: number; // Running balance after this entry
 
+    @Column({ type: "text", nullable: true })
+    hash!: string | null;
+
+    @Column({ type: "text", nullable: true })
+    prevHash!: string | null;
+
     @CreateDateColumn()
     createdAt!: Date;
 }

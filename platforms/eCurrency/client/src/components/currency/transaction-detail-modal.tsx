@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { X } from "lucide-react";
 import { formatEName } from "@/lib/utils";
+import { useState } from "react";
 
 interface TransactionDetailModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ export default function TransactionDetailModal({
   onOpenChange,
   transactionId,
 }: TransactionDetailModalProps) {
+  const [copiedField, setCopiedField] = useState<"hash" | "prevHash" | null>(null);
   const { data: transaction } = useQuery({
     queryKey: ["transaction", transactionId],
     queryFn: async () => {
@@ -151,6 +153,50 @@ export default function TransactionDetailModal({
                 {new Date(transaction.createdAt).toLocaleString()}
               </p>
             </div>
+
+            {/* Hashes (conditional) */}
+            {(transaction.hash || transaction.prevHash) && (
+              <div className="space-y-3">
+                {transaction.hash && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-muted-foreground">Transaction Hash</h3>
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(transaction.hash);
+                          setCopiedField("hash");
+                          setTimeout(() => setCopiedField(null), 1200);
+                        }}
+                      >
+                        {copiedField === "hash" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    <p className="font-mono text-xs break-all">{transaction.hash}</p>
+                  </div>
+                )}
+                {transaction.prevHash && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-muted-foreground">Previous Hash</h3>
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(transaction.prevHash);
+                          setCopiedField("prevHash");
+                          setTimeout(() => setCopiedField(null), 1200);
+                        }}
+                      >
+                        {copiedField === "prevHash" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    <p className="font-mono text-xs break-all">{transaction.prevHash}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-8">
