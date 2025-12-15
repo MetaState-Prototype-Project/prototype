@@ -217,7 +217,7 @@ PUBLIC_REGISTRY_URL=https://registry.example.com
 ### Next Steps
 
 1. **[Webhook Controller](./webhook-controller.md)** - How to handle incoming webhooks from the eVault system
-2. **[Mapping Rules](../../infrastructure/web3-adapter/MAPPING_RULES.md)** - How to create mappings between global ontology and your local database schema
+2. **[Mapping Rules](./mapping-rules.md)** - How to create mappings between global ontology and your local database schema
 
 These components work together to create a seamless integration between your platform and the W3DS ecosystem.
 

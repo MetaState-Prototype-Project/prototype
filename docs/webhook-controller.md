@@ -38,7 +38,7 @@ const local = await this.adapter.fromGlobal({
 });
 ```
 
-This method uses your mapping configuration to transform the global ontology data into your local database schema format. See the [Mapping Rules documentation](../../infrastructure/web3-adapter/MAPPING_RULES.md) for details on creating mappings.
+This method uses your mapping configuration to transform the global ontology data into your local database schema format. See the [Mapping Rules documentation](./mapping-rules.md) for details on creating mappings.
 
 3. **Check if entity exists** using the global ID:
 ```typescript
@@ -106,4 +106,4 @@ handleWebhook = async (req: Request, res: Response) => {
 ## Related Documentation
 
 - **[Getting Started](./getting-started.md)** - Authentication and platform setup
-- **[Mapping Rules](../../infrastructure/web3-adapter/MAPPING_RULES.md)** - How to create mappings between global and local schemas
+- **[Mapping Rules](./mapping-rules.md)** - How to create mappings between global and local schemas
