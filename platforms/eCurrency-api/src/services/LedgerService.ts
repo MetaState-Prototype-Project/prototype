@@ -197,6 +197,54 @@ export class LedgerService {
         return { debit, credit };
     }
 
+    async burn(
+        currencyId: string,
+        groupId: string,
+        amount: number,
+        description?: string
+    ): Promise<Ledger> {
+        const currency = await this.currencyRepository.findOne({ where: { id: currencyId } });
+        if (!currency) {
+            throw new Error("Currency not found");
+        }
+
+        // Ensure treasury account exists
+        await this.initializeAccount(currencyId, groupId, AccountType.GROUP);
+
+        const currentBalance = await this.getAccountBalance(currencyId, groupId, AccountType.GROUP);
+
+        // Enforce bounds
+        if (!currency.allowNegative && currentBalance < amount) {
+            throw new Error("Insufficient balance. Negative balances are not allowed.");
+        }
+
+        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+            const newBalance = currentBalance - amount;
+            if (newBalance < Number(currency.maxNegativeBalance)) {
+                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+            }
+        }
+
+        const burnDescription = description || `Burned ${amount} ${currency.name}`;
+
+        // Single debit entry against treasury
+        const debit = await this.addLedgerEntry(
+            currencyId,
+            groupId,
+            AccountType.GROUP,
+            amount,
+            LedgerType.DEBIT,
+            burnDescription,
+            groupId,
+            AccountType.GROUP,
+            null,
+            null,
+            currentBalance
+        );
+
+        return debit;
+    }
+
     async getTransactionHistory(
         currencyId?: string,
         accountId?: string,

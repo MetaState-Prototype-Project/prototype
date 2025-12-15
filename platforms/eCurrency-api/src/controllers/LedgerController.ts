@@ -2,14 +2,17 @@ import { Request, Response } from "express";
 import { LedgerService } from "../services/LedgerService";
 import { AccountType } from "../database/entities/Ledger";
 import { GroupService } from "../services/GroupService";
+import { CurrencyService } from "../services/CurrencyService";
 
 export class LedgerController {
     private ledgerService: LedgerService;
     private groupService: GroupService;
+    private currencyService: CurrencyService;
 
     constructor() {
         this.ledgerService = new LedgerService();
         this.groupService = new GroupService();
+        this.currencyService = new CurrencyService();
     }
 
     getBalance = async (req: Request, res: Response) => {
@@ -289,6 +292,61 @@ export class LedgerController {
             });
         } catch (error) {
             console.error("Error getting transaction:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
+    burn = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { currencyId, amount, description } = req.body;
+
+            if (!currencyId || amount === undefined || amount === null) {
+                return res.status(400).json({ error: "currencyId and amount are required" });
+            }
+
+            const parsedAmount = Number(amount);
+            if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+                return res.status(400).json({ error: "Amount must be a positive number" });
+            }
+
+            const currency = await this.currencyService.getCurrencyById(currencyId);
+            if (!currency) {
+                return res.status(404).json({ error: "Currency not found" });
+            }
+
+            // Only group admins of the currency's group can burn (treasury)
+            const isAdmin = await this.groupService.isGroupAdmin(currency.groupId, req.user.id);
+            if (!isAdmin) {
+                return res.status(403).json({ error: "Only group admins can burn from treasury" });
+            }
+
+            const burnEntry = await this.ledgerService.burn(
+                currencyId,
+                currency.groupId,
+                parsedAmount,
+                description
+            );
+
+            res.status(200).json({
+                message: "Burn successful",
+                transaction: {
+                    id: burnEntry.id,
+                    amount: burnEntry.amount,
+                    balance: burnEntry.balance,
+                    createdAt: burnEntry.createdAt,
+                    hash: burnEntry.hash,
+                    prevHash: burnEntry.prevHash,
+                },
+            });
+        } catch (error: any) {
+            console.error("Error burning currency:", error);
+            if (error.message.includes("Insufficient balance") || error.message.includes("not found")) {
+                return res.status(400).json({ error: error.message });
+            }
             res.status(500).json({ error: "Internal server error" });
         }
     };
