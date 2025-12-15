@@ -31,7 +31,7 @@
         "graphql-yoga": "^5.13.4",
         "jose": "^5.2.2",
         "json-schema": "^0.4.0",
-        "multiformats": "^13.3.2",
+        "multiformats": "13.3.2",
         "neo4j-driver": "^5.28.1",
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
