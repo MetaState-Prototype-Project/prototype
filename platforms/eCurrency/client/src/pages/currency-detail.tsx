@@ -140,11 +140,22 @@ export default function CurrencyDetail() {
   const handleAccountContextChange = (context: { type: "user" | "group"; id: string } | null) => {
     // If null is passed, default to user account
     const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
+    
+    // Check if context actually changed
+    const contextChanged = !accountContext || 
+      accountContext.type !== finalContext?.type || 
+      accountContext.id !== finalContext?.id;
+    
     setAccountContext(finalContext);
     if (finalContext) {
       localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
     } else {
       localStorage.removeItem("ecurrency_account_context");
+    }
+    
+    // Navigate to dashboard when context changes
+    if (contextChanged) {
+      setLocation("/");
     }
   };
 
