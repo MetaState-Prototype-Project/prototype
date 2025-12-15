@@ -36,6 +36,9 @@ export class Currency {
     @Column({ default: false })
     allowNegative!: boolean;
 
+    @Column("decimal", { precision: 18, scale: 2, nullable: true })
+    maxNegativeBalance!: number | null;
+
     @Column()
     createdBy!: string;
 

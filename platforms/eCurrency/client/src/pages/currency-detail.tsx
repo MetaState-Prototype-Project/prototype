@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { apiClient } from "../lib/apiClient";
 import { useAuth } from "../hooks/useAuth";
@@ -15,12 +15,17 @@ export default function CurrencyDetail() {
   const [, params] = useRoute("/currency/:currencyId");
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
   const [mintOpen, setMintOpen] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const [transactionOffset, setTransactionOffset] = useState(0);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const PAGE_SIZE = 10;
+  const MAX_NEGATIVE_SLIDER = 1_000_000;
+  const [maxNegativeInput, setMaxNegativeInput] = useState<string>("");
+  const [maxNegativeSaving, setMaxNegativeSaving] = useState(false);
+  const [maxNegativeError, setMaxNegativeError] = useState<string | null>(null);
 
   // Load account context from localStorage
   const [accountContext, setAccountContext] = useState<{ type: "user" | "group"; id: string } | null>(() => {
@@ -47,6 +52,16 @@ export default function CurrencyDetail() {
     },
     enabled: !!currencyId,
   });
+
+  useEffect(() => {
+    if (currency) {
+      if (currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+        setMaxNegativeInput(Math.abs(Number(currency.maxNegativeBalance)).toString());
+      } else {
+        setMaxNegativeInput("");
+      }
+    }
+  }, [currency]);
 
   const { data: accountDetails } = useQuery({
     queryKey: ["accountDetails", currencyId, accountContext],
@@ -177,6 +192,40 @@ export default function CurrencyDetail() {
 
   const isAdminOfCurrency = currency && groups?.some((g: any) => g.id === currency.groupId && g.isAdmin);
 
+  const saveMaxNegative = async () => {
+    if (!currencyId) return;
+    setMaxNegativeError(null);
+    setMaxNegativeSaving(true);
+    try {
+      const trimmed = maxNegativeInput.trim();
+      const isClearing = trimmed === "";
+      let payloadValue: number | null = null;
+
+      if (!isClearing) {
+        const magnitude = parseFloat(trimmed);
+        if (Number.isNaN(magnitude) || magnitude < 0) {
+          setMaxNegativeError("Enter a valid non-negative number.");
+          setMaxNegativeSaving(false);
+          return;
+        }
+        // Store as negative (or zero)
+        payloadValue = magnitude === 0 ? 0 : -Math.abs(magnitude);
+      }
+
+      await apiClient.patch(`/api/currencies/${currencyId}/max-negative`, {
+        value: payloadValue,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["currency", currencyId] });
+      await queryClient.invalidateQueries({ queryKey: ["accountDetails", currencyId, accountContext] });
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || "Failed to update max negative balance";
+      setMaxNegativeError(message);
+    } finally {
+      setMaxNegativeSaving(false);
+    }
+  };
+
   if (!currencyId) {
     return <div>Currency not found</div>;
   }
@@ -241,6 +290,16 @@ export default function CurrencyDetail() {
                 </p>
               </div>
               <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Max Negative Balance</h3>
+                <p className="text-lg font-medium">
+                  {currency.allowNegative
+                    ? (currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined
+                      ? Number(currency.maxNegativeBalance).toLocaleString()
+                      : "No cap")
+                    : "Not applicable"}
+                </p>
+              </div>
+              <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Currency Supply</h3>
                 <p className="text-lg font-semibold">
                   {totalSupplyLoading ? (
@@ -253,6 +312,66 @@ export default function CurrencyDetail() {
                   )}
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Max Negative Control - only for admins when negatives are allowed */}
+        {currency && currency.allowNegative && isAdminOfCurrency && accountContext?.type === "group" && accountContext.id === currency.groupId && (
+          <div className="bg-white border rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-2">Set max negative balance</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Limit how far any account can go negative for this currency. Leave blank for no cap.
+            </p>
+            <div className="space-y-4">
+              <input
+                type="range"
+                min={0}
+                max={MAX_NEGATIVE_SLIDER}
+                step={0.01}
+                value={maxNegativeInput === "" ? 0 : Math.min(MAX_NEGATIVE_SLIDER, Math.max(0, Number(maxNegativeInput) || 0))}
+                onChange={(e) => setMaxNegativeInput(e.target.value)}
+                className="w-full"
+              />
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium mb-1">Max negative (absolute value)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={MAX_NEGATIVE_SLIDER}
+                    step={0.01}
+                    value={maxNegativeInput}
+                    onChange={(e) => setMaxNegativeInput(e.target.value)}
+                    placeholder="Leave blank for no cap"
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Saved as negative value: {maxNegativeInput === "" ? "No cap" : `-${Math.abs(Number(maxNegativeInput) || 0).toLocaleString()}`}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveMaxNegative}
+                    disabled={maxNegativeSaving}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
+                  >
+                    {maxNegativeSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => setMaxNegativeInput("")}
+                    disabled={maxNegativeSaving}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Clear cap
+                  </button>
+                </div>
+              </div>
+              {maxNegativeError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg">
+                  {maxNegativeError}
+                </div>
+              )}
             </div>
           </div>
         )}

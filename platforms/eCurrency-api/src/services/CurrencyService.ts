@@ -22,6 +22,7 @@ export class CurrencyService {
         groupId: string,
         createdBy: string,
         allowNegative: boolean = false,
+        maxNegativeBalance: number | null = null,
         description?: string
     ): Promise<Currency> {
         // Verify user is group admin
@@ -40,6 +41,7 @@ export class CurrencyService {
             groupId,
             createdBy,
             allowNegative,
+            maxNegativeBalance,
         });
 
         const savedCurrency = await this.currencyRepository.save(currency);
@@ -80,6 +82,38 @@ export class CurrencyService {
         return await this.currencyRepository.find({
             relations: ["group", "creator"]
         });
+    }
+
+    async updateMaxNegativeBalance(
+        currencyId: string,
+        value: number | null,
+        requestedBy: string
+    ): Promise<Currency> {
+        const currency = await this.getCurrencyById(currencyId);
+        if (!currency) {
+            throw new Error("Currency not found");
+        }
+
+        const isAdmin = await this.groupService.isGroupAdmin(currency.groupId, requestedBy);
+        if (!isAdmin) {
+            throw new Error("Only group admins can update max negative balance");
+        }
+
+        if (!currency.allowNegative) {
+            throw new Error("Cannot set max negative balance when negative balances are not allowed");
+        }
+
+        if (value !== null) {
+            if (Number.isNaN(value)) {
+                throw new Error("Invalid max negative balance value");
+            }
+            if (value > 0) {
+                throw new Error("Max negative balance must be zero or negative");
+            }
+        }
+
+        currency.maxNegativeBalance = value;
+        return await this.currencyRepository.save(currency);
     }
 
     async mintCurrency(
