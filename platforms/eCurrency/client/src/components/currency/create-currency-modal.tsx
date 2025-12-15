@@ -9,17 +9,27 @@ interface CreateCurrencyModalProps {
   groups: Array<{ id: string; name: string; isAdmin: boolean }>;
 }
 
+const MAX_NEGATIVE_LIMIT = 1_000_000_000;
+
 export default function CreateCurrencyModal({ open, onOpenChange, groups }: CreateCurrencyModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState("");
   const [allowNegative, setAllowNegative] = useState(false);
+  const [maxNegativeInput, setMaxNegativeInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const adminGroups = groups.filter(g => g.isAdmin);
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; groupId: string; allowNegative: boolean }) => {
+    mutationFn: async (data: {
+      name: string;
+      description?: string;
+      groupId: string;
+      allowNegative: boolean;
+      maxNegativeBalance: number | null;
+    }) => {
       const response = await apiClient.post("/api/currencies", data);
       return response.data;
     },
@@ -30,6 +40,8 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
       setDescription("");
       setGroupId("");
       setAllowNegative(false);
+      setMaxNegativeInput("");
+      setError(null);
       onOpenChange(false);
     },
   });
@@ -52,9 +64,35 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name && groupId) {
-              createMutation.mutate({ name, description, groupId, allowNegative });
+            setError(null);
+            if (!name || !groupId) return;
+
+            let maxNegativeValue: number | null = null;
+            if (allowNegative) {
+              const trimmed = maxNegativeInput.trim();
+              if (trimmed) {
+                const magnitude = parseFloat(trimmed);
+                if (Number.isNaN(magnitude) || magnitude < 0) {
+                  setError("Enter a valid non-negative number for max negative balance.");
+                  return;
+                }
+                if (magnitude > MAX_NEGATIVE_LIMIT) {
+                  setError(`Max negative cannot exceed ${MAX_NEGATIVE_LIMIT.toLocaleString()}.`);
+                  return;
+                }
+                maxNegativeValue = magnitude === 0 ? 0 : -Math.abs(magnitude);
+              }
+            } else {
+              setMaxNegativeInput("");
             }
+
+            createMutation.mutate({
+              name,
+              description,
+              groupId,
+              allowNegative,
+              maxNegativeBalance: maxNegativeValue,
+            });
           }}
           className="space-y-4"
         >
@@ -102,7 +140,10 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setAllowNegative(false)}
+                onClick={() => {
+                  setAllowNegative(false);
+                  setMaxNegativeInput("");
+                }}
                 className={`p-4 border-2 rounded-lg text-left transition-all ${
                   !allowNegative
                     ? "border-primary bg-primary/5"
@@ -130,6 +171,31 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
               </button>
             </div>
           </div>
+
+          {allowNegative && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Max negative balance (absolute value)</label>
+              <input
+                type="number"
+                min={0}
+                max={MAX_NEGATIVE_LIMIT}
+                step={0.01}
+                value={maxNegativeInput}
+                onChange={(e) => setMaxNegativeInput(e.target.value)}
+                placeholder="Leave blank for no cap"
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Limit how far any account can go below zero (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-md">
+              {error}
+            </div>
+          )}
 
           <div className="flex gap-2 justify-end pt-2">
             <button

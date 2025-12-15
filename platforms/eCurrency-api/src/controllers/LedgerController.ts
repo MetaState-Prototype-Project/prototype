@@ -1,12 +1,15 @@
 import { Request, Response } from "express";
 import { LedgerService } from "../services/LedgerService";
 import { AccountType } from "../database/entities/Ledger";
+import { GroupService } from "../services/GroupService";
 
 export class LedgerController {
     private ledgerService: LedgerService;
+    private groupService: GroupService;
 
     constructor() {
         this.ledgerService = new LedgerService();
+        this.groupService = new GroupService();
     }
 
     getBalance = async (req: Request, res: Response) => {
@@ -292,16 +295,35 @@ export class LedgerController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const { currencyId } = req.body;
+            const { currencyId, accountId, accountType } = req.body;
 
             if (!currencyId) {
                 return res.status(400).json({ error: "currencyId is required" });
             }
 
+            const finalAccountType: AccountType = accountType ? (accountType as AccountType) : AccountType.USER;
+            if (!Object.values(AccountType).includes(finalAccountType)) {
+                return res.status(400).json({ error: "Invalid accountType" });
+            }
+
+            let finalAccountId: string | undefined =
+                finalAccountType === AccountType.GROUP ? accountId : req.user.id;
+
+            if (!finalAccountId) {
+                return res.status(400).json({ error: "accountId is required for group accounts" });
+            }
+
+            if (
+                finalAccountType === AccountType.GROUP &&
+                !(await this.groupService.isGroupAdmin(finalAccountId, req.user.id))
+            ) {
+                return res.status(403).json({ error: "Only group admins can manage group accounts" });
+            }
+
             await this.ledgerService.initializeAccount(
                 currencyId,
-                req.user.id,
-                AccountType.USER
+                finalAccountId,
+                finalAccountType
             );
 
             res.json({ message: "Account initialized successfully" });

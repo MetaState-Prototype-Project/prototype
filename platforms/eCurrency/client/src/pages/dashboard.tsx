@@ -328,7 +328,11 @@ export default function Dashboard() {
         onOpenChange={setCreateCurrencyOpen}
         groups={groups || []}
       />
-      <AddCurrencyAccountModal open={addAccountOpen} onOpenChange={setAddAccountOpen} />
+      <AddCurrencyAccountModal
+        open={addAccountOpen}
+        onOpenChange={setAddAccountOpen}
+        accountContext={accountContext}
+      />
       <TransferModal
         open={transferOpen}
         onOpenChange={(open) => {
