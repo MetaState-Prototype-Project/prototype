@@ -57,7 +57,7 @@
         "embla-carousel-react": "^8.6.0",
         "framer-motion": "^11.13.1",
         "input-otp": "^1.4.2",
-        "lucide-react": "^0.453.0",
+        "lucide-react": "^0.561.0",
         "marked": "^16.1.2",
         "memoizee": "^0.4.17",
         "nanoid": "^5.1.6",
