@@ -427,5 +427,325 @@ describe("VaultAccessGuard", () => {
             expect(result).toBeNull();
         });
     });
+
+    describe("Authentication Validation (Security Tests)", () => {
+        it("should reject getAllEnvelopes without authentication (no token, no eName)", async () => {
+            const context = createMockContext({
+                // No eName, no token
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: { data: "secret" } }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject getAllEnvelopes with empty eName", async () => {
+            const context = createMockContext({
+                eName: "",
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: { data: "secret" } }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            // Empty string is falsy, so it will throw the first authentication error
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject getAllEnvelopes with whitespace-only eName", async () => {
+            const context = createMockContext({
+                eName: "   ",
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: { data: "secret" } }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            // Whitespace-only string will be caught by the trim check
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Invalid X-ENAME header");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should allow getAllEnvelopes with valid eName", async () => {
+            const eName = "test@example.com";
+            const context = createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: { data: "test" } }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, {}, context);
+            
+            // Should execute and return results
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+        });
+
+        it("should allow getAllEnvelopes with valid Bearer token", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: { data: "test" } }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, {}, context);
+            
+            // Should execute and return results
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+            expect(context.tokenPayload).toBeDefined();
+        });
+
+        it("should reject findMetaEnvelopesByOntology without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", acl: ["*"] }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { ontology: "Test" }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject searchMetaEnvelopes without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", acl: ["*"] }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { ontology: "Test", term: "search" }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject storeMetaEnvelope mutation without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return {
+                    metaEnvelope: { id: "new-envelope", ontology: "Test" },
+                    envelopes: [],
+                };
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { input: { ontology: "Test", payload: {}, acl: [] } }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject deleteMetaEnvelope mutation without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return true;
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { id: "envelope-id" }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject updateEnvelopeValue mutation without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return true;
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { envelopeId: "envelope-id", newValue: {} }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should reject getMetaEnvelopeById without authentication", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return { id: "envelope-1", ontology: "Test", acl: ["*"] };
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, { id: "envelope-id" }, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should allow operations with valid eName even without token", async () => {
+            const eName = "test@example.com";
+            const context = createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: {} }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, {}, context);
+            
+            // Should execute successfully
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+        });
+
+        it("should allow operations with valid token even without eName", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: {} }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, {}, context);
+            
+            // Should execute successfully
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+            expect(context.tokenPayload).toBeDefined();
+        });
+
+        it("should reject with invalid Bearer token format", async () => {
+            const context = createMockContext({
+                eName: null,
+                request: {
+                    headers: new Headers({
+                        authorization: "InvalidFormat token",
+                    }),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: {} }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed
+            expect(mockResolver).not.toHaveBeenCalled();
+        });
+    });
 });
 
