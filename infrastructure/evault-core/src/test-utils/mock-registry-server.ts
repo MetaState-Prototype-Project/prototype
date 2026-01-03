@@ -1,5 +1,6 @@
 import fastify, { FastifyInstance } from "fastify";
-import { getSharedTestPublicJWK } from "./shared-test-keys";
+import * as jose from "jose";
+import { getSharedTestKeyPair, getSharedTestPublicJWK } from "./shared-test-keys";
 
 // In-memory store for registered eVaults
 const registeredEVaults = new Map<string, { uri: string; evault: string }>();
@@ -69,13 +70,21 @@ export async function createMockRegistryServer(port: number = 4322): Promise<Fas
             return reply.status(400).send({ error: "Missing platform parameter" });
         }
 
-        // Return a mock JWT token for the platform
-        // In a real scenario, this would be a proper JWT signed by the registry
-        const mockToken = `mock.jwt.token.${platform}.${Date.now()}`;
+        // Generate a proper JWT token signed with the shared test key pair
+        // This token can be verified by vault-access-guard using the JWKS endpoint
+        const { privateKey } = await getSharedTestKeyPair();
+        const now = Date.now();
+        const expiresAt = now + 3600000; // 1 hour from now
+        
+        const token = await new jose.SignJWT({ platform })
+            .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+            .setIssuedAt(Math.floor(now / 1000))
+            .setExpirationTime(Math.floor(expiresAt / 1000))
+            .sign(privateKey);
         
         return reply.status(200).send({
-            token: mockToken,
-            expiresAt: Date.now() + 3600000, // 1 hour from now
+            token,
+            expiresAt,
         });
     });
 

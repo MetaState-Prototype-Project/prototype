@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import axios from "axios";
+import * as jose from "jose";
 import {
     setupE2ETestServer,
     teardownE2ETestServer,
@@ -8,6 +9,7 @@ import {
     type E2ETestServer,
     type ProvisionedEVault,
 } from "../../test-utils/e2e-setup";
+import { getSharedTestKeyPair } from "../../test-utils/shared-test-keys";
 
 // Store original axios functions before any spying happens
 const originalAxiosGet = axios.get;
@@ -236,6 +238,15 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 }
             `;
 
+            // Create a valid Bearer token for authentication
+            // The platform field should be a valid URL for webhook delivery
+            const { privateKey } = await getSharedTestKeyPair();
+            const testToken = await new jose.SignJWT({ platform: "http://localhost:3000" })
+                .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+                .setIssuedAt()
+                .setExpirationTime("1h")
+                .sign(privateKey);
+
             await makeGraphQLRequest(server, updateMutation, {
                 id: envelopeId,
                 input: {
@@ -245,6 +256,7 @@ describe("GraphQLServer Webhook Payload W3ID", () => {
                 },
             }, {
                 "X-ENAME": evault1.w3id,
+                "Authorization": `Bearer ${testToken}`,
             });
 
             // Wait a bit for webhook delivery (update doesn't have setTimeout delay)

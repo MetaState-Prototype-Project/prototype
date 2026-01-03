@@ -51,6 +51,50 @@ export class VaultAccessGuard {
     }
 
     /**
+     * Validates authentication before allowing access to any operation
+     * REQUIRES a valid Bearer token - X-ENAME alone is NOT sufficient for authentication
+     * Exception: storeMetaEnvelope only requires X-ENAME (no Bearer token needed)
+     * @param context - The GraphQL context containing headers and user info
+     * @param isStoreOperation - If true, only requires X-ENAME (for storeMetaEnvelope)
+     * @throws Error if authentication fails
+     */
+    private async validateAuthentication(context: VaultContext, isStoreOperation: boolean = false): Promise<void> {
+        // Special case: storeMetaEnvelope only requires X-ENAME, no Bearer token
+        if (isStoreOperation) {
+            if (!context.eName) {
+                throw new Error("X-ENAME header is required for storeMetaEnvelope");
+            }
+            if (typeof context.eName !== "string" || context.eName.trim().length === 0) {
+                throw new Error("Invalid X-ENAME header: eName must be a non-empty string");
+            }
+            // Try to validate token if present (optional for store operations)
+            const authHeader =
+                context.request?.headers?.get("authorization") ??
+                context.request?.headers?.get("Authorization");
+            const tokenPayload = await this.validateToken(authHeader);
+            if (tokenPayload) {
+                context.tokenPayload = tokenPayload;
+            }
+            return;
+        }
+
+        // For all other operations: Bearer token is REQUIRED
+        const authHeader =
+            context.request?.headers?.get("authorization") ??
+            context.request?.headers?.get("Authorization");
+        
+        // Validate JWT token - this is REQUIRED
+        const tokenPayload = await this.validateToken(authHeader);
+        
+        if (!tokenPayload) {
+            throw new Error("Authentication required: A valid Bearer token in Authorization header is required");
+        }
+
+        // Valid token found - set token payload
+        context.tokenPayload = tokenPayload;
+    }
+
+    /**
      * Checks if the current user has access to a meta envelope based on its ACL
      * @param metaEnvelopeId - The ID of the meta envelope to check access for
      * @param context - The GraphQL context containing the current user
@@ -147,8 +191,20 @@ export class VaultAccessGuard {
         resolver: (parent: T, args: Args, context: VaultContext) => Promise<any>
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
+            // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
+            const isStoreOperation = args.input && 
+                typeof args.input === 'object' && 
+                'ontology' in args.input && 
+                'payload' in args.input && 
+                'acl' in args.input &&
+                !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
+
+            // CRITICAL: Validate authentication BEFORE executing any resolver
+            await this.validateAuthentication(context, isStoreOperation);
+
             // For operations that don't require a specific meta envelope ID (bulk queries)
             if (!args.id && !args.envelopeId) {
+                // Authentication validated, now execute resolver
                 const result = await resolver(parent, args, context);
 
                 // If the result is an array
@@ -169,6 +225,7 @@ export class VaultAccessGuard {
             // For operations that target a specific meta envelope
             const metaEnvelopeId = args.id || args.envelopeId;
             if (!metaEnvelopeId) {
+                // Authentication validated, now execute resolver
                 const result = await resolver(parent, args, context);
                 return this.filterACL(result);
             }

@@ -1,38 +1,43 @@
-FROM node:18-alpine AS base
-RUN apk update && apk add --no-cache libc6-compat
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
+
+# Set CI environment for non-interactive pnpm operations
+ENV CI=true
+ENV PYTHON=/usr/bin/python3
+RUN ln -sf python3 /usr/bin/python
 
 # ---
 FROM base AS prepare
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-RUN npm install -g turbo@^2
+RUN npm install -g pnpm@10.25.0 turbo@^2
 COPY . .
-# Generate a partial monorepo with a pruned lockfile for registry
 RUN turbo prune registry --docker
 
 # ---
 FROM base AS builder
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
+RUN npm install -g pnpm@10.25.0
 # First install the dependencies (as they change less often)
 COPY --from=prepare /app/out/json/ .
 RUN pnpm install --frozen-lockfile
 # Build the project
 COPY --from=prepare /app/out/full/ .
-# Build workspace dependencies first, then the main package (if any)
 RUN pnpm turbo build --filter=registry
 
 # ---
 FROM base AS runner
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-# Copy built application
-COPY --from=builder /app/platforms/registry/dist ./platforms/registry/dist
-COPY --from=builder /app/platforms/registry/package.json ./platforms/registry/
-COPY --from=builder /app/platforms/registry/node_modules ./platforms/registry/node_modules
-COPY --from=builder /app/node_modules ./node_modules
+# Copy workspace configuration for proper module resolution
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+# Copy built application
+COPY --from=builder /app/platforms/registry/dist ./dist
+COPY --from=builder /app/platforms/registry/package.json ./
+COPY --from=builder /app/platforms/registry/motd.json ./
+COPY --from=builder /app/platforms/registry/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
 
-WORKDIR /app/platforms/registry
 EXPOSE 4321
-CMD ["pnpm", "start"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:4321/motd', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
+CMD ["node", "dist/index.js"]
