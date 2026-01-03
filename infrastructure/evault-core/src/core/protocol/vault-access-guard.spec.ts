@@ -332,6 +332,7 @@ describe("VaultAccessGuard", () => {
 
     describe("middleware", () => {
         it("should filter ACL from responses", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
             const eName = "test@example.com";
             const metaEnvelope = await dbService.storeMetaEnvelope(
                 {
@@ -346,6 +347,11 @@ describe("VaultAccessGuard", () => {
             const context = createMockContext({
                 eName,
                 currentUser: "user-123",
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
             });
 
             const mockResolver = vi.fn(async () => {
@@ -364,6 +370,7 @@ describe("VaultAccessGuard", () => {
         });
 
         it("should throw error when access is denied", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
             const eName = "test@example.com";
             const metaEnvelope = await dbService.storeMetaEnvelope(
                 {
@@ -378,6 +385,11 @@ describe("VaultAccessGuard", () => {
             const context = createMockContext({
                 eName,
                 currentUser: "user-123",
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
             });
 
             const mockResolver = vi.fn(async () => {
@@ -392,6 +404,7 @@ describe("VaultAccessGuard", () => {
         });
 
         it("should prevent data leak when accessing with wrong eName in middleware", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
             const eName1 = "tenant1@example.com";
             const eName2 = "tenant2@example.com";
             
@@ -410,6 +423,11 @@ describe("VaultAccessGuard", () => {
             const context = createMockContext({
                 eName: eName2, // Wrong eName!
                 currentUser: "user-123",
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
             });
 
             const mockResolver = vi.fn(async () => {
@@ -489,16 +507,16 @@ describe("VaultAccessGuard", () => {
 
             const wrappedResolver = guard.middleware(mockResolver);
             
-            // Whitespace-only string will be caught by the trim check
+            // Will fail at authentication check first (no Bearer token required)
             await expect(
                 wrappedResolver(null, {}, context)
-            ).rejects.toThrow("Invalid X-ENAME header");
+            ).rejects.toThrow("Authentication required");
             
             // CRITICAL: Resolver should NOT be executed
             expect(mockResolver).not.toHaveBeenCalled();
         });
 
-        it("should allow getAllEnvelopes with valid eName", async () => {
+        it("should reject getAllEnvelopes with only eName (no Bearer token)", async () => {
             const eName = "test@example.com";
             const context = createMockContext({
                 eName,
@@ -512,11 +530,13 @@ describe("VaultAccessGuard", () => {
             });
 
             const wrappedResolver = guard.middleware(mockResolver);
-            const result = await wrappedResolver(null, {}, context);
             
-            // Should execute and return results
-            expect(result).toBeDefined();
-            expect(mockResolver).toHaveBeenCalled();
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed - eName alone is NOT sufficient
+            expect(mockResolver).not.toHaveBeenCalled();
         });
 
         it("should allow getAllEnvelopes with valid Bearer token", async () => {
@@ -587,7 +607,31 @@ describe("VaultAccessGuard", () => {
             expect(mockResolver).not.toHaveBeenCalled();
         });
 
-        it("should reject storeMetaEnvelope mutation without authentication", async () => {
+        it("should allow storeMetaEnvelope with only X-ENAME (no Bearer token required)", async () => {
+            const eName = "test@example.com";
+            const context = createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({}),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return {
+                    metaEnvelope: { id: "new-envelope", ontology: "Test" },
+                    envelopes: [],
+                };
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, { input: { ontology: "Test", payload: {}, acl: [] } }, context);
+            
+            // Should execute successfully - storeMetaEnvelope only requires X-ENAME
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+        });
+
+        it("should reject storeMetaEnvelope without X-ENAME", async () => {
             const context = createMockContext({
                 eName: null,
                 request: {
@@ -606,10 +650,38 @@ describe("VaultAccessGuard", () => {
             
             await expect(
                 wrappedResolver(null, { input: { ontology: "Test", payload: {}, acl: [] } }, context)
-            ).rejects.toThrow("Authentication required");
+            ).rejects.toThrow("X-ENAME header is required");
             
             // CRITICAL: Resolver should NOT be executed
             expect(mockResolver).not.toHaveBeenCalled();
+        });
+
+        it("should allow storeMetaEnvelope with Bearer token (optional)", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
+            const eName = "test@example.com";
+            const context = createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return {
+                    metaEnvelope: { id: "new-envelope", ontology: "Test" },
+                    envelopes: [],
+                };
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, { input: { ontology: "Test", payload: {}, acl: [] } }, context);
+            
+            // Should execute successfully - Bearer token is optional but allowed
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+            expect(context.tokenPayload).toBeDefined();
         });
 
         it("should reject deleteMetaEnvelope mutation without authentication", async () => {
@@ -678,7 +750,7 @@ describe("VaultAccessGuard", () => {
             expect(mockResolver).not.toHaveBeenCalled();
         });
 
-        it("should allow operations with valid eName even without token", async () => {
+        it("should reject operations with only eName (no Bearer token)", async () => {
             const eName = "test@example.com";
             const context = createMockContext({
                 eName,
@@ -692,14 +764,16 @@ describe("VaultAccessGuard", () => {
             });
 
             const wrappedResolver = guard.middleware(mockResolver);
-            const result = await wrappedResolver(null, {}, context);
             
-            // Should execute successfully
-            expect(result).toBeDefined();
-            expect(mockResolver).toHaveBeenCalled();
+            await expect(
+                wrappedResolver(null, {}, context)
+            ).rejects.toThrow("Authentication required");
+            
+            // CRITICAL: Resolver should NOT be executed - eName alone is NOT sufficient
+            expect(mockResolver).not.toHaveBeenCalled();
         });
 
-        it("should allow operations with valid token even without eName", async () => {
+        it("should allow operations with valid Bearer token (eName not required for auth)", async () => {
             const token = await createValidToken({ platform: "test-platform" });
             const context = createMockContext({
                 eName: null,
@@ -717,7 +791,32 @@ describe("VaultAccessGuard", () => {
             const wrappedResolver = guard.middleware(mockResolver);
             const result = await wrappedResolver(null, {}, context);
             
-            // Should execute successfully
+            // Should execute successfully - Bearer token is sufficient
+            expect(result).toBeDefined();
+            expect(mockResolver).toHaveBeenCalled();
+            expect(context.tokenPayload).toBeDefined();
+        });
+
+        it("should allow operations with valid Bearer token AND eName", async () => {
+            const token = await createValidToken({ platform: "test-platform" });
+            const eName = "test@example.com";
+            const context = createMockContext({
+                eName,
+                request: {
+                    headers: new Headers({
+                        authorization: `Bearer ${token}`,
+                    }),
+                } as any,
+            });
+
+            const mockResolver = vi.fn(async () => {
+                return [{ id: "envelope-1", ontology: "Test", value: {} }];
+            });
+
+            const wrappedResolver = guard.middleware(mockResolver);
+            const result = await wrappedResolver(null, {}, context);
+            
+            // Should execute successfully - Bearer token is required, eName can be present too
             expect(result).toBeDefined();
             expect(mockResolver).toHaveBeenCalled();
             expect(context.tokenPayload).toBeDefined();

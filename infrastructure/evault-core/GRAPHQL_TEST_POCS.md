@@ -1,17 +1,20 @@
 # GraphQL Authorization Test POCs
 
-These are proof-of-concept curl commands to test GraphQL authorization. After the fix, all operations should require either:
-- A valid Bearer token in the Authorization header, OR
-- A valid X-ENAME header
+These are proof-of-concept curl commands to test GraphQL authorization. After the fix, all operations **REQUIRE**:
+- A valid Bearer token in the Authorization header (MANDATORY)
+
+**EXCEPTION:** `storeMetaEnvelope` mutation only requires X-ENAME header (Bearer token is optional but allowed).
+
+**IMPORTANT:** For all other operations, X-ENAME header alone is NOT sufficient for authentication. A Bearer token is ALWAYS required.
 
 ## Server Configuration
 Replace `http://64.227.64.55:4000` with your actual server URL.
 
 ## Test eName
-Replace `@911253cf-885e-5a71-b0e4-c9df4cb6cd40` with a valid eName for your tests.
+Replace `@911253cf-885e-5a71-b0e4-c9df4cb6cd40` with a valid eName for your tests (used for data filtering, not authentication).
 
 ## Test Token
-Replace `YOUR_BEARER_TOKEN` with a valid JWT token from your registry.
+Replace `YOUR_BEARER_TOKEN` with a valid JWT token from your registry. This is REQUIRED for all operations.
 
 ---
 
@@ -27,7 +30,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "{ getAllEnvelopes { id ontology value } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -36,7 +39,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "{ getAllEnvelopes { id ontology value } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -57,7 +60,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "{ getMetaEnvelopeById(id: \"test-envelope-id\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -66,7 +69,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "{ getMetaEnvelopeById(id: \"test-envelope-id\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -87,7 +90,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "{ findMetaEnvelopesByOntology(ontology: \"TestOntology\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -96,7 +99,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "{ findMetaEnvelopesByOntology(ontology: \"TestOntology\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -117,7 +120,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "{ searchMetaEnvelopes(ontology: \"TestOntology\", term: \"search-term\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -126,7 +129,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "{ searchMetaEnvelopes(ontology: \"TestOntology\", term: \"search-term\") { id ontology envelopes { id value } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -141,7 +144,9 @@ http://64.227.64.55:4000/graphql \
 
 ### 5. storeMetaEnvelope
 
-**Without Authorization (Should FAIL):**
+**SPECIAL CASE: storeMetaEnvelope only requires X-ENAME (no Bearer token needed)**
+
+**Without X-ENAME (Should FAIL):**
 ```bash
 echo '{ "query": "mutation { storeMetaEnvelope(input: { ontology: \"TestOntology\", payload: { test: \"data\" }, acl: [\"user-123\"] }) { metaEnvelope { id ontology } envelopes { id } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -149,7 +154,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With X-ENAME (Should WORK - Bearer token NOT required for storeMetaEnvelope):**
 ```bash
 echo '{ "query": "mutation { storeMetaEnvelope(input: { ontology: \"TestOntology\", payload: { test: \"data\" }, acl: [\"user-123\"] }) { metaEnvelope { id ontology } envelopes { id } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -158,11 +163,12 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is optional but allowed):**
 ```bash
 echo '{ "query": "mutation { storeMetaEnvelope(input: { ontology: \"TestOntology\", payload: { test: \"data\" }, acl: [\"user-123\"] }) { metaEnvelope { id ontology } envelopes { id } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
 --header "Authorization: Bearer YOUR_BEARER_TOKEN" \
+--header "X-ENAME: @911253cf-885e-5a71-b0e4-c9df4cb6cd40" \
 --header "Content-Type: application/json" \
 --data @-
 ```
@@ -179,7 +185,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "mutation { updateMetaEnvelopeById(id: \"test-envelope-id\", input: { ontology: \"TestOntology\", payload: { test: \"updated-data\" }, acl: [\"user-123\"] }) { metaEnvelope { id ontology } envelopes { id } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -188,7 +194,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "mutation { updateMetaEnvelopeById(id: \"test-envelope-id\", input: { ontology: \"TestOntology\", payload: { test: \"updated-data\" }, acl: [\"user-123\"] }) { metaEnvelope { id ontology } envelopes { id } } }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -209,7 +215,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "mutation { deleteMetaEnvelope(id: \"test-envelope-id\") }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -218,7 +224,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "mutation { deleteMetaEnvelope(id: \"test-envelope-id\") }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -239,7 +245,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With eName (Should WORK):**
+**With ONLY eName (Should FAIL - eName alone is NOT sufficient):**
 ```bash
 echo '{ "query": "mutation { updateEnvelopeValue(envelopeId: \"test-envelope-id\", newValue: { updated: \"value\" }) }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -248,7 +254,7 @@ http://64.227.64.55:4000/graphql \
 --data @-
 ```
 
-**With Bearer Token (Should WORK):**
+**With Bearer Token (Should WORK - Bearer token is REQUIRED):**
 ```bash
 echo '{ "query": "mutation { updateEnvelopeValue(envelopeId: \"test-envelope-id\", newValue: { updated: \"value\" }) }" }' | tr -d '\n' | curl --silent \
 http://64.227.64.55:4000/graphql \
@@ -264,27 +270,34 @@ http://64.227.64.55:4000/graphql \
 ### Before Fix (VULNERABLE):
 - Operations without authorization would execute and return data
 - `getAllEnvelopes` could be called without any auth headers
+- X-ENAME alone was incorrectly accepted as authentication
 
 ### After Fix (SECURE):
-- All operations without valid Bearer token OR X-ENAME header will return an error:
+- All operations **REQUIRE** a valid Bearer token in the Authorization header
+- **EXCEPTION:** `storeMetaEnvelope` mutation only requires X-ENAME (Bearer token is optional)
+- Operations without valid Bearer token (except storeMetaEnvelope) will return an error:
   ```json
   {
     "errors": [{
-      "message": "Authentication required: Either provide a valid Bearer token in Authorization header or X-ENAME header"
+      "message": "Authentication required: A valid Bearer token in Authorization header is required"
     }]
   }
   ```
-- Operations with valid eName will work (for backward compatibility)
-- Operations with valid Bearer token will work (for platform integrations)
+- X-ENAME alone is **NOT sufficient** for most operations (except storeMetaEnvelope)
+- Operations with valid Bearer token will work
+- X-ENAME can still be provided for data filtering purposes, but Bearer token is mandatory (except for storeMetaEnvelope)
 
 ## Testing Checklist
 
 - [ ] Test all queries without auth (should all fail)
-- [ ] Test all queries with eName (should all work)
-- [ ] Test all queries with Bearer token (should all work)
-- [ ] Test all mutations without auth (should all fail)
-- [ ] Test all mutations with eName (should all work)
-- [ ] Test all mutations with Bearer token (should all work)
-- [ ] Test with empty eName (should fail)
+- [ ] Test all queries with ONLY eName (should all fail - eName alone is NOT sufficient)
+- [ ] Test all queries with Bearer token (should all work - Bearer token is REQUIRED)
+- [ ] Test storeMetaEnvelope without X-ENAME (should fail)
+- [ ] Test storeMetaEnvelope with ONLY X-ENAME (should work - special case)
+- [ ] Test storeMetaEnvelope with Bearer token (should work - optional)
+- [ ] Test all other mutations without auth (should all fail)
+- [ ] Test all other mutations with ONLY eName (should all fail - eName alone is NOT sufficient)
+- [ ] Test all other mutations with Bearer token (should all work - Bearer token is REQUIRED)
 - [ ] Test with invalid Bearer token (should fail)
+- [ ] Test with missing Bearer token (should fail)
 
