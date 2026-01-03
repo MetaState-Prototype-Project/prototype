@@ -70,13 +70,20 @@ export class GraphQLServer {
             const platformsToNotify = activePlatforms.filter((platformUrl) => {
                 if (!requestingPlatform) return true;
 
-                // Normalize URLs for comparison
-                const normalizedPlatformUrl = new URL(platformUrl).toString();
-                const normalizedRequestingPlatform = new URL(
-                    requestingPlatform
-                ).toString();
+                try {
+                    // Normalize URLs for comparison
+                    const normalizedPlatformUrl = new URL(platformUrl).toString();
+                    const normalizedRequestingPlatform = new URL(
+                        requestingPlatform
+                    ).toString();
 
-                return normalizedPlatformUrl !== normalizedRequestingPlatform;
+                    return normalizedPlatformUrl !== normalizedRequestingPlatform;
+                } catch (error) {
+                    // If requestingPlatform is not a valid URL, don't filter it out
+                    // (treat it as a different platform identifier)
+                    console.warn(`Invalid platform URL in token: ${requestingPlatform}`);
+                    return true;
+                }
             });
             console.log("sending webhooks to ", platformsToNotify);
 
