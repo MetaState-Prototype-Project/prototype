@@ -1,57 +1,55 @@
-FROM node:18-alpine AS base
-RUN apk update && apk add --no-cache libc6-compat
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
+
+# Set CI environment for non-interactive pnpm operations
+ENV CI=true
+ENV PYTHON=/usr/bin/python3
+RUN ln -sf python3 /usr/bin/python
 
 # ---
 FROM base AS prepare
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-RUN npm install -g turbo@^2
+RUN npm install -g pnpm@10.25.0 turbo@^2
 COPY . .
-# Generate a partial monorepo with a pruned lockfile for blabsy-w3ds-auth-api
 RUN turbo prune blabsy-w3ds-auth-api --docker
 
 # ---
 FROM base AS builder
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-# Copy workspace config first so pnpm recognizes workspace packages
-COPY --from=prepare /app/pnpm-workspace.yaml ./
-COPY --from=prepare /app/package.json ./
-# Copy infrastructure folder (before install) so postinstall scripts can find tsconfig files
-# web3-adapter depends on evault-core, which depends on w3id
-COPY --from=prepare /app/infrastructure/w3id ./infrastructure/w3id
-COPY --from=prepare /app/infrastructure/evault-core ./infrastructure/evault-core
-COPY --from=prepare /app/infrastructure/web3-adapter ./infrastructure/web3-adapter
+RUN npm install -g pnpm@10.25.0
 # First install the dependencies (as they change less often)
-# Use --no-frozen-lockfile because w3id dependencies aren't in the pruned lockfile
 COPY --from=prepare /app/out/json/ .
-RUN pnpm install --no-frozen-lockfile
+# Copy full source for packages that need postinstall builds (w3id, web3-adapter, signature-validator)
+COPY --from=prepare /app/out/full/infrastructure/w3id infrastructure/w3id
+COPY --from=prepare /app/out/full/infrastructure/web3-adapter infrastructure/web3-adapter
+COPY --from=prepare /app/out/full/infrastructure/signature-validator infrastructure/signature-validator
+COPY --from=prepare /app/out/full/infrastructure/evault-core infrastructure/evault-core
+RUN pnpm install --frozen-lockfile
 # Build the project
 COPY --from=prepare /app/out/full/ .
-# Install dependencies for workspace packages (they need to be recognized as workspace packages)
-# Use --no-frozen-lockfile because these weren't in the pruned lockfile
-RUN pnpm install --no-frozen-lockfile
-# Build workspace dependencies in order, then the main package
-RUN pnpm turbo build --filter=w3id && pnpm turbo build --filter=evault-core && pnpm turbo build --filter=web3-adapter && pnpm turbo build --filter=blabsy-w3ds-auth-api
+RUN pnpm turbo build --filter=blabsy-w3ds-auth-api
 
 # ---
 FROM base AS runner
-RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
-# Create parent directory structure for SQLite databases (must exist before volume mount)
-RUN mkdir -p /app/data/mapping-dbs/blabsy
-# Copy entrypoint script
-COPY --from=prepare /app/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-# Copy built application
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/dist ./platforms/blabsy-w3ds-auth-api/dist
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/package.json ./platforms/blabsy-w3ds-auth-api/
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/node_modules ./platforms/blabsy-w3ds-auth-api/node_modules
-COPY --from=builder /app/infrastructure ./infrastructure
-COPY --from=builder /app/node_modules ./node_modules
+# Copy workspace configuration
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+
+# Copy workspace dependencies
+COPY --from=builder /app/infrastructure ./infrastructure
+
+# Copy blabsy-w3ds-auth-api
+COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/dist ./dist
+COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/package.json ./
+COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/node_modules ./node_modules
+
+# Copy root node_modules
+COPY --from=builder /app/node_modules ./node_modules
 
 WORKDIR /app/platforms/blabsy-w3ds-auth-api
-EXPOSE 3000
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["pnpm", "start"]
 
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode < 500 ? 0 : 1)})"
+
+CMD ["node", "dist/index.js"]

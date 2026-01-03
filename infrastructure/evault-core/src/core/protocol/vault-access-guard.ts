@@ -51,6 +51,37 @@ export class VaultAccessGuard {
     }
 
     /**
+     * Validates authentication before allowing access to any operation
+     * Requires either a valid JWT token OR a valid eName header
+     * @param context - The GraphQL context containing headers and user info
+     * @throws Error if authentication fails
+     */
+    private async validateAuthentication(context: VaultContext): Promise<void> {
+        const authHeader =
+            context.request?.headers?.get("authorization") ??
+            context.request?.headers?.get("Authorization");
+        
+        // Try to validate JWT token first
+        const tokenPayload = await this.validateToken(authHeader);
+        
+        if (tokenPayload) {
+            // Valid token found - set token payload and allow access
+            context.tokenPayload = tokenPayload;
+            return;
+        }
+
+        // No valid token - require eName header
+        if (!context.eName) {
+            throw new Error("Authentication required: Either provide a valid Bearer token in Authorization header or X-ENAME header");
+        }
+
+        // Basic eName validation - ensure it's not empty
+        if (typeof context.eName !== "string" || context.eName.trim().length === 0) {
+            throw new Error("Invalid X-ENAME header: eName must be a non-empty string");
+        }
+    }
+
+    /**
      * Checks if the current user has access to a meta envelope based on its ACL
      * @param metaEnvelopeId - The ID of the meta envelope to check access for
      * @param context - The GraphQL context containing the current user
@@ -147,8 +178,12 @@ export class VaultAccessGuard {
         resolver: (parent: T, args: Args, context: VaultContext) => Promise<any>
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
+            // CRITICAL: Validate authentication BEFORE executing any resolver
+            await this.validateAuthentication(context);
+
             // For operations that don't require a specific meta envelope ID (bulk queries)
             if (!args.id && !args.envelopeId) {
+                // Authentication validated, now execute resolver
                 const result = await resolver(parent, args, context);
 
                 // If the result is an array
@@ -169,6 +204,7 @@ export class VaultAccessGuard {
             // For operations that target a specific meta envelope
             const metaEnvelopeId = args.id || args.envelopeId;
             if (!metaEnvelopeId) {
+                // Authentication validated, now execute resolver
                 const result = await resolver(parent, args, context);
                 return this.filterACL(result);
             }
