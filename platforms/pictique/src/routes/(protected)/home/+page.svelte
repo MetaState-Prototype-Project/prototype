@@ -4,24 +4,88 @@
 	import { Comment, MessageInput } from '$lib/fragments';
 	import { showComments } from '$lib/store/store.svelte';
 	import { activePostId } from '$lib/stores/comments';
-	import { error, fetchFeed, isLoading, posts, toggleLike } from '$lib/stores/posts';
+	import {
+		currentPage,
+		error,
+		fetchFeed,
+		hasMore,
+		isLoading,
+		isLoadingMore,
+		loadMoreFeed,
+		posts,
+		resetFeed,
+		toggleLike
+	} from '$lib/stores/posts';
 	import type { CommentType, userProfile } from '$lib/types';
 	import { apiClient, getAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 
 	let listElement: HTMLElement;
+	let sentinelElement: HTMLElement | undefined = $state();
 	let drawer: CupertinoPane | undefined = $state();
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
+	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	const sentinel = (node: HTMLElement) => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						const hasMorePosts = get(hasMore);
+						const loading = get(isLoading);
+						const loadingMore = get(isLoadingMore);
+
+						if (hasMorePosts && !loading && !loadingMore) {
+							loadMoreFeed();
+						}
+					}
+				}
+			},
+			{ root: listElement, rootMargin: '200px' }
+		);
+
+		observer.observe(node);
+
+		return {
+			destroy() {
+				observer.disconnect();
+			}
+		};
+	};
 
 	const onScroll = () => {
-		if (listElement.scrollTop + listElement.clientHeight >= listElement.scrollHeight) {
-			// TODO: Implement pagination
+		if (scrollTimeout) {
+			clearTimeout(scrollTimeout);
 		}
+
+		scrollTimeout = setTimeout(() => {
+			if (!listElement) return;
+
+			const scrollTop = listElement.scrollTop;
+			const scrollHeight = listElement.scrollHeight;
+			const clientHeight = listElement.clientHeight;
+			const threshold = 200; // Load more when within 200px of bottom
+
+			// Check if scrolled near bottom
+			const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+			const isNearBottom = distanceFromBottom <= threshold;
+
+			if (isNearBottom) {
+				const hasMorePosts = get(hasMore);
+				const loading = get(isLoading);
+				const loadingMore = get(isLoadingMore);
+
+				if (hasMorePosts && !loading && !loadingMore) {
+					loadMoreFeed();
+				}
+			}
+		}, 100); // Debounce scroll events
 	};
 	let profile = $state<userProfile | null>(null);
 	const handleSend = async () => {
@@ -77,20 +141,46 @@
 	}
 
 	$effect(() => {
-		listElement.addEventListener('scroll', onScroll);
-		console.log($posts);
-		return () => listElement.removeEventListener('scroll', onScroll);
+		if (!listElement) return;
+
+		const element = listElement;
+		element.addEventListener('scroll', onScroll, { passive: true });
+
+		return () => {
+			element.removeEventListener('scroll', onScroll);
+			if (scrollTimeout) {
+				clearTimeout(scrollTimeout);
+				scrollTimeout = null;
+			}
+		};
 	});
 
 	onMount(() => {
-		fetchFeed();
+		resetFeed();
+		fetchFeed(1, 10, false).then(() => {
+			// Check if we need to load more immediately (if content doesn't fill viewport)
+			setTimeout(() => {
+				if (listElement) {
+					const scrollHeight = listElement.scrollHeight;
+					const clientHeight = listElement.clientHeight;
+					if (
+						scrollHeight <= clientHeight &&
+						get(hasMore) &&
+						!get(isLoading) &&
+						!get(isLoadingMore)
+					) {
+						loadMoreFeed();
+					}
+				}
+			}, 100);
+		});
 		fetchProfile();
 	});
 </script>
 
 <div class="flex flex-col">
 	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
-		{#if $isLoading}
+		{#if $isLoading && $posts.length === 0}
 			<li class="my-4 text-center">Loading posts...</li>
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
@@ -110,7 +200,10 @@
 							like: async () => {
 								try {
 									await toggleLike(post.id);
-									await fetchFeed(); // Refresh feed to update like count
+									// Refresh current page to update like count
+									const currentPageValue = get(currentPage);
+									resetFeed();
+									await fetchFeed(currentPageValue, 10, false);
 								} catch (err) {
 									console.error('Failed to toggle like:', err);
 								}
@@ -129,6 +222,15 @@
 					/>
 				</li>
 			{/each}
+			{#if $isLoadingMore}
+				<li class="my-4 text-center">Loading more posts...</li>
+			{/if}
+			{#if !$hasMore && $posts.length > 0 && !$isLoadingMore}
+				<li class="my-4 text-center text-gray-500">No more posts to load</li>
+			{/if}
+			{#if $hasMore && !$isLoadingMore}
+				<li class="h-1 w-full" bind:this={sentinelElement} use:sentinel></li>
+			{/if}
 		{/if}
 	</ul>
 </div>
@@ -148,7 +250,7 @@
 			</li>
 		{/each}
 		<MessageInput
-			class="fixed start-0 bottom-4 mt-4 w-full px-5"
+			class="fixed bottom-4 start-0 mt-4 w-full px-5"
 			variant="comment"
 			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 			bind:value={commentValue}
