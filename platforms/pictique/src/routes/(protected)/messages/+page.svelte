@@ -68,12 +68,18 @@
 					? c.name || memberNames.join(', ') // Group name first, then member names
 					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
 
+				// Trim system message prefix from preview text
+				let previewText = c.latestMessage?.text ?? 'No message yet';
+				if (typeof previewText === 'string' && previewText.startsWith('$$system-message$$')) {
+					previewText = previewText.replace('$$system-message$$', '').trim();
+				}
+
 				return {
 					id: c.id,
 					avatar,
 					username: displayName,
 					unread: c.latestMessage ? !c.latestMessage.isRead : false,
-					text: c.latestMessage?.text ?? 'No message yet',
+					text: previewText,
 					handle: displayName,
 					name: displayName
 				};
