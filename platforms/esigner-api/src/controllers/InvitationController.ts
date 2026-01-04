@@ -94,6 +94,8 @@ export class InvitationController {
                 file: inv.file ? {
                     id: inv.file.id,
                     name: inv.file.name,
+                    displayName: inv.file.displayName,
+                    description: inv.file.description,
                     mimeType: inv.file.mimeType,
                     size: inv.file.size,
                     ownerId: inv.file.ownerId,

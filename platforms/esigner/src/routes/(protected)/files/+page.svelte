@@ -64,6 +64,9 @@
 						<div class="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm">
 							<div class="flex-1">
 								<p class="font-medium text-gray-900">{inv.file?.displayName || inv.file?.name || 'Unknown Signature Container'}</p>
+								{#if inv.file?.description}
+									<p class="text-sm text-gray-600 truncate">{inv.file.description}</p>
+								{/if}
 								<p class="text-sm text-gray-600">Invited {new Date(inv.invitedAt).toLocaleDateString()}</p>
 							</div>
 							<a

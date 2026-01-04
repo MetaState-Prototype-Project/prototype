@@ -13,6 +13,8 @@ export interface Invitation {
 	file?: {
 		id: string;
 		name: string;
+		displayName?: string | null;
+		description?: string | null;
 		mimeType: string;
 		size: number;
 		ownerId: string;
