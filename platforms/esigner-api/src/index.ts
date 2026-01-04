@@ -12,6 +12,7 @@ import { UserController } from "./controllers/UserController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { WebhookController } from "./controllers/WebhookController";
 import { adapter } from "./web3adapter/watchers/subscriber";
+import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -23,6 +24,23 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
+        
+        // Initialize platform eVault for eSigner
+        try {
+            const platformService = PlatformEVaultService.getInstance();
+            const exists = await platformService.checkPlatformEVaultExists();
+            
+            if (!exists) {
+                console.log("🔧 Creating platform eVault for eSigner...");
+                const result = await platformService.createPlatformEVault();
+                console.log(`✅ Platform eVault created successfully: ${result.w3id}`);
+            } else {
+                console.log("✅ Platform eVault already exists for eSigner");
+            }
+        } catch (error) {
+            console.error("❌ Failed to initialize platform eVault:", error);
+            // Don't exit the process, just log the error
+        }
     })
     .catch((error: any) => {
         console.error("Error during initialization:", error);
@@ -67,6 +85,7 @@ app.use(authMiddleware);
 app.post("/api/files", authGuard, fileController.uploadFile);
 app.get("/api/files", authGuard, fileController.getFiles);
 app.get("/api/files/:id", authGuard, fileController.getFile);
+app.patch("/api/files/:id", authGuard, fileController.updateFile);
 app.get("/api/files/:id/download", authGuard, fileController.downloadFile);
 app.delete("/api/files/:id", authGuard, fileController.deleteFile);
 app.get("/api/files/:fileId/signatures", authGuard, fileController.getFileSignatures);

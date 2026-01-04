@@ -3,11 +3,13 @@ import { File } from "../database/entities/File";
 import { FileSignee } from "../database/entities/FileSignee";
 import { User } from "../database/entities/User";
 import { In } from "typeorm";
+import { NotificationService } from "./NotificationService";
 
 export class InvitationService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
     private userRepository = AppDataSource.getRepository(User);
+    private notificationService = new NotificationService();
 
     async inviteSignees(
         fileId: string,
@@ -54,6 +56,10 @@ export class InvitationService {
             invitations.push(await this.fileSigneeRepository.save(ownerInvitation));
         }
         
+        // Get inviter user for notification
+        const inviter = await this.userRepository.findOne({ where: { id: invitedBy } });
+        const inviterName = inviter?.name || inviter?.ename;
+
         // Then add invited users (excluding owner)
         for (const userId of filteredUserIds) {
             // Check if invitation already exists
@@ -68,21 +74,37 @@ export class InvitationService {
                     invitedBy,
                     status: "pending",
                 });
-                invitations.push(await this.fileSigneeRepository.save(invitation));
+                const savedInvitation = await this.fileSigneeRepository.save(invitation);
+                invitations.push(savedInvitation);
+
+                // Send notification to invited user (fire-and-forget)
+                this.notificationService.sendInvitationNotification(userId, file, inviterName).catch(error => {
+                    console.error(`Failed to send invitation notification to user ${userId}:`, error);
+                });
             }
         }
 
         return invitations;
     }
 
-    async getFileInvitations(fileId: string, ownerId: string): Promise<FileSignee[]> {
-        // Verify user is owner
+    async getFileInvitations(fileId: string, userId: string): Promise<FileSignee[]> {
+        // Verify file exists
         const file = await this.fileRepository.findOne({
-            where: { id: fileId, ownerId },
+            where: { id: fileId },
         });
 
         if (!file) {
-            throw new Error("File not found or user is not the owner");
+            throw new Error("File not found");
+        }
+
+        // Check if user is owner or invited signee
+        const isOwner = file.ownerId === userId;
+        const isInvited = await this.fileSigneeRepository.findOne({
+            where: { fileId, userId },
+        });
+
+        if (!isOwner && !isInvited) {
+            throw new Error("File not found or user is not authorized");
         }
 
         return await this.fileSigneeRepository.find({

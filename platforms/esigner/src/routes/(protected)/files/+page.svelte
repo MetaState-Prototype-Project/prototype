@@ -63,7 +63,7 @@
 					{#each $invitations as inv}
 						<div class="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm">
 							<div class="flex-1">
-								<p class="font-medium text-gray-900">{inv.file?.name || 'Unknown Signature Container'}</p>
+								<p class="font-medium text-gray-900">{inv.file?.displayName || inv.file?.name || 'Unknown Signature Container'}</p>
 								<p class="text-sm text-gray-600">Invited {new Date(inv.invitedAt).toLocaleDateString()}</p>
 							</div>
 							<a
@@ -107,11 +107,14 @@
 							<div class="flex items-start justify-between">
 								<div class="flex-1">
 									<div class="flex items-center gap-3 mb-2">
-										<h4 class="font-semibold text-gray-900">{doc.name}</h4>
+										<h4 class="font-semibold text-gray-900">{doc.displayName || doc.name}</h4>
 										<span class="px-2 py-1 text-xs font-medium rounded {getStatusBadge(doc.status).class}">
 											{getStatusBadge(doc.status).text}
 										</span>
 									</div>
+									{#if doc.description}
+										<p class="text-sm text-gray-600 mb-2">{doc.description}</p>
+									{/if}
 									<div class="flex items-center gap-4 text-sm text-gray-600 mb-2">
 										<span>{formatFileSize(doc.size)}</span>
 										<span>•</span>

@@ -17,6 +17,8 @@ export interface Signature {
 export interface Document {
 	id: string;
 	name: string;
+	displayName?: string;
+	description?: string;
 	mimeType: string;
 	size: number;
 	md5Hash: string;
@@ -63,12 +65,18 @@ export const fetchDocuments = async () => {
 // Keep fetchFiles alias for backward compatibility
 export const fetchFiles = fetchDocuments;
 
-export const uploadFile = async (file: File) => {
+export const uploadFile = async (file: File, displayName?: string, description?: string) => {
 	try {
 		isLoading.set(true);
 		error.set(null);
 		const formData = new FormData();
 		formData.append('file', file);
+		if (displayName) {
+			formData.append('displayName', displayName);
+		}
+		if (description) {
+			formData.append('description', description);
+		}
 		const response = await apiClient.post('/api/files', formData, {
 			headers: {
 				'Content-Type': 'multipart/form-data',

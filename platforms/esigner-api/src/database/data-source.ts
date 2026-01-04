@@ -6,6 +6,8 @@ import { Group } from "./entities/Group";
 import { File } from "./entities/File";
 import { FileSignee } from "./entities/FileSignee";
 import { SignatureContainer } from "./entities/SignatureContainer";
+import { Message } from "./entities/Message";
+import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import path from "path";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
@@ -16,7 +18,7 @@ export const AppDataSource = new DataSource({
     url: process.env.ESIGNER_DATABASE_URL,
     synchronize: false,
     logging: process.env.NODE_ENV === "development",
-    entities: [User, Group, File, FileSignee, SignatureContainer],
+    entities: [User, Group, File, FileSignee, SignatureContainer, Message, UserEVaultMapping],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     subscribers: [PostgresSubscriber],
     ssl: process.env.DB_CA_CERT

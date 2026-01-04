@@ -5,9 +5,11 @@ import {
     PrimaryGeneratedColumn,
     Column,
     ManyToMany,
+    OneToMany,
     JoinTable,
 } from "typeorm";
 import { User } from "./User";
+import { Message } from "./Message";
 
 @Entity()
 export class Group {
@@ -64,6 +66,12 @@ export class Group {
 
     @Column({ nullable: true })
     bannerUrl!: string;
+
+    @Column({ type: "json", nullable: true })
+    originalMatchParticipants!: string[]; // Store user IDs from the original match
+
+    @OneToMany(() => Message, (message) => message.group)
+    messages!: Message[];
 
     @CreateDateColumn()
     createdAt!: Date;

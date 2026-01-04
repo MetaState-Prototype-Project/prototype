@@ -2,8 +2,10 @@ import crypto from "crypto";
 import { AppDataSource } from "../database/data-source";
 import { File } from "../database/entities/File";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
+import { FileSignee } from "../database/entities/FileSignee";
 import { InvitationService } from "./InvitationService";
 import { UserService } from "./UserService";
+import { NotificationService } from "./NotificationService";
 import { verifySignature } from "signature-validator";
 
 export interface SigningSession {
@@ -33,8 +35,10 @@ export class SignatureService {
     private sessions: Map<string, SigningSession> = new Map(); // Keyed by sessionId (userId_md5)
     private signatureRepository = AppDataSource.getRepository(SignatureContainer);
     private fileRepository = AppDataSource.getRepository(File);
+    private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
     private invitationService = new InvitationService();
     private userService = new UserService();
+    private notificationService = new NotificationService();
 
     async createSession(fileId: string, userId: string): Promise<SigningSession> {
         // Verify user has pending invitation
@@ -312,6 +316,36 @@ export class SignatureService {
             );
 
             console.log(`✅ Signature recorded for file ${session.fileId} by user ${session.userId}`);
+
+            // Get file and user for notifications (fire-and-forget)
+            this.fileRepository.findOne({ where: { id: session.fileId } }).then(async (file) => {
+                if (!file) return;
+
+                const signer = await this.userService.getUserById(session.userId);
+                const signerName = signer?.name || signer?.ename;
+
+                // Send notification to the owner (fire-and-forget)
+                this.notificationService.sendSignatureNotification(file.ownerId, file, signerName).catch(error => {
+                    console.error(`Failed to send signature notification to owner:`, error);
+                });
+
+                // Check if all parties have signed
+                const allSignees = await this.fileSigneeRepository.find({
+                    where: { fileId: session.fileId },
+                });
+
+                const allSigned = allSignees.every(signee => signee.status === "signed");
+                
+                if (allSigned && allSignees.length > 0) {
+                    // Send fully signed notification to all signees (fire-and-forget)
+                    const signeeIds = allSignees.map(s => s.userId);
+                    this.notificationService.sendFullySignedNotification(file, signeeIds).catch(error => {
+                        console.error(`Failed to send fully signed notifications:`, error);
+                    });
+                }
+            }).catch(error => {
+                console.error(`Failed to process notifications:`, error);
+            });
         } catch (error) {
             console.error("Failed to record signature:", error);
             throw new Error("Failed to record signature");

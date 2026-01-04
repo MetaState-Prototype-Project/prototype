@@ -26,17 +26,23 @@ export class FileController {
                     return res.status(401).json({ error: "Authentication required" });
                 }
 
+                const { displayName, description } = req.body;
+
                 const file = await this.fileService.createFile(
                     req.file.originalname,
                     req.file.mimetype,
                     req.file.size,
                     req.file.buffer,
-                    req.user.id
+                    req.user.id,
+                    displayName,
+                    description
                 );
 
                 res.status(201).json({
                     id: file.id,
                     name: file.name,
+                    displayName: file.displayName,
+                    description: file.description,
                     mimeType: file.mimeType,
                     size: file.size,
                     md5Hash: file.md5Hash,
@@ -79,6 +85,8 @@ export class FileController {
             res.json({
                 id: file.id,
                 name: file.name,
+                displayName: file.displayName,
+                description: file.description,
                 mimeType: file.mimeType,
                 size: file.size,
                 md5Hash: file.md5Hash,
@@ -89,6 +97,44 @@ export class FileController {
         } catch (error) {
             console.error("Error getting file:", error);
             res.status(500).json({ error: "Failed to get file" });
+        }
+    };
+
+    updateFile = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { id } = req.params;
+            const { displayName, description } = req.body;
+
+            const file = await this.fileService.updateFile(
+                id,
+                req.user.id,
+                displayName,
+                description
+            );
+
+            if (!file) {
+                return res.status(404).json({ error: "File not found or not authorized" });
+            }
+
+            res.json({
+                id: file.id,
+                name: file.name,
+                displayName: file.displayName,
+                description: file.description,
+                mimeType: file.mimeType,
+                size: file.size,
+                md5Hash: file.md5Hash,
+                ownerId: file.ownerId,
+                createdAt: file.createdAt,
+                updatedAt: file.updatedAt,
+            });
+        } catch (error) {
+            console.error("Error updating file:", error);
+            res.status(500).json({ error: "Failed to update file" });
         }
     };
 

@@ -5,12 +5,15 @@
 	import { apiClient, getAuthToken } from '$lib/utils/axios';
 	import moment from 'moment';
 	import { onMount } from 'svelte';
+	import { heading } from '../../../store';
+	import type { Chat } from '$lib/types';
 
 	const id = page.params.id;
 	let userId = $state();
 	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
+	let chatAvatar = $state('https://picsum.photos/id/237/200/300');
 
 	// Function to remove duplicate messages by ID
 	function removeDuplicateMessages(
@@ -156,9 +159,41 @@
 		}
 	}
 
+	async function loadChatInfo() {
+		try {
+			// Load chat info to set the header correctly
+			const { data: chatsData } = await apiClient.get<{
+				chats: Chat[];
+			}>(`/api/chats?page=1&limit=100`);
+			
+			const chat = chatsData.chats.find((c) => c.id === id);
+			if (chat && userId) {
+				const members = chat.participants.filter((u) => u.id !== userId);
+				const totalParticipants = chat.participants.length;
+				// Explicitly check: 2-person chat = exactly 2 participants, group = 3+ participants
+				const isGroup = totalParticipants > 2;
+				
+				// For 2-person chats, show the other person's name, not the group name
+				const displayName = isGroup
+					? chat.name || members.map((m) => m.name ?? m.handle ?? m.ename).join(', ')
+					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
+				
+				// For 2-person chats, use the other person's avatar, not the group picture
+				chatAvatar = isGroup
+					? '/images/group.png'
+					: members[0]?.avatarUrl || 'https://picsum.photos/id/237/200/300';
+				
+				heading.set(displayName);
+			}
+		} catch (error) {
+			console.error('Failed to load chat info:', error);
+		}
+	}
+
 	onMount(async () => {
 		const { data: userData } = await apiClient.get('/api/users');
 		userId = userData.id;
+		await loadChatInfo();
 		watchEventStream();
 	});
 </script>
@@ -187,7 +222,7 @@
 	<MessageInput
 		class="sticky start-0 bottom-[-15px] w-full"
 		variant="dm"
-		src="https://picsum.photos/id/237/200/300"
+		src={chatAvatar}
 		bind:value={messageValue}
 		{handleSend}
 	/>

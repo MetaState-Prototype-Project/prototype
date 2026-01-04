@@ -18,7 +18,13 @@ export class File {
     id!: string;
 
     @Column()
-    name!: string;
+    name!: string; // Original file name
+
+    @Column({ type: "varchar", nullable: true })
+    displayName!: string | null; // Custom name for the signature container
+
+    @Column({ type: "text", nullable: true })
+    description!: string | null; // Optional description
 
     @Column()
     mimeType!: string;

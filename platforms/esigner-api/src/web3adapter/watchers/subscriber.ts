@@ -53,6 +53,45 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         }
     }
 
+    /**
+     * Special enrichment method for Message entities to ensure group and admin data is loaded
+     */
+    private async enrichMessageEntity(messageEntity: any): Promise<any> {
+        try {
+            const enrichedMessage = { ...messageEntity };
+            
+            // If the message has a group, load the full group with admins and members
+            if (enrichedMessage.group && enrichedMessage.group.id) {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const fullGroup = await groupRepository.findOne({
+                    where: { id: enrichedMessage.group.id },
+                    relations: ["admins", "members", "participants"]
+                });
+                
+                if (fullGroup) {
+                    enrichedMessage.group = fullGroup;
+                }
+            }
+            
+            // If the message has a sender, ensure it's loaded
+            if (enrichedMessage.sender && enrichedMessage.sender.id) {
+                const userRepository = AppDataSource.getRepository("User");
+                const fullSender = await userRepository.findOne({
+                    where: { id: enrichedMessage.sender.id }
+                });
+                
+                if (fullSender) {
+                    enrichedMessage.sender = fullSender;
+                }
+            }
+            
+            return enrichedMessage;
+        } catch (error) {
+            console.error("Error enriching Message entity:", error);
+            return messageEntity;
+        }
+    }
+
     async afterInsert(event: InsertEvent<any>) {
         let entity = event.entity;
         if (entity) {
@@ -62,6 +101,12 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 event.metadata.target
             )) as ObjectLiteral;
         }
+        
+        // Special handling for Message entities to ensure complete data
+        if (event.metadata.tableName === "messages" && entity) {
+            entity = await this.enrichMessageEntity(entity);
+        }
+        
         this.handleChange(
             entity ?? event.entityId,
             event.metadata.tableName.endsWith("s")
@@ -71,17 +116,56 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     async afterUpdate(event: UpdateEvent<any>) {
+        // For updates, we need to reload the full entity since event.entity only contains changed fields
         let entity = event.entity;
-        if (entity) {
-            entity = (await this.enrichEntity(
-                entity,
-                event.metadata.tableName,
-                event.metadata.target
-            )) as ObjectLiteral;
+        
+        // Try different ways to get the entity ID
+        let entityId = event.entity?.id || event.databaseEntity?.id;
+        
+        if (!entityId && event.entity) {
+            // If we have the entity but no ID, try to extract it from the entity object
+            const entityKeys = Object.keys(event.entity);
+            
+            // Look for common ID field names
+            entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
         }
+        
+        if (entityId) {
+            // Reload the full entity from the database
+            const repository = AppDataSource.getRepository(event.metadata.target);
+            
+            // Determine relations based on entity type
+            let relations: string[] = [];
+            if (event.metadata.tableName === "messages") {
+                relations = ["sender", "group", "group.members", "group.admins", "group.participants"];
+            } else if (event.metadata.tableName === "groups") {
+                relations = ["members", "admins", "participants"];
+            }
+            
+            const fullEntity = await repository.findOne({
+                where: { id: entityId },
+                relations: relations.length > 0 ? relations : undefined
+            });
+            
+            if (fullEntity) {
+                entity = (await this.enrichEntity(
+                    fullEntity,
+                    event.metadata.tableName,
+                    event.metadata.target
+                )) as ObjectLiteral;
+            }
+        }
+        
+        // Special handling for Message entities to ensure complete data
+        if (event.metadata.tableName === "messages" && entity) {
+            entity = await this.enrichMessageEntity(entity);
+        }
+        
         this.handleChange(
             entity ?? event.entity,
-            event.metadata.tableName
+            event.metadata.tableName.endsWith("s")
+                ? event.metadata.tableName
+                : event.metadata.tableName + "s"
         );
     }
 
@@ -101,8 +185,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        // Only handle users and groups
-        if (tableName !== "users" && tableName !== "groups") {
+        // Handle users, groups, and messages
+        if (tableName !== "users" && tableName !== "groups" && tableName !== "messages") {
             return;
         }
 
@@ -126,6 +210,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     globalId = globalId ?? "";
 
                     if (this.adapter.lockedIds.includes(globalId)) {
+                        return;
+                    }
+
+                    // Check if this entity was recently created by a webhook
+                    if (this.adapter.lockedIds.includes(entity.id)) {
                         return;
                     }
 

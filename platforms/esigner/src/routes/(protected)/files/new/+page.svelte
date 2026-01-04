@@ -16,6 +16,8 @@
 	let isSubmitting = $state(false);
 	let dragOver = $state(false);
 	let currentUserId = $state<string | null>(null);
+	let displayName = $state('');
+	let description = $state('');
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -38,12 +40,19 @@
 	async function handleFileUpload(file: File) {
 		try {
 			isLoading = true;
-			const result = await uploadFile(file);
+			// Set default display name to file name if not set
+			const nameToUse = displayName.trim() || file.name;
+			const result = await uploadFile(file, nameToUse, description.trim() || undefined);
 			uploadedFile = file;
 			selectedFile = result;
+			// Update displayName if it was empty
+			if (!displayName.trim()) {
+				displayName = file.name;
+			}
 		} catch (err) {
 			console.error('Upload failed:', err);
 			alert('Failed to upload file');
+			throw err;
 		} finally {
 			isLoading = false;
 		}
@@ -52,7 +61,13 @@
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files[0]) {
-			handleFileUpload(target.files[0]);
+			// Don't upload immediately - just store the file
+			uploadedFile = target.files[0];
+			selectedFile = null;
+			// Set default display name
+			if (!displayName.trim()) {
+				displayName = target.files[0].name;
+			}
 		}
 	}
 
@@ -69,7 +84,13 @@
 		event.preventDefault();
 		dragOver = false;
 		if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-			handleFileUpload(event.dataTransfer.files[0]);
+			// Don't upload immediately - just store the file
+			uploadedFile = event.dataTransfer.files[0];
+			selectedFile = null;
+			// Set default display name
+			if (!displayName.trim()) {
+				displayName = event.dataTransfer.files[0].name;
+			}
 		}
 	}
 
@@ -223,6 +244,8 @@
 								onclick={() => {
 									uploadedFile = null;
 									selectedFile = null;
+									displayName = '';
+									description = '';
 								}}
 								class="text-sm text-red-600 hover:text-red-700"
 							>
@@ -261,7 +284,11 @@
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
 							{#each $files as file}
 								<button
-									onclick={() => selectedFile = file}
+									onclick={() => {
+										selectedFile = file;
+										displayName = file.displayName || file.name;
+										description = file.description || '';
+									}}
 									class={`p-4 border-2 rounded-lg text-left transition-colors ${
 										selectedFile?.id === file.id
 											? 'border-blue-600 bg-blue-50'
@@ -271,7 +298,7 @@
 									<div class="flex items-center gap-3">
 										<span class="text-2xl">{getFileIcon(file.mimeType)}</span>
 										<div class="flex-1 min-w-0">
-											<p class="font-medium text-gray-900 truncate">{file.name}</p>
+											<p class="font-medium text-gray-900 truncate">{file.displayName || file.name}</p>
 											<p class="text-sm text-gray-600">{formatFileSize(file.size)}</p>
 										</div>
 									</div>
@@ -281,17 +308,73 @@
 					{/if}
 				</div>
 
+				<!-- Signature Container Details -->
+				{#if selectedFile || uploadedFile}
+					<div class="mt-6 space-y-4">
+						<div>
+							<label for="display-name" class="block text-sm font-medium text-gray-700 mb-2">
+								Signature Container Name <span class="text-gray-500">(optional)</span>
+							</label>
+							<input
+								id="display-name"
+								type="text"
+								bind:value={displayName}
+								placeholder={uploadedFile ? uploadedFile.name : selectedFile?.name || 'Enter a name for this signature container'}
+								class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							/>
+							<p class="mt-1 text-sm text-gray-500">Give this signature container a descriptive name</p>
+						</div>
+						<div>
+							<label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+								Description <span class="text-gray-500">(optional)</span>
+							</label>
+							<textarea
+								id="description"
+								bind:value={description}
+								placeholder="Add any additional details about this signature container..."
+								rows="3"
+								class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							></textarea>
+						</div>
+					</div>
+				{/if}
+
 				<div class="flex justify-end mt-6">
 					<button
-						onclick={() => {
+						onclick={async () => {
+							if (uploadedFile && !selectedFile) {
+								// Upload the file with name/description when proceeding
+								try {
+									await handleFileUpload(uploadedFile);
+								} catch (err) {
+									// Error already handled in handleFileUpload
+									return;
+								}
+							} else if (selectedFile && !uploadedFile) {
+								// Update existing file with new name/description if changed
+								try {
+									isLoading = true;
+									const response = await apiClient.patch(`/api/files/${selectedFile.id}`, {
+										displayName: displayName.trim() || selectedFile.name,
+										description: description.trim() || null
+									});
+									selectedFile = response.data;
+								} catch (err) {
+									console.error('Failed to update file:', err);
+									alert('Failed to update signature container details');
+									return;
+								} finally {
+									isLoading = false;
+								}
+							}
 							if (selectedFile || uploadedFile) {
 								currentStep = 2;
 							}
 						}}
-						disabled={!selectedFile && !uploadedFile}
+						disabled={(!selectedFile && !uploadedFile) || isLoading}
 						class="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 					>
-						Next: Invite Signees
+						{isLoading ? 'Saving...' : 'Next: Invite Signees'}
 					</button>
 				</div>
 			</div>

@@ -18,20 +18,29 @@ export class FileService {
         mimeType: string,
         size: number,
         data: Buffer,
-        ownerId: string
+        ownerId: string,
+        displayName?: string,
+        description?: string
     ): Promise<File> {
         const md5Hash = await this.calculateMD5(data);
         
-        const file = this.fileRepository.create({
+        const fileData: Partial<File> = {
             name,
+            displayName: displayName || name, // Default to file name if not provided
             mimeType,
             size,
             md5Hash,
             data,
             ownerId,
-        });
+        };
 
-        return await this.fileRepository.save(file);
+        if (description !== undefined) {
+            fileData.description = description || null;
+        }
+
+        const file = this.fileRepository.create(fileData);
+        const savedFile = await this.fileRepository.save(file);
+        return savedFile;
     }
 
     async getFileById(id: string, userId?: string): Promise<File | null> {
@@ -129,6 +138,8 @@ export class FileService {
             return {
                 id: file.id,
                 name: file.name,
+                displayName: file.displayName,
+                description: file.description,
                 mimeType: file.mimeType,
                 size: file.size,
                 md5Hash: file.md5Hash,
@@ -158,6 +169,30 @@ export class FileService {
                 })) || [],
             };
         });
+    }
+
+    async updateFile(
+        id: string,
+        userId: string,
+        displayName?: string,
+        description?: string
+    ): Promise<File | null> {
+        const file = await this.fileRepository.findOne({
+            where: { id, ownerId: userId },
+        });
+
+        if (!file) {
+            return null;
+        }
+
+        if (displayName !== undefined) {
+            file.displayName = displayName || null;
+        }
+        if (description !== undefined) {
+            file.description = description || null;
+        }
+
+        return await this.fileRepository.save(file);
     }
 
     async deleteFile(id: string, userId: string): Promise<boolean> {

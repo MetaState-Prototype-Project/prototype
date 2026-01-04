@@ -210,9 +210,11 @@
 				proof: {
 					version: '1.0',
 					generatedAt: new Date().toISOString(),
-					file: {
+					signatureContainer: {
 						id: file.id,
 						name: file.name,
+						displayName: file.displayName,
+						description: file.description,
 						mimeType: file.mimeType,
 						size: file.size,
 						md5Hash: file.md5Hash,
@@ -244,7 +246,8 @@
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = `${file.name.replace(/\.[^/.]+$/, '')}_proof.json`;
+			const fileName = (file.displayName || file.name).replace(/\.[^/.]+$/, '');
+			a.download = `${fileName}_proof.json`;
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
@@ -269,7 +272,10 @@
 				</svg>
 				Back to Signature Containers
 			</a>
-			<h1 class="text-2xl font-bold text-gray-900">{file?.name || 'Signature Container'}</h1>
+			<h1 class="text-2xl font-bold text-gray-900">{file?.displayName || file?.name || 'Signature Container'}</h1>
+			{#if file?.description}
+				<p class="text-sm text-gray-600 mt-1">{file.description}</p>
+			{/if}
 		</div>
 		
 		<div class="flex-1 flex overflow-hidden">
@@ -326,10 +332,31 @@
 			<!-- Right Side: Metadata Sidebar (30%) -->
 			<div class="flex-[0.3] bg-white border-l border-gray-200 overflow-y-auto">
 				<div class="p-6 space-y-6">
-					<!-- File Info -->
+					<!-- Signature Container Info -->
 					<div>
+						<h2 class="text-sm font-semibold text-gray-900 mb-3">Signature Container</h2>
+						<div class="space-y-3">
+							<div>
+								<p class="text-xs text-gray-500 mb-1">Name</p>
+								<p class="text-sm font-medium text-gray-900">{file.displayName || file.name}</p>
+							</div>
+							{#if file.description}
+								<div>
+									<p class="text-xs text-gray-500 mb-1">Description</p>
+									<p class="text-sm text-gray-700 whitespace-pre-wrap">{file.description}</p>
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<!-- File Info -->
+					<div class="border-t border-gray-200 pt-6">
 						<h2 class="text-sm font-semibold text-gray-900 mb-3">File Information</h2>
 						<div class="space-y-2 text-sm">
+							<div class="flex justify-between">
+								<span class="text-gray-600">File Name:</span>
+								<span class="text-gray-900 font-medium truncate ml-2" title={file.name}>{file.name}</span>
+							</div>
 							<div class="flex justify-between">
 								<span class="text-gray-600">Size:</span>
 								<span class="text-gray-900 font-medium">{formatFileSize(file.size)}</span>
