@@ -54,25 +54,13 @@
 			const newMessages = data.chats.map((c) => {
 				const members = c.participants.filter((u) => u.id !== userData.id);
 				const memberNames = members.map((m) => m.name ?? m.handle ?? m.ename);
-				// Check if it's a 2-person chat (total participants = 2) or a group (3+ people)
-				const totalParticipants = c.participants.length;
-				// Explicitly check: 2-person chat = exactly 2 participants, group = 3+ participants
-				const isGroup = totalParticipants > 2;
+				const isGroup = members.length > 1;
 
-				// For 2-person chats, always use the other person's avatar, never the group picture
-				// For groups (3+ people), use the group picture
-				let avatar: string;
-				if (totalParticipants === 2 && members.length === 1 && members[0]?.avatarUrl) {
-					// 2-person chat: use the other person's avatar
-					avatar = members[0].avatarUrl;
-				} else if (isGroup) {
-					// Group chat (3+ people): use group picture
-					avatar = '/images/group.png';
-				} else {
-					// Fallback: use other person's avatar or default icon
-					avatar = members[0]?.avatarUrl ||
+				// Use group avatar for groups, user avatar for direct messages
+				const avatar = isGroup
+					? '/images/group.png'
+					: members[0]?.avatarUrl ||
 						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
-				}
 
 				// For groups (3+ people), prioritize the group name, fallback to member names
 				// For direct messages (2 people), always use the other person's name, never the group name

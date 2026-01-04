@@ -13,7 +13,6 @@
 	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
-	let chatAvatar = $state('https://picsum.photos/id/237/200/300');
 
 	// Function to remove duplicate messages by ID
 	function removeDuplicateMessages(
@@ -169,19 +168,12 @@
 			const chat = chatsData.chats.find((c) => c.id === id);
 			if (chat && userId) {
 				const members = chat.participants.filter((u) => u.id !== userId);
-				const totalParticipants = chat.participants.length;
-				// Explicitly check: 2-person chat = exactly 2 participants, group = 3+ participants
-				const isGroup = totalParticipants > 2;
+				const isGroup = members.length > 1;
 				
 				// For 2-person chats, show the other person's name, not the group name
 				const displayName = isGroup
 					? chat.name || members.map((m) => m.name ?? m.handle ?? m.ename).join(', ')
 					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
-				
-				// For 2-person chats, use the other person's avatar, not the group picture
-				chatAvatar = isGroup
-					? '/images/group.png'
-					: members[0]?.avatarUrl || 'https://picsum.photos/id/237/200/300';
 				
 				heading.set(displayName);
 			}
@@ -222,7 +214,7 @@
 	<MessageInput
 		class="sticky start-0 bottom-[-15px] w-full"
 		variant="dm"
-		src={chatAvatar}
+		src="https://picsum.photos/id/237/200/300"
 		bind:value={messageValue}
 		{handleSend}
 	/>
