@@ -1,0 +1,8 @@
+{
+	"/(protected)": [],
+	"/": [],
+	"/(auth)/auth": [],
+	"/(protected)/files": [],
+	"/(protected)/files/new": [],
+	"/(protected)/files/[id]": []
+}
