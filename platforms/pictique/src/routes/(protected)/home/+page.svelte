@@ -30,7 +30,6 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
-	let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const sentinel = (node: HTMLElement) => {
 		const observer = new IntersectionObserver(
@@ -47,7 +46,7 @@
 					}
 				}
 			},
-			{ root: listElement, rootMargin: '200px' }
+			{ rootMargin: '200px' }
 		);
 
 		observer.observe(node);
@@ -59,34 +58,6 @@
 		};
 	};
 
-	const onScroll = () => {
-		if (scrollTimeout) {
-			clearTimeout(scrollTimeout);
-		}
-
-		scrollTimeout = setTimeout(() => {
-			if (!listElement) return;
-
-			const scrollTop = listElement.scrollTop;
-			const scrollHeight = listElement.scrollHeight;
-			const clientHeight = listElement.clientHeight;
-			const threshold = 200; // Load more when within 200px of bottom
-
-			// Check if scrolled near bottom
-			const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-			const isNearBottom = distanceFromBottom <= threshold;
-
-			if (isNearBottom) {
-				const hasMorePosts = get(hasMore);
-				const loading = get(isLoading);
-				const loadingMore = get(isLoadingMore);
-
-				if (hasMorePosts && !loading && !loadingMore) {
-					loadMoreFeed();
-				}
-			}
-		}, 100); // Debounce scroll events
-	};
 	let profile = $state<userProfile | null>(null);
 	const handleSend = async () => {
 		const newComment = {
@@ -140,40 +111,9 @@
 		}
 	}
 
-	$effect(() => {
-		if (!listElement) return;
-
-		const element = listElement;
-		element.addEventListener('scroll', onScroll, { passive: true });
-
-		return () => {
-			element.removeEventListener('scroll', onScroll);
-			if (scrollTimeout) {
-				clearTimeout(scrollTimeout);
-				scrollTimeout = null;
-			}
-		};
-	});
-
 	onMount(() => {
 		resetFeed();
-		fetchFeed(1, 10, false).then(() => {
-			// Check if we need to load more immediately (if content doesn't fill viewport)
-			setTimeout(() => {
-				if (listElement) {
-					const scrollHeight = listElement.scrollHeight;
-					const clientHeight = listElement.clientHeight;
-					if (
-						scrollHeight <= clientHeight &&
-						get(hasMore) &&
-						!get(isLoading) &&
-						!get(isLoadingMore)
-					) {
-						loadMoreFeed();
-					}
-				}
-			}, 100);
-		});
+		fetchFeed(1, 10, false);
 		fetchProfile();
 	});
 </script>
@@ -200,13 +140,16 @@
 							like: async () => {
 								if (!profile) return;
 								
+								// Capture post ID for reliable lookup
+								const targetPostId = post.id;
+								
 								// Optimistically update the post in the store
 								const currentPosts = get(posts);
-								const postIndex = currentPosts.findIndex((p) => p.id === post.id);
+								const currentPostIndex = currentPosts.findIndex((p) => p.id === targetPostId);
 								
-								if (postIndex === -1) return;
+								if (currentPostIndex === -1) return;
 								
-								const currentPost = currentPosts[postIndex];
+								const currentPost = currentPosts[currentPostIndex];
 								const isCurrentlyLiked = currentPost.likedBy.some((p) => p.id === profile.id);
 								
 								// Save original state for potential rollback
@@ -215,6 +158,10 @@
 								// Optimistically update: toggle liked state and adjust like count
 								posts.update((posts) => {
 									const updatedPosts = [...posts];
+									const postIndex = updatedPosts.findIndex((p) => p.id === targetPostId);
+									
+									if (postIndex === -1) return updatedPosts;
+									
 									const postToUpdate = { ...updatedPosts[postIndex] };
 									
 									if (isCurrentlyLiked) {
@@ -231,11 +178,15 @@
 								
 								// Call toggleLike in the background
 								try {
-									await toggleLike(post.id);
+									await toggleLike(targetPostId);
 								} catch (err) {
 									// On error, revert the optimistic update
 									posts.update((posts) => {
 										const updatedPosts = [...posts];
+										const postIndex = updatedPosts.findIndex((p) => p.id === targetPostId);
+										
+										if (postIndex === -1) return updatedPosts;
+										
 										const postToRevert = { ...updatedPosts[postIndex] };
 										postToRevert.likedBy = originalLikedBy;
 										updatedPosts[postIndex] = postToRevert;
