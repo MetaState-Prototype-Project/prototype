@@ -5,6 +5,7 @@ import type { Writable } from 'svelte/store';
 export interface Signature {
 	id: string;
 	userId: string;
+	fileSigneeId?: string | null;
 	md5Hash: string;
 	message: string;
 	signature: string;

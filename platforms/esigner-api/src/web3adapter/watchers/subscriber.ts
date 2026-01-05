@@ -46,6 +46,45 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     async enrichEntity(entity: any, tableName: string, tableTarget: any) {
         try {
             const enrichedEntity = { ...entity };
+
+            // Special handling for File entities to ensure owner relation is loaded
+            if (tableName === "files" && (entity.ownerId || entity.owner)) {
+                const ownerId = entity.owner?.id || entity.ownerId;
+                if (ownerId) {
+                    const owner = await AppDataSource.getRepository("User").findOne({
+                        where: { id: ownerId },
+                        select: ["id", "ename", "name"]
+                    });
+                    if (owner) {
+                        enrichedEntity.owner = owner;
+                    }
+                }
+            }
+
+            // Special handling for SignatureContainer entities to ensure file and user relations are loaded
+            if (tableName === "signature_containers") {
+                if (entity.fileId || entity.file?.id) {
+                    const fileId = entity.file?.id || entity.fileId;
+                    const file = await AppDataSource.getRepository("File").findOne({
+                        where: { id: fileId },
+                        relations: ["owner"]
+                    });
+                    if (file) {
+                        enrichedEntity.file = file;
+                    }
+                }
+                if (entity.userId || entity.user?.id) {
+                    const userId = entity.user?.id || entity.userId;
+                    const user = await AppDataSource.getRepository("User").findOne({
+                        where: { id: userId },
+                        select: ["id", "ename", "name"]
+                    });
+                    if (user) {
+                        enrichedEntity.user = user;
+                    }
+                }
+            }
+
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
             console.error("Error loading relations:", error);
@@ -94,6 +133,31 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
     async afterInsert(event: InsertEvent<any>) {
         let entity = event.entity;
+        
+        // For files and signatures, reload with relations to ensure owner/user are loaded
+        if (entity && (event.metadata.tableName === "files" || event.metadata.tableName === "signature_containers")) {
+            const entityId = entity.id;
+            if (entityId) {
+                const repository = AppDataSource.getRepository(event.metadata.target);
+                let relations: string[] = [];
+                
+                if (event.metadata.tableName === "files") {
+                    relations = ["owner"];
+                } else if (event.metadata.tableName === "signature_containers") {
+                    relations = ["file", "user", "file.owner"];
+                }
+                
+                const fullEntity = await repository.findOne({
+                    where: { id: entityId },
+                    relations: relations.length > 0 ? relations : undefined
+                });
+                
+                if (fullEntity) {
+                    entity = fullEntity;
+                }
+            }
+        }
+        
         if (entity) {
             entity = (await this.enrichEntity(
                 entity,
@@ -140,6 +204,10 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 relations = ["sender", "group", "group.members", "group.admins", "group.participants"];
             } else if (event.metadata.tableName === "groups") {
                 relations = ["members", "admins", "participants"];
+            } else if (event.metadata.tableName === "files") {
+                relations = ["owner", "signees", "signatures"];
+            } else if (event.metadata.tableName === "signature_containers") {
+                relations = ["file", "user"];
             }
             
             const fullEntity = await repository.findOne({
@@ -185,13 +253,23 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        // Handle users, groups, and messages
-        if (tableName !== "users" && tableName !== "groups" && tableName !== "messages") {
+        if (!entity || !entity.id) {
+            return;
+        }
+
+        // Check if there's a mapping for this table
+        const mapping = Object.values(this.adapter.mapping).find(
+            (m) => m.tableName === tableName.toLowerCase()
+        );
+        
+        if (!mapping) {
             return;
         }
 
         const data = this.entityToPlain(entity);
-        if (!data.id) return;
+        if (!data.id) {
+            return;
+        }
 
         const changeKey = `${tableName}:${entity.id}`;
 
@@ -243,6 +321,11 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             return entity.toISOString();
         }
 
+        // Handle Buffer objects - convert to base64
+        if (Buffer.isBuffer(entity)) {
+            return entity.toString("base64");
+        }
+
         if (Array.isArray(entity)) {
             return entity.map((item) => this.entityToPlain(item));
         }
@@ -256,6 +339,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     plain[key] = value.map((item) => this.entityToPlain(item));
                 } else if (value instanceof Date) {
                     plain[key] = value.toISOString();
+                } else if (Buffer.isBuffer(value)) {
+                    // Convert Buffer to base64 string
+                    plain[key] = value.toString("base64");
                 } else {
                     plain[key] = this.entityToPlain(value);
                 }

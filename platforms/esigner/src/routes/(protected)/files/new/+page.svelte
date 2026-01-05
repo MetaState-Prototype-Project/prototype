@@ -64,10 +64,9 @@
 			// Don't upload immediately - just store the file
 			uploadedFile = target.files[0];
 			selectedFile = null;
-			// Set default display name
-			if (!displayName.trim()) {
-				displayName = target.files[0].name;
-			}
+			// Reset display name and description for new upload
+			displayName = target.files[0].name;
+			description = '';
 		}
 	}
 
@@ -87,10 +86,9 @@
 			// Don't upload immediately - just store the file
 			uploadedFile = event.dataTransfer.files[0];
 			selectedFile = null;
-			// Set default display name
-			if (!displayName.trim()) {
-				displayName = event.dataTransfer.files[0].name;
-			}
+			// Reset display name and description for new upload
+			displayName = event.dataTransfer.files[0].name;
+			description = '';
 		}
 	}
 
@@ -280,14 +278,15 @@
 				<!-- Or Select Existing -->
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900 mb-4">Or Select Existing File</h3>
-					{#if $files.length === 0}
-						<p class="text-gray-600 text-center py-8">No files available</p>
+					{#if $files.filter(file => !file.signatures || file.signatures.length === 0).length === 0}
+						<p class="text-gray-600 text-center py-8">No unused files available</p>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-							{#each $files as file}
+							{#each $files.filter(file => !file.signatures || file.signatures.length === 0) as file}
 								<button
 									onclick={() => {
 										selectedFile = file;
+										uploadedFile = null;
 										displayName = file.displayName || file.name;
 										description = file.description || '';
 									}}

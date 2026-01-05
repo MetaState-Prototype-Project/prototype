@@ -66,11 +66,21 @@
 	}
 
 	function checkIfUserSigned() {
-		if (!$currentUser || !$signatures) {
+		if (!$currentUser || !$signatures || !invitations) {
 			hasUserSigned = false;
 			return;
 		}
-		hasUserSigned = $signatures.some(sig => sig.userId === $currentUser.id);
+		
+		// Check if current user has signed in THIS specific set of invitations
+		// Match by fileSigneeId to ensure we only check signatures for this container
+		const userInvitation = invitations.find(inv => inv.userId === $currentUser.id);
+		if (!userInvitation) {
+			hasUserSigned = false;
+			return;
+		}
+		
+		// Check if there's a signature linked to this specific invitation
+		hasUserSigned = $signatures.some(sig => sig.fileSigneeId === userInvitation.id);
 	}
 
 	async function createPreview() {
@@ -160,15 +170,19 @@
 	}
 
 	function getCombinedSignees() {
-		// Create a map of user IDs to their signature data
+		// Create a map of fileSigneeId to their signature data
+		// This ensures signatures are matched to the specific invitation, not just by userId
 		const signatureMap = new Map();
 		$signatures.forEach(sig => {
-			signatureMap.set(sig.userId, sig);
+			if (sig.fileSigneeId) {
+				signatureMap.set(sig.fileSigneeId, sig);
+			}
 		});
 
 		// Combine invitations with their signature data if they've signed
+		// Match by fileSigneeId to ensure signatures are tied to specific invitations
 		return invitations.map(inv => {
-			const signature = signatureMap.get(inv.userId);
+			const signature = signatureMap.get(inv.id);
 			return {
 				...inv,
 				signature: signature || null,

@@ -1,6 +1,7 @@
 import { AppDataSource } from "../database/data-source";
 import { File } from "../database/entities/File";
 import { FileSignee } from "../database/entities/FileSignee";
+import { SignatureContainer } from "../database/entities/SignatureContainer";
 import { User } from "../database/entities/User";
 import { In } from "typeorm";
 import { NotificationService } from "./NotificationService";
@@ -8,6 +9,7 @@ import { NotificationService } from "./NotificationService";
 export class InvitationService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
+    private signatureRepository = AppDataSource.getRepository(SignatureContainer);
     private userRepository = AppDataSource.getRepository(User);
     private notificationService = new NotificationService();
 
@@ -23,6 +25,15 @@ export class InvitationService {
 
         if (!file) {
             throw new Error("File not found or user is not the owner");
+        }
+
+        // Check if file already has signatures (single-use enforcement)
+        const existingSignatures = await this.signatureRepository.find({
+            where: { fileId },
+        });
+
+        if (existingSignatures.length > 0) {
+            throw new Error("This file has already been used in a signature container and cannot be reused");
         }
 
         // Filter out the owner from userIds (they can't invite themselves)

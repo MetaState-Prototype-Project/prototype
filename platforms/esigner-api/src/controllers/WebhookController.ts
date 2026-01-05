@@ -2,22 +2,30 @@ import { Request, Response } from "express";
 import { UserService } from "../services/UserService";
 import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
+import { FileService } from "../services/FileService";
 import { Web3Adapter } from "web3-adapter";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { Message } from "../database/entities/Message";
+import { File } from "../database/entities/File";
+import { SignatureContainer } from "../database/entities/SignatureContainer";
+import { AppDataSource } from "../database/data-source";
 import axios from "axios";
 
 export class WebhookController {
     userService: UserService;
     groupService: GroupService;
     messageService: MessageService;
+    fileService: FileService;
     adapter: Web3Adapter;
+    fileRepository = AppDataSource.getRepository(File);
+    signatureRepository = AppDataSource.getRepository(SignatureContainer);
 
     constructor(adapter: Web3Adapter) {
         this.userService = new UserService();
         this.groupService = new GroupService();
         this.messageService = new MessageService();
+        this.fileService = new FileService();
         this.adapter = adapter;
     }
 
@@ -241,6 +249,164 @@ export class WebhookController {
                         globalId: req.body.id,
                     });
                     console.log("Stored mapping for message:", message.id, "->", req.body.id);
+                }
+            } else if (mapping.tableName === "files") {
+                // Extract owner from the file data
+                // ownerId might be a global reference or local ID
+                let ownerId: string | null = null;
+                if (local.data.ownerId && typeof local.data.ownerId === "string") {
+                    // Check if it's a reference format like "users(uuid)"
+                    if (local.data.ownerId.includes("(")) {
+                        ownerId = local.data.ownerId.split("(")[1].split(")")[0];
+                    } else {
+                        ownerId = local.data.ownerId;
+                    }
+                }
+
+                // Resolve global ownerId to local ownerId if needed
+                if (ownerId) {
+                    const localOwnerId = await this.adapter.mappingDb.getLocalId(ownerId);
+                    ownerId = localOwnerId || ownerId;
+                }
+
+                const owner = ownerId ? await this.userService.getUserById(ownerId) : null;
+                if (!owner) {
+                    console.error("Owner not found for file");
+                    return res.status(500).send();
+                }
+
+                if (localId) {
+                    // Update existing file
+                    const file = await this.fileService.getFileById(localId);
+                    if (!file) {
+                        console.error("File not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    file.name = local.data.name as string;
+                    file.displayName = local.data.displayName as string | null;
+                    file.description = local.data.description as string | null;
+                    file.mimeType = local.data.mimeType as string;
+                    file.size = local.data.size as number;
+                    file.md5Hash = local.data.md5Hash as string;
+                    file.ownerId = owner.id;
+                    
+                    // Decode base64 data if provided
+                    if (local.data.data && typeof local.data.data === "string") {
+                        file.data = Buffer.from(local.data.data, "base64");
+                    }
+
+                    this.adapter.addToLockedIds(localId);
+                    await this.fileRepository.save(file);
+                } else {
+                    // Create new file with binary data
+                    // Decode base64 data if provided
+                    let fileData: Buffer = Buffer.alloc(0);
+                    if (local.data.data && typeof local.data.data === "string") {
+                        fileData = Buffer.from(local.data.data, "base64");
+                    }
+                    
+                    const file = this.fileRepository.create({
+                        name: local.data.name as string,
+                        displayName: local.data.displayName as string | null,
+                        description: local.data.description as string | null,
+                        mimeType: local.data.mimeType as string,
+                        size: local.data.size as number,
+                        md5Hash: local.data.md5Hash as string,
+                        ownerId: owner.id,
+                        data: fileData,
+                    });
+
+                    this.adapter.addToLockedIds(file.id);
+                    await this.fileRepository.save(file);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: file.id,
+                        globalId: req.body.id,
+                    });
+                    localId = file.id;
+                }
+            } else if (mapping.tableName === "signature_containers") {
+                // Extract file and user from the signature data
+                let file: File | null = null;
+                let user: User | null = null;
+
+                // Resolve fileId - might be global reference
+                let fileId: string | null = null;
+                if (local.data.fileId && typeof local.data.fileId === "string") {
+                    if (local.data.fileId.includes("(")) {
+                        const fileGlobalId = local.data.fileId.split("(")[1].split(")")[0];
+                        const fileLocalId = await this.adapter.mappingDb.getLocalId(fileGlobalId);
+                        fileId = fileLocalId || fileGlobalId;
+                    } else {
+                        fileId = local.data.fileId;
+                    }
+                }
+
+                // Resolve userId - might be global reference
+                let userId: string | null = null;
+                if (local.data.userId && typeof local.data.userId === "string") {
+                    if (local.data.userId.includes("(")) {
+                        userId = local.data.userId.split("(")[1].split(")")[0];
+                    } else {
+                        userId = local.data.userId;
+                    }
+                }
+
+                // Resolve global IDs to local IDs
+                if (fileId) {
+                    const localFileId = await this.adapter.mappingDb.getLocalId(fileId);
+                    fileId = localFileId || fileId;
+                }
+                if (userId) {
+                    const localUserId = await this.adapter.mappingDb.getLocalId(userId);
+                    userId = localUserId || userId;
+                }
+
+                file = fileId ? await this.fileRepository.findOne({ where: { id: fileId } }) : null;
+                user = userId ? await this.userService.getUserById(userId) : null;
+
+                if (!file || !user) {
+                    console.error("File or user not found for signature");
+                    return res.status(500).send();
+                }
+
+                if (localId) {
+                    // Update existing signature
+                    const signature = await this.signatureRepository.findOne({
+                        where: { id: localId },
+                    });
+                    if (!signature) {
+                        console.error("Signature not found for localId:", localId);
+                        return res.status(500).send();
+                    }
+
+                    signature.fileId = file.id;
+                    signature.userId = user.id;
+                    signature.md5Hash = local.data.md5Hash as string;
+                    signature.signature = local.data.signature as string;
+                    signature.publicKey = local.data.publicKey as string;
+                    signature.message = local.data.message as string;
+
+                    this.adapter.addToLockedIds(localId);
+                    await this.signatureRepository.save(signature);
+                } else {
+                    // Create new signature
+                    const signature = this.signatureRepository.create({
+                        fileId: file.id,
+                        userId: user.id,
+                        md5Hash: local.data.md5Hash as string,
+                        signature: local.data.signature as string,
+                        publicKey: local.data.publicKey as string,
+                        message: local.data.message as string,
+                    });
+
+                    this.adapter.addToLockedIds(signature.id);
+                    await this.signatureRepository.save(signature);
+                    await this.adapter.mappingDb.storeMapping({
+                        localId: signature.id,
+                        globalId: req.body.id,
+                    });
+                    localId = signature.id;
                 }
             }
 

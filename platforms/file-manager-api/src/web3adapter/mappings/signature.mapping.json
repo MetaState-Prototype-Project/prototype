@@ -1,0 +1,17 @@
+{
+    "tableName": "signature_containers",
+    "schemaId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "ownerEnamePath": "users(user.ename)",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "fileId": "files(file.id),fileId",
+        "userId": "users(user.id),userId",
+        "md5Hash": "md5Hash",
+        "signature": "signature",
+        "publicKey": "publicKey",
+        "message": "message",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    }
+}
+
