@@ -151,8 +151,11 @@
 			{#if isMobileDevice()}
 				Login with your <a href={getAppStoreLink()}><b><u>eID Wallet</u></b></a>
 			{:else}
-				Scan the QR code using your <a href={getAppStoreLink()} target="_blank"
-					><b><u class="text-sm">eID App</u></b></a
+				Scan the QR code using your <a
+					href={getAppStoreLink()}
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="eID App (opens in new tab)"><b><u class="text-sm">eID App</u></b></a
 				> to login
 			{/if}
 		</h2>
@@ -167,7 +170,7 @@
 				<div class="flex flex-col items-center gap-4">
 					<a
 						href={getDeepLinkUrl(qrData)}
-						class="rounded-xl bg-gradient-to-r from-[#4D44EF] via-[#F35B5B] to-[#F7A428] px-8 py-4 text-base font-semibold text-white transition-opacity hover:opacity-90"
+						class="rounded-xl bg-linear-to-r from-[#4D44EF] via-[#F35B5B] to-[#F7A428] px-8 py-4 text-base font-semibold text-white transition-opacity hover:opacity-90"
 					>
 						Login with eID Wallet
 					</a>
