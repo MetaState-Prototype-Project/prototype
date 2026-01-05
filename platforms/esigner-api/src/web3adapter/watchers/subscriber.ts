@@ -253,13 +253,23 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        // Handle users, groups, and messages
-        if (tableName !== "users" && tableName !== "groups" && tableName !== "messages") {
+        if (!entity || !entity.id) {
+            return;
+        }
+
+        // Check if there's a mapping for this table
+        const mapping = Object.values(this.adapter.mapping).find(
+            (m) => m.tableName === tableName.toLowerCase()
+        );
+        
+        if (!mapping) {
             return;
         }
 
         const data = this.entityToPlain(entity);
-        if (!data.id) return;
+        if (!data.id) {
+            return;
+        }
 
         const changeKey = `${tableName}:${entity.id}`;
 

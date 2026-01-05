@@ -89,6 +89,7 @@ app.get("/api/files", authGuard, fileController.getFiles);
 app.get("/api/files/:id", authGuard, fileController.getFile);
 app.get("/api/files/:id/download", authGuard, fileController.downloadFile);
 app.get("/api/files/:id/preview", authGuard, fileController.previewFile);
+app.get("/api/files/:id/signatures", authGuard, fileController.getFileSignatures);
 app.patch("/api/files/:id", authGuard, fileController.updateFile);
 app.delete("/api/files/:id", authGuard, fileController.deleteFile);
 app.post("/api/files/:id/move", authGuard, fileController.moveFile);

@@ -9,6 +9,7 @@
 	import { fetchFileAccess, grantFileAccess, revokeFileAccess, fileAccess } from '$lib/stores/access';
 	import { tags, fetchTags, addTagToFile, removeTagFromFile, createTag } from '$lib/stores/tags';
 	import { currentUser } from '$lib/stores/auth';
+	import { fetchFileSignatures } from '$lib/stores/signatures';
 
 	let file = $state<any>(null);
 	let isLoading = $state(false);
@@ -39,6 +40,7 @@
 		await loadFile(fileId);
 		await fetchFileAccess(fileId);
 		await fetchTags();
+		await fetchFileSignatures(fileId);
 	});
 
 	async function loadFile(fileId: string) {
@@ -379,6 +381,39 @@
 						<p class="text-sm text-gray-500">No tags yet</p>
 					{/if}
 				</div>
+
+				<!-- Signatures Card -->
+				{#if file.signatures && file.signatures.length > 0}
+					<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+						<h2 class="text-lg font-semibold text-gray-900 mb-4">
+							Signatures <span class="text-gray-500 font-normal">({file.signatures.length})</span>
+						</h2>
+						<div class="space-y-3">
+							{#each file.signatures as sig}
+								<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+									<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+										{#if sig.user?.avatarUrl}
+											<img src={sig.user.avatarUrl} alt={sig.user.name || sig.user.ename} class="w-10 h-10 rounded-full" />
+										{:else}
+											<span class="text-blue-600 font-semibold text-sm">
+												{(sig.user?.name || sig.user?.ename || '?')[0].toUpperCase()}
+											</span>
+										{/if}
+									</div>
+									<div class="flex-1 min-w-0">
+										<p class="text-sm font-medium text-gray-900 truncate">
+											{sig.user?.name || sig.user?.ename || 'Unknown User'}
+										</p>
+										<p class="text-xs text-gray-500">
+											Signed on {formatDate(sig.createdAt)}
+										</p>
+									</div>
+									<span class="text-green-600 text-xs font-semibold">✓</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
 				<!-- Share Settings Card -->
 				<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">

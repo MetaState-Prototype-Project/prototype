@@ -257,10 +257,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     private async handleChange(entity: any, tableName: string): Promise<void> {
-        console.log(`🔍 handleChange called for: ${tableName}, entityId: ${entity?.id}`);
-        
         if (!entity || !entity.id) {
-            console.log(`⏭️ Skipping handleChange for ${tableName}: entity or entity.id is missing`);
             return;
         }
 
@@ -270,19 +267,13 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
         );
         
         if (!mapping) {
-            console.log(`⏭️ No mapping found for table: ${tableName}, skipping sync`);
             return;
         }
-        
-        console.log(`✅ Mapping found for ${tableName}, schemaId: ${mapping.schemaId}`);
 
         const data = this.entityToPlain(entity);
         if (!data.id) {
-            console.log(`⏭️ Skipping handleChange for ${tableName}: data.id is missing`);
             return;
         }
-        
-        console.log(`📦 Prepared data for ${tableName}:`, { id: data.id, name: data.name || data.displayName || 'N/A' });
 
         const changeKey = `${tableName}:${entity.id}`;
 
@@ -301,22 +292,18 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     globalId = globalId ?? "";
 
                     if (this.adapter.lockedIds.includes(globalId)) {
-                        console.log(`🔒 Skipping locked globalId: ${globalId}`);
                         return;
                     }
 
                     // Check if this entity was recently created by a webhook
                     if (this.adapter.lockedIds.includes(entity.id)) {
-                        console.log(`🔒 Skipping locked localId: ${entity.id}`);
                         return;
                     }
 
-                    console.log(`🚀 Sending change to adapter for ${tableName}:${entity.id}`);
                     const envelope = await this.adapter.handleChange({
                         data,
                         tableName: tableName.toLowerCase(),
                     });
-                    console.log(`✅ Successfully synced ${tableName}:${entity.id}`);
                 } catch (error) {
                     console.error(`❌ Error in setTimeout for ${tableName}:`, error);
                 } finally {

@@ -199,6 +199,7 @@ export class FileController {
             res.json(signatures.map(sig => ({
                 id: sig.id,
                 userId: sig.userId,
+                fileSigneeId: sig.fileSigneeId || null,
                 user: sig.user ? {
                     id: sig.user.id,
                     name: sig.user.name,

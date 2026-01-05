@@ -5,7 +5,6 @@ import type { Writable } from 'svelte/store';
 export interface Signature {
 	id: string;
 	userId: string;
-	fileSigneeId?: string | null;
 	md5Hash: string;
 	message: string;
 	signature: string;
@@ -16,13 +15,7 @@ export interface Signature {
 		name: string;
 		ename: string;
 		avatarUrl?: string;
-	};
-}
-
-export interface SigningSession {
-	sessionId: string;
-	qrData: string;
-	expiresAt: string;
+	} | null;
 }
 
 export const signatures: Writable<Signature[]> = writable([]);
@@ -42,19 +35,4 @@ export const fetchFileSignatures = async (fileId: string) => {
 		isLoading.set(false);
 	}
 };
-
-export const createSigningSession = async (fileId: string): Promise<SigningSession> => {
-	try {
-		isLoading.set(true);
-		error.set(null);
-		const response = await apiClient.post('/api/signatures/session', { fileId });
-		return response.data;
-	} catch (err) {
-		error.set(err instanceof Error ? err.message : 'Failed to create signing session');
-		throw err;
-	} finally {
-		isLoading.set(false);
-	}
-};
-
 

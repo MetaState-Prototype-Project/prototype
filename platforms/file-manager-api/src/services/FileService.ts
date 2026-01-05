@@ -211,5 +211,13 @@ export class FileService {
         const pdfTypes = ['application/pdf'];
         return imageTypes.includes(mimeType) || pdfTypes.includes(mimeType);
     }
+
+    async getFileSignatures(fileId: string): Promise<SignatureContainer[]> {
+        return await this.signatureRepository.find({
+            where: { fileId },
+            relations: ["user"],
+            order: { createdAt: "ASC" },
+        });
+    }
 }
 

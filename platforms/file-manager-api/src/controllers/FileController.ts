@@ -106,6 +106,9 @@ export class FileController {
                 return res.status(404).json({ error: "File not found" });
             }
 
+            // Get signatures for this file
+            const signatures = await this.fileService.getFileSignatures(id);
+
             res.json({
                 id: file.id,
                 name: file.name,
@@ -120,6 +123,21 @@ export class FileController {
                 updatedAt: file.updatedAt,
                 canPreview: this.fileService.canPreview(file.mimeType),
                 tags: file.tags || [],
+                signatures: signatures.map(sig => ({
+                    id: sig.id,
+                    userId: sig.userId,
+                    user: sig.user ? {
+                        id: sig.user.id,
+                        name: sig.user.name,
+                        ename: sig.user.ename,
+                        avatarUrl: sig.user.avatarUrl,
+                    } : null,
+                    md5Hash: sig.md5Hash,
+                    signature: sig.signature,
+                    publicKey: sig.publicKey,
+                    message: sig.message,
+                    createdAt: sig.createdAt,
+                })),
             });
         } catch (error) {
             console.error("Error getting file:", error);
@@ -220,25 +238,61 @@ export class FileController {
         }
     };
 
-    deleteFile = async (req: Request, res: Response) => {
-        try {
-            if (!req.user) {
-                return res.status(401).json({ error: "Authentication required" });
-            }
+            deleteFile = async (req: Request, res: Response) => {
+                try {
+                    if (!req.user) {
+                        return res.status(401).json({ error: "Authentication required" });
+                    }
 
-            const { id } = req.params;
-            const deleted = await this.fileService.deleteFile(id, req.user.id);
+                    const { id } = req.params;
+                    const deleted = await this.fileService.deleteFile(id, req.user.id);
 
-            if (!deleted) {
-                return res.status(404).json({ error: "File not found or not authorized" });
-            }
+                    if (!deleted) {
+                        return res.status(404).json({ error: "File not found or not authorized" });
+                    }
 
-            res.json({ message: "File deleted successfully" });
-        } catch (error) {
-            console.error("Error deleting file:", error);
-            res.status(500).json({ error: "Failed to delete file" });
-        }
-    };
+                    res.json({ message: "File deleted successfully" });
+                } catch (error) {
+                    console.error("Error deleting file:", error);
+                    res.status(500).json({ error: "Failed to delete file" });
+                }
+            };
+
+            getFileSignatures = async (req: Request, res: Response) => {
+                try {
+                    if (!req.user) {
+                        return res.status(401).json({ error: "Authentication required" });
+                    }
+
+                    const { id } = req.params;
+                    const file = await this.fileService.getFileById(id, req.user.id);
+
+                    if (!file) {
+                        return res.status(404).json({ error: "File not found" });
+                    }
+
+                    const signatures = await this.fileService.getFileSignatures(id);
+
+                    res.json(signatures.map(sig => ({
+                        id: sig.id,
+                        userId: sig.userId,
+                        user: sig.user ? {
+                            id: sig.user.id,
+                            name: sig.user.name,
+                            ename: sig.user.ename,
+                            avatarUrl: sig.user.avatarUrl,
+                        } : null,
+                        md5Hash: sig.md5Hash,
+                        message: sig.message,
+                        signature: sig.signature,
+                        publicKey: sig.publicKey,
+                        createdAt: sig.createdAt,
+                    })));
+                } catch (error) {
+                    console.error("Error getting file signatures:", error);
+                    res.status(500).json({ error: "Failed to get signatures" });
+                }
+            };
 
     moveFile = async (req: Request, res: Response) => {
         try {
