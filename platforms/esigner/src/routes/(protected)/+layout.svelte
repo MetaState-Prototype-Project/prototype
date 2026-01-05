@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { logout } from '$lib/stores/auth';
+	import UserMenuDropdown from '$lib/components/UserMenuDropdown.svelte';
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -14,12 +14,7 @@
 					</div>
 					<h1 class="text-2xl font-bold text-gray-900">eSigner</h1>
 				</div>
-				<button
-					onclick={() => logout()}
-					class="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-				>
-					Logout
-				</button>
+				<UserMenuDropdown />
 			</div>
 		</div>
 	</header>
