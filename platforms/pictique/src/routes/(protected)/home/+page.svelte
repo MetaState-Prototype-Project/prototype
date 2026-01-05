@@ -175,7 +175,10 @@
 										);
 									} else {
 										// Like: add current user to likedBy
-										postToUpdate.likedBy = [...postToUpdate.likedBy, currentProfile];
+										postToUpdate.likedBy = [
+											...postToUpdate.likedBy,
+											currentProfile
+										];
 									}
 
 									updatedPosts[postIndex] = postToUpdate;
@@ -218,7 +221,12 @@
 				</li>
 			{/each}
 			{#if $isLoadingMore}
-				<li class="my-4 text-center">Loading more posts...</li>
+				<li class="my-4 flex flex-col items-center justify-center gap-2">
+					<span class="text-center">Loading more posts...</span>
+					<div
+						class="h-6 w-6 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
+					></div>
+				</li>
 			{/if}
 			{#if !$hasMore && $posts.length > 0 && !$isLoadingMore}
 				<li class="my-4 text-center text-gray-500">No more posts to load</li>
@@ -245,7 +253,7 @@
 			</li>
 		{/each}
 		<MessageInput
-			class="fixed bottom-4 start-0 mt-4 w-full px-5"
+			class="fixed start-0 bottom-4 mt-4 w-full px-5"
 			variant="comment"
 			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 			bind:value={commentValue}
