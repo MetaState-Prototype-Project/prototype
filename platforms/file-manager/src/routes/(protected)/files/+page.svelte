@@ -161,6 +161,11 @@
 			toast.success('File uploaded successfully');
 			showUploadModal = false;
 			selectedFile = null;
+			// Refresh files and folder tree after upload
+			await Promise.all([
+				loadFiles(),
+				fetchFolderTree()
+			]);
 		} catch (error) {
 			console.error('Upload failed:', error);
 			toast.error('Failed to upload file');
