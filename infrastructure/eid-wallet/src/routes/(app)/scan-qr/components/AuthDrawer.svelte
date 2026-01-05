@@ -14,7 +14,7 @@
 </script>
 
 <div
-    class="flex flex-col gap-4 items-start justify-center w-full max-w-md mx-auto bg-white rounded-3xl"
+    class="flex flex-col gap-4 items-start justify-center w-full max-w-md mx-auto p-6 bg-white"
 >
     <div
         class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"

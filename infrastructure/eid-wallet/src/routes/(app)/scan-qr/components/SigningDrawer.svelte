@@ -1,60 +1,39 @@
 <script lang="ts">
-import { Drawer } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+    import * as Button from "$lib/ui/Button";
+    import { QrCodeIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import type { SigningData } from "../scanLogic";
 
-import type { SigningData } from "../scanLogic";
+    export let showSigningSuccess: boolean;
+    export let isBlindVotingRequest: boolean;
+    export let signingData: SigningData | null;
+    export let blindVoteError: string | null;
+    export let selectedBlindVoteOption: number | null;
+    export let isSubmittingBlindVote: boolean;
+    export let loading: boolean;
+    export let signingError: string | null | undefined;
+    export let onDecline: () => void;
+    export let onSign: () => void;
+    export let onBlindVoteOptionChange: (value: number) => void;
+    export let onSubmitBlindVote: () => void;
+    export let onSuccessOkay: () => void;
 
-export let isOpen: boolean;
-export let showSigningSuccess: boolean;
-export let isBlindVotingRequest: boolean;
-export let signingData: SigningData | null;
-export let blindVoteError: string | null;
-export let selectedBlindVoteOption: number | null;
-export let isSubmittingBlindVote: boolean;
-export let loading: boolean;
-export let signingError: string | null | undefined;
-export let onDecline: () => void;
-export let onSign: () => void;
-export let onBlindVoteOptionChange: (value: number) => void;
-export let onSubmitBlindVote: () => void;
-export let onSuccessOkay: () => void;
-export let onOpenChange: (value: boolean) => void;
-
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
-
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
-}
-
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
-
-let hasPollDetails = false;
-$: hasPollDetails =
-    signingData?.pollId !== undefined && signingData?.pollDetails !== undefined;
+    let hasPollDetails = false;
+    $: hasPollDetails =
+        signingData?.pollId !== undefined &&
+        signingData?.pollDetails !== undefined;
 </script>
 
-<Drawer
-    title={showSigningSuccess
-        ? "Success"
-        : isBlindVotingRequest
-          ? "Blind Vote"
-          : signingData?.pollId
-            ? "Sign Vote"
-            : "Sign Message"}
-    bind:isPaneOpen={internalOpen}
-    class="flex flex-col gap-4 items-center justify-center"
+<div
+    class="flex flex-col gap-4 items-center justify-center w-full max-w-md mx-auto p-6 bg-white"
 >
     {#if showSigningSuccess}
         <div
             class="flex justify-center mb-4 relative items-center overflow-hidden bg-green-100 rounded-xl p-4 h-[72px] w-[72px]"
         >
-            <div class="bg-green-500 h-[16px] w-[200px] -rotate-45 absolute top-1"></div>
+            <div
+                class="bg-green-500 h-[16px] w-[200px] -rotate-45 absolute top-1"
+            ></div>
             <div
                 class="bg-green-500 h-[16px] w-[200px] -rotate-45 absolute bottom-1"
             ></div>
@@ -67,7 +46,7 @@ $: hasPollDetails =
             />
         </div>
 
-        <h4 class="text-green-800">
+        <h4 class="text-green-800 text-xl font-bold text-center">
             {#if isBlindVotingRequest}
                 Blind Vote Submitted Successfully!
             {:else if signingData?.pollId}
@@ -76,10 +55,11 @@ $: hasPollDetails =
                 Message Signed Successfully!
             {/if}
         </h4>
-        <p class="text-black-700 text-center">
+
+        <p class="text-black-700 text-center text-sm">
             {#if isBlindVotingRequest}
-                Your blind vote has been submitted and is now completely hidden using
-                cryptographic commitments.
+                Your blind vote has been submitted and is now completely hidden
+                using cryptographic commitments.
             {:else if signingData?.pollId}
                 Your vote has been signed and submitted to the voting system.
             {:else}
@@ -100,7 +80,9 @@ $: hasPollDetails =
         <div
             class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
         >
-            <div class="bg-white h-[16px] w-[200px] -rotate-45 absolute top-1"></div>
+            <div
+                class="bg-white h-[16px] w-[200px] -rotate-45 absolute top-1"
+            ></div>
             <div
                 class="bg-white h-[16px] w-[200px] -rotate-45 absolute bottom-1"
             ></div>
@@ -113,7 +95,7 @@ $: hasPollDetails =
             />
         </div>
 
-        <h4>
+        <h4 class="text-xl font-bold">
             {#if isBlindVotingRequest}
                 Blind Vote Request
             {:else if signingData?.pollId}
@@ -122,7 +104,8 @@ $: hasPollDetails =
                 Sign Message Request
             {/if}
         </h4>
-        <p class="text-black-700">
+
+        <p class="text-black-700 text-center text-sm">
             {#if isBlindVotingRequest}
                 You're being asked to submit a blind vote for the following poll
             {:else if signingData?.pollId}
@@ -134,152 +117,128 @@ $: hasPollDetails =
 
         {#if signingData?.pollId && signingData?.voteData}
             <div class="bg-gray rounded-2xl w-full p-4 mt-4">
-                <h4 class="text-base text-black-700">Poll ID</h4>
+                <h4 class="text-sm text-black-700 font-semibold">Poll ID</h4>
                 <p class="text-black-700 font-normal">
                     {signingData?.pollId ?? "Unknown"}
                 </p>
             </div>
         {:else if isBlindVotingRequest && hasPollDetails}
-            <div class="blind-voting-section">
-                <h3 class="text-lg font-semibold mb-4">Blind Voting</h3>
-
+            <div class="w-full mt-4">
                 {#if blindVoteError}
                     <div
-                        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+                        class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start gap-3 text-left"
                     >
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <svg
-                                    class="h-5 w-5 text-red-400"
-                                    viewBox="0 0 20 20"
-                                    fill="currentColor"
-                                >
-                                    <path
-                                        fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                        clip-rule="evenodd"
-                                    />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-red-800">
-                                    Error
-                                </h3>
-                                <div class="mt-2 text-sm text-red-700">
-                                    {blindVoteError}
-                                </div>
+                        <svg
+                            class="h-5 w-5 text-red-400 mt-0.5"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-medium text-red-800">
+                                Error
+                            </h3>
+                            <div class="text-xs text-red-700">
+                                {blindVoteError}
                             </div>
                         </div>
                     </div>
                 {/if}
 
-                <div class="bg-gray-50 rounded-lg p-4 mb-4">
-                    <h4 class="font-medium text-gray-900 mb-2">
-                        Poll: {signingData?.pollDetails?.title || "Unknown"}
+                <div class="bg-gray-50 rounded-xl p-4 mb-4 text-left">
+                    <h4 class="font-bold text-gray-900 text-base">
+                        {signingData?.pollDetails?.title || "Unknown Poll"}
                     </h4>
-                    <p class="text-sm text-gray-600">
+                    <p class="text-xs text-gray-600">
                         Creator: {signingData?.pollDetails?.creatorName ||
                             "Unknown"}
                     </p>
                 </div>
 
-                <fieldset class="mb-4">
-                    <legend class="block text-sm font-medium text-gray-700 mb-2">
-                        Select your vote:
-                    </legend>
-                    {#each signingData?.pollDetails?.options || [] as option, index}
-                        <label class="flex items-center mb-2">
-                            <input
-                                type="radio"
-                                name="blindVoteOption"
-                                value={index}
-                                checked={selectedBlindVoteOption === index}
-                                onchange={() => onBlindVoteOptionChange(index)}
-                                class="mr-2"
-                            />
-                            <span class="text-sm">{option}</span>
-                        </label>
-                    {/each}
+                <fieldset class="mb-4 w-full text-left">
+                    <legend class="block text-sm font-medium text-gray-700 mb-3"
+                        >Select your vote:</legend
+                    >
+                    <div class="flex flex-col gap-2">
+                        {#each signingData?.pollDetails?.options || [] as option, index}
+                            <label
+                                class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                                <input
+                                    type="radio"
+                                    name="blindVoteOption"
+                                    value={index}
+                                    checked={selectedBlindVoteOption === index}
+                                    onchange={() =>
+                                        onBlindVoteOptionChange(index)}
+                                    class="w-4 h-4 text-blue-600"
+                                />
+                                <span class="ml-3 text-sm text-gray-700"
+                                    >{option}</span
+                                >
+                            </label>
+                        {/each}
+                    </div>
                 </fieldset>
 
-                <button
-                    onclick={onSubmitBlindVote}
+                <Button.Action
+                    variant="solid"
+                    class="w-full"
                     disabled={selectedBlindVoteOption === null ||
                         isSubmittingBlindVote}
-                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    callback={onSubmitBlindVote}
                 >
                     {#if isSubmittingBlindVote}
-                        <span class="flex items-center justify-center">
-                            <svg
-                                class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                            >
-                                <circle
-                                    class="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    stroke-width="4"
-                                ></circle>
-                                <path
-                                    class="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
-                            </svg>
-                            Submitting...
-                        </span>
+                        Submitting...
                     {:else}
                         Submit Blind Vote
                     {/if}
-                </button>
+                </Button.Action>
             </div>
         {:else}
-            <div class="bg-gray rounded-2xl w-full p-4 mt-4">
-                <h4 class="text-base text-black-700">Message</h4>
-                <p class="text-black-700 font-normal">
+            <div class="bg-gray rounded-2xl w-full p-4 mt-4 text-left">
+                <h4 class="text-sm text-black-700 font-semibold">Message</h4>
+                <p class="text-black-700 font-normal break-words">
                     {signingData?.message ?? "No message provided"}
                 </p>
             </div>
 
-            <div class="bg-gray rounded-2xl w-full p-4">
-                <h4 class="text-base text-black-700">Session ID</h4>
-                <p class="text-black-700 font-normal font-mono">
+            <div class="bg-gray rounded-2xl w-full p-4 text-left">
+                <h4 class="text-sm text-black-700 font-semibold">Session ID</h4>
+                <p class="text-black-700 font-normal font-mono text-xs">
                     {signingData?.sessionId?.slice(0, 8) ?? "Unknown"}...
                 </p>
             </div>
 
             {#if signingError}
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <svg
-                                class="h-5 w-5 text-red-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">Error</h3>
-                            <div class="mt-2 text-sm text-red-700">
-                                {signingError}
-                            </div>
-                        </div>
+                <div
+                    class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4 w-full flex items-start gap-3 text-left"
+                >
+                    <svg
+                        class="h-5 w-5 text-red-400 mt-0.5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                    >
+                        <path
+                            fill-rule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                            clip-rule="evenodd"
+                        />
+                    </svg>
+                    <div>
+                        <h3 class="text-sm font-medium text-red-800">Error</h3>
+                        <div class="text-xs text-red-700">{signingError}</div>
                     </div>
                 </div>
             {/if}
         {/if}
 
-        <div class="flex justify-center gap-3 items-center mt-4">
+        <div class="flex justify-center gap-3 items-center mt-4 w-full">
             {#if !isBlindVotingRequest}
                 {#if signingError}
                     <Button.Action
@@ -300,6 +259,7 @@ $: hasPollDetails =
                     <Button.Action
                         variant="solid"
                         class="w-full"
+                        disabled={loading}
                         callback={onSign}
                     >
                         {#if loading}
@@ -314,5 +274,4 @@ $: hasPollDetails =
             {/if}
         </div>
     {/if}
-</Drawer>
-
+</div>
