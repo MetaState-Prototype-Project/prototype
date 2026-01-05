@@ -5,7 +5,6 @@
 	import { showComments } from '$lib/store/store.svelte';
 	import { activePostId } from '$lib/stores/comments';
 	import {
-		currentPage,
 		error,
 		fetchFeed,
 		hasMore,
@@ -23,8 +22,6 @@
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 
-	let listElement: HTMLElement;
-	let sentinelElement: HTMLElement | undefined = $state();
 	let drawer: CupertinoPane | undefined = $state();
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
@@ -119,7 +116,7 @@
 </script>
 
 <div class="flex flex-col">
-	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
+	<ul class="hide-scrollbar h-[100vh] overflow-auto">
 		{#if $isLoading && $posts.length === 0}
 			<li class="my-4 text-center">Loading posts...</li>
 		{:else if $error}
@@ -139,43 +136,52 @@
 						callback={{
 							like: async () => {
 								if (!profile) return;
-								
-								// Capture post ID for reliable lookup
+
+								// Capture profile and post ID for reliable lookup
+								const currentProfile = profile;
 								const targetPostId = post.id;
-								
+
 								// Optimistically update the post in the store
 								const currentPosts = get(posts);
-								const currentPostIndex = currentPosts.findIndex((p) => p.id === targetPostId);
-								
+								const currentPostIndex = currentPosts.findIndex(
+									(p) => p.id === targetPostId
+								);
+
 								if (currentPostIndex === -1) return;
-								
+
 								const currentPost = currentPosts[currentPostIndex];
-								const isCurrentlyLiked = currentPost.likedBy.some((p) => p.id === profile.id);
-								
+								const isCurrentlyLiked = currentPost.likedBy.some(
+									(p) => p.id === currentProfile.id
+								);
+
 								// Save original state for potential rollback
 								const originalLikedBy = [...currentPost.likedBy];
-								
+
 								// Optimistically update: toggle liked state and adjust like count
 								posts.update((posts) => {
 									const updatedPosts = [...posts];
-									const postIndex = updatedPosts.findIndex((p) => p.id === targetPostId);
-									
+									const postIndex = updatedPosts.findIndex(
+										(p) => p.id === targetPostId
+									);
+
 									if (postIndex === -1) return updatedPosts;
-									
+
 									const postToUpdate = { ...updatedPosts[postIndex] };
-									
+
 									if (isCurrentlyLiked) {
 										// Unlike: remove current user from likedBy
-										postToUpdate.likedBy = postToUpdate.likedBy.filter((p) => p.id !== profile.id);
+										postToUpdate.likedBy = postToUpdate.likedBy.filter(
+											(p) => p.id !== currentProfile.id
+										);
 									} else {
 										// Like: add current user to likedBy
-										postToUpdate.likedBy = [...postToUpdate.likedBy, profile];
+										postToUpdate.likedBy = [...postToUpdate.likedBy, currentProfile];
 									}
-									
+
 									updatedPosts[postIndex] = postToUpdate;
 									return updatedPosts;
 								});
-								
+
 								// Call toggleLike in the background
 								try {
 									await toggleLike(targetPostId);
@@ -183,10 +189,12 @@
 									// On error, revert the optimistic update
 									posts.update((posts) => {
 										const updatedPosts = [...posts];
-										const postIndex = updatedPosts.findIndex((p) => p.id === targetPostId);
-										
+										const postIndex = updatedPosts.findIndex(
+											(p) => p.id === targetPostId
+										);
+
 										if (postIndex === -1) return updatedPosts;
-										
+
 										const postToRevert = { ...updatedPosts[postIndex] };
 										postToRevert.likedBy = originalLikedBy;
 										updatedPosts[postIndex] = postToRevert;
@@ -216,7 +224,7 @@
 				<li class="my-4 text-center text-gray-500">No more posts to load</li>
 			{/if}
 			{#if $hasMore && !$isLoadingMore}
-				<li class="h-1 w-full" bind:this={sentinelElement} use:sentinel></li>
+				<li class="h-1 w-full" use:sentinel></li>
 			{/if}
 		{/if}
 	</ul>
