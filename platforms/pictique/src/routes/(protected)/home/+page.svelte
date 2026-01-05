@@ -198,13 +198,49 @@
 						count={{ likes: post.likedBy.length, comments: post.comments.length }}
 						callback={{
 							like: async () => {
+								if (!profile) return;
+								
+								// Optimistically update the post in the store
+								const currentPosts = get(posts);
+								const postIndex = currentPosts.findIndex((p) => p.id === post.id);
+								
+								if (postIndex === -1) return;
+								
+								const currentPost = currentPosts[postIndex];
+								const isCurrentlyLiked = currentPost.likedBy.some((p) => p.id === profile.id);
+								
+								// Save original state for potential rollback
+								const originalLikedBy = [...currentPost.likedBy];
+								
+								// Optimistically update: toggle liked state and adjust like count
+								posts.update((posts) => {
+									const updatedPosts = [...posts];
+									const postToUpdate = { ...updatedPosts[postIndex] };
+									
+									if (isCurrentlyLiked) {
+										// Unlike: remove current user from likedBy
+										postToUpdate.likedBy = postToUpdate.likedBy.filter((p) => p.id !== profile.id);
+									} else {
+										// Like: add current user to likedBy
+										postToUpdate.likedBy = [...postToUpdate.likedBy, profile];
+									}
+									
+									updatedPosts[postIndex] = postToUpdate;
+									return updatedPosts;
+								});
+								
+								// Call toggleLike in the background
 								try {
 									await toggleLike(post.id);
-									// Refresh current page to update like count
-									const currentPageValue = get(currentPage);
-									resetFeed();
-									await fetchFeed(currentPageValue, 10, false);
 								} catch (err) {
+									// On error, revert the optimistic update
+									posts.update((posts) => {
+										const updatedPosts = [...posts];
+										const postToRevert = { ...updatedPosts[postIndex] };
+										postToRevert.likedBy = originalLikedBy;
+										updatedPosts[postIndex] = postToRevert;
+										return updatedPosts;
+									});
 									console.error('Failed to toggle like:', err);
 								}
 							},
