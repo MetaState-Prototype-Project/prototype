@@ -162,6 +162,7 @@ declare module '$env/static/private' {
 	export const FNM_LOGLEVEL: string;
 	export const OLDPWD: string;
 	export const TERM_PROGRAM: string;
+	export const NODE_ENV: string;
 }
 
 /**
@@ -342,6 +343,7 @@ declare module '$env/dynamic/private' {
 		FNM_LOGLEVEL: string;
 		OLDPWD: string;
 		TERM_PROGRAM: string;
+		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}
