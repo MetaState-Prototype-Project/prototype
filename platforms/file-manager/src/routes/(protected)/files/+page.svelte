@@ -112,16 +112,19 @@
 		foldersList = f;
 	});
 
-	onMount(async () => {
+	onMount(() => {
 		isAuthenticated.subscribe((auth) => {
 			if (!auth) {
 				goto('/auth');
 			}
 		});
 
-		await fetchFolderTree();
-		await loadFiles();
-		await updateBreadcrumbs();
+		// Load data asynchronously
+		(async () => {
+			await fetchFolderTree();
+			await loadFiles();
+			await updateBreadcrumbs();
+		})();
 
 		// Close dropdown when clicking outside
 		function handleClickOutside(event: MouseEvent) {
@@ -207,20 +210,27 @@
 	async function handleDelete() {
 		if (!itemToDelete) return;
 
+		const itemType = itemToDelete.type;
+		const itemName = itemToDelete.name;
+
 		try {
-			if (itemToDelete.type === 'file') {
+			isLoading = true;
+			if (itemType === 'file') {
 				await deleteFile(itemToDelete.id);
 				toast.success('File deleted successfully');
 			} else {
 				await deleteFolder(itemToDelete.id);
 				toast.success('Folder deleted successfully');
-				await loadFiles();
 			}
 			showDeleteModal = false;
 			itemToDelete = null;
+			await loadFiles();
+			await fetchFolderTree();
 		} catch (error) {
 			console.error('Failed to delete:', error);
-			toast.error(`Failed to delete ${itemToDelete.type}`);
+			toast.error(`Failed to delete ${itemType === 'file' ? 'file' : 'folder'}`);
+		} finally {
+			isLoading = false;
 		}
 	}
 

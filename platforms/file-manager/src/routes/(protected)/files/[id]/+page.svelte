@@ -232,17 +232,20 @@
 			// Check if tag already exists
 			const existingTag = $tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
 			
+			let tagId: string;
 			if (existingTag) {
 				// Use existing tag
-				selectedTag = existingTag.id;
+				tagId = existingTag.id;
+				selectedTag = tagId;
 			} else {
 				// Create new tag
 				const newTag = await createTag(tagName, null);
-				selectedTag = newTag.id;
+				tagId = newTag.id;
+				selectedTag = tagId;
 			}
 
 			// Add tag to file
-			await addTagToFile(file.id, selectedTag);
+			await addTagToFile(file.id, tagId);
 			toast.success('Tag added successfully');
 			showTagModal = false;
 			selectedTag = null;
