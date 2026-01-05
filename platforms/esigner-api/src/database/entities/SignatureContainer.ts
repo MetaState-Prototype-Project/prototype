@@ -5,6 +5,7 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
     ManyToOne,
+    OneToOne,
     JoinColumn,
 } from "typeorm";
 import { File } from "./File";
@@ -45,7 +46,7 @@ export class SignatureContainer {
     @JoinColumn({ name: "userId" })
     user!: User;
 
-    @ManyToOne(() => FileSignee, (fileSignee) => fileSignee.signature, { nullable: true })
+    @OneToOne(() => FileSignee, (fileSignee) => fileSignee.signature, { nullable: true })
     @JoinColumn({ name: "fileSigneeId" })
     fileSignee!: FileSignee | null;
 
