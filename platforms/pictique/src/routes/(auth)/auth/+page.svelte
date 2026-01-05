@@ -151,7 +151,9 @@
 			{#if isMobileDevice()}
 				Login with your <a href={getAppStoreLink()}><b><u>eID Wallet</u></b></a>
 			{:else}
-				Scan the QR code using your <b><u class="text-sm">eID App</u></b> to login
+				Scan the QR code using your <a href={getAppStoreLink()} target="_blank"
+					><b><u class="text-sm">eID App</u></b></a
+				> to login
 			{/if}
 		</h2>
 		{#if errorMessage}
