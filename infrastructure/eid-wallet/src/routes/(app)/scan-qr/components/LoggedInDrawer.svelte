@@ -1,11 +1,11 @@
 <script lang="ts">
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
-    export let platform: string | null | undefined;
-    export let redirect: string | null | undefined;
-    export let onConfirm: () => void;
+export let platform: string | null | undefined;
+export let redirect: string | null | undefined;
+export let onConfirm: () => void;
 </script>
 
 <div

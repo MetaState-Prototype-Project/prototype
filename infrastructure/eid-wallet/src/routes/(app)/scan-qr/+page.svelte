@@ -1,183 +1,183 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-    import type { GlobalState } from "$lib/global";
-    import { getContext, onDestroy, onMount } from "svelte";
-    import type { SVGAttributes } from "svelte/elements";
-    import { get } from "svelte/store";
+import { goto } from "$app/navigation";
+import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+import type { GlobalState } from "$lib/global";
+import { getContext, onDestroy, onMount } from "svelte";
+import type { SVGAttributes } from "svelte/elements";
+import { get } from "svelte/store";
 
-    import AuthDrawer from "./components/AuthDrawer.svelte";
-    import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
-    import RevealDrawer from "./components/RevealDrawer.svelte";
-    import SigningDrawer from "./components/SigningDrawer.svelte";
-    import { createScanLogic } from "./scanLogic";
+import AuthDrawer from "./components/AuthDrawer.svelte";
+import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
+import RevealDrawer from "./components/RevealDrawer.svelte";
+import SigningDrawer from "./components/SigningDrawer.svelte";
+import { createScanLogic } from "./scanLogic";
 
-    const globalState = getContext<() => GlobalState>("globalState")();
-    const { stores, actions } = createScanLogic({ globalState, goto });
+const globalState = getContext<() => GlobalState>("globalState")();
+const { stores, actions } = createScanLogic({ globalState, goto });
 
-    const {
-        platform,
-        hostname,
-        codeScannedDrawerOpen,
-        loggedInDrawerOpen,
-        signingDrawerOpen,
-        scannedData,
-        loading,
-        redirect,
-        signingData,
-        isSigningRequest,
-        showSigningSuccess,
-        isBlindVotingRequest,
-        selectedBlindVoteOption,
-        blindVoteError,
-        isSubmittingBlindVote,
-        isRevealRequest,
-        revealPollId,
-        revealError,
-        isRevealingVote,
-        revealSuccess,
-        revealedVoteData,
-        authError,
-        signingError,
-        authLoading,
-    } = stores;
+const {
+    platform,
+    hostname,
+    codeScannedDrawerOpen,
+    loggedInDrawerOpen,
+    signingDrawerOpen,
+    scannedData,
+    loading,
+    redirect,
+    signingData,
+    isSigningRequest,
+    showSigningSuccess,
+    isBlindVotingRequest,
+    selectedBlindVoteOption,
+    blindVoteError,
+    isSubmittingBlindVote,
+    isRevealRequest,
+    revealPollId,
+    revealError,
+    isRevealingVote,
+    revealSuccess,
+    revealedVoteData,
+    authError,
+    signingError,
+    authLoading,
+} = stores;
 
-    const {
-        startScan,
-        cancelScan,
-        handleAuth,
-        handleBlindVote,
-        handleRevealVote,
-        handleSuccessOkay,
-        setCodeScannedDrawerOpen,
-        setLoggedInDrawerOpen,
-        setSigningDrawerOpen,
-        setRevealRequestOpen,
-        handleBlindVoteSelection,
-        handleSignVote,
-        initialize,
-    } = actions;
+const {
+    startScan,
+    cancelScan,
+    handleAuth,
+    handleBlindVote,
+    handleRevealVote,
+    handleSuccessOkay,
+    setCodeScannedDrawerOpen,
+    setLoggedInDrawerOpen,
+    setSigningDrawerOpen,
+    setRevealRequestOpen,
+    handleBlindVoteSelection,
+    handleSignVote,
+    initialize,
+} = actions;
 
-    let isOverlayActive = $derived(
-        $codeScannedDrawerOpen ||
-            $loggedInDrawerOpen ||
-            $signingDrawerOpen ||
-            $isRevealRequest,
-    );
+let isOverlayActive = $derived(
+    $codeScannedDrawerOpen ||
+        $loggedInDrawerOpen ||
+        $signingDrawerOpen ||
+        $isRevealRequest,
+);
 
-    const pathProps: SVGAttributes<SVGPathElement> = {
-        stroke: "white",
-        "stroke-width": 7,
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round",
-    };
+const pathProps: SVGAttributes<SVGPathElement> = {
+    stroke: "white",
+    "stroke-width": 7,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+};
 
-    let cleanup: (() => void) | null = null;
+let cleanup: (() => void) | null = null;
 
-    onMount(() => {
-        let disposed = false;
-        initialize()
-            .then((result) => {
-                if (disposed) {
-                    result?.();
-                } else {
-                    cleanup = result;
-                }
-            })
-            .catch((error) => {
-                console.error("Failed to initialize scan logic:", error);
-            });
-
-        return () => {
-            disposed = true;
-            cleanup?.();
-        };
-    });
-
-    onDestroy(async () => {
-        await cancelScan();
-    });
-
-    $effect(() => {
-        console.log(
-            "🔍 DEBUG: selectedBlindVoteOption changed to:",
-            $selectedBlindVoteOption,
-        );
-    });
-
-    async function handleAuthDrawerDecline() {
-        // If there's an error, "Okay" button closes modal and navigates to main
-        if ($authError) {
-            setCodeScannedDrawerOpen(false);
-            await goto("/main");
-        } else {
-            // Otherwise, "Decline" closes modal and restarts scanning
-            setCodeScannedDrawerOpen(false);
-            startScan();
-        }
-    }
-
-    function handleAuthDrawerOpenChange(value: boolean) {
-        setCodeScannedDrawerOpen(value);
-    }
-
-    function handleLoggedInDrawerConfirm() {
-        setLoggedInDrawerOpen(false);
-        goto("/main").then(() => {
-            startScan();
+onMount(() => {
+    let disposed = false;
+    initialize()
+        .then((result) => {
+            if (disposed) {
+                result?.();
+            } else {
+                cleanup = result;
+            }
+        })
+        .catch((error) => {
+            console.error("Failed to initialize scan logic:", error);
         });
-    }
 
-    function handleLoggedInDrawerOpenChange(value: boolean) {
-        setLoggedInDrawerOpen(value);
-    }
+    return () => {
+        disposed = true;
+        cleanup?.();
+    };
+});
 
-    async function handleSigningDrawerDecline() {
-        // If there's an error, "Okay" button closes modal and navigates to main
-        if ($signingError) {
-            setSigningDrawerOpen(false);
-            await goto("/main");
-        } else {
-            // Otherwise, "Decline" closes modal and restarts scanning
-            setSigningDrawerOpen(false);
-            startScan();
-        }
-    }
+onDestroy(async () => {
+    await cancelScan();
+});
 
-    function handleSigningDrawerOpenChange(value: boolean) {
-        setSigningDrawerOpen(value);
-        if (!value && !get(showSigningSuccess)) {
-            startScan();
-        }
-    }
+$effect(() => {
+    console.log(
+        "🔍 DEBUG: selectedBlindVoteOption changed to:",
+        $selectedBlindVoteOption,
+    );
+});
 
-    function handleBlindVoteOptionChange(index: number) {
-        handleBlindVoteSelection(index);
+async function handleAuthDrawerDecline() {
+    // If there's an error, "Okay" button closes modal and navigates to main
+    if ($authError) {
+        setCodeScannedDrawerOpen(false);
+        await goto("/main");
+    } else {
+        // Otherwise, "Decline" closes modal and restarts scanning
+        setCodeScannedDrawerOpen(false);
+        startScan();
     }
+}
 
-    function handleRevealDrawerCancel() {
-        setRevealRequestOpen(false);
-        window.history.back();
-    }
+function handleAuthDrawerOpenChange(value: boolean) {
+    setCodeScannedDrawerOpen(value);
+}
 
-    function handleRevealDrawerOpenChange(value: boolean) {
-        setRevealRequestOpen(value);
-    }
-
-    $effect(() => {
-        if (isOverlayActive) {
-            console.log("Overlay is now active, camera should be hidden.");
-        }
+function handleLoggedInDrawerConfirm() {
+    setLoggedInDrawerOpen(false);
+    goto("/main").then(() => {
+        startScan();
     });
+}
 
-    $effect(() => {
-        const shouldStop = isOverlayActive;
-        if (shouldStop) {
-            cancelScan();
-        } else {
-            startScan();
-        }
-    });
+function handleLoggedInDrawerOpenChange(value: boolean) {
+    setLoggedInDrawerOpen(value);
+}
+
+async function handleSigningDrawerDecline() {
+    // If there's an error, "Okay" button closes modal and navigates to main
+    if ($signingError) {
+        setSigningDrawerOpen(false);
+        await goto("/main");
+    } else {
+        // Otherwise, "Decline" closes modal and restarts scanning
+        setSigningDrawerOpen(false);
+        startScan();
+    }
+}
+
+function handleSigningDrawerOpenChange(value: boolean) {
+    setSigningDrawerOpen(value);
+    if (!value && !get(showSigningSuccess)) {
+        startScan();
+    }
+}
+
+function handleBlindVoteOptionChange(index: number) {
+    handleBlindVoteSelection(index);
+}
+
+function handleRevealDrawerCancel() {
+    setRevealRequestOpen(false);
+    window.history.back();
+}
+
+function handleRevealDrawerOpenChange(value: boolean) {
+    setRevealRequestOpen(value);
+}
+
+$effect(() => {
+    if (isOverlayActive) {
+        console.log("Overlay is now active, camera should be hidden.");
+    }
+});
+
+$effect(() => {
+    const shouldStop = isOverlayActive;
+    if (shouldStop) {
+        cancelScan();
+    } else {
+        startScan();
+    }
+});
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />

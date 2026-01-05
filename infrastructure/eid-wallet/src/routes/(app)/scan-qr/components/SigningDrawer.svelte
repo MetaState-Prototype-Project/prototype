@@ -1,27 +1,26 @@
 <script lang="ts">
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import type { SigningData } from "../scanLogic";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { SigningData } from "../scanLogic";
 
-    export let showSigningSuccess: boolean;
-    export let isBlindVotingRequest: boolean;
-    export let signingData: SigningData | null;
-    export let blindVoteError: string | null;
-    export let selectedBlindVoteOption: number | null;
-    export let isSubmittingBlindVote: boolean;
-    export let loading: boolean;
-    export let signingError: string | null | undefined;
-    export let onDecline: () => void;
-    export let onSign: () => void;
-    export let onBlindVoteOptionChange: (value: number) => void;
-    export let onSubmitBlindVote: () => void;
-    export let onSuccessOkay: () => void;
+export let showSigningSuccess: boolean;
+export let isBlindVotingRequest: boolean;
+export let signingData: SigningData | null;
+export let blindVoteError: string | null;
+export let selectedBlindVoteOption: number | null;
+export let isSubmittingBlindVote: boolean;
+export let loading: boolean;
+export let signingError: string | null | undefined;
+export let onDecline: () => void;
+export let onSign: () => void;
+export let onBlindVoteOptionChange: (value: number) => void;
+export let onSubmitBlindVote: () => void;
+export let onSuccessOkay: () => void;
 
-    let hasPollDetails = false;
-    $: hasPollDetails =
-        signingData?.pollId !== undefined &&
-        signingData?.pollDetails !== undefined;
+let hasPollDetails = false;
+$: hasPollDetails =
+    signingData?.pollId !== undefined && signingData?.pollDetails !== undefined;
 </script>
 
 <div

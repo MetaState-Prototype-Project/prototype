@@ -1,16 +1,16 @@
 <script lang="ts">
-    import * as Button from "$lib/ui/Button";
-    import { QrCodeIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import type { RevealedVoteData } from "../scanLogic";
+import * as Button from "$lib/ui/Button";
+import { QrCodeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import type { RevealedVoteData } from "../scanLogic";
 
-    export let revealSuccess: boolean;
-    export let revealedVoteData: RevealedVoteData | null;
-    export let revealPollId: string | null;
-    export let revealError: string | null;
-    export let isRevealingVote: boolean;
-    export let onCancel: () => void;
-    export let onReveal: () => void;
+export let revealSuccess: boolean;
+export let revealedVoteData: RevealedVoteData | null;
+export let revealPollId: string | null;
+export let revealError: string | null;
+export let isRevealingVote: boolean;
+export let onCancel: () => void;
+export let onReveal: () => void;
 </script>
 
 <div
