@@ -227,6 +227,8 @@
 				<div class="mb-6">
 					<h3 class="text-lg font-semibold text-gray-900 mb-4">Upload New File</h3>
 					<div
+						role="button"
+						tabindex="0"
 						class={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
 							dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
 						}`}
@@ -398,8 +400,9 @@
 
 				<!-- User Search -->
 				<div class="mb-6">
-					<label class="block text-sm font-medium text-gray-700 mb-2">Search Users</label>
+					<label for="user-search-input" class="block text-sm font-medium text-gray-700 mb-2">Search Users</label>
 					<input
+						id="user-search-input"
 						type="text"
 						bind:value={searchQuery}
 						oninput={searchUsers}
@@ -430,9 +433,9 @@
 
 				<!-- Selected Users -->
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">
+					<h3 class="block text-sm font-medium text-gray-700 mb-2">
 						Selected Signees ({selectedUsers.length})
-					</label>
+					</h3>
 					{#if selectedUsers.length === 0}
 						<p class="text-gray-600 text-center py-8 bg-gray-50 rounded-lg">
 							No additional signees. You can skip this step to create a self-signed document.

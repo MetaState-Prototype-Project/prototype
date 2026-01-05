@@ -27,6 +27,11 @@
 		});
 
 		const fileId = $page.params.id;
+		if (!fileId) {
+			toast.error('File ID is required');
+			goto('/(protected)/files');
+			return;
+		}
 		await loadFile(fileId);
 		await fetchFileSignatures(fileId);
 		
