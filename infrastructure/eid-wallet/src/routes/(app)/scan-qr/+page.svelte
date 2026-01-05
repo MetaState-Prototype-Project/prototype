@@ -169,6 +169,15 @@
             console.log("Overlay is now active, camera should be hidden.");
         }
     });
+
+    $effect(() => {
+        const shouldStop = isOverlayActive;
+        if (shouldStop) {
+            cancelScan();
+        } else {
+            startScan();
+        }
+    });
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
