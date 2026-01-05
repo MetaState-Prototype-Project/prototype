@@ -1,0 +1,19 @@
+{
+    "tableName": "files",
+    "schemaId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "ownerEnamePath": "users(owner.ename)",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "name": "name",
+        "displayName": "displayName",
+        "description": "description",
+        "mimeType": "mimeType",
+        "size": "size",
+        "md5Hash": "md5Hash",
+        "data": "data",
+        "ownerId": "users(owner.id),ownerId",
+        "folderId": "folderId",
+        "createdAt": "__date(createdAt)",
+        "updatedAt": "__date(updatedAt)"
+    }
+}

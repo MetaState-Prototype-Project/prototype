@@ -10,6 +10,7 @@ export class FileService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileAccessRepository = AppDataSource.getRepository(FileAccess);
     private folderRepository = AppDataSource.getRepository(Folder);
+    private signatureRepository = AppDataSource.getRepository(SignatureContainer);
 
     async calculateMD5(buffer: Buffer): Promise<string> {
         return crypto.createHash('md5').update(buffer).digest('hex');
@@ -27,10 +28,13 @@ export class FileService {
     ): Promise<File> {
         const md5Hash = await this.calculateMD5(data);
         
+        // Normalize folderId - convert string "null" to actual null
+        const normalizedFolderId = folderId === 'null' || folderId === '' || folderId === null || folderId === undefined ? null : folderId;
+        
         // Verify folder exists and user owns it if folderId is provided
-        if (folderId) {
+        if (normalizedFolderId) {
             const folder = await this.folderRepository.findOne({
-                where: { id: folderId, ownerId },
+                where: { id: normalizedFolderId, ownerId },
             });
             if (!folder) {
                 throw new Error("Folder not found or user is not the owner");
@@ -45,7 +49,7 @@ export class FileService {
             md5Hash,
             data,
             ownerId,
-            folderId: folderId || null,
+            folderId: normalizedFolderId,
         };
 
         if (description !== undefined) {

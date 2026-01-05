@@ -28,13 +28,16 @@ export class FileController {
 
                 const { displayName, description, folderId } = req.body;
 
+                // Normalize folderId - convert string "null" to actual null
+                const normalizedFolderId = folderId === 'null' || folderId === '' || folderId === null || folderId === undefined ? null : folderId;
+
                 const file = await this.fileService.createFile(
                     req.file.originalname,
                     req.file.mimetype,
                     req.file.size,
                     req.file.buffer,
                     req.user.id,
-                    folderId || null,
+                    normalizedFolderId,
                     displayName,
                     description
                 );
