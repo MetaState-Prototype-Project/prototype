@@ -62,18 +62,24 @@
 					: members[0]?.avatarUrl ||
 						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
 
-				// For groups, prioritize the group name, fallback to member names
-				// For direct messages, use the other person's name
+				// For groups (3+ people), prioritize the group name, fallback to member names
+				// For direct messages (2 people), always use the other person's name, never the group name
 				const displayName = isGroup
 					? c.name || memberNames.join(', ') // Group name first, then member names
-					: c.name || members[0]?.name || members[0]?.handle || 'Unknown User';
+					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
+
+				// Trim system message prefix from preview text
+				let previewText = c.latestMessage?.text ?? 'No message yet';
+				if (typeof previewText === 'string' && previewText.startsWith('$$system-message$$')) {
+					previewText = previewText.replace('$$system-message$$', '').trim();
+				}
 
 				return {
 					id: c.id,
 					avatar,
 					username: displayName,
 					unread: c.latestMessage ? !c.latestMessage.isRead : false,
-					text: c.latestMessage?.text ?? 'No message yet',
+					text: previewText,
 					handle: displayName,
 					name: displayName
 				};
