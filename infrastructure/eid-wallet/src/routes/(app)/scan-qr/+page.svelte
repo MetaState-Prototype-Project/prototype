@@ -1,149 +1,161 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
-import type { GlobalState } from "$lib/global";
-import { getContext, onDestroy, onMount } from "svelte";
-import type { SVGAttributes } from "svelte/elements";
-import { get } from "svelte/store";
+    import { goto } from "$app/navigation";
+    import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
+    import type { GlobalState } from "$lib/global";
+    import { getContext, onDestroy, onMount } from "svelte";
+    import type { SVGAttributes } from "svelte/elements";
+    import { get } from "svelte/store";
 
-import AuthDrawer from "./components/AuthDrawer.svelte";
-import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
-import RevealDrawer from "./components/RevealDrawer.svelte";
-import SigningDrawer from "./components/SigningDrawer.svelte";
-import { createScanLogic } from "./scanLogic";
+    import AuthDrawer from "./components/AuthDrawer.svelte";
+    import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
+    import RevealDrawer from "./components/RevealDrawer.svelte";
+    import SigningDrawer from "./components/SigningDrawer.svelte";
+    import { createScanLogic } from "./scanLogic";
 
-const globalState = getContext<() => GlobalState>("globalState")();
-const { stores, actions } = createScanLogic({ globalState, goto });
+    const globalState = getContext<() => GlobalState>("globalState")();
+    const { stores, actions } = createScanLogic({ globalState, goto });
 
-const {
-    platform,
-    hostname,
-    codeScannedDrawerOpen,
-    loggedInDrawerOpen,
-    signingDrawerOpen,
-    scannedData,
-    loading,
-    redirect,
-    signingData,
-    isSigningRequest,
-    showSigningSuccess,
-    isBlindVotingRequest,
-    selectedBlindVoteOption,
-    blindVoteError,
-    isSubmittingBlindVote,
-    isRevealRequest,
-    revealPollId,
-    revealError,
-    isRevealingVote,
-    revealSuccess,
-    revealedVoteData,
-    authError,
-    signingError,
-    authLoading,
-} = stores;
+    const {
+        platform,
+        hostname,
+        codeScannedDrawerOpen,
+        loggedInDrawerOpen,
+        signingDrawerOpen,
+        scannedData,
+        loading,
+        redirect,
+        signingData,
+        isSigningRequest,
+        showSigningSuccess,
+        isBlindVotingRequest,
+        selectedBlindVoteOption,
+        blindVoteError,
+        isSubmittingBlindVote,
+        isRevealRequest,
+        revealPollId,
+        revealError,
+        isRevealingVote,
+        revealSuccess,
+        revealedVoteData,
+        authError,
+        signingError,
+        authLoading,
+    } = stores;
 
-const {
-    startScan,
-    cancelScan,
-    handleAuth,
-    handleBlindVote,
-    handleRevealVote,
-    handleSuccessOkay,
-    setCodeScannedDrawerOpen,
-    setLoggedInDrawerOpen,
-    setSigningDrawerOpen,
-    setRevealRequestOpen,
-    handleBlindVoteSelection,
-    handleSignVote,
-    initialize,
-} = actions;
+    const {
+        startScan,
+        cancelScan,
+        handleAuth,
+        handleBlindVote,
+        handleRevealVote,
+        handleSuccessOkay,
+        setCodeScannedDrawerOpen,
+        setLoggedInDrawerOpen,
+        setSigningDrawerOpen,
+        setRevealRequestOpen,
+        handleBlindVoteSelection,
+        handleSignVote,
+        initialize,
+    } = actions;
 
-const pathProps: SVGAttributes<SVGPathElement> = {
-    stroke: "white",
-    "stroke-width": 7,
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round",
-};
-
-let cleanup: (() => void) | null = null;
-
-onMount(() => {
-    let disposed = false;
-    initialize()
-        .then((result) => {
-            if (disposed) {
-                result?.();
-            } else {
-                cleanup = result;
-            }
-        })
-        .catch((error) => {
-            console.error("Failed to initialize scan logic:", error);
-        });
-
-    return () => {
-        disposed = true;
-        cleanup?.();
+    const pathProps: SVGAttributes<SVGPathElement> = {
+        stroke: "white",
+        "stroke-width": 7,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
     };
-});
 
-onDestroy(async () => {
-    await cancelScan();
-});
+    let cleanup: (() => void) | null = null;
 
-$effect(() => {
-    console.log(
-        "🔍 DEBUG: selectedBlindVoteOption changed to:",
-        $selectedBlindVoteOption,
-    );
-});
+    onMount(() => {
+        let disposed = false;
+        initialize()
+            .then((result) => {
+                if (disposed) {
+                    result?.();
+                } else {
+                    cleanup = result;
+                }
+            })
+            .catch((error) => {
+                console.error("Failed to initialize scan logic:", error);
+            });
 
-async function handleAuthDrawerDecline() {
-    // Cancel button always navigates to main
-    setCodeScannedDrawerOpen(false);
-    await goto("/main");
-}
-
-function handleAuthDrawerOpenChange(value: boolean) {
-    setCodeScannedDrawerOpen(value);
-}
-
-function handleLoggedInDrawerConfirm() {
-    setLoggedInDrawerOpen(false);
-    goto("/main").then(() => {
-        startScan();
+        return () => {
+            disposed = true;
+            cleanup?.();
+        };
     });
-}
 
-function handleLoggedInDrawerOpenChange(value: boolean) {
-    setLoggedInDrawerOpen(value);
-}
+    onDestroy(async () => {
+        await cancelScan();
+    });
 
-async function handleSigningDrawerDecline() {
-    // Cancel button always navigates to main
-    setSigningDrawerOpen(false);
-    await goto("/main");
-}
+    $effect(() => {
+        console.log(
+            "🔍 DEBUG: selectedBlindVoteOption changed to:",
+            $selectedBlindVoteOption,
+        );
+    });
 
-function handleSigningDrawerOpenChange(value: boolean) {
-    setSigningDrawerOpen(value);
-    if (!value && !get(showSigningSuccess)) {
-        startScan();
+    async function handleAuthDrawerDecline() {
+        // If there's an error, "Okay" button closes modal and navigates to main
+        if ($authError) {
+            setCodeScannedDrawerOpen(false);
+            await goto("/main");
+        } else {
+            // Otherwise, "Decline" closes modal and restarts scanning
+            setCodeScannedDrawerOpen(false);
+            startScan();
+        }
     }
-}
 
-function handleBlindVoteOptionChange(index: number) {
-    handleBlindVoteSelection(index);
-}
+    function handleAuthDrawerOpenChange(value: boolean) {
+        setCodeScannedDrawerOpen(value);
+    }
 
-function handleRevealDrawerCancel() {
-    setRevealRequestOpen(false);
-    window.history.back();
-}
+    function handleLoggedInDrawerConfirm() {
+        setLoggedInDrawerOpen(false);
+        goto("/main").then(() => {
+            startScan();
+        });
+    }
 
-function handleRevealDrawerOpenChange(value: boolean) {
-    setRevealRequestOpen(value);
-}
+    function handleLoggedInDrawerOpenChange(value: boolean) {
+        setLoggedInDrawerOpen(value);
+    }
+
+    async function handleSigningDrawerDecline() {
+        // If there's an error, "Okay" button closes modal and navigates to main
+        if ($signingError) {
+            setSigningDrawerOpen(false);
+            await goto("/main");
+        } else {
+            // Otherwise, "Decline" closes modal and restarts scanning
+            setSigningDrawerOpen(false);
+            startScan();
+        }
+    }
+
+    function handleSigningDrawerOpenChange(value: boolean) {
+        setSigningDrawerOpen(value);
+        if (!value && !get(showSigningSuccess)) {
+            startScan();
+        }
+    }
+
+    function handleBlindVoteOptionChange(index: number) {
+        handleBlindVoteSelection(index);
+    }
+
+    function handleRevealDrawerCancel() {
+        setRevealRequestOpen(false);
+        window.history.back();
+    }
+
+    function handleRevealDrawerOpenChange(value: boolean) {
+        setRevealRequestOpen(value);
+    }
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
@@ -173,18 +185,22 @@ function handleRevealDrawerOpenChange(value: boolean) {
     </h4>
 </div>
 
-<AuthDrawer
-    isOpen={$codeScannedDrawerOpen}
-    platform={$platform}
-    hostname={$hostname}
-    scannedContent={$scannedData?.content}
-    isSigningRequest={$isSigningRequest}
-    authError={$authError}
-    authLoading={$authLoading}
-    onConfirm={handleAuth}
-    onDecline={handleAuthDrawerDecline}
-    onOpenChange={handleAuthDrawerOpenChange}
-/>
+{#if $codeScannedDrawerOpen}
+    <div
+        class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-4"
+    >
+        <AuthDrawer
+            platform={$platform}
+            hostname={$hostname}
+            scannedContent={$scannedData?.content}
+            isSigningRequest={$isSigningRequest}
+            authError={$authError}
+            authLoading={$authLoading}
+            onConfirm={handleAuth}
+            onDecline={handleAuthDrawerDecline}
+        />
+    </div>
+{/if}
 
 <LoggedInDrawer
     isOpen={$loggedInDrawerOpen}
