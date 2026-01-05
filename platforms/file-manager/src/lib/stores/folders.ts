@@ -79,8 +79,10 @@ export const updateFolder = async (
 };
 
 export const moveFolder = async (folderId: string, parentFolderId: string | null): Promise<void> => {
-	await apiClient.post(`/api/folders/${folderId}/move`, { parentFolderId: parentFolderId || 'null' });
-	await fetchFolders();
+	const response = await apiClient.post(`/api/folders/${folderId}/move`, { parentFolderId: parentFolderId || 'null' });
+	const updatedFolder = response.data;
+	// Update the folder in the store with the new parentFolderId
+	folders.update(folders => folders.map(f => f.id === folderId ? { ...f, parentFolderId: updatedFolder.parentFolderId } : f));
 };
 
 export const getFolderContents = async (folderId: string): Promise<{ files: any[]; folders: any[] }> => {

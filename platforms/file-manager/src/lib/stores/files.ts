@@ -91,7 +91,9 @@ export const updateFile = async (
 };
 
 export const moveFile = async (fileId: string, folderId: string | null): Promise<void> => {
-	await apiClient.post(`/api/files/${fileId}/move`, { folderId: folderId || 'null' });
-	await fetchFiles();
+	const response = await apiClient.post(`/api/files/${fileId}/move`, { folderId: folderId || 'null' });
+	const updatedFile = response.data;
+	// Update the file in the store with the new folderId
+	files.update(files => files.map(f => f.id === fileId ? { ...f, folderId: updatedFile.folderId } : f));
 };
 
