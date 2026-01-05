@@ -2,6 +2,7 @@ import { AppDataSource } from "../database/data-source";
 import { File } from "../database/entities/File";
 import { Folder } from "../database/entities/Folder";
 import { FileAccess } from "../database/entities/FileAccess";
+import { FolderAccess } from "../database/entities/FolderAccess";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
 import { In, IsNull } from "typeorm";
 import crypto from "crypto";
@@ -76,15 +77,24 @@ export class FileService {
             return file;
         }
         
+        // Check for direct file access
         const access = await this.fileAccessRepository.findOne({
             where: { fileId: id, userId },
         });
         
-        if (!access) {
-            return null;
+        if (access) {
+            return file;
         }
 
-        return file;
+        // Check if user has access via parent folder (if file is in a folder)
+        if (file.folderId) {
+            const hasAccessViaParent = await this.hasAccessViaParentFolder(file.folderId, userId);
+            if (hasAccessViaParent) {
+                return file;
+            }
+        }
+
+        return null;
     }
 
     async getUserFiles(userId: string, folderId?: string | null): Promise<File[]> {
@@ -121,6 +131,33 @@ export class FileService {
             relations: ["file", "file.owner", "file.folder", "file.tags"],
         });
 
+        // Get files from folders the user has access to (only direct children to preserve hierarchy)
+        let folderAccessFiles: File[] = [];
+        if (folderId && folderId !== 'null' && folderId !== '') {
+            const folderAccessRepository = AppDataSource.getRepository(FolderAccess);
+            
+            // Check if user has direct access to this folder OR access to any parent folder
+            const directAccess = await folderAccessRepository.findOne({
+                where: { folderId, userId },
+            });
+            
+            // Also check if user has access to any parent folder (recursive check)
+            let hasAccessViaParent = false;
+            if (!directAccess) {
+                hasAccessViaParent = await this.hasAccessViaParentFolder(folderId, userId);
+            }
+            
+            if (directAccess || hasAccessViaParent) {
+                // User has access to this folder (directly or via parent), show only files directly in this folder
+                // This preserves the folder hierarchy - files in subfolders will show when viewing those subfolders
+                folderAccessFiles = await this.fileRepository.find({
+                    where: { folderId },
+                    relations: ["owner", "folder", "tags"],
+                    order: { createdAt: "DESC" },
+                });
+            }
+        }
+
         const ownedFileIds = new Set(ownedFiles.map(f => f.id));
         const allFiles = [...ownedFiles];
 
@@ -133,15 +170,21 @@ export class FileService {
             
             // Filter by folder if specified
             if (folderId === null || folderId === undefined || folderId === 'null' || folderId === '') {
-                // Only add root-level files (folderId is null)
-                if (fileAccess.file.folderId === null) {
-                    allFiles.push(fileAccess.file);
-                }
+                // When viewing root, show ALL shared files regardless of their folder location
+                // This allows users to see all shared files in the "Shared with me" view
+                allFiles.push(fileAccess.file);
             } else {
                 // Only add files in the specified folder
                 if (fileAccess.file.folderId === folderId) {
                     allFiles.push(fileAccess.file);
                 }
+            }
+        }
+
+        // Add files from folders the user has access to
+        for (const file of folderAccessFiles) {
+            if (!ownedFileIds.has(file.id) && !allFiles.find(f => f.id === file.id)) {
+                allFiles.push(file);
             }
         }
 
@@ -218,6 +261,61 @@ export class FileService {
             relations: ["user"],
             order: { createdAt: "ASC" },
         });
+    }
+
+    /**
+     * Check if user has access to a folder via any parent folder (recursive check)
+     */
+    private async hasAccessViaParentFolder(folderId: string, userId: string, visited: Set<string> = new Set()): Promise<boolean> {
+        // Prevent infinite loops
+        if (visited.has(folderId)) {
+            return false;
+        }
+        visited.add(folderId);
+
+        const folderRepository = AppDataSource.getRepository(Folder);
+        const folderAccessRepository = AppDataSource.getRepository(FolderAccess);
+        
+        // Walk up the folder tree all the way to root, checking each level
+        let currentFolderId: string | null = folderId;
+        
+        while (currentFolderId) {
+            const folder = await folderRepository.findOne({
+                where: { id: currentFolderId },
+                select: ["id", "parentFolderId", "ownerId"],
+            });
+
+            if (!folder) {
+                break;
+            }
+
+            // Check if user owns this folder in the path
+            if (folder.ownerId === userId) {
+                return true;
+            }
+
+            // Check if user has access to this folder in the path
+            const access = await folderAccessRepository.findOne({
+                where: { folderId: currentFolderId, userId },
+            });
+
+            if (access) {
+                return true;
+            }
+
+            // Move to parent folder
+            currentFolderId = folder.parentFolderId;
+            
+            // Prevent infinite loops
+            if (currentFolderId && visited.has(currentFolderId)) {
+                break;
+            }
+            if (currentFolderId) {
+                visited.add(currentFolderId);
+            }
+        }
+
+        return false;
     }
 }
 

@@ -57,6 +57,11 @@ export class FolderController {
                 id: folder.id,
                 name: folder.name,
                 ownerId: folder.ownerId,
+                owner: folder.owner ? {
+                    id: folder.owner.id,
+                    name: folder.owner.name,
+                    ename: folder.owner.ename,
+                } : null,
                 parentFolderId: folder.parentFolderId,
                 createdAt: folder.createdAt,
                 updatedAt: folder.updatedAt,

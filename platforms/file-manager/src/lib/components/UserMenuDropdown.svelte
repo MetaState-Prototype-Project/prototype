@@ -55,7 +55,7 @@
 					{$currentUser?.name || $currentUser?.ename || 'User'}
 				</div>
 				{#if $currentUser?.ename && $currentUser?.name}
-					<div class="text-xs text-gray-500 mt-1">{$currentUser.ename}</div>
+					<div class="text-xs text-gray-500 mt-1">@{$currentUser.ename.replace(/^@+/, '')}</div>
 				{/if}
 			</div>
 

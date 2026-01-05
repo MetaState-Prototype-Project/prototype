@@ -64,10 +64,9 @@
 			// Don't upload immediately - just store the file
 			uploadedFile = target.files[0];
 			selectedFile = null;
-			// Set default display name
-			if (!displayName.trim()) {
-				displayName = target.files[0].name;
-			}
+			// Reset display name and description for new upload
+			displayName = target.files[0].name;
+			description = '';
 		}
 	}
 
@@ -87,10 +86,9 @@
 			// Don't upload immediately - just store the file
 			uploadedFile = event.dataTransfer.files[0];
 			selectedFile = null;
-			// Set default display name
-			if (!displayName.trim()) {
-				displayName = event.dataTransfer.files[0].name;
-			}
+			// Reset display name and description for new upload
+			displayName = event.dataTransfer.files[0].name;
+			description = '';
 		}
 	}
 
@@ -288,6 +286,7 @@
 								<button
 									onclick={() => {
 										selectedFile = file;
+										uploadedFile = null;
 										displayName = file.displayName || file.name;
 										description = file.description || '';
 									}}

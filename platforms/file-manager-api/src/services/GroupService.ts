@@ -236,6 +236,9 @@ export class GroupService {
     async searchGroups(query: string, limit: number = 10): Promise<Group[]> {
         return await this.groupRepository
             .createQueryBuilder("group")
+            .leftJoinAndSelect("group.members", "members")
+            .leftJoinAndSelect("group.participants", "participants")
+            .leftJoinAndSelect("group.admins", "admins")
             .where("group.name ILIKE :query OR group.description ILIKE :query", { query: `%${query}%` })
             .limit(limit)
             .getMany();

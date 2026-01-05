@@ -82,6 +82,11 @@ export class FileController {
                 size: file.size,
                 md5Hash: file.md5Hash,
                 ownerId: file.ownerId,
+                owner: file.owner ? {
+                    id: file.owner.id,
+                    name: file.owner.name,
+                    ename: file.owner.ename,
+                } : null,
                 folderId: file.folderId,
                 createdAt: file.createdAt,
                 updatedAt: file.updatedAt,
@@ -106,10 +111,14 @@ export class FileController {
                 return res.status(404).json({ error: "File not found" });
             }
 
+            // Check if user is the owner
+            const isOwner = file.ownerId === req.user.id;
+
             // Get signatures for this file
             const signatures = await this.fileService.getFileSignatures(id);
 
-            res.json({
+            // Base response (available to everyone with access)
+            const response: any = {
                 id: file.id,
                 name: file.name,
                 displayName: file.displayName,
@@ -122,7 +131,6 @@ export class FileController {
                 createdAt: file.createdAt,
                 updatedAt: file.updatedAt,
                 canPreview: this.fileService.canPreview(file.mimeType),
-                tags: file.tags || [],
                 signatures: signatures.map(sig => ({
                     id: sig.id,
                     userId: sig.userId,
@@ -138,7 +146,14 @@ export class FileController {
                     message: sig.message,
                     createdAt: sig.createdAt,
                 })),
-            });
+            };
+
+            // Only include tags if user is the owner
+            if (isOwner) {
+                response.tags = file.tags || [];
+            }
+
+            res.json(response);
         } catch (error) {
             console.error("Error getting file:", error);
             res.status(500).json({ error: "Failed to get file" });

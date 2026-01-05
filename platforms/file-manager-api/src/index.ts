@@ -1,5 +1,5 @@
 import "reflect-metadata";
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import { config } from "dotenv";
 import { AppDataSource } from "./database/data-source";
@@ -12,6 +12,7 @@ import { TagController } from "./controllers/TagController";
 import { UserController } from "./controllers/UserController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { WebhookController } from "./controllers/WebhookController";
+import { GroupService } from "./services/GroupService";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { PlatformEVaultService } from "./services/PlatformEVaultService";
 
@@ -111,6 +112,22 @@ app.get("/api/files/:id/access", authGuard, accessController.getFileAccess);
 app.post("/api/folders/:id/access", authGuard, accessController.grantFolderAccess);
 app.delete("/api/folders/:id/access/:userId", authGuard, accessController.revokeFolderAccess);
 app.get("/api/folders/:id/access", authGuard, accessController.getFolderAccess);
+
+// Group routes
+app.get("/api/groups/search", authGuard, async (req: Request, res: Response) => {
+    try {
+        const { query } = req.query;
+        if (!query || typeof query !== 'string') {
+            return res.json([]);
+        }
+        const groupService = new GroupService();
+        const groups = await groupService.searchGroups(query);
+        res.json(groups);
+    } catch (error) {
+        console.error("Error searching groups:", error);
+        res.status(500).json({ error: "Failed to search groups" });
+    }
+});
 
 // Tag routes
 app.post("/api/tags", authGuard, tagController.createTag);

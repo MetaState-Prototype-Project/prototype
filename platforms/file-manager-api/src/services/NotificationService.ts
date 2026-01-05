@@ -234,6 +234,8 @@ export class NotificationService {
         const sharerText = sharerName ? ` from ${sharerName}` : '';
         const fileName = file.displayName || file.name;
         const descriptionText = file.description ? `\nDescription: ${file.description}` : '';
+        const fileManagerUrl = process.env.PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
+        const fileLink = `${fileManagerUrl}/files/${file.id}`;
 
         return `📁 File Shared
 
@@ -245,7 +247,7 @@ Size: ${this.formatFileSize(file.size)}
 Type: ${file.mimeType}
 Time: ${formattedTime}
 
-You can now view and download this file from the File Manager platform.`;
+<a href="${fileLink}">View File in File Manager</a>`;
     }
 
     /**
@@ -261,6 +263,10 @@ You can now view and download this file from the File Manager platform.`;
         });
 
         const sharerText = sharerName ? ` from ${sharerName}` : '';
+        const fileManagerUrl = process.env.PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
+        const folderLink = folder.parentFolderId 
+            ? `${fileManagerUrl}/files?folderId=${folder.id}`
+            : `${fileManagerUrl}/files?folderId=${folder.id}`;
 
         return `📂 Folder Shared
 
@@ -269,7 +275,7 @@ You have been granted access${sharerText} to a folder.
 Folder: ${folder.name}
 Time: ${formattedTime}
 
-You can now view the contents of this folder from the File Manager platform.`;
+<a href="${folderLink}">View Folder in File Manager</a>`;
     }
 
     /**

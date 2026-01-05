@@ -56,15 +56,23 @@ export class FolderService {
             return folder;
         }
         
+        // Check for direct access
         const access = await this.folderAccessRepository.findOne({
             where: { folderId: id, userId },
         });
         
-        if (!access) {
-            return null;
+        if (access) {
+            return folder;
         }
 
-        return folder;
+        // Check if user has access via a parent folder (recursive check)
+        // This allows breadcrumbs to work for nested shared folders
+        const hasAccessViaParent = await this.hasAccessViaParentFolder(id, userId);
+        if (hasAccessViaParent) {
+            return folder;
+        }
+
+        return null;
     }
 
     async getUserFolders(userId: string, parentFolderId?: string | null): Promise<Folder[]> {
@@ -101,6 +109,30 @@ export class FolderService {
             relations: ["folder", "folder.owner", "folder.parent", "folder.tags"],
         });
 
+        // Get subfolders from folders the user has access to (only direct children to preserve hierarchy)
+        let folderAccessSubfolders: Folder[] = [];
+        if (parentFolderId && parentFolderId !== 'null' && parentFolderId !== '') {
+            const parentFolderAccess = await this.folderAccessRepository.findOne({
+                where: { folderId: parentFolderId, userId },
+            });
+            
+            // Also check if user has access via a parent folder
+            let hasAccessViaParent = false;
+            if (!parentFolderAccess) {
+                hasAccessViaParent = await this.hasAccessViaParentFolder(parentFolderId, userId);
+            }
+            
+            if (parentFolderAccess || hasAccessViaParent) {
+                // User has access to this parent folder (directly or via parent), show only direct subfolders
+                // This preserves the folder hierarchy - nested subfolders will show when viewing their parent
+                folderAccessSubfolders = await this.folderRepository.find({
+                    where: { parentFolderId },
+                    relations: ["owner", "parent", "tags"],
+                    order: { createdAt: "DESC" },
+                });
+            }
+        }
+
         const ownedFolderIds = new Set(ownedFolders.map(f => f.id));
         const allFolders = [...ownedFolders];
 
@@ -113,15 +145,21 @@ export class FolderService {
             
             // Filter by parent folder if specified
             if (parentFolderId === null || parentFolderId === undefined || parentFolderId === 'null' || parentFolderId === '') {
-                // Only add root-level folders (parentFolderId is null)
-                if (folderAccess.folder.parentFolderId === null) {
-                    allFolders.push(folderAccess.folder);
-                }
+                // When viewing root, show ALL shared folders regardless of their parent folder location
+                // This allows users to see all shared folders in the "Shared with me" view
+                allFolders.push(folderAccess.folder);
             } else {
                 // Only add folders in the specified parent folder
                 if (folderAccess.folder.parentFolderId === parentFolderId) {
                     allFolders.push(folderAccess.folder);
                 }
+            }
+        }
+
+        // Add subfolders from folders the user has access to
+        for (const folder of folderAccessSubfolders) {
+            if (!ownedFolderIds.has(folder.id) && !allFolders.find(f => f.id === folder.id)) {
+                allFolders.push(folder);
             }
         }
 
@@ -283,6 +321,59 @@ export class FolderService {
         }
 
         return allFolders;
+    }
+
+    /**
+     * Check if user has access to a folder via any parent folder (recursive check)
+     * Walks all the way up to root, checking if ANY folder in the path was shared
+     */
+    private async hasAccessViaParentFolder(folderId: string, userId: string, visited: Set<string> = new Set()): Promise<boolean> {
+        // Prevent infinite loops
+        if (visited.has(folderId)) {
+            return false;
+        }
+        visited.add(folderId);
+
+        // Walk up the folder tree all the way to root, checking each level
+        let currentFolderId: string | null = folderId;
+        
+        while (currentFolderId) {
+            const folder = await this.folderRepository.findOne({
+                where: { id: currentFolderId },
+                select: ["id", "parentFolderId", "ownerId"],
+            });
+
+            if (!folder) {
+                break;
+            }
+
+            // Check if user owns this folder in the path
+            if (folder.ownerId === userId) {
+                return true;
+            }
+
+            // Check if user has access to this folder in the path
+            const access = await this.folderAccessRepository.findOne({
+                where: { folderId: currentFolderId, userId },
+            });
+
+            if (access) {
+                return true;
+            }
+
+            // Move to parent folder
+            currentFolderId = folder.parentFolderId;
+            
+            // Prevent infinite loops
+            if (currentFolderId && visited.has(currentFolderId)) {
+                break;
+            }
+            if (currentFolderId) {
+                visited.add(currentFolderId);
+            }
+        }
+
+        return false;
     }
 }
 

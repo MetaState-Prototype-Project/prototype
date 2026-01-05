@@ -21,6 +21,18 @@ export class AccessController {
                 return res.status(400).json({ error: "userId is required" });
             }
 
+            // Check if the user is the owner of the file
+            const fileService = new (require('../services/FileService').FileService)();
+            const file = await fileService.getFileById(id, req.user.id);
+            
+            if (!file) {
+                return res.status(404).json({ error: "File not found" });
+            }
+            
+            if (file.ownerId !== req.user.id) {
+                return res.status(403).json({ error: "Only the file owner can grant access" });
+            }
+
             const access = await this.accessService.grantFileAccess(
                 id,
                 userId,
@@ -53,6 +65,18 @@ export class AccessController {
 
             const { id, userId } = req.params;
 
+            // Check if the user is the owner of the file
+            const fileService = new (require('../services/FileService').FileService)();
+            const file = await fileService.getFileById(id, req.user.id);
+            
+            if (!file) {
+                return res.status(404).json({ error: "File not found" });
+            }
+            
+            if (file.ownerId !== req.user.id) {
+                return res.status(403).json({ error: "Only the file owner can revoke access" });
+            }
+
             const revoked = await this.accessService.revokeFileAccess(
                 id,
                 userId,
@@ -80,6 +104,20 @@ export class AccessController {
             }
 
             const { id } = req.params;
+            
+            // First check if the file exists and if the user has access to it
+            const fileService = new (require('../services/FileService').FileService)();
+            const file = await fileService.getFileById(id, req.user.id);
+            
+            if (!file) {
+                return res.status(404).json({ error: "File not found" });
+            }
+            
+            // Only allow owner to see who the file is shared with
+            if (file.ownerId !== req.user.id) {
+                return res.status(403).json({ error: "Only the file owner can view access list" });
+            }
+
             const accessList = await this.accessService.getFileAccess(id, req.user.id);
 
             res.json(accessList.map(access => ({

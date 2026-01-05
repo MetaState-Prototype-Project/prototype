@@ -2,24 +2,91 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { isAuthenticated } from '$lib/stores/auth';
+	import { get } from 'svelte/store';
+	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 	import { files, fetchFiles, uploadFile, deleteFile, moveFile } from '$lib/stores/files';
 	import { folders, fetchFolders, fetchFolderTree, folderTree, createFolder, deleteFolder, moveFolder } from '$lib/stores/folders';
+	import { grantFileAccess, grantFolderAccess, fetchFileAccess, fetchFolderAccess } from '$lib/stores/access';
 	import { apiClient } from '$lib/utils/axios';
 	import { PUBLIC_FILE_MANAGER_BASE_URL } from '$env/static/public';
 	import { toast } from '$lib/stores/toast';
 
 	const API_BASE_URL = PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
 
+	// Action to position dropdown using fixed positioning to avoid clipping
+	function dropdownPosition(node: HTMLElement) {
+		const updatePosition = () => {
+			// Get the button element directly from parent
+			const container = node.parentElement;
+			if (!container) return;
+			const button = container.querySelector('button[data-dropdown-button]') as HTMLElement;
+			if (!button) return;
+
+			// Get button's viewport position using getBoundingClientRect
+			const buttonRect = button.getBoundingClientRect();
+			const viewportHeight = window.innerHeight;
+			const spaceBelow = viewportHeight - buttonRect.bottom;
+			const spaceAbove = buttonRect.top;
+			
+			// Measure dropdown
+			const dropdownWidth = 192; // w-48 in tailwind
+			const dropdownHeight = node.offsetHeight || 120;
+			
+			// IMPORTANT: Use fixed positioning to escape table clipping
+			node.style.position = 'fixed';
+			node.style.zIndex = '9999';
+			
+			// Align right edge of dropdown with right edge of button
+			node.style.left = `${buttonRect.right - dropdownWidth}px`;
+			node.style.right = 'auto';
+
+			// Position vertically based on available space
+			if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+				// Position above button
+				node.style.bottom = `${viewportHeight - buttonRect.top + 4}px`;
+				node.style.top = 'auto';
+			} else {
+				// Position below button
+				node.style.top = `${buttonRect.bottom + 4}px`;
+				node.style.bottom = 'auto';
+			}
+		};
+
+		// Use requestAnimationFrame to ensure DOM is ready
+		requestAnimationFrame(() => {
+			updatePosition();
+		});
+
+		// Update on scroll and resize
+		const handleUpdate = () => updatePosition();
+		window.addEventListener('scroll', handleUpdate, true);
+		window.addEventListener('resize', handleUpdate);
+
+		return {
+			update: updatePosition,
+			destroy: () => {
+				window.removeEventListener('scroll', handleUpdate, true);
+				window.removeEventListener('resize', handleUpdate);
+			}
+		};
+	}
+
+	let currentView = $state<'my-files' | 'shared'>('my-files');
 	let currentFolderId = $state<string | null>(null);
 	let isLoading = $state(false);
 	let showUploadModal = $state(false);
 	let showFolderModal = $state(false);
 	let showMoveModal = $state(false);
 	let showDeleteModal = $state(false);
+	let showShareModal = $state(false);
+	let itemToShare = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
 	let selectedFile = $state<globalThis.File | null>(null);
 	let itemToMove = $state<any>(null);
 	let itemToDelete = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
+	let openDropdownId = $state<string | null>(null);
+	let shareSearchQuery = $state('');
+	let shareSearchResults = $state<any[]>([]);
+	let shareSelectedUsers = $state<any[]>([]);
 	let moveModalFolderId = $state<string | null>(null);
 	let moveModalBreadcrumbs = $state<Array<{ id: string | null; name: string }>>([{ id: null, name: 'My Files' }]);
 	let moveModalFolders = $state<any[]>([]);
@@ -29,6 +96,21 @@
 	let previewFile = $state<any>(null);
 	let previewUrl = $state<string | null>(null);
 	let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([{ id: null, name: 'My Files' }]);
+
+	// Subscribe to stores at top level to make them reactive
+	let user = $state(get(currentUser));
+	let filesList = $state(get(files));
+	let foldersList = $state(get(folders));
+	
+	currentUser.subscribe(u => {
+		user = u;
+	});
+	files.subscribe(f => {
+		filesList = f;
+	});
+	folders.subscribe(f => {
+		foldersList = f;
+	});
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -40,6 +122,18 @@
 		await fetchFolderTree();
 		await loadFiles();
 		await updateBreadcrumbs();
+
+		// Close dropdown when clicking outside
+		function handleClickOutside(event: MouseEvent) {
+			const target = event.target as HTMLElement;
+			if (!target.closest('.dropdown-container') && !target.closest('button[title="Actions"]')) {
+				openDropdownId = null;
+			}
+		}
+		document.addEventListener('click', handleClickOutside);
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
 	});
 
 	async function loadFiles() {
@@ -206,6 +300,106 @@
 		moveModalBreadcrumbs = await buildPath(folderId);
 	}
 
+	function openShareModal(item: any, type: 'file' | 'folder') {
+		itemToShare = {
+			type,
+			id: item.id,
+			name: item.displayName || item.name
+		};
+		shareSearchQuery = '';
+		shareSearchResults = [];
+		shareSelectedUsers = [];
+		showShareModal = true;
+		openDropdownId = null;
+	}
+
+	async function searchUsersForShare() {
+		if (shareSearchQuery.length < 2) {
+			shareSearchResults = [];
+			return;
+		}
+
+		try {
+			// Search both users and groups
+			const [usersResponse, groupsResponse] = await Promise.all([
+				apiClient.get('/api/users/search', {
+					params: { query: shareSearchQuery }
+				}),
+				apiClient.get('/api/groups/search', {
+					params: { query: shareSearchQuery }
+				})
+			]);
+			
+			// Mark users with type 'user' and groups with type 'group'
+			const users = (usersResponse.data || []).map((u: any) => ({ ...u, type: 'user' }));
+			const groups = (groupsResponse.data || []).map((g: any) => ({ 
+				...g, 
+				type: 'group',
+				memberCount: (g.members?.length || 0) + (g.participants?.length || 0) + (g.admins?.length || 0)
+			}));
+			
+			shareSearchResults = [...users, ...groups];
+		} catch (error) {
+			console.error('Search failed:', error);
+			shareSearchResults = [];
+		}
+	}
+
+	async function handleGrantShare() {
+		if (!itemToShare || shareSelectedUsers.length === 0) {
+			toast.error('Please select at least one user or group');
+			return;
+		}
+
+		try {
+			isLoading = true;
+			let shareCount = 0;
+			
+			for (const item of shareSelectedUsers) {
+				if (item.type === 'group') {
+					// Share with all members of the group
+					const groupMembers = [
+						...(item.members || []),
+						...(item.participants || []),
+						...(item.admins || [])
+					];
+					
+					// Remove duplicates by id
+					const uniqueMembers = Array.from(new Map(groupMembers.map(m => [m.id, m])).values());
+					
+					for (const member of uniqueMembers) {
+						if (itemToShare.type === 'file') {
+							await grantFileAccess(itemToShare.id, member.id);
+						} else {
+							await grantFolderAccess(itemToShare.id, member.id);
+						}
+						shareCount++;
+					}
+				} else {
+					// Share with individual user
+					if (itemToShare.type === 'file') {
+						await grantFileAccess(itemToShare.id, item.id);
+					} else {
+						await grantFolderAccess(itemToShare.id, item.id);
+					}
+					shareCount++;
+				}
+			}
+			
+			toast.success(`${itemToShare.type === 'file' ? 'File' : 'Folder'} shared with ${shareCount} ${shareCount === 1 ? 'person' : 'people'}`);
+			showShareModal = false;
+			itemToShare = null;
+			shareSelectedUsers = [];
+			shareSearchQuery = '';
+			shareSearchResults = [];
+		} catch (error) {
+			console.error('Failed to share:', error);
+			toast.error(`Failed to share ${itemToShare?.type || 'item'}`);
+		} finally {
+			isLoading = false;
+		}
+	}
+
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files[0]) {
@@ -260,32 +454,52 @@
 		await updateBreadcrumbs();
 	}
 
+	async function switchView(view: 'my-files' | 'shared') {
+		if (currentView === view) return; // Don't reload if already on this view
+		currentView = view;
+		currentFolderId = null; // Reset to root when switching views
+		await loadFiles(); // Reload files when switching views
+		await updateBreadcrumbs(); // Update breadcrumbs with correct root name
+	}
+
 	async function updateBreadcrumbs() {
+		const rootName = currentView === 'shared' ? 'Shared with me' : 'My Files';
+		
 		if (!currentFolderId) {
-			breadcrumbs = [{ id: null, name: 'My Files' }];
+			breadcrumbs = [{ id: null, name: rootName }];
 			return;
 		}
 
 		// Build breadcrumb path by fetching folder details
-		const buildPath = async (folderId: string | null, path: Array<{ id: string | null; name: string }> = []): Promise<Array<{ id: string | null; name: string }>> => {
+		const buildPath = async (folderId: string | null, path: Array<{ id: string | null; name: string }> = [], visited: Set<string> = new Set()): Promise<Array<{ id: string | null; name: string }>> => {
 			if (!folderId) {
-				return [{ id: null, name: 'My Files' }, ...path];
+				return [{ id: null, name: rootName }, ...path];
 			}
+
+			// Prevent infinite loops
+			if (visited.has(folderId)) {
+				return [{ id: null, name: rootName }, ...path];
+			}
+			visited.add(folderId);
 
 			try {
 				// Fetch folder details
 				const response = await apiClient.get(`/api/folders/${folderId}`);
 				const folder = response.data;
 
+				if (!folder) {
+					return [{ id: null, name: rootName }, ...path];
+				}
+
 				const newPath = [{ id: folder.id, name: folder.name }, ...path];
 				// Use parentFolderId (not parentId) as that's what the API returns
 				if (folder.parentFolderId) {
-					return buildPath(folder.parentFolderId, newPath);
+					return buildPath(folder.parentFolderId, newPath, visited);
 				}
-				return [{ id: null, name: 'My Files' }, ...newPath];
+				return [{ id: null, name: rootName }, ...newPath];
 			} catch (error) {
 				console.error('Failed to fetch folder for breadcrumb:', error);
-				return [{ id: null, name: 'My Files' }, ...path];
+				return [{ id: null, name: rootName }, ...path];
 			}
 		};
 
@@ -338,69 +552,126 @@
 		});
 	}
 
-	// Combine folders and files, with folders first
-	const allItems = $derived([
-		...$folders.map(f => ({ ...f, type: 'folder' as const })),
-		...$files.map(f => ({ ...f, type: 'file' as const }))
-	].sort((a, b) => {
-		// Folders first, then by date
-		if (a.type !== b.type) {
-			return a.type === 'folder' ? -1 : 1;
+	// Filter files and folders based on current view
+	const filteredFiles = $derived.by(() => {
+		const filesArray = Array.isArray(filesList) ? filesList : [];
+		if (!filesArray.length) {
+			return [];
 		}
-		return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
-	}));
+		if (!user?.id) {
+			// If user not loaded yet, return all files (will be filtered once user loads)
+			return filesArray;
+		}
+		if (currentView === 'my-files') {
+			// Only show files owned by current user
+			return filesArray.filter(f => f.ownerId === user.id);
+		} else {
+			// Only show files shared with current user (not owned by them)
+			return filesArray.filter(f => f.ownerId !== user.id);
+		}
+	});
+
+	const filteredFolders = $derived.by(() => {
+		const foldersArray = Array.isArray(foldersList) ? foldersList : [];
+		if (!foldersArray.length) {
+			return [];
+		}
+		if (!user?.id) {
+			// If user not loaded yet, return all folders (will be filtered once user loads)
+			return currentView === 'my-files' ? foldersArray : [];
+		}
+		if (currentView === 'my-files') {
+			// Only show folders owned by current user
+			return foldersArray.filter(f => f.ownerId === user.id);
+		} else {
+			// Show folders shared with current user (not owned by them)
+			return foldersArray.filter(f => f.ownerId !== user.id);
+		}
+	});
+
+	// Combine folders and files, with folders first
+	const allItems = $derived.by(() => {
+		const foldersList = Array.isArray(filteredFolders) ? filteredFolders : [];
+		const filesList = Array.isArray(filteredFiles) ? filteredFiles : [];
+		
+		return [
+			...foldersList.map(f => ({ ...f, type: 'folder' as const })),
+			...filesList.map(f => ({ ...f, type: 'file' as const }))
+		].sort((a, b) => {
+			// Folders first, then by date
+			if (a.type !== b.type) {
+				return a.type === 'folder' ? -1 : 1;
+			}
+			return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+		});
+	});
 </script>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-	<!-- Breadcrumbs -->
-	<div class="mb-4">
-		<nav class="flex items-center gap-2 text-sm">
-			{#each breadcrumbs as crumb, index}
-				{#if index > 0}
-					<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-					</svg>
-				{/if}
-				<button
-					onclick={() => navigateToFolder(crumb.id)}
-					class="text-gray-600 hover:text-gray-900 {index === breadcrumbs.length - 1 ? 'font-semibold text-gray-900' : ''}"
-				>
-					{crumb.name}
-				</button>
-			{/each}
+	<!-- Tabs and Action Buttons -->
+	<div class="mb-6 border-b border-gray-200 flex items-center justify-between">
+		<nav class="flex gap-4">
+			<button
+				onclick={() => switchView('my-files')}
+				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'my-files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+			>
+				My Files
+			</button>
+			<button
+				onclick={() => switchView('shared')}
+				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'shared' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+			>
+				Shared with me
+			</button>
 		</nav>
+		<div class="flex items-center gap-2">
+			{#if currentView === 'my-files'}
+				<button
+					onclick={() => showFolderModal = true}
+					class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+					New Folder
+				</button>
+				<button
+					onclick={() => showUploadModal = true}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+					</svg>
+					Upload
+				</button>
+			{/if}
+		</div>
 	</div>
 
-	<div class="mb-6 flex items-center justify-between">
-		<div class="flex items-center gap-4">
-			<h2 class="text-2xl font-bold text-gray-900">
-				{breadcrumbs[breadcrumbs.length - 1].name}
-			</h2>
+	<!-- Breadcrumbs (only show when not at root) -->
+	{#if breadcrumbs.length > 1 || (breadcrumbs.length === 1 && breadcrumbs[0].id !== null)}
+		<div class="mb-6">
+			<nav class="flex items-center gap-2 text-sm">
+				{#each breadcrumbs as crumb, index}
+					{#if index > 0}
+						<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+						</svg>
+					{/if}
+					<button
+						onclick={() => navigateToFolder(crumb.id)}
+						class="text-gray-600 hover:text-gray-900 {index === breadcrumbs.length - 1 ? 'font-semibold text-gray-900' : ''}"
+					>
+						{crumb.name}
+					</button>
+				{/each}
+			</nav>
 		</div>
-		<div class="flex items-center gap-2">
-			<button
-				onclick={() => showFolderModal = true}
-				class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-				</svg>
-				New Folder
-			</button>
-			<button
-				onclick={() => showUploadModal = true}
-				class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-				</svg>
-				Upload
-			</button>
-		</div>
-	</div>
+	{/if}
 
 	<div
-		class="bg-white rounded-lg border border-gray-200 shadow-sm {dragOver ? 'border-blue-500 bg-blue-50' : ''}"
+		class="bg-white rounded-lg border border-gray-200 shadow-sm {dragOver ? 'border-blue-500 bg-blue-50' : ''} relative overflow-visible"
+		style="min-height: 400px;"
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
 		ondrop={handleDrop}
@@ -412,12 +683,17 @@
 			</div>
 		{:else if allItems.length === 0}
 			<div class="text-center py-12">
-				<p class="text-gray-500 mb-4">No files or folders yet</p>
-				<p class="text-sm text-gray-400">Drag and drop files here or click Upload</p>
+				{#if currentView === 'my-files'}
+					<p class="text-gray-500 mb-4">No files or folders yet</p>
+					<p class="text-sm text-gray-400">Drag and drop files here or click Upload</p>
+				{:else}
+					<p class="text-gray-500 mb-4">No files shared with you</p>
+					<p class="text-sm text-gray-400">Files that others share with you will appear here</p>
+				{/if}
 			</div>
 		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full">
+			<div class="overflow-x-auto" style="overflow-y: visible;">
+				<table class="w-full" style="position: relative;">
 					<thead class="bg-gray-50 border-b border-gray-200">
 						<tr>
 							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
@@ -434,11 +710,12 @@
 							</th>
 						</tr>
 					</thead>
-					<tbody class="bg-white divide-y divide-gray-200">
+					<tbody class="bg-white divide-y divide-gray-200" style="position: relative;">
 						{#each allItems as item}
 							<tr
 								class="hover:bg-gray-50 transition-colors cursor-pointer {item.type === 'folder' ? '' : ''}"
 								onclick={(e) => {
+									e.stopPropagation();
 									if (item.type === 'folder') {
 										navigateToFolder(item.id);
 									} else {
@@ -452,8 +729,13 @@
 											{item.type === 'folder' ? '📁' : getFileIcon(item.type === 'file' ? item.mimeType : '')}
 										</span>
 										<div class="flex-1 min-w-0">
-											<div class="text-sm font-medium text-gray-900 truncate">
-												{item.displayName || item.name}
+											<div class="flex items-center gap-2">
+												<div class="text-sm font-medium text-gray-900 truncate">
+													{item.displayName || item.name}
+												</div>
+												{#if currentView === 'shared' && item.owner}
+													<span class="text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
+												{/if}
 											</div>
 											{#if item.type === 'file' && item.description}
 												<div class="text-xs text-gray-500 truncate">{item.description}</div>
@@ -467,32 +749,90 @@
 								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 									{formatDate(item.updatedAt || item.createdAt)}
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-									<div class="flex items-center justify-end gap-2">
+								<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="position: relative; overflow: visible;">
+									<div class="relative flex items-center justify-end dropdown-container" style="position: relative; overflow: visible;">
 										<button
 											onclick={(e) => { 
 												e.stopPropagation(); 
-												openMoveModal(item, item.type);
+												openDropdownId = openDropdownId === item.id ? null : item.id;
 											}}
-											class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
-											title="Move"
+											class="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100 transition-colors"
+											title="Actions"
+											data-dropdown-button={item.id}
 										>
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+											<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+												<path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
 											</svg>
 										</button>
-										<button
-											onclick={(e) => { 
-												e.stopPropagation(); 
-												openDeleteModal(item, item.type);
-											}}
-											class="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-											title="Delete"
-										>
-											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
-										</button>
+										{#if openDropdownId === item.id}
+											<div 
+												class="fixed z-[9999] w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5"
+												use:dropdownPosition
+											>
+												<div class="py-1">
+													{#if currentView === 'my-files' && item.ownerId === user?.id}
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
+																openMoveModal(item, item.type);
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+															</svg>
+															Move
+														</button>
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
+																openShareModal(item, item.type);
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+															</svg>
+															Share
+														</button>
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
+																openDeleteModal(item, item.type);
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+															</svg>
+															Delete
+														</button>
+													{:else}
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
+																if (item.type === 'file') {
+																	goto(`/files/${item.id}`);
+																} else {
+																	navigateToFolder(item.id);
+																}
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+															</svg>
+															View Details
+														</button>
+													{/if}
+												</div>
+											</div>
+										{/if}
 									</div>
 								</td>
 							</tr>
@@ -714,6 +1054,82 @@
 					class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
 				>
 					Delete
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Share Modal -->
+{#if showShareModal && itemToShare}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick={() => { showShareModal = false; itemToShare = null; shareSelectedUsers = []; shareSearchQuery = ''; shareSearchResults = []; }}>
+		<div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
+			<h3 class="text-xl font-bold mb-4">Share {itemToShare.type === 'file' ? 'File' : 'Folder'}</h3>
+			<p class="text-sm text-gray-600 mb-4">Sharing: <strong>{itemToShare.name}</strong></p>
+			<input
+				type="text"
+				bind:value={shareSearchQuery}
+				oninput={searchUsersForShare}
+				placeholder="Search users or groups..."
+				class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+			/>
+			{#if shareSearchResults.length > 0}
+				<div class="mb-4 max-h-60 overflow-y-auto">
+					{#each shareSearchResults as item}
+						<div
+							class="p-3 border border-gray-200 rounded mb-2 cursor-pointer hover:bg-gray-50 {shareSelectedUsers.find(u => u.id === item.id) ? 'bg-blue-50 border-blue-300' : ''}"
+							onclick={() => {
+								if (shareSelectedUsers.find(u => u.id === item.id)) {
+									shareSelectedUsers = shareSelectedUsers.filter(u => u.id !== item.id);
+								} else {
+									shareSelectedUsers = [...shareSelectedUsers, item];
+								}
+							}}
+						>
+							<div class="flex items-center gap-2">
+								{#if item.type === 'group'}
+									<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+									</svg>
+									<div class="flex-1">
+										<div class="font-medium text-gray-900">{item.name}</div>
+										<div class="text-xs text-gray-500">{item.memberCount} {item.memberCount === 1 ? 'member' : 'members'}</div>
+									</div>
+								{:else}
+									<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+									</svg>
+									<div class="flex-1">
+										<div class="font-medium text-gray-900">{item.name || item.ename}</div>
+										{#if item.name && item.ename}
+											<div class="text-xs text-gray-500">@{item.ename.replace(/^@+/, '')}</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => { 
+						showShareModal = false; 
+						itemToShare = null; 
+						shareSelectedUsers = []; 
+						shareSearchQuery = ''; 
+						shareSearchResults = []; 
+					}}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleGrantShare}
+					disabled={isLoading || shareSelectedUsers.length === 0}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					Share
 				</button>
 			</div>
 		</div>
