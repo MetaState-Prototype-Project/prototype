@@ -4,25 +4,57 @@
 	import { Comment, MessageInput } from '$lib/fragments';
 	import { showComments } from '$lib/store/store.svelte';
 	import { activePostId } from '$lib/stores/comments';
-	import { error, fetchFeed, isLoading, posts, toggleLike } from '$lib/stores/posts';
+	import {
+		error,
+		fetchFeed,
+		hasMore,
+		isLoading,
+		isLoadingMore,
+		loadMoreFeed,
+		posts,
+		resetFeed,
+		toggleLike
+	} from '$lib/stores/posts';
 	import type { CommentType, userProfile } from '$lib/types';
 	import { apiClient, getAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import type { CupertinoPane } from 'cupertino-pane';
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 
-	let listElement: HTMLElement;
 	let drawer: CupertinoPane | undefined = $state();
 	let commentValue: string = $state('');
 	let commentInput: HTMLInputElement | undefined = $state();
 	let _comments = $state<CommentType[]>([]);
 	let activeReplyToId: string | null = $state(null);
 
-	const onScroll = () => {
-		if (listElement.scrollTop + listElement.clientHeight >= listElement.scrollHeight) {
-			// TODO: Implement pagination
-		}
+	const sentinel = (node: HTMLElement) => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						const hasMorePosts = get(hasMore);
+						const loading = get(isLoading);
+						const loadingMore = get(isLoadingMore);
+
+						if (hasMorePosts && !loading && !loadingMore) {
+							loadMoreFeed();
+						}
+					}
+				}
+			},
+			{ rootMargin: '200px' }
+		);
+
+		observer.observe(node);
+
+		return {
+			destroy() {
+				observer.disconnect();
+			}
+		};
 	};
+
 	let profile = $state<userProfile | null>(null);
 	const handleSend = async () => {
 		const newComment = {
@@ -76,21 +108,16 @@
 		}
 	}
 
-	$effect(() => {
-		listElement.addEventListener('scroll', onScroll);
-		console.log($posts);
-		return () => listElement.removeEventListener('scroll', onScroll);
-	});
-
 	onMount(() => {
-		fetchFeed();
+		resetFeed();
+		fetchFeed(1, 10, false);
 		fetchProfile();
 	});
 </script>
 
 <div class="flex flex-col">
-	<ul bind:this={listElement} class="hide-scrollbar h-[100vh] overflow-auto">
-		{#if $isLoading}
+	<ul class="hide-scrollbar h-[100vh] overflow-auto">
+		{#if $isLoading && $posts.length === 0}
 			<li class="my-4 text-center">Loading posts...</li>
 		{:else if $error}
 			<li class="my-4 text-center text-red-500">{$error}</li>
@@ -108,10 +135,71 @@
 						count={{ likes: post.likedBy.length, comments: post.comments.length }}
 						callback={{
 							like: async () => {
+								if (!profile) return;
+
+								// Capture profile and post ID for reliable lookup
+								const currentProfile = profile;
+								const targetPostId = post.id;
+
+								// Optimistically update the post in the store
+								const currentPosts = get(posts);
+								const currentPostIndex = currentPosts.findIndex(
+									(p) => p.id === targetPostId
+								);
+
+								if (currentPostIndex === -1) return;
+
+								const currentPost = currentPosts[currentPostIndex];
+								const isCurrentlyLiked = currentPost.likedBy.some(
+									(p) => p.id === currentProfile.id
+								);
+
+								// Save original state for potential rollback
+								const originalLikedBy = [...currentPost.likedBy];
+
+								// Optimistically update: toggle liked state and adjust like count
+								posts.update((posts) => {
+									const updatedPosts = [...posts];
+									const postIndex = updatedPosts.findIndex(
+										(p) => p.id === targetPostId
+									);
+
+									if (postIndex === -1) return updatedPosts;
+
+									const postToUpdate = { ...updatedPosts[postIndex] };
+
+									if (isCurrentlyLiked) {
+										// Unlike: remove current user from likedBy
+										postToUpdate.likedBy = postToUpdate.likedBy.filter(
+											(p) => p.id !== currentProfile.id
+										);
+									} else {
+										// Like: add current user to likedBy
+										postToUpdate.likedBy = [...postToUpdate.likedBy, currentProfile];
+									}
+
+									updatedPosts[postIndex] = postToUpdate;
+									return updatedPosts;
+								});
+
+								// Call toggleLike in the background
 								try {
-									await toggleLike(post.id);
-									await fetchFeed(); // Refresh feed to update like count
+									await toggleLike(targetPostId);
 								} catch (err) {
+									// On error, revert the optimistic update
+									posts.update((posts) => {
+										const updatedPosts = [...posts];
+										const postIndex = updatedPosts.findIndex(
+											(p) => p.id === targetPostId
+										);
+
+										if (postIndex === -1) return updatedPosts;
+
+										const postToRevert = { ...updatedPosts[postIndex] };
+										postToRevert.likedBy = originalLikedBy;
+										updatedPosts[postIndex] = postToRevert;
+										return updatedPosts;
+									});
 									console.error('Failed to toggle like:', err);
 								}
 							},
@@ -129,6 +217,15 @@
 					/>
 				</li>
 			{/each}
+			{#if $isLoadingMore}
+				<li class="my-4 text-center">Loading more posts...</li>
+			{/if}
+			{#if !$hasMore && $posts.length > 0 && !$isLoadingMore}
+				<li class="my-4 text-center text-gray-500">No more posts to load</li>
+			{/if}
+			{#if $hasMore && !$isLoadingMore}
+				<li class="h-1 w-full" use:sentinel></li>
+			{/if}
 		{/if}
 	</ul>
 </div>
@@ -148,7 +245,7 @@
 			</li>
 		{/each}
 		<MessageInput
-			class="fixed start-0 bottom-4 mt-4 w-full px-5"
+			class="fixed bottom-4 start-0 mt-4 w-full px-5"
 			variant="comment"
 			src="https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250"
 			bind:value={commentValue}
