@@ -58,13 +58,6 @@ const {
     initialize,
 } = actions;
 
-let isOverlayActive = $derived(
-    $codeScannedDrawerOpen ||
-        $loggedInDrawerOpen ||
-        $signingDrawerOpen ||
-        $isRevealRequest,
-);
-
 const pathProps: SVGAttributes<SVGPathElement> = {
     stroke: "white",
     "stroke-width": 7,
@@ -106,15 +99,9 @@ $effect(() => {
 });
 
 async function handleAuthDrawerDecline() {
-    // If there's an error, "Okay" button closes modal and navigates to main
-    if ($authError) {
-        setCodeScannedDrawerOpen(false);
-        await goto("/main");
-    } else {
-        // Otherwise, "Decline" closes modal and restarts scanning
-        setCodeScannedDrawerOpen(false);
-        startScan();
-    }
+    // Cancel button always navigates to main
+    setCodeScannedDrawerOpen(false);
+    await goto("/main");
 }
 
 function handleAuthDrawerOpenChange(value: boolean) {
@@ -133,15 +120,9 @@ function handleLoggedInDrawerOpenChange(value: boolean) {
 }
 
 async function handleSigningDrawerDecline() {
-    // If there's an error, "Okay" button closes modal and navigates to main
-    if ($signingError) {
-        setSigningDrawerOpen(false);
-        await goto("/main");
-    } else {
-        // Otherwise, "Decline" closes modal and restarts scanning
-        setSigningDrawerOpen(false);
-        startScan();
-    }
+    // Cancel button always navigates to main
+    setSigningDrawerOpen(false);
+    await goto("/main");
 }
 
 function handleSigningDrawerOpenChange(value: boolean) {
@@ -163,103 +144,88 @@ function handleRevealDrawerCancel() {
 function handleRevealDrawerOpenChange(value: boolean) {
     setRevealRequestOpen(value);
 }
-
-$effect(() => {
-    if (isOverlayActive) {
-        console.log("Overlay is now active, camera should be hidden.");
-    }
-});
-
-$effect(() => {
-    const shouldStop = isOverlayActive;
-    if (shouldStop) {
-        cancelScan();
-    } else {
-        startScan();
-    }
-});
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
 
-{#if !isOverlayActive}
-    <div
-        class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
+<div
+    class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
+>
+    <svg
+        class="mx-auto"
+        width="204"
+        height="215"
+        viewBox="0 0 204 215"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
     >
-        <svg
-            class="mx-auto"
-            width="204"
-            height="215"
-            viewBox="0 0 204 215"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-        >
-            <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
-            <path
-                d="M158 4H189C195.075 4 200 8.92487 200 15V46"
-                {...pathProps}
-            />
-            <path
-                d="M46 211H15C8.92487 211 4 206.075 4 200V169"
-                {...pathProps}
-            />
-            <path
-                d="M158 211H189C195.075 211 200 206.075 200 200V169"
-                {...pathProps}
-            />
-        </svg>
+        <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
+        <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
+        <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
+        <path
+            d="M158 211H189C195.075 211 200 206.075 200 200V169"
+            {...pathProps}
+        />
+    </svg>
 
-        <h4 class="text-white font-semibold text-center mt-20">
-            Point the camera at the code
-        </h4>
-    </div>
-{:else}
-    <div
-        class="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center p-4"
-    >
-        {#if $codeScannedDrawerOpen}
-            <AuthDrawer
-                platform={$platform}
-                hostname={$hostname}
-                scannedContent={$scannedData?.content}
-                isSigningRequest={$isSigningRequest}
-                authError={$authError}
-                authLoading={$authLoading}
-                onConfirm={handleAuth}
-                onDecline={handleAuthDrawerDecline}
-            />
-        {:else if $loggedInDrawerOpen}
-            <LoggedInDrawer
-                platform={$platform}
-                redirect={$redirect}
-                onConfirm={handleLoggedInDrawerConfirm}
-            />
-        {:else if $signingDrawerOpen}
-            <SigningDrawer
-                showSigningSuccess={$showSigningSuccess}
-                isBlindVotingRequest={$isBlindVotingRequest}
-                signingData={$signingData}
-                blindVoteError={$blindVoteError}
-                selectedBlindVoteOption={$selectedBlindVoteOption}
-                isSubmittingBlindVote={$isSubmittingBlindVote}
-                loading={$loading}
-                signingError={$signingError}
-                onDecline={handleSigningDrawerDecline}
-                onSign={handleSignVote}
-                onBlindVoteOptionChange={handleBlindVoteOptionChange}
-                onSubmitBlindVote={handleBlindVote}
-                onSuccessOkay={handleSuccessOkay}
-            />
-        {:else if $isRevealRequest}
-            <RevealDrawer
-                revealSuccess={$revealSuccess}
-                revealedVoteData={$revealedVoteData}
-                revealPollId={$revealPollId}
-                revealError={$revealError}
-                isRevealingVote={$isRevealingVote}
-                onCancel={handleRevealDrawerCancel}
-                onReveal={handleRevealVote}
-            />
-        {/if}
-    </div>
-{/if}
+    <h4 class="text-white font-semibold text-center mt-20">
+        Point the camera at the code
+    </h4>
+</div>
+
+<AuthDrawer
+    isOpen={$codeScannedDrawerOpen}
+    platform={$platform}
+    hostname={$hostname}
+    scannedContent={$scannedData?.content}
+    isSigningRequest={$isSigningRequest}
+    authError={$authError}
+    authLoading={$authLoading}
+    onConfirm={handleAuth}
+    onDecline={handleAuthDrawerDecline}
+    onOpenChange={handleAuthDrawerOpenChange}
+/>
+
+<LoggedInDrawer
+    isOpen={$loggedInDrawerOpen}
+    platform={$platform}
+    redirect={$redirect}
+    onConfirm={handleLoggedInDrawerConfirm}
+    onOpenChange={handleLoggedInDrawerOpenChange}
+/>
+
+<SigningDrawer
+    isOpen={$signingDrawerOpen}
+    showSigningSuccess={$showSigningSuccess}
+    isBlindVotingRequest={$isBlindVotingRequest}
+    signingData={$signingData}
+    blindVoteError={$blindVoteError}
+    selectedBlindVoteOption={$selectedBlindVoteOption}
+    isSubmittingBlindVote={$isSubmittingBlindVote}
+    loading={$loading}
+    signingError={$signingError}
+    onDecline={handleSigningDrawerDecline}
+    onSign={handleSignVote}
+    onBlindVoteOptionChange={handleBlindVoteOptionChange}
+    onSubmitBlindVote={handleBlindVote}
+    onSuccessOkay={handleSuccessOkay}
+    onOpenChange={handleSigningDrawerOpenChange}
+/>
+
+<RevealDrawer
+    isOpen={$isRevealRequest}
+    revealSuccess={$revealSuccess}
+    revealedVoteData={$revealedVoteData}
+    revealPollId={$revealPollId}
+    revealError={$revealError}
+    isRevealingVote={$isRevealingVote}
+    onCancel={handleRevealDrawerCancel}
+    onReveal={handleRevealVote}
+    onOpenChange={handleRevealDrawerOpenChange}
+/>
+
+<style>
+    :global(body:has(.loggedin-drawer)) {
+        background-color: white !important;
+    }
+</style>
