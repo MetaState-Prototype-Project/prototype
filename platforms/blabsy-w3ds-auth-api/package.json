@@ -11,7 +11,8 @@
         "migration:generate": "npm run typeorm migration:generate -- -d src/database/data-source.ts",
         "migration:run": "npm run typeorm migration:run -- -d src/database/data-source.ts",
         "migration:revert": "npm run typeorm migration:revert -- -d src/database/data-source.ts",
-        "test": "jest"
+        "test": "jest",
+        "sync:users-and-groups": "ts-node src/scripts/syncUsersAndGroups.ts"
     },
     "dependencies": {
         "axios": "^1.6.7",
