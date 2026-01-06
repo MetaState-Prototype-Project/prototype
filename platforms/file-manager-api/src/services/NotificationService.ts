@@ -235,7 +235,7 @@ export class NotificationService {
         const fileName = file.displayName || file.name;
         const descriptionText = file.description ? `\nDescription: ${file.description}` : '';
         const fileManagerUrl = process.env.PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
-        const fileLink = `${fileManagerUrl}/files/${file.id}`;
+        const fileLink = `${fileManagerUrl}/files/${file.id}?view=shared`;
 
         return `📁 File Shared
 
@@ -264,9 +264,7 @@ Time: ${formattedTime}
 
         const sharerText = sharerName ? ` from ${sharerName}` : '';
         const fileManagerUrl = process.env.PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
-        const folderLink = folder.parentFolderId 
-            ? `${fileManagerUrl}/files?folderId=${folder.id}`
-            : `${fileManagerUrl}/files?folderId=${folder.id}`;
+        const folderLink = `${fileManagerUrl}/files?view=shared&folderId=${folder.id}`;
 
         return `📂 Folder Shared
 

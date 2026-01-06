@@ -26,6 +26,28 @@ export class FileController {
                     return res.status(401).json({ error: "Authentication required" });
                 }
 
+                // Check file size limit (5MB)
+                const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+                if (req.file.size > MAX_FILE_SIZE) {
+                    return res.status(413).json({ 
+                        error: "File size exceeds 5MB limit",
+                        maxSize: MAX_FILE_SIZE,
+                        fileSize: req.file.size
+                    });
+                }
+
+                // Check user's storage quota (1GB total)
+                const { used, limit } = await this.fileService.getUserStorageUsage(req.user.id);
+                if (used + req.file.size > limit) {
+                    return res.status(413).json({ 
+                        error: "Storage quota exceeded",
+                        used,
+                        limit,
+                        fileSize: req.file.size,
+                        available: limit - used
+                    });
+                }
+
                 const { displayName, description, folderId } = req.body;
 
                 // Normalize folderId - convert string "null" to actual null
@@ -336,6 +358,20 @@ export class FileController {
                 return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: "Failed to move file" });
+        }
+    };
+
+    getStorageUsage = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const usage = await this.fileService.getUserStorageUsage(req.user.id);
+            res.json(usage);
+        } catch (error) {
+            console.error("Error getting storage usage:", error);
+            res.status(500).json({ error: "Failed to get storage usage" });
         }
     };
 }

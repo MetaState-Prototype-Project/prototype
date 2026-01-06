@@ -16,6 +16,7 @@
 	let previewUrl = $state<string | null>(null);
 	let showAccessModal = $state(false);
 	let showTagModal = $state(false);
+	let showRenameModal = $state(false);
 	let searchQuery = $state('');
 	let searchResults = $state<any[]>([]);
 	let selectedUsers = $state<any[]>([]);
@@ -23,6 +24,7 @@
 	let tagInput = $state('');
 	let filteredTags = $state<any[]>([]);
 	let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([{ id: null, name: 'My Files' }]);
+	let newDisplayName = $state('');
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -37,6 +39,15 @@
 			goto('/files');
 			return;
 		}
+		
+		// Check for view param from notification link
+		const searchParams = new URLSearchParams(window.location.search);
+		const viewParam = searchParams.get('view');
+		if (viewParam === 'shared') {
+			// Store flag for potential back navigation
+			// Could be used to return to shared view instead of my files
+		}
+		
 		await loadFile(fileId);
 		
 		// Only fetch access and tags if user is the owner
@@ -275,6 +286,28 @@
 		} catch (error) {
 			console.error('Failed to add tag:', error);
 			toast.error('Failed to add tag');
+		}
+	}
+
+	async function handleRenameFile() {
+		if (!newDisplayName.trim()) {
+			toast.error('Please enter a name');
+			return;
+		}
+
+		try {
+			isLoading = true;
+			await apiClient.patch(`/api/files/${file.id}`, {
+				displayName: newDisplayName.trim()
+			});
+			toast.success('File renamed successfully');
+			showRenameModal = false;
+			await loadFile(file.id);
+		} catch (error) {
+			console.error('Failed to rename file:', error);
+			toast.error('Failed to rename file');
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -656,3 +689,37 @@
 	</div>
 {/if}
 
+<!-- Rename Modal -->
+{#if showRenameModal}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+		<div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+			<h3 class="text-xl font-bold mb-4">Rename File</h3>
+			<input
+				type="text"
+				bind:value={newDisplayName}
+				placeholder="Enter new name"
+				class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && newDisplayName.trim()) {
+						handleRenameFile();
+					}
+				}}
+			/>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => { showRenameModal = false; newDisplayName = ''; }}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleRenameFile}
+					disabled={!newDisplayName.trim() || isLoading}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{isLoading ? 'Renaming...' : 'Rename'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

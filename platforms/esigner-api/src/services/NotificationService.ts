@@ -285,6 +285,8 @@ export class NotificationService {
         const inviterText = inviterName ? ` from ${inviterName}` : '';
         const containerName = file.displayName || file.name;
         const descriptionText = file.description ? `\nDescription: ${file.description}` : '';
+        const esignerUrl = process.env.PUBLIC_ESIGNER_BASE_URL || 'http://localhost:3004';
+        const fileLink = `${esignerUrl}/files/${file.id}`;
 
         return `📝 Signature Invitation
 
@@ -296,7 +298,7 @@ Size: ${this.formatFileSize(file.size)}
 Type: ${file.mimeType}
 Time: ${formattedTime}
 
-Please review and sign the signature container when ready.`;
+<a href="${fileLink}">View Signature Container in eSigner</a>`;
     }
 
     /**
@@ -314,6 +316,8 @@ Please review and sign the signature container when ready.`;
         const signerText = signerName ? ` by ${signerName}` : '';
         const containerName = file.displayName || file.name;
         const descriptionText = file.description ? `\nDescription: ${file.description}` : '';
+        const esignerUrl = process.env.PUBLIC_ESIGNER_BASE_URL || 'http://localhost:3004';
+        const fileLink = `${esignerUrl}/files/${file.id}`;
 
         return `✅ Signature Completed
 
@@ -323,7 +327,7 @@ Signature Container: ${containerName}${descriptionText}
 File: ${file.name}
 Time: ${formattedTime}
 
-The signature has been recorded and verified.`;
+<a href="${fileLink}">View Signature Container in eSigner</a>`;
     }
 
     /**
@@ -340,6 +344,8 @@ The signature has been recorded and verified.`;
 
         const containerName = file.displayName || file.name;
         const descriptionText = file.description ? `\nDescription: ${file.description}` : '';
+        const esignerUrl = process.env.PUBLIC_ESIGNER_BASE_URL || 'http://localhost:3004';
+        const fileLink = `${esignerUrl}/files/${file.id}`;
 
         return `🎉 Signature Container Fully Signed
 
@@ -349,7 +355,7 @@ Signature Container: ${containerName}${descriptionText}
 File: ${file.name}
 Time: ${formattedTime}
 
-The signature container is now complete. You can download the proof from the eSigner platform.`;
+<a href="${fileLink}">Download Proof from eSigner</a>`;
     }
 
     /**
