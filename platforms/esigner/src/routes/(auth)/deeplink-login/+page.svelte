@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { apiClient } from '$lib/utils/axios';
+	import { login } from '$lib/stores/auth';
 
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
@@ -59,40 +61,27 @@
 				// Clean up URL
 				window.history.replaceState({}, '', window.location.pathname);
 
-				// Make POST request to login endpoint
-				const apiBaseUrl = import.meta.env.VITE_ESIGNER_BASE_URL;
-				const loginUrl = `${apiBaseUrl}/api/auth`;
+				// Make POST request to login endpoint using apiClient
 				const requestBody = { ename, session, signature, appVersion: appVersion || '0.4.0' };
 
-				const response = await fetch(loginUrl, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(requestBody)
-				});
+				const response = await apiClient.post('/api/auth', requestBody);
 
-				if (response.ok) {
-					const data = await response.json();
-					if (data.token && data.user) {
-						localStorage.setItem("esigner_auth_token", data.token);
-						localStorage.setItem("esigner_user", JSON.stringify(data.user));
-						window.location.href = "/files";
-					} else {
-						error = "Invalid response from server";
-						isLoading = false;
-					}
+				if (response.data.token && response.data.user) {
+					login(response.data.token, response.data.user);
+					goto('/files');
 				} else {
-					let errorData;
-					try {
-						errorData = await response.json();
-					} catch (parseError) {
-						errorData = { error: `Server error: ${response.status}` };
-					}
-					error = errorData.error || "Authentication failed";
+					error = "Invalid response from server";
 					isLoading = false;
 				}
-			} catch (err) {
+			} catch (err: any) {
 				console.error('Login request failed:', err);
-				error = "Failed to connect to server";
+				if (err.response?.data?.error) {
+					error = err.response.data.error;
+				} else if (err.response?.status) {
+					error = `Server error: ${err.response.status}`;
+				} else {
+					error = "Failed to connect to server";
+				}
 				isLoading = false;
 			}
 		};
