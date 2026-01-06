@@ -43,11 +43,11 @@
 </script>
 
 {#if showSplashScreen}
-	<main class="grid h-[100dvh] w-full items-center justify-center">
+	<main class="grid h-dvh w-full items-center justify-center">
 		<img src="/images/Logo.svg" alt="logo" />
 	</main>
 {:else}
-	<div class="flex h-[100dvh] flex-col overflow-hidden">
+	<div class="flex h-dvh flex-col overflow-hidden">
 		<MaintenanceBanner />
 		<main
 			class="flex-1 overflow-hidden {page.url.pathname.includes('/profile')
