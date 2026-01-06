@@ -406,7 +406,7 @@
 					<div class="lg:hidden mb-4">
 						{#if previewUrl && (file.mimeType?.startsWith('image/') || file.mimeType === 'application/pdf')}
 							<button
-								onclick={() => window.open(previewUrl, '_blank')}
+								onclick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
 								class="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center gap-2"
 							>
 								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

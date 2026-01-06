@@ -332,6 +332,7 @@
 			return;
 		}
 
+		const itemType = itemToRename.type;
 		try {
 			isLoading = true;
 			if (itemToRename.type === 'file') {
@@ -349,7 +350,7 @@
 			await fetchFolderTree();
 		} catch (error) {
 			console.error('Failed to rename:', error);
-			toast.error(`Failed to rename ${itemToRename.type}`);
+			toast.error(`Failed to rename ${itemType}`);
 		} finally {
 			isLoading = false;
 		}
