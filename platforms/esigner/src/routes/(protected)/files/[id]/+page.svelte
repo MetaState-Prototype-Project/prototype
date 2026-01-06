@@ -8,6 +8,7 @@
 	import { qrcode } from 'svelte-qrcode-action';
 	import { PUBLIC_ESIGNER_BASE_URL } from '$env/static/public';
 	import { toast } from '$lib/stores/toast';
+	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
 
 	let file = $state<any>(null);
 	let invitations = $state<any[]>([]);
@@ -282,22 +283,22 @@
 </script>
 
 <!-- Main Content: Split Layout -->
-<main class="h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
+<main class="min-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
 		<!-- Page Header -->
-		<div class="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+		<div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
 			<a href="/files" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium mb-2">
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 				</svg>
 				Back to Signature Containers
 			</a>
-			<h1 class="text-2xl font-bold text-gray-900">{file?.displayName || file?.name || 'Signature Container'}</h1>
+			<h1 class="text-xl sm:text-2xl font-bold text-gray-900 break-words">{file?.displayName || file?.name || 'Signature Container'}</h1>
 			{#if file?.description}
 				<p class="text-sm text-gray-600 mt-1">{file.description}</p>
 			{/if}
 		</div>
 		
-		<div class="flex-1 flex overflow-hidden">
+		<div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
 			{#if isLoading}
 				<div class="flex-1 flex items-center justify-center">
 					<div class="text-center">
@@ -306,8 +307,8 @@
 					</div>
 				</div>
 			{:else if file}
-			<!-- Left Side: Preview (70%) -->
-			<div class="flex-[0.7] bg-gray-100 overflow-auto flex items-center justify-center p-8">
+			<!-- Left Side: Preview (70%) - Hidden on mobile, shown in modal if needed -->
+			<div class="hidden lg:flex lg:flex-[0.7] bg-gray-100 overflow-auto items-center justify-center p-4 sm:p-8">
 				{#if previewUrl}
 					{#if file.mimeType?.startsWith('image/')}
 						<div class="max-w-full max-h-full shadow-2xl rounded-lg overflow-hidden bg-white">
@@ -322,25 +323,25 @@
 							></iframe>
 						</div>
 					{:else}
-						<div class="bg-white rounded-lg shadow-lg p-12 text-center max-w-md">
-							<div class="text-6xl mb-4">📄</div>
+						<div class="bg-white rounded-lg shadow-lg p-6 sm:p-12 text-center max-w-md">
+							<div class="text-4xl sm:text-6xl mb-4">📄</div>
 							<p class="text-gray-600 mb-2">Preview not available for this file type</p>
 							<p class="text-sm text-gray-500">{file.mimeType}</p>
 							<button
 								onclick={() => showDownloadModal = true}
-								class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+								class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
 							>
 								Download File
 							</button>
 						</div>
 					{/if}
 				{:else}
-					<div class="bg-white rounded-lg shadow-lg p-12 text-center max-w-md">
-						<div class="text-6xl mb-4">📄</div>
+					<div class="bg-white rounded-lg shadow-lg p-6 sm:p-12 text-center max-w-md">
+						<div class="text-4xl sm:text-6xl mb-4">📄</div>
 						<p class="text-gray-600 mb-2">Preview not available</p>
 						<button
 							onclick={() => showDownloadModal = true}
-							class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+							class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
 						>
 							Download File
 						</button>
@@ -348,21 +349,37 @@
 				{/if}
 			</div>
 
-			<!-- Right Side: Metadata Sidebar (30%) -->
-			<div class="flex-[0.3] bg-white border-l border-gray-200 overflow-y-auto">
-				<div class="p-6 space-y-6">
+			<!-- Right Side: Metadata Sidebar (30%) - Full width on mobile -->
+			<div class="flex-1 lg:flex-[0.3] bg-white border-t lg:border-t-0 lg:border-l border-gray-200 overflow-y-auto">
+				<div class="p-4 sm:p-6 space-y-6">
+					<!-- Mobile Preview Button -->
+					<div class="lg:hidden mb-4">
+						{#if previewUrl && (file.mimeType?.startsWith('image/') || file.mimeType === 'application/pdf')}
+							<button
+								onclick={() => window.open(previewUrl, '_blank')}
+								class="w-full px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+							>
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+								</svg>
+								View Preview
+							</button>
+						{/if}
+					</div>
+
 					<!-- Signature Container Info -->
 					<div>
 						<h2 class="text-sm font-semibold text-gray-900 mb-3">Signature Container</h2>
 						<div class="space-y-3">
 							<div>
 								<p class="text-xs text-gray-500 mb-1">Name</p>
-								<p class="text-sm font-medium text-gray-900">{file.displayName || file.name}</p>
+								<p class="text-sm font-medium text-gray-900 break-words">{file.displayName || file.name}</p>
 							</div>
 							{#if file.description}
 								<div>
 									<p class="text-xs text-gray-500 mb-1">Description</p>
-									<p class="text-sm text-gray-700 whitespace-pre-wrap">{file.description}</p>
+									<p class="text-sm text-gray-700 whitespace-pre-wrap break-words">{file.description}</p>
 								</div>
 							{/if}
 						</div>
@@ -372,20 +389,20 @@
 					<div class="border-t border-gray-200 pt-6">
 						<h2 class="text-sm font-semibold text-gray-900 mb-3">File Information</h2>
 						<div class="space-y-2 text-sm">
-							<div class="flex justify-between">
-								<span class="text-gray-600">File Name:</span>
-								<span class="text-gray-900 font-medium truncate ml-2" title={file.name}>{file.name}</span>
+							<div class="flex justify-between gap-2">
+								<span class="text-gray-600 flex-shrink-0">File Name:</span>
+								<span class="text-gray-900 font-medium truncate text-right" title={file.name}>{file.name}</span>
 							</div>
-							<div class="flex justify-between">
-								<span class="text-gray-600">Size:</span>
+							<div class="flex justify-between gap-2">
+								<span class="text-gray-600 flex-shrink-0">Size:</span>
 								<span class="text-gray-900 font-medium">{formatFileSize(file.size)}</span>
 							</div>
-							<div class="flex justify-between">
-								<span class="text-gray-600">Type:</span>
-								<span class="text-gray-900 font-medium">{file.mimeType}</span>
+							<div class="flex justify-between gap-2">
+								<span class="text-gray-600 flex-shrink-0">Type:</span>
+								<span class="text-gray-900 font-medium break-all text-right text-xs sm:text-sm">{file.mimeType}</span>
 							</div>
-							<div class="flex justify-between">
-								<span class="text-gray-600">Created:</span>
+							<div class="flex justify-between gap-2">
+								<span class="text-gray-600 flex-shrink-0">Created:</span>
 								<span class="text-gray-900 font-medium">{new Date(file.createdAt).toLocaleDateString()}</span>
 							</div>
 						</div>
@@ -452,13 +469,13 @@
 											</p>
 										</div>
 										{#if signee.hasSigned}
-											<span class="text-green-600 text-xs font-semibold">✓ Signed</span>
+											<span class="text-green-600 text-xs font-semibold flex-shrink-0">✓ Signed</span>
 										{:else if signee.status === 'declined'}
-											<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+											<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 flex-shrink-0">
 												Declined
 											</span>
 										{:else}
-											<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+											<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 flex-shrink-0">
 												Pending
 											</span>
 										{/if}
@@ -534,19 +551,49 @@
 				onclick={(e) => e.stopPropagation()}
 			>
 				<h3 class="text-xl font-bold text-gray-900 mb-4">Sign Signature Container</h3>
-				<p class="text-gray-600 mb-6">Scan this QR code with your eID Wallet to sign the signature container</p>
+				<p class="text-gray-600 mb-6">
+					{isMobileDevice() ? 'Click the button below to open your eID Wallet and sign' : 'Scan this QR code with your eID Wallet to sign the signature container'}
+				</p>
 				
 				<div class="flex justify-center mb-6">
-					<article
-						class="overflow-hidden rounded-2xl bg-white p-4"
-						use:qrcode={{
-							data: signingSession.qrData,
-							width: 250,
-							height: 250,
-							margin: 12,
-							type: 'canvas'
-						}}
-					></article>
+					{#if isMobileDevice()}
+						<div class="flex flex-col gap-4 items-center w-full">
+							<a
+								href={getDeepLinkUrl(signingSession.qrData)}
+								class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
+							>
+								Sign with eID Wallet
+							</a>
+							<div class="text-xs text-gray-500 text-center max-w-xs">
+								Click the button to open your eID wallet app
+							</div>
+						</div>
+					{:else}
+						<article
+							class="overflow-hidden rounded-2xl bg-white p-4"
+							use:qrcode={{
+								data: signingSession.qrData,
+								width: 250,
+								height: 250,
+								margin: 12,
+								type: 'canvas'
+							}}
+						></article>
+					{/if}
+				</div>
+
+				<div class="text-xs text-gray-500 space-y-1 mb-4">
+					{#if isMobileDevice()}
+						<p>1. Click the button above</p>
+						<p>2. Your eID wallet app will open</p>
+						<p>3. Review and sign the message</p>
+						<p>4. The signature will be recorded automatically</p>
+					{:else}
+						<p>1. Open your eID Wallet app</p>
+						<p>2. Scan this QR code</p>
+						<p>3. Review and sign the message</p>
+						<p>4. The signature will be recorded automatically</p>
+					{/if}
 				</div>
 
 				<p class="text-sm text-gray-500 text-center mb-4">

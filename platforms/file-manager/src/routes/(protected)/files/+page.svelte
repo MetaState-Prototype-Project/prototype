@@ -722,35 +722,36 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 	<!-- Tabs and Action Buttons -->
-	<div class="mb-6 border-b border-gray-200 flex items-center justify-between">
-		<nav class="flex gap-4">
+	<div class="mb-6 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+		<nav class="flex gap-2 sm:gap-4">
 			<button
 				onclick={() => switchView('my-files')}
-				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'my-files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+				class="px-3 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap {currentView === 'my-files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
 			>
 				My Files
 			</button>
 			<button
 				onclick={() => switchView('shared')}
-				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'shared' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+				class="px-3 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap {currentView === 'shared' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
 			>
 				Shared with me
 			</button>
 		</nav>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 w-full sm:w-auto">
 			{#if currentView === 'my-files'}
 				<button
 					onclick={() => showFolderModal = true}
-					class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+					class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 text-sm"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 					</svg>
-					New Folder
+					<span class="hidden xs:inline">New Folder</span>
+					<span class="xs:hidden">Folder</span>
 				</button>
 				<button
 					onclick={() => showUploadModal = true}
-					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+					class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -807,18 +808,18 @@
 		{:else}
 			<div class="overflow-x-auto" style="overflow-y: visible;">
 				<table class="w-full" style="position: relative;">
-					<thead class="bg-gray-50 border-b border-gray-200">
+					<thead class="bg-gray-50 border-b border-gray-200 hidden sm:table-header-group">
 						<tr>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
 								Name
 							</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 								Size
 							</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 								Modified
 							</th>
-							<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+							<th class="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
 								Actions
 							</th>
 						</tr>
@@ -836,33 +837,33 @@
 									}
 								}}
 							>
-								<td class="px-6 py-4 whitespace-nowrap">
+								<td class="px-4 sm:px-6 py-4 whitespace-nowrap w-full sm:w-auto">
 									<div class="flex items-center gap-3">
 										<span class="text-2xl flex-shrink-0">
 											{item.type === 'folder' ? '📁' : getFileIcon(item.type === 'file' ? item.mimeType : '')}
 										</span>
-										<div class="flex-1 min-w-0">
+										<div class="flex-1 min-w-0" style="max-width: 90%;">
 											<div class="flex items-center gap-2">
 												<div class="text-sm font-medium text-gray-900 truncate">
 													{item.displayName || item.name}
 												</div>
 												{#if currentView === 'shared' && item.owner}
-													<span class="text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
+													<span class="hidden sm:inline text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
 												{/if}
 											</div>
 											{#if item.type === 'file' && item.description}
-												<div class="text-xs text-gray-500 truncate">{item.description}</div>
+												<div class="hidden sm:block text-xs text-gray-500 truncate">{item.description}</div>
 											{/if}
 										</div>
 									</div>
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+								<td class="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 									{item.type === 'folder' ? '—' : formatFileSize(item.type === 'file' ? item.size : 0)}
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+								<td class="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 									{formatDate(item.updatedAt || item.createdAt)}
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="position: relative; overflow: visible;">
+								<td class="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="position: relative; overflow: visible;">
 									<div class="relative flex items-center justify-end dropdown-container" style="position: relative; overflow: visible;">
 										<button
 											onclick={(e) => { 
