@@ -1,1 +1,1 @@
-export { default as component } from "../../../../src/routes/(protected)/files/+page.svelte";
+export { default as component } from "../../../../src/routes/(auth)/deeplink-login/+page.svelte";

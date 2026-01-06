@@ -79,7 +79,10 @@
 	let showMoveModal = $state(false);
 	let showDeleteModal = $state(false);
 	let showShareModal = $state(false);
+	let showRenameModal = $state(false);
 	let itemToShare = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
+	let itemToRename = $state<{ type: 'file' | 'folder'; id: string; name: string; displayName?: string } | null>(null);
+	let newName = $state('');
 	let selectedFile = $state<globalThis.File | null>(null);
 	let itemToMove = $state<any>(null);
 	let itemToDelete = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
@@ -96,6 +99,8 @@
 	let previewFile = $state<any>(null);
 	let previewUrl = $state<string | null>(null);
 	let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([{ id: null, name: 'My Files' }]);
+	let uploadProgress = $state(0);
+	let isUploading = $state(false);
 
 	// Subscribe to stores at top level to make them reactive
 	let user = $state(get(currentUser));
@@ -121,6 +126,21 @@
 
 		// Load data asynchronously
 		(async () => {
+			// Check for query params to handle navigation from notifications
+			const searchParams = new URLSearchParams(window.location.search);
+			const viewParam = searchParams.get('view');
+			const folderIdParam = searchParams.get('folderId');
+
+			// First, switch view if specified
+			if (viewParam === 'shared') {
+				currentView = 'shared';
+			}
+
+			// Then navigate to folder if specified
+			if (folderIdParam) {
+				currentFolderId = folderIdParam;
+			}
+
 			await fetchFolderTree();
 			await loadFiles();
 			await updateBreadcrumbs();
@@ -158,21 +178,58 @@
 	}
 
 	async function handleFileUpload(file: globalThis.File) {
+		// Client-side validation
+		const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+		if (file.size > MAX_FILE_SIZE) {
+			toast.error(`File size exceeds 5MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+			return;
+		}
+
 		try {
-			isLoading = true;
-			await uploadFile(file, currentFolderId);
+			isUploading = true;
+			uploadProgress = 0;
+
+			const formData = new FormData();
+			formData.append('file', file);
+			if (currentFolderId !== undefined) {
+				formData.append('folderId', currentFolderId || 'null');
+			}
+
+			const response = await apiClient.post('/api/files', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+				onUploadProgress: (progressEvent) => {
+					if (progressEvent.total) {
+						uploadProgress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+					}
+				}
+			});
+
 			toast.success('File uploaded successfully');
 			showUploadModal = false;
 			selectedFile = null;
+			uploadProgress = 0;
+			
 			// Refresh files and folder tree after upload
 			await Promise.all([
 				loadFiles(),
 				fetchFolderTree()
 			]);
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Upload failed:', error);
-			toast.error('Failed to upload file');
+			if (error.response?.status === 413) {
+				const errorData = error.response.data;
+				if (errorData.error?.includes('Storage quota')) {
+					toast.error(`Storage quota exceeded. You have ${(errorData.available / 1024 / 1024).toFixed(2)}MB available.`);
+				} else {
+					toast.error('File size exceeds 5MB limit');
+				}
+			} else {
+				toast.error('Failed to upload file');
+			}
 		} finally {
+			isUploading = false;
 			isLoading = false;
 		}
 	}
@@ -252,6 +309,47 @@
 		} catch (error) {
 			console.error('Failed to move:', error);
 			toast.error(`Failed to move ${type}`);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function openRenameModal(item: any, type: 'file' | 'folder') {
+		itemToRename = {
+			type,
+			id: item.id,
+			name: item.name,
+			displayName: item.displayName || item.name
+		};
+		newName = item.displayName || item.name;
+		showRenameModal = true;
+		openDropdownId = null;
+	}
+
+	async function handleRename() {
+		if (!itemToRename || !newName.trim()) {
+			toast.error('Please enter a name');
+			return;
+		}
+
+		try {
+			isLoading = true;
+			if (itemToRename.type === 'file') {
+				await updateFile(itemToRename.id, newName.trim());
+				toast.success('File renamed successfully');
+			} else {
+				// For folders, we'll need to add updateFolder to the store
+				await apiClient.patch(`/api/folders/${itemToRename.id}`, { name: newName.trim() });
+				toast.success('Folder renamed successfully');
+			}
+			showRenameModal = false;
+			itemToRename = null;
+			newName = '';
+			await loadFiles();
+			await fetchFolderTree();
+		} catch (error) {
+			console.error('Failed to rename:', error);
+			toast.error(`Failed to rename ${itemToRename.type}`);
 		} finally {
 			isLoading = false;
 		}
@@ -790,6 +888,19 @@
 															onclick={(e) => {
 																e.stopPropagation();
 																openDropdownId = null;
+																openRenameModal(item, item.type);
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+															</svg>
+															Rename
+														</button>
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
 																openMoveModal(item, item.type);
 															}}
 															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
@@ -905,19 +1016,35 @@
 				{/if}
 			</div>
 
+			{#if isUploading}
+				<div class="mt-4">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-sm font-medium text-gray-700">Uploading...</span>
+						<span class="text-sm font-semibold text-blue-600">{uploadProgress}%</span>
+					</div>
+					<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+						<div 
+							class="h-2 bg-blue-600 rounded-full transition-all duration-300"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+				</div>
+			{/if}
+
 			<div class="flex gap-2 justify-end mt-6">
 				<button
-					onclick={() => { showUploadModal = false; selectedFile = null; uploadModalDragOver = false; }}
-					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+					onclick={() => { showUploadModal = false; selectedFile = null; uploadModalDragOver = false; uploadProgress = 0; }}
+					disabled={isUploading}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={() => selectedFile && handleFileUpload(selectedFile)}
-					disabled={!selectedFile || isLoading}
+					disabled={!selectedFile || isUploading}
 					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					{isLoading ? 'Uploading...' : 'Upload'}
+					{isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}
 				</button>
 			</div>
 		</div>
@@ -1145,6 +1272,45 @@
 					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Share
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Rename Modal -->
+{#if showRenameModal && itemToRename}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+		<div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+			<h3 class="text-xl font-bold mb-4">Rename {itemToRename.type === 'file' ? 'File' : 'Folder'}</h3>
+			<input
+				type="text"
+				bind:value={newName}
+				placeholder="Enter new name"
+				class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && newName.trim()) {
+						handleRename();
+					}
+				}}
+			/>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => { 
+						showRenameModal = false; 
+						itemToRename = null; 
+						newName = ''; 
+					}}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleRename}
+					disabled={!newName.trim() || isLoading}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{isLoading ? 'Renaming...' : 'Rename'}
 				</button>
 			</div>
 		</div>

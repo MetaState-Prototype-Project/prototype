@@ -317,5 +317,18 @@ export class FileService {
 
         return false;
     }
+
+    async getUserStorageUsage(userId: string): Promise<{ used: number; limit: number }> {
+        const result = await this.fileRepository
+            .createQueryBuilder('file')
+            .select('SUM(file.size)', 'total')
+            .where('file.ownerId = :userId', { userId })
+            .getRawOne();
+
+        const used = parseInt(result?.total || '0', 10);
+        const limit = 1073741824; // 1GB in bytes
+
+        return { used, limit };
+    }
 }
 

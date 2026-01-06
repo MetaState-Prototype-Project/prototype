@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/(protected)" | "/(auth)" | "/" | "/(auth)/auth" | "/(protected)/files" | "/(protected)/files/new" | "/(protected)/files/[id]";
+		RouteId(): "/(protected)" | "/(auth)" | "/" | "/(auth)/auth" | "/(auth)/deeplink-login" | "/(protected)/files" | "/(protected)/files/new" | "/(protected)/files/[id]";
 		RouteParams(): {
 			"/(protected)/files/[id]": { id: string }
 		};
@@ -36,11 +36,12 @@ declare module "$app/types" {
 			"/(auth)": Record<string, never>;
 			"/": { id?: string };
 			"/(auth)/auth": Record<string, never>;
+			"/(auth)/deeplink-login": Record<string, never>;
 			"/(protected)/files": { id?: string };
 			"/(protected)/files/new": Record<string, never>;
 			"/(protected)/files/[id]": { id: string }
 		};
-		Pathname(): "/" | "/auth" | "/auth/" | "/files" | "/files/" | "/files/new" | "/files/new/" | `/files/${string}` & {} | `/files/${string}/` & {};
+		Pathname(): "/" | "/auth" | "/auth/" | "/deeplink-login" | "/deeplink-login/" | "/files" | "/files/" | "/files/new" | "/files/new/" | `/files/${string}` & {} | `/files/${string}/` & {};
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}
