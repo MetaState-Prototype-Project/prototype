@@ -20,8 +20,8 @@
 	let hasUserSigned = $state(false);
 	let showDownloadModal = $state(false);
 
-	onMount(async () => {
-		isAuthenticated.subscribe((auth) => {
+	onMount(() => {
+		const authUnsubscribe = isAuthenticated.subscribe((auth) => {
 			if (!auth) {
 				goto('/auth');
 			}
@@ -33,18 +33,33 @@
 			goto('/(protected)/files');
 			return;
 		}
-		await loadFile(fileId);
-		await fetchFileSignatures(fileId);
+
+		// Load data asynchronously
+		(async () => {
+			await loadFile(fileId);
+			await fetchFileSignatures(fileId);
+		})();
 		
 		// Watch for signature changes
-		signatures.subscribe(() => {
+		const signaturesUnsubscribe = signatures.subscribe(() => {
 			checkIfUserSigned();
 		});
 		
 		// Watch for user changes
-		currentUser.subscribe(() => {
+		const userUnsubscribe = currentUser.subscribe(() => {
 			checkIfUserSigned();
 		});
+
+		// Cleanup function
+		return () => {
+			authUnsubscribe();
+			signaturesUnsubscribe();
+			userUnsubscribe();
+			if (sseConnection) {
+				sseConnection.close();
+				sseConnection = null;
+			}
+		};
 	});
 
 	async function loadFile(fileId: string) {
@@ -120,34 +135,69 @@
 	}
 
 	function watchSigningSession(sessionId: string) {
+		// Close existing connection if any
+		if (sseConnection) {
+			sseConnection.close();
+			sseConnection = null;
+		}
+
 		const baseUrl = PUBLIC_ESIGNER_BASE_URL || 'http://localhost:3004';
 		const sseUrl = new URL(`/api/signatures/session/${sessionId}`, baseUrl).toString();
+		
+		console.log('Starting SSE connection to:', sseUrl);
 		sseConnection = new EventSource(sseUrl);
 
+		sseConnection.onopen = () => {
+			console.log('SSE connection opened');
+		};
+
 		sseConnection.onmessage = (e) => {
-			const data = JSON.parse(e.data);
-			if (data.type === 'signed' && data.status === 'completed') {
-				showSignModal = false;
-				sseConnection?.close();
-				toast.success('Signature container signed successfully!');
-				setTimeout(async () => {
-					await loadFile(file.id);
-					await fetchFileSignatures(file.id);
-					checkIfUserSigned();
-				}, 500);
-			} else if (data.type === 'expired') {
-				showSignModal = false;
-				sseConnection?.close();
-				toast.error('Signing session expired. Please try again.');
-			} else if (data.type === 'security_violation') {
-				showSignModal = false;
-				sseConnection?.close();
-				toast.error('Security violation detected. Signing failed.');
+			console.log('SSE message received:', e.data);
+			try {
+				const data = JSON.parse(e.data);
+				console.log('Parsed SSE data:', data);
+				
+				if (data.type === 'signed' && data.status === 'completed') {
+					console.log('Signature completed!');
+					showSignModal = false;
+					if (sseConnection) {
+						sseConnection.close();
+						sseConnection = null;
+					}
+					toast.success('Signature container signed successfully!');
+					setTimeout(async () => {
+						await loadFile(file.id);
+						await fetchFileSignatures(file.id);
+						checkIfUserSigned();
+					}, 500);
+				} else if (data.type === 'expired' || data.status === 'expired') {
+					console.log('Session expired');
+					showSignModal = false;
+					if (sseConnection) {
+						sseConnection.close();
+						sseConnection = null;
+					}
+					toast.error('Signing session expired. Please try again.');
+				} else if (data.type === 'security_violation') {
+					console.log('Security violation');
+					showSignModal = false;
+					if (sseConnection) {
+						sseConnection.close();
+						sseConnection = null;
+					}
+					toast.error('Security violation detected. Signing failed.');
+				}
+			} catch (err) {
+				console.error('Failed to parse SSE message:', err);
 			}
 		};
 
-		sseConnection.onerror = () => {
-			sseConnection?.close();
+		sseConnection.onerror = (err) => {
+			console.error('SSE connection error:', err);
+			if (sseConnection) {
+				sseConnection.close();
+				sseConnection = null;
+			}
 		};
 	}
 
