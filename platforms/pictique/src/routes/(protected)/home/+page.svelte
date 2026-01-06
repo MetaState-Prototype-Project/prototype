@@ -28,6 +28,7 @@
 	let commentInput: HTMLInputElement | undefined = $state();
 	let isCommentsLoading = $state(false);
 	let commentsError = $state<string | null>(null);
+	let isDrawerOpen = $state(false);
 
 	const sentinel = (node: HTMLElement) => {
 		const observer = new IntersectionObserver(
@@ -203,6 +204,7 @@
 								activePostId.set(post.id);
 								if (window.matchMedia('(max-width: 768px)').matches) {
 									showComments.value = true;
+									isDrawerOpen = true;
 									drawer?.present({ animate: true });
 								} else {
 									showComments.value = true;
@@ -215,12 +217,7 @@
 				</li>
 			{/each}
 			{#if $isLoadingMore}
-				<li class="my-4 flex flex-col items-center justify-center gap-2">
-					<span class="text-center">Loading more posts...</span>
-					<div
-						class="h-6 w-6 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
-					></div>
-				</li>
+				<li class="my-4 text-center">Loading more posts...</li>
 			{/if}
 			{#if !$hasMore && $posts.length > 0 && !$isLoadingMore}
 				<li class="my-4 text-center text-gray-500">No more posts to load</li>
@@ -237,15 +234,15 @@
 				<p class="text-center">Select a post to view comments</p>
 			</div>
 		{:else}
-			<ul class="pb-4">
-				<h3 class="text-black-600 mb-6 text-center">
-					{$comments.length} Comments
-				</h3>
-				{#if isCommentsLoading}
-					<li class="text-center text-gray-500">Loading comments...</li>
-				{:else if commentsError}
-					<li class="text-center text-red-500">{commentsError}</li>
-				{:else}
+			<h3 class="text-black-600 mb-6 text-center">
+				{$comments.length} Comments
+			</h3>
+			{#if isCommentsLoading}
+				<p class="text-center text-gray-500">Loading comments...</p>
+			{:else if commentsError}
+				<p class="text-center text-red-500">{commentsError}</p>
+			{:else}
+				<ul>
 					{#each $comments as comment (comment.id)}
 						<li class="mb-4">
 							<Comment
@@ -266,28 +263,34 @@
 							/>
 						</li>
 					{/each}
-				{/if}
-				<MessageInput
-					class="sticky start-0 bottom-4 mt-4 w-full px-2"
-					variant="comment"
-					src={profile?.avatarUrl ?? '/images/user.png'}
-					bind:value={commentValue}
-					{handleSend}
-					bind:input={commentInput}
-				/>
-			</ul>
+				</ul>
+			{/if}
+			<MessageInput
+				class="sticky start-0 bottom-4 mt-4 w-full px-2"
+				variant="comment"
+				src={profile?.avatarUrl ?? '/images/user.png'}
+				bind:value={commentValue}
+				{handleSend}
+				bind:input={commentInput}
+			/>
 		{/if}
 	{/snippet}
 
 	<!-- Mobile Comments Drawer -->
-	<Drawer bind:drawer>
-		<ul class="pb-4">
-			<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
-			{#if isCommentsLoading}
-				<li class="text-center text-gray-500">Loading comments...</li>
-			{:else if commentsError}
-				<li class="text-center text-red-500">{commentsError}</li>
-			{:else}
+	<Drawer
+		bind:drawer
+		onClose={() => {
+			isDrawerOpen = false;
+			showComments.value = false;
+		}}
+	>
+		<h3 class="text-black-600 mb-6 text-center">{$comments.length} Comments</h3>
+		{#if isCommentsLoading}
+			<p class="text-center text-gray-500">Loading comments...</p>
+		{:else if commentsError}
+			<p class="text-center text-red-500">{commentsError}</p>
+		{:else}
+			<ul class="pb-32">
 				{#each $comments as comment (comment.id)}
 					<li class="mb-4">
 						<Comment
@@ -308,15 +311,22 @@
 						/>
 					</li>
 				{/each}
-			{/if}
+			</ul>
+		{/if}
+	</Drawer>
+
+	{#if showComments.value && isDrawerOpen}
+		<div
+			class="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-200 bg-white px-5 py-4 md:hidden"
+		>
 			<MessageInput
-				class="fixed start-0 bottom-4 mt-4 w-full px-5"
+				class="w-full"
 				variant="comment"
 				src={profile?.avatarUrl ?? '/images/user.png'}
 				bind:value={commentValue}
 				{handleSend}
 				bind:input={commentInput}
 			/>
-		</ul>
-	</Drawer>
+		</div>
+	{/if}
 </MainPanel>

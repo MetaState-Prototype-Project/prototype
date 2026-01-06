@@ -49,7 +49,7 @@
 	/>
 	{@render children()}
 
-	{#if route !== `/messages/${page.params.id}`}
+	{#if !route.match(/^\/messages\/[^/]+$/)}
 		<BottomNav class="btm-nav" profileSrc={profile?.avatarUrl ?? ''} />
 	{/if}
 </main>
