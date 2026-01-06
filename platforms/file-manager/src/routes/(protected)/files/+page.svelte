@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { get } from 'svelte/store';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
-	import { files, fetchFiles, uploadFile, deleteFile, moveFile } from '$lib/stores/files';
+	import { files, fetchFiles, uploadFile, deleteFile, moveFile, updateFile } from '$lib/stores/files';
 	import { folders, fetchFolders, fetchFolderTree, folderTree, createFolder, deleteFolder, moveFolder } from '$lib/stores/folders';
 	import { grantFileAccess, grantFolderAccess, fetchFileAccess, fetchFolderAccess } from '$lib/stores/access';
 	import { apiClient } from '$lib/utils/axios';
@@ -646,6 +646,11 @@
 		return '📎';
 	}
 
+	function truncateFileName(name: string, maxLength: number = 32): string {
+		if (name.length <= maxLength) return name;
+		return name.substring(0, maxLength) + '...';
+	}
+
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 Bytes';
 		const k = 1024;
@@ -765,18 +770,19 @@
 	<!-- Breadcrumbs (only show when not at root) -->
 	{#if breadcrumbs.length > 1 || (breadcrumbs.length === 1 && breadcrumbs[0].id !== null)}
 		<div class="mb-6">
-			<nav class="flex items-center gap-2 text-sm">
+			<nav class="flex items-center gap-2 text-sm flex-wrap">
 				{#each breadcrumbs as crumb, index}
 					{#if index > 0}
-						<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					{/if}
 					<button
 						onclick={() => navigateToFolder(crumb.id)}
 						class="text-gray-600 hover:text-gray-900 {index === breadcrumbs.length - 1 ? 'font-semibold text-gray-900' : ''}"
+						title={crumb.name}
 					>
-						{crumb.name}
+						{truncateFileName(crumb.name)}
 					</button>
 				{/each}
 			</nav>
@@ -844,8 +850,8 @@
 										</span>
 										<div class="flex-1 min-w-0" style="max-width: 90%;">
 											<div class="flex items-center gap-2">
-												<div class="text-sm font-medium text-gray-900 truncate">
-													{item.displayName || item.name}
+												<div class="text-sm font-medium text-gray-900" title={item.displayName || item.name}>
+													{truncateFileName(item.displayName || item.name)}
 												</div>
 												{#if currentView === 'shared' && item.owner}
 													<span class="hidden sm:inline text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
