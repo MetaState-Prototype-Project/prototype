@@ -40,7 +40,7 @@
 	onMount(fetchProfile);
 </script>
 
-<main class="block h-dvh grid-cols-[20vw_auto] md:grid">
+<main class="block h-dvh grid-cols-[20vw_1fr] md:grid">
 	<SideBar
 		profileSrc={profile?.avatarUrl || '/images/user.png'}
 		handlePost={async () => {

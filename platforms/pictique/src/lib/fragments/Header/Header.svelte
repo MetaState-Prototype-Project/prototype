@@ -13,17 +13,17 @@
 	$effect(() => {
 		if (route.includes('home')) {
 			heading = 'Feed';
-		} else if (route.includes('discover')) {
+		} else if (route.includes('/discover')) {
 			heading = 'Search';
 		} else if (route.includes('/post/audience')) {
 			heading = 'Audience';
-		} else if (route.includes('post')) {
+		} else if (route.includes('/post')) {
 			heading = 'Upload photo';
 		} else if (route === '/messages') {
 			heading = 'Messages';
-		} else if (route.includes('settings')) {
+		} else if (route.includes('/settings')) {
 			heading = 'Settings';
-		} else if (route.includes('profile')) {
+		} else if (route.includes('/profile')) {
 			heading = 'Profile';
 		}
 	});
