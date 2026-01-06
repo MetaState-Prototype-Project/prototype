@@ -318,17 +318,33 @@ export class FileService {
         return false;
     }
 
-    async getUserStorageUsage(userId: string): Promise<{ used: number; limit: number }> {
-        const result = await this.fileRepository
+    async getUserStorageUsage(userId: string): Promise<{ used: number; limit: number; fileCount: number; folderCount: number }> {
+        const FOLDER_SIZE = 4 * 1024; // 4KB per folder
+
+        // Get sum of all file sizes and count
+        const fileResult = await this.fileRepository
             .createQueryBuilder('file')
-            .select('SUM(file.size)', 'total')
+            .select('COALESCE(SUM(CAST(file.size AS BIGINT)), 0)', 'totalSize')
+            .addSelect('COUNT(file.id)', 'fileCount')
             .where('file.ownerId = :userId', { userId })
             .getRawOne();
 
-        const used = parseInt(result?.total || '0', 10);
+        // Count all folders
+        const folderResult = await this.folderRepository
+            .createQueryBuilder('folder')
+            .select('COUNT(folder.id)', 'folderCount')
+            .where('folder.ownerId = :userId', { userId })
+            .getRawOne();
+
+        const fileSize = Number(fileResult?.totalSize || 0);
+        const fileCount = Number(fileResult?.fileCount || 0);
+        const folderCount = Number(folderResult?.folderCount || 0);
+        const folderSize = folderCount * FOLDER_SIZE;
+
+        const used = fileSize + folderSize;
         const limit = 1073741824; // 1GB in bytes
 
-        return { used, limit };
+        return { used, limit, fileCount, folderCount };
     }
 }
 

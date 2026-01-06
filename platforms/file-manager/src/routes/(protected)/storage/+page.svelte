@@ -9,6 +9,8 @@
 	let used = $state(0);
 	let limit = $state(1073741824); // 1GB in bytes
 	let percentage = $state(0);
+	let fileCount = $state(0);
+	let folderCount = $state(0);
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -26,6 +28,8 @@
 			const response = await apiClient.get('/api/storage');
 			used = response.data.used;
 			limit = response.data.limit;
+			fileCount = response.data.fileCount || 0;
+			folderCount = response.data.folderCount || 0;
 			percentage = (used / limit) * 100;
 		} catch (error) {
 			console.error('Failed to fetch storage usage:', error);
@@ -87,31 +91,59 @@
 				</p>
 			</div>
 
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-				<div class="bg-gray-50 rounded-lg p-4">
-					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-							<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+				<div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+					<div class="flex items-center gap-2 sm:gap-3">
+						<div class="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+							<svg class="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
 							</svg>
 						</div>
-						<div>
+						<div class="min-w-0">
 							<p class="text-xs text-gray-500 uppercase">Used</p>
-							<p class="text-lg font-semibold text-gray-900">{formatBytes(used)}</p>
+							<p class="text-sm sm:text-lg font-semibold text-gray-900 truncate">{formatBytes(used)}</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="bg-gray-50 rounded-lg p-4">
-					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-							<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+					<div class="flex items-center gap-2 sm:gap-3">
+						<div class="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+							<svg class="w-4 h-4 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 							</svg>
 						</div>
-						<div>
+						<div class="min-w-0">
 							<p class="text-xs text-gray-500 uppercase">Available</p>
-							<p class="text-lg font-semibold text-gray-900">{formatBytes(limit - used)}</p>
+							<p class="text-sm sm:text-lg font-semibold text-gray-900 truncate">{formatBytes(limit - used)}</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+					<div class="flex items-center gap-2 sm:gap-3">
+						<div class="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+							<svg class="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+							</svg>
+						</div>
+						<div class="min-w-0">
+							<p class="text-xs text-gray-500 uppercase">Files</p>
+							<p class="text-sm sm:text-lg font-semibold text-gray-900">{fileCount}</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-gray-50 rounded-lg p-3 sm:p-4">
+					<div class="flex items-center gap-2 sm:gap-3">
+						<div class="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+							<svg class="w-4 h-4 sm:w-6 sm:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+							</svg>
+						</div>
+						<div class="min-w-0">
+							<p class="text-xs text-gray-500 uppercase">Folders</p>
+							<p class="text-sm sm:text-lg font-semibold text-gray-900">{folderCount}</p>
 						</div>
 					</div>
 				</div>
@@ -175,10 +207,11 @@
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 				</svg>
 				<div class="flex-1">
-					<h4 class="text-sm font-semibold text-blue-900 mb-1">Storage Limits</h4>
+					<h4 class="text-sm font-semibold text-blue-900 mb-1">Storage Information</h4>
 					<ul class="text-sm text-blue-700 space-y-1">
 						<li>• Maximum file size: 5 MB per file</li>
 						<li>• Total storage quota: 1 GB</li>
+						<li>• Each folder counts as 4 KB</li>
 						<li>• Deleted files are permanently removed and cannot be recovered</li>
 					</ul>
 				</div>
