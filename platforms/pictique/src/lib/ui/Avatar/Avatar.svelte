@@ -29,8 +29,6 @@
 		hasError = true;
 		img = '/images/user.png';
 	}
-
-	$inspect(img);
 </script>
 
 {#if hasError || !img}
