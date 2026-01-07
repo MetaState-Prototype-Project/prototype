@@ -7,7 +7,9 @@ export const nodes = [
 	() => import('./nodes/3'),
 	() => import('./nodes/4'),
 	() => import('./nodes/5'),
-	() => import('./nodes/6')
+	() => import('./nodes/6'),
+	() => import('./nodes/7'),
+	() => import('./nodes/8')
 ];
 
 export const server_loads = [];
@@ -15,8 +17,10 @@ export const server_loads = [];
 export const dictionary = {
 		"/": [3],
 		"/(auth)/auth": [4],
-		"/(protected)/files": [5,[2]],
-		"/(protected)/files/[id]": [6,[2]]
+		"/(auth)/deeplink-login": [5],
+		"/(protected)/files": [6,[2]],
+		"/(protected)/files/[id]": [7,[2]],
+		"/(protected)/storage": [8,[2]]
 	};
 
 export const hooks = {

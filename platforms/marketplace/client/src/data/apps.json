@@ -65,11 +65,19 @@
     "url": "https://ereputation.w3ds.metastate.foundation"
   },
   {
-    "id": "emover",
-    "name": "Emover",
-    "description": "eVault migration platform for transferring your data between providers or eVaults..",
-    "category": "Identity",
-    "logoUrl": "/emover.svg",
-    "url": "https://emover.w3ds.metastate.foundation"
+    "id": "esigner",
+    "name": "eSigner",
+    "description": "Digital signature platform for signing and managing documents with cryptographic guarantees across the W3DS ecosystem.",
+    "category": "Productivity",
+    "logoUrl": "/esigner.png",
+    "url": "https://esigner.w3ds.metastate.foundation"
+  },
+  {
+    "id": "file-manager",
+    "name": "File Manager",
+    "description": "File management system for organizing, storing, and sharing files with complete control over your data in the W3DS ecosystem.",
+    "category": "Storage",
+    "logoUrl": "/file-manager.png",
+    "url": "https://file-manager.w3ds.metastate.foundation"
   }
 ]

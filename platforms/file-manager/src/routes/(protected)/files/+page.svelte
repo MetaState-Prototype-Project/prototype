@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { get } from 'svelte/store';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
-	import { files, fetchFiles, uploadFile, deleteFile, moveFile } from '$lib/stores/files';
+	import { files, fetchFiles, uploadFile, deleteFile, moveFile, updateFile } from '$lib/stores/files';
 	import { folders, fetchFolders, fetchFolderTree, folderTree, createFolder, deleteFolder, moveFolder } from '$lib/stores/folders';
 	import { grantFileAccess, grantFolderAccess, fetchFileAccess, fetchFolderAccess } from '$lib/stores/access';
 	import { apiClient } from '$lib/utils/axios';
@@ -79,7 +79,10 @@
 	let showMoveModal = $state(false);
 	let showDeleteModal = $state(false);
 	let showShareModal = $state(false);
+	let showRenameModal = $state(false);
 	let itemToShare = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
+	let itemToRename = $state<{ type: 'file' | 'folder'; id: string; name: string; displayName?: string } | null>(null);
+	let newName = $state('');
 	let selectedFile = $state<globalThis.File | null>(null);
 	let itemToMove = $state<any>(null);
 	let itemToDelete = $state<{ type: 'file' | 'folder'; id: string; name: string } | null>(null);
@@ -96,6 +99,8 @@
 	let previewFile = $state<any>(null);
 	let previewUrl = $state<string | null>(null);
 	let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([{ id: null, name: 'My Files' }]);
+	let uploadProgress = $state(0);
+	let isUploading = $state(false);
 
 	// Subscribe to stores at top level to make them reactive
 	let user = $state(get(currentUser));
@@ -121,6 +126,21 @@
 
 		// Load data asynchronously
 		(async () => {
+			// Check for query params to handle navigation from notifications
+			const searchParams = new URLSearchParams(window.location.search);
+			const viewParam = searchParams.get('view');
+			const folderIdParam = searchParams.get('folderId');
+
+			// First, switch view if specified
+			if (viewParam === 'shared') {
+				currentView = 'shared';
+			}
+
+			// Then navigate to folder if specified
+			if (folderIdParam) {
+				currentFolderId = folderIdParam;
+			}
+
 			await fetchFolderTree();
 			await loadFiles();
 			await updateBreadcrumbs();
@@ -158,21 +178,58 @@
 	}
 
 	async function handleFileUpload(file: globalThis.File) {
+		// Client-side validation
+		const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+		if (file.size > MAX_FILE_SIZE) {
+			toast.error(`File size exceeds 5MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+			return;
+		}
+
 		try {
-			isLoading = true;
-			await uploadFile(file, currentFolderId);
+			isUploading = true;
+			uploadProgress = 0;
+
+			const formData = new FormData();
+			formData.append('file', file);
+			if (currentFolderId !== undefined) {
+				formData.append('folderId', currentFolderId || 'null');
+			}
+
+			const response = await apiClient.post('/api/files', formData, {
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+				onUploadProgress: (progressEvent) => {
+					if (progressEvent.total) {
+						uploadProgress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+					}
+				}
+			});
+
 			toast.success('File uploaded successfully');
 			showUploadModal = false;
 			selectedFile = null;
+			uploadProgress = 0;
+			
 			// Refresh files and folder tree after upload
 			await Promise.all([
 				loadFiles(),
 				fetchFolderTree()
 			]);
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Upload failed:', error);
-			toast.error('Failed to upload file');
+			if (error.response?.status === 413) {
+				const errorData = error.response.data;
+				if (errorData.error?.includes('Storage quota')) {
+					toast.error(`Storage quota exceeded. You have ${(errorData.available / 1024 / 1024).toFixed(2)}MB available.`);
+				} else {
+					toast.error('File size exceeds 5MB limit');
+				}
+			} else {
+				toast.error('Failed to upload file');
+			}
 		} finally {
+			isUploading = false;
 			isLoading = false;
 		}
 	}
@@ -252,6 +309,48 @@
 		} catch (error) {
 			console.error('Failed to move:', error);
 			toast.error(`Failed to move ${type}`);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function openRenameModal(item: any, type: 'file' | 'folder') {
+		itemToRename = {
+			type,
+			id: item.id,
+			name: item.name,
+			displayName: item.displayName || item.name
+		};
+		newName = item.displayName || item.name;
+		showRenameModal = true;
+		openDropdownId = null;
+	}
+
+	async function handleRename() {
+		if (!itemToRename || !newName.trim()) {
+			toast.error('Please enter a name');
+			return;
+		}
+
+		const itemType = itemToRename.type;
+		try {
+			isLoading = true;
+			if (itemToRename.type === 'file') {
+				await updateFile(itemToRename.id, newName.trim());
+				toast.success('File renamed successfully');
+			} else {
+				// For folders, we'll need to add updateFolder to the store
+				await apiClient.patch(`/api/folders/${itemToRename.id}`, { name: newName.trim() });
+				toast.success('Folder renamed successfully');
+			}
+			showRenameModal = false;
+			itemToRename = null;
+			newName = '';
+			await loadFiles();
+			await fetchFolderTree();
+		} catch (error) {
+			console.error('Failed to rename:', error);
+			toast.error(`Failed to rename ${itemType}`);
 		} finally {
 			isLoading = false;
 		}
@@ -548,6 +647,11 @@
 		return '📎';
 	}
 
+	function truncateFileName(name: string, maxLength: number = 32): string {
+		if (name.length <= maxLength) return name;
+		return name.substring(0, maxLength) + '...';
+	}
+
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 Bytes';
 		const k = 1024;
@@ -624,35 +728,36 @@
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 	<!-- Tabs and Action Buttons -->
-	<div class="mb-6 border-b border-gray-200 flex items-center justify-between">
-		<nav class="flex gap-4">
+	<div class="mb-6 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+		<nav class="flex gap-2 sm:gap-4">
 			<button
 				onclick={() => switchView('my-files')}
-				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'my-files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+				class="px-3 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap {currentView === 'my-files' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
 			>
 				My Files
 			</button>
 			<button
 				onclick={() => switchView('shared')}
-				class="px-4 py-2 font-medium text-sm border-b-2 transition-colors {currentView === 'shared' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
+				class="px-3 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors whitespace-nowrap {currentView === 'shared' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}"
 			>
 				Shared with me
 			</button>
 		</nav>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 w-full sm:w-auto">
 			{#if currentView === 'my-files'}
 				<button
 					onclick={() => showFolderModal = true}
-					class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+					class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 text-sm"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 					</svg>
-					New Folder
+					<span class="hidden xs:inline">New Folder</span>
+					<span class="xs:hidden">Folder</span>
 				</button>
 				<button
 					onclick={() => showUploadModal = true}
-					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+					class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm"
 				>
 					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -666,18 +771,19 @@
 	<!-- Breadcrumbs (only show when not at root) -->
 	{#if breadcrumbs.length > 1 || (breadcrumbs.length === 1 && breadcrumbs[0].id !== null)}
 		<div class="mb-6">
-			<nav class="flex items-center gap-2 text-sm">
+			<nav class="flex items-center gap-2 text-sm flex-wrap">
 				{#each breadcrumbs as crumb, index}
 					{#if index > 0}
-						<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					{/if}
 					<button
 						onclick={() => navigateToFolder(crumb.id)}
 						class="text-gray-600 hover:text-gray-900 {index === breadcrumbs.length - 1 ? 'font-semibold text-gray-900' : ''}"
+						title={crumb.name}
 					>
-						{crumb.name}
+						{truncateFileName(crumb.name)}
 					</button>
 				{/each}
 			</nav>
@@ -709,18 +815,18 @@
 		{:else}
 			<div class="overflow-x-auto" style="overflow-y: visible;">
 				<table class="w-full" style="position: relative;">
-					<thead class="bg-gray-50 border-b border-gray-200">
+					<thead class="bg-gray-50 border-b border-gray-200 hidden sm:table-header-group">
 						<tr>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
 								Name
 							</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 								Size
 							</th>
-							<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+							<th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 								Modified
 							</th>
-							<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+							<th class="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
 								Actions
 							</th>
 						</tr>
@@ -738,33 +844,33 @@
 									}
 								}}
 							>
-								<td class="px-6 py-4 whitespace-nowrap">
+								<td class="px-4 sm:px-6 py-4 whitespace-nowrap w-full sm:w-auto">
 									<div class="flex items-center gap-3">
 										<span class="text-2xl flex-shrink-0">
 											{item.type === 'folder' ? '📁' : getFileIcon(item.type === 'file' ? item.mimeType : '')}
 										</span>
-										<div class="flex-1 min-w-0">
+										<div class="flex-1 min-w-0" style="max-width: 90%;">
 											<div class="flex items-center gap-2">
-												<div class="text-sm font-medium text-gray-900 truncate">
-													{item.displayName || item.name}
+												<div class="text-sm font-medium text-gray-900" title={item.displayName || item.name}>
+													{truncateFileName(item.displayName || item.name)}
 												</div>
 												{#if currentView === 'shared' && item.owner}
-													<span class="text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
+													<span class="hidden sm:inline text-xs text-gray-500">by {item.owner.name || item.owner.ename}</span>
 												{/if}
 											</div>
 											{#if item.type === 'file' && item.description}
-												<div class="text-xs text-gray-500 truncate">{item.description}</div>
+												<div class="hidden sm:block text-xs text-gray-500 truncate">{item.description}</div>
 											{/if}
 										</div>
 									</div>
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+								<td class="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 									{item.type === 'folder' ? '—' : formatFileSize(item.type === 'file' ? item.size : 0)}
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+								<td class="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 									{formatDate(item.updatedAt || item.createdAt)}
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="position: relative; overflow: visible;">
+								<td class="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium" style="position: relative; overflow: visible;">
 									<div class="relative flex items-center justify-end dropdown-container" style="position: relative; overflow: visible;">
 										<button
 											onclick={(e) => { 
@@ -786,6 +892,19 @@
 											>
 												<div class="py-1">
 													{#if currentView === 'my-files' && item.ownerId === user?.id}
+														<button
+															onclick={(e) => {
+																e.stopPropagation();
+																openDropdownId = null;
+																openRenameModal(item, item.type);
+															}}
+															class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+														>
+															<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+															</svg>
+															Rename
+														</button>
 														<button
 															onclick={(e) => {
 																e.stopPropagation();
@@ -905,19 +1024,35 @@
 				{/if}
 			</div>
 
+			{#if isUploading}
+				<div class="mt-4">
+					<div class="flex items-center justify-between mb-2">
+						<span class="text-sm font-medium text-gray-700">Uploading...</span>
+						<span class="text-sm font-semibold text-blue-600">{uploadProgress}%</span>
+					</div>
+					<div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+						<div 
+							class="h-2 bg-blue-600 rounded-full transition-all duration-300"
+							style="width: {uploadProgress}%"
+						></div>
+					</div>
+				</div>
+			{/if}
+
 			<div class="flex gap-2 justify-end mt-6">
 				<button
-					onclick={() => { showUploadModal = false; selectedFile = null; uploadModalDragOver = false; }}
-					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+					onclick={() => { showUploadModal = false; selectedFile = null; uploadModalDragOver = false; uploadProgress = 0; }}
+					disabled={isUploading}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Cancel
 				</button>
 				<button
 					onclick={() => selectedFile && handleFileUpload(selectedFile)}
-					disabled={!selectedFile || isLoading}
+					disabled={!selectedFile || isUploading}
 					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					{isLoading ? 'Uploading...' : 'Upload'}
+					{isUploading ? `Uploading ${uploadProgress}%` : 'Upload'}
 				</button>
 			</div>
 		</div>
@@ -1145,6 +1280,45 @@
 					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Share
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Rename Modal -->
+{#if showRenameModal && itemToRename}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+		<div class="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
+			<h3 class="text-xl font-bold mb-4">Rename {itemToRename.type === 'file' ? 'File' : 'Folder'}</h3>
+			<input
+				type="text"
+				bind:value={newName}
+				placeholder="Enter new name"
+				class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+				onkeydown={(e) => {
+					if (e.key === 'Enter' && newName.trim()) {
+						handleRename();
+					}
+				}}
+			/>
+			<div class="flex gap-2 justify-end">
+				<button
+					onclick={() => { 
+						showRenameModal = false; 
+						itemToRename = null; 
+						newName = ''; 
+					}}
+					class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={handleRename}
+					disabled={!newName.trim() || isLoading}
+					class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					{isLoading ? 'Renaming...' : 'Rename'}
 				</button>
 			</div>
 		</div>

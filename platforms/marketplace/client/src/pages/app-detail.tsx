@@ -38,6 +38,14 @@ const appDetails: Record<string, { fullDescription: string; screenshots: string[
   "ereputation": {
     fullDescription: "eReputation is a social reputation platform built on the Web 3.0 Data Space (W3DS) architecture. Calculate, manage, and share your reputation across the MetaState ecosystem through verifiable references and transparent scoring mechanisms.\n\nBuilt around the principle of data-platform separation, all your reputation data is stored in your own sovereign eVault. Create references, calculate reputation scores, and build trust in the decentralized future with complete transparency and user control.",
     screenshots: []
+  },
+  "esigner": {
+    fullDescription: "eSigner is a secure digital signature platform built on the Web 3.0 Data Space (W3DS) architecture. Sign documents, manage signatures, and verify authenticity with cryptographic guarantees across the MetaState ecosystem.\n\nBuilt around the principle of data-platform separation, all your signature data is stored in your own sovereign eVault. Create, send, and track signatures with complete transparency and user control. Experience document signing reimagined with privacy-first principles and verifiable authenticity.",
+    screenshots: []
+  },
+  "file-manager": {
+    fullDescription: "File Manager is a decentralized file management system built on the Web 3.0 Data Space (W3DS) architecture. Organize, store, and share files with complete control over your data across the MetaState ecosystem.\n\nBuilt around the principle of data-platform separation, all your files are stored in your own sovereign eVault. Manage folders, organize documents, control access, and share files securely. Experience file management reimagined with privacy-first principles and complete data sovereignty.",
+    screenshots: []
   }
 };
 
@@ -89,9 +97,9 @@ export default function AppDetailPage() {
         <div className="bg-white rounded-3xl p-8 border border-gray-100 mb-8">
           <div className="flex items-start space-x-6 mb-6">
             {app.logoUrl ? (
-              <img 
-                src={app.logoUrl} 
-                alt={`${app.name} logo`} 
+              <img
+                src={app.logoUrl}
+                alt={`${app.name} logo`}
                 className="w-24 h-24 rounded-2xl object-cover flex-shrink-0"
               />
             ) : (
@@ -218,13 +226,13 @@ export default function AppDetailPage() {
           )}
         </div>
 
-        {/* 
+        {/*
         Reviews section commented out for future implementation
-        
+
         <div className="bg-white rounded-3xl p-8 border border-gray-100">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-2xl font-black text-black">Reviews & Ratings</h3>
-            <Button 
+            <Button
               onClick={() => setShowReviewForm(!showReviewForm)}
               className="text-black font-bold px-6 py-3 rounded-full hover:scale-105 transition-all duration-200 border-2 border-gray-200 bg-white hover:border-black"
             >

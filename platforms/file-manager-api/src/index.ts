@@ -95,6 +95,9 @@ app.patch("/api/files/:id", authGuard, fileController.updateFile);
 app.delete("/api/files/:id", authGuard, fileController.deleteFile);
 app.post("/api/files/:id/move", authGuard, fileController.moveFile);
 
+// Storage routes
+app.get("/api/storage", authGuard, fileController.getStorageUsage);
+
 // Folder routes
 app.post("/api/folders", authGuard, folderController.createFolder);
 app.get("/api/folders", authGuard, folderController.getFolders);

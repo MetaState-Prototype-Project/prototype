@@ -319,7 +319,7 @@
 		{/if}
 
 		{#if openNewChatModal}
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+			<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
 				<div
 					class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
 				>
@@ -430,7 +430,7 @@
 
 		<!-- New Group Modal -->
 		{#if openNewGroupModal}
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+			<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
 				<div
 					class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
 				>
