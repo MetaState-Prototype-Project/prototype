@@ -72,7 +72,7 @@ $: if (internalOpen !== lastReportedOpen) {
                             class="bg-green-50 rounded-2xl p-6 border border-green-200 w-full text-left"
                         >
                             <p
-                                class="text-sm font-medium text-green-800 uppercase tracking-wider mb-2"
+                                class="text-xs font-semibold text-green-800 uppercase tracking-wider mb-2"
                             >
                                 Selection
                             </p>
@@ -92,21 +92,31 @@ $: if (internalOpen !== lastReportedOpen) {
                 {:else}
                     <h4 class="text-xl font-bold">Reveal Your Blind Vote</h4>
                     <p class="text-black-700 mt-1">
-                        You're about to reveal your choice for poll:
+                        Please review the request details below.
                     </p>
 
                     <div class="flex flex-col gap-4 py-6 w-full">
-                        <div class="bg-gray rounded-2xl w-full py-4">
-                            <h4
-                                class="text-xs font-semibold text-gray-500 uppercase"
-                            >
-                                Poll ID
-                            </h4>
-                            <p
-                                class="text-black-700 font-mono font-medium truncate"
-                            >
-                                {revealPollId ?? "Unknown"}
-                            </p>
+                        <div
+                            class="w-full border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
+                        >
+                            <table class="w-full border-collapse">
+                                <tbody class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="py-4 px-4">
+                                            <div
+                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            >
+                                                Poll ID
+                                            </div>
+                                            <div
+                                                class="text-sm text-black-700 font-mono font-medium truncate mt-1 block"
+                                            >
+                                                {revealPollId ?? "Unknown"}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
 
                         <div
@@ -132,7 +142,7 @@ $: if (internalOpen !== lastReportedOpen) {
                 {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full">
+            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
                 {#if revealSuccess}
                     <Button.Action
                         variant="solid"
@@ -152,7 +162,7 @@ $: if (internalOpen !== lastReportedOpen) {
                         </Button.Action>
                         <Button.Action
                             variant="solid"
-                            class="w-full"
+                            class="w-full whitespace-nowrap"
                             callback={onReveal}
                             disabled={isRevealingVote}
                         >

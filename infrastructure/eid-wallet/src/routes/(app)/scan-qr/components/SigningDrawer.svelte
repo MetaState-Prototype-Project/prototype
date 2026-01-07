@@ -91,111 +91,137 @@ $: hasPollDetails =
 
                 <p class="text-black-700 mt-1">
                     {#if showSigningSuccess}
-                        {#if isBlindVotingRequest}
-                            Your blind vote has been submitted and is now
-                            completely hidden using cryptographic commitments.
-                        {:else if signingData?.pollId}
-                            Your vote has been signed and submitted to the
-                            voting system.
-                        {:else}
-                            Your message has been signed and submitted
-                            successfully.
-                        {/if}
-                    {:else if isBlindVotingRequest}
-                        You're being asked to submit a blind vote for the
-                        following poll
-                    {:else if signingData?.pollId}
-                        You're being asked to sign a vote for the following poll
+                        Your request was processed successfully.
                     {:else}
-                        You're being asked to sign the following message
+                        Please review the details below before proceeding.
                     {/if}
                 </p>
 
-                <div class="flex flex-col gap-4 py-6 w-full">
-                    {#if !showSigningSuccess}
-                        {#if signingData?.pollId && signingData?.voteData}
-                            <div class="bg-gray rounded-2xl w-full py-4">
-                                <h4
-                                    class="text-xs font-semibold text-gray-500 uppercase"
-                                >
-                                    Poll ID
-                                </h4>
-                                <p class="text-black-700 font-medium">
-                                    {signingData?.pollId ?? "Unknown"}
-                                </p>
-                            </div>
-                        {:else if isBlindVotingRequest && hasPollDetails}
-                            <div class="w-full bg-gray rounded-2xl py-4">
-                                <h3 class="text-sm font-bold mb-3">
-                                    Poll: {signingData?.pollDetails?.title ||
-                                        "Unknown"}
-                                </h3>
-
-                                {#if blindVoteError}
-                                    <div
-                                        class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-xs text-red-700"
-                                    >
-                                        {blindVoteError}
-                                    </div>
-                                {/if}
-
-                                <fieldset class="space-y-2">
-                                    {#each signingData?.pollDetails?.options || [] as option, index}
-                                        <label
-                                            class="flex items-center p-3 bg-white rounded-xl border border-gray-100 shadow-sm cursor-pointer"
+                <div
+                    class="w-full mt-6 border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
+                >
+                    <table class="w-full border-collapse">
+                        <tbody class="divide-y divide-gray-200">
+                            {#if signingData?.pollId}
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div
+                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
                                         >
-                                            <input
-                                                type="radio"
-                                                name="blindVoteOption"
-                                                value={index}
-                                                checked={selectedBlindVoteOption ===
-                                                    index}
-                                                onchange={() =>
-                                                    onBlindVoteOptionChange(
-                                                        index,
-                                                    )}
-                                                class="mr-3 h-4 w-4"
-                                            />
-                                            <span class="text-sm">{option}</span
-                                            >
-                                        </label>
-                                    {/each}
-                                </fieldset>
-                            </div>
-                        {:else}
-                            <div class="bg-gray rounded-2xl w-full py-4">
-                                <h4
-                                    class="text-xs font-semibold text-gray-500 uppercase"
-                                >
-                                    Message
-                                </h4>
-                                <p class="text-black-700 font-medium break-all">
-                                    {signingData?.message ??
-                                        "No message provided"}
-                                </p>
+                                            Poll ID
+                                        </div>
+                                        <div
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                        >
+                                            {signingData.pollId}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/if}
+
+                            {#if isBlindVotingRequest && hasPollDetails}
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div
+                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                        >
+                                            Poll Title
+                                        </div>
+                                        <div
+                                            class="text-sm text-black-700 font-medium mt-1 block"
+                                        >
+                                            {signingData?.pollDetails?.title}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/if}
+
+                            {#if signingData?.message && !signingData?.pollId}
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div
+                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                        >
+                                            Message
+                                        </div>
+                                        <div
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                        >
+                                            {signingData.message}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="py-3 px-4">
+                                        <div
+                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                        >
+                                            Session Id
+                                        </div>
+                                        <div
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                        >
+                                            {signingData?.sessionId}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/if}
+                        </tbody>
+                    </table>
+                </div>
+
+                {#if !showSigningSuccess && isBlindVotingRequest && hasPollDetails}
+                    <div class="w-full mt-4">
+                        <p
+                            class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-1"
+                        >
+                            Select Option
+                        </p>
+                        {#if blindVoteError}
+                            <div
+                                class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-xs text-red-700"
+                            >
+                                {blindVoteError}
                             </div>
                         {/if}
-                    {/if}
+                        <fieldset class="space-y-2">
+                            {#each signingData?.pollDetails?.options || [] as option, index}
+                                <label
+                                    class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
+                                >
+                                    <input
+                                        type="radio"
+                                        name="blindVoteOption"
+                                        value={index}
+                                        checked={selectedBlindVoteOption ===
+                                            index}
+                                        onchange={() =>
+                                            onBlindVoteOptionChange(index)}
+                                        class="mr-3 h-4 w-4"
+                                    />
+                                    <span class="text-sm">{option}</span>
+                                </label>
+                            {/each}
+                        </fieldset>
+                    </div>
+                {/if}
 
-                    {#if signingError}
-                        <div
-                            class="bg-red-50 border border-red-200 rounded-lg p-4 w-full text-sm text-red-700"
-                        >
-                            {signingError}
-                        </div>
-                    {/if}
-                </div>
+                {#if signingError}
+                    <div
+                        class="bg-red-50 border border-red-200 rounded-lg p-4 mt-4 w-full text-sm text-red-700"
+                    >
+                        {signingError}
+                    </div>
+                {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full">
+            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
                 {#if showSigningSuccess}
                     <Button.Action
                         variant="solid"
                         class="w-full"
-                        callback={onSuccessOkay}
+                        callback={onSuccessOkay}>Okay</Button.Action
                     >
-                        Okay
-                    </Button.Action>
                 {:else if isBlindVotingRequest && hasPollDetails}
                     <button
                         onclick={onSubmitBlindVote}
@@ -213,21 +239,17 @@ $: hasPollDetails =
                             <Button.Action
                                 variant="solid"
                                 class="w-full"
-                                callback={onDecline}
+                                callback={onDecline}>Okay</Button.Action
                             >
-                                Okay
-                            </Button.Action>
                         {:else}
                             <Button.Action
                                 variant="danger-soft"
                                 class="w-full"
-                                callback={onDecline}
+                                callback={onDecline}>Decline</Button.Action
                             >
-                                Decline
-                            </Button.Action>
                             <Button.Action
                                 variant="solid"
-                                class="w-full"
+                                class="w-full whitespace-nowrap"
                                 callback={onSign}
                                 disabled={loading}
                             >

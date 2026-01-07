@@ -52,60 +52,80 @@ $: if (internalOpen !== lastReportedOpen) {
                 </div>
 
                 <h4 class="text-xl font-bold">Code scanned!</h4>
-                <p class="text-black-700">
-                    You're trying to access the following site
+                <p class="text-black-700 mt-1">
+                    Please review the connection details below.
                 </p>
 
-                <div class="flex flex-col gap-4 py-6 w-full">
-                    <div class="bg-gray rounded-2xl w-full py-4">
-                        <h4 class="text-base text-black-700">Platform Name</h4>
-                        <p class="text-black-700 font-normal capitalize">
-                            {platform ?? "Unable to get name"}
-                        </p>
-                    </div>
-
-                    <div class="bg-gray rounded-2xl w-full py-4">
-                        <h4 class="text-base text-black-700">Website URL</h4>
-                        <p class="text-black-700 font-normal break-all">
-                            {hostname ?? scannedContent}
-                        </p>
-                    </div>
-
-                    {#if authError}
-                        <div
-                            class="bg-red-50 border border-red-200 rounded-lg p-4 w-full"
-                        >
-                            <div class="flex items-center">
-                                <div class="shrink-0">
-                                    <svg
-                                        class="h-5 w-5 text-red-400"
-                                        viewBox="0 0 20 20"
-                                        fill="currentColor"
+                <div
+                    class="w-full mt-6 border border-gray-100 rounded-2xl overflow-hidden bg-gray-50"
+                >
+                    <table class="w-full border-collapse">
+                        <tbody class="divide-y divide-gray-200">
+                            <tr>
+                                <td class="py-4 px-4">
+                                    <div
+                                        class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
                                     >
-                                        <path
-                                            fill-rule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                            clip-rule="evenodd"
-                                        />
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3
-                                        class="text-sm font-medium text-red-800"
-                                    >
-                                        Error
-                                    </h3>
-                                    <div class="mt-1 text-sm text-red-700">
-                                        {authError}
+                                        Platform Name
                                     </div>
+                                    <div
+                                        class="text-sm text-black-700 font-medium capitalize mt-1 block"
+                                    >
+                                        {platform ?? "Unable to get name"}
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="py-4 px-4">
+                                    <div
+                                        class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                    >
+                                        Website URL
+                                    </div>
+                                    <div
+                                        class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                    >
+                                        {hostname ?? scannedContent}
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {#if authError}
+                    <div
+                        class="bg-red-50 border border-red-200 rounded-lg p-4 w-full mt-4"
+                    >
+                        <div class="flex items-center">
+                            <div class="shrink-0">
+                                <svg
+                                    class="h-5 w-5 text-red-400"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">
+                                    Error
+                                </h3>
+                                <div class="mt-1 text-sm text-red-700">
+                                    {authError}
                                 </div>
                             </div>
                         </div>
-                    {/if}
-                </div>
+                    </div>
+                {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full">
+            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
                 <div class="flex justify-center gap-3 items-center w-full">
                     {#if authError}
                         <Button.Action
@@ -126,7 +146,7 @@ $: if (internalOpen !== lastReportedOpen) {
                         </Button.Action>
                         <Button.Action
                             variant="solid"
-                            class="w-full"
+                            class="w-full whitespace-nowrap"
                             callback={onConfirm}
                             disabled={authLoading}
                         >
