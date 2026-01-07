@@ -17,7 +17,6 @@ export let onOpenChange: (value: boolean) => void;
 let internalOpen = isOpen;
 let lastReportedOpen = internalOpen;
 
-// Preserve original reactive sync for scanner logic
 $: if (isOpen !== internalOpen) {
     internalOpen = isOpen;
 }
@@ -29,121 +28,127 @@ $: if (internalOpen !== lastReportedOpen) {
 </script>
 
 {#if internalOpen}
-    <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-white p-4"
-    >
+    <div class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto">
         <div
-            class="w-full max-w-md flex flex-col gap-4 items-start justify-center"
+            class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
         >
-            <div
-                class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
-            >
+            <div class="flex flex-col items-start pt-2">
                 <div
-                    class="bg-white h-4 w-[200px] -rotate-45 absolute top-1"
-                ></div>
-                <div
-                    class="bg-white h-4 w-[200px] -rotate-45 absolute bottom-1"
-                ></div>
-                <HugeiconsIcon
-                    size={40}
-                    className="z-10"
-                    icon={QrCodeIcon}
-                    strokeWidth={1.5}
-                    color="var(--color-primary)"
-                />
-            </div>
-
-            <h4 class="text-xl font-bold">Code scanned!</h4>
-            <p class="text-black-700">
-                You're trying to access the following site
-            </p>
-
-            <div class="bg-gray rounded-2xl w-full p-4 mt-2">
-                <h4 class="text-base text-black-700">Platform Name</h4>
-                <p class="text-black-700 font-normal capitalize">
-                    {platform ?? "Unable to get name"}
-                </p>
-            </div>
-
-            <div class="bg-gray rounded-2xl w-full p-4">
-                <h4 class="text-base text-black-700">Website URL</h4>
-                <p class="text-black-700 font-normal break-all">
-                    {hostname ?? scannedContent}
-                </p>
-            </div>
-
-            {#if authError}
-                <div
-                    class="bg-red-50 border border-red-200 rounded-lg p-4 w-full mt-2"
+                    class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
                 >
-                    <div class="flex items-center">
-                        <div class="shrink-0">
-                            <svg
-                                class="h-5 w-5 text-red-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">
-                                Error
-                            </h3>
-                            <div class="mt-1 text-sm text-red-700">
-                                {authError}
+                    <div
+                        class="bg-white h-4 w-[200px] -rotate-45 absolute top-1"
+                    ></div>
+                    <div
+                        class="bg-white h-4 w-[200px] -rotate-45 absolute bottom-1"
+                    ></div>
+                    <HugeiconsIcon
+                        size={40}
+                        className="z-10"
+                        icon={QrCodeIcon}
+                        strokeWidth={1.5}
+                        color="var(--color-primary)"
+                    />
+                </div>
+
+                <h4 class="text-xl font-bold">Code scanned!</h4>
+                <p class="text-black-700">
+                    You're trying to access the following site
+                </p>
+
+                <div class="flex flex-col gap-4 py-6 w-full">
+                    <div class="bg-gray rounded-2xl w-full py-4">
+                        <h4 class="text-base text-black-700">Platform Name</h4>
+                        <p class="text-black-700 font-normal capitalize">
+                            {platform ?? "Unable to get name"}
+                        </p>
+                    </div>
+
+                    <div class="bg-gray rounded-2xl w-full py-4">
+                        <h4 class="text-base text-black-700">Website URL</h4>
+                        <p class="text-black-700 font-normal break-all">
+                            {hostname ?? scannedContent}
+                        </p>
+                    </div>
+
+                    {#if authError}
+                        <div
+                            class="bg-red-50 border border-red-200 rounded-lg p-4 w-full"
+                        >
+                            <div class="flex items-center">
+                                <div class="shrink-0">
+                                    <svg
+                                        class="h-5 w-5 text-red-400"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3
+                                        class="text-sm font-medium text-red-800"
+                                    >
+                                        Error
+                                    </h3>
+                                    <div class="mt-1 text-sm text-red-700">
+                                        {authError}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    {/if}
                 </div>
-            {/if}
-
-            <div class="flex justify-center gap-3 items-center mt-4 w-full">
-                {#if authError}
-                    <Button.Action
-                        variant="solid"
-                        class="w-full"
-                        callback={onDecline}
-                    >
-                        Okay
-                    </Button.Action>
-                {:else}
-                    <Button.Action
-                        variant="danger-soft"
-                        class="w-full"
-                        callback={onDecline}
-                        disabled={authLoading}
-                    >
-                        Decline
-                    </Button.Action>
-                    <Button.Action
-                        variant="solid"
-                        class="w-full"
-                        callback={onConfirm}
-                        disabled={authLoading}
-                    >
-                        {#if authLoading}
-                            Authenticating...
-                        {:else}
-                            Confirm
-                        {/if}
-                    </Button.Action>
-                {/if}
             </div>
 
-            {#if isSigningRequest === false}
-                <div class="text-center mt-3">
-                    <p class="text-sm text-gray-600">
-                        After confirmation, you may return to <strong
-                            >{platform}</strong
-                        > and continue there
-                    </p>
+            <div class="flex flex-col gap-3 pb-2 w-full">
+                <div class="flex justify-center gap-3 items-center w-full">
+                    {#if authError}
+                        <Button.Action
+                            variant="solid"
+                            class="w-full"
+                            callback={onDecline}
+                        >
+                            Okay
+                        </Button.Action>
+                    {:else}
+                        <Button.Action
+                            variant="danger-soft"
+                            class="w-full"
+                            callback={onDecline}
+                            disabled={authLoading}
+                        >
+                            Decline
+                        </Button.Action>
+                        <Button.Action
+                            variant="solid"
+                            class="w-full"
+                            callback={onConfirm}
+                            disabled={authLoading}
+                        >
+                            {#if authLoading}
+                                Authenticating...
+                            {:else}
+                                Confirm
+                            {/if}
+                        </Button.Action>
+                    {/if}
                 </div>
-            {/if}
+
+                {#if isSigningRequest === false}
+                    <div class="text-center mt-1">
+                        <p class="text-sm text-gray-600">
+                            After confirmation, you may return to <strong
+                                >{platform}</strong
+                            > and continue there
+                        </p>
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 {/if}
