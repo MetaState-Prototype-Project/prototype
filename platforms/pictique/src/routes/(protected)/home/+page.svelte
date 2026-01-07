@@ -90,14 +90,19 @@
 	// Watch for changes in showComments to fetch comments when opened
 	$effect(() => {
 		if (showComments.value && $activePostId) {
+			const targetPostId = $activePostId;
 			isCommentsLoading = true;
 			commentsError = null;
 			fetchComments($activePostId)
 				.catch((err) => {
-					commentsError = err.message;
+					if ($activePostId === targetPostId) {
+						commentsError = err.message;
+					}
 				})
 				.finally(() => {
-					isCommentsLoading = false;
+					if ($activePostId === targetPostId) {
+						isCommentsLoading = false;
+					}
 				});
 		}
 	});
@@ -245,22 +250,7 @@
 				<ul>
 					{#each $comments as comment (comment.id)}
 						<li class="mb-4">
-							<Comment
-								comment={{
-									userImgSrc: comment.author.avatarUrl,
-									name: comment.author.name || comment.author.handle,
-									commentId: comment.id,
-									comment: comment.text,
-									isUpVoted: false,
-									isDownVoted: false,
-									upVotes: 0,
-									time: new Date(comment.createdAt).toLocaleDateString(),
-									replies: []
-								}}
-								handleReply={() => {
-									commentInput?.focus();
-								}}
-							/>
+							{@render SingleComment({ comment })}
 						</li>
 					{/each}
 				</ul>
@@ -293,22 +283,7 @@
 			<ul class="pb-32">
 				{#each $comments as comment (comment.id)}
 					<li class="mb-4">
-						<Comment
-							comment={{
-								userImgSrc: comment.author.avatarUrl,
-								name: comment.author.name || comment.author.handle,
-								commentId: comment.id,
-								comment: comment.text,
-								isUpVoted: false,
-								isDownVoted: false,
-								upVotes: 0,
-								time: new Date(comment.createdAt).toLocaleDateString(),
-								replies: []
-							}}
-							handleReply={() => {
-								commentInput?.focus();
-							}}
-						/>
+						{@render SingleComment({ comment })}
 					</li>
 				{/each}
 			</ul>
@@ -330,3 +305,31 @@
 		</div>
 	{/if}
 </MainPanel>
+
+{#snippet SingleComment({
+	comment
+}: {
+	comment: {
+		id: string;
+		text: string;
+		createdAt: string;
+		author: { avatarUrl?: string; name?: string; handle: string };
+	};
+})}
+	<Comment
+		comment={{
+			userImgSrc: comment.author?.avatarUrl ?? '/images/user.png',
+			name: comment.author?.name || comment.author?.handle || 'Unknown User',
+			commentId: comment.id,
+			comment: comment.text,
+			isUpVoted: false,
+			isDownVoted: false,
+			upVotes: 0,
+			time: new Date(comment.createdAt).toLocaleDateString(),
+			replies: []
+		}}
+		handleReply={() => {
+			commentInput?.focus();
+		}}
+	/>
+{/snippet}

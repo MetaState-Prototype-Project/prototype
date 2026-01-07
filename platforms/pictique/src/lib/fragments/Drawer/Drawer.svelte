@@ -23,12 +23,10 @@
 
 	function dismiss() {
 		if (drawer) drawer.destroy({ animate: true });
-		onClose?.();
 	}
 
 	function downSwipeHandler() {
 		drawer?.destroy({ animate: true });
-		onClose?.();
 	}
 
 	const swipeActions = useSwipe(

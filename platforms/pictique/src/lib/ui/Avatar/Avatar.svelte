@@ -21,7 +21,7 @@
 	};
 
 	const classes = $derived({
-		common: cn('rounded-full'),
+		common: cn('rounded-full shrink-0 aspect-square object-cover'),
 		size: sizeVariant[size] || sizeVariant.md
 	});
 
