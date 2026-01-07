@@ -1,0 +1,8 @@
+# Browsers that we support
+# iOS 16+ Safari support
+
+>= 0.5%
+last 2 versions
+not dead
+iOS >= 15
+Safari >= 15
