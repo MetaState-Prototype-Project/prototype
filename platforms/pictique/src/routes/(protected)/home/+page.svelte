@@ -42,12 +42,6 @@
 						const loading = get(isLoading);
 						const loadingMore = get(isLoadingMore);
 
-						console.log('Sentinel intersecting:', {
-							hasMorePosts,
-							loading,
-							loadingMore
-						});
-
 						if (hasMorePosts && !loading && !loadingMore) {
 							console.log('Triggering loadMoreFeed');
 							loadMoreFeed();
