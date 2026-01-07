@@ -69,7 +69,10 @@
 
 				// Trim system message prefix from preview text
 				let previewText = c.latestMessage?.text ?? 'No message yet';
-				if (typeof previewText === 'string' && previewText.startsWith('$$system-message$$')) {
+				if (
+					typeof previewText === 'string' &&
+					previewText.startsWith('$$system-message$$')
+				) {
 					previewText = previewText.replace('$$system-message$$', '').trim();
 				}
 

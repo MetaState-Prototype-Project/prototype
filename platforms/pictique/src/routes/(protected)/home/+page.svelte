@@ -31,6 +31,9 @@
 	let isDrawerOpen = $state(false);
 
 	const sentinel = (node: HTMLElement) => {
+		// The sentinel is a direct child of the scrollable ul
+		const scrollContainer = node.parentElement;
+
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -40,12 +43,16 @@
 						const loadingMore = get(isLoadingMore);
 
 						if (hasMorePosts && !loading && !loadingMore) {
+							console.log('Triggering loadMoreFeed');
 							loadMoreFeed();
 						}
 					}
 				}
 			},
-			{ rootMargin: '200px' }
+			{
+				root: scrollContainer as HTMLElement,
+				rootMargin: '200px'
+			}
 		);
 
 		observer.observe(node);
@@ -115,7 +122,7 @@
 </script>
 
 <MainPanel>
-	<ul class="hide-scrollbar h-screen overflow-auto md:h-dvh">
+	<ul class="hide-scrollbar h-screen overflow-auto pb-24 md:h-dvh md:pb-0">
 		{#if $isLoading && $posts.length === 0}
 			<li class="my-4 text-center">Loading posts...</li>
 		{:else if $error}
@@ -222,7 +229,12 @@
 				</li>
 			{/each}
 			{#if $isLoadingMore}
-				<li class="my-4 text-center">Loading more posts...</li>
+				<li class="my-8 flex flex-col items-center justify-center py-8">
+					<div
+						class="mb-3 h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+					></div>
+					<p class="text-base font-medium text-gray-700">Loading more posts...</p>
+				</li>
 			{/if}
 			{#if !$hasMore && $posts.length > 0 && !$isLoadingMore}
 				<li class="my-4 text-center text-gray-500">No more posts to load</li>
