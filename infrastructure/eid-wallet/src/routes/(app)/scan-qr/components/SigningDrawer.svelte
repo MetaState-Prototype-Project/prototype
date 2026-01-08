@@ -178,11 +178,6 @@ $: hasPollDetails =
 
                 {#if !showSigningSuccess && isBlindVotingRequest && hasPollDetails}
                     <div class="w-full mt-4">
-                        <p
-                            class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-1"
-                        >
-                            Select Option
-                        </p>
                         {#if blindVoteError}
                             <div
                                 class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-xs text-red-700"
