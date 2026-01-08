@@ -84,11 +84,8 @@ onMount(() => {
     return () => {
         disposed = true;
         cleanup?.();
+        cancelScan();
     };
-});
-
-onDestroy(async () => {
-    await cancelScan();
 });
 
 $effect(() => {
@@ -223,3 +220,9 @@ function handleRevealDrawerOpenChange(value: boolean) {
     onReveal={handleRevealVote}
     onOpenChange={handleRevealDrawerOpenChange}
 />
+
+<style>
+    :global(body:has(.loggedin-drawer)) {
+        background-color: white !important;
+    }
+</style>
