@@ -155,13 +155,13 @@ onMount(async () => {
                 class="flex-1"
                 callback={() => goto("/onboarding")}>Back</ButtonAction
             >
-        <ButtonAction
+            <ButtonAction
                 class="flex-1"
-            variant={btnVariant}
-            callback={handleFirstStep}
-        >
-            Confirm
-        </ButtonAction>
+                variant={btnVariant}
+                callback={handleFirstStep}
+            >
+                Confirm
+            </ButtonAction>
         </div>
     </main>
 {:else}
@@ -182,104 +182,131 @@ onMount(async () => {
                 class="flex-1"
                 callback={() => goto("/onboarding")}>Back</ButtonAction
             >
-        <ButtonAction
-            variant={btnVariant}
+            <ButtonAction
+                variant={btnVariant}
                 class="flex-1"
-            callback={handleConfirm}>Confirm</ButtonAction
-        >
+                callback={handleConfirm}>Confirm</ButtonAction
+            >
         </div>
     </main>
 {/if}
 
-<Drawer bind:isPaneOpen={showDrawer}>
-    {#if !isBiometricScreen}
-        <div
-            class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
-        >
-            <span class="relative z-[1]">
-                <HugeiconsIcon
-                    icon={CircleLock01Icon}
-                    color="var(--color-primary)"
-                />
-            </span>
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line.svg"
-                alt="line"
-            />
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line2.svg"
-                alt="line"
-            />
-        </div>
-        <h4>PIN has been set!</h4>
-        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">
-            Your PIN has been created. You’ll use it to access your digital
-            entity securely.
-        </p>
-        <div class="flex items-center gap-3">
-            <ButtonAction
-                variant="soft"
-                class="flex-1"
-                callback={() => { showDrawer = false; }}>Back</ButtonAction
-            >
-            <ButtonAction class="flex-1" callback={handleNext}>Next</ButtonAction>
-        </div>
-    {:else}
-        <div
-            class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
-        >
-            <span class="relative z-[1]">
-                <HugeiconsIcon icon={FaceIdIcon} color="var(--color-primary)" />
-            </span>
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line.svg"
-                alt="line"
-            />
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line2.svg"
-                alt="line"
-            />
-        </div>
-        <h4>{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h4>
-        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">
-            {isBiometricsAdded
-                ? "Your biometrics have been successfully added."
-                : "Use your fingerprint or face recognition for faster, more secure logins."}
-        </p>
-        {#if !isBiometricsAdded}
-            <div class="flex justify-center items-center gap-[11px]">
-                <ButtonAction
-                    class="w-full bg-primary-100 text-primary"
-                    callback={handleSkip}>Skip</ButtonAction
-                >
-                <div class="flex w-full flex-col gap-2">
-                    <ButtonAction
-                        disabled={!isBiometricsAvailable}
-                        class="w-full"
-                        callback={handleSetupBiometrics}>Set up</ButtonAction
+{#if showDrawer}
+    <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
+        <div class="min-h-full flex flex-col p-6">
+            <article class="grow flex flex-col items-start w-full">
+                {#if !isBiometricScreen}
+                    <div
+                        class="relative bg-gray w-[72px] h-[72px] rounded-3xl flex justify-center items-center mb-6"
                     >
-                    <p
-                        class={`text-danger ${isBiometricsAvailable ? "hidden" : "block"}`}
-                    >
-                        Biometrics unavailable.
+                        <span class="relative z-1">
+                            <HugeiconsIcon
+                                icon={CircleLock01Icon}
+                                color="var(--color-primary)"
+                            />
+                        </span>
+                        <img
+                            class="absolute top-0 start-0"
+                            src="/images/Line.svg"
+                            alt="line"
+                        />
+                        <img
+                            class="absolute top-0 start-0"
+                            src="/images/Line2.svg"
+                            alt="line"
+                        />
+                    </div>
+                    <h4 class="text-xl font-bold">PIN has been set!</h4>
+                    <p class="text-black-700 mt-2">
+                        Your PIN has been created. You’ll use it to access your
+                        digital entity securely.
                     </p>
-                </div>
+                {:else}
+                    <div
+                        class="relative bg-gray w-[72px] h-[72px] rounded-3xl flex justify-center items-center mb-6"
+                    >
+                        <span class="relative z-1">
+                            <HugeiconsIcon
+                                icon={FaceIdIcon}
+                                color="var(--color-primary)"
+                            />
+                        </span>
+                        <img
+                            class="absolute top-0 start-0"
+                            src="/images/Line.svg"
+                            alt="line"
+                        />
+                        <img
+                            class="absolute top-0 start-0"
+                            src="/images/Line2.svg"
+                            alt="line"
+                        />
+                    </div>
+                    <h4 class="text-xl font-bold">
+                        {isBiometricsAdded
+                            ? "You’re all set!"
+                            : "Add biometrics"}
+                    </h4>
+                    <p class="text-black-700 mt-2">
+                        {isBiometricsAdded
+                            ? "Your biometrics have been successfully added."
+                            : "Use your fingerprint or face recognition for faster, more secure logins."}
+                    </p>
+                {/if}
+            </article>
+
+            <div class="flex-none pt-8 pb-4">
+                {#if !isBiometricScreen}
+                    <div class="flex items-center gap-3">
+                        <ButtonAction
+                            variant="soft"
+                            class="flex-1"
+                            callback={() => {
+                                showDrawer = false;
+                            }}>Back</ButtonAction
+                        >
+                        <ButtonAction class="flex-1" callback={handleNext}
+                            >Next</ButtonAction
+                        >
+                    </div>
+                {:else if !isBiometricsAdded}
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-3">
+                            <ButtonAction
+                                class="flex-1 bg-primary-100 text-primary"
+                                callback={handleSkip}>Skip</ButtonAction
+                            >
+                            <ButtonAction
+                                disabled={!isBiometricsAvailable}
+                                class="flex-1"
+                                callback={handleSetupBiometrics}
+                                >Set up</ButtonAction
+                            >
+                        </div>
+                        {#if !isBiometricsAvailable}
+                            <p class="text-danger text-center text-sm">
+                                Biometrics unavailable.
+                            </p>
+                        {/if}
+                    </div>
+                {:else}
+                    <div class="flex items-center gap-3">
+                        <ButtonAction
+                            variant="soft"
+                            class="flex-1"
+                            callback={() => {
+                                showDrawer = false;
+                            }}>Back</ButtonAction
+                        >
+                        <ButtonAction
+                            class="flex-1"
+                            callback={handleBiometricsAdded}
+                        >
+                            Continue
+                        </ButtonAction>
+                    </div>
+                {/if}
             </div>
-        {:else}
-            <div class="flex items-center gap-3">
-                <ButtonAction
-                    variant="soft"
-                    class="flex-1"
-                    callback={() => { showDrawer = false; }}>Back</ButtonAction
-                >
-                <ButtonAction class="flex-1" callback={handleBiometricsAdded}
-                >Continue</ButtonAction
-            >
-            </div>
-        {/if}
-    {/if}
-</Drawer>
+        </div>
+    </div>
+{/if}
