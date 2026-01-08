@@ -374,7 +374,7 @@
 	</TableHeadCell>
 {/snippet}
 
-{#snippet BodyCell(data: Record, field: string, i: number)}
+{#snippet BodyCell(data: Record<string, TableCell>, field: string, i: number)}
 	<TableBodyCell
 		class="wide:text-base font-roboto text-black-700 overflow-hidden p-2 text-xs font-normal text-ellipsis
             {i === 0 && !withSelection && 'rounded-s-2xl pl-6'}
