@@ -1,40 +1,41 @@
 <script lang="ts">
-import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import type { SigningData } from "../scanLogic";
+    import * as Button from "$lib/ui/Button";
+    import { QrCodeIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import type { SigningData } from "../scanLogic";
 
-export let isOpen: boolean;
-export let showSigningSuccess: boolean;
-export let isBlindVotingRequest: boolean;
-export let signingData: SigningData | null;
-export let blindVoteError: string | null;
-export let selectedBlindVoteOption: number | null;
-export let isSubmittingBlindVote: boolean;
-export let loading: boolean;
-export let signingError: string | null | undefined;
-export let onDecline: () => void;
-export let onSign: () => void;
-export let onBlindVoteOptionChange: (value: number) => void;
-export let onSubmitBlindVote: () => void;
-export let onSuccessOkay: () => void;
-export let onOpenChange: (value: boolean) => void;
+    export let isOpen: boolean;
+    export let showSigningSuccess: boolean;
+    export let isBlindVotingRequest: boolean;
+    export let signingData: SigningData | null;
+    export let blindVoteError: string | null;
+    export let selectedBlindVoteOption: number | null;
+    export let isSubmittingBlindVote: boolean;
+    export let loading: boolean;
+    export let signingError: string | null | undefined;
+    export let onDecline: () => void;
+    export let onSign: () => void;
+    export let onBlindVoteOptionChange: (value: number) => void;
+    export let onSubmitBlindVote: () => void;
+    export let onSuccessOkay: () => void;
+    export let onOpenChange: (value: boolean) => void;
 
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
+    let internalOpen = isOpen;
+    let lastReportedOpen = internalOpen;
 
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
-}
+    $: if (isOpen !== internalOpen) {
+        internalOpen = isOpen;
+    }
 
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
+    $: if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
+    }
 
-let hasPollDetails = false;
-$: hasPollDetails =
-    signingData?.pollId !== undefined && signingData?.pollDetails !== undefined;
+    let hasPollDetails = false;
+    $: hasPollDetails =
+        signingData?.pollId !== undefined &&
+        signingData?.pollDetails !== undefined;
 </script>
 
 {#if internalOpen}
@@ -51,12 +52,12 @@ $: hasPollDetails =
                     <div
                         class="{showSigningSuccess
                             ? 'bg-green-500'
-                            : 'bg-white'} h-[16px] w-[200px] -rotate-45 absolute top-1"
+                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute top-1"
                     ></div>
                     <div
                         class="{showSigningSuccess
                             ? 'bg-green-500'
-                            : 'bg-white'} h-[16px] w-[200px] -rotate-45 absolute bottom-1"
+                            : 'bg-white'} h-4 w-[200px] -rotate-45 absolute bottom-1"
                     ></div>
                     <HugeiconsIcon
                         size={40}

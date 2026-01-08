@@ -1,25 +1,25 @@
 <script lang="ts">
-import * as Button from "$lib/ui/Button";
-import { QrCodeIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+    import * as Button from "$lib/ui/Button";
+    import { QrCodeIcon } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
 
-export let isOpen: boolean;
-export let platform: string | null | undefined;
-export let redirect: string | null | undefined;
-export let onConfirm: () => void;
-export let onOpenChange: (value: boolean) => void;
+    export let isOpen: boolean;
+    export let platform: string | null | undefined;
+    export let redirect: string | null | undefined;
+    export let onConfirm: () => void;
+    export let onOpenChange: (value: boolean) => void;
 
-let internalOpen = isOpen;
-let lastReportedOpen = internalOpen;
+    let internalOpen = isOpen;
+    let lastReportedOpen = internalOpen;
 
-$: if (isOpen !== internalOpen) {
-    internalOpen = isOpen;
-}
+    $: if (isOpen !== internalOpen) {
+        internalOpen = isOpen;
+    }
 
-$: if (internalOpen !== lastReportedOpen) {
-    lastReportedOpen = internalOpen;
-    onOpenChange?.(internalOpen);
-}
+    $: if (internalOpen !== lastReportedOpen) {
+        lastReportedOpen = internalOpen;
+        onOpenChange?.(internalOpen);
+    }
 </script>
 
 {#if internalOpen}
@@ -34,10 +34,10 @@ $: if (internalOpen !== lastReportedOpen) {
                     class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
                 >
                     <div
-                        class="bg-white h-[16px] w-[200px] -rotate-45 absolute top-1"
+                        class="bg-white h-4 w-[200px] -rotate-45 absolute top-1"
                     ></div>
                     <div
-                        class="bg-white h-[16px] w-[200px] -rotate-45 absolute bottom-1"
+                        class="bg-white h-4 w-[200px] -rotate-45 absolute bottom-1"
                     ></div>
                     <HugeiconsIcon
                         size={40}
