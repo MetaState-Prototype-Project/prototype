@@ -84,11 +84,8 @@ onMount(() => {
     return () => {
         disposed = true;
         cleanup?.();
+        cancelScan();
     };
-});
-
-onDestroy(async () => {
-    await cancelScan();
 });
 
 $effect(() => {
