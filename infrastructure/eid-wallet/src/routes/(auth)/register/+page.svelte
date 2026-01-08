@@ -195,6 +195,14 @@ onMount(async () => {
     <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
         <div class="min-h-full flex flex-col p-6">
             <article class="grow flex flex-col items-start w-full">
+                <div class="flex-none">
+                    <button
+                        onclick={() => (showDrawer = false)}
+                        class="flex items-center gap-2 text-black-500 mb-6 py-2"
+                    >
+                        <HugeiconsIcon icon={ArrowLeft01Icon} size={24} />
+                    </button>
+                </div>
                 {#if !isBiometricScreen}
                     <div
                         class="relative bg-gray w-[72px] h-[72px] rounded-3xl flex justify-center items-center mb-6"

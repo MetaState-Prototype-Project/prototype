@@ -12,6 +12,7 @@ import { ButtonAction, Drawer } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
@@ -341,6 +342,14 @@ onMount(async () => {
 {#if isPaneOpen}
     <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
         <div class="min-h-full flex flex-col p-6">
+            <div class="flex-none">
+                <button
+                    onclick={() => (isPaneOpen = false)}
+                    class="flex items-center gap-2 text-black-500 mb-6 py-2"
+                >
+                    <HugeiconsIcon icon={ArrowLeft01Icon} size={24} />
+                </button>
+            </div>
             <article class="grow flex flex-col items-start w-full">
                 <img
                     src="/images/GetStarted.svg"
