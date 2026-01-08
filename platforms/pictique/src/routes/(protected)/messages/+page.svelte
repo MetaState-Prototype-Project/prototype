@@ -569,7 +569,7 @@
 					<div class="flex justify-end gap-3 pt-4">
 						<Button
 							size="sm"
-							variant="secondary"
+							variant="primary"
 							callback={() => {
 								openNewGroupModal = false;
 							}}
@@ -578,7 +578,7 @@
 						</Button>
 						<Button
 							size="sm"
-							variant="primary"
+							variant="secondary"
 							callback={() => createGroup()}
 							disabled={selectedMembers.length === 0 || !groupName.trim()}
 						>
