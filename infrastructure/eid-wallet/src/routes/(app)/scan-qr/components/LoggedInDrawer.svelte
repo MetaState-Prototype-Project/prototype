@@ -24,6 +24,9 @@ $: if (internalOpen !== lastReportedOpen) {
 
 {#if internalOpen}
     <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="loggedin-title"
         class="loggedin-drawer fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
     >
         <div
@@ -48,7 +51,9 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 class="text-xl font-bold">You're logged in!</h4>
+                <h4 id="loggedin-title" class="text-xl font-bold">
+                    You're logged in!
+                </h4>
                 <p class="text-gray-700">
                     You're now connected to {platform ?? "the platform"}
                 </p>

@@ -38,7 +38,12 @@ $: hasPollDetails =
 </script>
 
 {#if internalOpen}
-    <div class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto">
+    <div
+        class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signing-title"
+    >
         <div
             class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
         >
@@ -46,7 +51,7 @@ $: hasPollDetails =
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {showSigningSuccess
                         ? 'bg-green-100'
-                        : 'bg-gray'} rounded-xl p-4 h-[72px] w-[72px]"
+                        : 'bg-gray-50'} rounded-xl p-4 h-[72px] w-[72px]"
                 >
                     <div
                         class="{showSigningSuccess
@@ -70,6 +75,7 @@ $: hasPollDetails =
                 </div>
 
                 <h4
+                    id="signing-title"
                     class="text-xl font-bold {showSigningSuccess
                         ? 'text-green-800'
                         : ''}"
@@ -185,6 +191,11 @@ $: hasPollDetails =
                             </div>
                         {/if}
                         <fieldset class="space-y-2">
+                            <legend
+                                class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-1"
+                            >
+                                Select Option
+                            </legend>
                             {#each signingData?.pollDetails?.options || [] as option, index}
                                 <label
                                     class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
