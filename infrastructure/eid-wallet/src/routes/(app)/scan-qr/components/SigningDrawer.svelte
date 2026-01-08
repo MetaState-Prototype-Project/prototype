@@ -90,7 +90,7 @@
                     {/if}
                 </h4>
 
-                <p class="text-black-700 mt-1">
+                <p class="text-gray-700 mt-1">
                     {#if showSigningSuccess}
                         Your request was processed successfully.
                     {:else}
@@ -112,7 +112,7 @@
                                             Poll ID
                                         </div>
                                         <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData.pollId}
                                         </div>
@@ -129,7 +129,7 @@
                                             Poll Title
                                         </div>
                                         <div
-                                            class="text-sm text-black-700 font-medium mt-1 block"
+                                            class="text-sm text-gray-700 font-medium mt-1 block"
                                         >
                                             {signingData?.pollDetails?.title}
                                         </div>
@@ -146,7 +146,7 @@
                                             Message
                                         </div>
                                         <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData.message}
                                         </div>
@@ -160,7 +160,7 @@
                                             Session Id
                                         </div>
                                         <div
-                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData?.sessionId}
                                         </div>

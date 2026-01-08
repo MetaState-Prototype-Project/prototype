@@ -49,7 +49,7 @@
                 </div>
 
                 <h4 class="text-xl font-bold">You're logged in!</h4>
-                <p class="text-black-700">
+                <p class="text-gray-700">
                     You're now connected to {platform ?? "the platform"}
                 </p>
                 <div class="flex flex-col items-start py-6 w-full">
