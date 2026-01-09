@@ -414,13 +414,11 @@ onMount(async () => {
                 {:else if $verifStep === 2}
                     <Selfie />
                 {:else if loading}
-                    <div class="my-20">
-                        <div
-                            class="align-center flex w-full flex-col items-center justify-center gap-6"
-                        >
-                            <Shadow size={40} color="rgb(142, 82, 255);" />
-                            <h3>Generating your eName</h3>
-                        </div>
+                    <div
+                        class="my-20 flex flex-col items-center justify-center gap-6"
+                    >
+                        <Shadow size={40} color="rgb(142, 82, 255);" />
+                        <h3>Generating your eName</h3>
                     </div>
                 {:else}
                     <div class="flex flex-col gap-6">
@@ -436,8 +434,7 @@ onMount(async () => {
                                 <h3>Old eVault Found</h3>
                                 <p>
                                     We found an existing eVault associated with
-                                    your identity. You can claim it back to
-                                    continue using your account.
+                                    your identity...
                                 </p>
                             </div>
                         {:else if $status === "resubmission_requested"}
@@ -445,29 +442,33 @@ onMount(async () => {
                             <p>{$reason}</p>
                         {:else}
                             <h3>Your verification failed</h3>
-
                             <p>{$reason}</p>
                         {/if}
                     </div>
-                    <div class="flex w-full items-center gap-3 pt-4">
-                        {#if $status !== "declined"}
-                            <ButtonAction
-                                variant="soft"
-                                class="flex-1"
-                                callback={() => goto("/onboarding")}
-                                >Back</ButtonAction
-                            >
-                            <ButtonAction
-                                class="flex-1"
-                                callback={handleContinue}
-                                color="primary"
-                                >{$status === "approved"
-                                    ? "Continue"
-                                    : $status === "duplicate"
-                                      ? "Claim old eVault"
-                                      : "Retry"}</ButtonAction
-                            >
-                        {/if}
+                {/if}
+            </div>
+
+            <div class="flex-none px-[5vw] pb-[4.5svh] pt-4">
+                {#if $verifStep > 2 && !loading && $status !== "declined"}
+                    <div class="flex w-full items-center gap-3">
+                        <ButtonAction
+                            variant="soft"
+                            class="flex-1"
+                            callback={() => goto("/onboarding")}
+                        >
+                            Back
+                        </ButtonAction>
+                        <ButtonAction
+                            class="flex-1"
+                            callback={handleContinue}
+                            color="primary"
+                        >
+                            {$status === "approved"
+                                ? "Continue"
+                                : $status === "duplicate"
+                                  ? "Claim old eVault"
+                                  : "Retry"}
+                        </ButtonAction>
                     </div>
                 {/if}
             </div>
