@@ -43,6 +43,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/" | "/auth" | "/auth/" | "/deeplink-login" | "/deeplink-login/" | "/files" | "/files/" | "/files/new" | "/files/new/" | `/files/${string}` & {} | `/files/${string}/` & {};
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): string & {};
+		Asset(): "/android-chrome-192x192.png" | "/android-chrome-512x512.png" | "/apple-touch-icon.png" | "/favicon-16x16.png" | "/favicon-32x32.png" | "/favicon.ico" | "/site.webmanifest" | string & {};
 	}
 }
