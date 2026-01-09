@@ -29,6 +29,7 @@ import {
     verifStep,
     verificaitonId,
 } from "./store";
+import { HugeiconsIcon } from "@hugeicons/svelte";
 
 type Document = {
     country: { value: string };
@@ -393,68 +394,83 @@ onMount(async () => {
             >I'm ready</ButtonAction
         >
     {/if}
-    <Drawer bind:isPaneOpen={showVeriffModal}>
-        <div class="overflow-y-scroll">
-            {#if $verifStep === 0}
-                <DocumentType />
-            {:else if $verifStep === 1}
-                <Passport />
-            {:else if $verifStep === 2}
-                <Selfie />
-            {:else if loading}
-                <div class="my-20">
-                    <div
-                        class="align-center flex w-full flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
-                        <h3>Generating your eName</h3>
-                    </div>
-                </div>
-            {:else}
-                <div class="flex flex-col gap-6">
-                    {#if $status === "approved"}
-                        <div>
-                            <h3>Your verification was a success</h3>
-                            <p>You can now continue on to create your eName</p>
-                        </div>
-                    {:else if $status === "duplicate"}
-                        <div>
-                            <h3>Old eVault Found</h3>
-                            <p>
-                                We found an existing eVault associated with your
-                                identity. You can claim it back to continue
-                                using your account.
-                            </p>
-                        </div>
-                    {:else if $status === "resubmission_requested"}
-                        <h3>Your verification failed due to the reason</h3>
-                        <p>{$reason}</p>
-                    {:else}
-                        <h3>Your verification failed</h3>
 
-                        <p>{$reason}</p>
-                    {/if}
-                </div>
-                <div class="flex w-full items-center gap-3 pt-4">
-                    {#if $status !== "declined"}
-                        <ButtonAction
-                            variant="soft"
-                            class="flex-1"
-                            callback={() => goto("/onboarding")}>Back</ButtonAction
+    {#if showVeriffModal}
+        <div class="fixed inset-0 z-50 bg-white flex flex-col h-full">
+            <div class="flex-none px-[5vw] pt-[4svh]">
+                <button
+                    onclick={() => (showVeriffModal = false)}
+                    class="flex items-center gap-2 text-black-500 py-2"
+                >
+                    <HugeiconsIcon icon={ArrowLeft01Icon} size={24} />
+                </button>
+            </div>
+
+            <div class="grow overflow-y-auto px-[5vw] pt-4">
+                {#if $verifStep === 0}
+                    <DocumentType />
+                {:else if $verifStep === 1}
+                    <Passport />
+                {:else if $verifStep === 2}
+                    <Selfie />
+                {:else if loading}
+                    <div class="my-20">
+                        <div
+                            class="align-center flex w-full flex-col items-center justify-center gap-6"
                         >
-                        <ButtonAction
-                            class="flex-1"
-                            callback={handleContinue}
-                            color="primary"
-                            >{$status === "approved"
-                                ? "Continue"
-                                : $status === "duplicate"
-                                  ? "Claim old eVault"
-                                  : "Retry"}</ButtonAction
-                        >
-                    {/if}
-                </div>
-            {/if}
+                            <Shadow size={40} color="rgb(142, 82, 255);" />
+                            <h3>Generating your eName</h3>
+                        </div>
+                    </div>
+                {:else}
+                    <div class="flex flex-col gap-6">
+                        {#if $status === "approved"}
+                            <div>
+                                <h3>Your verification was a success</h3>
+                                <p>
+                                    You can now continue on to create your eName
+                                </p>
+                            </div>
+                        {:else if $status === "duplicate"}
+                            <div>
+                                <h3>Old eVault Found</h3>
+                                <p>
+                                    We found an existing eVault associated with
+                                    your identity. You can claim it back to
+                                    continue using your account.
+                                </p>
+                            </div>
+                        {:else if $status === "resubmission_requested"}
+                            <h3>Your verification failed due to the reason</h3>
+                            <p>{$reason}</p>
+                        {:else}
+                            <h3>Your verification failed</h3>
+
+                            <p>{$reason}</p>
+                        {/if}
+                    </div>
+                    <div class="flex w-full items-center gap-3 pt-4">
+                        {#if $status !== "declined"}
+                            <ButtonAction
+                                variant="soft"
+                                class="flex-1"
+                                callback={() => goto("/onboarding")}
+                                >Back</ButtonAction
+                            >
+                            <ButtonAction
+                                class="flex-1"
+                                callback={handleContinue}
+                                color="primary"
+                                >{$status === "approved"
+                                    ? "Continue"
+                                    : $status === "duplicate"
+                                      ? "Claim old eVault"
+                                      : "Retry"}</ButtonAction
+                            >
+                        {/if}
+                    </div>
+                {/if}
+            </div>
         </div>
-    </Drawer>
+    {/if}
 </main>
