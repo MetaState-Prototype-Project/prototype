@@ -51,7 +51,7 @@
 		"flowbite-svelte": "^1.10.7",
 		"flowbite-svelte-icons": "^2.2.1",
 		"lowdb": "^7.0.1",
-		"lucide-svelte": "^0.539.0",
+		"lucide-svelte": "^0.561.0",
 		"tailwind-merge": "^3.0.2"
 	}
 }
