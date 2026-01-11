@@ -1,6 +1,10 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.EMOVER_JWT_SECRET || "your-secret-key-change-in-production";
+
+if (!process.env.EMOVER_JWT_SECRET) throw new Error("InternalError: Missing JWT_SECRET")
+
+const JWT_SECRET = process.env.EMOVER_JWT_SECRET as string;
+
 
 export function signToken(payload: { userId: string }): string {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });

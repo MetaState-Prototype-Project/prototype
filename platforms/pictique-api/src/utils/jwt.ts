@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.PICTIQUE_JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.PICTIQUE_JWT_SECRET;
+
+if (!JWT_SECRET) throw new Error("InternalError: Missing JWT secret")
 
 export const signToken = (payload: any): string => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
