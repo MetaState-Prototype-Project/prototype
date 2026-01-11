@@ -5,7 +5,7 @@ if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET environment variable is required but was not provided. Please set JWT_SECRET in your environment configuration.");
 }
 
-const JWT_SECRET = process.env.ESIGNER_JWT_SECRET;
+const JWT_SECRET = process.env.ECURRENCY_JWT_SECRET;
 
 export interface AuthTokenPayload {
     userId: string;
