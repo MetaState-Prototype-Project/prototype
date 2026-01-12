@@ -1,8 +1,8 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
 import { getContext, onMount } from "svelte";
-import { page } from "$app/state";
 
 let { children } = $props();
 let isChecking = $state(true);
