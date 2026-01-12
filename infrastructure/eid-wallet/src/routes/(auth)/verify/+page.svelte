@@ -277,8 +277,8 @@ onMount(async () => {
 
     // Initialize key manager and check if default key pair exists
     try {
-        await initializeKeyManager();
-        await ensureKeyForVerification();
+        // await initializeKeyManager();
+        // await ensureKeyForVerification();
     } catch (error) {
         console.error("Failed to initialize keys for verification:", error);
         // If key initialization fails, redirect back to onboarding
@@ -415,20 +415,7 @@ onDestroy(() => {
             aria-label="Identity Verification"
             class="fixed inset-0 z-50 bg-white flex flex-col h-full"
         >
-            <div class="flex-none px-[5vw] pt-[4svh]">
-                <button
-                    onclick={() => {
-                        closeEventStream();
-                        showVeriffModal = false;
-                    }}
-                    aria-label="Close verification modal"
-                    class="flex items-center gap-2 text-black-500 py-2"
-                >
-                    <HugeiconsIcon icon={ArrowLeft01Icon} size={24} />
-                </button>
-            </div>
-
-            <div class="grow overflow-y-auto px-[5vw] pt-4">
+            <div class="grow overflow-y-auto px-[5vw] pt-[8svh]">
                 {#if $verifStep === 0}
                     <DocumentType />
                 {:else if $verifStep === 1}
@@ -447,11 +434,9 @@ onDestroy(() => {
                         {#if $status === "approved"}
                             <div>
                                 <h3 id="verification-title">
-                                    Your verification was a success
+                                    Verification Success
                                 </h3>
-                                <p>
-                                    You can now continue on to create your eName
-                                </p>
+                                <p>You can now continue to create your eName</p>
                             </div>
                         {:else if $status === "duplicate"}
                             <div>
@@ -460,14 +445,14 @@ onDestroy(() => {
                                 </h3>
                                 <p>
                                     We found an existing eVault associated with
-                                    your identity...
+                                    your identity.
                                 </p>
                             </div>
                         {:else if $status === "resubmission_requested"}
-                            <h3>Your verification failed due to the reason</h3>
+                            <h3>Resubmission Required</h3>
                             <p>{$reason}</p>
                         {:else}
-                            <h3>Your verification failed</h3>
+                            <h3>Verification Failed</h3>
                             <p>{$reason}</p>
                         {/if}
                     </div>
@@ -475,26 +460,43 @@ onDestroy(() => {
             </div>
 
             <div class="flex-none px-[5vw] pb-[4.5svh] pt-4">
-                {#if $verifStep > 2 && !loading && $status !== "declined"}
-                    <div class="flex w-full items-center gap-3">
-                        <ButtonAction
-                            variant="soft"
-                            class="flex-1"
-                            callback={() => goto("/onboarding")}
-                        >
-                            Back
-                        </ButtonAction>
-                        <ButtonAction
-                            class="flex-1"
-                            callback={handleContinue}
-                            color="primary"
-                        >
-                            {$status === "approved"
-                                ? "Continue"
-                                : $status === "duplicate"
-                                  ? "Claim old eVault"
-                                  : "Retry"}
-                        </ButtonAction>
+                {#if !loading}
+                    <div class="flex w-full items-stretch gap-3">
+                        <div class="flex-1">
+                            <ButtonAction
+                                variant="soft"
+                                class="w-full"
+                                callback={() => {
+                                    // If in early steps, close modal; if finished, go to onboarding
+                                    if ($verifStep > 2) {
+                                        goto("/onboarding");
+                                    } else {
+                                        closeEventStream();
+                                        showVeriffModal = false;
+                                    }
+                                }}
+                            >
+                                Back
+                            </ButtonAction>
+                        </div>
+
+                        <div class="flex-1">
+                            {#if $verifStep > 2 && $status !== "declined"}
+                                <ButtonAction
+                                    class="w-full"
+                                    callback={handleContinue}
+                                    color="primary"
+                                >
+                                    {$status === "approved"
+                                        ? "Continue"
+                                        : $status === "duplicate"
+                                          ? "Claim Vault"
+                                          : "Retry"}
+                                </ButtonAction>
+                            {:else if $verifStep <= 2}
+                                <div class="w-full h-full"></div>
+                            {/if}
+                        </div>
                     </div>
                 {/if}
             </div>
