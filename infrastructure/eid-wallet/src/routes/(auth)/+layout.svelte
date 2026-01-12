@@ -2,15 +2,16 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { getContext, onMount } from "svelte";
+import { page } from "$app/state";
 
 let { children } = $props();
 let isChecking = $state(true);
 let vaultExists = $state(false);
-let globalState: GlobalState | undefined = $state(undefined);
+const getGlobalState = getContext<() => GlobalState>("globalState");
 
 onMount(async () => {
     try {
-        globalState = getContext<() => GlobalState>("globalState")();
+        const globalState = getGlobalState();
         if (!globalState) {
             console.error("Global state is not defined");
             return;
@@ -28,7 +29,7 @@ onMount(async () => {
 
         if (globalState.isOnboardingComplete) {
             const pinHash = await globalState.securityController.pinHash;
-            const isAlreadyAtLogin = window.location.pathname === "/login";
+            const isAlreadyAtLogin = page.url.pathname === "/login";
 
             if (pinHash && !isAlreadyAtLogin) {
                 console.log(
