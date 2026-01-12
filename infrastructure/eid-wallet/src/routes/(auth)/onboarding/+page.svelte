@@ -8,11 +8,8 @@ import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import type { KeyServiceContext } from "$lib/global";
-import { ButtonAction, Drawer } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
+import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
@@ -41,7 +38,7 @@ const handleGetStarted = async () => {
         if (!globalState) {
             globalState = getContext<() => GlobalState>("globalState")();
         }
-
+        globalState.userController.isFake = false;
         // Actually try to generate a test hardware key
         const testKeyId = `hardware-test-${Date.now()}`;
         console.log(
@@ -82,6 +79,7 @@ const handleGetStarted = async () => {
 };
 
 const handlePreVerified = () => {
+    globalState.userController.isFake = true;
     isPaneOpen = true;
     preVerified = true;
 };
