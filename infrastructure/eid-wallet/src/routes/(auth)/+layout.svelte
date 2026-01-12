@@ -1,49 +1,49 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import type { GlobalState } from "$lib/global";
-    import { getContext, onMount } from "svelte";
+import { goto } from "$app/navigation";
+import type { GlobalState } from "$lib/global";
+import { getContext, onMount } from "svelte";
 
-    let { children } = $props();
-    let isChecking = $state(true);
-    let vaultExists = $state(false);
-    let globalState: GlobalState | undefined = $state(undefined);
+let { children } = $props();
+let isChecking = $state(true);
+let vaultExists = $state(false);
+let globalState: GlobalState | undefined = $state(undefined);
 
-    onMount(async () => {
-        try {
-            globalState = getContext<() => GlobalState>("globalState")();
-            if (!globalState) {
-                console.error("Global state is not defined");
-                return;
-            }
-
-            // Check if user is already authenticated
-            const vault = await globalState.vaultController.vault;
-            if (vault) {
-                vaultExists = true;
-                console.log("User already authenticated, redirecting to main");
-                // Use replaceState to prevent infinite back loops
-                await goto("/main", { replaceState: true });
-                return;
-            }
-
-            if (globalState.isOnboardingComplete) {
-                const pinHash = await globalState.securityController.pinHash;
-                const isAlreadyAtLogin = window.location.pathname === "/login";
-
-                if (pinHash && !isAlreadyAtLogin) {
-                    console.log(
-                        "Onboarding already complete, redirecting to login",
-                    );
-                    await goto("/login", { replaceState: true });
-                    return;
-                }
-            }
-        } catch (error) {
-            console.error("Error in auth layout guard:", error);
-        } finally {
-            isChecking = false;
+onMount(async () => {
+    try {
+        globalState = getContext<() => GlobalState>("globalState")();
+        if (!globalState) {
+            console.error("Global state is not defined");
+            return;
         }
-    });
+
+        // Check if user is already authenticated
+        const vault = await globalState.vaultController.vault;
+        if (vault) {
+            vaultExists = true;
+            console.log("User already authenticated, redirecting to main");
+            // Use replaceState to prevent infinite back loops
+            await goto("/main", { replaceState: true });
+            return;
+        }
+
+        if (globalState.isOnboardingComplete) {
+            const pinHash = await globalState.securityController.pinHash;
+            const isAlreadyAtLogin = window.location.pathname === "/login";
+
+            if (pinHash && !isAlreadyAtLogin) {
+                console.log(
+                    "Onboarding already complete, redirecting to login",
+                );
+                await goto("/login", { replaceState: true });
+                return;
+            }
+        }
+    } catch (error) {
+        console.error("Error in auth layout guard:", error);
+    } finally {
+        isChecking = false;
+    }
+});
 </script>
 
 {#if isChecking}
