@@ -7,6 +7,8 @@ import { getContext, onMount } from "svelte";
 let { children } = $props();
 let isChecking = $state(true);
 let vaultExists = $state(false);
+let guardFailed = $state(false);
+
 const getGlobalState = getContext<() => GlobalState>("globalState");
 
 onMount(async () => {
@@ -14,6 +16,7 @@ onMount(async () => {
         const globalState = getGlobalState();
         if (!globalState) {
             console.error("Global state is not defined");
+            guardFailed = true;
             return;
         }
 
@@ -49,6 +52,14 @@ onMount(async () => {
 
 {#if isChecking}
     <div class="h-screen w-screen bg-background"></div>
+{:else if guardFailed}
+    <div
+        class="flex h-screen w-screen items-center justify-center bg-background"
+    >
+        <p class="text-center text-sm text-foreground-muted">
+            An unexpected error occurred. Please restart the application.
+        </p>
+    </div>
 {:else if !vaultExists}
     {@render children()}
 {/if}
