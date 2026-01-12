@@ -359,7 +359,7 @@ onMount(async () => {
                     <div
                         class="w-full py-20 flex flex-col items-center justify-center gap-6"
                     >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
+                        <Shadow size={40} color="rgb(142, 82, 255)" />
                         <h4 class="text-center">Generating your eName</h4>
                     </div>
                 {:else if preVerified}
@@ -400,7 +400,7 @@ onMount(async () => {
                     <div
                         class="w-full py-20 flex flex-col items-center justify-center gap-6"
                     >
-                        <Shadow size={40} color="rgb(142, 82, 255);" />
+                        <Shadow size={40} color="rgb(142, 82, 255)" />
                         <h4 class="text-center">
                             Checking device capabilities...
                         </h4>

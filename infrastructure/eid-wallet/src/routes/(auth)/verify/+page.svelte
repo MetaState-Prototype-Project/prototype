@@ -277,8 +277,8 @@ onMount(async () => {
 
     // Initialize key manager and check if default key pair exists
     try {
-        // await initializeKeyManager();
-        // await ensureKeyForVerification();
+        await initializeKeyManager();
+        await ensureKeyForVerification();
     } catch (error) {
         console.error("Failed to initialize keys for verification:", error);
         // If key initialization fails, redirect back to onboarding
