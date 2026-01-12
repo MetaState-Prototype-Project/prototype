@@ -44,6 +44,7 @@ onMount(async () => {
         }
     } catch (error) {
         console.error("Error in auth layout guard:", error);
+        guardFailed = true;
     } finally {
         isChecking = false;
     }
