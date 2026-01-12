@@ -342,14 +342,6 @@ onMount(async () => {
 {#if isPaneOpen}
     <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
         <div class="min-h-full flex flex-col p-6">
-            <div class="flex-none">
-                <button
-                    onclick={() => (isPaneOpen = false)}
-                    class="flex items-center gap-2 text-black-500 mb-6 py-2"
-                >
-                    <HugeiconsIcon icon={ArrowLeft01Icon} size={24} />
-                </button>
-            </div>
             <article class="grow flex flex-col items-start w-full">
                 <img
                     src="/images/GetStarted.svg"
@@ -444,41 +436,60 @@ onMount(async () => {
 
             <div class="flex-none pt-8 pb-4">
                 {#if !loading && !checkingHardware}
-                    {#if preVerified}
-                        {#if verificationSuccess}
+                    <div class="flex w-full items-stretch gap-3">
+                        <div class="flex-1">
                             <ButtonAction
-                                variant="solid"
-                                class="w-full"
-                                callback={handleFinalSubmit}
+                                variant="soft"
+                                class="w-full h-full"
+                                callback={() => {
+                                    isPaneOpen = false;
+                                }}
                             >
-                                Continue
+                                Back
                             </ButtonAction>
-                        {:else}
-                            <ButtonAction
-                                variant={verificationId.length === 0 ||
-                                demoName.length === 0
-                                    ? "soft"
-                                    : "solid"}
-                                disabled={verificationId.length === 0 ||
-                                    demoName.length === 0}
-                                class="w-full"
-                                callback={handleContinue}
-                            >
-                                Next
-                            </ButtonAction>
-                        {/if}
-                    {:else if showHardwareError}
-                        <ButtonAction
-                            class="w-full"
-                            callback={handlePreVerified}
-                        >
-                            Use Pre-Verification Code
-                        </ButtonAction>
-                    {:else}
-                        <ButtonAction class="w-full" callback={handleNext}>
-                            Next
-                        </ButtonAction>
-                    {/if}
+                        </div>
+
+                        <div class="flex-1 flex">
+                            {#if preVerified}
+                                {#if verificationSuccess}
+                                    <ButtonAction
+                                        variant="solid"
+                                        class="w-full h-full"
+                                        callback={handleFinalSubmit}
+                                    >
+                                        Continue
+                                    </ButtonAction>
+                                {:else}
+                                    <ButtonAction
+                                        variant={verificationId.length === 0 ||
+                                        demoName.length === 0
+                                            ? "soft"
+                                            : "solid"}
+                                        disabled={verificationId.length === 0 ||
+                                            demoName.length === 0}
+                                        class="w-full h-full"
+                                        callback={handleContinue}
+                                    >
+                                        Next
+                                    </ButtonAction>
+                                {/if}
+                            {:else if showHardwareError}
+                                <ButtonAction
+                                    class="w-full h-full whitespace-nowrap"
+                                    callback={handlePreVerified}
+                                >
+                                    Enter Code
+                                </ButtonAction>
+                            {:else}
+                                <ButtonAction
+                                    class="w-full h-full"
+                                    callback={handleNext}
+                                >
+                                    Next
+                                </ButtonAction>
+                            {/if}
+                        </div>
+                    </div>
                 {/if}
             </div>
         </div>
