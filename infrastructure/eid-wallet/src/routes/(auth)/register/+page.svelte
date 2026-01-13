@@ -38,6 +38,8 @@ const handleConfirmFirst = () => {
 };
 
 const handleConfirmRepeat = async () => {
+    if (repeatPin.length !== 4) return;
+
     if (pin !== repeatPin) {
         isError = true;
         currentStep = "CREATE";
@@ -46,7 +48,17 @@ const handleConfirmRepeat = async () => {
         return;
     }
 
+    if (!globalState) {
+        console.error("Global state not available; cannot set onboarding PIN.");
+        isError = true;
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        return;
+    }
+
     try {
+        isError = false;
         await globalState?.securityController.setOnboardingPin(pin, repeatPin);
         currentStep = "PIN_DONE";
     } catch (error) {
