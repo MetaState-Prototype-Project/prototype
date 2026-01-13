@@ -51,6 +51,9 @@ const handleConfirmRepeat = async () => {
         currentStep = "PIN_DONE";
     } catch (error) {
         console.error("Failed to update PIN:", error);
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
         isError = true;
     }
 };
