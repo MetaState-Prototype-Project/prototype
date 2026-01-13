@@ -187,15 +187,17 @@ onMount(async () => {
             </div>
         {:else}
             <div class="flex items-center gap-3">
-                <div class="flex-1">
-                    <ButtonAction
-                        variant="soft"
-                        class="w-full"
-                        callback={handleBack}
-                    >
-                        Back
-                    </ButtonAction>
-                </div>
+                {#if currentStep !== "CREATE"}
+                    <div class="flex-1">
+                        <ButtonAction
+                            variant="soft"
+                            class="w-full"
+                            callback={handleBack}
+                        >
+                            Back
+                        </ButtonAction>
+                    </div>
+                {/if}
                 <div class="flex-1">
                     {#if currentStep === "CREATE"}
                         <ButtonAction
