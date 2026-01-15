@@ -166,7 +166,11 @@
 				},
 				comment: async (comment) => {
 					if (!selectedPost.value) return;
-					await createComment(selectedPost.value?.id, comment);
+					try {
+						await createComment(selectedPost.value.id, comment);
+					} catch (err) {
+						console.error('Failed to create comment:', err);
+					}
 				}
 			}}
 			comments={$commentsStore}
