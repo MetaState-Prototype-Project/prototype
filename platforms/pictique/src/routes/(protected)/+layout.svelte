@@ -197,8 +197,8 @@
 			core concepts of the W3DS ecosystem.
 		</p>
 		<p>
-			<b>It is not a production-grade platform</b> and may lack full reliability, performance,
-			and security guarantees.
+			<b>It is not a production-grade platform</b> and may lack full reliability, performance, and
+			security guarantees.
 		</p>
 		<p>
 			We <b>strongly recommend</b> that you avoid sharing <b>sensitive or private content</b>,

@@ -130,9 +130,17 @@
 			text={selectedPost.value?.caption ?? ''}
 			count={selectedPost.value?.count ?? { likes: 0, comments: 0 }}
 			{ownerProfile}
+			isLiked={ownerProfile
+				? ((selectedPost.value as any)?.likedBy?.some(
+						(user: any) => user.id === ownerProfile.id
+					) ?? false)
+				: false}
 			callback={{
 				like: async () => {
-					await toggleLike(selectedPost.value?.id ?? '');
+					let result = await toggleLike(selectedPost.value?.id ?? '');
+					if (selectedPost.value) {
+						(selectedPost.value as any).likedBy = result.likedBy;
+					}
 				},
 				comment: async (comment) => {
 					if (!selectedPost.value) return;
