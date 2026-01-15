@@ -137,9 +137,14 @@
 				: false}
 			callback={{
 				like: async () => {
-					let result = await toggleLike(selectedPost.value?.id ?? '');
-					if (selectedPost.value) {
-						(selectedPost.value as any).likedBy = result.likedBy;
+					if (!selectedPost.value?.id) return;
+					try {
+						const result = await toggleLike(selectedPost.value.id);
+						if (selectedPost.value && result?.likedBy) {
+							(selectedPost.value as any).likedBy = result.likedBy;
+						}
+					} catch (err) {
+						console.error('Failed to toggle like:', err);
 					}
 				},
 				comment: async (comment) => {
