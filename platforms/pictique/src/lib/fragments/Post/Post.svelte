@@ -22,7 +22,7 @@
 		};
 		callback: {
 			menu: () => void;
-			like: () => Promise<void>;
+			like: () => void;
 			comment: () => void;
 		};
 		time: string;
