@@ -28,14 +28,20 @@
 	const btnScale = new Spring(1, { stiffness: 0.2, damping: 0.4 });
 
 	async function wrappedFollow() {
+		if (isFollowing || requestSent) return;
+
 		btnScale.target = 0.95;
 
 		try {
 			await handleFollow();
+
 			requestSent = true;
+
+			setTimeout(() => {
+				requestSent = false;
+			}, 2000);
 		} catch (e) {
 			console.error(e);
-		} finally {
 			btnScale.target = 1;
 		}
 	}
