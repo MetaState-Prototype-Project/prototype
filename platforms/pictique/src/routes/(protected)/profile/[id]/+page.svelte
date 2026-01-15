@@ -3,12 +3,24 @@
 	import { page } from '$app/state';
 	import { PostModal, Profile } from '$lib/fragments';
 	import { selectedPost } from '$lib/store/store.svelte';
-	import { createComment } from '$lib/stores/comments';
+	import { comments as commentsStore, createComment, fetchComments } from '$lib/stores/comments';
 	import { toggleLike } from '$lib/stores/posts';
 	import type { PostData, userProfile } from '$lib/types';
 	import { Modal } from '$lib/ui';
 	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
+
+	interface Comment {
+		id: string;
+		text: string;
+		createdAt: string;
+		author: {
+			id: string;
+			handle: string;
+			name: string;
+			avatarUrl: string;
+		};
+	}
 
 	let profileId = $derived(page.params.id);
 	let profile = $state<userProfile | null>(null);
@@ -22,6 +34,7 @@
 			return response.data;
 		}
 	});
+	let comments: Array<Comment> = [];
 
 	async function fetchProfile() {
 		try {
@@ -59,10 +72,14 @@
 		}
 	}
 
-	function handlePostClick(post: PostData) {
-		console.log(post);
+	async function handlePostClick(post: PostData) {
 		selectedPost.value = post;
-		// goto("/profile/post");
+		try {
+			// Trigger the store to fetch comments for this specific post
+			await fetchComments(post.id);
+		} catch (err) {
+			console.error('Error loading comments:', err);
+		}
 	}
 
 	onMount(fetchProfile);
@@ -152,6 +169,7 @@
 					await createComment(selectedPost.value?.id, comment);
 				}
 			}}
+			comments={$commentsStore}
 			time={selectedPost.value?.time ?? ''}
 		/>
 	</Modal>
