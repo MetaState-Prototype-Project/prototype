@@ -36,6 +36,7 @@
 			await handleFollow();
 
 			requestSent = true;
+			btnScale.target = 1;
 
 			setTimeout(() => {
 				requestSent = false;
