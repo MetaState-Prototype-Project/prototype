@@ -124,7 +124,7 @@
 
 	async function handleLikeWithInteraction() {
 		scale.target = 1.4;
-		callback.like();
+		await callback.like();
 		setTimeout(() => (scale.target = 1), 150);
 	}
 </script>
@@ -315,9 +315,9 @@
 						/>
 					</div>
 				</button>
-				<button class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200">
+				<!-- <button class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200">
 					<CommentIcon size="24px" color="black" fill="transparent" />
-				</button>
+				</button> -->
 			</div>
 			<p class="text-black/60">
 				{new Date(time).toLocaleDateString()}

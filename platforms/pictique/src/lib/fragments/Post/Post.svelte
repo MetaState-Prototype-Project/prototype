@@ -101,7 +101,7 @@
 
 	async function handleLikeWithInteraction() {
 		scale.target = 1.4;
-		callback.like();
+		await callback.like();
 		setTimeout(() => (scale.target = 1), 150);
 	}
 </script>
