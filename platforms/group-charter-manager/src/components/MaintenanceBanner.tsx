@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 interface Motd {
-    status: 'up' | 'maintenance';
+    status: "up" | "maintenance";
     message: string;
 }
 
-const DISMISSED_KEY = 'maintenance-banner-dismissed';
+const DISMISSED_KEY = "maintenance-banner-dismissed";
 
 export function MaintenanceBanner() {
     const [motd, setMotd] = useState<Motd | null>(null);
@@ -17,17 +17,21 @@ export function MaintenanceBanner() {
     useEffect(() => {
         const fetchMotd = async () => {
             try {
-                const registryUrl = process.env.NEXT_PUBLIC_REGISTRY_URL || 'http://localhost:4321';
+                const registryUrl = process.env.NEXT_PUBLIC_REGISTRY_URL;
+                if (!registryUrl) {
+                    // Skip fetching in local dev if env var not set
+                    return;
+                }
                 const response = await axios.get<Motd>(`${registryUrl}/motd`);
                 setMotd(response.data);
-                
+
                 // Check if this message has been dismissed
-                if (response.data.status === 'maintenance') {
+                if (response.data.status === "maintenance") {
                     const dismissed = localStorage.getItem(DISMISSED_KEY);
                     setIsDismissed(dismissed === response.data.message);
                 }
             } catch (error) {
-                console.error('Failed to fetch motd:', error);
+                console.error("Failed to fetch motd:", error);
             }
         };
 
@@ -41,7 +45,7 @@ export function MaintenanceBanner() {
         }
     };
 
-    if (motd?.status !== 'maintenance' || isDismissed) {
+    if (motd?.status !== "maintenance" || isDismissed) {
         return null;
     }
 
@@ -71,4 +75,3 @@ export function MaintenanceBanner() {
         </div>
     );
 }
-

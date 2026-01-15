@@ -1,20 +1,46 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { cn } from '$lib/utils';
 	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 
-	interface IHeaderProps extends HTMLAttributes<HTMLElement> {
-		variant: 'primary' | 'secondary' | 'tertiary';
-		heading?: string;
-		isCallBackNeeded?: boolean;
-		callback?: () => void;
-		options?: { name: string; handler: () => void }[];
-	}
+	const { ...restProps }: HTMLAttributes<HTMLElement> = $props();
 
-	const { variant, isCallBackNeeded, callback, heading, ...restProps }: IHeaderProps = $props();
+	let route = $derived(page.url.pathname);
+	let heading = $state('');
 
-	const variantClasses = {
+	$effect(() => {
+		if (route.includes('home')) {
+			heading = 'Feed';
+		} else if (route.includes('/discover')) {
+			heading = 'Search';
+		} else if (route.includes('/post/audience')) {
+			heading = 'Audience';
+		} else if (route.includes('/post')) {
+			heading = 'Upload photo';
+		} else if (route === '/messages') {
+			heading = 'Messages';
+		} else if (route.includes('/settings')) {
+			heading = 'Settings';
+		} else if (route.includes('/profile')) {
+			heading = 'Profile';
+		}
+	});
+
+	type Variant = 'primary' | 'secondary' | 'tertiary';
+
+	let variant = $derived.by((): Variant => {
+		if (route === `/messages/${page.params.id}` || route.includes('/post')) {
+			return 'secondary';
+		}
+		if (route.includes('profile')) {
+			return 'tertiary';
+		}
+		return 'primary';
+	});
+
+	const variantClasses: Record<Variant, { text: string; background: string }> = {
 		primary: {
 			text: 'text-transparent bg-clip-text bg-[image:var(--color-brand-gradient)] py-2',
 			background: ''
@@ -76,14 +102,6 @@
 			</h1>
 		{/if}
 	</span>
-	{#if isCallBackNeeded}
-		<button
-			class={cn(['cursor-pointer rounded-full p-2 hover:bg-gray-100', classes.background])}
-			onclick={callback}
-			aria-label="Callback"
-		>
-		</button>
-	{/if}
 </header>
 
 <!--

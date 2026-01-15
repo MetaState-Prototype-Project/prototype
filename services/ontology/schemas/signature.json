@@ -1,0 +1,52 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "title": "Signature",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the signature"
+        },
+        "fileId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the file that was signed"
+        },
+        "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who created the signature"
+        },
+        "md5Hash": {
+            "type": "string",
+            "description": "MD5 hash of the file content at the time of signing"
+        },
+        "signature": {
+            "type": "string",
+            "description": "Cryptographic signature proving the user's agreement to the file"
+        },
+        "publicKey": {
+            "type": "string",
+            "description": "User's public key for signature verification"
+        },
+        "message": {
+            "type": "string",
+            "description": "Original message that was signed (usually contains file details)"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the signature was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the signature was last updated"
+        }
+    },
+    "required": ["id", "fileId", "userId", "md5Hash", "signature", "publicKey", "message", "createdAt"],
+    "additionalProperties": false
+}
+

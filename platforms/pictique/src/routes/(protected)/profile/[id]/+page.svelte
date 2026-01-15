@@ -3,18 +3,31 @@
 	import { page } from '$app/state';
 	import { PostModal, Profile } from '$lib/fragments';
 	import { selectedPost } from '$lib/store/store.svelte';
-	import { createComment } from '$lib/stores/comments';
+	import { comments as commentsStore, createComment, fetchComments } from '$lib/stores/comments';
 	import { toggleLike } from '$lib/stores/posts';
 	import type { PostData, userProfile } from '$lib/types';
 	import { Modal } from '$lib/ui';
 	import { apiClient, getAuthId } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 
+	interface Comment {
+		id: string;
+		text: string;
+		createdAt: string;
+		author: {
+			id: string;
+			handle: string;
+			name: string;
+			avatarUrl: string;
+		};
+	}
+
 	let profileId = $derived(page.params.id);
 	let profile = $state<userProfile | null>(null);
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let ownerId: string | null = $derived(getAuthId());
+	let isFollowing = $state(false);
 	let ownerProfile = $derived.by(async () => {
 		if (ownerId) {
 			const response = await apiClient.get<userProfile>(`/api/users/${ownerId}`);
@@ -22,7 +35,6 @@
 			return response.data;
 		}
 	});
-
 	async function fetchProfile() {
 		try {
 			loading = true;
@@ -39,10 +51,13 @@
 
 	async function handleFollow() {
 		try {
+			isFollowing = true;
 			await apiClient.post(`/api/users/${profileId}/follow`);
-			await fetchProfile(); // Refresh profile to update follower count
+			// await fetchProfile(); // Refresh profile to update follower count
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to follow user';
+		} finally {
+			isFollowing = false;
 		}
 	}
 
@@ -59,10 +74,14 @@
 		}
 	}
 
-	function handlePostClick(post: PostData) {
-		console.log(post);
+	async function handlePostClick(post: PostData) {
 		selectedPost.value = post;
-		// goto("/profile/post");
+		try {
+			// Trigger the store to fetch comments for this specific post
+			await fetchComments(post.id);
+		} catch (err) {
+			console.error('Error loading comments:', err);
+		}
 	}
 
 	onMount(fetchProfile);
@@ -79,6 +98,7 @@
 		</div>
 	{:else if profile}
 		<Profile
+			bind:isFollowing
 			variant={ownerId === profileId ? 'user' : 'other'}
 			profileData={profile}
 			handleSinglePost={(post) => handlePostClick(post)}
@@ -130,15 +150,33 @@
 			text={selectedPost.value?.caption ?? ''}
 			count={selectedPost.value?.count ?? { likes: 0, comments: 0 }}
 			{ownerProfile}
+			isLiked={ownerProfile
+				? ((selectedPost.value as any)?.likedBy?.some(
+						(user: any) => user.id === ownerProfile.id
+					) ?? false)
+				: false}
 			callback={{
 				like: async () => {
-					await toggleLike(selectedPost.value?.id ?? '');
+					if (!selectedPost.value?.id) return;
+					try {
+						const result = await toggleLike(selectedPost.value.id);
+						if (selectedPost.value && result?.likedBy) {
+							(selectedPost.value as any).likedBy = result.likedBy;
+						}
+					} catch (err) {
+						console.error('Failed to toggle like:', err);
+					}
 				},
 				comment: async (comment) => {
 					if (!selectedPost.value) return;
-					await createComment(selectedPost.value?.id, comment);
+					try {
+						await createComment(selectedPost.value.id, comment);
+					} catch (err) {
+						console.error('Failed to create comment:', err);
+					}
 				}
 			}}
+			comments={$commentsStore}
 			time={selectedPost.value?.time ?? ''}
 		/>
 	</Modal>

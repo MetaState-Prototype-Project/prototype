@@ -7,6 +7,7 @@
 	import { ArrowLeftIcon, ArrowRightIcon, RecordIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { Spring } from 'svelte/motion';
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
@@ -92,6 +93,20 @@
 		const img = event.target as HTMLImageElement;
 		img.src = 'https://picsum.photos/200';
 	}
+
+	const scale = new Spring(1, {
+		stiffness: 0.15,
+		damping: 0.25
+	});
+
+	async function handleLikeWithInteraction() {
+		scale.target = 1.4;
+		try {
+			await callback.like();
+		} finally {
+			setTimeout(() => (scale.target = 1), 150);
+		}
+	}
 </script>
 
 <article {...restProps} class={cn(['flex w-full flex-col gap-4', restProps.class])}>
@@ -168,14 +183,19 @@
 		{#if count}
 			<div class="flex gap-4">
 				<button
-					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
-					onclick={callback.like}
+					class="group cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 transition-colors hover:bg-gray-200 active:bg-gray-300"
+					onclick={handleLikeWithInteraction}
 				>
-					<Like
-						size="24px"
-						color="var(--color-red-500"
-						fill={isLiked ? 'var(--color-red-500)' : 'white'}
-					/>
+					<div
+						style="transform: scale({scale.current}); display: flex; align-items: center; justify-content: center;"
+					>
+						<Like
+							size="24px"
+							color={'var(--color-red-500)'}
+							fill={isLiked ? 'var(--color-red-500)' : 'transparent'}
+							class="transition-all duration-300"
+						/>
+					</div>
 				</button>
 				<button
 					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"

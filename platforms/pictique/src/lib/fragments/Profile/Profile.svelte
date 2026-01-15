@@ -1,23 +1,40 @@
 <script lang="ts">
 	import type { PostData, userProfile } from '$lib/types';
 	import { Button } from '$lib/ui';
+	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import Post from '../Post/Post.svelte';
+	import { Spring } from 'svelte/motion';
+	import { Tick01Icon } from '@hugeicons/core-free-icons';
 
 	let {
 		variant = 'user',
 		profileData,
 		handleFollow,
 		handleSinglePost,
-		handleMessage
+		handleMessage,
+		isFollowing = $bindable(false)
 	}: {
 		variant: 'user' | 'other';
 		profileData: userProfile;
 		handleSinglePost: (post: PostData) => void;
 		handleFollow: () => Promise<void>;
 		handleMessage: () => Promise<void>;
+		isFollowing: boolean;
 	} = $props();
 
 	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
+	let requestSent = $state(false);
+
+	const btnScale = new Spring(1, { stiffness: 0.2, damping: 0.4 });
+
+	async function wrappedFollow() {
+		btnScale.target = 0.95;
+
+		await handleFollow();
+		requestSent = true;
+
+		btnScale.target = 1;
+	}
 </script>
 
 <div class="flex flex-col gap-4 p-4">
@@ -36,7 +53,33 @@
 		</div>
 		{#if variant === 'other'}
 			<div class="flex gap-2">
-				<Button variant="primary" size="sm" callback={handleFollow}>Follow</Button>
+				<div style="transform: scale({btnScale.current}); transition: transform 0.2s ease;">
+					<Button
+						variant={'primary'}
+						size="sm"
+						callback={wrappedFollow}
+						disabled={isFollowing || requestSent}
+						class="min-w-[110px] transition-all duration-500 {requestSent
+							? 'opacity-80'
+							: ''}"
+					>
+						<div class="flex items-center justify-center gap-2">
+							{#if requestSent}
+								<HugeiconsIcon icon={Tick01Icon} size={16} />
+								<span>Followed</span>
+							{:else if isFollowing}
+								<span class="flex gap-0.5">
+									<span class="animate-bounce">.</span>
+									<span class="animate-bounce [animation-delay:0.2s]">.</span>
+									<span class="animate-bounce [animation-delay:0.4s]">.</span>
+								</span>
+								<span>Following</span>
+							{:else}
+								Follow
+							{/if}
+						</div>
+					</Button>
+				</div>
 				<Button variant="primary" size="sm" callback={handleMessage}>Message</Button>
 			</div>
 		{/if}

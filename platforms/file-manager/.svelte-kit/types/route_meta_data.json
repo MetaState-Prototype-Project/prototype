@@ -1,0 +1,9 @@
+{
+	"/(protected)": [],
+	"/": [],
+	"/(auth)/auth": [],
+	"/(auth)/deeplink-login": [],
+	"/(protected)/files": [],
+	"/(protected)/files/[id]": [],
+	"/(protected)/storage": []
+}
