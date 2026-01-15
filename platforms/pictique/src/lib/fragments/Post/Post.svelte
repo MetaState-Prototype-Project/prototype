@@ -22,7 +22,7 @@
 		};
 		callback: {
 			menu: () => void;
-			like: () => void;
+			like: () => Promise<void>;
 			comment: () => void;
 		};
 		time: string;
@@ -101,8 +101,11 @@
 
 	async function handleLikeWithInteraction() {
 		scale.target = 1.4;
-		await callback.like();
-		setTimeout(() => (scale.target = 1), 150);
+		try {
+			await callback.like();
+		} finally {
+			setTimeout(() => (scale.target = 1), 150);
+		}
 	}
 </script>
 
