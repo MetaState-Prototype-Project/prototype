@@ -26,4 +26,6 @@ jobs:
           pnpm i
 
       - name: Check Code
-        run: pnpm check
+        run: |
+            cp .env.example .env
+            pnpm check

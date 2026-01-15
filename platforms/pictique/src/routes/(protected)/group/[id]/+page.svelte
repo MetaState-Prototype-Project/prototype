@@ -156,13 +156,13 @@
 			{@const nextMessage = index < messages.length - 1 ? messages[index + 1] : null}
 			{@const isHeadNeeded = Boolean(
 				!prevMessage ||
-					prevMessage.isOwn !== msg.isOwn ||
-					(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId)
+				prevMessage.isOwn !== msg.isOwn ||
+				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId)
 			)}
 			{@const isTimestampNeeded = Boolean(
 				!nextMessage ||
-					nextMessage.isOwn !== msg.isOwn ||
-					(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId)
+				nextMessage.isOwn !== msg.isOwn ||
+				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId)
 			)}
 			<ChatMessage
 				isOwn={msg.isOwn}

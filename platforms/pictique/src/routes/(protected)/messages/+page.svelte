@@ -4,7 +4,6 @@
 	import { isSearching, searchError, searchResults, searchUsers } from '$lib/stores/users';
 	import type { Chat, MessageType } from '$lib/types';
 	import { Avatar, Button, Input } from '$lib/ui';
-	import { clickOutside } from '$lib/utils';
 	import { apiClient } from '$lib/utils/axios';
 	import { onMount } from 'svelte';
 	import { heading } from '../../store';
@@ -62,18 +61,27 @@
 					: members[0]?.avatarUrl ||
 						'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/icons/people-fill.svg';
 
-				// For groups, prioritize the group name, fallback to member names
-				// For direct messages, use the other person's name
+				// For groups (3+ people), prioritize the group name, fallback to member names
+				// For direct messages (2 people), always use the other person's name, never the group name
 				const displayName = isGroup
 					? c.name || memberNames.join(', ') // Group name first, then member names
-					: c.name || members[0]?.name || members[0]?.handle || 'Unknown User';
+					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
+
+				// Trim system message prefix from preview text
+				let previewText = c.latestMessage?.text ?? 'No message yet';
+				if (
+					typeof previewText === 'string' &&
+					previewText.startsWith('$$system-message$$')
+				) {
+					previewText = previewText.replace('$$system-message$$', '').trim();
+				}
 
 				return {
 					id: c.id,
 					avatar,
 					username: displayName,
 					unread: c.latestMessage ? !c.latestMessage.isRead : false,
-					text: c.latestMessage?.text ?? 'No message yet',
+					text: previewText,
 					handle: displayName,
 					name: displayName
 				};
@@ -246,347 +254,353 @@
 	}
 </script>
 
-<section class="px-4 py-4">
-	<div class="mb-4 flex justify-end">
-		<Button
-			variant="secondary"
-			size="sm"
-			callback={() => {
-				openNewGroupModal = true;
-			}}
-		>
-			New Group
-		</Button>
-	</div>
-
-	{#if isLoading && messages.length === 0}
-		<div class="flex items-center justify-center py-8">
-			<div
-				class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
-			></div>
-			<span class="ml-3 text-gray-500">Loading chats...</span>
-		</div>
-	{:else if messages.length > 0}
-		{#each messages as message}
-			<Message
-				class="mb-2"
-				avatar={message.avatar}
-				username={message.name ?? message.username}
-				text={message.text}
-				unread={!message.unread}
+<div class="flex">
+	<section class="flex-1 px-4 py-4">
+		<div class="mb-4 flex justify-end">
+			<Button
+				variant="secondary"
+				size="sm"
 				callback={() => {
-					heading.set(message.username);
-					goto(`/messages/${message.id}`);
+					openNewGroupModal = true;
 				}}
-			/>
-		{/each}
+			>
+				New Group
+			</Button>
+		</div>
 
-		<!-- Load More Button -->
-		{#if hasMorePages}
-			<div class="mt-4 flex justify-center">
-				<Button
-					variant="secondary"
-					size="sm"
-					callback={loadMoreMessages}
-					disabled={isLoadingMore}
-					isLoading={isLoadingMore}
-				>
-					Load More Chats
-				</Button>
-			</div>
-
-			<div class="mt-2 text-center text-sm text-gray-500">
-				Showing {messages.length} of {totalChats} chats
+		{#if isLoading && messages.length === 0}
+			<div class="flex items-center justify-center py-8">
+				<div
+					class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+				></div>
+				<span class="ml-3 text-gray-500">Loading chats...</span>
 			</div>
 		{:else if messages.length > 0}
-			<div class="mt-2 text-center text-sm text-gray-500">
-				All {totalChats} chats loaded
+			{#each messages as message}
+				<Message
+					class="mb-2"
+					avatar={message.avatar}
+					username={message.name ?? message.username}
+					text={message.text}
+					unread={!message.unread}
+					callback={() => {
+						heading.set(message.username);
+						goto(`/messages/${message.id}`);
+					}}
+				/>
+			{/each}
+
+			<!-- Load More Button -->
+			{#if hasMorePages}
+				<div class="mt-4 flex justify-center">
+					<Button
+						variant="secondary"
+						size="sm"
+						callback={loadMoreMessages}
+						disabled={isLoadingMore}
+						isLoading={isLoadingMore}
+					>
+						Load More Chats
+					</Button>
+				</div>
+
+				<div class="mt-2 text-center text-sm text-gray-500">
+					Showing {messages.length} of {totalChats} chats
+				</div>
+			{:else if messages.length > 0}
+				<div class="mt-2 text-center text-sm text-gray-500">
+					All {totalChats} chats loaded
+				</div>
+			{/if}
+		{:else if !isLoading}
+			<div class="w-full px-5 py-5 text-center text-sm text-gray-500">
+				You don't have any messages yet. Start a Direct Message by searching a name.
 			</div>
 		{/if}
-	{:else if !isLoading}
-		<div class="w-full px-5 py-5 text-center text-sm text-gray-500">
-			You don't have any messages yet. Start a Direct Message by searching a name.
-		</div>
-	{/if}
 
-	{#if openNewChatModal}
-		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
-			<div
-				class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
-			>
-				<div class="mb-6 flex items-center justify-between">
-					<h2 class="text-xl font-semibold text-gray-900">Start a New Chat</h2>
-					<button
-						onclick={() => (openNewChatModal = false)}
-						class="rounded-full p-2 hover:bg-gray-100"
-						aria-label="Close modal"
-					>
-						<svg
-							class="h-5 w-5 text-gray-500"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
+		{#if openNewChatModal}
+			<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+				<div
+					class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
+				>
+					<div class="mb-6 flex items-center justify-between">
+						<h2 class="text-xl font-semibold text-gray-900">Start a New Chat</h2>
+						<button
+							onclick={() => (openNewChatModal = false)}
+							class="rounded-full p-2 hover:bg-gray-100"
+							aria-label="Close modal"
 						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M6 18L18 6M6 6l12 12"
-							></path>
-						</svg>
-					</button>
-				</div>
-
-				<div class="space-y-4">
-					<Input
-						type="text"
-						bind:value={searchValue}
-						placeholder="Search users..."
-						oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
-					/>
-
-					{#if $isSearching}
-						<div class="text-center text-gray-500">Searching...</div>
-					{:else if $searchError}
-						<div class="text-center text-red-500">{$searchError}</div>
-					{:else if $searchResults.length === 0 && searchValue.trim()}
-						<div class="text-center text-gray-500">No users found</div>
-					{/if}
-
-					{#if $searchResults.length > 0}
-						<div class="max-h-[250px] space-y-3 overflow-y-auto">
-							{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
-								<label
-									class="flex cursor-pointer items-center space-x-3 rounded-lg p-3 hover:bg-gray-50"
-								>
-									<input
-										type="checkbox"
-										checked={selectedMembers.includes(member.id)}
-										onchange={(e: Event) => {
-											toggleMemberSelection(member.id);
-											return;
-										}}
-										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-									<Avatar src={member.avatarUrl} size="sm" />
-									<div class="flex flex-col">
-										<span class="text-sm font-medium text-gray-900"
-											>{member.name ?? member.handle}</span
-										>
-										{#if member.description}
-											<span class="text-xs text-gray-500"
-												>{member.description}</span
-											>
-										{/if}
-									</div>
-								</label>
-							{/each}
-						</div>
-					{/if}
-
-					{#if selectedMembers.length > 0}
-						<div class="rounded-lg bg-blue-50 p-3">
-							<p class="text-sm text-blue-800">
-								{selectedMembers.length === 1
-									? 'Direct message will be created'
-									: `Group chat with ${selectedMembers.length} members will be created`}
-							</p>
-						</div>
-					{/if}
-
-					<div class="flex justify-end gap-3 pt-4">
-						<Button
-							size="sm"
-							variant="secondary"
-							callback={() => {
-								openNewChatModal = false;
-							}}
-						>
-							Cancel
-						</Button>
-						<Button
-							size="sm"
-							variant="primary"
-							callback={() => createChat()}
-							disabled={selectedMembers.length === 0}
-						>
-							{selectedMembers.length === 1 ? 'Start Chat' : 'Create Group'}
-						</Button>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- New Group Modal -->
-	{#if openNewGroupModal}
-		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
-			<div
-				class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
-			>
-				<div class="mb-6 flex items-center justify-between">
-					<h2 class="text-xl font-semibold text-gray-900">Create New Group</h2>
-					<button
-						onclick={() => (openNewGroupModal = false)}
-						class="rounded-full p-2 hover:bg-gray-100"
-						aria-label="Close modal"
-					>
-						<svg
-							class="h-5 w-5 text-gray-500"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M6 18L18 6M6 6l12 12"
-							></path>
-						</svg>
-					</button>
-				</div>
-
-				<div class="space-y-4">
-					<!-- Group Name -->
-					<div>
-						<label for="groupName" class="mb-2 block text-sm font-medium text-gray-700">
-							Group Name *
-						</label>
-						<Input
-							id="groupName"
-							type="text"
-							bind:value={groupName}
-							placeholder="Enter group name..."
-							class="w-full"
-						/>
+							<svg
+								class="h-5 w-5 text-gray-500"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								></path>
+							</svg>
+						</button>
 					</div>
 
-					<!-- Member Search -->
-					<div>
-						<label
-							for="memberSearch"
-							class="mb-2 block text-sm font-medium text-gray-700"
-						>
-							Search Users by Name
-						</label>
+					<div class="space-y-4">
 						<Input
-							id="memberSearch"
 							type="text"
 							bind:value={searchValue}
-							placeholder="Type a name to search..."
+							placeholder="Search users..."
 							oninput={(e: Event) =>
 								handleSearch((e.target as HTMLInputElement).value)}
-							class="w-full"
 						/>
-					</div>
 
-					<!-- Search Results -->
-					{#if $isSearching}
-						<div class="py-2 text-center text-gray-500">Searching...</div>
-					{:else if $searchError}
-						<div class="py-2 text-center text-red-500">{$searchError}</div>
-					{:else if $searchResults.length > 0}
-						<div class="mb-2 flex items-center justify-between">
-							<h4 class="text-sm font-medium text-gray-700">Available Users</h4>
-							<span class="text-xs text-gray-500"
-								>{selectedMembers.length} member{selectedMembers.length !== 1
-									? 's'
-									: ''} selected</span
-							>
-						</div>
-						<div class="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
-							{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
-								<label
-									class="flex cursor-pointer items-center space-x-3 rounded-lg p-2 hover:bg-gray-50"
-								>
-									<input
-										type="checkbox"
-										checked={selectedMembers.includes(member.id)}
-										onchange={(e: Event) => {
-											toggleMemberSelection(member.id);
-											return;
-										}}
-										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-									<Avatar src={member.avatarUrl} size="sm" />
-									<div class="flex flex-col">
-										<span class="text-sm font-medium text-gray-900"
-											>{member.name ?? member.handle}</span
-										>
-										{#if member.description}
-											<span class="text-xs text-gray-500"
-												>{member.description}</span
-											>
-										{/if}
-									</div>
-								</label>
-							{/each}
-						</div>
-					{/if}
+						{#if $isSearching}
+							<div class="text-center text-gray-500">Searching...</div>
+						{:else if $searchError}
+							<div class="text-center text-red-500">{$searchError}</div>
+						{:else if $searchResults.length === 0 && searchValue.trim()}
+							<div class="text-center text-gray-500">No users found</div>
+						{/if}
 
-					<!-- Selected Members Display -->
-					{#if selectedMembersData.length > 0}
-						<div class="rounded-lg border p-3">
-							<h4 class="mb-2 text-sm font-medium text-gray-700">
-								Selected Members:
-							</h4>
-							<div class="flex flex-wrap gap-2">
-								{#each selectedMembersData as member}
-									<div
-										class="flex items-center space-x-2 rounded-full bg-blue-50 px-3 py-1"
+						{#if $searchResults.length > 0}
+							<div class="max-h-[250px] space-y-3 overflow-y-auto">
+								{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
+									<label
+										class="flex cursor-pointer items-center space-x-3 rounded-lg p-3 hover:bg-gray-50"
 									>
-										<Avatar src={member.avatarUrl} size="xs" />
-										<span class="text-sm text-blue-800"
-											>{member.name ?? member.handle}</span
-										>
-										<button
-											onclick={() => toggleMemberSelection(member.id)}
-											class="text-blue-600 hover:text-blue-800"
-											aria-label="Remove member"
-										>
-											<svg
-												class="h-4 w-4"
-												fill="none"
-												stroke="currentColor"
-												viewBox="0 0 24 24"
+										<input
+											type="checkbox"
+											checked={selectedMembers.includes(member.id)}
+											onchange={(e: Event) => {
+												toggleMemberSelection(member.id);
+												return;
+											}}
+											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+										/>
+										<Avatar src={member.avatarUrl} size="sm" />
+										<div class="flex flex-col">
+											<span class="text-sm font-medium text-gray-900"
+												>{member.name ?? member.handle}</span
 											>
-												<path
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													stroke-width="2"
-													d="M6 18L18 6M6 6l12 12"
-												></path>
-											</svg>
-										</button>
-									</div>
+											{#if member.description}
+												<span class="text-xs text-gray-500"
+													>{member.description}</span
+												>
+											{/if}
+										</div>
+									</label>
 								{/each}
 							</div>
-						</div>
-					{/if}
+						{/if}
 
-					<!-- Action Buttons -->
-					<div class="flex justify-end gap-3 pt-4">
-						<Button
-							size="sm"
-							variant="secondary"
-							callback={() => {
-								openNewGroupModal = false;
-							}}
-						>
-							Cancel
-						</Button>
-						<Button
-							size="sm"
-							variant="primary"
-							callback={() => createGroup()}
-							disabled={selectedMembers.length === 0 || !groupName.trim()}
-						>
-							Create Group
-						</Button>
+						{#if selectedMembers.length > 0}
+							<div class="rounded-lg bg-blue-50 p-3">
+								<p class="text-sm text-blue-800">
+									{selectedMembers.length === 1
+										? 'Direct message will be created'
+										: `Group chat with ${selectedMembers.length} members will be created`}
+								</p>
+							</div>
+						{/if}
+
+						<div class="flex justify-end gap-3 pt-4">
+							<Button
+								size="sm"
+								variant="secondary"
+								callback={() => {
+									openNewChatModal = false;
+								}}
+							>
+								Cancel
+							</Button>
+							<Button
+								size="sm"
+								variant="primary"
+								callback={() => createChat()}
+								disabled={selectedMembers.length === 0}
+							>
+								{selectedMembers.length === 1 ? 'Start Chat' : 'Create Group'}
+							</Button>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
-	{/if}
-</section>
+		{/if}
+
+		<!-- New Group Modal -->
+		{#if openNewGroupModal}
+			<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+				<div
+					class="w-[90vw] max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-xl"
+				>
+					<div class="mb-6 flex items-center justify-between">
+						<h2 class="text-xl font-semibold text-gray-900">Create New Group</h2>
+						<button
+							onclick={() => (openNewGroupModal = false)}
+							class="rounded-full p-2 hover:bg-gray-100"
+							aria-label="Close modal"
+						>
+							<svg
+								class="h-5 w-5 text-gray-500"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M6 18L18 6M6 6l12 12"
+								></path>
+							</svg>
+						</button>
+					</div>
+
+					<div class="space-y-4">
+						<!-- Group Name -->
+						<div>
+							<label
+								for="groupName"
+								class="mb-2 block text-sm font-medium text-gray-700"
+							>
+								Group Name *
+							</label>
+							<Input
+								id="groupName"
+								type="text"
+								bind:value={groupName}
+								placeholder="Enter group name..."
+								class="w-full"
+							/>
+						</div>
+
+						<!-- Member Search -->
+						<div>
+							<label
+								for="memberSearch"
+								class="mb-2 block text-sm font-medium text-gray-700"
+							>
+								Search Users by Name
+							</label>
+							<Input
+								id="memberSearch"
+								type="text"
+								bind:value={searchValue}
+								placeholder="Type a name to search..."
+								oninput={(e: Event) =>
+									handleSearch((e.target as HTMLInputElement).value)}
+								class="w-full"
+							/>
+						</div>
+
+						<!-- Search Results -->
+						{#if $isSearching}
+							<div class="py-2 text-center text-gray-500">Searching...</div>
+						{:else if $searchError}
+							<div class="py-2 text-center text-red-500">{$searchError}</div>
+						{:else if $searchResults.length > 0}
+							<div class="mb-2 flex items-center justify-between">
+								<h4 class="text-sm font-medium text-gray-700">Available Users</h4>
+								<span class="text-xs text-gray-500"
+									>{selectedMembers.length} member{selectedMembers.length !== 1
+										? 's'
+										: ''} selected</span
+								>
+							</div>
+							<div class="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
+								{#each $searchResults.filter((m) => m.id !== currentUserId) as member}
+									<label
+										class="flex cursor-pointer items-center space-x-3 rounded-lg p-2 hover:bg-gray-50"
+									>
+										<input
+											type="checkbox"
+											checked={selectedMembers.includes(member.id)}
+											onchange={(e: Event) => {
+												toggleMemberSelection(member.id);
+												return;
+											}}
+											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+										/>
+										<Avatar src={member.avatarUrl} size="sm" />
+										<div class="flex flex-col">
+											<span class="text-sm font-medium text-gray-900"
+												>{member.name ?? member.handle}</span
+											>
+											{#if member.description}
+												<span class="text-xs text-gray-500"
+													>{member.description}</span
+												>
+											{/if}
+										</div>
+									</label>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- Selected Members Display -->
+						{#if selectedMembersData.length > 0}
+							<div class="rounded-lg border p-3">
+								<h4 class="mb-2 text-sm font-medium text-gray-700">
+									Selected Members:
+								</h4>
+								<div class="flex flex-wrap gap-2">
+									{#each selectedMembersData as member}
+										<div
+											class="flex items-center space-x-2 rounded-full bg-blue-50 px-3 py-1"
+										>
+											<Avatar src={member.avatarUrl} size="xs" />
+											<span class="text-sm text-blue-800"
+												>{member.name ?? member.handle}</span
+											>
+											<button
+												onclick={() => toggleMemberSelection(member.id)}
+												class="text-blue-600 hover:text-blue-800"
+												aria-label="Remove member"
+											>
+												<svg
+													class="h-4 w-4"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M6 18L18 6M6 6l12 12"
+													></path>
+												</svg>
+											</button>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						<!-- Action Buttons -->
+						<div class="flex justify-end gap-3 pt-4">
+							<Button
+								size="sm"
+								variant="secondary"
+								callback={() => {
+									openNewGroupModal = false;
+								}}
+							>
+								Cancel
+							</Button>
+							<Button
+								size="sm"
+								variant="primary"
+								callback={() => createGroup()}
+								disabled={selectedMembers.length === 0 || !groupName.trim()}
+							>
+								Create Group
+							</Button>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+	</section>
+</div>

@@ -9,6 +9,7 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { MessageInput } from '..';
+	import { Spring } from 'svelte/motion';
 
 	interface IPostProps extends HTMLAttributes<HTMLElement> {
 		avatar: string;
@@ -115,6 +116,20 @@
 		await callback.comment(commentValue);
 		commentValue = '';
 	};
+
+	const scale = new Spring(1, {
+		stiffness: 0.15,
+		damping: 0.25
+	});
+
+	async function handleLikeWithInteraction() {
+		scale.target = 1.4;
+		try {
+			await callback.like();
+		} finally {
+			setTimeout(() => (scale.target = 1), 150);
+		}
+	}
 </script>
 
 <article {...restProps} class={cn(['flex w-full gap-10', restProps.class])}>
@@ -195,7 +210,7 @@
 		<div class="flex w-full items-center justify-between md:hidden">
 			<div class="flex gap-4">
 				<button
-					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
+					class="group cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 transition-colors hover:bg-gray-200 active:bg-gray-300"
 					onclick={callback.like}
 				>
 					<Like
@@ -289,18 +304,23 @@
 		<div class="flex w-full flex-col justify-between gap-3">
 			<div class="flex gap-4">
 				<button
-					class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200"
-					onclick={callback.like}
+					class="group cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 transition-colors hover:bg-gray-200 active:bg-gray-300"
+					onclick={handleLikeWithInteraction}
 				>
-					<Like
-						size="24px"
-						color="var(--color-red-500"
-						fill={isLiked ? 'var(--color-red-500)' : 'white'}
-					/>
+					<div
+						style="transform: scale({scale.current}); display: flex; align-items: center; justify-content: center;"
+					>
+						<Like
+							size="24px"
+							color={'var(--color-red-500)'}
+							fill={isLiked ? 'var(--color-red-500)' : 'transparent'}
+							class="transition-all duration-300"
+						/>
+					</div>
 				</button>
-				<button class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200">
+				<!-- <button class="cursor-pointer rounded-2xl bg-gray-100 px-4 py-3 hover:bg-gray-200">
 					<CommentIcon size="24px" color="black" fill="transparent" />
-				</button>
+				</button> -->
 			</div>
 			<p class="text-black/60">
 				{new Date(time).toLocaleDateString()}

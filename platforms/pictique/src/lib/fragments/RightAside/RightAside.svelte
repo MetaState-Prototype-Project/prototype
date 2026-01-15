@@ -3,19 +3,21 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	interface IRightAsideProps extends HTMLAttributes<HTMLElement> {
-		header: Snippet;
-		asideContent: Snippet;
+		header?: Snippet;
 	}
-	let { header, asideContent, ...restProps }: IRightAsideProps = $props();
+	let { header, children, ...restProps }: IRightAsideProps = $props();
 </script>
 
-<aside {...restProps} class="hidden border border-y-0 border-s-gray-200 md:block md:pt-13">
-	<div class="mx-5">
+<aside
+	{...restProps}
+	class="hide-scrollbar relative hidden h-dvh w-[30vw] overflow-y-scroll border border-y-0 border-e-0 border-s-gray-200 pl-8 md:flex md:flex-col"
+>
+	{#if header}
 		<h2 class="mb-10 text-lg font-semibold">
 			{@render header?.()}
 		</h2>
-		<div>
-			{@render asideContent?.()}
-		</div>
+	{/if}
+	<div>
+		{@render children?.()}
 	</div>
 </aside>

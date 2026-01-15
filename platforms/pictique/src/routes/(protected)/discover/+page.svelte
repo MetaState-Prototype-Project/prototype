@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { UserRequest } from '$lib/fragments';
+	import MainPanel from '$lib/fragments/MainPanel/MainPanel.svelte';
 	import {
 		followUser,
 		isSearching,
@@ -46,33 +47,35 @@
 	});
 </script>
 
-<section class="w-full max-w-[500px]">
-	<Input
-		type="text"
-		bind:value={searchValue}
-		placeholder="Search users..."
-		oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
-	/>
+<MainPanel>
+	<section class="w-full max-w-[500px]">
+		<Input
+			type="text"
+			bind:value={searchValue}
+			placeholder="Search users..."
+			oninput={(e: Event) => handleSearch((e.target as HTMLInputElement).value)}
+		/>
 
-	{#if $isSearching}
-		<div class="mt-6 text-center text-gray-500">Searching...</div>
-	{:else if $searchError}
-		<div class="mt-6 text-center text-red-500">{$searchError}</div>
-	{:else if searchValue && $searchResults.length === 0}
-		<div class="mt-6 text-center text-gray-500">No users found</div>
-	{:else if searchValue}
-		<ul class="mt-6 space-y-4 pb-4">
-			{#each $searchResults as user (user.id)}
-				<li>
-					<UserRequest
-						userImgSrc={user.avatarUrl}
-						userName={user.name || user.handle}
-						description={user.description || ''}
-						handleFollow={() => handleFollow(user.id)}
-						onclick={() => handleProfileClick(user.id)}
-					/>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-</section>
+		{#if $isSearching}
+			<div class="mt-6 text-center text-gray-500">Searching...</div>
+		{:else if $searchError}
+			<div class="mt-6 text-center text-red-500">{$searchError}</div>
+		{:else if searchValue && $searchResults.length === 0}
+			<div class="mt-6 text-center text-gray-500">No users found</div>
+		{:else if searchValue}
+			<ul class="mt-6 space-y-4 pb-4">
+				{#each $searchResults as user (user.id)}
+					<li>
+						<UserRequest
+							userImgSrc={user.avatarUrl}
+							userName={user.name || user.handle}
+							description={user.description || ''}
+							handleFollow={() => handleFollow(user.id)}
+							onclick={() => handleProfileClick(user.id)}
+						/>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</section>
+</MainPanel>

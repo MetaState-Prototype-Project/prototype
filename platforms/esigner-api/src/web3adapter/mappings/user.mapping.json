@@ -1,0 +1,20 @@
+{
+    "tableName": "users",
+    "readOnly": true,
+    "schemaId": "550e8400-e29b-41d4-a716-446655440000",
+    "ownerEnamePath": "ename",
+    "ownedJunctionTables": [],
+    "localToUniversalMap": {
+        "handle": "username",
+        "name": "name",
+        "description": "bio",
+        "avatarUrl": "avatarUrl",
+        "bannerUrl": "bannerUrl",
+        "ename": "ename",
+        "isVerified": "isVerified",
+        "isPrivate": "isPrivate",
+        "createdAt": "createdAt",
+        "updatedAt": "updatedAt",
+        "isArchived": "isArchived"
+    }
+}
