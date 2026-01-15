@@ -164,17 +164,17 @@
 			const { data: chatsData } = await apiClient.get<{
 				chats: Chat[];
 			}>(`/api/chats?page=1&limit=100`);
-			
+
 			const chat = chatsData.chats.find((c) => c.id === id);
 			if (chat && userId) {
 				const members = chat.participants.filter((u) => u.id !== userId);
 				const isGroup = members.length > 1;
-				
+
 				// For 2-person chats, show the other person's name, not the group name
 				const displayName = isGroup
 					? chat.name || members.map((m) => m.name ?? m.handle ?? m.ename).join(', ')
 					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
-				
+
 				heading.set(displayName);
 			}
 		} catch (error) {

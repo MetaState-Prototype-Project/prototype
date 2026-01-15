@@ -30,10 +30,14 @@
 	async function wrappedFollow() {
 		btnScale.target = 0.95;
 
-		await handleFollow();
-		requestSent = true;
-
-		btnScale.target = 1;
+		try {
+			await handleFollow();
+			requestSent = true;
+		} catch (e) {
+			console.error(e);
+		} finally {
+			btnScale.target = 1;
+		}
 	}
 </script>
 
