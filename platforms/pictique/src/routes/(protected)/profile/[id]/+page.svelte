@@ -15,6 +15,7 @@
 	let error = $state<string | null>(null);
 	let loading = $state(true);
 	let ownerId: string | null = $derived(getAuthId());
+	let isFollowing = $state(false);
 	let ownerProfile = $derived.by(async () => {
 		if (ownerId) {
 			const response = await apiClient.get<userProfile>(`/api/users/${ownerId}`);
@@ -39,10 +40,13 @@
 
 	async function handleFollow() {
 		try {
+			isFollowing = true;
 			await apiClient.post(`/api/users/${profileId}/follow`);
-			await fetchProfile(); // Refresh profile to update follower count
+			// await fetchProfile(); // Refresh profile to update follower count
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to follow user';
+		} finally {
+			isFollowing = false;
 		}
 	}
 
@@ -79,6 +83,7 @@
 		</div>
 	{:else if profile}
 		<Profile
+			bind:isFollowing
 			variant={ownerId === profileId ? 'user' : 'other'}
 			profileData={profile}
 			handleSinglePost={(post) => handlePostClick(post)}
