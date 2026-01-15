@@ -34,8 +34,6 @@
 			return response.data;
 		}
 	});
-	let comments: Array<Comment> = [];
-
 	async function fetchProfile() {
 		try {
 			loading = true;
