@@ -2,284 +2,253 @@
 import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { ButtonAction, Drawer, InputPin } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import {
-    ArrowLeft01Icon,
-    CircleLock01Icon,
-    FaceIdIcon,
-} from "@hugeicons/core-free-icons";
+import { ButtonAction, InputPin } from "$lib/ui";
+import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
 import { getContext, onMount } from "svelte";
 
+type Step = "CREATE" | "REPEAT" | "PIN_DONE" | "BIOMETRICS" | "ALL_SET";
+let currentStep = $state<Step>("CREATE");
+
 let pin = $state("");
 let repeatPin = $state("");
-let firstStep = $state(true);
-let showDrawer = $state(false);
 let isBiometricsAvailable = $state(false);
-let isBiometricScreen = $state(false);
-let isBiometricsAdded = $state(false);
 let isError = $state(false);
 let btnVariant = $state<"soft" | "solid">("soft");
-
 let globalState: GlobalState | undefined = $state(undefined);
 
-const handleFirstStep = async () => {
-    if (pin.length === 4) {
-        firstStep = false;
-        btnVariant = "solid";
-    }
-};
-
-let handleConfirm: () => Promise<void> = $state(async () => {});
-
-const handleNext = async () => {
-    //handle next logic goes here
-    isBiometricScreen = true;
-};
-
-const handleSkip = async () => {
-    // handle skip biometrics logic goes here
-    if (!globalState) return goto("/onboarding");
-    globalState.isOnboardingComplete = true;
-    goto("/review");
-};
-
-let handleSetupBiometrics = $state(async () => {});
-
-const handleBiometricsAdded = async () => {
-    //handle logic when biometrics added successfully
-    if (!globalState) return goto("/onboarding");
-    globalState.isOnboardingComplete = true;
-    goto("/review");
-};
-
-$effect(() => {
-    if (repeatPin && repeatPin.length === 4 && pin === repeatPin)
-        isError = false;
-});
-
-$effect(() => {
-    // First step button
-    if (firstStep) {
-        btnVariant = pin.length === 4 ? "solid" : "soft";
+const handleBack = () => {
+    if (currentStep === "REPEAT") {
+        currentStep = "CREATE";
+        repeatPin = "";
+    } else if (currentStep === "PIN_DONE") {
+        currentStep = "REPEAT";
+    } else if (currentStep === "BIOMETRICS") {
+        currentStep = "PIN_DONE";
+    } else if (currentStep === "ALL_SET") {
+        currentStep = "BIOMETRICS";
     } else {
-        // Second step button
-        if (repeatPin.length === 4 && pin === repeatPin) {
-            btnVariant = "solid";
-            isError = false;
-        } else {
-            btnVariant = "soft";
-        }
+        goto("/onboarding");
     }
+};
+
+const handleConfirmFirst = () => {
+    if (pin.length === 4) currentStep = "REPEAT";
+};
+
+const handleConfirmRepeat = async () => {
+    if (repeatPin.length !== 4) return;
+
+    if (pin !== repeatPin) {
+        isError = true;
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        return;
+    }
+
+    if (!globalState) {
+        console.error("Global state not available; cannot set onboarding PIN.");
+        isError = true;
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        return;
+    }
+
+    try {
+        isError = false;
+        await globalState?.securityController.setOnboardingPin(pin, repeatPin);
+        currentStep = "PIN_DONE";
+    } catch (error) {
+        console.error("Failed to update PIN:", error);
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        isError = true;
+    }
+};
+
+const handleSetupBiometrics = async () => {
+    if (isBiometricsAvailable && globalState) {
+        globalState.securityController.biometricSupport = true;
+        currentStep = "ALL_SET";
+    }
+};
+
+const finishOnboarding = () => {
+    if (!globalState) return goto("/onboarding");
+    globalState.isOnboardingComplete = true;
+    goto("/review");
+};
+
+$effect(() => {
+    if (currentStep === "CREATE")
+        btnVariant = pin.length === 4 ? "solid" : "soft";
+    else if (currentStep === "REPEAT")
+        btnVariant = repeatPin.length === 4 ? "solid" : "soft";
 });
 
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
-
     try {
         isBiometricsAvailable = (await checkStatus()).isAvailable;
-        console.log("isBiometricsAvailable", isBiometricsAvailable);
-    } catch (error) {
+    } catch (e) {
         isBiometricsAvailable = false;
-        console.error("Failed to check biometrics status:", error);
     }
-
-    handleConfirm = async () => {
-        if (repeatPin.length < 4) {
-            isError = true;
-            return;
-        }
-
-        if (pin !== repeatPin) {
-            isError = true;
-            firstStep = true;
-            return;
-        }
-
-        isError = false;
-        try {
-            await globalState?.securityController.setOnboardingPin(
-                pin,
-                repeatPin,
-            );
-            showDrawer = true;
-        } catch (error) {
-            console.error("Failed to update PIN:", error);
-            isError = true;
-        }
-    };
-
-    handleSetupBiometrics = async () => {
-        if (!globalState)
-            throw new Error(
-                "Cannot set biometric support, Global state is not defined",
-            );
-        if (isBiometricsAvailable) {
-            try {
-                globalState.securityController.biometricSupport = true;
-            } catch (error) {
-                console.error("Failed to enable biometric support:", error);
-                // Consider showing an error message to the user
-                return;
-            }
-        }
-        isBiometricsAdded = true;
-    };
 });
 </script>
 
-{#if firstStep}
-    <main
-        class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
-    >
-        <section>
+<main
+    class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+>
+    <section>
+        {#if currentStep === "CREATE"}
             <Hero title="Create a PIN" class="mb-[14svh]">
                 {#snippet subtitle()}
                     Enter your 4-digit PIN code
                 {/snippet}
             </Hero>
-
             <InputPin bind:pin isError={isError && pin.length === 0} />
-            <p
-                class={`text-danger mt-[3.4svh] ${isError && pin.length === 0 ? "block" : "hidden"}`}
-            >
-                Your PIN does not match, try again.
-            </p>
-        </section>
-        <div class="flex items-center gap-3">
-            <ButtonAction
-                variant="soft"
-                class="flex-1"
-                callback={() => goto("/onboarding")}>Back</ButtonAction
-            >
-        <ButtonAction
-                class="flex-1"
-            variant={btnVariant}
-            callback={handleFirstStep}
-        >
-            Confirm
-        </ButtonAction>
-        </div>
-    </main>
-{:else}
-    <main
-        class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
-    >
-        <section>
+            {#if isError}<p class="text-danger mt-4 text-center">
+                    PINs didn't match. Try again.
+                </p>{/if}
+        {:else if currentStep === "REPEAT"}
             <Hero title="Re-enter your PIN" class="mb-[14svh]">
                 {#snippet subtitle()}
                     Confirm by entering PIN again
                 {/snippet}
             </Hero>
             <InputPin bind:pin={repeatPin} />
-        </section>
-        <div class="flex items-center gap-3">
-            <ButtonAction
-                variant="soft"
-                class="flex-1"
-                callback={() => goto("/onboarding")}>Back</ButtonAction
-            >
-        <ButtonAction
-            variant={btnVariant}
-                class="flex-1"
-            callback={handleConfirm}>Confirm</ButtonAction
-        >
-        </div>
-    </main>
-{/if}
-
-<Drawer bind:isPaneOpen={showDrawer}>
-    {#if !isBiometricScreen}
-        <div
-            class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
-        >
-            <span class="relative z-[1]">
-                <HugeiconsIcon
-                    icon={CircleLock01Icon}
-                    color="var(--color-primary)"
-                />
-            </span>
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line.svg"
-                alt="line"
-            />
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line2.svg"
-                alt="line"
-            />
-        </div>
-        <h4>PIN has been set!</h4>
-        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">
-            Your PIN has been created. You’ll use it to access your digital
-            entity securely.
-        </p>
-        <div class="flex items-center gap-3">
-            <ButtonAction
-                variant="soft"
-                class="flex-1"
-                callback={() => { showDrawer = false; }}>Back</ButtonAction
-            >
-            <ButtonAction class="flex-1" callback={handleNext}>Next</ButtonAction>
-        </div>
-    {:else}
-        <div
-            class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
-        >
-            <span class="relative z-[1]">
-                <HugeiconsIcon icon={FaceIdIcon} color="var(--color-primary)" />
-            </span>
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line.svg"
-                alt="line"
-            />
-            <img
-                class="absolute top-0 start-0"
-                src="/images/Line2.svg"
-                alt="line"
-            />
-        </div>
-        <h4>{isBiometricsAdded ? "You’re all set!" : "Add biometrics"}</h4>
-        <p class="text-black-700 mt-[0.5svh] mb-[2.3svh]">
-            {isBiometricsAdded
-                ? "Your biometrics have been successfully added."
-                : "Use your fingerprint or face recognition for faster, more secure logins."}
-        </p>
-        {#if !isBiometricsAdded}
-            <div class="flex justify-center items-center gap-[11px]">
-                <ButtonAction
-                    class="w-full bg-primary-100 text-primary"
-                    callback={handleSkip}>Skip</ButtonAction
+        {:else}
+            <article class="flex flex-col items-start w-full mt-[4svh]">
+                <div
+                    class="relative bg-gray w-[72px] h-[72px] rounded-3xl flex justify-center items-center mb-6"
                 >
-                <div class="flex w-full flex-col gap-2">
-                    <ButtonAction
-                        disabled={!isBiometricsAvailable}
-                        class="w-full"
-                        callback={handleSetupBiometrics}>Set up</ButtonAction
-                    >
-                    <p
-                        class={`text-danger ${isBiometricsAvailable ? "hidden" : "block"}`}
-                    >
-                        Biometrics unavailable.
-                    </p>
+                    <span class="relative z-1">
+                        <HugeiconsIcon
+                            icon={currentStep === "PIN_DONE"
+                                ? CircleLock01Icon
+                                : FaceIdIcon}
+                            color="var(--color-primary)"
+                        />
+                    </span>
+                    <img
+                        class="absolute top-0 start-0"
+                        src="/images/Line.svg"
+                        alt="line"
+                    />
+                    <img
+                        class="absolute top-0 start-0"
+                        src="/images/Line2.svg"
+                        alt="line"
+                    />
                 </div>
+
+                {#if currentStep === "PIN_DONE"}
+                    <h4 class="text-xl font-bold">PIN has been set!</h4>
+                    <p class="text-black-700 mt-2">
+                        Your PIN has been created. You’ll use it to access your
+                        digital entity securely.
+                    </p>
+                {:else if currentStep === "BIOMETRICS"}
+                    <h4 class="text-xl font-bold">Add biometrics</h4>
+                    <p class="text-black-700 mt-2">
+                        Use your fingerprint or face recognition for faster,
+                        more secure logins.
+                    </p>
+                {:else}
+                    <h4 class="text-xl font-bold">You’re all set!</h4>
+                    <p class="text-black-700 mt-2">
+                        Your biometrics have been successfully added.
+                    </p>
+                {/if}
+            </article>
+        {/if}
+    </section>
+
+    <footer class="w-full">
+        {#if currentStep === "BIOMETRICS"}
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-3">
+                    <ButtonAction
+                        variant="soft"
+                        class="flex-1"
+                        callback={handleBack}
+                    >
+                        Back
+                    </ButtonAction>
+                    <ButtonAction
+                        variant="soft"
+                        class="flex-1 bg-primary-100 text-primary"
+                        callback={finishOnboarding}
+                    >
+                        Skip
+                    </ButtonAction>
+                </div>
+                <ButtonAction
+                    class="w-full"
+                    disabled={!isBiometricsAvailable}
+                    callback={handleSetupBiometrics}
+                >
+                    Set up
+                </ButtonAction>
+                {#if !isBiometricsAvailable}
+                    <p class="text-danger text-center text-sm">
+                        Biometrics unavailable on this device.
+                    </p>
+                {/if}
             </div>
         {:else}
             <div class="flex items-center gap-3">
-                <ButtonAction
-                    variant="soft"
-                    class="flex-1"
-                    callback={() => { showDrawer = false; }}>Back</ButtonAction
-                >
-                <ButtonAction class="flex-1" callback={handleBiometricsAdded}
-                >Continue</ButtonAction
-            >
+                {#if currentStep !== "CREATE"}
+                    <div class="flex-1">
+                        <ButtonAction
+                            variant="soft"
+                            class="w-full"
+                            callback={handleBack}
+                        >
+                            Back
+                        </ButtonAction>
+                    </div>
+                {/if}
+                <div class="flex-1">
+                    {#if currentStep === "CREATE"}
+                        <ButtonAction
+                            class="w-full"
+                            variant={btnVariant}
+                            callback={handleConfirmFirst}
+                        >
+                            Confirm
+                        </ButtonAction>
+                    {:else if currentStep === "REPEAT"}
+                        <ButtonAction
+                            class="w-full"
+                            variant={btnVariant}
+                            callback={handleConfirmRepeat}
+                        >
+                            Confirm
+                        </ButtonAction>
+                    {:else if currentStep === "PIN_DONE"}
+                        <ButtonAction
+                            class="w-full"
+                            callback={() => {
+                                currentStep = "BIOMETRICS";
+                            }}
+                        >
+                            Next
+                        </ButtonAction>
+                    {:else if currentStep === "ALL_SET"}
+                        <ButtonAction
+                            class="w-full"
+                            callback={finishOnboarding}
+                        >
+                            Continue
+                        </ButtonAction>
+                    {/if}
+                </div>
             </div>
         {/if}
-    {/if}
-</Drawer>
+    </footer>
+</main>

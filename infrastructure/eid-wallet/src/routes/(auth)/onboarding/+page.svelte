@@ -8,10 +8,8 @@ import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import type { KeyServiceContext } from "$lib/global";
-import { ButtonAction, Drawer } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
+import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import * as falso from "@ngneat/falso";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
@@ -40,7 +38,7 @@ const handleGetStarted = async () => {
         if (!globalState) {
             globalState = getContext<() => GlobalState>("globalState")();
         }
-
+        globalState.userController.isFake = false;
         // Actually try to generate a test hardware key
         const testKeyId = `hardware-test-${Date.now()}`;
         console.log(
@@ -81,6 +79,7 @@ const handleGetStarted = async () => {
 };
 
 const handlePreVerified = () => {
+    globalState.userController.isFake = true;
     isPaneOpen = true;
     preVerified = true;
 };
@@ -338,110 +337,159 @@ onMount(async () => {
     </section>
 </main>
 
-<Drawer bind:isPaneOpen>
-    <img src="/images/GetStarted.svg" alt="get-started" />
-    {#if error}
-        <div
-            class="bg-[#ff3300] rounded-md mt-4 p-2 w-full text-center text-white"
-        >
-            {error}
-        </div>
-    {/if}
-    {#if loading}
-        <div class="my-20">
-            <div
-                class="align-center flex w-full flex-col items-center justify-center gap-6"
-            >
-                <Shadow size={40} color="rgb(142, 82, 255);" />
-                <h4>Generating your eName</h4>
+{#if isPaneOpen}
+    <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
+        <div class="min-h-full flex flex-col p-6">
+            <article class="grow flex flex-col items-start w-full">
+                <img
+                    src="/images/GetStarted.svg"
+                    alt="get-started"
+                    class="w-full mb-4"
+                />
+
+                {#if error}
+                    <div
+                        class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white mb-4"
+                    >
+                        {error}
+                    </div>
+                {/if}
+
+                {#if loading}
+                    <div
+                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
+                    >
+                        <Shadow size={40} color="rgb(142, 82, 255)" />
+                        <h4 class="text-center">Generating your eName</h4>
+                    </div>
+                {:else if preVerified}
+                    {#if verificationSuccess}
+                        <h4 class="mt-2 mb-2 text-left">
+                            Verification Successful!
+                        </h4>
+                        <p class="text-black-700">
+                            Your demo name: <strong>{demoName}</strong>
+                        </p>
+                        <p class="text-black-700 mt-2">
+                            You can now continue to create your ePassport.
+                        </p>
+                    {:else}
+                        <h4 class="mt-2 mb-2 text-left">
+                            Welcome to Web 3.0 Data Spaces
+                        </h4>
+                        <p class="text-black-700 font-medium">
+                            Enter Verification Code
+                        </p>
+                        <input
+                            type="text"
+                            bind:value={verificationId}
+                            class="border border-gray-200 w-full rounded-md font-medium my-2 p-3 bg-gray-50 focus:bg-white transition-colors"
+                            placeholder="Enter verification code"
+                        />
+                        <p class="text-black-700 font-medium mt-4">
+                            Enter Demo Name for your ePassport
+                        </p>
+                        <input
+                            type="text"
+                            bind:value={demoName}
+                            class="border border-gray-200 w-full rounded-md font-medium my-2 p-3 bg-gray-50 focus:bg-white transition-colors"
+                            placeholder="Enter your demo name"
+                        />
+                    {/if}
+                {:else if checkingHardware}
+                    <div
+                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
+                    >
+                        <Shadow size={40} color="rgb(142, 82, 255)" />
+                        <h4 class="text-center">
+                            Checking device capabilities...
+                        </h4>
+                    </div>
+                {:else if showHardwareError}
+                    <h4 class="mt-2 mb-2 text-red-600 text-left">
+                        Hardware Security Not Available
+                    </h4>
+                    <p class="text-black-700 mb-4">
+                        Your phone doesn't support hardware crypto keys, which
+                        is a requirement for verified IDs.
+                    </p>
+                    <p class="text-black-700">
+                        Please use the pre-verification code option to create a
+                        demo account instead.
+                    </p>
+                {:else}
+                    <h4 class="mt-2 mb-4 text-left">
+                        Your Digital Self begins with the Real You
+                    </h4>
+                    <p class="text-black-700 leading-relaxed">
+                        In the Web 3.0 Data Space, identity is linked to
+                        reality. We begin by verifying your real-world passport,
+                        which serves as the foundation for issuing your secure
+                        ePassport. At the same time, we generate your eName – a
+                        unique digital identifier – and create your eVault to
+                        store and protect your personal data.
+                    </p>
+                {/if}
+            </article>
+
+            <div class="flex-none pt-8 pb-4">
+                {#if !loading && !checkingHardware}
+                    <div class="flex w-full items-stretch gap-3">
+                        <div class="flex-1">
+                            <ButtonAction
+                                variant="soft"
+                                class="w-full h-full"
+                                callback={() => {
+                                    isPaneOpen = false;
+                                }}
+                            >
+                                Back
+                            </ButtonAction>
+                        </div>
+
+                        <div class="flex-1 flex">
+                            {#if preVerified}
+                                {#if verificationSuccess}
+                                    <ButtonAction
+                                        variant="solid"
+                                        class="w-full h-full"
+                                        callback={handleFinalSubmit}
+                                    >
+                                        Continue
+                                    </ButtonAction>
+                                {:else}
+                                    <ButtonAction
+                                        variant={verificationId.length === 0 ||
+                                        demoName.length === 0
+                                            ? "soft"
+                                            : "solid"}
+                                        disabled={verificationId.length === 0 ||
+                                            demoName.length === 0}
+                                        class="w-full h-full"
+                                        callback={handleContinue}
+                                    >
+                                        Next
+                                    </ButtonAction>
+                                {/if}
+                            {:else if showHardwareError}
+                                <ButtonAction
+                                    class="w-full h-full whitespace-nowrap"
+                                    callback={handlePreVerified}
+                                >
+                                    Enter Code
+                                </ButtonAction>
+                            {:else}
+                                <ButtonAction
+                                    class="w-full h-full"
+                                    callback={handleNext}
+                                >
+                                    Next
+                                </ButtonAction>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
             </div>
         </div>
-    {:else if preVerified}
-        {#if verificationSuccess}
-            <h4 class="mt-[2.3svh] mb-[0.5svh]">Verification Successful!</h4>
-            <p class="text-black-700">Your demo name: <strong>{demoName}</strong></p>
-            <p class="text-black-700 mt-2">You can now continue to create your ePassport.</p>
-            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction
-                    variant="solid"
-                    class="w-full"
-                    callback={handleFinalSubmit}>Continue</ButtonAction
-                >
-            </div>
-        {:else}
-            <h4 class="mt-[2.3svh] mb-[0.5svh]">
-                Welcome to Web 3.0 Data Spaces
-            </h4>
-            <p class="text-black-700">Enter Verification Code</p>
-            <input
-                type="text"
-                bind:value={verificationId}
-                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
-                placeholder="Enter verification code"
-            />
-            <p class="text-black-700 mt-4">Enter Demo Name for your ePassport</p>
-            <input
-                type="text"
-                bind:value={demoName}
-                class="border-1 border-gray-200 w-full rounded-md font-medium my-2 p-2"
-                placeholder="Enter your demo name for ePassport"
-            />
-            <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-                <ButtonAction
-                    variant={verificationId.length === 0 || demoName.length === 0 ? "soft" : "solid"}
-                    disabled={verificationId.length === 0 || demoName.length === 0}
-                    class="w-full"
-                    callback={handleContinue}>Next</ButtonAction
-                >
-            </div>
-        {/if}
-    {:else if checkingHardware}
-        <div class="my-20">
-            <div
-                class="align-center flex w-full flex-col items-center justify-center gap-6"
-            >
-                <Shadow size={40} color="rgb(142, 82, 255);" />
-                <h4>Checking device capabilities...</h4>
-            </div>
-        </div>
-    {:else if showHardwareError}
-        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-            Hardware Security Not Available
-        </h4>
-        <p class="text-black-700 mb-4">
-            Your phone doesn't support hardware crypto keys, which is a
-            requirement for verified IDs.
-        </p>
-        <p class="text-black-700 mb-4">
-            Please use the pre-verification code option to create a demo account
-            instead.
-        </p>
-        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-            <ButtonAction
-                class="w-full"
-                callback={() => {
-                    isPaneOpen = false;
-                    handlePreVerified();
-                }}
-            >
-                Use Pre-Verification Code
-            </ButtonAction>
-        </div>
-    {:else}
-        <h4 class="mt-[2.3svh] mb-[0.5svh]">
-            Your Digital Self begins with the Real You
-        </h4>
-        <p class="text-black-700">
-            In the Web 3.0 Data Space, identity is linked to reality. We begin
-            by verifying your real-world passport, which serves as the
-            foundation for issuing your secure ePassport. At the same time, we
-            generate your eName – a unique digital identifier – and create your
-            eVault to store and protect your personal data.
-        </p>
-        <div class="flex justify-center whitespace-nowrap my-[2.3svh]">
-            <ButtonAction class="w-full" callback={handleNext}
-                >Next</ButtonAction
-            >
-        </div>
-    {/if}
-</Drawer>
+    </div>
+{/if}
