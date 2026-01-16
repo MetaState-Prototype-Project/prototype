@@ -372,47 +372,52 @@ onDestroy(() => {
 </script>
 
 <main
-    class="pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between items-center"
+    class="pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col items-center h-[100svh]"
 >
-    <section>
+    <section class="flex flex-col items-center">
         <Hero title="Verify your account">
             {#snippet subtitle()}
                 Get any ID ready. You’ll be directed to present your ID and take
                 a quick selfie.
             {/snippet}
         </Hero>
-        <img class="mx-auto mt-20" src="images/Passport.svg" alt="passport" />
+        <img
+            class="mx-auto mt-10 w-[70vw]"
+            src="images/Passport.svg"
+            alt="passport"
+        />
     </section>
-    {#if !hardwareKeyCheckComplete}
-        <div class="w-full mt-10 flex justify-center">
-            <div
-                class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"
-            ></div>
-        </div>
-    {:else if !hardwareKeySupported}
-        <div
-            class="w-full mt-10 p-4 bg-red-50 border border-red-200 rounded-lg"
-        >
-            <h3 class="text-red-800 font-semibold mb-2">
-                Hardware Security Not Available
-            </h3>
-            <p class="text-red-700 text-sm">
-                Your device doesn't support hardware-backed security keys
-                required for identity verification. Please use a device with
-                hardware security support or try the pre-verification option.
-            </p>
-        </div>
-    {:else}
-        <ButtonAction class="w-full mt-10" callback={handleVerification}
-            >I'm ready</ButtonAction
-        >
-    {/if}
+
+    <div class="grow"></div>
+
+    <div class="w-full">
+        {#if !hardwareKeyCheckComplete}
+            <div class="w-full flex justify-center py-4">
+                <div
+                    class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"
+                ></div>
+            </div>
+        {:else if !hardwareKeySupported}
+            <div class="w-full p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h3 class="text-red-800 font-semibold mb-2">
+                    Hardware Security Not Available
+                </h3>
+                <p class="text-red-700 text-sm">
+                    Your device doesn't support hardware-backed security keys
+                    required for verification.
+                </p>
+            </div>
+        {:else}
+            <ButtonAction class="w-full" callback={handleVerification}>
+                I'm ready
+            </ButtonAction>
+        {/if}
+    </div>
 
     {#if showVeriffModal}
         <div
             role="dialog"
             aria-modal="true"
-            aria-label="Identity Verification"
             class="fixed inset-0 z-50 bg-white flex flex-col h-full"
         >
             <div class="grow overflow-y-auto px-[5vw] pt-[8svh]">
@@ -432,25 +437,14 @@ onDestroy(() => {
                 {:else}
                     <div class="flex flex-col gap-6">
                         {#if $status === "approved"}
-                            <div>
-                                <h3 id="verification-title">
-                                    Verification Success
-                                </h3>
-                                <p>You can now continue to create your eName</p>
-                            </div>
+                            <h3>Verification Success</h3>
+                            <p>You can now continue to create your eName</p>
                         {:else if $status === "duplicate"}
-                            <div>
-                                <h3 id="verification-title">
-                                    Old eVault Found
-                                </h3>
-                                <p>
-                                    We found an existing eVault associated with
-                                    your identity.
-                                </p>
-                            </div>
-                        {:else if $status === "resubmission_requested"}
-                            <h3>Resubmission Required</h3>
-                            <p>{$reason}</p>
+                            <h3>Old eVault Found</h3>
+                            <p>
+                                We found an existing eVault associated with your
+                                identity.
+                            </p>
                         {:else}
                             <h3>Verification Failed</h3>
                             <p>{$reason}</p>
@@ -462,41 +456,36 @@ onDestroy(() => {
             <div class="flex-none px-[5vw] pb-[4.5svh] pt-4">
                 {#if !loading}
                     <div class="flex w-full items-stretch gap-3">
-                        <div class="flex-1">
-                            <ButtonAction
-                                variant="soft"
-                                class="w-full"
-                                callback={() => {
-                                    // If in early steps, close modal; if finished, go to onboarding
-                                    if ($verifStep > 2) {
-                                        goto("/onboarding");
-                                    } else {
-                                        closeEventStream();
-                                        showVeriffModal = false;
-                                    }
-                                }}
-                            >
-                                Back
-                            </ButtonAction>
-                        </div>
+                        <ButtonAction
+                            variant="soft"
+                            class="flex-1"
+                            callback={() => {
+                                if ($verifStep > 0 && $verifStep <= 2) {
+                                    verifStep.set($verifStep - 1);
+                                } else if ($verifStep > 2) {
+                                    goto("/onboarding");
+                                } else {
+                                    closeEventStream();
+                                    showVeriffModal = false;
+                                }
+                            }}
+                        >
+                            Back
+                        </ButtonAction>
 
-                        <div class="flex-1">
-                            {#if $verifStep > 2 && $status !== "declined"}
-                                <ButtonAction
-                                    class="w-full"
-                                    callback={handleContinue}
-                                    color="primary"
-                                >
-                                    {$status === "approved"
-                                        ? "Continue"
-                                        : $status === "duplicate"
-                                          ? "Claim Vault"
-                                          : "Retry"}
-                                </ButtonAction>
-                            {:else if $verifStep <= 2}
-                                <div class="w-full h-full"></div>
-                            {/if}
-                        </div>
+                        {#if $verifStep > 2 && $status !== "declined"}
+                            <ButtonAction
+                                class="flex-1"
+                                callback={handleContinue}
+                                color="primary"
+                            >
+                                {$status === "approved"
+                                    ? "Continue"
+                                    : $status === "duplicate"
+                                      ? "Claim Vault"
+                                      : "Retry"}
+                            </ButtonAction>
+                        {/if}
                     </div>
                 {/if}
             </div>
