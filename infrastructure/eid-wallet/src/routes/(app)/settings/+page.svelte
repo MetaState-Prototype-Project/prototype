@@ -111,49 +111,52 @@ $effect(() => {
 });
 </script>
 
-<main>
+<main class="h-[80svh] flex flex-col justify-between">
     <!-- header part -->
-    <SettingsNavigationBtn
-        icon={LanguageSquareIcon}
-        label="Language"
-        href="/settings/language"
-    />
-    <SettingsNavigationBtn
-        icon={PinCodeIcon}
-        label="Pin"
-        href="/settings/pin"
-    />
-    <SettingsNavigationBtn
-        icon={Shield01Icon}
-        label="Privacy"
-        href="/settings/privacy"
-    />
-
-    <ButtonAction class="mt-5 w-full" callback={showDeleteConfirmation}
-        >Delete Account</ButtonAction
-    >
-
-    <!-- Hidden eVault profile retry - tap version 10 times -->
-    <div class="w-full py-10 text-center">
-        <button
-            class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
-            onclick={handleVersionTap}
-            disabled={isRetrying}
+    <div>
+        <SettingsNavigationBtn
+            icon={LanguageSquareIcon}
+            label="Language"
+            href="/settings/language"
+        />
+        <SettingsNavigationBtn
+            icon={PinCodeIcon}
+            label="Pin"
+            href="/settings/pin"
+        />
+        <SettingsNavigationBtn
+            icon={Shield01Icon}
+            label="Privacy"
+            href="https://metastate.foundation/"
+        />
+    </div>
+    <div>
+        <ButtonAction class="mt-5 w-full" callback={showDeleteConfirmation}
+            >Delete Account</ButtonAction
         >
-            Version v0.5.0.0
-        </button>
 
-        {#if retryMessage}
-            <div
-                class="mt-2 text-sm {isRetrying
-                    ? 'text-blue-600'
-                    : retryMessage.includes('✅')
-                      ? 'text-green-600'
-                      : 'text-red-600'}"
+        <!-- Hidden eVault profile retry - tap version 10 times -->
+        <div class="w-full py-2 text-center">
+            <button
+                class="text-gray-500 hover:text-gray-700 transition-colors cursor-pointer select-none"
+                onclick={handleVersionTap}
+                disabled={isRetrying}
             >
-                {retryMessage}
-            </div>
-        {/if}
+                Version v0.5.0.0
+            </button>
+
+            {#if retryMessage}
+                <div
+                    class="mt-2 text-sm {isRetrying
+                        ? 'text-blue-600'
+                        : retryMessage.includes('✅')
+                          ? 'text-green-600'
+                          : 'text-red-600'}"
+                >
+                    {retryMessage}
+                </div>
+            {/if}
+        </div>
     </div>
 </main>
 

@@ -253,8 +253,12 @@ onMount(async () => {
         </Hero>
 
         {#if isPostAuthLoading}
-            <div class="flex flex-col items-center gap-3 py-8">
-                <div class="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+            <div
+                class="fixed inset-0 flex flex-col items-center justify-center gap-3 py-8"
+            >
+                <div
+                    class="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"
+                ></div>
                 <p class="text-primary text-sm">Logging you in...</p>
             </div>
         {:else}
@@ -278,8 +282,8 @@ onMount(async () => {
                         </div>
                         <div class="ml-3">
                             <p class="text-sm text-primary">
-                                <strong>Authentication Request Pending</strong><br
-                                />
+                                <strong>Authentication Request Pending</strong
+                                ><br />
                                 Complete login to process the authentication request
                             </p>
                         </div>
@@ -288,7 +292,9 @@ onMount(async () => {
             {/if}
 
             <InputPin bind:pin {isError} onchange={() => handlePinInput(pin)} />
-            <p class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}>
+            <p
+                class={`text-danger mt-[3.4svh] ${isError ? "block" : "hidden"}`}
+            >
                 Your PIN does not match, try again.
             </p>
         {/if}

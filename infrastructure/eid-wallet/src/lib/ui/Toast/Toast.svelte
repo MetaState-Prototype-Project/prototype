@@ -27,7 +27,7 @@ onMount(() => {
 {#if isVisible}
     <div
         {...restProps}
-        class="fixed bottom-[30px] left-1/2 -translate-x-1/2 z-50 w-[90%] bg-primary-500 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 {isVisible
+        class="fixed bottom-[30px] left-1/2 -translate-x-1/2 z-50 w-[90%] bg-black-900/95 text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 {isVisible
             ? 'opacity-100'
             : 'opacity-0'}"
         role="alert"

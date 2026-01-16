@@ -43,7 +43,7 @@ $effect(() => {
         usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
 });
 
-const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[150px] text-white overflow-hidden`;
+const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[100px] text-white overflow-hidden`;
 </script>
 
 <div {...restProps} class={cn(baseClasses, restProps.class)}>
@@ -61,7 +61,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                 : 'bg-white/10'} h-[300%] rotate-40"
         ></div>
     </div>
-    <div class="p-5 flex flex-col gap-2">
+    <div class="p-3 flex flex-col gap-2">
         <div class="flex justify-between">
             {#if variant === "eName"}
                 <HugeiconsIcon
@@ -97,7 +97,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     />
                 {/if}
             {:else if variant === "eVault"}
-                <h3 class="text-black-300 text-3xl font-semibold mb-3 z-[1]">
+                <h3 class="text-black-300 text-3xl font-semibold mb-1 z-[1]">
                     {state.progressWidth} Used
                 </h3>
             {/if}

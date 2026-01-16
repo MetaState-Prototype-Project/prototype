@@ -126,7 +126,9 @@ $: if (internalOpen !== lastReportedOpen) {
             </div>
 
             <div class="flex flex-col gap-3 pb-2 w-full pt-8">
-                <div class="flex justify-center gap-3 items-center w-full">
+                <div
+                    class="flex flex-col justify-center gap-3 items-center w-full"
+                >
                     {#if authError}
                         <Button.Action
                             variant="solid"
