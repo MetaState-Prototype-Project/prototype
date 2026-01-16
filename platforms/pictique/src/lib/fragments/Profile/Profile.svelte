@@ -5,7 +5,6 @@
 	import Post from '../Post/Post.svelte';
 	import { Spring } from 'svelte/motion';
 	import { Tick01Icon } from '@hugeicons/core-free-icons';
-	import { page } from '$app/stores';
 
 	let {
 		variant = 'user',
