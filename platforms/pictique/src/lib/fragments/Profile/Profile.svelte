@@ -5,6 +5,7 @@
 	import Post from '../Post/Post.svelte';
 	import { Spring } from 'svelte/motion';
 	import { Tick01Icon } from '@hugeicons/core-free-icons';
+	import { page } from '$app/stores';
 
 	let {
 		variant = 'user',
@@ -56,7 +57,6 @@
 						variant={'primary'}
 						size="sm"
 						callback={wrappedFollow}
-						disabled={isFollowing || didFollowed}
 						class="min-w-[110px] transition-all duration-500 {didFollowed
 							? 'opacity-80'
 							: ''}"
@@ -64,7 +64,7 @@
 						<div class="flex items-center justify-center gap-2">
 							{#if didFollowed}
 								<HugeiconsIcon icon={Tick01Icon} size={16} />
-								<span>Followed</span>
+								<span>Following</span>
 							{:else if isFollowing}
 								<span class="flex gap-0.5">
 									<span class="animate-bounce">.</span>

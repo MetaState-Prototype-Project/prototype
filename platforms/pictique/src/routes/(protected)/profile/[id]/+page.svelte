@@ -56,7 +56,10 @@
 			const response = await apiClient.post(`/api/users/${profileId}/follow`);
 			if (response) {
 				didFollowed = true;
-				// await fetchProfile();
+				setTimeout(async () => {
+					await fetchProfile();
+					didFollowed = false;
+				}, 1000);
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to follow user';
