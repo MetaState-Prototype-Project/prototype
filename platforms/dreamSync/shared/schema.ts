@@ -302,6 +302,7 @@ export type GroupSuggestion = Suggestion;
 
 // Extended types for API responses
 export type UserWithProfile = User & {
+  name?:string;
   profile?: Profile;
   skills?: Skill[];
   interests?: Interest[];

@@ -12,7 +12,8 @@
 		handleFollow,
 		handleSinglePost,
 		handleMessage,
-		isFollowing = $bindable(false)
+		isFollowing = $bindable(false),
+		didFollowed = $bindable(false)
 	}: {
 		variant: 'user' | 'other';
 		profileData: userProfile;
@@ -20,31 +21,17 @@
 		handleFollow: () => Promise<void>;
 		handleMessage: () => Promise<void>;
 		isFollowing: boolean;
+		didFollowed: boolean;
 	} = $props();
 
 	let imgPosts = $derived(profileData.posts.filter((e) => e.imgUris && e.imgUris.length > 0));
-	let requestSent = $state(false);
 
 	const btnScale = new Spring(1, { stiffness: 0.2, damping: 0.4 });
 
 	async function wrappedFollow() {
-		if (isFollowing || requestSent) return;
-
 		btnScale.target = 0.95;
-
-		try {
-			await handleFollow();
-
-			requestSent = true;
-			btnScale.target = 1;
-
-			setTimeout(() => {
-				requestSent = false;
-			}, 2000);
-		} catch (e) {
-			console.error(e);
-			btnScale.target = 1;
-		}
+		await handleFollow();
+		btnScale.target = 1;
 	}
 </script>
 
@@ -69,15 +56,14 @@
 						variant={'primary'}
 						size="sm"
 						callback={wrappedFollow}
-						disabled={isFollowing || requestSent}
-						class="min-w-[110px] transition-all duration-500 {requestSent
+						class="min-w-[110px] transition-all duration-500 {didFollowed
 							? 'opacity-80'
 							: ''}"
 					>
 						<div class="flex items-center justify-center gap-2">
-							{#if requestSent}
+							{#if didFollowed}
 								<HugeiconsIcon icon={Tick01Icon} size={16} />
-								<span>Followed</span>
+								<span>Following</span>
 							{:else if isFollowing}
 								<span class="flex gap-0.5">
 									<span class="animate-bounce">.</span>
