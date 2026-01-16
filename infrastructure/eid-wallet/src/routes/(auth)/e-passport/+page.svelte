@@ -22,11 +22,13 @@ onMount(async () => {
 });
 </script>
 
-<main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
->
+<main class="h-full p-4 flex flex-col justify-between">
     <section>
-        <Hero title="Here’s your ePassport" class="mb-2">
+        <Hero
+            title="Here’s your ePassport"
+            class="mb-2"
+            titleClasses="text-2xl"
+        >
             {#snippet subtitle()}
                 <p>
                     You can use it to access any platform that supports the Web
@@ -39,7 +41,7 @@ onMount(async () => {
         <IdentityCard variant="ePassport" {userData} />
     </section>
     <section class="mt-[2svh] mb-[3svh]">
-        <Hero title="Here’s your eVault" class="mb-2">
+        <Hero title="Here’s your eVault" class="mb-2" titleClasses="text-2xl">
             {#snippet subtitle()}
                 The eVault is your secure cloud storage for your personal data.
                 W3DS platforms access it directly, keeping you in control.
@@ -54,6 +56,8 @@ onMount(async () => {
             class="flex-1"
             callback={() => goto("/register")}>Back</ButtonAction
         >
-        <ButtonAction class="flex-1" callback={handleFinish}>Finish</ButtonAction>
+        <ButtonAction class="flex-1" callback={handleFinish}
+            >Finish</ButtonAction
+        >
     </div>
 </main>

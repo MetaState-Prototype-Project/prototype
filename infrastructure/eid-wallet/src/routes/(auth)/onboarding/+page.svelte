@@ -310,11 +310,17 @@ onMount(async () => {
     <section>
         <p class="text-center small text-black-500">
             By continuing you agree to our <br />
-            <a href="/" class="text-primary underline underline-offset-4"
+            <a
+                href="https://metastate.foundation/"
+                class="text-primary underline underline-offset-4"
+                target="_blank"
                 >Terms & Conditions
             </a>
             and
-            <a href="/" class="text-primary underline underline-offset-4"
+            <a
+                href="https://metastate.foundation/"
+                target="_blank"
+                class="text-primary underline underline-offset-4"
                 >Privacy Policy.</a
             >
         </p>
