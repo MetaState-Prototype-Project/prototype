@@ -253,7 +253,9 @@ onMount(async () => {
         </Hero>
 
         {#if isPostAuthLoading}
-            <div class="fixed inset-0 flex flex-col items-center gap-3 py-8">
+            <div
+                class="fixed inset-0 flex flex-col items-center justify-center gap-3 py-8"
+            >
                 <div
                     class="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin"
                 ></div>
