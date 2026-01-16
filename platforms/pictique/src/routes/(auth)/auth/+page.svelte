@@ -16,6 +16,8 @@
 	let qrData = $state<string>('');
 	let isMobile = $state(false);
 	let errorMessage = $state<string | null>(null);
+	let countdown = $state(60);
+	let timerInterval: ReturnType<typeof setInterval>;
 
 	function checkMobile() {
 		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
@@ -69,6 +71,17 @@
 		}
 	}
 
+	function startTimer() {
+		timerInterval = setInterval(() => {
+			if (countdown > 0) {
+				countdown -= 1;
+			} else {
+				clearInterval(timerInterval);
+				window.location.reload();
+			}
+		}, 1000);
+	}
+
 	onMount(async () => {
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
@@ -92,6 +105,8 @@
 		// If no query params, proceed with normal flow
 		const { data } = await apiClient.get('/api/auth/offer');
 		qrData = data.uri;
+
+		startTimer();
 
 		function watchEventStream(id: string) {
 			const sseUrl = new URL(`/api/auth/sessions/${id}`, PUBLIC_PICTIQUE_BASE_URL).toString();
@@ -133,6 +148,7 @@
 		watchEventStream(new URL(qrData).searchParams.get('session') as string);
 
 		onDestroy(() => {
+			if (timerInterval) clearInterval(timerInterval);
 			window.removeEventListener('resize', checkMobile);
 		});
 	});
@@ -209,7 +225,10 @@
 
 		<p class="text-center">
 			<span class="mb-1 block font-bold text-gray-600"
-				>The {isMobileDevice() ? 'button' : 'code'} is valid for 60 seconds</span
+				>The {isMobileDevice() ? 'button' : 'QR code'} is valid for
+				<span class={countdown <= 10 ? 'animate-pulse text-red-500' : 'text-orange-600'}>
+					{countdown}s
+				</span></span
 			>
 			<span class="block font-light text-gray-600">Please refresh the page if it expires</span
 			>
