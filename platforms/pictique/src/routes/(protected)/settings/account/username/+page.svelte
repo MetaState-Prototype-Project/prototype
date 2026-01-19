@@ -86,8 +86,8 @@
 		<Input type="text" placeholder="Your eName" bind:value={handle} disabled class="cursor-not-allowed opacity-70" />
 	</div>
 	<div>
-		<Label>Change your username</Label>
-		<Input type="text" placeholder="Edit Username" bind:value={name} />
+		<Label>Profile Name</Label>
+		<Input type="text" placeholder="Edit  your public name" bind:value={name} />
 	</div>
 </div>
 <hr class="text-grey" />
