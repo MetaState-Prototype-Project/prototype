@@ -29,8 +29,7 @@
 		try {
 			await apiClient.patch('/api/users/', {
 				handle,
-				avatar: profileImageDataUrl,
-				name
+				avatar: profileImageDataUrl
 			});
 			saved = true;
 			setTimeout(() => {
@@ -87,8 +86,9 @@
 		<Input type="text" placeholder="Edit Username" bind:value={handle} />
 	</div>
 	<div>
-		<Label>Profile Name</Label>
-		<Input type="text" placeholder="Edit your public name" bind:value={name} />
+		<Label>eName</Label>
+		<p class="text-black-600 mb-2 text-sm">Auto-synced from your eVault real name</p>
+		<Input type="text" placeholder="Your eName" bind:value={name} disabled class="cursor-not-allowed opacity-70" />
 	</div>
 </div>
 <hr class="text-grey" />
