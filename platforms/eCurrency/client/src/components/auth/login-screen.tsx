@@ -166,12 +166,11 @@ export function LoginScreen() {
 
       <div className="bg-white/50 p-8 rounded-lg shadow-lg max-w-md w-full">
         <div className="text-center mb-8">
-          <p className="text-gray-600">
-            {isMobileDevice()
-              ? "Login using your eID Wallet app"
-              : "Scan the QR code using your eID App to login"
-            }
-          </p>
+
+          {isMobileDevice()
+            ? <p className="text-gray-600">Login using your <a href={getAppStoreLink()}><b><u>eID Wallet App</u></b></a></p>
+            : <p className="text-gray-600">Scan the QR code using your <a href={getAppStoreLink()}><b><u>eID App</u></b></a> to login</p>
+          }
         </div>
 
         <div className="flex justify-center mb-6">
