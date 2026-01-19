@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Getting Started with Platform Development
 
 This guide will help you get started building platforms in the metastate ecosystem. We'll cover the essential concepts and patterns you'll need to implement, using `@eCurrency-api` as a reference example.
@@ -212,13 +216,4 @@ JWT_SECRET=your-secret-key-here
 
 # Registry base URL for signature verification
 PUBLIC_REGISTRY_URL=https://registry.example.com
-```
-
-### Next Steps
-
-1. **[Webhook Controller](./webhook-controller.md)** - How to handle incoming webhooks from the eVault system
-2. **[Mapping Rules](./mapping-rules.md)** - How to create mappings between global ontology and your local database schema
-
-These components work together to create a seamless integration between your platform and the W3DS ecosystem.
-
 

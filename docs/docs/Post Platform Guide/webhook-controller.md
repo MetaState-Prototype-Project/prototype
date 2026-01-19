@@ -1,3 +1,7 @@
+---
+sidebar_position: 3
+---
+
 # Webhook Controller Guide
 
 The webhook controller receives awareness protocol packets from the eVault system and saves them to your local database.
@@ -101,9 +105,4 @@ handleWebhook = async (req: Request, res: Response) => {
         res.status(500).send();
     }
 };
-```
 
-## Related Documentation
-
-- **[Getting Started](./getting-started.md)** - Authentication and platform setup
-- **[Mapping Rules](./mapping-rules.md)** - How to create mappings between global and local schemas
