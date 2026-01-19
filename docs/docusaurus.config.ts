@@ -58,10 +58,9 @@ const config: Config = {
             respectPrefersColorScheme: true,
         },
         navbar: {
-            title: 'My Site',
+            title: "",
             logo: {
-                alt: 'My Site Logo',
-                src: 'img/logo.svg',
+                src: "/img/w3dslogo.svg"
             },
             items: [
                 {
@@ -71,7 +70,7 @@ const config: Config = {
                     label: 'Tutorial',
                 },
                 {
-                    href: 'https://github.com/facebook/docusaurus',
+                    href: 'https://github.com/MetaState-Prototype-Project/prototype',
                     label: 'GitHub',
                     position: 'right',
                 },
