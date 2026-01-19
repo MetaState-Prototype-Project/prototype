@@ -18,13 +18,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
-      - name: Install dependencies
-        working-directory: ./app
-        run: pnpm i
+      - name: Install Dependencies
+        working-directory: ./docs
+        run: |
+          echo "installing pnpm"
+          npm install -g pnpm
+          echo "installing deps for packages"
+          pnpm i
+
       - name: Build website
-        working-directory: ./app
+        working-directory: ./docs
         run: pnpm build
 
       - name: Upload Build Artifact
