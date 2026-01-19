@@ -83,7 +83,6 @@
 
 	<div>
 		<Label>eName</Label>
-		<p class="text-black-600 mb-2 text-sm">Auto-synced from your eVault real name</p>
 		<Input type="text" placeholder="Your eName" bind:value={handle} disabled class="cursor-not-allowed opacity-70" />
 	</div>
 	<div>
