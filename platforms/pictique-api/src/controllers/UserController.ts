@@ -172,7 +172,7 @@ export class UserController {
     updateProfile = async (req: Request, res: Response) => {
         try {
             const userId = req.user?.id;
-            const { handle, avatar, name } = req.body;
+            const { avatar, name } = req.body;
 
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
@@ -180,8 +180,9 @@ export class UserController {
 
             const user = await this.userService.findById(userId);
 
+            // Note: handle is not updatable to preserve eVault sync
             const updatedUser = await this.userService.updateProfile(userId, {
-                handle: handle ?? user?.handle,
+                handle: user?.handle,
                 avatarUrl: avatar ?? user?.avatarUrl,
                 name: name ?? user?.name,
             });

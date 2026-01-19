@@ -28,7 +28,7 @@
 	async function saveProfileData() {
 		try {
 			await apiClient.patch('/api/users/', {
-				handle,
+				name,
 				avatar: profileImageDataUrl
 			});
 			saved = true;
@@ -82,13 +82,13 @@
 	</div>
 
 	<div>
-		<Label>Change your username</Label>
-		<Input type="text" placeholder="Edit Username" bind:value={handle} />
-	</div>
-	<div>
 		<Label>eName</Label>
 		<p class="text-black-600 mb-2 text-sm">Auto-synced from your eVault real name</p>
-		<Input type="text" placeholder="Your eName" bind:value={name} disabled class="cursor-not-allowed opacity-70" />
+		<Input type="text" placeholder="Your eName" bind:value={handle} disabled class="cursor-not-allowed opacity-70" />
+	</div>
+	<div>
+		<Label>Change your username</Label>
+		<Input type="text" placeholder="Edit Username" bind:value={name} />
 	</div>
 </div>
 <hr class="text-grey" />
