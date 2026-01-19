@@ -23,7 +23,7 @@ export interface CameraPermissionResult {
 /**
  * Creates a camera permission manager that handles checking, requesting,
  * and managing camera permissions using Tauri's barcode-scanner plugin.
- * 
+ *
  * This can be used in both the scan page and onboarding flows where camera
  * access is required.
  */

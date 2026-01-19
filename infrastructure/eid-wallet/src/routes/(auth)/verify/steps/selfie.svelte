@@ -17,13 +17,14 @@ let stream: MediaStream;
 
 // Camera permission management
 const cameraPermission = createCameraPermissionManager();
-const { permissionState, checkAndRequestPermission, openSettings } = cameraPermission;
+const { permissionState, checkAndRequestPermission, openSettings } =
+    cameraPermission;
 let showPermissionDialog = $state(false);
 
 async function requestCameraPermission() {
     // First check native permissions via Tauri
     const hasPermission = await checkAndRequestPermission();
-    
+
     if (!hasPermission) {
         permissionGranted.set(false);
         showPermissionDialog = true;
