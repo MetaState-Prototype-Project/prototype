@@ -172,6 +172,20 @@ export default function Dashboard() {
     }
   };
 
+    // Helper function to get the display result from an activity
+    const getActivityResult = (activity: any): string => {
+        if (activity.result && activity.result !== 'Calculating...') {
+            return activity.result;
+        }
+
+        // If status is complete and we have calculatedScore in data (including 0)
+        if (activity.status === 'complete' && activity.data?.calculatedScore !== undefined) {
+            return `Score: ${activity.data.calculatedScore}/5`;
+        }
+
+        return 'Calculating...';
+    };
+
   // Helper function to get score color based on percentage
   const getScoreColor = (result: string | undefined | null) => {
     if (!result) return 'text-gray-500 font-black'; // Default gray for undefined/null
@@ -629,9 +643,8 @@ export default function Dashboard() {
                                     activity.result && activity.result.includes('fair') ? '#eab308' : '#22c55e',
                                 backgroundColor: activity.result && activity.result.includes('low') ? '#fef2f2' :
                                   activity.result && activity.result.includes('moderate') ? '#fff7ed' :
-                                    activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'
-                              }}>
-                              {activity.result ? activity.result.replace('Score: ', '') : 'Calculating...'}
+                                    activity.result && activity.result.includes('fair') ? '#fefce8' : '#f0fdf4'                                                            }}>
+                                                            {getActivityResult(activity).replace('Score: ', '')}
                             </span>
                           )}
                         </div>
@@ -713,14 +726,14 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-black text-fig">Reputation Score</h3>
                   <span className="text-2xl font-black text-fig">
-                    {(selectedActivity as any).result || 'Calculating...'}
+                                        {getActivityResult(selectedActivity as any)}
                   </span>
                 </div>
 
                 {/* Animated Circle Progress with Dynamic Gradient */}
                 <div className="relative w-32 h-32 mx-auto mb-4">
                   {(() => {
-                    const resultStr = (selectedActivity as any).result || '';
+                                        const resultStr = getActivityResult(selectedActivity as any);
                     const score = parseFloat(resultStr.replace('Score: ', '')) || 0;
                     const percentage = (score / 5) * 100; // Scores are out of 5, not 10
                     const circumference = 314;
