@@ -40,6 +40,7 @@ const {
     authError,
     signingError,
     authLoading,
+    cameraPermissionDenied,
 } = stores;
 
 const {
@@ -56,6 +57,7 @@ const {
     handleBlindVoteSelection,
     handleSignVote,
     initialize,
+    retryPermission,
 } = actions;
 
 const pathProps: SVGAttributes<SVGPathElement> = {
@@ -148,26 +150,68 @@ function handleRevealDrawerOpenChange(value: boolean) {
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
 >
-    <svg
-        class="mx-auto"
-        width="204"
-        height="215"
-        viewBox="0 0 204 215"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-    >
-        <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
-        <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
-        <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
-        <path
-            d="M158 211H189C195.075 211 200 206.075 200 200V169"
-            {...pathProps}
-        />
-    </svg>
+    {#if $cameraPermissionDenied}
+        <div class="flex flex-col items-center text-center px-6">
+            <svg
+                class="mx-auto mb-6"
+                width="80"
+                height="80"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+            >
+                <path
+                    d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
+                    stroke="white"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                />
+                <path
+                    d="M3 3l18 18"
+                    stroke="white"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                />
+            </svg>
 
-    <h4 class="text-white font-semibold text-center mt-20">
-        Point the camera at the code
-    </h4>
+            <h4 class="text-white font-semibold text-xl mb-3">
+                Camera Access Required
+            </h4>
+
+            <p class="text-white/70 text-sm mb-6 max-w-xs">
+                To scan QR codes, please grant camera permission. You can enable it in your device settings or tap the button below to try again.
+            </p>
+
+            <button
+                onclick={retryPermission}
+                class="bg-white text-black font-semibold py-3 px-8 rounded-full hover:bg-white/90 transition-colors"
+            >
+                Grant Camera Access
+            </button>
+        </div>
+    {:else}
+        <svg
+            class="mx-auto"
+            width="204"
+            height="215"
+            viewBox="0 0 204 215"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
+            <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
+            <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
+            <path
+                d="M158 211H189C195.075 211 200 206.075 200 200V169"
+                {...pathProps}
+            />
+        </svg>
+
+        <h4 class="text-white font-semibold text-center mt-20">
+            Point the camera at the code
+        </h4>
+    {/if}
 </div>
 
 <AuthDrawer
