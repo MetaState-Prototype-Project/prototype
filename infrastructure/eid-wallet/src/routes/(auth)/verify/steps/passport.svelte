@@ -1,9 +1,10 @@
 <script lang="ts">
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { ButtonAction } from "$lib/ui";
+import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
+import { createCameraPermissionManager } from "$lib/utils";
 import axios from "axios";
 import { onMount } from "svelte";
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import {
     DocBack,
     DocFront,
@@ -24,20 +25,10 @@ let image2Captured = writable(false);
 let loading = false;
 let stream: MediaStream;
 
-async function ensureCameraPermission() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-        });
-        // Stop immediately after granting
-        for (const track of stream.getTracks()) {
-            track.stop();
-        }
-    } catch (err) {
-        console.error("Camera permission denied:", err);
-        throw err;
-    }
-}
+// Camera permission management
+const cameraPermission = createCameraPermissionManager();
+const { permissionState, checkAndRequestPermission, openSettings } = cameraPermission;
+let showPermissionDialog = $state(false);
 
 async function hasTorch(track: MediaStreamTrack) {
     try {
@@ -92,17 +83,33 @@ async function getMainCameraStream() {
         throw err;
     }
 }
+
 async function requestCameraPermission() {
+    // First check native permissions via Tauri
+    const hasPermission = await checkAndRequestPermission();
+    
+    if (!hasPermission) {
+        permissionGranted.set(false);
+        showPermissionDialog = true;
+        return;
+    }
+
+    // Now get the camera stream
     try {
-        await ensureCameraPermission();
         stream = await getMainCameraStream();
         video.srcObject = stream;
         video.play();
         permissionGranted.set(true);
+        showPermissionDialog = false;
     } catch (err) {
         permissionGranted.set(false);
+        showPermissionDialog = true;
         console.error("Camera permission denied", err);
     }
+}
+
+function handleOpenSettings() {
+    openSettings();
 }
 async function captureImage() {
     if (image === 1) {
@@ -437,3 +444,10 @@ onMount(() => {
         </div>
     </div>
 </div>
+
+<CameraPermissionDialog
+    isOpen={showPermissionDialog}
+    onOpenSettings={handleOpenSettings}
+    title="Camera Access Required"
+    description="To capture your document, please grant camera permission in your device settings."
+/>

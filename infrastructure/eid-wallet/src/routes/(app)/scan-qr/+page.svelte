@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
-import { ButtonAction } from "$lib/ui";
+import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -145,89 +145,46 @@ function handleRevealDrawerCancel() {
 function handleRevealDrawerOpenChange(value: boolean) {
     setRevealRequestOpen(value);
 }
-</script>
 
-{#if $cameraPermissionDenied}
-    <div class="fixed inset-0 bg-black z-0"></div>
-{/if}
+function handlePermissionGoBack() {
+    goto("/main");
+}
+</script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
 
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
 >
-    {#if $cameraPermissionDenied}
-        <div class="flex flex-col items-center text-center px-6 relative z-10">
-            <svg
-                class="mx-auto mb-6"
-                width="80"
-                height="80"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-            >
-                <path
-                    d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-                    stroke="white"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                />
-                <path
-                    d="M3 3l18 18"
-                    stroke="white"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                />
-            </svg>
+    <svg
+        class="mx-auto"
+        width="204"
+        height="215"
+        viewBox="0 0 204 215"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+    >
+        <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
+        <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
+        <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
+        <path
+            d="M158 211H189C195.075 211 200 206.075 200 200V169"
+            {...pathProps}
+        />
+    </svg>
 
-            <h4 class="text-white font-semibold text-xl mb-3">
-                Camera Access Required
-            </h4>
-
-            <p class="text-white/70 text-sm mb-6 max-w-xs">
-                To scan QR codes, please grant camera permission in your device settings.
-            </p>
-
-            <div class="flex flex-col gap-4 w-full items-center">
-                <ButtonAction
-                    variant="solid"
-                    callback={handleOpenSettings}
-                >
-                    Open Settings
-                </ButtonAction>
-
-                <ButtonAction
-                    variant="white"
-                    callback={() => goto("/main")}
-                >
-                    Go Back
-                </ButtonAction>
-            </div>
-        </div>
-    {:else}
-        <svg
-            class="mx-auto"
-            width="204"
-            height="215"
-            viewBox="0 0 204 215"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-        >
-            <path d="M46 4H15C8.92487 4 4 8.92487 4 15V46" {...pathProps} />
-            <path d="M158 4H189C195.075 4 200 8.92487 200 15V46" {...pathProps} />
-            <path d="M46 211H15C8.92487 211 4 206.075 4 200V169" {...pathProps} />
-            <path
-                d="M158 211H189C195.075 211 200 206.075 200 200V169"
-                {...pathProps}
-            />
-        </svg>
-
-        <h4 class="text-white font-semibold text-center mt-20">
-            Point the camera at the code
-        </h4>
-    {/if}
+    <h4 class="text-white font-semibold text-center mt-20">
+        Point the camera at the code
+    </h4>
 </div>
+
+<CameraPermissionDialog
+    isOpen={$cameraPermissionDenied}
+    onOpenSettings={handleOpenSettings}
+    onGoBack={handlePermissionGoBack}
+    title="Camera Access Required"
+    description="To scan QR codes, please grant camera permission in your device settings."
+/>
 
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
