@@ -28,9 +28,8 @@
 	async function saveProfileData() {
 		try {
 			await apiClient.patch('/api/users/', {
-				handle,
-				avatar: profileImageDataUrl,
-				name
+				name,
+				avatar: profileImageDataUrl
 			});
 			saved = true;
 			setTimeout(() => {
@@ -83,12 +82,12 @@
 	</div>
 
 	<div>
-		<Label>Change your username</Label>
-		<Input type="text" placeholder="Edit Username" bind:value={handle} />
+		<Label>eName</Label>
+		<Input type="text" placeholder="Your eName" bind:value={handle} disabled class="cursor-not-allowed opacity-70" />
 	</div>
 	<div>
 		<Label>Profile Name</Label>
-		<Input type="text" placeholder="Edit your public name" bind:value={name} />
+		<Input type="text" placeholder="Edit  your public name" bind:value={name} />
 	</div>
 </div>
 <hr class="text-grey" />

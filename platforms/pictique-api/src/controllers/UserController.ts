@@ -52,13 +52,13 @@ export class UserController {
             // Parse and validate pagination parameters
             const pageNum = parseInt(page as string) || 1;
             const limitNum = Math.min(parseInt(limit as string) || 10, 50); // Cap at 50 results
-            
+
             if (pageNum < 1 || limitNum < 1) {
                 return res
                     .status(400)
                     .json({ error: "Invalid pagination parameters" });
             }
-            
+
             // Parse verified filter
             const verifiedOnly = verified === "true";
 
@@ -129,13 +129,13 @@ export class UserController {
             // Parse and validate pagination parameters
             const pageNum = parseInt(page as string) || 1;
             const limitNum = Math.min(parseInt(limit as string) || 10, 50); // Cap at 50 results
-            
+
             if (pageNum < 1 || limitNum < 1) {
                 return res
                     .status(400)
                     .json({ error: "Invalid pagination parameters" });
             }
-            
+
             // Parse verified filter
             const verifiedOnly = verified === "true";
 
@@ -172,18 +172,15 @@ export class UserController {
     updateProfile = async (req: Request, res: Response) => {
         try {
             const userId = req.user?.id;
-            const { handle, avatar, name } = req.body;
+            const { avatar, name } = req.body;
 
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
             }
 
-            const user = await this.userService.findById(userId);
-
             const updatedUser = await this.userService.updateProfile(userId, {
-                handle: handle ?? user?.handle,
-                avatarUrl: avatar ?? user?.avatarUrl,
-                name: name ?? user?.name,
+                avatarUrl: avatar,
+                name,
             });
 
             res.json(updatedUser);
