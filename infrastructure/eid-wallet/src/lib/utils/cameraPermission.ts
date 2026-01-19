@@ -4,7 +4,7 @@ import {
     openAppSettings,
     requestPermissions,
 } from "@tauri-apps/plugin-barcode-scanner";
-import { writable, type Writable } from "svelte/store";
+import { type Writable, writable } from "svelte/store";
 
 export interface CameraPermissionState {
     status: PermissionState | null;
