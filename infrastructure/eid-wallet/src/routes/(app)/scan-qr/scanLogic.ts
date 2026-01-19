@@ -4,6 +4,7 @@ import {
     type Scanned,
     cancel,
     checkPermissions,
+    openAppSettings,
     requestPermissions,
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
@@ -108,6 +109,7 @@ interface ScanActions {
     ) => Promise<void>;
     initialize: () => Promise<() => void>;
     retryPermission: () => Promise<void>;
+    handleOpenSettings: () => Promise<void>;
 }
 
 interface ScanLogic {
@@ -246,9 +248,28 @@ export function createScanLogic({
     }
 
     async function retryPermission() {
-        // Attempt to request permissions again
+        // Check current permission state
+        let permissions: PermissionState | null = null;
+        try {
+            permissions = await checkPermissions();
+        } catch {
+            permissions = null;
+        }
+
+        // If permission is denied (not just prompt), open app settings
+        // because the OS won't show the permission dialog again
+        if (permissions === "denied") {
+            await openAppSettings();
+            return;
+        }
+
+        // Otherwise, attempt to request permissions again
         cameraPermissionDenied.set(false);
         await startScan();
+    }
+
+    async function handleOpenSettings() {
+        await openAppSettings();
     }
 
     async function handleAuth() {
@@ -1508,6 +1529,7 @@ export function createScanLogic({
             handleBlindVotingRequest,
             initialize,
             retryPermission,
+            handleOpenSettings,
         },
     };
 }

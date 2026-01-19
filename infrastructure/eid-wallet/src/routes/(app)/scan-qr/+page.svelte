@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
+import { ButtonAction } from "$lib/ui";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -58,6 +59,7 @@ const {
     handleSignVote,
     initialize,
     retryPermission,
+    handleOpenSettings,
 } = actions;
 
 const pathProps: SVGAttributes<SVGPathElement> = {
@@ -145,13 +147,17 @@ function handleRevealDrawerOpenChange(value: boolean) {
 }
 </script>
 
+{#if $cameraPermissionDenied}
+    <div class="fixed inset-0 bg-black z-0"></div>
+{/if}
+
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
 
 <div
     class="flex flex-col justify-center items-center min-h-[calc(100vh-200px)] pb-20"
 >
     {#if $cameraPermissionDenied}
-        <div class="flex flex-col items-center text-center px-6">
+        <div class="flex flex-col items-center text-center px-6 relative z-10">
             <svg
                 class="mx-auto mb-6"
                 width="80"
@@ -180,15 +186,24 @@ function handleRevealDrawerOpenChange(value: boolean) {
             </h4>
 
             <p class="text-white/70 text-sm mb-6 max-w-xs">
-                To scan QR codes, please grant camera permission. You can enable it in your device settings or tap the button below to try again.
+                To scan QR codes, please grant camera permission in your device settings.
             </p>
 
-            <button
-                onclick={retryPermission}
-                class="bg-white text-black font-semibold py-3 px-8 rounded-full hover:bg-white/90 transition-colors"
-            >
-                Grant Camera Access
-            </button>
+            <div class="flex flex-col gap-4 w-full items-center">
+                <ButtonAction
+                    variant="solid"
+                    callback={handleOpenSettings}
+                >
+                    Open Settings
+                </ButtonAction>
+
+                <ButtonAction
+                    variant="white"
+                    callback={() => goto("/main")}
+                >
+                    Go Back
+                </ButtonAction>
+            </div>
         </div>
     {:else}
         <svg
