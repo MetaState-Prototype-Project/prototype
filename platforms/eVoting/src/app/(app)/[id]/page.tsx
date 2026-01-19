@@ -24,7 +24,6 @@ import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteD
 import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
-import VotingInterface from "@/components/voting-interface";
 import { SigningInterface } from "@/components/signing-interface";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
@@ -594,7 +593,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (() => {
                                                             const voteData = voteStatus?.vote?.data;
                                                             if (!voteData) return "Unknown option";
-                                                            
+
                                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
                                                                 const optionIndex = parseInt(voteData.data[0] || "0");
                                                                 return selectedPoll.options[optionIndex] || "Unknown option";
@@ -633,7 +632,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             const isUserChoice = (() => {
                                                 const voteData = voteStatus?.vote?.data;
                                                 if (!voteData) return false;
-                                                
+
                                                 if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
                                                     return voteData.data.includes(index.toString());
                                                 } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
@@ -650,7 +649,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             const userChoiceDetails = (() => {
                                                 const voteData = voteStatus?.vote?.data;
                                                 if (!voteData) return null;
-                                                
+
                                                 if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
                                                     return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
                                                 } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
@@ -1115,11 +1114,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     max="100"
                                                                     value={pointVotes[index] || 0}
                                                                     onChange={(e) => {
-                                                                        const value = parseInt(e.target.value) || 0;
+                                                                        const value = parseInt(e.target.value, 10) || 0;
                                                                         setPointVotes(prev => ({
                                                                             ...prev,
                                                                             [index]: value
                                                                         }));
+                                                                    }}
+                                                                    onInput={(e) => {
+                                                                        const target = e.target as HTMLInputElement;
+                                                                        const value = parseInt(target.value, 10) || 0;
+                                                                        target.value = value.toString();
                                                                     }}
                                                                     className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
                                                                     disabled={!isVotingAllowed}
