@@ -4,6 +4,7 @@ packages:
   - platforms/*
   - infrastructure/*
   - tests/
+  - docs/
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - '@rollup/rollup-linux-x64-gnu'

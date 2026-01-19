@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # Mapping Rules
 
 This document explains how to create mappings for the web3-adapter system, which enables data exchange between different platforms using a universal ontology.
