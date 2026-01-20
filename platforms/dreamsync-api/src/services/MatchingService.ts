@@ -48,19 +48,34 @@ export class MatchingService {
      * Analyze all wishlists at once and find matches in a single AI request
      */
     async findMatches(wishlists: WishlistData[], existingGroups?: GroupData[]): Promise<MatchResult[]> {
-        console.log(`🤖 Starting AI matching process for ${wishlists.length} wishlists...`);
-        console.log(`📊 Analyzing all wishlists in a single AI request (much more efficient!)`);
+        console.log(`Starting AI matching process for ${wishlists.length} wishlists...`);
+        console.log(`Analyzing all wishlists in a single AI request (much more efficient!)`);
+        
+        // Filter out wishlists without valid summaries before processing
+        const validWishlists = wishlists.filter((wishlist) => {
+            return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
+                   wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
+        });
+
+        if (validWishlists.length === 0) {
+            console.log("No wishlists with valid summaries to match, returning empty array");
+            return [];
+        }
+
+        if (validWishlists.length < wishlists.length) {
+            console.log(`Filtered out ${wishlists.length - validWishlists.length} wishlists without valid summaries`);
+        }
         
         if (existingGroups && existingGroups.length > 0) {
-            console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
+            console.log(`Found ${existingGroups.length} existing groups to consider`);
         }
 
         try {
-            const matchResults = await this.analyzeAllMatches(wishlists, existingGroups);
-            console.log(`🎉 AI matching process completed! Found ${matchResults.length} matches`);
+            const matchResults = await this.analyzeAllMatches(validWishlists, existingGroups);
+            console.log(`AI matching process completed! Found ${matchResults.length} matches`);
             return matchResults;
         } catch (error) {
-            console.error("❌ Error in AI matching process:", error);
+            console.error("Error in AI matching process:", error);
             return [];
         }
     }
@@ -68,24 +83,18 @@ export class MatchingService {
     private buildAllMatchesPrompt(wishlists: WishlistData[], existingGroups?: GroupData[]): string {
         const delimiter = "<|>";
         const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
-        const wishlistRows = wishlists
-            .filter((wishlist) => {
-                // Only include wishlists with valid summary arrays
-                return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
-                       wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
-            })
-            .map((wishlist) => {
-                // Join array items with semicolons for CSV format
-                const wants = (wishlist.summaryWants || []).join('; ');
-                const offers = (wishlist.summaryOffers || []).join('; ');
-                return [
-                    this.sanitizeField(wishlist.userId),
-                    this.sanitizeField(wishlist.user.ename),
-                    this.sanitizeField(wishlist.user.name || wishlist.user.ename),
-                    this.sanitizeField(wants),
-                    this.sanitizeField(offers),
-                ].join(delimiter);
-            }).join("\n");
+        const wishlistRows = wishlists.map((wishlist) => {
+            // Join array items with semicolons for CSV format
+            const wants = (wishlist.summaryWants || []).join('; ');
+            const offers = (wishlist.summaryOffers || []).join('; ');
+            return [
+                this.sanitizeField(wishlist.userId),
+                this.sanitizeField(wishlist.user.ename),
+                this.sanitizeField(wishlist.user.name || wishlist.user.ename),
+                this.sanitizeField(wants),
+                this.sanitizeField(offers),
+            ].join(delimiter);
+        }).join("\n");
 
         let existingGroupsText = '';
         if (existingGroups && existingGroups.length > 0) {
@@ -136,10 +145,8 @@ IMPORTANT RULES:
 6. Classify activities properly:
    - PRIVATE: Personal services (tutoring, coaching, 1-on-1 lessons, personal projects)
    - GROUP: Group activities (sports teams, clubs, workshops, group projects, tournaments)
-7. CRITICAL: If wishlists are blank, templated with minimal content, or contain insufficient information to make meaningful matches, return an empty array []
-   - Blank/templated wishlists have the template structure (## What I Want / ## What I Can Do) but with very few items (2 or fewer) or very short/meaningless content
-   - Do NOT generate matches based on generic or placeholder content
-   - Only return matches when there is substantial, meaningful content in the wishlists
+
+NOTE: All wishlists provided have been pre-filtered to ensure they contain valid summary data. You should analyze all provided wishlists and find meaningful matches between them. Only return an empty array [] if you genuinely cannot find any meaningful connections between ANY of the provided users.
 
 Return a JSON array of matches with this structure:
 [
@@ -191,12 +198,12 @@ Be thorough and find ALL potential matches!
         const prompt = this.buildAllMatchesPrompt(wishlists, existingGroups);
         
         console.log("\n" + "=".repeat(100));
-        console.log("🤖 AI REQUEST DEBUG - FULL PROMPT SENT TO AI:");
+        console.log("AI REQUEST DEBUG - FULL PROMPT SENT TO AI:");
         console.log("=".repeat(100));
         console.log(prompt);
         console.log("=".repeat(100));
-        console.log(`📊 Prompt length: ${prompt.length} characters`);
-        console.log(`📊 Number of wishlists: ${wishlists.length}`);
+        console.log(`Prompt length: ${prompt.length} characters`);
+        console.log(`Number of wishlists: ${wishlists.length}`);
         console.log("=".repeat(100) + "\n");
         
         const response = await this.openai.chat.completions.create({
@@ -218,12 +225,12 @@ Be thorough and find ALL potential matches!
         const content = response.choices[0]?.message?.content;
         
         console.log("\n" + "=".repeat(100));
-        console.log("🤖 AI RESPONSE DEBUG - FULL RESPONSE FROM AI:");
+        console.log("AI RESPONSE DEBUG - FULL RESPONSE FROM AI:");
         console.log("=".repeat(100));
         console.log(content);
         console.log("=".repeat(100));
-        console.log(`📊 Response length: ${content?.length || 0} characters`);
-        console.log(`📊 Usage: ${JSON.stringify(response.usage, null, 2)}`);
+        console.log(`Response length: ${content?.length || 0} characters`);
+        console.log(`Usage: ${JSON.stringify(response.usage, null, 2)}`);
         console.log("=".repeat(100) + "\n");
         
         if (!content) {
@@ -234,25 +241,25 @@ Be thorough and find ALL potential matches!
             // Try to extract JSON array from the response
             const jsonMatch = content.match(/\[[\s\S]*\]/);
             if (!jsonMatch) {
-                console.log("❌ DEBUG: No JSON array pattern found in response");
-                console.log("❌ DEBUG: Looking for pattern: /\\[[\\s\\S]*\\]/");
+                console.log("DEBUG: No JSON array pattern found in response");
+                console.log("DEBUG: Looking for pattern: /\\[[\\s\\S]*\\]/");
                 throw new Error("No JSON array found in response");
             }
 
             console.log("\n" + "=".repeat(100));
-            console.log("🔍 JSON EXTRACTION DEBUG:");
+            console.log("JSON EXTRACTION DEBUG:");
             console.log("=".repeat(100));
-            console.log("📝 Extracted JSON string:");
+            console.log("Extracted JSON string:");
             console.log(jsonMatch[0]);
             console.log("=".repeat(100) + "\n");
 
             const matches = JSON.parse(jsonMatch[0]);
             
             console.log("\n" + "=".repeat(100));
-            console.log("🔍 PARSED MATCHES DEBUG:");
+            console.log("PARSED MATCHES DEBUG:");
             console.log("=".repeat(100));
-            console.log(`📊 Total matches from AI: ${matches.length}`);
-            console.log("📝 Raw matches array:");
+            console.log(`Total matches from AI: ${matches.length}`);
+            console.log("Raw matches array:");
             console.log(JSON.stringify(matches, null, 2));
             console.log("=".repeat(100) + "\n");
             
@@ -264,7 +271,7 @@ Be thorough and find ALL potential matches!
             const validMatches: MatchResult[] = [];
             for (let i = 0; i < matches.length; i++) {
                 const match = matches[i];
-                console.log(`🔍 Validating match ${i + 1}:`, JSON.stringify(match, null, 2));
+                console.log(`Validating match ${i + 1}:`, JSON.stringify(match, null, 2));
                 
                 // Check if this is a JOIN_EXISTING_GROUP match (can have 1 user)
                 const isJoinExistingGroup = match.suggestedActivities?.some((activity: any) => 
@@ -280,7 +287,7 @@ Be thorough and find ALL potential matches!
                     match.userIds.length >= minUsers &&
                     match.activityCategory) {
                     
-                    console.log(`✅ Match ${i + 1} is VALID`);
+                    console.log(`Match ${i + 1} is VALID`);
                     validMatches.push({
                         confidence: match.confidence,
                         matchType: match.matchType,
@@ -293,7 +300,7 @@ Be thorough and find ALL potential matches!
                         activityCategory: match.activityCategory
                     });
                 } else {
-                    console.log(`❌ Match ${i + 1} is INVALID:`);
+                    console.log(`Match ${i + 1} is INVALID:`);
                     console.log(`   - confidence: ${match.confidence} (type: ${typeof match.confidence})`);
                     console.log(`   - matchType: ${match.matchType} (valid: ${['private', 'group'].includes(match.matchType)})`);
                     console.log(`   - userIds: ${JSON.stringify(match.userIds)} (isArray: ${Array.isArray(match.userIds)}, length: ${match.userIds?.length}, min required: ${minUsers})`);
@@ -302,7 +309,7 @@ Be thorough and find ALL potential matches!
                 }
             }
 
-            console.log(`✅ AI found ${validMatches.length} valid matches from ${matches.length} total suggestions`);
+            console.log(`AI found ${validMatches.length} valid matches from ${matches.length} total suggestions`);
             return validMatches;
         } catch (error) {
             console.error("Failed to parse OpenAI response:", content);
