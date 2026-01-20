@@ -2,6 +2,7 @@
 import { goto } from "$app/navigation";
 import AppNav from "$lib/fragments/AppNav/AppNav.svelte";
 import type { GlobalState } from "$lib/global";
+import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
 import { getContext, onDestroy, onMount } from "svelte";
 import type { SVGAttributes } from "svelte/elements";
 import { get } from "svelte/store";
@@ -40,6 +41,7 @@ const {
     authError,
     signingError,
     authLoading,
+    cameraPermissionDenied,
 } = stores;
 
 const {
@@ -56,6 +58,8 @@ const {
     handleBlindVoteSelection,
     handleSignVote,
     initialize,
+    retryPermission,
+    handleOpenSettings,
 } = actions;
 
 const pathProps: SVGAttributes<SVGPathElement> = {
@@ -141,6 +145,10 @@ function handleRevealDrawerCancel() {
 function handleRevealDrawerOpenChange(value: boolean) {
     setRevealRequestOpen(value);
 }
+
+function handlePermissionGoBack() {
+    goto("/main");
+}
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
@@ -169,6 +177,14 @@ function handleRevealDrawerOpenChange(value: boolean) {
         Point the camera at the code
     </h4>
 </div>
+
+<CameraPermissionDialog
+    isOpen={$cameraPermissionDenied}
+    onOpenSettings={handleOpenSettings}
+    onGoBack={handlePermissionGoBack}
+    title="Camera Access Required"
+    description="To scan QR codes, please grant camera permission in your device settings."
+/>
 
 <AuthDrawer
     isOpen={$codeScannedDrawerOpen}
