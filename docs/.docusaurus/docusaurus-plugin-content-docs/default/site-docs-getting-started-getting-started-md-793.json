@@ -1,0 +1,27 @@
+{
+  "id": "Getting Started/getting-started",
+  "title": "Tutorial Intro",
+  "description": "Let's discover Docusaurus in less than 5 minutes.",
+  "source": "@site/docs/Getting Started/getting-started.md",
+  "sourceDirName": "Getting Started",
+  "slug": "/Getting Started/getting-started",
+  "permalink": "/prototype/docs/Getting Started/getting-started",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/Getting Started/getting-started.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Getting Started",
+    "permalink": "/prototype/docs/category/getting-started"
+  },
+  "next": {
+    "title": "W3DS Basics",
+    "permalink": "/prototype/docs/category/w3ds-basics"
+  }
+}

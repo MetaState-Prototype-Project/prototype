@@ -32,23 +32,24 @@ AppDataSource.initialize()
             const exists = await platformService.checkPlatformEVaultExists();
             
             if (!exists) {
-                console.log("🔧 Creating platform eVault for DreamSync...");
+                console.log("Creating platform eVault for DreamSync...");
                 const result = await platformService.createPlatformEVault();
-                console.log(`✅ Platform eVault created successfully: ${result.w3id}`);
+                console.log(`Platform eVault created successfully: ${result.w3id}`);
             } else {
-                console.log("✅ Platform eVault already exists for DreamSync");
+                console.log("Platform eVault already exists for DreamSync");
             }
         } catch (error) {
-            console.error("❌ Failed to initialize platform eVault:", error);
+            console.error("Failed to initialize platform eVault:", error);
             // Don't exit the process, just log the error
         }
         
-        // Backfill wishlist summaries for existing records
+        // Summarize all wishlists on platform start
         try {
             const wishlistSummaryService = WishlistSummaryService.getInstance();
-            await wishlistSummaryService.backfillMissingSummaries();
+            await wishlistSummaryService.summarizeAllWishlists();
         } catch (error) {
-            console.error("❌ Failed to backfill wishlist summaries:", error);
+            console.error("Failed to summarize wishlists:", error);
+            // Don't exit the process, just log the error
         }
         
         // Start AI matching job (disabled automatic startup)

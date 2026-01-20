@@ -15,8 +15,8 @@ export interface MatchResult {
 export interface WishlistData {
     id: string;
     content: string;
-    summaryWants: string;
-    summaryOffers: string;
+    summaryWants: string[];
+    summaryOffers: string[];
     userId: string;
     user: {
         id: string;
@@ -68,17 +68,24 @@ export class MatchingService {
     private buildAllMatchesPrompt(wishlists: WishlistData[], existingGroups?: GroupData[]): string {
         const delimiter = "<|>";
         const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
-        const wishlistRows = wishlists.map((wishlist) => {
-            const wants = wishlist.summaryWants || wishlist.content;
-            const offers = wishlist.summaryOffers || wishlist.content;
-            return [
-                this.sanitizeField(wishlist.userId),
-                this.sanitizeField(wishlist.user.ename),
-                this.sanitizeField(wishlist.user.name || wishlist.user.ename),
-                this.sanitizeField(wants),
-                this.sanitizeField(offers),
-            ].join(delimiter);
-        }).join("\n");
+        const wishlistRows = wishlists
+            .filter((wishlist) => {
+                // Only include wishlists with valid summary arrays
+                return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
+                       wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
+            })
+            .map((wishlist) => {
+                // Join array items with semicolons for CSV format
+                const wants = (wishlist.summaryWants || []).join('; ');
+                const offers = (wishlist.summaryOffers || []).join('; ');
+                return [
+                    this.sanitizeField(wishlist.userId),
+                    this.sanitizeField(wishlist.user.ename),
+                    this.sanitizeField(wishlist.user.name || wishlist.user.ename),
+                    this.sanitizeField(wants),
+                    this.sanitizeField(offers),
+                ].join(delimiter);
+            }).join("\n");
 
         let existingGroupsText = '';
         if (existingGroups && existingGroups.length > 0) {
@@ -110,6 +117,8 @@ You are an AI matching assistant. Analyze ALL the wishlists below and find meani
 The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
 Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers
 
+The "wants" and "offers" columns contain semicolon-separated arrays of short phrases extracted from each user's wishlist.
+
 ${wishlistHeader}
 ${wishlistRows}
 
@@ -119,7 +128,7 @@ Return userIds EXACTLY as provided in the table (no new IDs, no missing IDs).${e
 TASK: Find ALL meaningful matches between these users based on their wishlists.
 
 IMPORTANT RULES:
-1. Only suggest matches with confidence > 0.7
+1. Only suggest matches with confidence > 0.85
 2. Each user can be matched with multiple other users
 3. Return ALL matches found, not just the best ones
 4. Consider both "What I Want" and "What I Can Do" sections
@@ -127,6 +136,10 @@ IMPORTANT RULES:
 6. Classify activities properly:
    - PRIVATE: Personal services (tutoring, coaching, 1-on-1 lessons, personal projects)
    - GROUP: Group activities (sports teams, clubs, workshops, group projects, tournaments)
+7. CRITICAL: If wishlists are blank, templated with minimal content, or contain insufficient information to make meaningful matches, return an empty array []
+   - Blank/templated wishlists have the template structure (## What I Want / ## What I Can Do) but with very few items (2 or fewer) or very short/meaningless content
+   - Do NOT generate matches based on generic or placeholder content
+   - Only return matches when there is substantial, meaningful content in the wishlists
 
 Return a JSON array of matches with this structure:
 [
@@ -191,7 +204,7 @@ Be thorough and find ALL potential matches!
             messages: [
                 {
                     role: "system",
-                    content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. Analyze all wishlists and return ALL matches found as a JSON array."
+                    content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. Analyze all wishlists and return ALL matches found as a JSON array. If wishlists are blank, templated with minimal content, or insufficient for meaningful matching, return an empty array []."
                 },
                 {
                     role: "user",
@@ -261,7 +274,7 @@ Be thorough and find ALL potential matches!
                 const minUsers = isJoinExistingGroup ? 1 : 2;
                 
                 if (typeof match.confidence === 'number' && 
-                    match.confidence > 0.7 &&
+                    match.confidence > 0.85 &&
                     ['private', 'group'].includes(match.matchType) &&
                     Array.isArray(match.userIds) &&
                     match.userIds.length >= minUsers &&

@@ -13,8 +13,8 @@ export interface MatchResult {
 export interface WishlistData {
     id: string;
     content: string;
-    summaryWants: string;
-    summaryOffers: string;
+    summaryWants: string[];
+    summaryOffers: string[];
     userId: string;
     user: {
         id: string;
@@ -63,7 +63,7 @@ export class MatchingService {
             const batchPromises = batch.map(async ({ wishlistA, wishlistB }) => {
                 try {
                     const matchResult = await this.analyzeMatch(wishlistA, wishlistB);
-                    if (matchResult.confidence > 0.7) {
+                    if (matchResult.confidence > 0.85) {
                         return matchResult;
                     }
                     return null;
@@ -90,19 +90,28 @@ export class MatchingService {
     }
 
     private buildAnalysisPrompt(wishlistA: WishlistData, wishlistB: WishlistData): string {
+        const wantsA = (wishlistA.summaryWants || []).join(', ');
+        const offersA = (wishlistA.summaryOffers || []).join(', ');
+        const wantsB = (wishlistB.summaryWants || []).join(', ');
+        const offersB = (wishlistB.summaryOffers || []).join(', ');
+        
         return `
         Analyze these two wishlists to determine if there's a meaningful connection:
         
         Wishlist A (User: ${wishlistA.user.name}):
-        ${wishlistA.content}
+        Wants: ${wantsA || 'None specified'}
+        Offers: ${offersA || 'None specified'}
 
         Wishlist B (User: ${wishlistB.user.name}):
-        ${wishlistB.content}
+        Wants: ${wantsB || 'None specified'}
+        Offers: ${offersB || 'None specified'}
 
-        IMPORTANT: Only return a JSON response if there's a meaningful connection (confidence > 0.7). If there's no meaningful connection, return confidence: 0 and matchType: "private" (this will be filtered out).
+        IMPORTANT: Only return a JSON response if there's a meaningful connection (confidence > 0.85). If there's no meaningful connection, return confidence: 0 and matchType: "private" (this will be filtered out).
+
+        CRITICAL: If either wishlist is blank, templated with minimal content, or contains insufficient information, return confidence: 0. A blank/templated wishlist has the template structure (## What I Want / ## What I Can Do) but with very few items (2 or fewer meaningful items) or very short/placeholder content. Do NOT generate matches based on generic or placeholder content.
 
         Return JSON with:
-        1. "confidence": number between 0-1 indicating match strength (0 if no meaningful connection)
+        1. "confidence": number between 0-1 indicating match strength (0 if no meaningful connection or if wishlists are too sparse)
         2. "matchType": "private" or "group" (use "private" if no connection)
         3. "reason": brief explanation of why they match (or why no match)
         4. "matchedWants": array of what User A wants that User B can offer
@@ -115,8 +124,9 @@ export class MatchingService {
         - Complementary needs and offerings
         - Potential for meaningful collaboration
         - Whether this could be a private connection or group activity
+        - Whether the wishlists contain sufficient meaningful content (not just template placeholders)
         
-        Only suggest matches with confidence > 0.7 for meaningful connections.
+        Only suggest matches with confidence > 0.85 for meaningful connections based on substantial content.
                 `.trim();
     }
 

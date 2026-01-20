@@ -1,0 +1,78 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/prototype/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/prototype/docs",
+          "mainDocId": "Getting Started/getting-started",
+          "docs": [
+            {
+              "id": "Getting Started/getting-started",
+              "path": "/prototype/docs/Getting Started/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "Post Platform Guide/getting-started",
+              "path": "/prototype/docs/Post Platform Guide/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "Post Platform Guide/mapping-rules",
+              "path": "/prototype/docs/Post Platform Guide/mapping-rules",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "Post Platform Guide/webhook-controller",
+              "path": "/prototype/docs/Post Platform Guide/webhook-controller",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "W3DS Basics/getting-started",
+              "path": "/prototype/docs/W3DS Basics/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "W3DS Protocol/getting-started",
+              "path": "/prototype/docs/W3DS Protocol/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/getting-started",
+              "path": "/prototype/docs/category/getting-started",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/w3ds-basics",
+              "path": "/prototype/docs/category/w3ds-basics",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/w3ds-protocol",
+              "path": "/prototype/docs/category/w3ds-protocol",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/post-platforms-guide",
+              "path": "/prototype/docs/category/post-platforms-guide",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/prototype/docs/category/getting-started",
+                "label": "Getting Started"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}
