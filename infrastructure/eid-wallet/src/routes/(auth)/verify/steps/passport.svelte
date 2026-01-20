@@ -87,7 +87,15 @@ async function getMainCameraStream() {
 
 async function requestCameraPermission() {
     // First check native permissions via Tauri
-    const hasPermission = await checkAndRequestPermission();
+    let hasPermission: boolean;
+    try {
+        hasPermission = await checkAndRequestPermission();
+    } catch (err) {
+        console.error("Error checking camera permission:", err);
+        permissionGranted.set(false);
+        showPermissionDialog = true;
+        return;
+    }
 
     if (!hasPermission) {
         permissionGranted.set(false);
@@ -109,8 +117,10 @@ async function requestCameraPermission() {
     }
 }
 
-function handleOpenSettings() {
-    openSettings();
+async function handleOpenSettings() {
+    await openSettings();
+    // Re-check camera permission after returning from settings
+    await requestCameraPermission();
 }
 async function captureImage() {
     if (image === 1) {

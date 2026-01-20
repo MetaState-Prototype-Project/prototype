@@ -47,8 +47,10 @@ async function requestCameraPermission() {
     }
 }
 
-function handleOpenSettings() {
-    openSettings();
+async function handleOpenSettings() {
+    await openSettings();
+    // Re-check camera permission after returning from settings
+    await requestCameraPermission();
 }
 
 onMount(() => {

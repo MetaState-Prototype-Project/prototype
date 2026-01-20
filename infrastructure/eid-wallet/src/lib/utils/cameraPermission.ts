@@ -64,7 +64,7 @@ export function createCameraPermissionManager(): CameraPermissionResult {
         }
 
         const isGranted = permissions === "granted";
-        const isDenied = !isGranted;
+        const isDenied = permissions === "denied";
 
         permissionState.set({
             status: permissions,
@@ -73,8 +73,8 @@ export function createCameraPermissionManager(): CameraPermissionResult {
             isChecking: false,
         });
 
-        if (isDenied) {
-            console.warn("Camera permission denied or unavailable");
+        if (!isGranted) {
+            console.warn("Camera permission not granted:", permissions);
         }
 
         return isGranted;

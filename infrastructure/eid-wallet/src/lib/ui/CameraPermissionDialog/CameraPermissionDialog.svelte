@@ -8,6 +8,7 @@ interface CameraPermissionDialogProps {
     onOpenChange?: (value: boolean) => void;
     title?: string;
     description?: string;
+    dismissible?: boolean;
 }
 
 let {
@@ -17,20 +18,25 @@ let {
     onOpenChange,
     title = "Camera Access Required",
     description = "To continue, please grant camera permission in your device settings.",
+    dismissible = false,
 }: CameraPermissionDialogProps = $props();
 
 function handleSwipe(value: boolean | undefined) {
+    // Only allow swipe to close when dismissible is true and onOpenChange is provided
+    if (!dismissible || !onOpenChange) {
+        return;
+    }
     if (value) {
         isOpen = false;
-        onOpenChange?.(false);
+        onOpenChange(false);
     }
 }
 </script>
 
 <Drawer
     isPaneOpen={isOpen}
-    handleSwipe={handleSwipe}
-    dismissible={false}
+    handleSwipe={dismissible && onOpenChange ? handleSwipe : undefined}
+    dismissible={dismissible}
 >
     <div class="flex flex-col items-center text-center pb-4">
         <!-- Camera icon with slash -->
