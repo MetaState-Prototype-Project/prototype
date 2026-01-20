@@ -1109,12 +1109,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             </div>
                                                             <div className="flex items-center space-x-2">
                                                                 <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max="100"
+                                                                    type="text"
+                                                                    inputMode="numeric"
                                                                     value={pointVotes[index] || 0}
                                                                     onChange={(e) => {
-                                                                        const value = parseInt(e.target.value, 10) || 0;
+                                                                        const input = e.target.value;
+                                                                        // Allow only digits
+                                                                        const numericValue = input.replace(/\D/g, '');
+                                                                        const value = numericValue ? Math.min(Math.max(parseInt(numericValue, 10), 0), 100) : 0;
                                                                         setPointVotes(prev => ({
                                                                             ...prev,
                                                                             [index]: value
@@ -1122,7 +1124,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     }}
                                                                     onInput={(e) => {
                                                                         const target = e.target as HTMLInputElement;
-                                                                        const value = parseInt(target.value, 10) || 0;
+                                                                        // Remove non-numeric characters and leading zeros
+                                                                        const cleaned = target.value.replace(/\D/g, '');
+                                                                        const value = cleaned ? Math.min(Math.max(parseInt(cleaned, 10), 0), 100) : 0;
                                                                         target.value = value.toString();
                                                                     }}
                                                                     className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
