@@ -121,7 +121,7 @@ Use the exact groupId from the table above in the format: "JOIN_EXISTING_GROUP:<
         }
 
         return `
-You are an AI matching assistant. Analyze ALL the wishlists below and find meaningful connections between users.
+You are an AI matching assistant. Your task is to find meaningful connections between users based on their wishlists.
 
 The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
 Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers
@@ -134,7 +134,13 @@ ${wishlistRows}
 Use ONLY the rows above (not full prose) to infer matches.
 Return userIds EXACTLY as provided in the table (no new IDs, no missing IDs).${existingGroupsText}
 
-TASK: Find ALL meaningful matches between these users based on their wishlists.
+CRITICAL INSTRUCTIONS:
+- You MUST analyze the wishlists above and find matches
+- Look for complementary needs: when User A wants something that User B offers, or vice versa
+- Look for shared interests: when multiple users want or offer similar things
+- Look for skill exchanges: when one can teach what another wants to learn
+- You should actively search for connections - do NOT return an empty array unless there are truly ZERO possible connections
+- All wishlists provided have valid content - analyze them thoroughly
 
 IMPORTANT RULES:
 1. Only suggest matches with confidence > 0.85
@@ -145,8 +151,6 @@ IMPORTANT RULES:
 6. Classify activities properly:
    - PRIVATE: Personal services (tutoring, coaching, 1-on-1 lessons, personal projects)
    - GROUP: Group activities (sports teams, clubs, workshops, group projects, tournaments)
-
-NOTE: All wishlists provided have been pre-filtered to ensure they contain valid summary data. You should analyze all provided wishlists and find meaningful matches between them. Only return an empty array [] if you genuinely cannot find any meaningful connections between ANY of the provided users.
 
 Return a JSON array of matches with this structure:
 [
@@ -206,23 +210,54 @@ Be thorough and find ALL potential matches!
         console.log(`Number of wishlists: ${wishlists.length}`);
         console.log("=".repeat(100) + "\n");
         
-        const response = await this.openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. Analyze all wishlists and return ALL matches found as a JSON array. If wishlists are blank, templated with minimal content, or insufficient for meaningful matching, return an empty array []."
-                },
-                {
-                    role: "user",
-                    content: prompt,
-                },
-            ],
-            temperature: 0.7,
-            max_tokens: 4000, // Increased token limit for multiple matches
-        });
+        let response;
+        try {
+            response = await this.openai.chat.completions.create({
+                model: "gpt-4",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. You MUST actively search for matches - look for complementary needs, shared interests, and skill exchanges. Return ALL matches found as a JSON array. Only return an empty array if there are genuinely zero possible connections between any users."
+                    },
+                    {
+                        role: "user",
+                        content: prompt,
+                    },
+                ],
+                temperature: 0.7,
+                max_tokens: 4000, // Increased token limit for multiple matches
+            });
+        } catch (error: any) {
+            console.error("OpenAI API Error:");
+            console.error("  Error type:", error?.constructor?.name);
+            console.error("  Error message:", error?.message);
+            console.error("  Error code:", error?.code);
+            console.error("  Error status:", error?.status);
+            
+            // Check for rate limit errors
+            if (error?.status === 429 || error?.code === 'rate_limit_exceeded' || error?.message?.includes('rate limit')) {
+                console.error("RATE LIMIT DETECTED!");
+                console.error("  Rate limit error details:", JSON.stringify(error, null, 2));
+                throw new Error("OpenAI rate limit exceeded. Please try again later.");
+            }
+            
+            // Check for other API errors
+            if (error?.status) {
+                console.error(`OpenAI API returned status ${error.status}`);
+                console.error("  Full error:", JSON.stringify(error, null, 2));
+            }
+            
+            throw error;
+        }
 
         const content = response.choices[0]?.message?.content;
+        
+        // Check for suspiciously short responses (might indicate rate limiting or errors)
+        if (content && content.length < 10) {
+            console.warn("WARNING: Received very short response from AI (might indicate rate limiting or error)");
+            console.warn(`  Response: "${content}"`);
+            console.warn(`  Response length: ${content.length} characters`);
+        }
         
         console.log("\n" + "=".repeat(100));
         console.log("AI RESPONSE DEBUG - FULL RESPONSE FROM AI:");
@@ -231,6 +266,8 @@ Be thorough and find ALL potential matches!
         console.log("=".repeat(100));
         console.log(`Response length: ${content?.length || 0} characters`);
         console.log(`Usage: ${JSON.stringify(response.usage, null, 2)}`);
+        console.log(`Model: ${response.model || 'N/A'}`);
+        console.log(`Finish reason: ${response.choices[0]?.finish_reason || 'N/A'}`);
         console.log("=".repeat(100) + "\n");
         
         if (!content) {

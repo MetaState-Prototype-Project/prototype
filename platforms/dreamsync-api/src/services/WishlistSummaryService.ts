@@ -66,6 +66,19 @@ Rules:
                 temperature: 0.2,
                 max_tokens: 500,
                 response_format: { type: "json_object" },
+            }).catch((error: any) => {
+                console.error("WishlistSummaryService OpenAI API Error:");
+                console.error("  Error type:", error?.constructor?.name);
+                console.error("  Error message:", error?.message);
+                console.error("  Error code:", error?.code);
+                console.error("  Error status:", error?.status);
+                
+                if (error?.status === 429 || error?.code === 'rate_limit_exceeded' || error?.message?.includes('rate limit')) {
+                    console.error("RATE LIMIT DETECTED in WishlistSummaryService!");
+                    console.error("  Rate limit error details:", JSON.stringify(error, null, 2));
+                }
+                
+                throw error;
             });
 
             const raw = response.choices[0]?.message?.content || "";
