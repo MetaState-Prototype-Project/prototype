@@ -1,6 +1,7 @@
 <script lang="ts">
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { ButtonAction } from "$lib/ui";
+import { ButtonAction, CameraPermissionDialog } from "$lib/ui";
+import { createCameraPermissionManager } from "$lib/utils";
 import axios from "axios";
 import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -14,7 +15,23 @@ let imageCaptured = writable(false);
 let load = false;
 let stream: MediaStream;
 
+// Camera permission management
+const cameraPermission = createCameraPermissionManager();
+const { permissionState, checkAndRequestPermission, openSettings } =
+    cameraPermission;
+let showPermissionDialog = $state(false);
+
 async function requestCameraPermission() {
+    // First check native permissions via Tauri
+    const hasPermission = await checkAndRequestPermission();
+
+    if (!hasPermission) {
+        permissionGranted.set(false);
+        showPermissionDialog = true;
+        return;
+    }
+
+    // Now get the camera stream for selfie (front camera)
     try {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" },
@@ -22,10 +39,18 @@ async function requestCameraPermission() {
         video.srcObject = stream;
         video.play();
         permissionGranted.set(true);
+        showPermissionDialog = false;
     } catch (err) {
         permissionGranted.set(false);
+        showPermissionDialog = true;
         console.error("Camera permission denied", err);
     }
+}
+
+async function handleOpenSettings() {
+    await openSettings();
+    // Re-check camera permission after returning from settings
+    await requestCameraPermission();
 }
 
 onMount(() => {
@@ -121,3 +146,10 @@ async function captureImage() {
         </div>
     {/if}
 </div>
+
+<CameraPermissionDialog
+    isOpen={showPermissionDialog}
+    onOpenSettings={handleOpenSettings}
+    title="Camera Access Required"
+    description="To take your selfie, please grant camera permission in your device settings."
+/>

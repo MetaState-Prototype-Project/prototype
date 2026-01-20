@@ -423,15 +423,14 @@ export class UserService {
 
     async updateProfile(
         userId: string,
-        data: { handle?: string; avatarUrl?: string; name?: string }
+        data: { avatarUrl?: string; name?: string }
     ): Promise<User> {
         const user = await this.userRepository.findOneBy({ id: userId });
         if (!user) {
             throw new Error("User not found");
         }
 
-        // Update only the fields that are provided
-        if (data.handle !== undefined) user.handle = data.handle;
+        // Update only the fields that are provided (handle is not updatable)
         if (data.avatarUrl !== undefined) user.avatarUrl = data.avatarUrl;
         if (data.name !== undefined) user.name = data.name;
 

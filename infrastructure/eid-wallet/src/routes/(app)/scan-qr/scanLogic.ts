@@ -4,6 +4,7 @@ import {
     type Scanned,
     cancel,
     checkPermissions,
+    openAppSettings,
     requestPermissions,
     scan,
 } from "@tauri-apps/plugin-barcode-scanner";
@@ -80,6 +81,7 @@ interface ScanStores {
     signingError: Writable<string | null>;
     authLoading: Writable<boolean>;
     isFromScan: Writable<boolean>;
+    cameraPermissionDenied: Writable<boolean>;
 }
 
 interface ScanActions {
@@ -106,6 +108,8 @@ interface ScanActions {
         redirectUri: string | null,
     ) => Promise<void>;
     initialize: () => Promise<() => void>;
+    retryPermission: () => Promise<void>;
+    handleOpenSettings: () => Promise<void>;
 }
 
 interface ScanLogic {
@@ -145,10 +149,14 @@ export function createScanLogic({
     const signingError = writable<string | null>(null);
     const authLoading = writable(false);
     const isFromScan = writable(false);
+    const cameraPermissionDenied = writable(false);
 
     let permissionsNullable: PermissionState | null = null;
 
     async function startScan() {
+        // Reset permission denied state when attempting to scan
+        cameraPermissionDenied.set(false);
+
         let permissions: PermissionState | null = null;
         try {
             permissions = await checkPermissions();
@@ -161,6 +169,13 @@ export function createScanLogic({
         }
 
         permissionsNullable = permissions;
+
+        // If permission is still denied after requesting, inform the user
+        if (permissions !== "granted") {
+            console.warn("Camera permission denied or unavailable");
+            cameraPermissionDenied.set(true);
+            return;
+        }
 
         if (permissions === "granted") {
             const formats = [Format.QRCode];
@@ -230,6 +245,31 @@ export function createScanLogic({
     async function cancelScan() {
         await cancel();
         scanning.set(false);
+    }
+
+    async function retryPermission() {
+        // Check current permission state
+        let permissions: PermissionState | null = null;
+        try {
+            permissions = await checkPermissions();
+        } catch {
+            permissions = null;
+        }
+
+        // If permission is denied (not just prompt), open app settings
+        // because the OS won't show the permission dialog again
+        if (permissions === "denied") {
+            await openAppSettings();
+            return;
+        }
+
+        // Otherwise, attempt to request permissions again
+        cameraPermissionDenied.set(false);
+        await startScan();
+    }
+
+    async function handleOpenSettings() {
+        await openAppSettings();
     }
 
     async function handleAuth() {
@@ -1466,6 +1506,7 @@ export function createScanLogic({
             signingError,
             authLoading,
             isFromScan,
+            cameraPermissionDenied,
         },
         actions: {
             startScan,
@@ -1487,6 +1528,8 @@ export function createScanLogic({
             handleDeepLinkData,
             handleBlindVotingRequest,
             initialize,
+            retryPermission,
+            handleOpenSettings,
         },
     };
 }
