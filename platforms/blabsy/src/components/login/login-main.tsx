@@ -1,6 +1,6 @@
 import QRCode from 'react-qr-code';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@lib/context/auth-context';
 import { NextImage } from '@components/ui/next-image';
 import Image from 'next/image';
@@ -10,8 +10,10 @@ export function LoginMain(): JSX.Element {
     const { signInWithCustomToken } = useAuth();
     const [qr, setQr] = useState<string>();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
+    const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    function watchEventStream(id: string): void {
+    const watchEventStream = useCallback((id: string): EventSource => {
         const sseUrl = new URL(
             `/api/auth/sessions/${id}`,
             process.env.NEXT_PUBLIC_BASE_URL
@@ -49,9 +51,20 @@ export function LoginMain(): JSX.Element {
             console.error('SSE connection error');
             eventSource.close();
         };
-    }
 
-    const getOfferData = async (): Promise<void> => {
+        return eventSource;
+    }, [signInWithCustomToken]);
+
+    const getOfferData = useCallback(async (): Promise<void> => {
+        // Clean up existing SSE connection
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+        // Clean up existing refresh timer
+        if (refreshTimerRef.current) {
+            clearTimeout(refreshTimerRef.current);
+        }
+
         const { data } = await axios.get<{ uri: string }>(
             new URL(
                 '/api/auth/offer',
@@ -59,10 +72,18 @@ export function LoginMain(): JSX.Element {
             ).toString()
         );
         setQr(data.uri);
-        watchEventStream(
+        eventSourceRef.current = watchEventStream(
             new URL(data.uri).searchParams.get('session') as string
         );
-    };
+
+        // Set up auto-refresh after 60 seconds
+        refreshTimerRef.current = setTimeout(() => {
+            console.log('Refreshing QR code after 60 seconds');
+            getOfferData().catch((error) =>
+                console.error('Error refreshing QR code:', error)
+            );
+        }, 60000);
+    }, [watchEventStream]);
 
     const getAppStoreLink = () => {
         if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -106,7 +127,17 @@ export function LoginMain(): JSX.Element {
         getOfferData().catch((error) =>
             console.error('Error fetching QR code data:', error)
         );
-    }, []);
+
+        // Cleanup on unmount
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
+            if (refreshTimerRef.current) {
+                clearTimeout(refreshTimerRef.current);
+            }
+        };
+    }, [getOfferData]);
 
     const handleAutoLogin = async (
         ename: string,
@@ -209,8 +240,7 @@ export function LoginMain(): JSX.Element {
                                             The button is valid for 60 seconds
                                         </span>
                                         <span className='block font-light text-gray-600'>
-                                            Please refresh the page if it
-                                            expires
+                                            It will refresh automatically
                                         </span>
                                     </p>
                                 </div>
@@ -237,8 +267,7 @@ export function LoginMain(): JSX.Element {
                                             The code is valid for 60 seconds
                                         </span>
                                         <span className='block font-light text-gray-600'>
-                                            Please refresh the page if it
-                                            expires
+                                            It will refresh automatically
                                         </span>
                                     </p>
                                 </div>
