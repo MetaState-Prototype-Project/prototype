@@ -215,6 +215,11 @@ export class ChatService {
 
         const savedMessage = await this.messageRepository.save(message);
 
+        // Explicitly update the chat's updatedAt to ensure proper sorting
+        await this.chatRepository.update(chatId, {
+            updatedAt: new Date()
+        });
+
         console.log("Sent event", `chat:${chatId}`);
         this.eventEmitter.emit(`chat:${chatId}`, [savedMessage]);
 
@@ -361,24 +366,46 @@ export class ChatService {
             ],
         });
 
-        // Sort the chats by latest message timestamp (most recent first)
+        // Sort chats by most recent activity (most recent first)
+        // Priority: latest message timestamp > updatedAt > createdAt
         const sortedChats = chatsWithRelations.sort((a, b) => {
-            const aLatestMessage = a.messages[a.messages.length - 1];
-            const bLatestMessage = b.messages[b.messages.length - 1];
+            const getMostRecentTimestamp = (chat: typeof a): number => {
+                // Priority 1: latest message timestamp (most recent activity)
+                // Sort messages by createdAt ascending to get the latest one
+                const sortedMessages = [...(chat.messages || [])].sort(
+                    (m1, m2) => m1.createdAt.getTime() - m2.createdAt.getTime()
+                );
+                const latestMessage = sortedMessages[sortedMessages.length - 1];
+                if (latestMessage) {
+                    return latestMessage.createdAt.getTime();
+                }
+                // Priority 2: updatedAt (for updated chats without messages)
+                if (chat.updatedAt) {
+                    return chat.updatedAt.getTime();
+                }
+                // Priority 3: createdAt (for new chats)
+                if (chat.createdAt) {
+                    return chat.createdAt.getTime();
+                }
+                // Fallback: 0 for chats with no timestamps
+                return 0;
+            };
 
-            if (!aLatestMessage && !bLatestMessage) {
-                return b.createdAt.getTime() - a.createdAt.getTime();
-            }
-            if (!aLatestMessage) return 1;
-            if (!bLatestMessage) return -1;
+            const aTimestamp = getMostRecentTimestamp(a);
+            const bTimestamp = getMostRecentTimestamp(b);
 
-            return bLatestMessage.createdAt.getTime() - aLatestMessage.createdAt.getTime();
+            // Sort by most recent timestamp (descending)
+            return bTimestamp - aTimestamp;
         });
 
         // For each chat, get the latest message and its read status
         const chatsWithLatestMessage = await Promise.all(
             sortedChats.map(async (chat) => {
-                const latestMessage = chat.messages[chat.messages.length - 1];
+                // Sort messages by createdAt ascending to get the latest one
+                const sortedMessages = [...(chat.messages || [])].sort(
+                    (m1, m2) => m1.createdAt.getTime() - m2.createdAt.getTime()
+                );
+                const latestMessage = sortedMessages[sortedMessages.length - 1];
                 if (!latestMessage) {
                     return { ...chat, latestMessage: undefined };
                 }
