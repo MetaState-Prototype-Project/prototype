@@ -103,33 +103,32 @@ export function ChatContextProvider({
             (snapshot) => {
                 const chatsData = snapshot.docs.map((doc) => doc.data());
 
-                // Sort chats by last message timestamp (most recent first)
+                // Sort chats by most recent activity (most recent first)
+                // Priority: lastMessage timestamp > updatedAt > createdAt
                 const sortedChats = chatsData.sort((a, b) => {
-                    // If both have lastMessage, sort by timestamp
-                    if (a.lastMessage?.timestamp && b.lastMessage?.timestamp) {
-                        return (
-                            b.lastMessage.timestamp.toMillis() -
-                            a.lastMessage.timestamp.toMillis()
-                        );
-                    }
-                    // If only one has lastMessage, prioritize it
-                    if (a.lastMessage?.timestamp && !b.lastMessage?.timestamp)
-                        return -1;
-                    if (!a.lastMessage?.timestamp && b.lastMessage?.timestamp)
-                        return 1;
-                    // If neither has lastMessage, sort by updatedAt (with null checks)
-                    if (a.updatedAt && b.updatedAt) {
-                        return b.updatedAt.toMillis() - a.updatedAt.toMillis();
-                    }
-                    // If only one has updatedAt, prioritize it
-                    if (a.updatedAt && !b.updatedAt) return -1;
-                    if (!a.updatedAt && b.updatedAt) return 1;
-                    // If both are null, sort by createdAt as fallback
-                    if (a.createdAt && b.createdAt) {
-                        return b.createdAt.toMillis() - a.createdAt.toMillis();
-                    }
-                    // If all else fails, maintain order
-                    return 0;
+                    // Get the most recent activity timestamp for each chat
+                    const getMostRecentTimestamp = (chat: typeof a): number => {
+                        // Priority 1: lastMessage timestamp (most recent activity)
+                        if (chat.lastMessage?.timestamp) {
+                            return chat.lastMessage.timestamp.toMillis();
+                        }
+                        // Priority 2: updatedAt (for updated chats without messages)
+                        if (chat.updatedAt) {
+                            return chat.updatedAt.toMillis();
+                        }
+                        // Priority 3: createdAt (for new chats)
+                        if (chat.createdAt) {
+                            return chat.createdAt.toMillis();
+                        }
+                        // Fallback: 0 for chats with no timestamps
+                        return 0;
+                    };
+
+                    const aTimestamp = getMostRecentTimestamp(a);
+                    const bTimestamp = getMostRecentTimestamp(b);
+
+                    // Sort by most recent timestamp (descending)
+                    return bTimestamp - aTimestamp;
                 });
 
                 setChats(sortedChats);

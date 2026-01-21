@@ -51,8 +51,8 @@ function MessageItem({
                             <div
                                 dangerouslySetInnerHTML={{
                                     __html: displayText.replace(
-                                        /<a href="([^"]+)">([^<]+)<\/a>/g,
-                                        '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                                        /<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g,
+                                        '<a href="$1"$2 class="text-blue-600 hover:text-blue-800 underline cursor-pointer">$3</a>'
                                     )
                                 }}
                             />
@@ -119,8 +119,8 @@ function MessageItem({
                         className='break-words whitespace-pre-wrap'
                         dangerouslySetInnerHTML={{
                             __html: displayText.replace(
-                                /<a href="([^"]+)">([^<]+)<\/a>/g,
-                                '<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+                                /<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g,
+                                '<a href="$1"$2 class="text-blue-600 hover:text-blue-800 underline cursor-pointer">$3</a>'
                             )
                         }}
                     />

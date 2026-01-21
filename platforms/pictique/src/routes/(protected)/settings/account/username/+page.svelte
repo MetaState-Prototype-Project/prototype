@@ -83,7 +83,13 @@
 
 	<div>
 		<Label>eName</Label>
-		<Input type="text" placeholder="Your eName" bind:value={handle} disabled class="cursor-not-allowed opacity-70" />
+		<Input
+			type="text"
+			placeholder="Your eName"
+			bind:value={handle}
+			disabled
+			class="cursor-not-allowed opacity-70"
+		/>
 	</div>
 	<div>
 		<Label>Profile Name</Label>

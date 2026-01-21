@@ -44,8 +44,8 @@
 			<div class="inline-block rounded-[10px] border border-gray-300 bg-gray-200 px-4 py-2">
 				<div class="text-left text-sm font-medium whitespace-pre-wrap text-black">
 					{@html displayText.replace(
-						/<a href="([^"]+)">([^<]+)<\/a>/g,
-						'<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+						/<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g,
+						'<a href="$1"$2 class="text-blue-600 hover:text-blue-800 underline cursor-pointer">$3</a>'
 					)}
 				</div>
 			</div>
@@ -102,8 +102,8 @@
 
 				<div class={cn(`${!isOwn ? 'text-white' : 'text-black-600'} whitespace-pre-wrap`)}>
 					{@html displayText.replace(
-						/<a href="([^"]+)">([^<]+)<\/a>/g,
-						'<a href="$1" class="text-blue-600 hover:text-blue-800 underline">$2</a>'
+						/<a href="([^"]+)"([^>]*)>([^<]+)<\/a>/g,
+						'<a href="$1"$2 class="text-blue-600 hover:text-blue-800 underline cursor-pointer">$3</a>'
 					)}
 				</div>
 			</div>
