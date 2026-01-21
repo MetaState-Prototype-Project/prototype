@@ -34,14 +34,25 @@ export class AuthController {
 
         this.eventEmitter.on(id, handler);
 
+        // Send heartbeat every 30 seconds to keep connection alive
+        const heartbeatInterval = setInterval(() => {
+            try {
+                res.write(`: heartbeat\n\n`);
+            } catch (error) {
+                clearInterval(heartbeatInterval);
+            }
+        }, 30000);
+
         // Handle client disconnect
         req.on("close", () => {
+            clearInterval(heartbeatInterval);
             this.eventEmitter.off(id, handler);
             res.end();
         });
 
         req.on("error", (error) => {
             console.error("SSE Error:", error);
+            clearInterval(heartbeatInterval);
             this.eventEmitter.off(id, handler);
             res.end();
         });

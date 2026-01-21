@@ -16,6 +16,8 @@
 	let qrData = $state<string>('');
 	let isMobile = $state(false);
 	let errorMessage = $state<string | null>(null);
+	let eventSource: EventSource | null = null;
+	let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function checkMobile() {
 		isMobile = window.innerWidth <= 640; // Tailwind's `sm` breakpoint
@@ -69,6 +71,71 @@
 		}
 	}
 
+	function watchEventStream(id: string) {
+		const sseUrl = new URL(`/api/auth/sessions/${id}`, PUBLIC_PICTIQUE_BASE_URL).toString();
+		const newEventSource = new EventSource(sseUrl);
+
+		newEventSource.onopen = () => {
+			console.log('Successfully connected.');
+			errorMessage = null;
+		};
+
+		newEventSource.onmessage = (e) => {
+			const data = JSON.parse(e.data as string);
+
+			// Check for error messages (version mismatch)
+			if (data.error && data.type === 'version_mismatch') {
+				errorMessage =
+					data.message ||
+					'Your eID Wallet app version is outdated. Please update to continue.';
+				newEventSource.close();
+				return;
+			}
+
+			// Handle successful authentication
+			if (data.user && data.token) {
+				const { user } = data;
+				setAuthId(user.id);
+				const { token } = data;
+				setAuthToken(token);
+				goto('/home');
+			}
+		};
+
+		newEventSource.onerror = () => {
+			console.error('SSE connection error');
+			newEventSource.close();
+		};
+
+		return newEventSource;
+	}
+
+	async function fetchOfferAndSetupSSE() {
+		// Clean up existing SSE connection
+		if (eventSource) {
+			eventSource.close();
+			eventSource = null;
+		}
+		// Clean up existing refresh timer
+		if (refreshTimer) {
+			clearTimeout(refreshTimer);
+			refreshTimer = null;
+		}
+
+		const { data } = await apiClient.get('/api/auth/offer');
+		qrData = data.uri;
+
+		eventSource = watchEventStream(new URL(qrData).searchParams.get('session') as string);
+
+		// Set up auto-refresh after 60 seconds
+		refreshTimer = setTimeout(() => {
+			console.log('Refreshing QR code after 60 seconds');
+			fetchOfferAndSetupSSE().catch((error) =>
+				console.error('Error refreshing QR code:', error)
+			);
+		}, 60000);
+	}
+
 	onMount(async () => {
 		checkMobile();
 		window.addEventListener('resize', checkMobile);
@@ -90,51 +157,17 @@
 		}
 
 		// If no query params, proceed with normal flow
-		const { data } = await apiClient.get('/api/auth/offer');
-		qrData = data.uri;
+		await fetchOfferAndSetupSSE();
+	});
 
-		function watchEventStream(id: string) {
-			const sseUrl = new URL(`/api/auth/sessions/${id}`, PUBLIC_PICTIQUE_BASE_URL).toString();
-			const eventSource = new EventSource(sseUrl);
-
-			eventSource.onopen = () => {
-				console.log('Successfully connected.');
-				errorMessage = null;
-			};
-
-			eventSource.onmessage = (e) => {
-				const data = JSON.parse(e.data as string);
-
-				// Check for error messages (version mismatch)
-				if (data.error && data.type === 'version_mismatch') {
-					errorMessage =
-						data.message ||
-						'Your eID Wallet app version is outdated. Please update to continue.';
-					eventSource.close();
-					return;
-				}
-
-				// Handle successful authentication
-				if (data.user && data.token) {
-					const { user } = data;
-					setAuthId(user.id);
-					const { token } = data;
-					setAuthToken(token);
-					goto('/home');
-				}
-			};
-
-			eventSource.onerror = () => {
-				console.error('SSE connection error');
-				eventSource.close();
-			};
+	onDestroy(() => {
+		window.removeEventListener('resize', checkMobile);
+		if (eventSource) {
+			eventSource.close();
 		}
-
-		watchEventStream(new URL(qrData).searchParams.get('session') as string);
-
-		onDestroy(() => {
-			window.removeEventListener('resize', checkMobile);
-		});
+		if (refreshTimer) {
+			clearTimeout(refreshTimer);
+		}
 	});
 </script>
 
@@ -211,8 +244,7 @@
 			<span class="mb-1 block font-bold text-gray-600"
 				>The {isMobileDevice() ? 'button' : 'code'} is valid for 60 seconds</span
 			>
-			<span class="block font-light text-gray-600">Please refresh the page if it expires</span
-			>
+			<span class="block font-light text-gray-600">It will refresh automatically</span>
 		</p>
 
 		<p class="w-full rounded-md bg-white/60 p-4 text-center text-xs leading-4 text-black/40">
