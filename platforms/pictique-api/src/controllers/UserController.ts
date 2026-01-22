@@ -43,10 +43,10 @@ export class UserController {
             }
 
             // Validate search query length
-            if (q.trim().length < 2) {
+            if (q.trim().length < 1) {
                 return res
                     .status(400)
-                    .json({ error: "Search query must be at least 2 characters long" });
+                    .json({ error: "Search query cannot be empty" });
             }
 
             // Parse and validate pagination parameters
@@ -120,10 +120,10 @@ export class UserController {
             }
 
             // Validate search query length
-            if (q.trim().length < 2) {
+            if (q.trim().length < 1) {
                 return res
                     .status(400)
-                    .json({ error: "Search query must be at least 2 characters long" });
+                    .json({ error: "Search query cannot be empty" });
             }
 
             // Parse and validate pagination parameters
