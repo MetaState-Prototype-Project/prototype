@@ -37,7 +37,7 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem("dreamsync_token");
             localStorage.removeItem("dreamsync_user_id");
-            window.location.href = "/login";
+            window.location.href = "/";
         }
         return Promise.reject(error);
     }
