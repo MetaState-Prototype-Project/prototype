@@ -61,7 +61,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
       setIsCalculating(false);
       setCurrentStep(0);
       setProgress(0);
-      
+
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -69,7 +69,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/";
         }, 500);
         return;
       }
@@ -105,7 +105,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
         setReputationResult(calculateMutation.data);
         setIsCalculating(false);
         setShowViewModal(true);
-        
+
         // Update dashboard queries
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
         queryClient.invalidateQueries({ queryKey: ["/api/dashboard/activities"] });
@@ -139,7 +139,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               </div>
-              
+
               <div>
                 <h3 className="text-xl font-black text-fig mb-2">Ready to Calculate</h3>
                 <p className="text-fig/70 text-sm leading-relaxed max-w-md mx-auto">
@@ -162,7 +162,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
               <div className="text-center">
                 <h3 className="text-xl font-black text-fig mb-2">Calculating Your eReputation</h3>
                 <p className="text-fig/70 text-sm">
-                  {currentStep < ANALYSIS_STEPS.length 
+                  {currentStep < ANALYSIS_STEPS.length
                     ? ANALYSIS_STEPS[currentStep].label
                     : "Calculation complete!"
                   }
@@ -211,18 +211,18 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
             </div>
           )}
         </div>
-        
+
         <div className="border-t-2 border-fig/20 p-4 sm:p-6 bg-fig-10 -m-6 mt-0 rounded-b-xl flex-shrink-0">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleCloseModal}
               disabled={isCalculating}
               className="order-2 sm:order-1 flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11 sm:h-12 opacity-80"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleStartCalculation}
               disabled={isCalculating}
               className="order-1 sm:order-2 flex-1 bg-fig hover:bg-fig/90 text-white font-bold h-11 sm:h-12 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -239,7 +239,7 @@ export default function SelfCalculationModal({ open, onOpenChange }: SelfCalcula
           </div>
         </div>
       </DialogContent>
-      
+
       {/* View Reputation Modal */}
       <ViewReputationModal
         open={showViewModal}
