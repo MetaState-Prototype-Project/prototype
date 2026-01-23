@@ -69,7 +69,7 @@ export default function Dashboard() {
 
     const handleLogout = () => {
         clearAuth();
-        window.location.href = "/auth";
+        window.location.href = "/";
     };
 
     const handleViewActivity = (activity: any) => {

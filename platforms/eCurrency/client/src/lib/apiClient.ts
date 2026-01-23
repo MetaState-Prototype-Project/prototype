@@ -30,7 +30,7 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem("ecurrency_token");
             localStorage.removeItem("ecurrency_user");
-            window.location.href = "/auth";
+            window.location.href = "/";
         }
         return Promise.reject(error);
     }

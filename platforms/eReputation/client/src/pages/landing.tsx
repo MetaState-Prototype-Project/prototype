@@ -1,6 +1,6 @@
 export default function Landing() {
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/";
   };
 
   return (
@@ -11,7 +11,7 @@ export default function Landing() {
         <div className="absolute top-40 right-20 w-24 h-24 bg-apple-red rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-700"></div>
         <div className="absolute bottom-20 left-1/3 w-28 h-28 bg-basil rounded-full mix-blend-multiply filter blur-xl animate-pulse delay-300"></div>
       </div>
-      
+
       <div className="bg-fig-10 rounded-3xl shadow-2xl p-8 sm:p-12 w-full max-w-md mx-4 border border-fig/20">
         <div className="text-center mb-8">
           {/* Enhanced Logo */}
@@ -22,14 +22,14 @@ export default function Landing() {
               </svg>
             </div>
           </div>
-          
+
           <div className="space-y-2 mb-6">
             <h1 className="text-4xl font-black text-fig tracking-tight">eReputation</h1>
             <p className="text-gray-800 text-sm leading-relaxed max-w-sm mx-auto font-medium">
               Calculate and manage your eReputation throughout the W3DS
             </p>
           </div>
-          
+
           {/* Feature Icons */}
           <div className="flex justify-center gap-8 mb-8">
             <div className="flex flex-col items-center gap-1">
@@ -58,9 +58,9 @@ export default function Landing() {
             </div>
           </div>
         </div>
-        
+
         <div className="space-y-6">
-          <button 
+          <button
             onClick={handleLogin}
             className="group w-full bg-fig hover:bg-fig/90 text-white py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
           >
@@ -71,7 +71,7 @@ export default function Landing() {
             </div>
             <span>Sign in to Continue</span>
           </button>
-          
+
           <div className="text-center">
             <div className="flex items-center justify-center text-xs text-gray-400">
               <span className="flex items-center gap-1">
