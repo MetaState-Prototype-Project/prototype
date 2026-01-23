@@ -16,7 +16,7 @@ The eVault system enables users to sign data using keys stored in their eID wall
 
 Keys are generated in the eID wallet during onboarding or pre-verification. The system supports two types of key managers:
 
-1. **Hardware Key Manager**: Uses WebAuthn/Passkeys for hardware-backed keys
+1. **Hardware Key Manager**: Uses Native iOS/Android APIs for hardware-backed keys
 2. **Software Key Manager**: Uses Web Crypto API to generate software keys
 
 Both generate ECDSA P-256 key pairs with SHA-256 hashing.
