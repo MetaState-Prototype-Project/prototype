@@ -453,11 +453,11 @@ flowchart TD
     Save --> End
     Fail --> End
 
-    style GenKeys fill:#e1f5ff
-    style Provision fill:#e1f5ff
-    style Sign fill:#e1f5ff
-    style Success fill:#d4edda
-    style Fail fill:#f8d7da
+    style GenKeys fill:#e1f5ff,color:#000000
+    style Provision fill:#e1f5ff,color:#000000
+    style Sign fill:#e1f5ff,color:#000000
+    style Success fill:#d4edda,color:#000000
+    style Fail fill:#f8d7da,color:#000000
 ```
 
 ### Algorithm Details
