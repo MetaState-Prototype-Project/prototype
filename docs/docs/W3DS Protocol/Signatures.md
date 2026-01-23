@@ -17,17 +17,17 @@ Signatures in the eID wallet are created using ECDSA P-256 with SHA-256 hashing.
 Software keys generate signatures using the Web Crypto API with ECDSA P-256 and SHA-256:
 
 **Algorithm**: ECDSA P-256 with SHA-256  
-**Format**: Base64 encoded raw signature  
+**Format**: P1363 (raw 64-byte r||s) base64 encoded  
 **Length**: 64 bytes (32 bytes for r, 32 bytes for s) when decoded
 
 **Example:**
 ```
-Signature: "MEUCIQDxK3vJZQ2F3k5L8mN9pQrS7tUvW1xY3zA5bC7dE9fG1h=="
+Signature: "xK3vJZQ2F3k5L8mN9pQrS7tUvW1xY3zA5bC7dE9fG1hIjKlMnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWxYz=="
 ```
 
 The signature is created by:
 1. Encoding the payload as UTF-8
-2. Signing with the private key using `crypto.subtle.sign()`
+2. Signing with the private key using `crypto.subtle.sign()`, which produces a raw 64-byte signature (32-byte r concatenated with 32-byte s)
 3. Converting the ArrayBuffer result to base64
 
 ### Hardware Key Signatures
@@ -49,8 +49,11 @@ The signature validator automatically detects the format:
 
 1. **DER Format**: Starts with `0x30` (SEQUENCE), contains two INTEGERs (r and s)
 2. **Raw Format**: 64 bytes (32 bytes r + 32 bytes s)
-3. **Multibase**: Starts with 'z' prefix (base58btc)
-4. **Base64**: Standard base64/base64url encoding
+3. **Multibase**: Starts with multibase prefix:
+   - `z` prefix: base58btc encoding
+   - `m` prefix: base64 encoding (no padding)
+   - `f` prefix: base16/hex encoding (lowercase)
+4. **Base64**: Standard base64/base64url encoding (no multibase prefix)
 
 The validator normalizes DER signatures to raw format (64 bytes) before verification.
 
@@ -58,13 +61,19 @@ The validator normalizes DER signatures to raw format (64 bytes) before verifica
 
 Public keys are stored in multibase format:
 
-**Format**: Multibase encoded with 'z' prefix
-- **Base58btc**: Standard multibase encoding
-- **Hex**: Alternative format (z + hex string)
+**Format**: Multibase encoded with appropriate prefix
+- **Base58btc**: Uses 'z' prefix (standard multibase encoding)
+- **Base64**: Uses 'm' prefix (no padding)
+- **Hex (base16)**: Uses 'f' prefix (lowercase)
 
-**Example:**
+**Example (Base58btc):**
 ```
-Public Key: "z3059301306072a8648ce3d020106082a8648ce3d03010703420004a16b063e785d25945c44ae2e7a4cbd94c3316533427261244f696609d6afb848155b9016ad8d5c9ec59053b3b2cf2511af0c2414fc53d2abf96323bb1a031902"
+Public Key: "zDnaerx9Cp5X2chPZ8n3wK7mN9pQrS7tUvW1xY3zA5bC7dE9fG1hIjKlMnOpQrStUvWxYzAbCdEfGhIjKlMnOpQrStUvWx"
+```
+
+**Example (Base64):**
+```
+Public Key: "mMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEoWsGP3hdJZRcRK4ueky9lMMxZTNhJhJPZpYJ1q+4SBVbkBatjVyexZBTs7LPJRGvDCQU/FPUq/ljI7saAxkA"
 ```
 
 The public key can be in two formats:
@@ -290,7 +299,7 @@ The key generation process uses the Web Crypto API to create an ECDSA P-256 key 
 2. **Export Public Key**
    - Format: SPKI (SubjectPublicKeyInfo) DER encoding
    - Convert DER binary to base64 string
-   - Prepend multibase prefix `z` to create multibase-encoded public key
+   - Prepend multibase prefix `m` to create multibase-encoded public key
 
 3. **Store Private Key**
    - Keep private key in memory (CryptoKey object)
@@ -298,7 +307,7 @@ The key generation process uses the Web Crypto API to create an ECDSA P-256 key 
    - Never transmit or expose the private key
 
 **Key Format:**
-- **Public Key**: Multibase format `z{base64-encoded-SPKI}`
+- **Public Key**: Multibase format `m{base64-encoded-SPKI}` (or `z{base58btc-encoded-SPKI}` for base58btc)
 - **Private Key**: PKCS8 format (for storage) or CryptoKey object (for signing)
 
 ### eVault Provisioning Algorithm
@@ -364,7 +373,7 @@ sequenceDiagram
     Dev->>Crypto: Generate ECDSA P-256 key pair
     Crypto-->>Dev: Key pair (privateKey, publicKey)
     Dev->>Dev: Export public key as SPKI
-    Dev->>Dev: Encode as multibase (z + base64)
+    Dev->>Dev: Encode as multibase (m + base64)
 
     Note over Dev,Platform: Step 2: eVault Provisioning
     Dev->>Registry: GET /entropy
@@ -510,13 +519,17 @@ flowchart TD
 
 3. **Add Multibase Prefix**
    ```
-   base64 string → 'z' + base64 → multibase string
+   base64 string → 'm' + base64 → multibase string
    ```
 
 **Format:**
-- Prefix: `z` (base58btc, but using base64 here)
+- Prefix: `m` (base64, no padding)
 - Content: Base64-encoded SPKI DER structure
-- Example: `zMFlh...` (starts with `z`)
+- Example: `mMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...` (starts with `m`)
+
+**Alternative Formats:**
+- Prefix: `z` (base58btc) - for base58btc-encoded public keys
+- Prefix: `f` (base16/hex) - for hex-encoded public keys (lowercase)
 
 ### Security Considerations
 
