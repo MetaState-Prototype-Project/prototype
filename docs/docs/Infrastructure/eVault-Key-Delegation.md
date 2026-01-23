@@ -49,7 +49,7 @@ This eliminates the need for a separate sync step when the eVault is first creat
 
 ### Syncing Public Keys to eVault
 
-The public key syncing process is handled by `VaultController.syncPublicKey()`:
+The public key syncing is an autonomous process done by the eID Wallet when linking new devices to the same eName.
 
 ```mermaid
 sequenceDiagram
@@ -100,7 +100,7 @@ Key binding certificates are JWTs that cryptographically bind a public key to an
 - **Payload**: `{ ename: "@user.w3id", publicKey: "z..." }`
 - **Signature**: Signed by Registry's private key (ES256)
 
-The certificate is valid for 1 hour and can be verified using the Registry's JWKS endpoint at `/.well-known/jwks.json`.
+The certificate can be verified using the Registry's JWKS endpoint at `/.well-known/jwks.json`.
 
 ### eVault Endpoints
 
