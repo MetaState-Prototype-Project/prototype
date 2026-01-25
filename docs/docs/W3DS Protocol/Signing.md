@@ -323,7 +323,7 @@ For each certificate, perform these steps:
    - Verify the signature using the corresponding public key from JWKS
    - Use a JWT library in your language or implement ECDSA verification manually
 
-4. **Check Expiration**: Verify the `exp` claim in the JWT payload. Certificates expire 1 hour after issuance.
+4. **Check Expiration**: Verify the `exp` claim in the JWT payload. Certificates have 1-hour validity.
 
 5. **Extract Public Key**: Get the `publicKey` field from the JWT payload. This is the user's public key in multibase format.
 

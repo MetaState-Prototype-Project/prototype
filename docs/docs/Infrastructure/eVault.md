@@ -39,7 +39,6 @@ graph TB
 
     subgraph Storage["Storage"]
         Neo4j[(Neo4j Database<br/>MetaEnvelopes & Envelopes)]
-        Postgres[(PostgreSQL<br/>Verifications & Notifications)]
     end
 
     subgraph External["External Services"]
@@ -54,7 +53,6 @@ graph TB
     Webhook -->|Notify| Platform
     AccessGuard -->|Resolve eName| Registry
     HTTP -->|Store Data| Neo4j
-    HTTP -->|Store Metadata| Postgres
 
     style GraphQL fill:#e1f5ff,color:#000000
     style Neo4j fill:#fff4e1,color:#000000
@@ -353,57 +351,7 @@ eVault supports multiple tenants (eNames) in a single instance:
 - **Isolation**: All queries filtered by eName
 - **No Cross-Tenant Access**: Users can only access their own data (unless ACL allows)
 
-## Deployment
 
-### Requirements
-
-- **Neo4j**: Version 5.15+ (graph database)
-- **PostgreSQL**: For verification and notification storage
-- **Node.js**: 18+ runtime
-- **Registry Service**: For W3ID resolution and platform discovery
-
-### Environment Variables
-
-```bash
-# Neo4j Configuration
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=neo4j
-
-# Server Ports
-EXPRESS_PORT=3001  # HTTP API (provisioning, verification)
-FASTIFY_PORT=4000  # GraphQL API
-
-# Registry Configuration
-PUBLIC_REGISTRY_URL=https://registry.example.com
-REGISTRY_SHARED_SECRET=your-secret
-
-# Optional: eVault Identity
-EVAULT_PUBLIC_KEY=z...
-W3ID=@evault-instance.w3id
-```
-
-### Docker Deployment
-
-eVault can be deployed using Docker:
-
-```yaml
-services:
-  evault-core:
-    build:
-      dockerfile: ./docker/Dockerfile.evault-core
-    ports:
-      - "3001:3001"  # Express
-      - "4000:4000"  # Fastify/GraphQL
-    environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASSWORD=neo4j
-      - PUBLIC_REGISTRY_URL=https://registry.example.com
-    depends_on:
-      - neo4j
-      - postgres
-```
 
 ## API Examples
 

@@ -31,7 +31,7 @@ sequenceDiagram
     Platform->>Platform: 2. Generate session ID
     Platform-->>User: 3. Return w3ds://auth URI<br/>(contains session ID)
     User->>User: 4. Sign session ID<br/>with private key
-    User->>Platform: 5. POST to redirect URL<br/>(ename, session, signature, appVersion)
+    User->>Platform: 5. POST to redirect URL<br/>(w3id, session, signature, appVersion)
     Platform->>Validator: 6. verifySignature()
     Validator->>Registry: 7. GET /resolve?w3id=@user.w3id
     Registry-->>Validator: 8. eVault URL
@@ -147,7 +147,7 @@ After the user signs the session ID, the eID wallet makes an HTTP POST request t
 **Request Body** (JSON):
 ```json
 {
-    "ename": "@user-a.w3id",
+    "w3id": "@user-a.w3id",
     "session": "550e8400-e29b-41d4-a716-446655440000",
     "signature": "xK3vJZQ2F3k5L8mN9pQrS7tUvW1xY3zA5bC7dE9fG1hIjKlMnOpQrStUvWxYz==",
     "appVersion": "0.4.0"
@@ -155,7 +155,7 @@ After the user signs the session ID, the eID wallet makes an HTTP POST request t
 ```
 
 **Field Descriptions**:
-- `ename`: The user's W3ID (eName) identifier, always starts with '@'
+- `w3id`: The user's W3ID (eName) identifier, always starts with '@'
 - `session`: The session UUID that was generated in Step 1
 - `signature`: The base64 or multibase-encoded signature of the session ID
 - `appVersion`: Optional version string for compatibility checking
@@ -164,7 +164,7 @@ After the user signs the session ID, the eID wallet makes an HTTP POST request t
 
 **Platform Processing Steps**:
 
-1. **Validate Input**: Ensure all required fields (ename, session, signature) are present and non-empty. Return 400 Bad Request if validation fails.
+1. **Validate Input**: Ensure all required fields (w3id, session, signature) are present and non-empty. Return 400 Bad Request if validation fails.
 
 2. **Validate Session**: Check that the session ID matches one that was recently generated (within the last 5 minutes). Reject duplicate or expired sessions. This prevents replay attacks.
 
@@ -198,15 +198,15 @@ After the user signs the session ID, the eID wallet makes an HTTP POST request t
 **Reference Implementation** (TypeScript):
 ```typescript
 login = async (req: Request, res: Response) => {
-    const { ename, session, appVersion, signature } = req.body;
+    const { w3id, session, appVersion, signature } = req.body;
 
-    if (!ename || !session || !signature) {
+    if (!w3id || !session || !signature) {
         return res.status(400).json({ error: "Missing required fields" });
     }
 
     // Verify signature (see Signing documentation)
     const verificationResult = await verifySignature({
-        eName: ename,
+        eName: w3id,
         signature: signature,
         payload: session,
         registryBaseUrl: process.env.PUBLIC_REGISTRY_URL,
@@ -220,7 +220,7 @@ login = async (req: Request, res: Response) => {
     }
 
     // Create authentication token
-    const token = await auth().createCustomToken(ename);
+    const token = await auth().createCustomToken(w3id);
     res.status(200).json({ token });
 };
 ```
@@ -228,6 +228,59 @@ login = async (req: Request, res: Response) => {
 ## Platform Implementation
 
 ### Example: Blabsy Auth Controller
+
+**Version Validation Helper Function**:
+
+Before implementing the auth controller, you'll need a function to compare semantic versions. Here's an implementation example:
+
+```typescript
+/**
+ * Compares two semantic version strings (e.g., "1.2.3")
+ * @param appVersion - The version to check (e.g., "0.3.5")
+ * @param minVersion - The minimum required version (e.g., "0.4.0")
+ * @returns true if appVersion >= minVersion, false otherwise
+ */
+function isVersionValid(appVersion: string | undefined, minVersion: string): boolean {
+    if (!appVersion) {
+        return false; // Missing version is considered invalid
+    }
+
+    // Parse versions into [major, minor, patch] arrays
+    const parseVersion = (version: string): number[] => {
+        return version.split('.').map(Number).slice(0, 3);
+    };
+
+    const app = parseVersion(appVersion);
+    const min = parseVersion(minVersion);
+
+    // Compare lexicographically: major, then minor, then patch
+    for (let i = 0; i < 3; i++) {
+        if (app[i] > min[i]) {
+            return true; // appVersion is newer
+        }
+        if (app[i] < min[i]) {
+            return false; // appVersion is older
+        }
+        // Continue to next component if equal
+    }
+
+    return true; // Versions are equal
+}
+```
+
+**Language-Agnostic Implementation**:
+
+The version comparison logic can be implemented in any language:
+
+1. **Parse versions**: Split version strings by '.' into arrays of integers (major, minor, patch)
+2. **Compare components**: Compare major, then minor, then patch lexicographically
+3. **Return result**: Return `true` if appVersion >= minVersion, `false` otherwise
+
+**Library Alternatives**:
+- **Node.js/TypeScript**: Use `semver` package: `semver.gte(appVersion, minVersion)`
+- **Python**: Use `packaging.version`: `Version(appVersion) >= Version(minVersion)`
+- **Go**: Use `golang.org/x/mod/semver`: `semver.Compare(appVersion, "v"+minVersion) >= 0`
+- **Java**: Use `org.apache.maven.artifact.versioning.ComparableVersion`
 
 ```typescript
 import { Request, Response } from "express";
@@ -248,10 +301,10 @@ export class AuthController {
 
     // Step 2: Verify signature and authenticate
     login = async (req: Request, res: Response) => {
-        const { ename, session, signature, appVersion } = req.body;
+        const { w3id, session, signature, appVersion } = req.body;
 
         // Validate input
-        if (!ename || !session || !signature) {
+        if (!w3id || !session || !signature) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
@@ -264,7 +317,7 @@ export class AuthController {
 
         // Verify signature
         const verificationResult = await verifySignature({
-            eName: ename,
+            eName: w3id,
             signature: signature,
             payload: session,
             registryBaseUrl: process.env.PUBLIC_REGISTRY_URL,
@@ -278,7 +331,7 @@ export class AuthController {
         }
 
         // Create authentication token
-        const token = await auth().createCustomToken(ename);
+        const token = await auth().createCustomToken(w3id);
         res.status(200).json({ token });
     };
 }
@@ -292,11 +345,11 @@ import { signToken } from "../utils/jwt";
 
 export class AuthController {
     login = async (req: Request, res: Response) => {
-        const { ename, session, signature } = req.body;
+        const { w3id, session, signature } = req.body;
 
         // Verify signature
         const verificationResult = await verifySignature({
-            eName: ename,
+            eName: w3id,
             signature: signature,
             payload: session,
             registryBaseUrl: process.env.PUBLIC_REGISTRY_URL,
@@ -309,7 +362,7 @@ export class AuthController {
         }
 
         // Find or create user
-        let user = await this.userService.findByEname(ename);
+        let user = await this.userService.findByEname(w3id);
         if (!user) {
             throw new Error("User not found");
         }

@@ -380,7 +380,7 @@ const signature = await keyService.signPayload(
 const response = await fetch(redirectUrl, {
     method: "POST",
     body: JSON.stringify({
-        ename: vault.ename,
+        w3id: vault.ename,
         session: sessionId,
         signature: signature,
         appVersion: "0.4.0"
