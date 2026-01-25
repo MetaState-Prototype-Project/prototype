@@ -398,7 +398,7 @@ const { token } = await response.json();
    - Check device support (iOS 9+, Android 6+)
    - Verify biometric authentication is set up
    - **Note**: Real KYC-verified users must use hardware keys. Software keys are only for pre-verification/test users
-   - If hardware is unavailable, the wallet will fallback to software keys, but this should not happen for verified users
+   - **Onboarding requirement**: The eID Wallet enforces hardware key manager during onboarding. Onboarding cannot proceed without hardware keys - there is no fallback to software keys for real users
 
 2. **Signature verification fails**
    - Ensure using correct key ID and context
