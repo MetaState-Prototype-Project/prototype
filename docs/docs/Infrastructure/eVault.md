@@ -1,0 +1,444 @@
+---
+sidebar_position: 1
+---
+
+# eVault
+
+eVault is the core storage system for W3DS. It provides a GraphQL API for storing and retrieving user data, manages access control, and delivers webhooks to platforms when data changes.
+
+## Overview
+
+An **eVault** is a personal data store identified by a **W3ID** (eName). Each user, group, or object has their own eVault where all their data is stored in a standardized format called **MetaEnvelopes**.
+
+### Key Features
+
+- **GraphQL API**: Store, retrieve, update, and search data
+- **Multi-tenant**: Isolated data storage per eName
+- **Access Control**: ACL-based permissions for data access
+- **Webhook Delivery**: Automatic notifications to platforms when data changes
+- **Neo4j Backend**: Graph database for flexible data relationships
+- **Key Binding**: Stores public keys for signature verification
+
+## Architecture
+
+eVault Core consists of several components:
+
+```mermaid
+graph TB
+    subgraph Client["Clients"]
+        Platform[Platforms]
+        Wallet[eID Wallet]
+    end
+
+    subgraph EVaultCore["eVault Core"]
+        GraphQL[GraphQL Server<br/>/graphql]
+        HTTP[HTTP Server<br/>/whois]
+        Webhook[Webhook Delivery]
+        AccessGuard[Access Guard<br/>ACL Enforcement]
+    end
+
+    subgraph Storage["Storage"]
+        Neo4j[(Neo4j Database<br/>MetaEnvelopes & Envelopes)]
+        Postgres[(PostgreSQL<br/>Verifications & Notifications)]
+    end
+
+    subgraph External["External Services"]
+        Registry[Registry Service<br/>W3ID Resolution]
+    end
+
+    Platform -->|GraphQL Mutations/Queries| GraphQL
+    Wallet -->|HTTP Requests| HTTP
+    GraphQL -->|Enforce ACLs| AccessGuard
+    GraphQL -->|Store/Query| Neo4j
+    GraphQL -->|Deliver Webhooks| Webhook
+    Webhook -->|Notify| Platform
+    AccessGuard -->|Resolve eName| Registry
+    HTTP -->|Store Data| Neo4j
+    HTTP -->|Store Metadata| Postgres
+
+    style GraphQL fill:#e1f5ff,color:#000000
+    style Neo4j fill:#fff4e1,color:#000000
+    style Webhook fill:#e8f5e9,color:#000000
+```
+
+## Data Model
+
+### MetaEnvelopes
+
+A **MetaEnvelope** is the top-level container for an entity (post, user, message, etc.). It contains:
+
+- **id**: Unique global identifier (UUID)
+- **ontology**: Schema identifier (e.g., "SocialMediaPost")
+- **acl**: Access Control List (who can access this data)
+- **envelopes**: Array of individual Envelope nodes
+
+### Envelopes
+
+Each field in a MetaEnvelope becomes a separate **Envelope** node in Neo4j:
+
+- **id**: Unique identifier
+- **ontology**: Same as parent MetaEnvelope
+- **value**: The actual field value (string, number, object, array)
+- **valueType**: Type of the value ("string", "number", "object", "array")
+
+### Storage Structure
+
+In Neo4j, the structure looks like:
+
+```
+(MetaEnvelope {id, ontology, acl}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
+```
+
+This flat graph structure allows:
+- Efficient field-level updates
+- Flexible querying
+- Easy reconstruction of the original object
+
+## GraphQL API
+
+eVault exposes a GraphQL API at `/graphql` for all data operations.
+
+### Queries
+
+#### getMetaEnvelopeById
+
+Retrieve a specific MetaEnvelope by its global ID.
+
+**Query**:
+```graphql
+query {
+  getMetaEnvelopeById(id: "global-id-123") {
+    id
+    ontology
+    parsed
+    envelopes {
+      id
+      ontology
+      value
+      valueType
+    }
+  }
+}
+```
+
+**Headers Required**:
+- `X-ENAME`: The eName of the eVault owner
+- `Authorization: Bearer <token>`: Platform authentication token
+
+#### findMetaEnvelopesByOntology
+
+Find all MetaEnvelopes of a specific ontology type.
+
+**Query**:
+```graphql
+query {
+  findMetaEnvelopesByOntology(ontology: "SocialMediaPost") {
+    id
+    ontology
+    parsed
+  }
+}
+```
+
+#### searchMetaEnvelopes
+
+Search MetaEnvelopes by content within a specific ontology.
+
+**Query**:
+```graphql
+query {
+  searchMetaEnvelopes(ontology: "SocialMediaPost", term: "hello") {
+    id
+    ontology
+    parsed
+  }
+}
+```
+
+### Mutations
+
+#### storeMetaEnvelope
+
+Store a new MetaEnvelope in the eVault.
+
+**Mutation**:
+```graphql
+mutation {
+  storeMetaEnvelope(input: {
+    ontology: "SocialMediaPost"
+    payload: {
+      content: "Hello, world!"
+      mediaUrls: []
+      authorId: "..."
+      createdAt: "2025-01-24T10:00:00Z"
+    }
+    acl: ["*"]
+  }) {
+    metaEnvelope {
+      id
+      ontology
+      parsed
+    }
+    envelopes {
+      id
+      value
+      valueType
+    }
+  }
+}
+```
+
+**Headers Required**:
+- `X-ENAME`: The eName of the eVault owner (required)
+- `Authorization: Bearer <token>`: Optional, but recommended for webhook delivery
+
+**Special Note**: `storeMetaEnvelope` only requires `X-ENAME` header. Bearer token is optional but allows the system to exclude the requesting platform from webhook delivery.
+
+#### updateMetaEnvelopeById
+
+Update an existing MetaEnvelope.
+
+**Mutation**:
+```graphql
+mutation {
+  updateMetaEnvelopeById(
+    id: "global-id-123"
+    input: {
+      ontology: "SocialMediaPost"
+      payload: {
+        content: "Updated content"
+        mediaUrls: []
+      }
+      acl: ["*"]
+    }
+  ) {
+    metaEnvelope {
+      id
+      ontology
+      parsed
+    }
+  }
+}
+```
+
+#### deleteMetaEnvelope
+
+Delete a MetaEnvelope and all its Envelopes.
+
+**Mutation**:
+```graphql
+mutation {
+  deleteMetaEnvelope(id: "global-id-123")
+}
+```
+
+## HTTP API
+
+### /whois
+
+Get information about an eName, including key binding certificates.
+
+**Request**:
+```http
+GET /whois HTTP/1.1
+Host: evault.example.com
+X-ENAME: @user-a.w3id
+```
+
+**Response**:
+```json
+{
+    "keyBindingCertificates": [
+        "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ]
+}
+```
+
+**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification.
+
+
+## Access Control
+
+eVault uses **Access Control Lists (ACLs)** to determine who can access data.
+
+### ACL Format
+
+ACLs are arrays of eNames or special values:
+
+- `["*"]`: Public access (anyone can read)
+- `["@user-a.w3id"]`: Only User A can access
+- `["@user-a.w3id", "@user-b.w3id"]`: User A and User B can access
+
+### Access Enforcement
+
+The Access Guard middleware enforces ACLs:
+
+1. **Extract eName**: From `X-ENAME` header or Bearer token
+2. **Check ACL**: Verify the requesting eName is in the MetaEnvelope's ACL
+3. **Filter Results**: Remove ACL field from responses (security)
+4. **Allow/Deny**: Grant or deny access based on ACL
+
+### Special Cases
+
+- **storeMetaEnvelope**: Only requires `X-ENAME` (no Bearer token needed)
+- **Public Data**: ACL `["*"]` allows any authenticated request
+- **Private Data**: Only listed eNames can access
+
+## Webhook Delivery
+
+When data is stored or updated, eVault automatically sends webhooks to all registered platforms.
+
+### Webhook Process
+
+1. **Data Stored**: MetaEnvelope is stored in Neo4j
+2. **Wait 3 Seconds**: Delay prevents webhook ping-pong (same platform receiving its own webhook)
+3. **Get Active Platforms**: Query Registry for list of active platforms
+4. **Filter Requesting Platform**: Exclude the platform that made the request
+5. **Send Webhooks**: POST to each platform's `/api/webhook` endpoint
+
+### Webhook Payload
+
+```json
+{
+    "id": "global-id-123",
+    "w3id": "@user-a.w3id",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440001",
+    "data": {
+        "content": "Hello, world!",
+        "mediaUrls": [],
+        "authorId": "...",
+        "createdAt": "2025-01-24T10:00:00Z"
+    },
+    "evaultPublicKey": "z..."
+}
+```
+
+### Webhook Delivery Details
+
+- **Timeout**: 5 seconds per webhook
+- **Retry**: No automatic retries (fire-and-forget)
+- **Error Handling**: Logs failures but doesn't block the operation
+- **Ordering**: Webhooks sent in parallel to all platforms
+
+## Key Binding Certificates
+
+eVault stores public keys for users and issues **key binding certificates** (JWTs) that bind public keys to eNames.
+
+### Certificate Structure
+
+Key binding certificates are JWTs signed by the Registry:
+
+```json
+{
+    "ename": "@user-a.w3id",
+    "publicKey": "zDnaerx9Cp5X2chPZ8n3wK7mN9pQrS7tUvWxYz",
+    "exp": 1737734400,
+    "iat": 1737730800
+}
+```
+
+### Certificate Lifecycle
+
+1. **Provisioning**: When eVault is created, public key is stored and certificate is requested from Registry
+2. **Storage**: Certificates stored in eVault (retrieved via `/whois`)
+3. **Expiration**: Certificates expire after 1 hour
+4. **Verification**: Platforms verify certificates using Registry's JWKS
+
+## Multi-Tenancy
+
+eVault supports multiple tenants (eNames) in a single instance:
+
+- **eName Index**: Neo4j index on eName for fast queries
+- **Isolation**: All queries filtered by eName
+- **No Cross-Tenant Access**: Users can only access their own data (unless ACL allows)
+
+## Deployment
+
+### Requirements
+
+- **Neo4j**: Version 5.15+ (graph database)
+- **PostgreSQL**: For verification and notification storage
+- **Node.js**: 18+ runtime
+- **Registry Service**: For W3ID resolution and platform discovery
+
+### Environment Variables
+
+```bash
+# Neo4j Configuration
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=neo4j
+
+# Server Ports
+EXPRESS_PORT=3001  # HTTP API (provisioning, verification)
+FASTIFY_PORT=4000  # GraphQL API
+
+# Registry Configuration
+PUBLIC_REGISTRY_URL=https://registry.example.com
+REGISTRY_SHARED_SECRET=your-secret
+
+# Optional: eVault Identity
+EVAULT_PUBLIC_KEY=z...
+W3ID=@evault-instance.w3id
+```
+
+### Docker Deployment
+
+eVault can be deployed using Docker:
+
+```yaml
+services:
+  evault-core:
+    build:
+      dockerfile: ./docker/Dockerfile.evault-core
+    ports:
+      - "3001:3001"  # Express
+      - "4000:4000"  # Fastify/GraphQL
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=neo4j
+      - PUBLIC_REGISTRY_URL=https://registry.example.com
+    depends_on:
+      - neo4j
+      - postgres
+```
+
+## API Examples
+
+### Storing a Post
+
+```bash
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "X-ENAME: @user-a.w3id" \
+  -d '{
+    "query": "mutation { storeMetaEnvelope(input: { ontology: \"SocialMediaPost\", payload: { content: \"Hello!\", authorId: \"...\", createdAt: \"2025-01-24T10:00:00Z\" }, acl: [\"*\"] }) { metaEnvelope { id ontology } } }"
+  }'
+```
+
+### Querying Posts
+
+```bash
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "X-ENAME: @user-a.w3id" \
+  -H "Authorization: Bearer <token>" \
+  -d '{
+    "query": "{ findMetaEnvelopesByOntology(ontology: \"SocialMediaPost\") { id parsed } }"
+  }'
+```
+
+### Getting Key Binding Certificates
+
+```bash
+curl -X GET http://localhost:4000/whois \
+  -H "X-ENAME: @user-a.w3id"
+```
+
+## References
+
+- [W3DS Basics](/docs/W3DS%20Basics/getting-started) - Understanding eVault ownership
+- [Authentication](/docs/W3DS%20Protocol/Authentication) - How platforms authenticate users
+- [Signing](/docs/W3DS%20Protocol/Signing) - Signature verification using eVault keys

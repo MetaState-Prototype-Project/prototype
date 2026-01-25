@@ -1,8 +1,8 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
-# Signatures
+# Signature Formats
 
 This document explains the signature formats used in the eID wallet and how to verify signatures using public keys from eVault.
 
