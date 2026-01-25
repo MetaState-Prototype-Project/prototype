@@ -66,7 +66,7 @@ graph TB
 A **MetaEnvelope** is the top-level container for an entity (post, user, message, etc.). It contains:
 
 - **id**: Unique global identifier (UUID)
-- **ontology**: Schema identifier (e.g., "SocialMediaPost")
+- **ontology**: Schema identifier (UUID, e.g., "550e8400-e29b-41d4-a716-446655440001")
 - **acl**: Access Control List (who can access this data)
 - **envelopes**: Array of individual Envelope nodes
 
@@ -130,7 +130,7 @@ Find all MetaEnvelopes of a specific ontology type.
 **Query**:
 ```graphql
 query {
-  findMetaEnvelopesByOntology(ontology: "SocialMediaPost") {
+  findMetaEnvelopesByOntology(ontology: "550e8400-e29b-41d4-a716-446655440001") {
     id
     ontology
     parsed
@@ -145,7 +145,7 @@ Search MetaEnvelopes by content within a specific ontology.
 **Query**:
 ```graphql
 query {
-  searchMetaEnvelopes(ontology: "SocialMediaPost", term: "hello") {
+  searchMetaEnvelopes(ontology: "550e8400-e29b-41d4-a716-446655440001", term: "hello") {
     id
     ontology
     parsed
@@ -163,7 +163,7 @@ Store a new MetaEnvelope in the eVault.
 ```graphql
 mutation {
   storeMetaEnvelope(input: {
-    ontology: "SocialMediaPost"
+    ontology: "550e8400-e29b-41d4-a716-446655440001"
     payload: {
       content: "Hello, world!"
       mediaUrls: []
@@ -202,7 +202,7 @@ mutation {
   updateMetaEnvelopeById(
     id: "global-id-123"
     input: {
-      ontology: "SocialMediaPost"
+      ontology: "550e8400-e29b-41d4-a716-446655440001"
       payload: {
         content: "Updated content"
         mediaUrls: []
@@ -362,7 +362,7 @@ curl -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
   -H "X-ENAME: @user-a.w3id" \
   -d '{
-    "query": "mutation { storeMetaEnvelope(input: { ontology: \"SocialMediaPost\", payload: { content: \"Hello!\", authorId: \"...\", createdAt: \"2025-01-24T10:00:00Z\" }, acl: [\"*\"] }) { metaEnvelope { id ontology } } }"
+    "query": "mutation { storeMetaEnvelope(input: { ontology: \"550e8400-e29b-41d4-a716-446655440001\", payload: { content: \"Hello!\", authorId: \"...\", createdAt: \"2025-01-24T10:00:00Z\" }, acl: [\"*\"] }) { metaEnvelope { id ontology } } }"
   }'
 ```
 
@@ -374,7 +374,7 @@ curl -X POST http://localhost:4000/graphql \
   -H "X-ENAME: @user-a.w3id" \
   -H "Authorization: Bearer <token>" \
   -d '{
-    "query": "{ findMetaEnvelopesByOntology(ontology: \"SocialMediaPost\") { id parsed } }"
+    "query": "{ findMetaEnvelopesByOntology(ontology: \"550e8400-e29b-41d4-a716-446655440001\") { id parsed } }"
   }'
 ```
 
