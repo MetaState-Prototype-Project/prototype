@@ -389,6 +389,13 @@ export class AuthController {
 - Each session ID should be used **only once**
 - Expire session IDs after a reasonable time (e.g., 5 minutes)
 
+**Why this matters**: Without these protections, an attacker who intercepts a signed session ID could reuse it to authenticate as the user. This is called a **replay attack**. If session IDs:
+- Are predictable (not cryptographically random): Attackers could guess or generate valid session IDs
+- Can be reused: An intercepted signed session ID could be used multiple times to gain unauthorized access
+- Don't expire: An old intercepted session ID could be used indefinitely, even after the user has logged out or changed their keys
+
+By enforcing uniqueness, one-time use, and expiration, platforms ensure that even if a signed session ID is intercepted, it cannot be used after it expires or has already been consumed, significantly reducing the window of vulnerability.
+
 ### 2. Signature Replay Prevention
 
 - Include **nonces or timestamps** in signed payloads

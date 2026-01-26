@@ -23,7 +23,7 @@ An **eVault** is a personal data store identified by a **W3ID** (also called an 
 ### Key Characteristics
 
 1. **Persistent Identity**: The W3ID (eName) never changes, even if the eVault URL changes
-2. **User Control**: Users control access to their eVault via ACLs (Access Control Lists)
+2. **User Control**: Users control access to their eVault via ACLs (Access Control Lists). Note: While the ACL system exists, there is currently no platform that allows users to change ACLs for their data - this functionality is planned for future releases.
 3. **Platform Agnostic**: Platforms don't own the data - they only display it
 4. **Decentralized**: Each eVault can be hosted independently
 
