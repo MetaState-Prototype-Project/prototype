@@ -282,7 +282,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-full sm:max-w-2xl h-screen sm:h-[90vh] mx-0 sm:mx-4 overflow-hidden bg-fig-10 border-0 sm:border-2 border-fig/20 shadow-2xl rounded-none sm:rounded-xl flex flex-col">
-        <div className="h-12 flex-shrink-0 sm:hidden" />
+        <div className="h-12 flex-shrink-0 sm:hidden" aria-hidden="true" />
         <DialogHeader className="bg-transparent text-fig p-3 sm:p-6 -m-6 mb-0 rounded-t-xl flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden sm:flex w-12 h-12 bg-fig rounded-2xl items-center justify-center flex-shrink-0 transform rotate-12">
@@ -629,7 +629,7 @@ export default function OtherCalculationModal({ open, onOpenChange }: OtherCalcu
             </Button>
           </div>
         </div>
-        <div className="h-10 flex-shrink-0 sm:hidden" />
+        <div className="h-10 flex-shrink-0 sm:hidden" aria-hidden="true" />
       </DialogContent>
 
       {/* View Reputation Modal */}
