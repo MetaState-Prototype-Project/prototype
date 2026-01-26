@@ -123,7 +123,7 @@ The **Registry Service** provides:
 
 When a user creates data on a platform:
 
-```
+```text
 User Action → Platform Database → Web3 Adapter → User's eVault → Webhooks → All Platforms
 ```
 

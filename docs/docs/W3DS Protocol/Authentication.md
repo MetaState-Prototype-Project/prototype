@@ -62,7 +62,7 @@ When a user wants to log in, the platform must:
 2. **Construct the redirect URL**: Build the full URL where the eID wallet will POST the signed session data. This is typically `{platformBaseUrl}/api/auth/login` or similar. The wallet will make an HTTP POST request to this URL with the signed authentication data.
 
 3. **Build the w3ds://auth URI**: Create a URI with the following format:
-   ```
+   ```text
    w3ds://auth?redirect={redirectUrl}&session={sessionId}&platform={platformName}
    ```
    - `redirect`: URL-encoded redirect endpoint where the eID wallet will POST the signed session (this is the callback URL)

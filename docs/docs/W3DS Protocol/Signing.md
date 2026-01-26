@@ -64,7 +64,7 @@ The platform creates a signing session with:
    - Any additional context-specific data
 3. **Encode Data**: Base64-encode the JSON string
 4. **Build w3ds://sign URI**: Create URI with format:
-   ```
+   ```text
    w3ds://sign?session={sessionId}&data={base64Data}&redirect_uri={encodedRedirectUri}
    ```
    - `session`: The session UUID
@@ -269,7 +269,7 @@ The verification process:
 Make an HTTP GET request to the Registry service:
 
 **Request**:
-```
+```http
 GET {registryBaseUrl}/resolve?w3id=@user-a.w3id
 ```
 
@@ -287,7 +287,7 @@ GET {registryBaseUrl}/resolve?w3id=@user-a.w3id
 Make an HTTP GET request to the eVault's `/whois` endpoint:
 
 **Request**:
-```
+```http
 GET {evaultUrl}/whois
 Headers:
   X-ENAME: @user-a.w3id
