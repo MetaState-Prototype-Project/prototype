@@ -15,8 +15,8 @@ export interface MatchResult {
 export interface WishlistData {
     id: string;
     content: string;
-    summaryWants: string;
-    summaryOffers: string;
+    summaryWants: string[];
+    summaryOffers: string[];
     userId: string;
     user: {
         id: string;
@@ -48,19 +48,34 @@ export class MatchingService {
      * Analyze all wishlists at once and find matches in a single AI request
      */
     async findMatches(wishlists: WishlistData[], existingGroups?: GroupData[]): Promise<MatchResult[]> {
-        console.log(`🤖 Starting AI matching process for ${wishlists.length} wishlists...`);
-        console.log(`📊 Analyzing all wishlists in a single AI request (much more efficient!)`);
+        console.log(`Starting AI matching process for ${wishlists.length} wishlists...`);
+        console.log(`Analyzing all wishlists in a single AI request (much more efficient!)`);
+        
+        // Filter out wishlists without valid summaries before processing
+        const validWishlists = wishlists.filter((wishlist) => {
+            return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
+                   wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
+        });
+
+        if (validWishlists.length === 0) {
+            console.log("No wishlists with valid summaries to match, returning empty array");
+            return [];
+        }
+
+        if (validWishlists.length < wishlists.length) {
+            console.log(`Filtered out ${wishlists.length - validWishlists.length} wishlists without valid summaries`);
+        }
         
         if (existingGroups && existingGroups.length > 0) {
-            console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
+            console.log(`Found ${existingGroups.length} existing groups to consider`);
         }
 
         try {
-            const matchResults = await this.analyzeAllMatches(wishlists, existingGroups);
-            console.log(`🎉 AI matching process completed! Found ${matchResults.length} matches`);
+            const matchResults = await this.analyzeAllMatches(validWishlists, existingGroups);
+            console.log(`AI matching process completed! Found ${matchResults.length} matches`);
             return matchResults;
         } catch (error) {
-            console.error("❌ Error in AI matching process:", error);
+            console.error("Error in AI matching process:", error);
             return [];
         }
     }
@@ -69,8 +84,9 @@ export class MatchingService {
         const delimiter = "<|>";
         const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
         const wishlistRows = wishlists.map((wishlist) => {
-            const wants = wishlist.summaryWants || wishlist.content;
-            const offers = wishlist.summaryOffers || wishlist.content;
+            // Join array items with semicolons for CSV format
+            const wants = (wishlist.summaryWants || []).join('; ');
+            const offers = (wishlist.summaryOffers || []).join('; ');
             return [
                 this.sanitizeField(wishlist.userId),
                 this.sanitizeField(wishlist.user.ename),
@@ -105,10 +121,12 @@ Use the exact groupId from the table above in the format: "JOIN_EXISTING_GROUP:<
         }
 
         return `
-You are an AI matching assistant. Analyze ALL the wishlists below and find meaningful connections between users.
+You are an AI matching assistant. Your task is to find meaningful connections between users based on their wishlists.
 
 The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
 Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers
+
+The "wants" and "offers" columns contain semicolon-separated arrays of short phrases extracted from each user's wishlist.
 
 ${wishlistHeader}
 ${wishlistRows}
@@ -116,10 +134,16 @@ ${wishlistRows}
 Use ONLY the rows above (not full prose) to infer matches.
 Return userIds EXACTLY as provided in the table (no new IDs, no missing IDs).${existingGroupsText}
 
-TASK: Find ALL meaningful matches between these users based on their wishlists.
+CRITICAL INSTRUCTIONS:
+- You MUST analyze the wishlists above and find matches
+- Look for complementary needs: when User A wants something that User B offers, or vice versa
+- Look for shared interests: when multiple users want or offer similar things
+- Look for skill exchanges: when one can teach what another wants to learn
+- You should actively search for connections - do NOT return an empty array unless there are truly ZERO possible connections
+- All wishlists provided have valid content - analyze them thoroughly
 
 IMPORTANT RULES:
-1. Only suggest matches with confidence > 0.7
+1. Only suggest matches with confidence > 0.85
 2. Each user can be matched with multiple other users
 3. Return ALL matches found, not just the best ones
 4. Consider both "What I Want" and "What I Can Do" sections
@@ -178,39 +202,72 @@ Be thorough and find ALL potential matches!
         const prompt = this.buildAllMatchesPrompt(wishlists, existingGroups);
         
         console.log("\n" + "=".repeat(100));
-        console.log("🤖 AI REQUEST DEBUG - FULL PROMPT SENT TO AI:");
+        console.log("AI REQUEST DEBUG - FULL PROMPT SENT TO AI:");
         console.log("=".repeat(100));
         console.log(prompt);
         console.log("=".repeat(100));
-        console.log(`📊 Prompt length: ${prompt.length} characters`);
-        console.log(`📊 Number of wishlists: ${wishlists.length}`);
+        console.log(`Prompt length: ${prompt.length} characters`);
+        console.log(`Number of wishlists: ${wishlists.length}`);
         console.log("=".repeat(100) + "\n");
         
-        const response = await this.openai.chat.completions.create({
-            model: "gpt-4",
-            messages: [
-                {
-                    role: "system",
-                    content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. Analyze all wishlists and return ALL matches found as a JSON array."
-                },
-                {
-                    role: "user",
-                    content: prompt,
-                },
-            ],
-            temperature: 0.7,
-            max_tokens: 4000, // Increased token limit for multiple matches
-        });
+        let response;
+        try {
+            response = await this.openai.chat.completions.create({
+                model: "gpt-4",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an AI matching assistant. Your goal is to find meaningful connections between people based on their wishlists. You MUST actively search for matches - look for complementary needs, shared interests, and skill exchanges. Return ALL matches found as a JSON array. Only return an empty array if there are genuinely zero possible connections between any users."
+                    },
+                    {
+                        role: "user",
+                        content: prompt,
+                    },
+                ],
+                temperature: 0.7,
+                max_tokens: 4000, // Increased token limit for multiple matches
+            });
+        } catch (error: any) {
+            console.error("OpenAI API Error:");
+            console.error("  Error type:", error?.constructor?.name);
+            console.error("  Error message:", error?.message);
+            console.error("  Error code:", error?.code);
+            console.error("  Error status:", error?.status);
+            
+            // Check for rate limit errors
+            if (error?.status === 429 || error?.code === 'rate_limit_exceeded' || error?.message?.includes('rate limit')) {
+                console.error("RATE LIMIT DETECTED!");
+                console.error("  Rate limit error details:", JSON.stringify(error, null, 2));
+                throw new Error("OpenAI rate limit exceeded. Please try again later.");
+            }
+            
+            // Check for other API errors
+            if (error?.status) {
+                console.error(`OpenAI API returned status ${error.status}`);
+                console.error("  Full error:", JSON.stringify(error, null, 2));
+            }
+            
+            throw error;
+        }
 
         const content = response.choices[0]?.message?.content;
         
+        // Check for suspiciously short responses (might indicate rate limiting or errors)
+        if (content && content.length < 10) {
+            console.warn("WARNING: Received very short response from AI (might indicate rate limiting or error)");
+            console.warn(`  Response: "${content}"`);
+            console.warn(`  Response length: ${content.length} characters`);
+        }
+        
         console.log("\n" + "=".repeat(100));
-        console.log("🤖 AI RESPONSE DEBUG - FULL RESPONSE FROM AI:");
+        console.log("AI RESPONSE DEBUG - FULL RESPONSE FROM AI:");
         console.log("=".repeat(100));
         console.log(content);
         console.log("=".repeat(100));
-        console.log(`📊 Response length: ${content?.length || 0} characters`);
-        console.log(`📊 Usage: ${JSON.stringify(response.usage, null, 2)}`);
+        console.log(`Response length: ${content?.length || 0} characters`);
+        console.log(`Usage: ${JSON.stringify(response.usage, null, 2)}`);
+        console.log(`Model: ${response.model || 'N/A'}`);
+        console.log(`Finish reason: ${response.choices[0]?.finish_reason || 'N/A'}`);
         console.log("=".repeat(100) + "\n");
         
         if (!content) {
@@ -221,25 +278,25 @@ Be thorough and find ALL potential matches!
             // Try to extract JSON array from the response
             const jsonMatch = content.match(/\[[\s\S]*\]/);
             if (!jsonMatch) {
-                console.log("❌ DEBUG: No JSON array pattern found in response");
-                console.log("❌ DEBUG: Looking for pattern: /\\[[\\s\\S]*\\]/");
+                console.log("DEBUG: No JSON array pattern found in response");
+                console.log("DEBUG: Looking for pattern: /\\[[\\s\\S]*\\]/");
                 throw new Error("No JSON array found in response");
             }
 
             console.log("\n" + "=".repeat(100));
-            console.log("🔍 JSON EXTRACTION DEBUG:");
+            console.log("JSON EXTRACTION DEBUG:");
             console.log("=".repeat(100));
-            console.log("📝 Extracted JSON string:");
+            console.log("Extracted JSON string:");
             console.log(jsonMatch[0]);
             console.log("=".repeat(100) + "\n");
 
             const matches = JSON.parse(jsonMatch[0]);
             
             console.log("\n" + "=".repeat(100));
-            console.log("🔍 PARSED MATCHES DEBUG:");
+            console.log("PARSED MATCHES DEBUG:");
             console.log("=".repeat(100));
-            console.log(`📊 Total matches from AI: ${matches.length}`);
-            console.log("📝 Raw matches array:");
+            console.log(`Total matches from AI: ${matches.length}`);
+            console.log("Raw matches array:");
             console.log(JSON.stringify(matches, null, 2));
             console.log("=".repeat(100) + "\n");
             
@@ -251,7 +308,7 @@ Be thorough and find ALL potential matches!
             const validMatches: MatchResult[] = [];
             for (let i = 0; i < matches.length; i++) {
                 const match = matches[i];
-                console.log(`🔍 Validating match ${i + 1}:`, JSON.stringify(match, null, 2));
+                console.log(`Validating match ${i + 1}:`, JSON.stringify(match, null, 2));
                 
                 // Check if this is a JOIN_EXISTING_GROUP match (can have 1 user)
                 const isJoinExistingGroup = match.suggestedActivities?.some((activity: any) => 
@@ -261,13 +318,13 @@ Be thorough and find ALL potential matches!
                 const minUsers = isJoinExistingGroup ? 1 : 2;
                 
                 if (typeof match.confidence === 'number' && 
-                    match.confidence > 0.7 &&
+                    match.confidence > 0.85 &&
                     ['private', 'group'].includes(match.matchType) &&
                     Array.isArray(match.userIds) &&
                     match.userIds.length >= minUsers &&
                     match.activityCategory) {
                     
-                    console.log(`✅ Match ${i + 1} is VALID`);
+                    console.log(`Match ${i + 1} is VALID`);
                     validMatches.push({
                         confidence: match.confidence,
                         matchType: match.matchType,
@@ -280,7 +337,7 @@ Be thorough and find ALL potential matches!
                         activityCategory: match.activityCategory
                     });
                 } else {
-                    console.log(`❌ Match ${i + 1} is INVALID:`);
+                    console.log(`Match ${i + 1} is INVALID:`);
                     console.log(`   - confidence: ${match.confidence} (type: ${typeof match.confidence})`);
                     console.log(`   - matchType: ${match.matchType} (valid: ${['private', 'group'].includes(match.matchType)})`);
                     console.log(`   - userIds: ${JSON.stringify(match.userIds)} (isArray: ${Array.isArray(match.userIds)}, length: ${match.userIds?.length}, min required: ${minUsers})`);
@@ -289,7 +346,7 @@ Be thorough and find ALL potential matches!
                 }
             }
 
-            console.log(`✅ AI found ${validMatches.length} valid matches from ${matches.length} total suggestions`);
+            console.log(`AI found ${validMatches.length} valid matches from ${matches.length} total suggestions`);
             return validMatches;
         } catch (error) {
             console.error("Failed to parse OpenAI response:", content);
