@@ -12,14 +12,13 @@ W3DS is a protocol that enables seamless data synchronization across multiple pl
 
 ## Core Concept
 
-The fundamental principle of W3DS is simple: **Users, groups, and objects own their own eVaults**. All data about a person, group, or object is stored in their eVault, and platforms become frontends that display and interact with this data.
+The fundamental principle of W3DS is simple: **Users, groups, and objects own their own eVaults**. All data about a person, group, or object is stored in their eVault, and platforms act as frontends that display and interact with this data, while also serving as caches and aggregators for improved performance and user experience.
 
 ### Key Principles
 
-1. **Data Ownership**: Users own their data, not platforms
-2. **Platform Independence**: Platforms are interchangeable frontends
-3. **Automatic Synchronization**: Data created on one platform automatically appears on all platforms
-4. **Decentralized Storage**: Each user has their own eVault for data storage
+1. **Data Ownership & Decentralized Storage**: Users own their data, not platforms. Each user has their own eVault for data storage, ensuring true data ownership and control.
+
+2. **Platform Independence & Automatic Synchronization**: Platforms are interchangeable frontends that automatically synchronize data, while also serving as caches and aggregators. Data created on one platform automatically appears on all platforms, enabling true interoperability across the ecosystem.
 
 ## How It Works: A Simple Example
 
@@ -29,7 +28,7 @@ Imagine User A creates a post on **Blabsy** (a social media platform):
 2. Blabsy's Web3 Adapter syncs the post to User A's eVault
 3. User A's eVault stores the post and notifies all registered platforms
 4. **Pictique** (another social media platform) receives the notification
-5. Pictique creates the post locally - User A now has a post on Pictique **without ever visiting Pictique**
+5. Pictique creates the post locally - User A's post automatically appears on Pictique through the synchronization system
 
 This is the power of W3DS: your data follows you across all platforms automatically.
 
@@ -72,8 +71,9 @@ graph TB
     EVaultA -->|Webhooks| Pictique
     EVaultA -->|Webhooks| OtherPlatform
 
-    Blabsy -->|Resolve eName| Registry
-    Pictique -->|Resolve eName| Registry
+    Blabsy -.->|Resolve eName| Registry
+    Pictique -.->|Resolve eName| Registry
+    OtherPlatform -.->|Resolve eName| Registry
     EVaultCore -->|Store Data| EVaultA
 
     style UserA fill:#e1f5ff,color:#000000
@@ -90,25 +90,23 @@ graph TB
 
 The **eVault Core** is the central storage system that manages user data. It provides:
 
-- **GraphQL API** for storing and retrieving data
+- **GraphQL API** for storing and retrieving data using MetaEnvelope storage for structured data
 - **Webhook delivery** to notify platforms of data changes
 - **Access control** via ACLs (Access Control Lists)
-- **MetaEnvelope storage** for structured data
 
 ### Web3 Adapter
 
 The **Web3 Adapter** is a library that platforms use to:
 
-- Sync local database changes to eVaults
+- Handle bidirectional data synchronization between local databases and eVaults
 - Convert between platform-specific schemas and global ontology schemas
-- Handle bidirectional data synchronization
 
 ### Registry Service
 
 The **Registry Service** provides:
 
 - **W3ID resolution**: Maps eNames (like `@user-a.w3id`) to eVault URLs
-- **Key binding certificates**: Stores public keys for signature verification
+- **Key binding certificates**: Stores user public keys for signature verification (used when platforms verify user signatures during authentication)
 - **Platform registration**: Tracks active platforms for webhook delivery
 
 ### Platforms
@@ -116,6 +114,7 @@ The **Registry Service** provides:
 **Platforms** are applications that:
 
 - Display and interact with user data
+- Act as caches and aggregators for improved performance
 - Sync data to/from user eVaults
 - Convert between local and global data schemas
 - Handle webhooks to receive data updates
@@ -134,6 +133,67 @@ User Action → Platform Database → Web3 Adapter → User's eVault → Webhook
 4. **User's eVault**: eVault stores the data as a MetaEnvelope
 5. **Webhooks**: eVault sends webhooks to all registered platforms (except the originating one)
 6. **All Platforms**: Other platforms receive webhooks and create the data locally
+
+> **Note**: This is a simplified overview of the data flow. The current implementation uses a basic webhook delivery mechanism. For production deployments, platforms should implement message delivery queues to handle eVault and platform downtime gracefully, ensuring reliable data synchronization.
+
+### Detailed Data Flow Sequence
+
+The following sequence diagram shows the detailed interactions between components, including the Web3 Adapter's internal implementation:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Platform as Platform
+    participant LocalDB as Platform Database
+    participant Adapter as Web3 Adapter
+    participant Registry as Registry Service
+    participant EVault as User's eVault
+    participant OtherPlatforms as Other Platforms
+
+    User->>Platform: Create post
+    Platform->>LocalDB: Store post locally
+    Platform->>Adapter: Trigger sync
+    Adapter->>Adapter: Convert to global schema<br/>(ontology mapping)
+    Adapter->>Registry: Resolve eName to eVault URL
+    Registry-->>Adapter: Return eVault URL
+    Adapter->>EVault: POST GraphQL mutation<br/>(storeMetaEnvelope)
+    EVault->>EVault: Store MetaEnvelope
+    EVault-->>Adapter: Return stored MetaEnvelope
+    Adapter-->>Platform: Sync complete
+    EVault->>EVault: Wait 3 seconds<br/>(prevent ping-pong)
+    EVault->>Registry: Get active platforms
+    Registry-->>EVault: Return platform list
+    EVault->>OtherPlatforms: POST webhook<br/>(data change notification)
+    OtherPlatforms->>OtherPlatforms: Process webhook<br/>(create post locally)
+```
+
+### Registration Sequence
+
+The following sequence diagram shows how a new user registers and creates their eVault, illustrating the roles of the Provisioner and Registry services:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Wallet as eID Wallet
+    participant Provisioner as Provisioner Service
+    participant Registry as Registry Service
+    participant EVault as eVault Core
+
+    User->>Wallet: Initiate onboarding
+    Wallet->>Wallet: Generate hardware keys<br/>(ECDSA P-256)
+    Wallet->>Provisioner: POST /provision<br/>(eName, publicKey)
+    Provisioner->>EVault: Create eVault instance
+    EVault-->>Provisioner: eVault URL
+    Provisioner->>Registry: Register eName → eVault URL
+    Registry->>Registry: Store W3ID mapping
+    Registry->>Registry: Issue key binding certificate<br/>(JWT with public key)
+    Registry-->>Provisioner: Registration complete
+    Provisioner->>EVault: Store public key<br/>(for signature verification)
+    EVault-->>Provisioner: Public key stored
+    Provisioner-->>Wallet: eVault URL + certificate
+    Wallet->>Wallet: Store eVault URL
+    Wallet-->>User: Onboarding complete
+```
 
 ## Next Steps
 
