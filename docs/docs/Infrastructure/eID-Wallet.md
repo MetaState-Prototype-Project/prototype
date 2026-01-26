@@ -94,8 +94,8 @@ The wallet automatically selects the appropriate key manager:
 
 1. **Pre-verification Mode**: Always uses software keys (for testing/fake users only)
 2. **Real KYC/Verification**: Always uses hardware keys (never software keys)
-3. **Hardware Available**: Prefers hardware keys, falls back to software only if hardware is unavailable
-4. **Explicit Request**: Can force hardware or software based on configuration
+3. **Hardware Available**: Requires hardware keys; onboarding is blocked if hardware keys are unavailable (no software fallback)
+4. **Explicit Request**: Can force hardware or software based on configuration (for non-onboarding operations)
 
 ## Key Operations
 

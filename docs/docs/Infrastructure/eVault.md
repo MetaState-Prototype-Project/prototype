@@ -81,7 +81,7 @@ Each field in a MetaEnvelope becomes a separate **Envelope** node in Neo4j:
 
 In Neo4j, the structure looks like:
 
-```
+```cypher
 (MetaEnvelope {id, ontology, acl}) -[:LINKS_TO]-> (Envelope {id, value, valueType})
 ```
 
@@ -357,7 +357,7 @@ eVault stores public keys for users and issues **key binding certificates** (JWT
 1. **Tamper Protection**: Even if HTTPS is not used (though it should be), the JWT signature prevents tampering with public keys in transit. The Registry signs each certificate, ensuring the public key hasn't been modified.
 
 2. **Registry Accountability**: The Registry is accountable for the W3ID-to-public-key binding. By signing the certificates, the Registry attests to the binding between a W3ID and a public key, preventing spoofing of W3ID resolution.
-```
+
 ### Certificate Structure
 
 Key binding certificates are JWTs signed by the Registry:
