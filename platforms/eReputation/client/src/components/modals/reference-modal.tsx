@@ -11,9 +11,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import FileUpload from "@/components/ui/file-upload";
-import { useDebouncedCallback } from "use-debounce";
 
 interface ReferenceModalProps {
   open: boolean;
@@ -455,8 +452,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                       <Label
                         key={type.value}
                         className={`flex flex-col items-center gap-1 sm:gap-2 p-2 sm:p-4 border-2 rounded-2xl cursor-pointer transition-all duration-200 ${targetType === type.value
-                            ? 'border-fig/40 bg-fig-30'
-                            : 'border-fig/20 hover:border-fig/30 hover:bg-fig-10'
+                          ? 'border-fig/40 bg-fig-30'
+                          : 'border-fig/20 hover:border-fig/30 hover:bg-fig-10'
                           }`}
                       >
                         <RadioGroupItem value={type.value} className="sr-only" />
