@@ -14,11 +14,11 @@ The eID Wallet is a **Tauri-based mobile application** (built with SvelteKit and
 
 - **Key Management**: Generate and manage ECDSA P-256 key pairs
 - **Hardware Security**: Uses device cryptographic enclaves (Secure Enclave on iOS, Hardware Security Module on Android)
-- **eVault Creation**: User interface for provisioning new eVaults
+- **eVault Creation**: User interface for provisioning a new eVault (one eVault per user)
 - **Platform Authentication**: Sign session IDs for platform login
 - **Signature Creation**: Sign arbitrary payloads for various use cases
-- **Key Rotation**: Support for rotating keys in case of security incidents
-- **Multi-Device Support**: Keys can be synced across devices
+- **Key Rotation**: Planned feature for rotating keys in case of security incidents (not yet implemented)
+- **Multi-Device Support**: Keys can be synced across devices. See [eVault Key Delegation](/docs/Infrastructure/eVault-Key-Delegation) for details on how multiple devices link to the same eName.
 
 ## Architecture
 
@@ -97,18 +97,6 @@ The wallet automatically selects the appropriate key manager:
 3. **Hardware Available**: Prefers hardware keys, falls back to software only if hardware is unavailable
 4. **Explicit Request**: Can force hardware or software based on configuration
 
-### Key Contexts
-
-Keys are organized by **context** to support different use cases:
-
-- **onboarding**: Keys used during eVault creation
-- **pre-verification**: Keys used before identity verification
-- **signing**: Keys used for general signing operations
-
-### Default Key
-
-The wallet uses a default key with ID `"default"` for most operations. This ensures consistency across the application.
-
 ## Key Operations
 
 ### Generate Key
@@ -174,7 +162,7 @@ When a new user first opens the wallet:
 1. **Generate Keys**: Create default key pair (hardware keys for real users, software keys only for pre-verification/test users)
 2. **Request Entropy**: Get entropy token from Registry
 3. **Generate Namespace**: Create UUID for namespace
-4. **Provision eVault**: Send provision request with public key
+4. **Provision eVault**: Send provision request with public key to the Provisioner service (not to eVault Core, as no eVault exists yet, and not to Registry)
 5. **Receive Credentials**: Get W3ID (eName) and eVault URI
 6. **Store Locally**: Save credentials in wallet storage
 
@@ -188,17 +176,26 @@ Registry → Provisioner: JWT certificate
 Provisioner → Wallet: w3id, evaultUri
 ```
 
-**Note**: The `/provision` endpoint is part of the Provisioner service, not eVault Core.
+**Note**: The `/provision` endpoint is part of the Provisioner service, not eVault Core. This is the **provisioning protocol** - any vault provider should expose such an endpoint to enable eVault creation.
 
 ### Platform Authentication
 
+User authenticating their eName to a platform:
+
 When a user wants to log into a platform:
 
-1. **Scan QR Code**: Platform displays QR code with `w3ds://auth` URI
-2. **Parse URI**: Extract session ID and redirect URL
+1. **Scan QR Code**: Platform displays QR code with `w3ds://auth` URI in the format:
+   ```text
+   w3ds://auth?redirect={url}&session={sessionId}&platform={platformName}
+   ```
+2. **Parse URI**: Extract `session` (session ID) and `redirect` (redirect URL) from the URI query parameters
 3. **Sign Session**: Sign session ID with default key
-4. **Send to Platform**: POST signed session to platform's `/api/auth/login`
+4. **Send to Platform**: POST signed session to platform's `/api/auth/login` endpoint (the `redirect` URL from step 2)
 5. **Receive Token**: Platform verifies signature and returns auth token
+
+For detailed information on:
+- **Signature verification flow**: See [Signing documentation](/docs/W3DS%20Protocol/Signing) for the complete verification process (including Registry resolution, eVault `/whois` endpoint, and JWT certificate verification)
+- **Auth token generation**: See [Authentication documentation](/docs/W3DS%20Protocol/Authentication) for how platforms generate authentication tokens after signature verification
 
 **Signing Details**:
 - Uses key ID `"default"`
@@ -207,16 +204,16 @@ When a user wants to log into a platform:
 - Signs the exact session ID string (UUID)
 - Returns base64 or multibase-encoded signature
 
-### Key Rotation
+### Key Rotation (Conceptual - Not Yet Implemented)
 
-When a user needs to rotate their keys (security incident, device loss):
+Key rotation is a planned feature that would allow users to rotate their keys in case of security incidents or device loss. The concept would involve:
 
 1. **Generate New Key**: Create new key pair
 2. **Sync to eVault**: Send new public key to eVault
 3. **Update Certificates**: eVault requests new key binding certificate
 4. **Revoke Old Key**: Optionally revoke old key (if supported)
 
-**Note**: The W3ID (eName) remains the same - only the keys change.
+**Note**: The W3ID (eName) would remain the same - only the keys would change. This feature is on the roadmap but not currently implemented.
 
 ## Public Key Syncing
 
@@ -233,8 +230,7 @@ Public keys must be synced to eVault so platforms can verify signatures.
 ### Sync Timing
 
 - **During Provisioning**: Public key included in `/provision` request
-- **After Key Rotation**: Manual sync required
-- **Multi-Device**: Each device syncs its own public key
+- **Multi-Device**: Each device syncs its own public key (see [eVault Key Delegation](/docs/Infrastructure/eVault-Key-Delegation) for details)
 
 ## Signature Creation
 
@@ -281,11 +277,6 @@ The wallet creates signatures for various purposes:
 - **No Export**: Private keys cannot be exported (security requirement)
 - **Biometric Protection**: Hardware keys require biometric authentication
 
-### Key Rotation
-
-- **Trigger Events**: Device loss, suspected compromise, user request
-- **Process**: Generate new key, sync to eVault, optionally revoke old key
-- **W3ID Persistence**: eName remains unchanged after rotation
 
 ### Multi-Device Support
 
