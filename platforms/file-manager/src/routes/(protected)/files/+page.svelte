@@ -393,11 +393,23 @@
             itemToDelete = null;
             await loadFiles();
             await fetchFolderTree();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to delete:", error);
-            toast.error(
-                `Failed to delete ${itemType === "file" ? "file" : "folder"}`,
-            );
+            const data = error.response?.data;
+            if (
+                itemType === "file" &&
+                error.response?.status === 409 &&
+                (data?.code === "FILE_HAS_SIGNATURES" ||
+                    data?.error?.toLowerCase?.().includes("signing container"))
+            ) {
+                toast.error(
+                    "This file cannot be deleted because it has been used in a signing container.",
+                );
+            } else {
+                toast.error(
+                    `Failed to delete ${itemType === "file" ? "file" : "folder"}`,
+                );
+            }
         } finally {
             isLoading = false;
         }
