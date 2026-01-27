@@ -177,18 +177,14 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
     /**
      * Called after entity update.
+     * NOTE: We pass metadata to handleChangeWithReload so the entity reload happens
+     * AFTER the transaction commits (inside setTimeout), avoiding stale reads.
      */
     async afterUpdate(event: UpdateEvent<any>) {
-        // For updates, we need to reload the full entity since event.entity only contains changed fields
-        let entity = event.entity;
-        
         // Try different ways to get the entity ID
         let entityId = event.entity?.id || event.databaseEntity?.id;
         
         if (!entityId && event.entity) {
-            // If we have the entity but no ID, try to extract it from the entity object
-            const entityKeys = Object.keys(event.entity);
-            
             // Look for common ID field names
             entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
         }
@@ -215,39 +211,27 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             }
         }
         
-        if (entityId) {
-            // Reload the full entity from the database
-            const repository = AppDataSource.getRepository(event.metadata.target);
-            const entityName = typeof event.metadata.target === 'function' 
-                ? event.metadata.target.name 
-                : event.metadata.target;
-            
-            const fullEntity = await repository.findOne({
-                where: { id: entityId },
-                relations: this.getRelationsForEntity(entityName)
-            });
-            
-            if (fullEntity) {
-                entity = (await this.enrichEntity(
-                    fullEntity,
-                    event.metadata.tableName,
-                    event.metadata.target
-                )) as ObjectLiteral;
-                
-                // Special handling for Message entities to ensure complete data
-                if (event.metadata.tableName === "messages" && entity) {
-                    entity = await this.enrichMessageEntity(entity);
-                }
-            }
+        if (!entityId) {
+            console.warn(`⚠️ afterUpdate: Could not determine entity ID for ${event.metadata.tableName}`);
+            return;
         }
         
-        this.handleChange(
-            // @ts-ignore
-            entity ?? event.entityId,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
-        );
+        const entityName = typeof event.metadata.target === 'function' 
+            ? event.metadata.target.name 
+            : event.metadata.target;
+        
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
+        
+        // Pass reload metadata instead of entity - actual DB read happens in setTimeout
+        this.handleChangeWithReload({
+            entityId,
+            tableName,
+            relations: this.getRelationsForEntity(entityName),
+            tableTarget: event.metadata.target,
+            rawTableName: event.metadata.tableName,
+        });
     }
 
     /**
@@ -268,6 +252,139 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 ? event.metadata.tableName
                 : event.metadata.tableName + "s"
         );
+    }
+
+    /**
+     * Handle update changes by reloading entity AFTER transaction commits.
+     * This avoids stale reads that occur when findOne runs inside the same transaction.
+     */
+    private async handleChangeWithReload(params: {
+        entityId: string;
+        tableName: string;
+        relations: string[];
+        tableTarget: any;
+        rawTableName: string;
+    }): Promise<void> {
+        const { entityId, tableName, relations, tableTarget, rawTableName } = params;
+
+        console.log(`🔍 handleChangeWithReload called for: ${tableName}, entityId: ${entityId}`);
+
+        // Check if this operation should be processed
+        if (!shouldProcessWebhook(entityId, tableName)) {
+            console.log(`⏭️ Skipping webhook for ${tableName}:${entityId} - not from ConsentService (protected entity)`);
+            return;
+        }
+
+        // Handle junction table changes
+        // @ts-ignore
+        const junctionInfo = JUNCTION_TABLE_MAP[tableName];
+        if (junctionInfo) {
+            // Junction tables need to load the parent entity, not the junction record
+            // This is handled separately in handleJunctionTableChange
+            return;
+        }
+
+        // Add debouncing for group entities
+        if (tableName === "groups") {
+            const debounceKey = `group-reload:${entityId}`;
+            
+            if (this.junctionTableDebounceMap.has(debounceKey)) {
+                clearTimeout(this.junctionTableDebounceMap.get(debounceKey)!);
+            }
+            
+            const timeoutId = setTimeout(async () => {
+                try {
+                    await this.executeReloadAndSend(params);
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                } catch (error) {
+                    console.error("Error in group reload timeout:", error);
+                    this.junctionTableDebounceMap.delete(debounceKey);
+                }
+            }, 3_000);
+            
+            this.junctionTableDebounceMap.set(debounceKey, timeoutId);
+            return;
+        }
+
+        // For other entities (including wishlists), use a small delay to ensure transaction commit
+        // Wishlists sync quickly (50ms), other tables use standard delay
+        const delayMs = tableName.toLowerCase() === "wishlists" ? 50 : 3_000;
+
+        setTimeout(async () => {
+            try {
+                await this.executeReloadAndSend(params);
+            } catch (error) {
+                console.error(`❌ Error in handleChangeWithReload setTimeout for ${tableName}:`, error);
+            }
+        }, delayMs);
+    }
+
+    /**
+     * Execute the entity reload and send webhook - called from within setTimeout
+     * when transaction has definitely committed.
+     */
+    private async executeReloadAndSend(params: {
+        entityId: string;
+        tableName: string;
+        relations: string[];
+        tableTarget: any;
+        rawTableName: string;
+    }): Promise<void> {
+        const { entityId, tableName, relations, tableTarget, rawTableName } = params;
+
+        // NOW reload entity - transaction has committed, data is fresh
+        const repository = AppDataSource.getRepository(tableTarget);
+        let entity = await repository.findOne({
+            where: { id: entityId },
+            relations: relations.length > 0 ? relations : undefined
+        });
+
+        if (!entity) {
+            console.warn(`⚠️ executeReloadAndSend: Entity ${entityId} not found after reload`);
+            return;
+        }
+
+        // Enrich entity with additional relations
+        entity = (await this.enrichEntity(
+            entity,
+            rawTableName,
+            tableTarget
+        )) as ObjectLiteral;
+
+        // Special handling for Message entities
+        if (rawTableName === "messages" && entity) {
+            entity = await this.enrichMessageEntity(entity);
+        }
+
+        // For Message entities, only process system messages
+        const data = this.entityToPlain(entity);
+        if (tableName === "messages") {
+            const isSystemMessage = data.text && data.text.includes('$$system-message$$');
+            if (!isSystemMessage) {
+                return;
+            }
+        }
+
+        if (!data.id) {
+            return;
+        }
+
+        let globalId = await this.adapter.mappingDb.getGlobalId(entityId);
+        globalId = globalId ?? "";
+
+        if (this.adapter.lockedIds.includes(globalId)) {
+            return;
+        }
+
+        if (this.adapter.lockedIds.includes(entityId)) {
+            return;
+        }
+
+        console.log(`📤 Sending webhook for ${tableName}:${entityId}`);
+        await this.adapter.handleChange({
+            data,
+            tableName: tableName.toLowerCase(),
+        });
     }
 
     /**
@@ -490,6 +607,8 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 return ["participants", "admins", "members"];
             case "Message":
                 return ["group", "sender"];
+            case "Wishlist":
+                return ["user"];
             default:
                 return [];
         }
