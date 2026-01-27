@@ -207,13 +207,26 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
               <CustomNumberInput
                 value={amount}
                 onChange={(value) => {
-                  // Format with commas as user types
-                  const numValue = value.replace(/,/g, '');
-                  if (numValue === '' || /^\d*\.?\d*$/.test(numValue)) {
-                    const parts = numValue.split('.');
-                    const intPart = parts[0];
-                    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                    setAmount(parts.length > 1 ? `${formattedInt}.${parts[1]}` : formattedInt);
+                  // The value here is already cleaned by CustomNumberInput (no thousand separators)
+                  // Just validate and format with thousand separators
+                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                    // Split into integer and decimal parts
+                    const parts = value.split('.');
+                    const intPart = parts[0] || '';
+                    const decimalPart = parts[1];
+
+                    // Format integer part with thousand separators
+                    // Handle empty string and '0' cases
+                    const formattedInt = intPart === '' ? '' : intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+                    // Preserve decimal point and decimal part
+                    // This is crucial for iOS - we must preserve the trailing decimal point
+                    if (parts.length > 1) {
+                      // User has typed a decimal point
+                      setAmount(`${formattedInt}.${decimalPart !== undefined ? decimalPart : ''}`);
+                    } else {
+                      setAmount(formattedInt);
+                    }
                   }
                 }}
                 placeholder="0"

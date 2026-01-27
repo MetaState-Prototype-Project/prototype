@@ -9,25 +9,35 @@ const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
   ({ className, onChange, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let value = e.target.value;
-      // Strip commas from pasted values
-      value = value.replace(/,/g, '');
-      // Allow only numbers, decimal point, and empty string
-      if (value === "" || /^\d*\.?\d*$/.test(value)) {
-        onChange?.(value);
+
+      // If the last character typed is a comma, and there is no dot yet,
+      // treat it as a decimal separator (international keyboard support)
+      if (value.endsWith(',') && !value.includes('.')) {
+        value = value.slice(0, -1) + '.';
+      }
+
+      // Strip all remaining commas (which are thousand separators from formatting)
+      const cleanValue = value.replace(/,/g, '');
+
+      // Validate: allow only numbers, one decimal point, and empty string
+      if (cleanValue === "" || /^\d*\.?\d*$/.test(cleanValue)) {
+        onChange?.(cleanValue);
       }
     };
 
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pastedText = e.clipboardData.getData('text');
-      // Strip commas and validate
-      const cleaned = pastedText.replace(/,/g, '').replace(/[^\d.]/g, '');
+      // Replace all commas with dots (handle international formats)
+      let cleaned = pastedText.replace(/,/g, '.');
+      // Remove any non-numeric characters except decimal point
+      cleaned = cleaned.replace(/[^\d.]/g, '');
       // Only allow one decimal point
       const parts = cleaned.split('.');
-      const sanitized = parts.length > 2 
+      const sanitized = parts.length > 2
         ? parts[0] + '.' + parts.slice(1).join('')
         : cleaned;
-      
+
       if (sanitized === "" || /^\d*\.?\d*$/.test(sanitized)) {
         onChange?.(sanitized);
       }
