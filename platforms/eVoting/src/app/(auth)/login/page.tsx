@@ -41,7 +41,7 @@ export default function LoginPage() {
             return;
         }
 
-        if (redirect && redirect.startsWith("/")) {
+        if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
         setRedirectTo(redirect);
         sessionStorage.setItem("postLoginRedirect", redirect);
     }
@@ -150,7 +150,7 @@ window.location.href = redirect;
         };
 
         return () => eventSource.close();
-    }, [sessionId, login]);
+    }, [sessionId, login, redirectTo]);
 
     const getAppStoreLink = () => {
         if (typeof navigator === 'undefined') return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";

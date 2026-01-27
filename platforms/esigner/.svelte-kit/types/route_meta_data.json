@@ -1,9 +1,9 @@
 {
-	"/(protected)": [],
-	"/": [],
-	"/(auth)/auth": [],
-	"/(auth)/deeplink-login": [],
-	"/(protected)/files": [],
-	"/(protected)/files/new": [],
-	"/(protected)/files/[id]": []
+    "/(protected)": [],
+    "/": [],
+    "/(auth)/auth": [],
+    "/(auth)/deeplink-login": [],
+    "/(protected)/files": [],
+    "/(protected)/files/new": [],
+    "/(protected)/files/[id]": []
 }

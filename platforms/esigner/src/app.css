@@ -1,7 +1,9 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 body {
-	font-family: system-ui, -apple-system, sans-serif;
-	background-color: white;
+    font-family:
+        system-ui,
+        -apple-system,
+        sans-serif;
+    background-color: white;
 }
-
