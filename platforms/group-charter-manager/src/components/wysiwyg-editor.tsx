@@ -61,7 +61,7 @@ export default function WysiwygEditor({ content, onChange, placeholder = "Enter 
   return (
     <div className={cn("border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm", className)}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 p-3 border-b border-gray-200">
+      <div className="flex flex-wrap items-center gap-0.5 sm:gap-1 p-1 sm:p-3 border-b border-gray-200">
         <Button
           type="button"
           variant="ghost"
