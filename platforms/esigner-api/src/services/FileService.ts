@@ -5,12 +5,31 @@ import { SignatureContainer } from "../database/entities/SignatureContainer";
 import crypto from "crypto";
 
 /** Soft-deleted marker from File Manager (no delete webhook); hide these in eSigner. */
-const SOFT_DELETED_FILE_NAME = "[[deleted]]";
+export const SOFT_DELETED_FILE_NAME = "[[deleted]]";
+
+/** Thrown when name is the reserved soft-delete sentinel. */
+export class ReservedFileNameError extends Error {
+    constructor(name: string) {
+        super(`File name '${name}' is reserved and cannot be used for upload or rename.`);
+        this.name = "ReservedFileNameError";
+    }
+}
 
 export class FileService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
     private signatureRepository = AppDataSource.getRepository(SignatureContainer);
+
+    /**
+     * Validates that the given filename is not the reserved soft-delete sentinel.
+     * Call this at create/upload and rename entry points before persisting file.name.
+     * @throws ReservedFileNameError if name equals SOFT_DELETED_FILE_NAME
+     */
+    validateFileName(name: string): void {
+        if (name === SOFT_DELETED_FILE_NAME) {
+            throw new ReservedFileNameError(name);
+        }
+    }
 
     async calculateMD5(buffer: Buffer): Promise<string> {
         return crypto.createHash('md5').update(buffer).digest('hex');
@@ -25,6 +44,8 @@ export class FileService {
         displayName?: string,
         description?: string
     ): Promise<File> {
+        this.validateFileName(name);
+
         const md5Hash = await this.calculateMD5(data);
         
         const fileData: Partial<File> = {
@@ -199,6 +220,28 @@ export class FileService {
             file.description = description || null;
         }
 
+        return await this.fileRepository.save(file);
+    }
+
+    /**
+     * Renames a file. Validates that the new name is not the reserved soft-delete sentinel.
+     * @throws ReservedFileNameError if newName equals SOFT_DELETED_FILE_NAME
+     */
+    async renameFile(id: string, newName: string, userId: string): Promise<File | null> {
+        this.validateFileName(newName);
+
+        const file = await this.fileRepository.findOne({
+            where: { id, ownerId: userId },
+        });
+
+        if (!file) {
+            return null;
+        }
+
+        file.name = newName;
+        if (file.displayName === null || file.displayName === file.name) {
+            file.displayName = newName;
+        }
         return await this.fileRepository.save(file);
     }
 

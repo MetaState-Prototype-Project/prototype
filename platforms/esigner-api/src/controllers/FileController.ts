@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { FileService } from "../services/FileService";
+import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
 const upload = multer({
@@ -49,6 +49,9 @@ export class FileController {
                     createdAt: file.createdAt,
                 });
             } catch (error) {
+                if (error instanceof ReservedFileNameError) {
+                    return res.status(400).json({ error: error.message });
+                }
                 console.error("Error uploading file:", error);
                 res.status(500).json({ error: "Failed to upload file" });
             }
