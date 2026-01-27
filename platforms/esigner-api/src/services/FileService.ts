@@ -4,6 +4,9 @@ import { FileSignee } from "../database/entities/FileSignee";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
 import crypto from "crypto";
 
+/** Soft-deleted marker from File Manager (no delete webhook); hide these in eSigner. */
+const SOFT_DELETED_FILE_NAME = "[[deleted]]";
+
 export class FileService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
@@ -49,7 +52,7 @@ export class FileService {
             relations: ["owner", "signees", "signees.user", "signatures", "signatures.user"],
         });
 
-        if (!file) {
+        if (!file || file.name === SOFT_DELETED_FILE_NAME) {
             return null;
         }
 
@@ -72,14 +75,12 @@ export class FileService {
     }
 
     async getUserFiles(userId: string): Promise<File[]> {
-        // Get files owned by user
         const ownedFiles = await this.fileRepository.find({
             where: { ownerId: userId },
             relations: ["owner", "signees", "signees.user", "signatures", "signatures.user"],
             order: { createdAt: "DESC" },
         });
 
-        // Get files where user is invited
         const invitedFiles = await this.fileSigneeRepository.find({
             where: { userId },
             relations: ["file", "file.owner", "file.signees", "file.signees.user", "file.signatures", "file.signatures.user"],
@@ -88,16 +89,16 @@ export class FileService {
         const invitedFileIds = new Set(invitedFiles.map(fs => fs.fileId));
         const allFiles = [...ownedFiles];
 
-        // Add invited files that aren't already in the list
         for (const fileSignee of invitedFiles) {
             if (!invitedFileIds.has(fileSignee.fileId) || !ownedFiles.find(f => f.id === fileSignee.fileId)) {
-                if (fileSignee.file) {
+                if (fileSignee.file && fileSignee.file.name !== SOFT_DELETED_FILE_NAME) {
                     allFiles.push(fileSignee.file);
                 }
             }
         }
 
-        return allFiles;
+        // Hide soft-deleted (File Manager delete workaround: name [[deleted]])
+        return allFiles.filter((f) => f.name !== SOFT_DELETED_FILE_NAME);
     }
 
     async getDocumentsWithStatus(userId: string, listMode: 'containers' | 'all' = 'containers') {

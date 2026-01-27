@@ -283,6 +283,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
         this.pendingChanges.set(changeKey, Date.now());
 
+        // Sync file renames/updates immediately; other tables keep 3s delay to batch rapid changes
+        const delayMs = tableName.toLowerCase() === "files" ? 0 : 3_000;
+
         try {
             setTimeout(async () => {
                 try {
@@ -309,7 +312,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 } finally {
                     this.pendingChanges.delete(changeKey);
                 }
-            }, 3_000);
+            }, delayMs);
         } catch (error) {
             console.error(`❌ Error processing change for ${tableName}:`, error);
             this.pendingChanges.delete(changeKey);

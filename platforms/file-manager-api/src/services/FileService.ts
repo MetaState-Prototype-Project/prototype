@@ -4,8 +4,11 @@ import { Folder } from "../database/entities/Folder";
 import { FileAccess } from "../database/entities/FileAccess";
 import { FolderAccess } from "../database/entities/FolderAccess";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
-import { In, IsNull } from "typeorm";
+import { In, IsNull, Not } from "typeorm";
 import crypto from "crypto";
+
+/** Soft-delete marker: file is hidden and syncs to eSigner so they can hide it too (no delete webhook). */
+export const SOFT_DELETED_FILE_NAME = "[[deleted]]";
 
 export class FileService {
     private fileRepository = AppDataSource.getRepository(File);
@@ -68,7 +71,7 @@ export class FileService {
             relations: ["owner", "folder", "signatures", "signatures.user", "tags"],
         });
 
-        if (!file) {
+        if (!file || file.name === SOFT_DELETED_FILE_NAME) {
             return null;
         }
 
@@ -103,22 +106,22 @@ export class FileService {
         let ownedFiles: File[];
         
         if (folderId === null || folderId === undefined || folderId === 'null' || folderId === '') {
-            // Root level files (no folder) - folderId must be null
-            // Use IsNull() for proper NULL checking in TypeORM
+            // Root level files (no folder) - folderId must be null; exclude soft-deleted
             ownedFiles = await this.fileRepository.find({
                 where: {
                     ownerId: userId,
-                    folderId: IsNull()
+                    folderId: IsNull(),
+                    name: Not(SOFT_DELETED_FILE_NAME),
                 },
                 relations: ["owner", "folder", "tags"],
                 order: { createdAt: "DESC" },
             });
         } else {
-            // Files in specific folder
             ownedFiles = await this.fileRepository.find({
                 where: {
                     ownerId: userId,
-                    folderId: folderId
+                    folderId: folderId,
+                    name: Not(SOFT_DELETED_FILE_NAME),
                 },
                 relations: ["owner", "folder", "tags"],
                 order: { createdAt: "DESC" },
@@ -148,10 +151,8 @@ export class FileService {
             }
             
             if (directAccess || hasAccessViaParent) {
-                // User has access to this folder (directly or via parent), show only files directly in this folder
-                // This preserves the folder hierarchy - files in subfolders will show when viewing those subfolders
                 folderAccessFiles = await this.fileRepository.find({
-                    where: { folderId },
+                    where: { folderId, name: Not(SOFT_DELETED_FILE_NAME) },
                     relations: ["owner", "folder", "tags"],
                     order: { createdAt: "DESC" },
                 });
@@ -161,10 +162,10 @@ export class FileService {
         const ownedFileIds = new Set(ownedFiles.map(f => f.id));
         const allFiles = [...ownedFiles];
 
-        // Add accessed files that aren't already in the list and match folder filter
+        // Add accessed files that aren't already in the list and match folder filter (exclude soft-deleted)
         for (const fileAccess of accessedFiles) {
-            if (!fileAccess.file) continue;
-            
+            if (!fileAccess.file || fileAccess.file.name === SOFT_DELETED_FILE_NAME) continue;
+
             // Skip if already in owned files
             if (ownedFileIds.has(fileAccess.fileId)) continue;
             
@@ -246,10 +247,12 @@ export class FileService {
             );
         }
 
-        // Delete all access records
+        // Soft-delete: set name so sync (update) propagates to eSigner; no delete webhook exists.
+        // File is hidden from lists and getFileById in both platforms.
         await this.fileAccessRepository.delete({ fileId: id });
-
-        await this.fileRepository.remove(file);
+        file.name = SOFT_DELETED_FILE_NAME;
+        file.displayName = SOFT_DELETED_FILE_NAME;
+        await this.fileRepository.save(file);
         return true;
     }
 
