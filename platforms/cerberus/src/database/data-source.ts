@@ -34,5 +34,18 @@ export const AppDataSource = new DataSource({
               ca: process.env.DB_CA_CERT,
           }
         : false,
+    // Connection pool configuration to prevent exhaustion
+    extra: {
+        // Maximum number of connections in pool
+        max: 10,
+        // Minimum number of connections in pool
+        min: 2,
+        // Maximum time (ms) a connection can be idle before being released
+        idleTimeoutMillis: 30000,
+        // Maximum time (ms) to wait for a connection from pool
+        connectionTimeoutMillis: 5000,
+        // Query timeout (ms) - fail queries that take too long
+        statement_timeout: 10000,
+    },
 });
 

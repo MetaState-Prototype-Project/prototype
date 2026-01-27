@@ -20,6 +20,14 @@ export const dataSourceOptions: DataSourceOptions = {
               ca: process.env.DB_CA_CERT,
           }
         : false,
+    // Connection pool configuration to prevent exhaustion
+    extra: {
+        max: 10,
+        min: 2,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+        statement_timeout: 10000,
+    },
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);
