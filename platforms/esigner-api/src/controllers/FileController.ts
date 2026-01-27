@@ -61,7 +61,9 @@ export class FileController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const documents = await this.fileService.getDocumentsWithStatus(req.user.id);
+            const list = req.query.list as string | undefined;
+            const listMode = list === "all" ? "all" : "containers";
+            const documents = await this.fileService.getDocumentsWithStatus(req.user.id, listMode);
             res.json(documents);
         } catch (error) {
             console.error("Error getting documents:", error);

@@ -100,9 +100,9 @@ export class FileService {
         return allFiles;
     }
 
-    async getDocumentsWithStatus(userId: string) {
+    async getDocumentsWithStatus(userId: string, listMode: 'containers' | 'all' = 'containers') {
         const files = await this.getUserFiles(userId);
-        
+
         // Ensure we have all relations loaded
         const filesWithRelations = await Promise.all(
             files.map(async (file) => {
@@ -117,7 +117,13 @@ export class FileService {
             })
         );
 
-        return filesWithRelations.map(file => {
+        // When listing only containers, exclude files that were never used as a signing container (no signees).
+        // This prevents File Manager uploads from appearing as draft containers in eSigner.
+        const toList = listMode === 'containers'
+            ? filesWithRelations.filter((f) => (f.signees?.length ?? 0) > 0)
+            : filesWithRelations;
+
+        return toList.map(file => {
             const totalSignees = file.signees?.length || 0;
             const signedCount = file.signees?.filter(s => s.status === 'signed').length || 0;
             const pendingCount = file.signees?.filter(s => s.status === 'pending').length || 0;
