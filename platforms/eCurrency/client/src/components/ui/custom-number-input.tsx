@@ -8,23 +8,23 @@ interface CustomNumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInpu
 const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
   ({ className, onChange, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Use nativeEvent to see exactly what the user just did
       const nativeEvent = e.nativeEvent as InputEvent;
       let value = e.target.value;
 
-      // 1. Only convert if the user EXPLICITLY typed a comma
-      // nativeEvent.data is the character the user just inserted
+      // 1. Convert comma to dot based on exactly where the user typed it
       if (nativeEvent.data === ',' && !value.includes('.')) {
-        // If they typed a comma, treat it as a decimal point
-        value = value.replace(/,$/, '.');
+        const cursor = e.target.selectionStart;
+        // The character just typed is at cursor - 1
+        const idx = cursor !== null ? cursor - 1 : value.lastIndexOf(',');
+
+        if (idx >= 0 && value[idx] === ',') {
+          value = value.slice(0, idx) + '.' + value.slice(idx + 1);
+        }
       }
 
-      // 2. Now strip ALL commas (thousand separators)
-      // This is safe because if the user typed a comma, it was converted 
-      // to a dot above. If the comma was from formatting, it gets removed here.
+      // 2. Strip thousand-separator commas
       const cleanValue = value.replace(/,/g, '');
 
-      // 3. Validation
       if (cleanValue === "" || /^\d*\.?\d*$/.test(cleanValue)) {
         onChange?.(cleanValue);
       }
