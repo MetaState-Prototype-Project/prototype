@@ -97,7 +97,7 @@ export default function Dashboard() {
 
     if (statsLoading || chartersLoading) {
         return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
                 <div className="animate-pulse space-y-6">
                     <div className="h-8 bg-black bg-opacity-10 rounded w-1/4" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -140,7 +140,7 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
             {/* Header Section */}
             <div className="mb-6 sm:mb-8">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
