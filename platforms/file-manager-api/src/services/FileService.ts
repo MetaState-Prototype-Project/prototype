@@ -237,6 +237,15 @@ export class FileService {
             return false;
         }
 
+        const signatureCount = await this.signatureRepository.count({
+            where: { fileId: id },
+        });
+        if (signatureCount > 0) {
+            throw new Error(
+                "File cannot be deleted because it is part of one or more signing containers",
+            );
+        }
+
         // Delete all access records
         await this.fileAccessRepository.delete({ fileId: id });
 
