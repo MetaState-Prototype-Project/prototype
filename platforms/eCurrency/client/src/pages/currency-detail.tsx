@@ -144,9 +144,13 @@ export default function CurrencyDetail() {
     const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
     
     // Check if context actually changed (semantic comparison)
-    const contextChanged = !accountContext ||
-      accountContext.type !== finalContext?.type ||
-      accountContext.id !== finalContext?.id;
+    const contextChanged =
+      finalContext === null && accountContext === null
+        ? false
+        : !accountContext ||
+          !finalContext ||
+          accountContext.type !== finalContext.type ||
+          accountContext.id !== finalContext.id;
 
     // Only update state and storage when context meaningfully changed (avoids clearing transaction history when re-selecting same account)
     if (!contextChanged) return;
