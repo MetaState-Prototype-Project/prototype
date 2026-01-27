@@ -52,7 +52,7 @@ const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
 
       // Remove any non-numeric characters except decimal point
       cleaned = cleaned.replace(/[^\d.]/g, '');
-      
+
       // Only allow one decimal point
       const parts = cleaned.split('.');
       const sanitized = parts.length > 2
