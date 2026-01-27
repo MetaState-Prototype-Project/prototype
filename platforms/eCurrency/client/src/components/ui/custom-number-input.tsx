@@ -34,21 +34,34 @@ const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Allow: backspace, delete, tab, escape, enter, decimal point
+      const key = e.key;
+
+      // Allow navigation and control keys
       if (
-        [8, 9, 27, 13, 46, 110, 190].indexOf(e.keyCode) !== -1 ||
-        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-        (e.keyCode === 65 && e.ctrlKey === true) ||
-        (e.keyCode === 67 && e.ctrlKey === true) ||
-        (e.keyCode === 86 && e.ctrlKey === true) ||
-        (e.keyCode === 88 && e.ctrlKey === true) ||
-        // Allow: home, end, left, right
-        (e.keyCode >= 35 && e.keyCode <= 39)
+        key === 'Backspace' ||
+        key === 'Delete' ||
+        key === 'Tab' ||
+        key === 'Escape' ||
+        key === 'Enter' ||
+        key === 'ArrowLeft' ||
+        key === 'ArrowRight' ||
+        key === 'ArrowUp' ||
+        key === 'ArrowDown' ||
+        key === 'Home' ||
+        key === 'End' ||
+        key === '.' ||
+        key === ',' // Allow comma for international keyboards
       ) {
         return;
       }
-      // Ensure that it is a number and stop the keypress
-      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+
+      // Allow Ctrl/Cmd combinations (copy, paste, cut, select all, undo, redo)
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      // Only allow numeric keys (let handleChange do the validation)
+      if (!/^\d$/.test(key)) {
         e.preventDefault();
       }
     };
