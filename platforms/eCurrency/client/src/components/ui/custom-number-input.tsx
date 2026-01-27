@@ -28,10 +28,31 @@ const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pastedText = e.clipboardData.getData('text');
-      // Replace all commas with dots (handle international formats)
-      let cleaned = pastedText.replace(/,/g, '.');
+      let cleaned = pastedText.trim();
+
+      const hasDot = cleaned.includes('.');
+      const hasComma = cleaned.includes(',');
+
+      if (hasDot && hasComma) {
+        // Use the last separator as decimal, strip the other as thousands
+        const lastDot = cleaned.lastIndexOf('.');
+        const lastComma = cleaned.lastIndexOf(',');
+        if (lastDot > lastComma) {
+          // Dot is decimal, comma is thousands: "1,234.56" → "1234.56"
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          // Comma is decimal, dot is thousands: "1.234,56" → "1234.56"
+          cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+        }
+      } else if (hasComma) {
+        // Heuristic: if comma looks like thousands grouping, strip; else treat as decimal
+        // "1,234" → "1234" but "12,5" → "12.5"
+        cleaned = /,\d{3}(?!\d)/.test(cleaned) ? cleaned.replace(/,/g, '') : cleaned.replace(/,/g, '.');
+      }
+
       // Remove any non-numeric characters except decimal point
       cleaned = cleaned.replace(/[^\d.]/g, '');
+      
       // Only allow one decimal point
       const parts = cleaned.split('.');
       const sanitized = parts.length > 2
