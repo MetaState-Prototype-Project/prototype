@@ -257,7 +257,7 @@ Transaction for your ${accountText} has been processed.
 
 ${isSender ? 'sent amount' : 'received amount'}: ${formattedAmount}
 currency: ${currency.name} (${currency.ename})
-time: ${formattedTime}
+time: ${formattedTime} UTC
 ${otherPartyLabel}: ${otherPartyName}`;
     }
 
