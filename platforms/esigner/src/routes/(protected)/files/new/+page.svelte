@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { isAuthenticated } from '$lib/stores/auth';
-	import { uploadFile } from '$lib/stores/files';
+	import { files, fetchFiles, uploadFile, FileSizeError } from '$lib/stores/files';
 	import { apiClient } from '$lib/utils/axios';
 	import { inviteSignees } from '$lib/stores/invitations';
 
@@ -59,7 +59,11 @@
 			}
 		} catch (err) {
 			console.error('Upload failed:', err);
-			alert('Failed to upload file');
+			if (err instanceof FileSizeError) {
+				alert(err.message);
+			} else {
+				alert('Failed to upload file. Please try again.');
+			}
 			throw err;
 		} finally {
 			isLoading = false;
@@ -126,7 +130,7 @@
 			alert('You cannot invite yourself. You are automatically added as a signee.');
 			return;
 		}
-		
+
 		if (!selectedUsers.find(u => u.id === user.id)) {
 			selectedUsers = [...selectedUsers, user];
 		}
@@ -147,10 +151,10 @@
 		try {
 			isSubmitting = true;
 			const userIds = selectedUsers.map(u => u.id);
-			
+
 			// Backend will automatically add owner as signee
 			await inviteSignees(selectedFile.id, userIds);
-			
+
 			goto(`/files/${selectedFile.id}`);
 		} catch (err) {
 			console.error('Failed to create invitations:', err);

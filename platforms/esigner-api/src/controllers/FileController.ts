@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
+export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
 const upload = multer({
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: MAX_FILE_SIZE },
     storage: multer.memoryStorage(),
 });
 
@@ -200,7 +202,7 @@ export class FileController {
             }
 
             const signatures = await this.fileService.getFileSignatures(fileId);
-            
+
             res.json(signatures.map(sig => ({
                 id: sig.id,
                 userId: sig.userId,

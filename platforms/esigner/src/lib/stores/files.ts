@@ -65,7 +65,25 @@ export const fetchDocuments = async () => {
 // Keep fetchFiles alias for backward compatibility
 export const fetchFiles = fetchDocuments;
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
+export class FileSizeError extends Error {
+	constructor(public fileSize: number, public maxSize: number = MAX_FILE_SIZE) {
+		const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+		const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+		super(`File size (${fileSizeMB} MB) exceeds the maximum limit of ${maxSizeMB} MB`);
+		this.name = 'FileSizeError';
+	}
+}
+
 export const uploadFile = async (file: File, displayName?: string, description?: string) => {
+	// Client-side file size validation
+	if (file.size > MAX_FILE_SIZE) {
+		const err = new FileSizeError(file.size, MAX_FILE_SIZE);
+		error.set(err.message);
+		throw err;
+	}
+
 	try {
 		isLoading.set(true);
 		error.set(null);
@@ -84,7 +102,20 @@ export const uploadFile = async (file: File, displayName?: string, description?:
 		});
 		await fetchDocuments();
 		return response.data;
-	} catch (err) {
+	} catch (err: unknown) {
+		// Handle HTTP 413 Payload Too Large
+		if (err && typeof err === 'object' && 'response' in err) {
+			const axiosError = err as { response?: { status?: number; data?: { error?: string; maxSize?: number; fileSize?: number } } };
+			if (axiosError.response?.status === 413) {
+				const data = axiosError.response.data;
+				const fileSizeErr = new FileSizeError(
+					data?.fileSize || file.size,
+					data?.maxSize || MAX_FILE_SIZE
+				);
+				error.set(fileSizeErr.message);
+				throw fileSizeErr;
+			}
+		}
 		error.set(err instanceof Error ? err.message : 'Failed to upload file');
 		throw err;
 	} finally {
