@@ -4,10 +4,11 @@
 	interface IModalProps {
 		open: boolean;
 		onclose?: () => void;
+		allowClickOutside?: boolean;
 		children?: Snippet;
 	}
 
-	const { open, onclose, children }: IModalProps = $props();
+	const { open, onclose, allowClickOutside, children }: IModalProps = $props();
 
 	let modal: HTMLDialogElement | null = $state(null);
 
@@ -19,9 +20,25 @@
 			event.clientY <= rect.top + rect.height &&
 			rect.left <= event.clientX &&
 			event.clientX <= rect.left + rect.width;
-		if (!isInDialog) {
+		if (!isInDialog && allowClickOutside) {
 			modal.close();
 			onclose?.();
+		} else {
+			event.stopPropagation();
+			// make the modal pulse to indicate it is still open
+			modal.animate(
+				[
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.025)' },
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.0125)' },
+					{ transform: 'scale(1)' }
+				],
+				{
+					duration: 250,
+					easing: 'ease-in-out'
+				}
+			);
 		}
 	};
 
