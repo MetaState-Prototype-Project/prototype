@@ -33,8 +33,8 @@ export class DashboardController {
         try {
             const userId = req.user!.id;
             
-            // Get total references received by this user
-            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+            // Get total references received by this user (only count signed ones for stats)
+            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId, true);
             
             res.json({
                 totalReferences: receivedReferences.length.toString()
@@ -59,8 +59,8 @@ export class DashboardController {
             // Get user's calculations
             const calculations = await this.calculationService.getUserCalculations(userId);
             
-            // Get references received by this user
-            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+            // Get references received by this user (include pending references)
+            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId, false);
 
             // Combine and format activities
             const activities: any[] = [];
