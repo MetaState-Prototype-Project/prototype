@@ -23,7 +23,7 @@
 		if (!isInDialog && allowClickOutside) {
 			modal.close();
 			onclose?.();
-		} else {
+		} else if (!isInDialog) {
 			event.stopPropagation();
 			// make the modal pulse to indicate it is still open
 			modal.animate(
@@ -39,6 +39,7 @@
 					easing: 'ease-in-out'
 				}
 			);
+			onclose?.();
 		}
 	};
 

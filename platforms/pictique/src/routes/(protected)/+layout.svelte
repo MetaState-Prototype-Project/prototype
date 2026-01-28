@@ -18,6 +18,9 @@
 
 	let profile = $state<userProfile | null>(null);
 	let confirmedDisclaimer = $state(false);
+	let showHint = $state(false);
+
+	const DISCLAIMER_KEY = 'pictique-disclaimer-accepted';
 
 	async function fetchProfile() {
 		ownerId = getAuthId();
@@ -37,7 +40,14 @@
 		}
 	}
 
-	onMount(fetchProfile);
+	onMount(() => {
+		fetchProfile();
+		const accepted = localStorage.getItem(DISCLAIMER_KEY) === 'true';
+		if (accepted) {
+			confirmedDisclaimer = true;
+			closeDisclaimerModal();
+		}
+	});
 </script>
 
 <main class="block h-dvh grid-cols-[20vw_1fr] md:grid">
@@ -59,9 +69,7 @@
 	open={$isDisclaimerModalOpen}
 	onclose={() => {
 		if (!confirmedDisclaimer) {
-			removeAuthToken();
-			removeAuthId();
-			goto('/auth');
+			showHint = true;
 		}
 	}}
 >
@@ -91,11 +99,20 @@
 		<Button
 			variant="secondary"
 			size="sm"
-			class="mt-2"
+			class="mt-2 w-full"
+			data-disclaimer-button
 			callback={() => {
+				localStorage.setItem(DISCLAIMER_KEY, 'true');
 				closeDisclaimerModal();
 				confirmedDisclaimer = true;
 			}}>I Understand</Button
 		>
+		{#if showHint}
+			<p
+				class="mt-2 rounded-md border border-red-300 bg-red-100 px-3 py-2 text-center text-xs text-red-800"
+			>
+				💡 You must accept the disclaimer to continue. This will only appear once.
+			</p>
+		{/if}
 	</article>
 </Modal>
