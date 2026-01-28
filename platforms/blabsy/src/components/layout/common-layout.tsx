@@ -2,10 +2,9 @@ import { useRequireAuth } from '@lib/hooks/useRequireAuth';
 import { Aside } from '@components/aside/aside';
 import { Suggestions } from '@components/aside/suggestions';
 import { Placeholder } from '@components/common/placeholder';
-import { type ReactNode, useState, useEffect } from 'react';
+import { type ReactNode, useState, useEffect, useRef } from 'react';
 import { Modal } from '@components/modal/modal';
 import { Button } from '@components/ui/button';
-import { useAuth } from '@lib/context/auth-context';
 
 export type LayoutProps = {
     children: ReactNode;
@@ -32,24 +31,32 @@ const safeSetItem = (key: string, value: string): void => {
 
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
     const user = useRequireAuth();
-    const { signOut } = useAuth();
 
-    const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
+    const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+    const [disclaimerChecked, setDisclaimerChecked] = useState(false);
     const [showHint, setShowHint] = useState(false);
     const [isPulsing, setIsPulsing] = useState(false);
 
     useEffect(() => {
-        const accepted = safeGetItem(DISCLAIMER_KEY) === 'true';
+        let accepted = false;
+        try {
+            accepted = localStorage.getItem(DISCLAIMER_KEY) === 'true';
+        } catch {
+            // Storage may be unavailable; fall back to session-only acceptance.
+        }
         setDisclaimerAccepted(accepted);
+        setDisclaimerChecked(true);
     }, []);
 
+    const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleOutsideClick = () => {
         setIsPulsing(true);
         setShowHint(true);
-        setTimeout(() => setIsPulsing(false), 400);
+        if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+        pulseTimeoutRef.current = setTimeout(() => setIsPulsing(false), 400);
     };
-
     if (!user) return <Placeholder />;
+    if (!disclaimerChecked) return <></>;
     if (disclaimerAccepted) return <>{children}</>;
 
     return (
@@ -101,7 +108,7 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                 </p>
                 <a
                     href='mailto:info@metastate.foundation'
-                    className='outline-none'
+                    className='focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400'
                 >
                     info@metastate.foundation
                 </a>
@@ -114,8 +121,13 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                     <Button
                         type='button'
                         className='w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
+
                         onClick={() => {
-                            safeSetItem(DISCLAIMER_KEY, 'true');
+                            try {
+                                localStorage.setItem(DISCLAIMER_KEY, 'true');
+                            } catch {
+                                // Ignore storage failures; allow access for this session.
+                            }
                             setDisclaimerAccepted(true);
                         }}
                     >
