@@ -2,7 +2,7 @@ import { useRequireAuth } from '@lib/hooks/useRequireAuth';
 import { Aside } from '@components/aside/aside';
 import { Suggestions } from '@components/aside/suggestions';
 import { Placeholder } from '@components/common/placeholder';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState, useEffect } from 'react';
 import { Modal } from '@components/modal/modal';
 import { Button } from '@components/ui/button';
 import { useAuth } from '@lib/context/auth-context';
@@ -11,68 +11,101 @@ export type LayoutProps = {
     children: ReactNode;
 };
 
+const DISCLAIMER_KEY = 'blabsy-disclaimer-accepted';
+
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
     const user = useRequireAuth();
     const { signOut } = useAuth();
 
-    const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+    const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
+    const [showHint, setShowHint] = useState(false);
+    const [isPulsing, setIsPulsing] = useState(false);
+
+    useEffect(() => {
+        const accepted = localStorage.getItem(DISCLAIMER_KEY) === 'true';
+        setDisclaimerAccepted(accepted);
+    }, []);
+
+    const handleOutsideClick = () => {
+        setIsPulsing(true);
+        setShowHint(true);
+        setTimeout(() => setIsPulsing(false), 400);
+    };
+
     if (!user) return <Placeholder />;
+    if (disclaimerAccepted) return <>{children}</>;
 
     return (
         <>
             {children}
-            {!disclaimerAccepted ? (
-                <Modal
-                    open={!disclaimerAccepted}
-                    closeModal={() => signOut()}
-                    className='max-w-lg mx-auto mt-24'
-                    modalClassName='bg-black backdrop-blur-md p-6 rounded-lg flex flex-col gap-2'
+            <Modal
+                open={true}
+                closeModal={handleOutsideClick}
+                className='max-w-lg mx-auto mt-24'
+                modalClassName={`bg-black backdrop-blur-md p-6 rounded-lg flex flex-col gap-2 ${isPulsing ? 'animate-pulse-scale' : ''}`}
+            >
+                <style>{`
+                    @keyframes pulse-scale {
+                        0% { transform: scale(1); }
+                        25% { transform: scale(1.01); }
+                        50% { transform: scale(0.99); }
+                        75% { transform: scale(1.005); }
+                        100% { transform: scale(1); }
+                    }
+                    .animate-pulse-scale {
+                        animation: pulse-scale 0.4s ease-in-out;
+                    }
+                `}</style>
+                <h1 className='text-xl text-center font-bold'>
+                    Disclaimer from MetaState Foundation
+                </h1>
+                <p className='font-bold'>⚠️ Please note:</p>
+                <p>
+                    Blabsy is a <b>functional prototype</b>, intended to
+                    showcase <b>interoperability</b> and core concepts of
+                    the W3DS ecosystem.
+                </p>
+                <p>
+                    <b>It is not a production-grade platform</b> and may
+                    lack full reliability, performance, and security
+                    guarantees.
+                </p>
+                <p>
+                    We <b>strongly recommend</b> that you avoid sharing{' '}
+                    <b>sensitive or private content</b>, and kindly ask for
+                    your understanding regarding any bugs, incomplete
+                    features, or unexpected behaviours.
+                </p>
+                <p>
+                    The app is still in development, so we kindly ask for
+                    your understanding regarding any potential issues. If
+                    you experience issues or have feedback, feel free to
+                    contact us at:
+                </p>
+                <a
+                    href='mailto:info@metastate.foundation'
+                    className='outline-none'
                 >
-                    <h1 className='text-xl text-center font-bold'>
-                        Disclaimer from MetaState Foundation
-                    </h1>
-                    <p className='font-bold'>⚠️ Please note:</p>
-                    <p>
-                        Blabsy is a <b>functional prototype</b>, intended to
-                        showcase <b>interoperability</b> and core concepts of
-                        the W3DS ecosystem.
-                    </p>
-                    <p>
-                        <b>It is not a production-grade platform</b> and may
-                        lack full reliability, performance, and security
-                        guarantees.
-                    </p>
-                    <p>
-                        We <b>strongly recommend</b> that you avoid sharing{' '}
-                        <b>sensitive or private content</b>, and kindly ask for
-                        your understanding regarding any bugs, incomplete
-                        features, or unexpected behaviours.
-                    </p>
-                    <p>
-                        The app is still in development, so we kindly ask for
-                        your understanding regarding any potential issues. If
-                        you experience issues or have feedback, feel free to
-                        contact us at:
-                    </p>
-                    <a
-                        href='mailto:info@metastate.foundation'
-                        className='outline-none'
-                    >
-                        info@metastate.foundation
-                    </a>
+                    info@metastate.foundation
+                </a>
+                <div className='relative mt-4'>
+                    {showHint && (
+                        <div className='mb-2 text-xs text-center text-yellow-400 bg-yellow-900/30 px-3 py-2 rounded'>
+                            💡 You must accept the disclaimer to continue. This will only appear once.
+                        </div>
+                    )}
                     <Button
                         type='button'
-                        className='mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
+                        className='w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
                         onClick={() => {
+                            localStorage.setItem(DISCLAIMER_KEY, 'true');
                             setDisclaimerAccepted(true);
                         }}
                     >
                         I Understand
                     </Button>
-                </Modal>
-            ) : (
-                <></>
-            )}
+                </div>
+            </Modal>
         </>
     );
 }
