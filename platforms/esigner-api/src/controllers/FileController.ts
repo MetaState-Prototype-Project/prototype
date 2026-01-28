@@ -3,7 +3,7 @@ import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
 const upload = multer({
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit
     storage: multer.memoryStorage(),
 });
 
