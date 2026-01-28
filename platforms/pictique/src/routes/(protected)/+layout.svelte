@@ -8,7 +8,6 @@
 	import type { userProfile } from '$lib/types';
 	import { Button, Modal } from '$lib/ui';
 	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
-	import { removeAuthId, removeAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import { onMount } from 'svelte';
 
@@ -67,9 +66,22 @@
 <CreatePostModal bind:open={$isCreatePostModalOpen} />
 <Modal
 	open={$isDisclaimerModalOpen}
-	onclose={() => {
+	onClickOutside={(modal) => {
 		if (!confirmedDisclaimer) {
 			showHint = true;
+			modal.animate(
+				[
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.025)' },
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.0125)' },
+					{ transform: 'scale(1)' }
+				],
+				{
+					duration: 250,
+					easing: 'ease-in-out'
+				}
+			);
 		}
 	}}
 >
