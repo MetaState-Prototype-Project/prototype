@@ -13,47 +13,50 @@ export function LoginMain(): JSX.Element {
     const eventSourceRef = useRef<EventSource | null>(null);
     const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const watchEventStream = useCallback((id: string): EventSource => {
-        const sseUrl = new URL(
-            `/api/auth/sessions/${id}`,
-            process.env.NEXT_PUBLIC_BASE_URL
-        ).toString();
-        const eventSource = new EventSource(sseUrl);
+    const watchEventStream = useCallback(
+        (id: string): EventSource => {
+            const sseUrl = new URL(
+                `/api/auth/sessions/${id}`,
+                process.env.NEXT_PUBLIC_BASE_URL
+            ).toString();
+            const eventSource = new EventSource(sseUrl);
 
-        eventSource.onopen = (): void => {
-            console.log('Successfully connected.');
-            setErrorMessage(null);
-        };
-
-        eventSource.onmessage = async (e): Promise<void> => {
-            const data = JSON.parse(e.data as string) as {
-                token?: string;
-                error?: boolean;
-                message?: string;
-                type?: string;
+            eventSource.onopen = (): void => {
+                console.log('Successfully connected.');
+                setErrorMessage(null);
             };
 
-            if (data.error && data.type === 'version_mismatch') {
-                setErrorMessage(
-                    data.message ||
-                        'Your eID Wallet app version is outdated. Please update to continue.'
-                );
+            eventSource.onmessage = async (e): Promise<void> => {
+                const data = JSON.parse(e.data as string) as {
+                    token?: string;
+                    error?: boolean;
+                    message?: string;
+                    type?: string;
+                };
+
+                if (data.error && data.type === 'version_mismatch') {
+                    setErrorMessage(
+                        data.message ||
+                            'Your eID Wallet app version is outdated. Please update to continue.'
+                    );
+                    eventSource.close();
+                    return;
+                }
+
+                if (data.token) {
+                    await signInWithCustomToken(data.token);
+                }
+            };
+
+            eventSource.onerror = (): void => {
+                console.error('SSE connection error');
                 eventSource.close();
-                return;
-            }
+            };
 
-            if (data.token) {
-                await signInWithCustomToken(data.token);
-            }
-        };
-
-        eventSource.onerror = (): void => {
-            console.error('SSE connection error');
-            eventSource.close();
-        };
-
-        return eventSource;
-    }, [signInWithCustomToken]);
+            return eventSource;
+        },
+        [signInWithCustomToken]
+    );
 
     const getOfferData = useCallback(async (): Promise<void> => {
         // Clean up existing SSE connection

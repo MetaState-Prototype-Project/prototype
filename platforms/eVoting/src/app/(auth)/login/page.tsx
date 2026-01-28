@@ -14,6 +14,8 @@ export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [redirectTo, setRedirectTo] = useState<string>("/");
+
 
     useEffect(() => {
         setIsMobile(isMobileDevice());
@@ -24,6 +26,7 @@ export default function LoginPage() {
         if (typeof window === 'undefined') return;
 
         const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect");
         const ename = params.get('ename');
         const session = params.get('session');
         const signature = params.get('signature');
@@ -37,6 +40,11 @@ export default function LoginPage() {
             handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
             return;
         }
+
+        if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+        setRedirectTo(redirect);
+        sessionStorage.setItem("postLoginRedirect", redirect);
+    }
 
         // If no query params, proceed with normal flow
         const fetchQRCode = async () => {
@@ -84,7 +92,11 @@ export default function LoginPage() {
                 if (data.token && data.user) {
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
-                    window.location.href = "/";
+                    const redirect =
+    sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+
+sessionStorage.removeItem("postLoginRedirect");
+window.location.href = redirect;
                 }
             } else {
                 const errorData = await response.json();
@@ -122,7 +134,11 @@ export default function LoginPage() {
                 if (data.token && data.user) {
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
-                    window.location.href = "/";
+                    const redirect =
+    sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+
+sessionStorage.removeItem("postLoginRedirect");
+window.location.href = redirect;
                 }
             } catch (error) {
                 console.error("Error parsing SSE data:", error);
@@ -134,7 +150,7 @@ export default function LoginPage() {
         };
 
         return () => eventSource.close();
-    }, [sessionId, login]);
+    }, [sessionId, login, redirectTo]);
 
     const getAppStoreLink = () => {
         if (typeof navigator === 'undefined') return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
@@ -170,7 +186,7 @@ export default function LoginPage() {
                     <div className="text-lg sm:text-xl space-x-1">
                         {isMobile ? (
                             <>
-                                <span>Click the button below using your</span>
+                                <span>Click the button below using you</span>
                                 <a href={getAppStoreLink()}><span className="font-bold underline">eID App</span></a>
                                 <span>to login</span>
                             </>

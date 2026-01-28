@@ -139,4 +139,3 @@ export const deleteDocument = async (documentId: string) => {
 
 // Keep deleteFile alias for backward compatibility
 export const deleteFile = deleteDocument;
-
