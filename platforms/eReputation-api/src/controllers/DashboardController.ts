@@ -12,6 +12,23 @@ export class DashboardController {
         this.calculationService = new CalculationService();
     }
 
+    /**
+     * Maps reference status from DB format to display format.
+     */
+    private mapReferenceStatus(status: string): string {
+        switch (status?.toLowerCase()) {
+            case "revoked":
+                return "Revoked";
+            case "signed":
+            case "active":
+                return "Signed";
+            case "pending":
+                return "Pending";
+            default:
+                return "Unknown";
+        }
+    }
+
     getStats = async (req: Request, res: Response) => {
         try {
             const userId = req.user!.id;
@@ -58,7 +75,7 @@ export class DashboardController {
                         target: ref.targetName,
                         targetType: ref.targetType,
                         date: ref.createdAt,
-                        status: ref.status === 'revoked' ? 'Revoked' : 'Signed',
+                        status: this.mapReferenceStatus(ref.status),
                         data: ref
                     });
                 });
@@ -76,7 +93,7 @@ export class DashboardController {
                         target: authorName,
                         targetType: 'user',
                         date: ref.createdAt,
-                        status: ref.status === 'revoked' ? 'Revoked' : 'Signed',
+                        status: this.mapReferenceStatus(ref.status),
                         data: ref
                     });
                 });

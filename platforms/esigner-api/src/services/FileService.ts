@@ -118,6 +118,9 @@ export class FileService {
             }
         }
 
+        // Sort by creation time, newest first (so new files from others appear at top)
+        allFiles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
         // Hide soft-deleted (File Manager delete workaround: name [[deleted]])
         return allFiles.filter((f) => f.name !== SOFT_DELETED_FILE_NAME);
     }
