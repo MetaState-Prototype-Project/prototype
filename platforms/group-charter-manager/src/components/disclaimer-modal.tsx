@@ -20,6 +20,23 @@ import { cn } from "@/lib/utils";
 
 const DISCLAIMER_KEY = "group-charter-disclaimer-accepted";
 
+// Safe localStorage access for restricted environments
+const safeGetItem = (key: string): string | null => {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const safeSetItem = (key: string, value: string): void => {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Silently fail in restricted environments
+    }
+};
+
 export default function DisclaimerModal() {
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(true); // Start as true to prevent flash
     const [showHint, setShowHint] = useState(false);
@@ -27,7 +44,7 @@ export default function DisclaimerModal() {
 
     useEffect(() => {
         // Check if disclaimer was previously accepted
-        const accepted = localStorage.getItem(DISCLAIMER_KEY) === "true";
+        const accepted = safeGetItem(DISCLAIMER_KEY) === "true";
         setDisclaimerAccepted(accepted);
     }, []);
 
@@ -115,7 +132,7 @@ export default function DisclaimerModal() {
                                     type="button"
                                     className="w-full"
                                     onClick={() => {
-                                        localStorage.setItem(DISCLAIMER_KEY, "true");
+                                        safeSetItem(DISCLAIMER_KEY, "true");
                                         setDisclaimerAccepted(true);
                                     }}
                                 >

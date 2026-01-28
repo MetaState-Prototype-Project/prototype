@@ -13,6 +13,23 @@ export type LayoutProps = {
 
 const DISCLAIMER_KEY = 'blabsy-disclaimer-accepted';
 
+// Safe localStorage access for restricted environments
+const safeGetItem = (key: string): string | null => {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const safeSetItem = (key: string, value: string): void => {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Silently fail in restricted environments
+    }
+};
+
 export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
     const user = useRequireAuth();
     const { signOut } = useAuth();
@@ -22,7 +39,7 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
     const [isPulsing, setIsPulsing] = useState(false);
 
     useEffect(() => {
-        const accepted = localStorage.getItem(DISCLAIMER_KEY) === 'true';
+        const accepted = safeGetItem(DISCLAIMER_KEY) === 'true';
         setDisclaimerAccepted(accepted);
     }, []);
 
@@ -98,7 +115,7 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                         type='button'
                         className='w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
                         onClick={() => {
-                            localStorage.setItem(DISCLAIMER_KEY, 'true');
+                            safeSetItem(DISCLAIMER_KEY, 'true');
                             setDisclaimerAccepted(true);
                         }}
                     >

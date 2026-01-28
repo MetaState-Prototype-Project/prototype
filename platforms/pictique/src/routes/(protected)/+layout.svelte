@@ -21,6 +21,23 @@
 
 	const DISCLAIMER_KEY = 'pictique-disclaimer-accepted';
 
+	// Safe localStorage access for restricted environments
+	const safeGetItem = (key: string): string | null => {
+		try {
+			return localStorage.getItem(key);
+		} catch {
+			return null;
+		}
+	};
+
+	const safeSetItem = (key: string, value: string): void => {
+		try {
+			localStorage.setItem(key, value);
+		} catch {
+			// Silently fail in restricted environments
+		}
+	};
+
 	async function fetchProfile() {
 		ownerId = getAuthId();
 		try {
@@ -41,7 +58,7 @@
 
 	onMount(() => {
 		fetchProfile();
-		const accepted = localStorage.getItem(DISCLAIMER_KEY) === 'true';
+		const accepted = safeGetItem(DISCLAIMER_KEY) === 'true';
 		if (accepted) {
 			confirmedDisclaimer = true;
 			closeDisclaimerModal();
@@ -114,7 +131,7 @@
 			class="mt-2 w-full"
 			data-disclaimer-button
 			callback={() => {
-				localStorage.setItem(DISCLAIMER_KEY, 'true');
+				safeSetItem(DISCLAIMER_KEY, 'true');
 				closeDisclaimerModal();
 				confirmedDisclaimer = true;
 			}}>I Understand</Button

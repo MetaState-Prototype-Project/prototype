@@ -1,6 +1,5 @@
 "use client";
 import Navigation from "@/components/navigation";
-import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,23 @@ import { cn } from "@/lib/utils";
 
 const DISCLAIMER_KEY = "evoting-disclaimer-accepted";
 
+// Safe localStorage access for restricted environments
+const safeGetItem = (key: string): string | null => {
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const safeSetItem = (key: string, value: string): void => {
+    try {
+        localStorage.setItem(key, value);
+    } catch {
+        // Silently fail in restricted environments
+    }
+};
+
 // Deeplink handling for reveal functionality
 declare global {
     interface WindowEventMap {
@@ -35,14 +51,13 @@ export default function AppLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    const { logout } = useAuth();
     const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
     const [isPulsing, setIsPulsing] = useState(false);
     const [showHint, setShowHint] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
-        const accepted = localStorage.getItem(DISCLAIMER_KEY) === "true";
+        const accepted = safeGetItem(DISCLAIMER_KEY) === "true";
         if (accepted) {
             setDisclaimerAccepted(true);
         }
@@ -96,8 +111,7 @@ export default function AppLayout({
                 <Dialog open>
                     <DialogContent
                         className={cn(
-                            "max-w-lg mx-auto backdrop-blur-md p-6 rounded-lg",
-                            isPulsing && "animate-pulse-scale"
+                            "max-w-lg mx-auto backdrop-blur-md p-6 rounded-lg"
                         )}
                         style={{
                             animationName: isPulsing ? 'pulse-scale' : 'none'
@@ -167,7 +181,7 @@ export default function AppLayout({
                                             type="button"
                                             className="w-full"
                                             onClick={() => {
-                                                localStorage.setItem(DISCLAIMER_KEY, "true");
+                                                safeSetItem(DISCLAIMER_KEY, "true");
                                                 setDisclaimerAccepted(true);
                                             }}
                                         >
