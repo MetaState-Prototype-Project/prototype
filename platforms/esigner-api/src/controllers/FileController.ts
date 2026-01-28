@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
-import { FileService } from "../services/FileService";
+import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
+export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
 const upload = multer({
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: MAX_FILE_SIZE },
     storage: multer.memoryStorage(),
 });
 
@@ -49,6 +51,9 @@ export class FileController {
                     createdAt: file.createdAt,
                 });
             } catch (error) {
+                if (error instanceof ReservedFileNameError) {
+                    return res.status(400).json({ error: error.message });
+                }
                 console.error("Error uploading file:", error);
                 res.status(500).json({ error: "Failed to upload file" });
             }
@@ -61,7 +66,9 @@ export class FileController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const documents = await this.fileService.getDocumentsWithStatus(req.user.id);
+            const list = req.query.list as string | undefined;
+            const listMode = list === "all" ? "all" : "containers";
+            const documents = await this.fileService.getDocumentsWithStatus(req.user.id, listMode);
             res.json(documents);
         } catch (error) {
             console.error("Error getting documents:", error);
@@ -195,7 +202,7 @@ export class FileController {
             }
 
             const signatures = await this.fileService.getFileSignatures(fileId);
-            
+
             res.json(signatures.map(sig => ({
                 id: sig.id,
                 userId: sig.userId,

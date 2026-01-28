@@ -5,7 +5,8 @@ import { config } from "dotenv";
 import { AppDataSource } from "./database/data-source";
 import path from "path";
 import { AuthController } from "./controllers/AuthController";
-import { FileController } from "./controllers/FileController";
+import { FileController, MAX_FILE_SIZE } from "./controllers/FileController";
+import multer from "multer";
 import { InvitationController } from "./controllers/InvitationController";
 import { SignatureController } from "./controllers/SignatureController";
 import { UserController } from "./controllers/UserController";
@@ -24,12 +25,12 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
-        
+
         // Initialize platform eVault for eSigner
         try {
             const platformService = PlatformEVaultService.getInstance();
             const exists = await platformService.checkPlatformEVaultExists();
-            
+
             if (!exists) {
                 console.log("🔧 Creating platform eVault for eSigner...");
                 const result = await platformService.createPlatformEVault();
@@ -61,8 +62,8 @@ app.use(
         credentials: true,
     }),
 );
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
 // Controllers
 const authController = new AuthController();
@@ -104,6 +105,27 @@ app.post("/api/invitations/:id/decline", authGuard, invitationController.decline
 app.post("/api/signatures/session", authGuard, signatureController.createSigningSession);
 app.get("/api/signatures/session/:id", signatureController.getSigningSessionStatus);
 app.post("/api/signatures/callback", signatureController.handleSignedPayload);
+
+// Global error handler for multer file size errors
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+        const maxSizeMB = Math.round(MAX_FILE_SIZE / (1024 * 1024));
+        return res.status(413).json({
+            error: `File size exceeds the maximum limit of ${maxSizeMB} MB`,
+            code: "LIMIT_FILE_SIZE",
+            maxSize: MAX_FILE_SIZE,
+        });
+    }
+    // Handle other multer errors
+    if (err instanceof multer.MulterError) {
+        return res.status(400).json({
+            error: err.message,
+            code: err.code,
+        });
+    }
+    // Pass other errors to the default handler
+    next(err);
+});
 
 // Start server
 app.listen(port, () => {

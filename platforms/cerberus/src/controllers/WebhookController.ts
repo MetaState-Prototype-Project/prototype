@@ -113,21 +113,59 @@ export class WebhookController {
                     Array.isArray(local.data.participants)
                 ) {
                     console.log("Processing participants:", local.data.participants);
+                    
+                    // Use Promise.allSettled with timeout to prevent webhook hang
                     const participantPromises = local.data.participants.map(
-                        async (ref: string) => {
-                            if (ref && typeof ref === "string") {
-                                const userId = ref.split("(")[1].split(")")[0];
-                                console.log("Extracted userId:", userId);
-                                return await this.userService.getUserById(userId);
+                        async (ref: string, index: number) => {
+                            if (!ref || typeof ref !== "string") {
+                                return null;
                             }
-                            return null;
+                            
+                            try {
+                                const userId = ref.split("(")[1]?.split(")")[0];
+                                if (!userId) {
+                                    console.warn(`⚠️ Could not extract userId from ref: ${ref}`);
+                                    return null;
+                                }
+                                
+                                console.log(`Extracted userId [${index}]: ${userId}`);
+                                
+                                // Add 5-second timeout to prevent indefinite hang
+                                const timeoutPromise = new Promise<null>((_, reject) => 
+                                    setTimeout(() => reject(new Error(`Timeout loading user ${userId}`)), 5000)
+                                );
+                                
+                                const userPromise = this.userService.userRepository.findOne({
+                                    where: { id: userId },
+                                    // Skip heavy relations in webhook context - only need basic user data
+                                });
+                                
+                                const user = await Promise.race([userPromise, timeoutPromise]);
+                                
+                                if (user) {
+                                    console.log(`✅ Loaded user [${index}]: ${userId}`);
+                                } else {
+                                    console.warn(`⚠️ User not found [${index}]: ${userId}`);
+                                }
+                                
+                                return user;
+                            } catch (error) {
+                                console.error(`❌ Error loading participant [${index}]:`, error instanceof Error ? error.message : error);
+                                return null;
+                            }
                         }
                     );
 
-                    participants = (
-                        await Promise.all(participantPromises)
-                    ).filter((user): user is User => user !== null);
-                    console.log("Found participants:", participants.length);
+                    // Use allSettled to handle failures gracefully without blocking
+                    const settledResults = await Promise.allSettled(participantPromises);
+                    
+                    participants = settledResults
+                        .filter((result): result is PromiseFulfilledResult<User | null> => 
+                            result.status === 'fulfilled' && result.value !== null
+                        )
+                        .map(result => result.value as User);
+                    
+                    console.log(`Found ${participants.length} participants (${settledResults.filter(r => r.status === 'rejected').length} failed)`);
                 }
 
                 // Process admins - filter out nulls and extract IDs

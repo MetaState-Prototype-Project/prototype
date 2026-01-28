@@ -108,7 +108,7 @@ export default function CurrencyDetail() {
     if (!user) return;
 
     const adminGroups = groups?.filter((g: any) => g.isAdmin) || [];
-    
+
     // If no context is set, default to user account
     if (!accountContext) {
       const defaultContext = { type: "user" as const, id: user.id };
@@ -119,16 +119,18 @@ export default function CurrencyDetail() {
 
     // Validate the saved context
     let isValid = false;
-    
+
     if (accountContext.type === "user") {
-      // User context must match current user ID
       isValid = accountContext.id === user.id;
     } else if (accountContext.type === "group") {
-      // Group context must be in admin groups list
-      isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+      // Do not reset group context while groups are still loading (preserves selection across refresh)
+      if (groups === undefined) {
+        isValid = true;
+      } else {
+        isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+      }
     }
 
-    // If invalid, reset to user account
     if (!isValid) {
       const defaultContext = { type: "user" as const, id: user.id };
       setAccountContext(defaultContext);
@@ -141,22 +143,26 @@ export default function CurrencyDetail() {
     // If null is passed, default to user account
     const finalContext = context || (user ? { type: "user" as const, id: user.id } : null);
     
-    // Check if context actually changed
-    const contextChanged = !accountContext || 
-      accountContext.type !== finalContext?.type || 
-      accountContext.id !== finalContext?.id;
-    
+    // Check if context actually changed (semantic comparison)
+    const contextChanged =
+      finalContext === null && accountContext === null
+        ? false
+        : !accountContext ||
+          !finalContext ||
+          accountContext.type !== finalContext.type ||
+          accountContext.id !== finalContext.id;
+
+    // Only update state and storage when context meaningfully changed (avoids clearing transaction history when re-selecting same account)
+    if (!contextChanged) return;
+
     setAccountContext(finalContext);
     if (finalContext) {
       localStorage.setItem("ecurrency_account_context", JSON.stringify(finalContext));
     } else {
       localStorage.removeItem("ecurrency_account_context");
     }
-    
-    // Navigate to dashboard when context changes
-    if (contextChanged) {
-      setLocation("/");
-    }
+
+    setLocation("/");
   };
 
   const { data: totalSupplyData, isLoading: totalSupplyLoading } = useQuery({
@@ -423,9 +429,9 @@ export default function CurrencyDetail() {
 
         {/* Transactions */}
         <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
             <h2 className="text-xl font-semibold">Transactions</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {isAdminOfCurrency && accountContext?.type === "group" && accountContext.id === currency.groupId && (
                     <>
                   <button

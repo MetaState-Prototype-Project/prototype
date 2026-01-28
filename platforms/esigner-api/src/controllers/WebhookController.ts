@@ -276,21 +276,29 @@ export class WebhookController {
                 }
 
                 if (localId) {
-                    // Update existing file
-                    const file = await this.fileService.getFileById(localId);
+                    // Update existing file – apply name/displayName so renames in File Manager sync to eSigner
+                    const file = await this.fileRepository.findOne({
+                        where: { id: localId },
+                    });
                     if (!file) {
                         console.error("File not found for localId:", localId);
                         return res.status(500).send();
                     }
 
-                    file.name = local.data.name as string;
-                    file.displayName = local.data.displayName as string | null;
-                    file.description = local.data.description as string | null;
-                    file.mimeType = local.data.mimeType as string;
-                    file.size = local.data.size as number;
-                    file.md5Hash = local.data.md5Hash as string;
+                    if (local.data.name !== undefined)
+                        file.name = local.data.name as string;
+                    if (local.data.displayName !== undefined)
+                        file.displayName = local.data.displayName as string | null;
+                    if (local.data.description !== undefined)
+                        file.description = local.data.description as string | null;
+                    if (local.data.mimeType !== undefined)
+                        file.mimeType = local.data.mimeType as string;
+                    if (local.data.size !== undefined)
+                        file.size = local.data.size as number;
+                    if (local.data.md5Hash !== undefined)
+                        file.md5Hash = local.data.md5Hash as string;
                     file.ownerId = owner.id;
-                    
+
                     // Decode base64 data if provided
                     if (local.data.data && typeof local.data.data === "string") {
                         file.data = Buffer.from(local.data.data, "base64");

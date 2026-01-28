@@ -393,11 +393,23 @@
             itemToDelete = null;
             await loadFiles();
             await fetchFolderTree();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to delete:", error);
-            toast.error(
-                `Failed to delete ${itemType === "file" ? "file" : "folder"}`,
-            );
+            const data = error.response?.data;
+            if (
+                itemType === "file" &&
+                error.response?.status === 409 &&
+                (data?.code === "FILE_HAS_SIGNATURES" ||
+                    data?.error?.toLowerCase?.().includes("signing container"))
+            ) {
+                toast.error(
+                    "This file cannot be deleted because it has been used in a signing container.",
+                );
+            } else {
+                toast.error(
+                    `Failed to delete ${itemType === "file" ? "file" : "folder"}`,
+                );
+            }
         } finally {
             isLoading = false;
         }
@@ -693,8 +705,17 @@
         }
     }
 
+    function updateUrlFromState() {
+        const params = new URLSearchParams();
+        if (currentView === "shared") params.set("view", "shared");
+        if (currentFolderId) params.set("folderId", currentFolderId);
+        const query = params.toString();
+        goto(query ? `/files?${query}` : "/files", { replaceState: true });
+    }
+
     async function navigateToFolder(folderId: string | null) {
         currentFolderId = folderId;
+        updateUrlFromState();
         await loadFiles();
         await updateBreadcrumbs();
     }
@@ -703,6 +724,7 @@
         if (currentView === view) return; // Don't reload if already on this view
         currentView = view;
         currentFolderId = null; // Reset to root when switching views
+        updateUrlFromState();
         await loadFiles(); // Reload files when switching views
         await updateBreadcrumbs(); // Update breadcrumbs with correct root name
     }

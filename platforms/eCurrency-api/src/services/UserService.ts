@@ -48,9 +48,27 @@ export class UserService {
     }
 
     async searchUsers(query: string, limit: number = 10): Promise<User[]> {
+        const q = query.trim().toLowerCase();
+        const patternPartial = `%${q}%`;
+        const patternPrefix = `${q}%`;
+
         return await this.userRepository
             .createQueryBuilder("user")
-            .where("user.name ILIKE :query OR user.handle ILIKE :query", { query: `%${query}%` })
+            .where("(user.name ILIKE :patternPartial OR user.handle ILIKE :patternPartial)", {
+                patternPartial,
+            })
+            .addSelect(
+                `CASE ` +
+                `WHEN LOWER(COALESCE(user.name, '')) = :exact OR LOWER(COALESCE(user.handle, '')) = :exact THEN 0 ` +
+                `WHEN LOWER(COALESCE(user.name, '')) LIKE :patternPrefix OR LOWER(COALESCE(user.handle, '')) LIKE :patternPrefix THEN 1 ` +
+                `ELSE 2 ` +
+                `END`,
+                "relevance",
+            )
+            .setParameter("exact", q)
+            .setParameter("patternPrefix", patternPrefix)
+            .orderBy("relevance", "ASC")
+            .addOrderBy("user.name", "ASC", "NULLS LAST")
             .limit(limit)
             .getMany();
     }

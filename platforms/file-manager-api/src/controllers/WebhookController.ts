@@ -291,7 +291,8 @@ export class WebhookController {
                 }
 
                 if (localId) {
-                    // Update existing file
+                    // Update existing file – only set folderId when payload carries it (e.g. from File Manager).
+                    // When payload has no folderId (e.g. from eSigner), preserve existing folder so nested files don't move to root.
                     const file = await this.fileRepository.findOne({
                         where: { id: localId },
                     });
@@ -307,8 +308,10 @@ export class WebhookController {
                     file.size = local.data.size as number;
                     file.md5Hash = local.data.md5Hash as string;
                     file.ownerId = owner.id;
-                    file.folderId = folderId;
-                    
+                    if (local.data.folderId !== undefined) {
+                        file.folderId = folderId;
+                    }
+
                     // Decode base64 data if provided
                     if (local.data.data && typeof local.data.data === "string") {
                         file.data = Buffer.from(local.data.data, "base64");

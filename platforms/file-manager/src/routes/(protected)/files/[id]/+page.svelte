@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { isAuthenticated } from '$lib/stores/auth';
 	import { apiClient } from '$lib/utils/axios';
+	import { getMimeTypeDisplayLabel } from '$lib/utils/mime-type';
 	import { PUBLIC_FILE_MANAGER_BASE_URL } from '$env/static/public';
 	import { toast } from '$lib/stores/toast';
 	import { fetchFileAccess, grantFileAccess, revokeFileAccess, fileAccess } from '$lib/stores/access';
@@ -367,7 +368,7 @@
 			<div class="w-full lg:w-[70%] bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
 				<div class="mb-4">
 					<h1 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{file.displayName || file.name}</h1>
-					<p class="text-xs sm:text-sm text-gray-500">Size: {formatFileSize(file.size)} • Type: {file.mimeType}</p>
+					<p class="text-xs sm:text-sm text-gray-500">Size: {formatFileSize(file.size)} • Type: {getMimeTypeDisplayLabel(file.mimeType)}</p>
 				</div>
 
 				{#if previewUrl}
@@ -417,7 +418,7 @@
 						</div>
 						<div>
 							<dt class="text-gray-500 font-medium">Type</dt>
-							<dd class="text-gray-900 mt-1">{file.mimeType}</dd>
+							<dd class="text-gray-900 mt-1">{getMimeTypeDisplayLabel(file.mimeType)}</dd>
 						</div>
 						<div>
 							<dt class="text-gray-500 font-medium">Created</dt>
