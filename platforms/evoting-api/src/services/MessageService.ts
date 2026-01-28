@@ -3,6 +3,8 @@ import { Message } from "../database/entities/Message";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 
+const UTC_OPTIONS: { timeZone: 'UTC' } = { timeZone: 'UTC' };
+
 export class MessageService {
     public messageRepository = AppDataSource.getRepository(Message);
     private userRepository = AppDataSource.getRepository(User);
@@ -66,7 +68,7 @@ export class MessageService {
      */
         async createVoteCreatedMessage(groupId: string, voteTitle: string, voteId: string, creatorName: string, deadline?: Date | null): Promise<Message> {
         const deadlineText = deadline
-            ? `\nDeadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()} UTC`
+            ? `\nDeadline: ${deadline.toLocaleDateString(undefined, UTC_OPTIONS)} at ${deadline.toLocaleTimeString(undefined, UTC_OPTIONS)} UTC`
             : '\nNo deadline set';
 
         const voteUrl = `${process.env.PUBLIC_EVOTING_URL || 'http://localhost:3000'}/${voteId}`;
@@ -81,7 +83,7 @@ export class MessageService {
      * Create a system message for vote deadline crossing
      */
         async createVoteDeadlineMessage(groupId: string, voteTitle: string, voteId: string, creatorName: string, deadline: Date): Promise<Message> {
-        const deadlineText = `\nOriginal Deadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()} UTC`;
+        const deadlineText = `\nOriginal Deadline: ${deadline.toLocaleDateString(undefined, UTC_OPTIONS)} at ${deadline.toLocaleTimeString(undefined, UTC_OPTIONS)} UTC`;
 
         return await this.createSystemMessage({
             text: `eVoting Platform: Vote deadline passed!\n\n"${voteTitle}"\n\nVote ID: ${voteId}\n\nCreated by: ${creatorName}${deadlineText}\n\nThis vote has ended. Check the results!`,
