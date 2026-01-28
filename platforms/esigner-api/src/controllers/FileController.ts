@@ -2,8 +2,10 @@ import { Request, Response } from "express";
 import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
+export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
+
 const upload = multer({
-    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
+    limits: { fileSize: MAX_FILE_SIZE },
     storage: multer.memoryStorage(),
 });
 
