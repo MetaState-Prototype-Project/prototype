@@ -102,6 +102,7 @@ declare module '$env/static/private' {
 	export const npm_config_registry: string;
 	export const npm_node_execpath: string;
 	export const TERM_PROGRAM: string;
+	export const NODE_ENV: string;
 }
 
 /**
@@ -129,6 +130,8 @@ declare module '$env/static/public' {
 	export const PUBLIC_EVOTING_URL: string;
 	export const PUBLIC_APP_STORE_EID_WALLET: string;
 	export const PUBLIC_PLAY_STORE_EID_WALLET: string;
+	export const PUBLIC_ESIGNER_BASE_URL: string;
+	export const PUBLIC_FILE_MANAGER_BASE_URL: string;
 }
 
 /**
@@ -221,6 +224,7 @@ declare module '$env/dynamic/private' {
 		npm_config_registry: string;
 		npm_node_execpath: string;
 		TERM_PROGRAM: string;
+		NODE_ENV: string;
 		[key: `PUBLIC_${string}`]: undefined;
 		[key: `${string}`]: string | undefined;
 	}
@@ -253,6 +257,8 @@ declare module '$env/dynamic/public' {
 		PUBLIC_EVOTING_URL: string;
 		PUBLIC_APP_STORE_EID_WALLET: string;
 		PUBLIC_PLAY_STORE_EID_WALLET: string;
+		PUBLIC_ESIGNER_BASE_URL: string;
+		PUBLIC_FILE_MANAGER_BASE_URL: string;
 		[key: `PUBLIC_${string}`]: string | undefined;
 	}
 }
