@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { isAuthenticated } from '$lib/stores/auth';
-	import { files, fetchFiles, uploadFile } from '$lib/stores/files';
+	import { uploadFile } from '$lib/stores/files';
 	import { apiClient } from '$lib/utils/axios';
 	import { inviteSignees } from '$lib/stores/invitations';
 
@@ -18,6 +18,8 @@
 	let currentUserId = $state<string | null>(null);
 	let displayName = $state('');
 	let description = $state('');
+	// All files available to select for a new container (includes File Manager–only uploads)
+	let selectableFiles = $state<any[]>([]);
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -25,7 +27,7 @@
 				goto('/auth');
 			}
 		});
-		
+
 		// Get current user ID from API
 		try {
 			const response = await apiClient.get('/api/users');
@@ -33,8 +35,14 @@
 		} catch (err) {
 			console.error('Failed to get current user:', err);
 		}
-		
-		fetchFiles();
+
+		// Load all files for picker (list=all) so user can select any file, including those not yet used as containers
+		try {
+			const res = await apiClient.get('/api/files', { params: { list: 'all' } });
+			selectableFiles = res.data ?? [];
+		} catch (err) {
+			console.error('Failed to load selectable files:', err);
+		}
 	});
 
 	async function handleFileUpload(file: File) {
@@ -278,11 +286,11 @@
 				<!-- Or Select Existing -->
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900 mb-4">Or Select Existing File</h3>
-					{#if $files.filter(file => !file.signatures || file.signatures.length === 0).length === 0}
+					{#if selectableFiles.filter(file => !file.signatures || file.signatures.length === 0).length === 0}
 						<p class="text-gray-600 text-center py-8">No unused files available</p>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-							{#each $files.filter(file => !file.signatures || file.signatures.length === 0) as file}
+							{#each selectableFiles.filter(file => !file.signatures || file.signatures.length === 0) as file}
 								<button
 									onclick={() => {
 										selectedFile = file;

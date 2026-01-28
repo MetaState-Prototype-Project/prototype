@@ -9,6 +9,7 @@
 	import { PUBLIC_ESIGNER_BASE_URL } from '$env/static/public';
 	import { toast } from '$lib/stores/toast';
 	import { isMobileDevice, getDeepLinkUrl } from '$lib/utils/mobile-detection';
+	import { getMimeTypeDisplayLabel } from '$lib/utils/mime-type';
 
 	let file = $state<any>(null);
 	let invitations = $state<any[]>([]);
@@ -376,7 +377,7 @@
 						<div class="bg-white rounded-lg shadow-lg p-6 sm:p-12 text-center max-w-md">
 							<div class="text-4xl sm:text-6xl mb-4">📄</div>
 							<p class="text-gray-600 mb-2">Preview not available for this file type</p>
-							<p class="text-sm text-gray-500">{file.mimeType}</p>
+							<p class="text-sm text-gray-500">{getMimeTypeDisplayLabel(file.mimeType || '')}</p>
 							<button
 								onclick={() => showDownloadModal = true}
 								class="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -449,7 +450,7 @@
 							</div>
 							<div class="flex justify-between gap-2">
 								<span class="text-gray-600 flex-shrink-0">Type:</span>
-								<span class="text-gray-900 font-medium break-all text-right text-xs sm:text-sm">{file.mimeType}</span>
+								<span class="text-gray-900 font-medium break-all text-right text-xs sm:text-sm">{getMimeTypeDisplayLabel(file.mimeType || '')}</span>
 							</div>
 							<div class="flex justify-between gap-2">
 								<span class="text-gray-600 flex-shrink-0">Created:</span>

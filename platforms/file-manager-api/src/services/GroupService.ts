@@ -215,12 +215,15 @@ export class GroupService {
     }
 
     async updateGroup(id: string, updateData: Partial<Group>): Promise<Group> {
-        await this.groupRepository.update(id, updateData);
-        const updatedGroup = await this.groupRepository.findOneBy({ id });
-        if (!updatedGroup) {
-            throw new Error("Group not found after update");
+        const group = await this.groupRepository.findOne({
+            where: { id },
+            relations: ["members", "admins", "participants"],
+        });
+        if (!group) {
+            throw new Error("Group not found");
         }
-        return updatedGroup;
+        Object.assign(group, updateData);
+        return await this.groupRepository.save(group);
     }
 
     async getUserGroups(userId: string): Promise<Group[]> {

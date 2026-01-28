@@ -8,47 +8,96 @@ interface CustomNumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInpu
 const CustomNumberInput = forwardRef<HTMLInputElement, CustomNumberInputProps>(
   ({ className, onChange, ...props }, ref) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const nativeEvent = e.nativeEvent as InputEvent;
       let value = e.target.value;
-      // Strip commas from pasted values
-      value = value.replace(/,/g, '');
-      // Allow only numbers, decimal point, and empty string
-      if (value === "" || /^\d*\.?\d*$/.test(value)) {
-        onChange?.(value);
+
+      // 1. Convert comma to dot based on exactly where the user typed it
+      if (nativeEvent.data === ',' && !value.includes('.')) {
+        const cursor = e.target.selectionStart;
+        // The character just typed is at cursor - 1
+        const idx = cursor !== null ? cursor - 1 : value.lastIndexOf(',');
+
+        if (idx >= 0 && value[idx] === ',') {
+          value = value.slice(0, idx) + '.' + value.slice(idx + 1);
+        }
+      }
+
+      // 2. Strip thousand-separator commas
+      const cleanValue = value.replace(/,/g, '');
+
+      if (cleanValue === "" || /^\d*\.?\d*$/.test(cleanValue)) {
+        onChange?.(cleanValue);
       }
     };
 
     const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
       const pastedText = e.clipboardData.getData('text');
-      // Strip commas and validate
-      const cleaned = pastedText.replace(/,/g, '').replace(/[^\d.]/g, '');
+      let cleaned = pastedText.trim();
+
+      const hasDot = cleaned.includes('.');
+      const hasComma = cleaned.includes(',');
+
+      if (hasDot && hasComma) {
+        // Use the last separator as decimal, strip the other as thousands
+        const lastDot = cleaned.lastIndexOf('.');
+        const lastComma = cleaned.lastIndexOf(',');
+        if (lastDot > lastComma) {
+          // Dot is decimal, comma is thousands: "1,234.56" → "1234.56"
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          // Comma is decimal, dot is thousands: "1.234,56" → "1234.56"
+          cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+        }
+      } else if (hasComma) {
+        // Heuristic: if comma looks like thousands grouping, strip; else treat as decimal
+        // "1,234" → "1234" but "12,5" → "12.5"
+        cleaned = /,\d{3}(?!\d)/.test(cleaned) ? cleaned.replace(/,/g, '') : cleaned.replace(/,/g, '.');
+      }
+
+      // Remove any non-numeric characters except decimal point
+      cleaned = cleaned.replace(/[^\d.]/g, '');
+
       // Only allow one decimal point
       const parts = cleaned.split('.');
-      const sanitized = parts.length > 2 
+      const sanitized = parts.length > 2
         ? parts[0] + '.' + parts.slice(1).join('')
         : cleaned;
-      
+
       if (sanitized === "" || /^\d*\.?\d*$/.test(sanitized)) {
         onChange?.(sanitized);
       }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // Allow: backspace, delete, tab, escape, enter, decimal point
+      const key = e.key;
+
+      // Allow navigation and control keys
       if (
-        [8, 9, 27, 13, 46, 110, 190].indexOf(e.keyCode) !== -1 ||
-        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-        (e.keyCode === 65 && e.ctrlKey === true) ||
-        (e.keyCode === 67 && e.ctrlKey === true) ||
-        (e.keyCode === 86 && e.ctrlKey === true) ||
-        (e.keyCode === 88 && e.ctrlKey === true) ||
-        // Allow: home, end, left, right
-        (e.keyCode >= 35 && e.keyCode <= 39)
+        key === 'Backspace' ||
+        key === 'Delete' ||
+        key === 'Tab' ||
+        key === 'Escape' ||
+        key === 'Enter' ||
+        key === 'ArrowLeft' ||
+        key === 'ArrowRight' ||
+        key === 'ArrowUp' ||
+        key === 'ArrowDown' ||
+        key === 'Home' ||
+        key === 'End' ||
+        key === '.' ||
+        key === ',' // Allow comma for international keyboards
       ) {
         return;
       }
-      // Ensure that it is a number and stop the keypress
-      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+
+      // Allow Ctrl/Cmd combinations (copy, paste, cut, select all, undo, redo)
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      // Only allow numeric keys (let handleChange do the validation)
+      if (!/^\d$/.test(key)) {
         e.preventDefault();
       }
     };

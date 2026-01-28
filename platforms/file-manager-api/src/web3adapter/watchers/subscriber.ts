@@ -184,61 +184,46 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
     }
 
     async afterUpdate(event: UpdateEvent<any>) {
-        // For updates, we need to reload the full entity since event.entity only contains changed fields
-        let entity = event.entity;
+        // For updates, we pass metadata to handleChange so the entity reload happens
+        // AFTER the transaction commits (inside setTimeout), avoiding stale reads
         
         // Try different ways to get the entity ID
         let entityId = event.entity?.id || event.databaseEntity?.id;
         
         if (!entityId && event.entity) {
-            // If we have the entity but no ID, try to extract it from the entity object
-            const entityKeys = Object.keys(event.entity);
-            
             // Look for common ID field names
             entityId = event.entity.id || event.entity.Id || event.entity.ID || event.entity._id;
         }
         
-        if (entityId) {
-            // Reload the full entity from the database
-            const repository = AppDataSource.getRepository(event.metadata.target);
-            
-            // Determine relations based on entity type
-            let relations: string[] = [];
-            if (event.metadata.tableName === "messages") {
-                relations = ["sender", "group", "group.members", "group.admins", "group.participants"];
-            } else if (event.metadata.tableName === "groups") {
-                relations = ["members", "admins", "participants"];
-            } else if (event.metadata.tableName === "files") {
-                relations = ["owner", "folder", "signatures", "tags"];
-            } else if (event.metadata.tableName === "signature_containers") {
-                relations = ["file", "user"];
-            }
-            
-            const fullEntity = await repository.findOne({
-                where: { id: entityId },
-                relations: relations.length > 0 ? relations : undefined
-            });
-            
-            if (fullEntity) {
-                entity = (await this.enrichEntity(
-                    fullEntity,
-                    event.metadata.tableName,
-                    event.metadata.target
-                )) as ObjectLiteral;
-            }
+        if (!entityId) {
+            console.warn(`⚠️ afterUpdate: Could not determine entity ID for ${event.metadata.tableName}`);
+            return;
         }
         
-        // Special handling for Message entities to ensure complete data
-        if (event.metadata.tableName === "messages" && entity) {
-            entity = await this.enrichMessageEntity(entity);
+        // Determine relations based on entity type
+        let relations: string[] = [];
+        if (event.metadata.tableName === "messages") {
+            relations = ["sender", "group", "group.members", "group.admins", "group.participants"];
+        } else if (event.metadata.tableName === "groups") {
+            relations = ["members", "admins", "participants"];
+        } else if (event.metadata.tableName === "files") {
+            relations = ["owner", "folder", "signatures", "tags"];
+        } else if (event.metadata.tableName === "signature_containers") {
+            relations = ["file", "user"];
         }
         
-        this.handleChange(
-            entity ?? event.entity,
-            event.metadata.tableName.endsWith("s")
-                ? event.metadata.tableName
-                : event.metadata.tableName + "s"
-        );
+        const tableName = event.metadata.tableName.endsWith("s")
+            ? event.metadata.tableName
+            : event.metadata.tableName + "s";
+        
+        // Pass reload metadata instead of entity - actual DB read happens in setTimeout
+        this.handleChangeWithReload({
+            entityId,
+            tableName,
+            relations,
+            tableTarget: event.metadata.target,
+            rawTableName: event.metadata.tableName,
+        });
     }
 
     async afterRemove(event: RemoveEvent<any>) {
@@ -254,6 +239,104 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             entity ?? event.entityId,
             event.metadata.tableName
         );
+    }
+
+    /**
+     * Handle update changes by reloading entity AFTER transaction commits.
+     * This avoids stale reads that occur when findOne runs inside the same transaction.
+     */
+    private async handleChangeWithReload(params: {
+        entityId: string;
+        tableName: string;
+        relations: string[];
+        tableTarget: any;
+        rawTableName: string;
+    }): Promise<void> {
+        const { entityId, tableName, relations, tableTarget, rawTableName } = params;
+
+        if (!entityId) {
+            return;
+        }
+
+        // Check if there's a mapping for this table
+        const mapping = Object.values(this.adapter.mapping).find(
+            (m) => m.tableName === tableName.toLowerCase()
+        );
+        
+        if (!mapping) {
+            return;
+        }
+
+        const changeKey = `${tableName}:${entityId}`;
+
+        if (this.pendingChanges.has(changeKey)) {
+            return;
+        }
+
+        this.pendingChanges.set(changeKey, Date.now());
+
+        // Small delay to ensure transaction has committed before we read
+        // Files sync quickly (50ms), other tables batch changes (3s)
+        const delayMs = tableName.toLowerCase() === "files" ? 50 : 3_000;
+
+        try {
+            setTimeout(async () => {
+                try {
+                    // NOW reload entity - transaction has committed, data is fresh
+                    const repository = AppDataSource.getRepository(tableTarget);
+                    let entity = await repository.findOne({
+                        where: { id: entityId },
+                        relations: relations.length > 0 ? relations : undefined
+                    });
+
+                    if (!entity) {
+                        console.warn(`⚠️ handleChangeWithReload: Entity ${entityId} not found after reload`);
+                        return;
+                    }
+
+                    // Enrich entity with additional relations
+                    entity = (await this.enrichEntity(
+                        entity,
+                        rawTableName,
+                        tableTarget
+                    )) as ObjectLiteral;
+
+                    // Special handling for Message entities
+                    if (rawTableName === "messages" && entity) {
+                        entity = await this.enrichMessageEntity(entity);
+                    }
+
+                    const data = this.entityToPlain(entity);
+                    if (!data.id) {
+                        return;
+                    }
+
+                    let globalId = await this.adapter.mappingDb.getGlobalId(entityId);
+                    globalId = globalId ?? "";
+
+                    if (this.adapter.lockedIds.includes(globalId)) {
+                        return;
+                    }
+
+                    // Check if this entity was recently created by a webhook
+                    if (this.adapter.lockedIds.includes(entityId)) {
+                        return;
+                    }
+
+                    const envelope = await this.adapter.handleChange({
+                        data,
+                        tableName: tableName.toLowerCase(),
+                    });
+                } catch (error) {
+                    console.error(`❌ Error in handleChangeWithReload setTimeout for ${tableName}:`, error);
+                } finally {
+                    this.pendingChanges.delete(changeKey);
+                }
+            }, delayMs);
+        } catch (error) {
+            console.error(`❌ Error processing change with reload for ${tableName}:`, error);
+            this.pendingChanges.delete(changeKey);
+        }
     }
 
     private async handleChange(entity: any, tableName: string): Promise<void> {
@@ -283,6 +366,9 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
 
         this.pendingChanges.set(changeKey, Date.now());
 
+        // Sync file renames/updates immediately; other tables keep 3s delay to batch rapid changes
+        const delayMs = tableName.toLowerCase() === "files" ? 0 : 3_000;
+
         try {
             setTimeout(async () => {
                 try {
@@ -309,7 +395,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                 } finally {
                     this.pendingChanges.delete(changeKey);
                 }
-            }, 3_000);
+            }, delayMs);
         } catch (error) {
             console.error(`❌ Error processing change for ${tableName}:`, error);
             this.pendingChanges.delete(changeKey);

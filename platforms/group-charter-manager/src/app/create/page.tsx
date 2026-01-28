@@ -131,7 +131,7 @@ export default function CreateCharter() {
     const onSubmit = async (data: CreateCharterForm) => {
         try {
             setIsSaving(true);
-            
+
             // Update the group's charter
             await apiClient.put(`/api/groups/${data.groupId}/charter`, {
                 charter: data.charter
@@ -158,7 +158,7 @@ export default function CreateCharter() {
 
     // Filter groups to only show those without charters
     const groupsWithoutCharters = groups.filter(group => !group.charter || group.charter.trim() === '');
-    
+
     // Filter groups based on search query (only for groups without charters)
     const filteredGroups = groupsWithoutCharters.filter(group =>
         group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -205,7 +205,7 @@ export default function CreateCharter() {
                             All Groups Have Charters!
                         </h2>
                         <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                            Great news! All of your groups already have charters attached. 
+                            Great news! All of your groups already have charters attached.
                             You can view and edit existing charters from the dashboard.
                         </p>
                         <Link href="/">
@@ -271,15 +271,15 @@ export default function CreateCharter() {
                                                         className={cn(
                                                             "w-full justify-between rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-xs px-4 py-3 h-auto",
                                                             !field.value &&
-                                                                "text-muted-foreground"
+                                                            "text-muted-foreground"
                                                         )}
                                                     >
                                                         {field.value
                                                             ? groups?.find(
-                                                                  (group) =>
-                                                                      group.id ===
-                                                                      field.value
-                                                              )?.name
+                                                                (group) =>
+                                                                    group.id ===
+                                                                    field.value
+                                                            )?.name
                                                             : "Select a group..."}
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
@@ -287,8 +287,8 @@ export default function CreateCharter() {
                                             </PopoverTrigger>
                                             <PopoverContent className="w-full p-0 rounded-2xl">
                                                 <Command>
-                                                    <CommandInput 
-                                                        placeholder="Search groups..." 
+                                                    <CommandInput
+                                                        placeholder="Search groups..."
                                                         value={searchQuery}
                                                         onValueChange={setSearchQuery}
                                                     />
