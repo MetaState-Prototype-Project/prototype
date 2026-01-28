@@ -120,7 +120,10 @@ export async function setupE2ETestServer(
     const yoga = graphqlServer.init();
 
     // Setup Fastify server
-    const fastifyServer = fastify({ logger: false });
+    const fastifyServer = fastify({
+        logger: false,
+        bodyLimit: 20 * 1024 * 1024, // 20MB, match production limit
+    });
     await registerHttpRoutes(fastifyServer, evaultInstance, provisioningService, dbService);
 
     // Register GraphQL endpoint

@@ -369,7 +369,7 @@
 <main class="min-h-[calc(100vh-5rem)] flex flex-col overflow-hidden">
     <!-- Page Header -->
     <div
-        class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0"
+        class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0 min-w-0 overflow-hidden"
     >
         <a
             href="/files"
@@ -390,7 +390,9 @@
             </svg>
             Back to Signature Containers
         </a>
-        <h1 class="text-xl sm:text-2xl font-bold text-gray-900 break-words">
+        <h1
+            class="text-xl sm:text-2xl font-bold text-gray-900 break-words min-w-0"
+        >
             {file?.displayName || file?.name || "Signature Container"}
         </h1>
         {#if file?.description}
@@ -471,9 +473,9 @@
 
             <!-- Right Side: Metadata Sidebar (30%) - Full width on mobile -->
             <div
-                class="flex-1 lg:flex-[0.3] bg-white border-t lg:border-t-0 lg:border-l border-gray-200 overflow-y-auto"
+                class="flex-1 lg:flex-[0.3] bg-white border-t lg:border-t-0 lg:border-l border-gray-200 overflow-y-auto min-w-0"
             >
-                <div class="p-4 sm:p-6 space-y-6">
+                <div class="p-4 sm:p-6 space-y-6 min-w-0">
                     <!-- Mobile Preview Button -->
                     <div class="lg:hidden mb-4">
                         {#if previewUrl && (file.mimeType?.startsWith("image/") || file.mimeType === "application/pdf")}
@@ -509,12 +511,12 @@
                     </div>
 
                     <!-- Signature Container Info -->
-                    <div>
+                    <div class="min-w-0">
                         <h2 class="text-sm font-semibold text-gray-900 mb-3">
                             Signature Container
                         </h2>
                         <div class="space-y-3">
-                            <div>
+                            <div class="min-w-0">
                                 <p class="text-xs text-gray-500 mb-1">Name</p>
                                 <p
                                     class="text-sm font-medium text-gray-900 break-words"
@@ -543,12 +545,12 @@
                             File Information
                         </h2>
                         <div class="space-y-2 text-sm">
-                            <div class="flex justify-between gap-2">
+                            <div class="flex justify-between gap-2 min-w-0">
                                 <span class="text-gray-600 flex-shrink-0"
                                     >File Name:</span
                                 >
                                 <span
-                                    class="text-gray-900 font-medium truncate text-right"
+                                    class="text-gray-900 font-medium truncate text-right min-w-0"
                                     title={file.name}>{file.name}</span
                                 >
                             </div>

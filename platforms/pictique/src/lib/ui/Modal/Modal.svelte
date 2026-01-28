@@ -4,10 +4,11 @@
 	interface IModalProps {
 		open: boolean;
 		onclose?: () => void;
+		onClickOutside?: (modal: HTMLDialogElement) => void;
 		children?: Snippet;
 	}
 
-	const { open, onclose, children }: IModalProps = $props();
+	const { open, onclose, onClickOutside, children }: IModalProps = $props();
 
 	let modal: HTMLDialogElement | null = $state(null);
 
@@ -20,8 +21,14 @@
 			rect.left <= event.clientX &&
 			event.clientX <= rect.left + rect.width;
 		if (!isInDialog) {
-			modal.close();
-			onclose?.();
+			event.stopPropagation();
+			if (onClickOutside) {
+				onClickOutside(modal);
+			} else {
+				// Default behavior: close the modal
+				modal.close();
+				onclose?.();
+			}
 		}
 	};
 
