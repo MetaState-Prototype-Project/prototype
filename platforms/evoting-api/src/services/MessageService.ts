@@ -66,7 +66,7 @@ export class MessageService {
      */
         async createVoteCreatedMessage(groupId: string, voteTitle: string, voteId: string, creatorName: string, deadline?: Date | null): Promise<Message> {
         const deadlineText = deadline
-            ? `\nDeadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()}`
+            ? `\nDeadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()} UTC`
             : '\nNo deadline set';
 
         const voteUrl = `${process.env.PUBLIC_EVOTING_URL || 'http://localhost:3000'}/${voteId}`;
@@ -81,7 +81,7 @@ export class MessageService {
      * Create a system message for vote deadline crossing
      */
         async createVoteDeadlineMessage(groupId: string, voteTitle: string, voteId: string, creatorName: string, deadline: Date): Promise<Message> {
-        const deadlineText = `\nOriginal Deadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()}`;
+        const deadlineText = `\nOriginal Deadline: ${deadline.toLocaleDateString()} at ${deadline.toLocaleTimeString()} UTC`;
 
         return await this.createSystemMessage({
             text: `eVoting Platform: Vote deadline passed!\n\n"${voteTitle}"\n\nVote ID: ${voteId}\n\nCreated by: ${creatorName}${deadlineText}\n\nThis vote has ended. Check the results!`,
