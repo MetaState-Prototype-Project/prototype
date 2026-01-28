@@ -123,6 +123,7 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     
     fastifyServer = fastify({
         logger: true,
+        bodyLimit: 20 * 1024 * 1024, // 20MB (default is 1MB; needed for createMetaEnvelope etc.)
     });
 
     // Register CORS plugin with relaxed settings
