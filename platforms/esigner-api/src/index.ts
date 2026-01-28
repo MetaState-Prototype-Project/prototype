@@ -24,12 +24,12 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
-        
+
         // Initialize platform eVault for eSigner
         try {
             const platformService = PlatformEVaultService.getInstance();
             const exists = await platformService.checkPlatformEVaultExists();
-            
+
             if (!exists) {
                 console.log("🔧 Creating platform eVault for eSigner...");
                 const result = await platformService.createPlatformEVault();
@@ -61,8 +61,8 @@ app.use(
         credentials: true,
     }),
 );
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
 // Controllers
 const authController = new AuthController();

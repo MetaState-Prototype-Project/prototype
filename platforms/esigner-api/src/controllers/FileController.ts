@@ -3,7 +3,7 @@ import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
 
 const upload = multer({
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
     storage: multer.memoryStorage(),
 });
 
@@ -200,7 +200,7 @@ export class FileController {
             }
 
             const signatures = await this.fileService.getFileSignatures(fileId);
-            
+
             res.json(signatures.map(sig => ({
                 id: sig.id,
                 userId: sig.userId,

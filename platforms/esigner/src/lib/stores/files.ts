@@ -65,7 +65,7 @@ export const fetchDocuments = async () => {
 // Keep fetchFiles alias for backward compatibility
 export const fetchFiles = fetchDocuments;
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
 
 export class FileSizeError extends Error {
 	constructor(public fileSize: number, public maxSize: number = MAX_FILE_SIZE) {
