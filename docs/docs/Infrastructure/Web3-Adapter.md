@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Web3 Adapter
 
-The Web3 Adapter is the bridge between a platform's local database and the W3DS global ontology. It enables "write once, sync everywhere": when data changes locally, the adapter converts it to the global schema and stores it in the owner's eVault; when awareness protocol packets arrive from other platforms, the adapter converts them back to the local schema and applies them locally.
+The Web3 Adapter is the bridge between a platform's local database and eVault. It enables "write once, sync everywhere": when data changes locally, the adapter converts it to the global schema and stores it in the owner's eVault; when awareness protocol packets arrive from other platforms, the adapter converts them back to the local schema and applies them locally.
 
 ## Overview
 
