@@ -137,6 +137,10 @@
     let previewFile = $state<any>(null);
     let previewUrl = $state<string | null>(null);
     let downloadUrl = $state<string | null>(null);
+    
+    // Multi-file selection for download
+    const MAX_DOWNLOAD_LIMIT = 10; // Browser typically limits simultaneous downloads
+    let selectedFileIds = $state<Set<string>>(new Set());
     let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([
         { id: null, name: "My Files" },
     ]);
@@ -696,6 +700,7 @@
 
     async function navigateToFolder(folderId: string | null) {
         currentFolderId = folderId;
+        clearSelection(); // Clear selection when navigating
         await loadFiles();
         await updateBreadcrumbs();
     }
@@ -704,6 +709,7 @@
         if (currentView === view) return; // Don't reload if already on this view
         currentView = view;
         currentFolderId = null; // Reset to root when switching views
+        clearSelection(); // Clear selection when switching views
         await loadFiles(); // Reload files when switching views
         await updateBreadcrumbs(); // Update breadcrumbs with correct root name
     }
@@ -872,6 +878,81 @@
             );
         });
     });
+
+    // Multi-file selection derived states
+    const selectableFiles = $derived(
+        allItems.filter((item) => item.type === "file")
+    );
+    const isDownloadLimitReached = $derived(
+        selectedFileIds.size >= MAX_DOWNLOAD_LIMIT
+    );
+    const allFilesSelected = $derived(
+        selectableFiles.length > 0 &&
+            selectableFiles.every((f) => selectedFileIds.has(f.id))
+    );
+
+    function toggleFileSelection(fileId: string, event: Event) {
+        event.stopPropagation();
+        const newSet = new Set(selectedFileIds);
+        if (newSet.has(fileId)) {
+            newSet.delete(fileId);
+        } else if (newSet.size < MAX_DOWNLOAD_LIMIT) {
+            newSet.add(fileId);
+        }
+        selectedFileIds = newSet;
+    }
+
+    function toggleSelectAll(event: Event) {
+        event.stopPropagation();
+        if (allFilesSelected) {
+            // Deselect all
+            selectedFileIds = new Set();
+        } else {
+            // Select up to the limit
+            const newSet = new Set<string>();
+            for (const file of selectableFiles) {
+                if (newSet.size >= MAX_DOWNLOAD_LIMIT) break;
+                newSet.add(file.id);
+            }
+            selectedFileIds = newSet;
+        }
+    }
+
+    function clearSelection() {
+        selectedFileIds = new Set();
+    }
+
+    async function downloadSelectedFiles() {
+        if (selectedFileIds.size === 0) return;
+
+        const token = localStorage.getItem("file_manager_auth_token");
+        const filesToDownload = selectableFiles.filter((f) =>
+            selectedFileIds.has(f.id)
+        );
+
+        // Download files with a small delay between each to avoid browser blocking
+        for (let i = 0; i < filesToDownload.length; i++) {
+            const file = filesToDownload[i];
+            const url = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
+
+            // Create a temporary link and trigger download
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = file.displayName || file.name;
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Small delay between downloads to prevent browser from blocking
+            if (i < filesToDownload.length - 1) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+        }
+
+        toast.success(`Started downloading ${filesToDownload.length} file(s)`);
+        clearSelection();
+    }
 </script>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -900,6 +981,47 @@
             </button>
         </nav>
         <div class="flex items-center gap-2 w-full sm:w-auto">
+            {#if selectedFileIds.size > 0}
+                <button
+                    onclick={downloadSelectedFiles}
+                    class="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                >
+                    <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                    </svg>
+                    <span class="hidden xs:inline">Download ({selectedFileIds.size})</span>
+                    <span class="xs:hidden">{selectedFileIds.size}</span>
+                </button>
+                <button
+                    onclick={clearSelection}
+                    class="px-2 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Clear selection"
+                >
+                    <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            {/if}
             {#if currentView === "my-files"}
                 <button
                     onclick={() => (showFolderModal = true)}
@@ -979,6 +1101,28 @@
         </div>
     {/if}
 
+    <!-- Selection info bar -->
+    {#if selectedFileIds.size > 0}
+        <div class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-blue-700">
+                    {selectedFileIds.size} of {MAX_DOWNLOAD_LIMIT} files selected
+                </span>
+                {#if isDownloadLimitReached}
+                    <span class="text-xs text-blue-500">(limit reached)</span>
+                {/if}
+            </div>
+            <div class="flex items-center gap-2">
+                <button
+                    onclick={clearSelection}
+                    class="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                    Clear selection
+                </button>
+            </div>
+        </div>
+    {/if}
+
     <div
         class="bg-white rounded-lg border border-gray-200 shadow-sm {dragOver
             ? 'border-blue-500 bg-blue-50'
@@ -1013,21 +1157,33 @@
             <div class="overflow-x-auto" style="overflow-y: visible;">
                 <table class="w-full" style="position: relative;">
                     <thead
-                        class="bg-gray-50 border-b border-gray-200 hidden sm:table-header-group"
+                        class="bg-gray-50 border-b border-gray-200"
                     >
                         <tr>
+                            <th
+                                class="px-2 sm:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-8 sm:w-10"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={allFilesSelected && selectableFiles.length > 0}
+                                    disabled={selectableFiles.length === 0}
+                                    onclick={toggleSelectAll}
+                                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                    title={allFilesSelected ? "Deselect all" : `Select up to ${MAX_DOWNLOAD_LIMIT} files`}
+                                />
+                            </th>
                             <th
                                 class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2"
                             >
                                 Name
                             </th>
                             <th
-                                class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                class="hidden sm:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                             >
                                 Size
                             </th>
                             <th
-                                class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                class="hidden sm:table-cell px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                             >
                                 Modified
                             </th>
@@ -1047,7 +1203,7 @@
                                 class="hover:bg-gray-50 transition-colors cursor-pointer {item.type ===
                                 'folder'
                                     ? ''
-                                    : ''}"
+                                    : ''} {item.type === 'file' && selectedFileIds.has(item.id) ? 'bg-blue-50' : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation();
                                     if (item.type === "folder") {
@@ -1057,6 +1213,21 @@
                                     }
                                 }}
                             >
+                                <!-- Checkbox column -->
+                                <td
+                                    class="px-2 sm:px-3 py-4 whitespace-nowrap text-center w-8 sm:w-10"
+                                >
+                                    {#if item.type === "file"}
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedFileIds.has(item.id)}
+                                            disabled={isDownloadLimitReached && !selectedFileIds.has(item.id)}
+                                            onclick={(e) => toggleFileSelection(item.id, e)}
+                                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                            title={isDownloadLimitReached && !selectedFileIds.has(item.id) ? `Maximum ${MAX_DOWNLOAD_LIMIT} files can be selected` : "Select for download"}
+                                        />
+                                    {/if}
+                                </td>
                                 <td
                                     class="px-4 sm:px-6 py-4 whitespace-nowrap w-full sm:w-auto"
                                 >
