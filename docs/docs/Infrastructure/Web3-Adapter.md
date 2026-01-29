@@ -10,7 +10,7 @@ The Web3 Adapter is the bridge between a platform's local database and eVault. I
 
 Platforms keep their own schemas and databases. To participate in W3DS, they need a component that:
 
-- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's eVault (via [W3ID](/docs/W3DS%20Basics/W3ID) / Registry), and writes to the eVault (GraphQL).
+- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's eVault (via the user's [eName](/docs/W3DS%20Basics/W3ID) / Registry), and writes to the eVault (GraphQL).
 - **Inbound**: Receives awareness protocol packets at `POST /api/webhook`, maps global data to the local schema, and creates or updates local entities while maintaining global-ID-to-local-ID mappings.
 
 The Web3 Adapter implements this bridge. Understanding its core ideas helps you design better ontologies, mappings, and consistency strategies.
@@ -18,7 +18,7 @@ The Web3 Adapter implements this bridge. Understanding its core ideas helps you 
 ### Key Features
 
 - **Bidirectional mapping**: Local schema ↔ global ontology via JSON mapping configs.
-- **ID mapping**: Stores pairs of (localId, globalId) so the same entity is recognized across sync and webhooks.
+- **ID mapping**: Stores pairs of (localId, globalId) so the same entity is recognized across sync and webhooks. When using our implementation of the Web3 Adapter, you don't need to worry about ID Mapping yourself, the adapter already handles it.
 - **eVault client**: Resolves [eNames](/docs/W3DS%20Basics/W3ID) via the Registry, obtains platform tokens, and calls eVault GraphQL (store/update) with retries and health checks.
 - **Change handling**: `handleChange` is the main entry for outbound sync; webhook handlers use `fromGlobal` for inbound.
 
@@ -35,7 +35,7 @@ Every piece of data has an "owner" — the [eName](/docs/W3DS%20Basics/W3ID) of 
 ### 3. Bidirectional mapping and ID mapping
 
 - **Field mapping**: `localToUniversalMap` defines how each local field maps to a global field (including relations and special functions like `__date`, `__calc`). The same map is used in both directions: `toGlobal` for outbound, `fromGlobal` for inbound.
-- **ID mapping**: A separate store (e.g. SQLite `MappingDatabase`) holds `(globalId, localId)`. When syncing out, after a successful `storeMetaEnvelope` the adapter stores the new global ID against the local ID. When a webhook arrives, the adapter looks up the global ID to decide whether to create or update the local entity and then stores or updates the mapping. Without this, the same logical entity could be duplicated or never linked across platforms.
+- **ID mapping**: A separate store (e.g. SQLite `MappingDatabase`) holds `(globalId, localId)`. When syncing out, after a successful `storeMetaEnvelope` the adapter stores the new global ID against the local ID. When a webhook arrives, the adapter looks up the global ID to decide whether to create or update the local entity and then stores or updates the mapping. Without this, the same logical entity could be duplicated or never linked across platforms. When consuming our TypeScript implementation of the Web3 Adapter, this is already taken care of.
 
 ### 4. Change detection on the platform side
 
