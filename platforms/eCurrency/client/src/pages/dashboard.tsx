@@ -65,14 +65,16 @@ export default function Dashboard() {
     let isValid = false;
 
     if (accountContext.type === "user") {
-      // User context must match current user ID
       isValid = accountContext.id === user.id;
     } else if (accountContext.type === "group") {
-      // Group context must be in admin groups list
-      isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+      // Do not reset group context while groups are still loading (preserves selection across refresh)
+      if (groups === undefined) {
+        isValid = true;
+      } else {
+        isValid = adminGroups.some((g: any) => g.id === accountContext.id);
+      }
     }
 
-    // If invalid, reset to user account
     if (!isValid) {
       const defaultContext = { type: "user" as const, id: user.id };
       setAccountContext(defaultContext);

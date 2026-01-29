@@ -12,12 +12,29 @@ export class DashboardController {
         this.calculationService = new CalculationService();
     }
 
+    /**
+     * Maps reference status from DB format to display format.
+     */
+    private mapReferenceStatus(status: string): string {
+        switch (status?.toLowerCase()) {
+            case "revoked":
+                return "Revoked";
+            case "signed":
+            case "active":
+                return "Signed";
+            case "pending":
+                return "Pending";
+            default:
+                return "Unknown";
+        }
+    }
+
     getStats = async (req: Request, res: Response) => {
         try {
             const userId = req.user!.id;
             
-            // Get total references received by this user
-            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+            // Get total references received by this user (only count signed ones for stats)
+            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId, true);
             
             res.json({
                 totalReferences: receivedReferences.length.toString()
@@ -42,8 +59,8 @@ export class DashboardController {
             // Get user's calculations
             const calculations = await this.calculationService.getUserCalculations(userId);
             
-            // Get references received by this user
-            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId);
+            // Get references received by this user (include pending references)
+            const receivedReferences = await this.referenceService.getReferencesForTarget("user", userId, false);
 
             // Combine and format activities
             const activities: any[] = [];
@@ -58,7 +75,7 @@ export class DashboardController {
                         target: ref.targetName,
                         targetType: ref.targetType,
                         date: ref.createdAt,
-                        status: ref.status === 'revoked' ? 'Revoked' : 'Signed',
+                        status: this.mapReferenceStatus(ref.status),
                         data: ref
                     });
                 });
@@ -76,7 +93,7 @@ export class DashboardController {
                         target: authorName,
                         targetType: 'user',
                         date: ref.createdAt,
-                        status: ref.status === 'revoked' ? 'Revoked' : 'Signed',
+                        status: this.mapReferenceStatus(ref.status),
                         data: ref
                     });
                 });

@@ -2,46 +2,203 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Getting Started with W3DS
 
-Let's discover **Docusaurus in less than 5 minutes**.
+Welcome to **W3DS (Web 3 Data Spaces)** - a decentralized data synchronization protocol that puts users in control of their data.
 
-## Getting Started
+## What is W3DS?
 
-Get started by **creating a new site**.
+W3DS is a protocol that enables seamless data synchronization across multiple platforms while ensuring users own and control their data. Instead of platforms storing user data in silos, W3DS allows users to store their data in their own **eVaults** and have platforms sync from these vaults.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## Core Concept
 
-### What you'll need
+The fundamental principle of W3DS is simple: **Users, groups, and objects own their own eVaults**. All data about a person, group, or object is stored in their eVault, and platforms act as frontends that display and interact with this data, while also serving as caches and aggregators for improved performance and user experience.
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+### Key Principles
 
-## Generate a new site
+1. **Data Ownership & Decentralized Storage**: Users own their data, not platforms. Each user has their own eVault for data storage, ensuring true data ownership and control.
 
-Generate a new Docusaurus site using the **classic template**.
+2. **Platform Independence & Automatic Synchronization**: Platforms are interchangeable frontends that automatically synchronize data, while also serving as caches and aggregators. Data created on one platform automatically appears on all platforms, enabling true interoperability across the ecosystem.
 
-The classic template will automatically be added to your project after you run the command:
+## How It Works: A Simple Example
 
-```bash
-npm init docusaurus@latest my-website classic
+Imagine User A creates a post on **Blabsy** (a social media platform):
+
+1. User A posts "Hello, world!" on Blabsy
+2. Blabsy's Web3 Adapter syncs the post to User A's eVault
+3. User A's eVault stores the post and notifies all registered platforms
+4. **Pictique** (another social media platform) receives the notification
+5. Pictique creates the post locally - User A's post automatically appears on Pictique through the synchronization system
+
+This is the power of W3DS: your data follows you across all platforms automatically.
+
+## Architecture Overview
+
+```mermaid
+graph TB
+    subgraph Users["Users & Groups"]
+        UserA[User A<br/>eName: @user-a.w3id]
+        UserB[User B<br/>eName: @user-b.w3id]
+        Group1[Group 1<br/>eName: @group-1.w3id]
+    end
+
+    subgraph EVaults["eVaults"]
+        EVaultA[User A's eVault]
+        EVaultB[User B's eVault]
+        EVaultG1[Group 1's eVault]
+    end
+
+    subgraph Platforms["Platforms"]
+        Blabsy[Blabsy]
+        Pictique[Pictique]
+        OtherPlatform[Other Platforms]
+    end
+
+    subgraph Infrastructure["Infrastructure"]
+        Registry[Registry Service<br/>W3ID Resolution]
+        EVaultCore[eVault Core<br/>GraphQL API]
+    end
+
+    UserA -->|Owns| EVaultA
+    UserB -->|Owns| EVaultB
+    Group1 -->|Owns| EVaultG1
+
+    Blabsy -->|Read/Write| EVaultA
+    Pictique -->|Read/Write| EVaultA
+    OtherPlatform -->|Read/Write| EVaultA
+
+    EVaultA -->|Webhooks| Blabsy
+    EVaultA -->|Webhooks| Pictique
+    EVaultA -->|Webhooks| OtherPlatform
+
+    Blabsy -.->|Resolve eName| Registry
+    Pictique -.->|Resolve eName| Registry
+    OtherPlatform -.->|Resolve eName| Registry
+    EVaultCore -->|Store Data| EVaultA
+
+    style UserA fill:#e1f5ff,color:#000000
+    style EVaultA fill:#fff4e1,color:#000000
+    style Blabsy fill:#e8f5e9,color:#000000
+    style Pictique fill:#e8f5e9,color:#000000
+    style Registry fill:#f3e5f5,color:#000000
+    style EVaultCore fill:#f3e5f5,color:#000000
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## Key Components
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+### eVault Core
 
-## Start your site
+The **eVault Core** is the central storage system that manages user data. It provides:
 
-Run the development server:
+- **GraphQL API** for storing and retrieving data using MetaEnvelope storage for structured data
+- **Webhook delivery** to notify platforms of data changes
+- **Access control** via ACLs (Access Control Lists)
 
-```bash
-cd my-website
-npm run start
+### Web3 Adapter
+
+The **Web3 Adapter** is a library that platforms use to:
+
+- Handle bidirectional data synchronization between local databases and eVaults
+- Convert between platform-specific schemas and global ontology schemas
+
+### Registry Service
+
+The **Registry Service** provides:
+
+- **W3ID resolution**: Maps eNames (like `@user-a.w3id`) to eVault URLs
+- **Key binding certificates**: Stores user public keys for signature verification (used when platforms verify user signatures during authentication)
+- **Platform registration**: Tracks active platforms for webhook delivery
+
+### Platforms
+
+**Platforms** are applications that:
+
+- Display and interact with user data
+- Act as caches and aggregators for improved performance
+- Sync data to/from user eVaults
+- Convert between local and global data schemas
+- Handle webhooks to receive data updates
+
+## Data Flow
+
+When a user creates data on a platform:
+
+```text
+User Action → Platform Database → Web3 Adapter → User's eVault → Webhooks → All Platforms
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+1. **User Action**: User creates a post, message, or other data
+2. **Platform Database**: Platform stores data locally
+3. **Web3 Adapter**: Adapter converts data to global schema and syncs to eVault
+4. **User's eVault**: eVault stores the data as a MetaEnvelope
+5. **Webhooks**: eVault sends webhooks to all registered platforms (except the originating one)
+6. **All Platforms**: Other platforms receive webhooks and create the data locally
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+> **Note**: This is a simplified overview of the data flow. The current implementation uses a basic webhook delivery mechanism. For production deployments, platforms should implement message delivery queues to handle eVault and platform downtime gracefully, ensuring reliable data synchronization.
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+### Detailed Data Flow Sequence
+
+The following sequence diagram shows the detailed interactions between components, including the Web3 Adapter's internal implementation:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Platform as Platform
+    participant LocalDB as Platform Database
+    participant Adapter as Web3 Adapter
+    participant Registry as Registry Service
+    participant EVault as User's eVault
+    participant OtherPlatforms as Other Platforms
+
+    User->>Platform: Create post
+    Platform->>LocalDB: Store post locally
+    Platform->>Adapter: Trigger sync
+    Adapter->>Adapter: Convert to global schema<br/>(ontology mapping)
+    Adapter->>Registry: Resolve eName to eVault URL
+    Registry-->>Adapter: Return eVault URL
+    Adapter->>EVault: POST GraphQL mutation<br/>(storeMetaEnvelope)
+    EVault->>EVault: Store MetaEnvelope
+    EVault-->>Adapter: Return stored MetaEnvelope
+    Adapter-->>Platform: Sync complete
+    EVault->>EVault: Wait 3 seconds<br/>(prevent ping-pong)
+    EVault->>Registry: Get active platforms
+    Registry-->>EVault: Return platform list
+    EVault->>OtherPlatforms: POST webhook<br/>(data change notification)
+    OtherPlatforms->>OtherPlatforms: Process webhook<br/>(create post locally)
+```
+
+### Registration Sequence
+
+The following sequence diagram shows how a new user registers and creates their eVault, illustrating the roles of the Provisioner and Registry services:
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Wallet as eID Wallet
+    participant Provisioner as Provisioner Service
+    participant Registry as Registry Service
+    participant EVault as eVault Core
+
+    User->>Wallet: Initiate onboarding
+    Wallet->>Wallet: Generate hardware keys<br/>(ECDSA P-256)
+    Wallet->>Provisioner: POST /provision<br/>(eName, publicKey)
+    Provisioner->>EVault: Create eVault instance
+    EVault-->>Provisioner: eVault URL
+    Provisioner->>Registry: Register eName → eVault URL
+    Registry->>Registry: Store W3ID mapping
+    Registry->>Registry: Issue key binding certificate<br/>(JWT with public key)
+    Registry-->>Provisioner: Registration complete
+    Provisioner->>EVault: Store public key<br/>(for signature verification)
+    EVault-->>Provisioner: Public key stored
+    Provisioner-->>Wallet: eVault URL + certificate
+    Wallet->>Wallet: Store eVault URL
+    Wallet-->>User: Onboarding complete
+```
+
+## Next Steps
+
+- Learn more about [W3DS Basics](/docs/W3DS%20Basics/getting-started) - Deep dive into eVault ownership and data flow
+- Understand [Authentication](/docs/W3DS%20Protocol/Authentication) - How users authenticate with platforms
+- Learn about [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation and verification
+- Explore [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Technical details on cryptographic signatures
+- Build a platform with the [Post Platform Guide](/docs/Post%20Platform%20Guide/getting-started) - Step-by-step guide to creating a W3DS-compatible platform

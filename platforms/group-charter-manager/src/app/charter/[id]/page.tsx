@@ -158,7 +158,7 @@ export default function CharterDetail({
 
     if (isLoading) {
         return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
                 <div className="animate-pulse space-y-6">
                     <div className="h-8 bg-black bg-opacity-10 rounded w-1/4" />
                     <div className="h-96 bg-black bg-opacity-10 rounded-3xl" />
@@ -169,7 +169,7 @@ export default function CharterDetail({
 
     if (!group) {
         return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold text-gray-800">
                         Charter not found
@@ -183,7 +183,7 @@ export default function CharterDetail({
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
             {/* Back Button */}
             <div className="mb-4 sm:mb-6">
                 <Link href="/">
@@ -320,7 +320,7 @@ export default function CharterDetail({
                 {/* Charter Details */}
                 <div className="lg:col-span-2">
                     <Card className="bg-white/70 backdrop-blur-xs rounded-3xl soft-shadow mb-6">
-                        <CardContent className="p-8">
+                        <CardContent className="p-2 sm:p-4 lg:p-6 xl:p-8">
                             <h3 className="text-xl font-semibold text-gray-800 mb-6">
                                 Charter Content
                             </h3>

@@ -69,7 +69,7 @@ export default function Dashboard() {
 
     const handleLogout = () => {
         clearAuth();
-        window.location.href = "/auth";
+        window.location.href = "/";
     };
 
     const handleViewActivity = (activity: any) => {
@@ -83,7 +83,7 @@ export default function Dashboard() {
                     ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
                     : activity.target,
                 date: new Date(activity.date).toLocaleDateString(),
-                status: activity.status || 'Signed',
+                status: activity.status || 'Unknown',
                 referenceType: referenceData?.referenceType || 'general',
                 content: referenceData?.content || 'Reference content not available',
                 targetType: referenceData?.targetType || 'user'
@@ -103,7 +103,7 @@ export default function Dashboard() {
                     ? (activity.data?.author?.name || activity.data?.author?.ename || activity.data?.author?.handle || 'Unknown')
                     : activity.target,
                 date: new Date(activity.date).toLocaleDateString(),
-                status: activity.status || 'Signed',
+                status: activity.status || 'Unknown',
                 referenceType: referenceData?.referenceType || 'general',
                 content: referenceData?.content || 'Reference content not available',
                 targetType: referenceData?.targetType || 'user'
@@ -545,11 +545,11 @@ export default function Dashboard() {
                                                     {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
                                                         <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7"
                                                             style={{
-                                                                borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
-                                                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
-                                                                color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
+                                                                borderColor: activity.status === 'Revoked' ? '#ef4444' : activity.status === 'Pending' ? '#f59e0b' : '#22c55e',
+                                                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : activity.status === 'Pending' ? '#fffbeb' : '#f0fdf4',
+                                                                color: activity.status === 'Revoked' ? '#dc2626' : activity.status === 'Pending' ? '#d97706' : '#15803d'
                                                             }}>
-                                                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
+                                                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Pending' ? 'pending' : 'signed'}
                                                         </span>
                                                     ) : (
                                                         <span
@@ -633,11 +633,11 @@ export default function Dashboard() {
                                                     {activity.type === 'reference' || activity.activity === 'Reference Provided' || activity.activity === 'Reference Received' ? (
                                                         <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"
                                                             style={{
-                                                                borderColor: activity.status === 'Revoked' ? '#ef4444' : '#22c55e',
-                                                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : '#f0fdf4',
-                                                                color: activity.status === 'Revoked' ? '#dc2626' : '#15803d'
+                                                                borderColor: activity.status === 'Revoked' ? '#ef4444' : activity.status === 'Pending' ? '#f59e0b' : '#22c55e',
+                                                                backgroundColor: activity.status === 'Revoked' ? '#fef2f2' : activity.status === 'Pending' ? '#fffbeb' : '#f0fdf4',
+                                                                color: activity.status === 'Revoked' ? '#dc2626' : activity.status === 'Pending' ? '#d97706' : '#15803d'
                                                             }}>
-                                                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Signed' ? 'signed' : 'signed'}
+                                                            {activity.status === 'Revoked' ? 'revoked' : activity.status === 'Pending' ? 'pending' : 'signed'}
                                                         </span>
                                                     ) : (
                                                         <span className="inline-flex items-center justify-center px-2 py-1 rounded-full text-xs font-black bg-white border-2"

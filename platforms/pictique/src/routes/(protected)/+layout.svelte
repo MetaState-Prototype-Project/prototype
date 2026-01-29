@@ -8,7 +8,6 @@
 	import type { userProfile } from '$lib/types';
 	import { Button, Modal } from '$lib/ui';
 	import { apiClient, getAuthId, getAuthToken } from '$lib/utils';
-	import { removeAuthId, removeAuthToken } from '$lib/utils';
 	import type { AxiosError } from 'axios';
 	import { onMount } from 'svelte';
 
@@ -18,6 +17,26 @@
 
 	let profile = $state<userProfile | null>(null);
 	let confirmedDisclaimer = $state(false);
+	let showHint = $state(false);
+
+	const DISCLAIMER_KEY = 'pictique-disclaimer-accepted';
+
+	// Safe localStorage access for restricted environments
+	const safeGetItem = (key: string): string | null => {
+		try {
+			return localStorage.getItem(key);
+		} catch {
+			return null;
+		}
+	};
+
+	const safeSetItem = (key: string, value: string): void => {
+		try {
+			localStorage.setItem(key, value);
+		} catch {
+			// Silently fail in restricted environments
+		}
+	};
 
 	async function fetchProfile() {
 		ownerId = getAuthId();
@@ -37,7 +56,14 @@
 		}
 	}
 
-	onMount(fetchProfile);
+	onMount(() => {
+		fetchProfile();
+		const accepted = safeGetItem(DISCLAIMER_KEY) === 'true';
+		if (accepted) {
+			confirmedDisclaimer = true;
+			closeDisclaimerModal();
+		}
+	});
 </script>
 
 <main class="block h-dvh grid-cols-[20vw_1fr] md:grid">
@@ -57,11 +83,22 @@
 <CreatePostModal bind:open={$isCreatePostModalOpen} />
 <Modal
 	open={$isDisclaimerModalOpen}
-	onclose={() => {
+	onClickOutside={(modal) => {
 		if (!confirmedDisclaimer) {
-			removeAuthToken();
-			removeAuthId();
-			goto('/auth');
+			showHint = true;
+			modal.animate(
+				[
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.025)' },
+					{ transform: 'scale(1)' },
+					{ transform: 'scale(1.0125)' },
+					{ transform: 'scale(1)' }
+				],
+				{
+					duration: 250,
+					easing: 'ease-in-out'
+				}
+			);
 		}
 	}}
 >
@@ -91,11 +128,20 @@
 		<Button
 			variant="secondary"
 			size="sm"
-			class="mt-2"
+			class="mt-2 w-full"
+			data-disclaimer-button
 			callback={() => {
+				safeSetItem(DISCLAIMER_KEY, 'true');
 				closeDisclaimerModal();
 				confirmedDisclaimer = true;
 			}}>I Understand</Button
 		>
+		{#if showHint}
+			<p
+				class="mt-2 rounded-md border border-red-300 bg-red-100 px-3 py-2 text-center text-xs text-red-800"
+			>
+				💡 You must accept the disclaimer to continue. This will only appear once.
+			</p>
+		{/if}
 	</article>
 </Modal>

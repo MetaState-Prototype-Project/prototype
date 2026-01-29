@@ -475,6 +475,12 @@ export class FileController {
 
             res.json({ message: "File deleted successfully" });
         } catch (error) {
+            if (error instanceof Error && error.message.includes("signing containers")) {
+                return res.status(409).json({
+                    error: error.message,
+                    code: "FILE_HAS_SIGNATURES",
+                });
+            }
             console.error("Error deleting file:", error);
             res.status(500).json({ error: "Failed to delete file" });
         }

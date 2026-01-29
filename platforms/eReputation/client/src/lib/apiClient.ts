@@ -30,7 +30,7 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem("ereputation_token");
             localStorage.removeItem("ereputation_user_id");
-            window.location.href = "/auth";
+            window.location.href = "/";
         }
         return Promise.reject(error);
     }

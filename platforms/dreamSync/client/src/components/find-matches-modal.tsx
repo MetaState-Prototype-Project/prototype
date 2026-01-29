@@ -96,7 +96,7 @@ export default function FindMatchesModal({ open, onOpenChange }: FindMatchesModa
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/";
         }, 500);
         return;
       }

@@ -38,26 +38,38 @@ export class AIMatchingService {
         
         return withOperationContext('AIMatchingService', operationId, async () => {
             const wishlists = await this.getWishlistsForMatching();
-            console.log(`📋 Found ${wishlists.length} wishlists to analyze`);
+            console.log(`📋 Found ${wishlists.length} wishlists to analyze (after filtering blank wishlists)`);
+            
+            if (wishlists.length === 0) {
+                console.log("⚠️ No valid wishlists to match, skipping matching process");
+                return;
+            }
+            
             await this.ensureWishlistSummaries(wishlists);
 
             // Get existing groups for context
             const existingGroups = await this.getExistingGroups();
             console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
 
-            // Convert to shared service format
-            const wishlistData: WishlistData[] = wishlists.map(wishlist => ({
-                id: wishlist.id,
-                content: wishlist.content,
-                summaryWants: wishlist.summaryWants || "",
-                summaryOffers: wishlist.summaryOffers || "",
-                userId: wishlist.userId,
-                user: {
-                    id: wishlist.user.id,
-                    name: wishlist.user.name || wishlist.user.ename,
-                    ename: wishlist.user.ename
-                }
-            }));
+            // Convert to shared service format, filtering out wishlists without summaries
+            const wishlistData: WishlistData[] = wishlists
+                .filter(wishlist => {
+                    // Only include wishlists with valid summary arrays
+                    return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
+                           wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
+                })
+                .map(wishlist => ({
+                    id: wishlist.id,
+                    content: wishlist.content,
+                    summaryWants: wishlist.summaryWants || [],
+                    summaryOffers: wishlist.summaryOffers || [],
+                    userId: wishlist.userId,
+                    user: {
+                        id: wishlist.user.id,
+                        name: wishlist.user.name || wishlist.user.ename,
+                        ename: wishlist.user.ename
+                    }
+                }));
 
             // Use matching service for parallel processing
             const matchResults = await this.matchingService.findMatches(wishlistData, existingGroups);
@@ -224,9 +236,19 @@ export class AIMatchingService {
 
     private async ensureWishlistSummaries(wishlists: Wishlist[]): Promise<void> {
         for (const wishlist of wishlists) {
-            if (!wishlist.summaryWants || !wishlist.summaryOffers) {
+            // Ensure summaries exist and are arrays
+            if (!wishlist.summaryWants || wishlist.summaryWants.length === 0 ||
+                !wishlist.summaryOffers || wishlist.summaryOffers.length === 0) {
                 try {
                     await this.wishlistSummaryService.ensureSummaries(wishlist);
+                    // Reload wishlist to get updated summaries
+                    const updated = await this.wishlistRepository.findOne({
+                        where: { id: wishlist.id },
+                        relations: ["user"]
+                    });
+                    if (updated) {
+                        Object.assign(wishlist, updated);
+                    }
                 } catch (error) {
                     console.error(`Failed to ensure summary for wishlist ${wishlist.id}`, error);
                 }
@@ -383,10 +405,12 @@ Content: ${wishlistA.content}
 Title: ${wishlistB.title}
 Content: ${wishlistB.content}
 
-IMPORTANT: Only return a JSON response if there's a meaningful connection (confidence > 0.7). If there's no meaningful connection, return confidence: 0 and matchType: "private" (this will be filtered out).
+IMPORTANT: Only return a JSON response if there's a meaningful connection (confidence > 0.85). If there's no meaningful connection, return confidence: 0 and matchType: "private" (this will be filtered out).
+
+CRITICAL: If either wishlist is blank, templated with minimal content, or contains insufficient information, return confidence: 0. A blank/templated wishlist has the template structure (## What I Want / ## What I Can Do) but with very few items (2 or fewer meaningful items) or very short/placeholder content. Do NOT generate matches based on generic or placeholder content.
 
 Return JSON with:
-1. "confidence": number between 0-1 indicating match strength (0 if no meaningful connection)
+1. "confidence": number between 0-1 indicating match strength (0 if no meaningful connection or if wishlists are too sparse)
 2. "matchType": "private" or "group" (use "private" if no connection)
 3. "reason": brief explanation of why they match (or why no match)
 4. "matchedWants": array of what User A wants that User B can offer
@@ -399,8 +423,9 @@ Consider:
 - Complementary needs and offerings
 - Potential for meaningful collaboration
 - Whether this could be a private connection or group activity
+- Whether the wishlists contain sufficient meaningful content (not just template placeholders)
 
-Only suggest matches with confidence > 0.7 for meaningful connections.
+Only suggest matches with confidence > 0.85 for meaningful connections based on substantial content.
         `.trim();
     }
 

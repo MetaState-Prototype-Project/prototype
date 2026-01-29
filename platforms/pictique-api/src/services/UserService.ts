@@ -70,8 +70,8 @@ export class UserService {
         // Sanitize and trim the search query
         const searchQuery = query.trim();
         
-        // Return empty array if query is too short or empty
-        if (searchQuery.length < 2) {
+        // Return empty array if query is empty
+        if (searchQuery.length < 1) {
             return [];
         }
 
@@ -156,8 +156,8 @@ export class UserService {
         // Sanitize and trim the search query
         const searchQuery = query.trim();
         
-        // Return 0 if query is too short or empty
-        if (searchQuery.length < 2) {
+        // Return 0 if query is empty
+        if (searchQuery.length < 1 ) {
             return 0;
         }
 
@@ -188,7 +188,7 @@ export class UserService {
         // Sanitize and trim the search query
         const searchQuery = query.trim();
         
-        // Return empty array if query is too short
+        // Return empty array if query is empty
         if (searchQuery.length < 1) {
             return [];
         }
@@ -240,8 +240,8 @@ export class UserService {
         // Sanitize and trim the search query
         const searchQuery = query.trim();
         
-        // Return empty array if query is too short or empty
-        if (searchQuery.length < 2) {
+        // Return empty array if query is empty
+        if (searchQuery.length < 1) {
             return [];
         }
 
@@ -306,8 +306,8 @@ export class UserService {
         // Sanitize and trim the search query
         const searchQuery = query.trim();
         
-        // Return 0 if query is too short or empty
-        if (searchQuery.length < 2) {
+        // Return 0 if query is empty
+        if (searchQuery.length < 1 ) {
             return 0;
         }
 

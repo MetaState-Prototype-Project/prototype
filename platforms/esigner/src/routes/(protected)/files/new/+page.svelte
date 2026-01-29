@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { isAuthenticated } from '$lib/stores/auth';
-	import { files, fetchFiles, uploadFile } from '$lib/stores/files';
+	import { files, fetchFiles, uploadFile, FileSizeError } from '$lib/stores/files';
 	import { apiClient } from '$lib/utils/axios';
 	import { inviteSignees } from '$lib/stores/invitations';
 
@@ -18,6 +18,8 @@
 	let currentUserId = $state<string | null>(null);
 	let displayName = $state('');
 	let description = $state('');
+	// All files available to select for a new container (includes File Manager–only uploads)
+	let selectableFiles = $state<any[]>([]);
 
 	onMount(async () => {
 		isAuthenticated.subscribe((auth) => {
@@ -25,7 +27,7 @@
 				goto('/auth');
 			}
 		});
-		
+
 		// Get current user ID from API
 		try {
 			const response = await apiClient.get('/api/users');
@@ -33,8 +35,14 @@
 		} catch (err) {
 			console.error('Failed to get current user:', err);
 		}
-		
-		fetchFiles();
+
+		// Load all files for picker (list=all) so user can select any file, including those not yet used as containers
+		try {
+			const res = await apiClient.get('/api/files', { params: { list: 'all' } });
+			selectableFiles = res.data ?? [];
+		} catch (err) {
+			console.error('Failed to load selectable files:', err);
+		}
 	});
 
 	async function handleFileUpload(file: File) {
@@ -51,7 +59,11 @@
 			}
 		} catch (err) {
 			console.error('Upload failed:', err);
-			alert('Failed to upload file');
+			if (err instanceof FileSizeError) {
+				alert(err.message);
+			} else {
+				alert('Failed to upload file. Please try again.');
+			}
 			throw err;
 		} finally {
 			isLoading = false;
@@ -118,7 +130,7 @@
 			alert('You cannot invite yourself. You are automatically added as a signee.');
 			return;
 		}
-		
+
 		if (!selectedUsers.find(u => u.id === user.id)) {
 			selectedUsers = [...selectedUsers, user];
 		}
@@ -139,10 +151,10 @@
 		try {
 			isSubmitting = true;
 			const userIds = selectedUsers.map(u => u.id);
-			
+
 			// Backend will automatically add owner as signee
 			await inviteSignees(selectedFile.id, userIds);
-			
+
 			goto(`/files/${selectedFile.id}`);
 		} catch (err) {
 			console.error('Failed to create invitations:', err);
@@ -278,11 +290,11 @@
 				<!-- Or Select Existing -->
 				<div>
 					<h3 class="text-lg font-semibold text-gray-900 mb-4">Or Select Existing File</h3>
-					{#if $files.filter(file => !file.signatures || file.signatures.length === 0).length === 0}
+					{#if selectableFiles.filter(file => !file.signatures || file.signatures.length === 0).length === 0}
 						<p class="text-gray-600 text-center py-8">No unused files available</p>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-							{#each $files.filter(file => !file.signatures || file.signatures.length === 0) as file}
+							{#each selectableFiles.filter(file => !file.signatures || file.signatures.length === 0) as file}
 								<button
 									onclick={() => {
 										selectedFile = file;
@@ -290,16 +302,16 @@
 										displayName = file.displayName || file.name;
 										description = file.description || '';
 									}}
-									class={`p-4 border-2 rounded-lg text-left transition-colors ${
-										selectedFile?.id === file.id
-											? 'border-blue-600 bg-blue-50'
-											: 'border-gray-200 hover:border-gray-300'
-									}`}
-								>
-									<div class="flex items-center gap-3">
-										<span class="text-2xl">{getFileIcon(file.mimeType)}</span>
-										<div class="flex-1 min-w-0">
-											<p class="font-medium text-gray-900 truncate">{file.displayName || file.name}</p>
+								class={`p-4 border-2 rounded-lg text-left transition-colors min-w-0 overflow-hidden ${
+									selectedFile?.id === file.id
+										? 'border-blue-600 bg-blue-50'
+										: 'border-gray-200 hover:border-gray-300'
+								}`}
+							>
+									<div class="flex items-center gap-3 min-w-0">
+										<span class="text-2xl flex-shrink-0">{getFileIcon(file.mimeType)}</span>
+										<div class="flex-1 min-w-0 overflow-hidden">
+											<p class="font-medium text-gray-900 truncate" title={file.displayName || file.name}>{file.displayName || file.name}</p>
 											<p class="text-sm text-gray-600">{formatFileSize(file.size)}</p>
 										</div>
 									</div>
@@ -387,11 +399,11 @@
 				<h2 class="text-2xl font-bold text-gray-900 mb-6">Invite Signees</h2>
 
 				<!-- Selected File Info -->
-				<div class="mb-6 p-4 bg-gray-50 rounded-lg">
-					<div class="flex items-center gap-3">
-						<span class="text-2xl">{getFileIcon(selectedFile?.mimeType || '')}</span>
-						<div>
-							<p class="font-medium text-gray-900">{selectedFile?.name}</p>
+				<div class="mb-6 p-4 bg-gray-50 rounded-lg min-w-0 overflow-hidden">
+					<div class="flex items-center gap-3 min-w-0">
+						<span class="text-2xl flex-shrink-0">{getFileIcon(selectedFile?.mimeType || '')}</span>
+						<div class="min-w-0 flex-1 overflow-hidden">
+							<p class="font-medium text-gray-900 truncate" title={selectedFile?.displayName || selectedFile?.name}>{selectedFile?.displayName || selectedFile?.name}</p>
 							<p class="text-sm text-gray-600">{formatFileSize(selectedFile?.size || 0)}</p>
 						</div>
 					</div>

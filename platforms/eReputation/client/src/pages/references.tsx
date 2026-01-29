@@ -63,7 +63,7 @@ export default function References() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/";
         }, 500);
         return;
       }
@@ -88,7 +88,7 @@ export default function References() {
 
   const handleLogout = () => {
     clearAuth();
-    window.location.href = "/auth";
+    window.location.href = "/";
   };
 
   if (isLoading) {
@@ -120,7 +120,7 @@ export default function References() {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 sm:gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -161,16 +161,16 @@ export default function References() {
 
       {/* Main Content Area */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        
+
         {/* References Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900">My References</h2>
             <p className="text-gray-700 mt-2 text-sm sm:text-base font-medium">Professional references you've given and received</p>
           </div>
-          
+
           {/* Send eReference Button */}
-          <button 
+          <button
             onClick={() => setReferenceModalOpen(true)}
             className="group bg-secondary hover:bg-fig/30 border-2 border-secondary/40 hover:border-fig p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex items-center gap-3 self-start sm:self-auto"
           >
@@ -209,7 +209,7 @@ export default function References() {
                         </svg>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">No References Yet</h3>
                         <p className="text-gray-600 mb-4">You haven't given or received any professional references.</p>
-                        <Button 
+                        <Button
                           onClick={() => window.location.href = '/'}
                           className="bg-fig hover:bg-fig/90"
                         >
@@ -223,11 +223,10 @@ export default function References() {
                     <tr key={index} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                            reference.type === 'Sent' 
-                              ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600' 
-                              : 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${reference.type === 'Sent'
+                            ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
+                            : 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                            }`}>
                             {reference.type === 'Sent' ? (
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M3 10a1 1 0 011-1h10.586l-2.293-2.293a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -250,15 +249,14 @@ export default function References() {
                         {reference.date}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
-                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7 ${
-                          reference.status === 'Signed' 
-                            ? 'text-green-700' 
-                            : 'text-red-700'
-                        }`}
-                              style={{
-                                borderColor: reference.status === 'Signed' ? '#22c55e' : '#ef4444',
-                                backgroundColor: reference.status === 'Signed' ? '#f0fdf4' : '#fef2f2'
-                              }}>
+                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7 ${reference.status === 'Signed'
+                          ? 'text-green-700'
+                          : 'text-red-700'
+                          }`}
+                          style={{
+                            borderColor: reference.status === 'Signed' ? '#22c55e' : '#ef4444',
+                            backgroundColor: reference.status === 'Signed' ? '#f0fdf4' : '#fef2f2'
+                          }}>
                           {reference.status.toLowerCase()}
                         </span>
                       </td>
@@ -280,7 +278,7 @@ export default function References() {
                               View
                             </DropdownMenuItem>
                             {reference.status === 'Signed' && (
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => handleRevokeReference(reference)}
                               >
@@ -310,7 +308,7 @@ export default function References() {
               </svg>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No References Yet</h3>
               <p className="text-gray-600 mb-4">You haven't given or received any professional references.</p>
-              <Button 
+              <Button
                 onClick={() => window.location.href = '/'}
                 className="bg-fig hover:bg-fig/90"
               >
@@ -322,11 +320,10 @@ export default function References() {
               <div key={index} className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
-                      reference.type === 'Sent' 
-                        ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600' 
-                        : 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
-                    }`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center border ${reference.type === 'Sent'
+                      ? 'bg-gradient-to-br from-orange-500/15 to-orange-500/10 border-orange-500/20 text-orange-600'
+                      : 'bg-gradient-to-br from-green-500/15 to-green-500/10 border-green-500/20 text-green-600'
+                      }`}>
                       {reference.type === 'Sent' ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M3 10a1 1 0 011-1h10.586l-2.293-2.293a1 1 0 111.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H4a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -358,7 +355,7 @@ export default function References() {
                         View
                       </DropdownMenuItem>
                       {reference.status === 'Signed' && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => handleRevokeReference(reference)}
                         >
@@ -371,7 +368,7 @@ export default function References() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div>
                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -385,15 +382,14 @@ export default function References() {
                       <div className="text-sm text-gray-600">{reference.date}</div>
                     </div>
                     <div>
-                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7 ${
-                        reference.status === 'Signed' 
-                          ? 'text-green-700' 
-                          : 'text-red-700'
-                      }`}
-                            style={{
-                              borderColor: reference.status === 'Signed' ? '#22c55e' : '#ef4444',
-                              backgroundColor: reference.status === 'Signed' ? '#f0fdf4' : '#fef2f2'
-                            }}>
+                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-black bg-white border-2 w-20 h-7 ${reference.status === 'Signed'
+                        ? 'text-green-700'
+                        : 'text-red-700'
+                        }`}
+                        style={{
+                          borderColor: reference.status === 'Signed' ? '#22c55e' : '#ef4444',
+                          backgroundColor: reference.status === 'Signed' ? '#f0fdf4' : '#fef2f2'
+                        }}>
                         {reference.status.toLowerCase()}
                       </span>
                     </div>
@@ -403,81 +399,81 @@ export default function References() {
             ))
           )}
         </div>
-          
-          {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-              <div className="text-sm text-gray-700">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(pagination.page - 1)}
-                  disabled={!pagination.hasPrev}
-                  className="px-3 py-1 border border-fig/30 text-fig hover:bg-fig-10 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-600 px-2">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(pagination.page + 1)}
-                  disabled={!pagination.hasNext}
-                  className="px-3 py-1 border border-fig/30 text-fig hover:bg-fig-10 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+            <div className="text-sm text-gray-700">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
             </div>
-          )}
-        </div>
-
-        {/* View Reference Modal */}
-        <ReferenceViewModal 
-          open={!!viewModalOpen} 
-          onOpenChange={(open) => !open && setViewModalOpen(null)}
-          reference={viewModalOpen}
-        />
-
-        {/* Send Reference Modal */}
-        <ReferenceModal 
-          open={referenceModalOpen} 
-          onOpenChange={setReferenceModalOpen} 
-        />
-
-        {/* Revoke Confirmation Modal */}
-        <Dialog open={!!revokeModalOpen} onOpenChange={(open) => !open && setRevokeModalOpen(null)}>
-          <DialogContent className="w-full max-w-sm sm:max-w-md mx-4 sm:mx-auto bg-fig-10 border-2 border-fig/20 shadow-2xl rounded-xl">
-            <DialogHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <DialogTitle className="text-xl font-black text-fig">Revoke Reference</DialogTitle>
-              <DialogDescription className="text-fig/70 text-sm font-medium mt-2">
-                Are you sure you want to revoke the reference for <strong>{revokeModalOpen?.forFrom}</strong>? This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="flex gap-3 mt-6">
-              <Button 
-                variant="outline" 
-                onClick={() => setRevokeModalOpen(null)}
-                className="flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11"
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(pagination.page - 1)}
+                disabled={!pagination.hasPrev}
+                className="px-3 py-1 border border-fig/30 text-fig hover:bg-fig-10 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Cancel
-              </Button>
-              <Button 
-                onClick={confirmRevoke}
-                disabled={revokeMutation.isPending}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold h-11"
+                Previous
+              </button>
+              <span className="text-sm text-gray-600 px-2">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(pagination.page + 1)}
+                disabled={!pagination.hasNext}
+                className="px-3 py-1 border border-fig/30 text-fig hover:bg-fig-10 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {revokeMutation.isPending ? 'Revoking...' : 'Revoke'}
-              </Button>
+                Next
+              </button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </div>
+        )}
       </div>
+
+      {/* View Reference Modal */}
+      <ReferenceViewModal
+        open={!!viewModalOpen}
+        onOpenChange={(open) => !open && setViewModalOpen(null)}
+        reference={viewModalOpen}
+      />
+
+      {/* Send Reference Modal */}
+      <ReferenceModal
+        open={referenceModalOpen}
+        onOpenChange={setReferenceModalOpen}
+      />
+
+      {/* Revoke Confirmation Modal */}
+      <Dialog open={!!revokeModalOpen} onOpenChange={(open) => !open && setRevokeModalOpen(null)}>
+        <DialogContent className="w-full max-w-sm sm:max-w-md mx-4 sm:mx-auto bg-fig-10 border-2 border-fig/20 shadow-2xl rounded-xl">
+          <DialogHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <DialogTitle className="text-xl font-black text-fig">Revoke Reference</DialogTitle>
+            <DialogDescription className="text-fig/70 text-sm font-medium mt-2">
+              Are you sure you want to revoke the reference for <strong>{revokeModalOpen?.forFrom}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setRevokeModalOpen(null)}
+              className="flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmRevoke}
+              disabled={revokeMutation.isPending}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold h-11"
+            >
+              {revokeMutation.isPending ? 'Revoking...' : 'Revoke'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
