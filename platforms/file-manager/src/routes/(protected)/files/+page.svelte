@@ -136,6 +136,7 @@
     let uploadModalDragOver = $state(false);
     let previewFile = $state<any>(null);
     let previewUrl = $state<string | null>(null);
+    let downloadUrl = $state<string | null>(null);
     let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([
         { id: null, name: "My Files" },
     ]);
@@ -765,6 +766,7 @@
             // Add auth token as query parameter for img/iframe tags
             const token = localStorage.getItem("file_manager_auth_token");
             previewUrl = `${API_BASE_URL}/api/files/${file.id}/preview?token=${token || ""}`;
+            downloadUrl = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
             return;
         }
         // If not previewable, go to detail page
@@ -774,6 +776,7 @@
     function closePreview() {
         previewFile = null;
         previewUrl = null;
+        downloadUrl = null;
     }
 
     function getFileIcon(mimeType: string): string {
@@ -1960,7 +1963,7 @@
             {/if}
             <div class="mt-4 flex gap-2 justify-end">
                 <a
-                    href={`${API_BASE_URL}/api/files/${previewFile.id}/download`}
+                    href={downloadUrl}
                     download={previewFile.name}
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
