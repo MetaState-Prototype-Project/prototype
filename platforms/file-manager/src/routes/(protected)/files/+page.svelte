@@ -140,7 +140,6 @@
     let downloadUrl = $state<string | null>(null);
     
     // Multi-file selection for download
-    const MAX_DOWNLOAD_LIMIT = 10; // Browser typically limits simultaneous downloads
     const DOWNLOAD_BATCH_SIZE = 3; // Number of concurrent downloads
     let selectedFileIds = $state<Set<string>>(new Set());
     
@@ -906,9 +905,6 @@
     const selectableFiles = $derived(
         allItems.filter((item) => item.type === "file")
     );
-    const isDownloadLimitReached = $derived(
-        selectedFileIds.size >= MAX_DOWNLOAD_LIMIT
-    );
     const allFilesSelected = $derived(
         selectableFiles.length > 0 &&
             selectableFiles.every((f) => selectedFileIds.has(f.id))
@@ -919,7 +915,7 @@
         const newSet = new Set(selectedFileIds);
         if (newSet.has(fileId)) {
             newSet.delete(fileId);
-        } else if (newSet.size < MAX_DOWNLOAD_LIMIT) {
+        } else {
             newSet.add(fileId);
         }
         selectedFileIds = newSet;
@@ -931,10 +927,9 @@
             // Deselect all
             selectedFileIds = new Set();
         } else {
-            // Select up to the limit
+            // Select all files
             const newSet = new Set<string>();
             for (const file of selectableFiles) {
-                if (newSet.size >= MAX_DOWNLOAD_LIMIT) break;
                 newSet.add(file.id);
             }
             selectedFileIds = newSet;
@@ -1268,11 +1263,8 @@
         <div class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <span class="text-sm text-blue-700">
-                    {selectedFileIds.size} of {MAX_DOWNLOAD_LIMIT} files selected
+                    {selectedFileIds.size} {selectedFileIds.size === 1 ? 'file' : 'files'} selected
                 </span>
-                {#if isDownloadLimitReached}
-                    <span class="text-xs text-blue-500">(limit reached)</span>
-                {/if}
             </div>
             <div class="flex items-center gap-2">
                 <button
@@ -1331,7 +1323,7 @@
                                     disabled={selectableFiles.length === 0}
                                     onclick={toggleSelectAll}
                                     class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                    title={allFilesSelected ? "Deselect all" : `Select up to ${MAX_DOWNLOAD_LIMIT} files`}
+                                    title={allFilesSelected ? "Deselect all" : "Select all files"}
                                 />
                             </th>
                             <th
@@ -1383,10 +1375,9 @@
                                         <input
                                             type="checkbox"
                                             checked={selectedFileIds.has(item.id)}
-                                            disabled={isDownloadLimitReached && !selectedFileIds.has(item.id)}
                                             onclick={(e) => toggleFileSelection(item.id, e)}
-                                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                            title={isDownloadLimitReached && !selectedFileIds.has(item.id) ? `Maximum ${MAX_DOWNLOAD_LIMIT} files can be selected` : "Select for download"}
+                                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                                            title="Select for download"
                                         />
                                     {/if}
                                 </td>
