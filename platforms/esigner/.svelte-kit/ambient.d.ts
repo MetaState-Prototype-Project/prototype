@@ -119,7 +119,6 @@ declare module '$env/static/public' {
 	export const PUBLIC_VERIFF_KEY: string;
 	export const PUBLIC_REGISTRY_URL: string;
 	export const PUBLIC_PROVISIONER_URL: string;
-	export const PUBLIC_EID_WALLET_TOKEN: string;
 	export const PUBLIC_PICTIQUE_URL: string;
 	export const PUBLIC_PICTIQUE_BASE_URL: string;
 	export const PUBLIC_BLABSY_URL: string;
@@ -130,6 +129,7 @@ declare module '$env/static/public' {
 	export const PUBLIC_EVOTING_URL: string;
 	export const PUBLIC_APP_STORE_EID_WALLET: string;
 	export const PUBLIC_PLAY_STORE_EID_WALLET: string;
+	export const PUBLIC_EID_WALLET_TOKEN: string;
 	export const PUBLIC_ESIGNER_BASE_URL: string;
 	export const PUBLIC_FILE_MANAGER_BASE_URL: string;
 }
@@ -246,7 +246,6 @@ declare module '$env/dynamic/public' {
 		PUBLIC_VERIFF_KEY: string;
 		PUBLIC_REGISTRY_URL: string;
 		PUBLIC_PROVISIONER_URL: string;
-		PUBLIC_EID_WALLET_TOKEN: string;
 		PUBLIC_PICTIQUE_URL: string;
 		PUBLIC_PICTIQUE_BASE_URL: string;
 		PUBLIC_BLABSY_URL: string;
@@ -257,6 +256,7 @@ declare module '$env/dynamic/public' {
 		PUBLIC_EVOTING_URL: string;
 		PUBLIC_APP_STORE_EID_WALLET: string;
 		PUBLIC_PLAY_STORE_EID_WALLET: string;
+		PUBLIC_EID_WALLET_TOKEN: string;
 		PUBLIC_ESIGNER_BASE_URL: string;
 		PUBLIC_FILE_MANAGER_BASE_URL: string;
 		[key: `PUBLIC_${string}`]: string | undefined;

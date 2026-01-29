@@ -39,7 +39,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   const queryClient = useQueryClient();
 
   const loginForm = useForm<LoginData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema as any),
     defaultValues: {
       email: "",
       password: "",
@@ -47,7 +47,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
   });
 
   const registerForm = useForm<RegisterData>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema as any),
     defaultValues: {
       email: "",
       password: "",
