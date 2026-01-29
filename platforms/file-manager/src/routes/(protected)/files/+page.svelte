@@ -28,9 +28,9 @@
     } from "$lib/stores/folders";
     import { toast } from "$lib/stores/toast";
     import { apiClient } from "$lib/utils/axios";
+    import JSZip from "jszip";
     import { onMount } from "svelte";
     import { get } from "svelte/store";
-    import JSZip from "jszip";
 
     const API_BASE_URL =
         PUBLIC_FILE_MANAGER_BASE_URL || "http://localhost:3005";
@@ -138,11 +138,11 @@
     let previewFile = $state<any>(null);
     let previewUrl = $state<string | null>(null);
     let downloadUrl = $state<string | null>(null);
-    
+
     // Multi-file selection for download
     const DOWNLOAD_BATCH_SIZE = 3; // Number of concurrent downloads
     let selectedFileIds = $state<Set<string>>(new Set());
-    
+
     // Download modal state
     let showDownloadModal = $state(false);
     let downloadProgress = $state<{
@@ -153,7 +153,11 @@
         overallProgress: number; // 0-100 for all files
         status: "preparing" | "downloading" | "zipping" | "complete" | "error";
         errorMessage?: string;
-        downloadedFiles: Array<{ name: string; size: number; status: "done" | "downloading" | "pending" }>;
+        downloadedFiles: Array<{
+            name: string;
+            size: number;
+            status: "done" | "downloading" | "pending";
+        }>;
     }>({
         currentFile: "",
         currentFileIndex: 0,
@@ -903,11 +907,11 @@
 
     // Multi-file selection derived states
     const selectableFiles = $derived(
-        allItems.filter((item) => item.type === "file")
+        allItems.filter((item) => item.type === "file"),
     );
     const allFilesSelected = $derived(
         selectableFiles.length > 0 &&
-            selectableFiles.every((f) => selectedFileIds.has(f.id))
+            selectableFiles.every((f) => selectedFileIds.has(f.id)),
     );
 
     function toggleFileSelection(fileId: string, event: Event) {
@@ -957,7 +961,7 @@
 
         const token = localStorage.getItem("file_manager_auth_token");
         const filesToDownload = selectableFiles.filter((f) =>
-            selectedFileIds.has(f.id)
+            selectedFileIds.has(f.id),
         );
 
         // If only one file, download directly without zipping
@@ -996,17 +1000,26 @@
             const downloadedBlobs: Array<{ name: string; blob: Blob }> = [];
 
             // Download files in batches
-            for (let i = 0; i < filesToDownload.length; i += DOWNLOAD_BATCH_SIZE) {
+            for (
+                let i = 0;
+                i < filesToDownload.length;
+                i += DOWNLOAD_BATCH_SIZE
+            ) {
                 const batch = filesToDownload.slice(i, i + DOWNLOAD_BATCH_SIZE);
 
                 // Mark batch files as downloading
                 downloadProgress = {
                     ...downloadProgress,
                     status: "downloading",
-                    downloadedFiles: downloadProgress.downloadedFiles.map((f, idx) => ({
-                        ...f,
-                        status: idx >= i && idx < i + batch.length ? "downloading" as const : f.status,
-                    })),
+                    downloadedFiles: downloadProgress.downloadedFiles.map(
+                        (f, idx) => ({
+                            ...f,
+                            status:
+                                idx >= i && idx < i + batch.length
+                                    ? ("downloading" as const)
+                                    : f.status,
+                        }),
+                    ),
                 };
 
                 // Download batch in parallel
@@ -1027,10 +1040,16 @@
                             ...downloadProgress,
                             currentFile: file.displayName || file.name,
                             currentFileIndex: globalIdx + 1,
-                            overallProgress: Math.round(((globalIdx + 1) / filesToDownload.length) * 80), // 80% for downloads, 20% for zipping
-                            downloadedFiles: downloadProgress.downloadedFiles.map((f, idx) =>
-                                idx === globalIdx ? { ...f, status: "done" as const } : f
-                            ),
+                            overallProgress: Math.round(
+                                ((globalIdx + 1) / filesToDownload.length) * 80,
+                            ), // 80% for downloads, 20% for zipping
+                            downloadedFiles:
+                                downloadProgress.downloadedFiles.map(
+                                    (f, idx) =>
+                                        idx === globalIdx
+                                            ? { ...f, status: "done" as const }
+                                            : f,
+                                ),
                         };
 
                         return { name: file.displayName || file.name, blob };
@@ -1066,7 +1085,7 @@
             const zipBlob = await zip.generateAsync({
                 type: "blob",
                 compression: "DEFLATE",
-                compressionOptions: { level: 6 },
+                compressionOptions: { level: 1 },
             });
 
             downloadProgress = {
@@ -1101,7 +1120,10 @@
             downloadProgress = {
                 ...downloadProgress,
                 status: "error",
-                errorMessage: error instanceof Error ? error.message : "Failed to download files",
+                errorMessage:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to download files",
             };
         }
     }
@@ -1156,7 +1178,9 @@
                             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                         />
                     </svg>
-                    <span class="hidden xs:inline">Download ({selectedFileIds.size})</span>
+                    <span class="hidden xs:inline"
+                        >Download ({selectedFileIds.size})</span
+                    >
                     <span class="xs:hidden">{selectedFileIds.size}</span>
                 </button>
                 <button
@@ -1260,10 +1284,13 @@
 
     <!-- Selection info bar -->
     {#if selectedFileIds.size > 0}
-        <div class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+        <div
+            class="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"
+        >
             <div class="flex items-center gap-2">
                 <span class="text-sm text-blue-700">
-                    {selectedFileIds.size} {selectedFileIds.size === 1 ? 'file' : 'files'} selected
+                    {selectedFileIds.size}
+                    {selectedFileIds.size === 1 ? "file" : "files"} selected
                 </span>
             </div>
             <div class="flex items-center gap-2">
@@ -1310,20 +1337,21 @@
         {:else}
             <div class="overflow-x-auto" style="overflow-y: visible;">
                 <table class="w-full" style="position: relative;">
-                    <thead
-                        class="bg-gray-50 border-b border-gray-200"
-                    >
+                    <thead class="bg-gray-50 border-b border-gray-200">
                         <tr>
                             <th
                                 class="px-2 sm:px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-8 sm:w-10"
                             >
                                 <input
                                     type="checkbox"
-                                    checked={allFilesSelected && selectableFiles.length > 0}
+                                    checked={allFilesSelected &&
+                                        selectableFiles.length > 0}
                                     disabled={selectableFiles.length === 0}
                                     onclick={toggleSelectAll}
                                     class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                    title={allFilesSelected ? "Deselect all" : "Select all files"}
+                                    title={allFilesSelected
+                                        ? "Deselect all"
+                                        : "Select all files"}
                                 />
                             </th>
                             <th
@@ -1357,7 +1385,10 @@
                                 class="hover:bg-gray-50 transition-colors cursor-pointer {item.type ===
                                 'folder'
                                     ? ''
-                                    : ''} {item.type === 'file' && selectedFileIds.has(item.id) ? 'bg-blue-50' : ''}"
+                                    : ''} {item.type === 'file' &&
+                                selectedFileIds.has(item.id)
+                                    ? 'bg-blue-50'
+                                    : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation();
                                     if (item.type === "folder") {
@@ -1374,8 +1405,11 @@
                                     {#if item.type === "file"}
                                         <input
                                             type="checkbox"
-                                            checked={selectedFileIds.has(item.id)}
-                                            onclick={(e) => toggleFileSelection(item.id, e)}
+                                            checked={selectedFileIds.has(
+                                                item.id,
+                                            )}
+                                            onclick={(e) =>
+                                                toggleFileSelection(item.id, e)}
                                             class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                                             title="Select for download"
                                         />
@@ -2309,7 +2343,11 @@
     <div
         class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
         onclick={(e) => {
-            if (e.target === e.currentTarget && downloadProgress.status !== "downloading" && downloadProgress.status !== "zipping") {
+            if (
+                e.target === e.currentTarget &&
+                downloadProgress.status !== "downloading" &&
+                downloadProgress.status !== "zipping"
+            ) {
                 cancelDownload();
             }
         }}
@@ -2338,8 +2376,18 @@
                         onclick={cancelDownload}
                         class="text-gray-400 hover:text-gray-600 transition-colors"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 {/if}
@@ -2349,30 +2397,59 @@
             <div class="mb-4">
                 {#if downloadProgress.status === "error"}
                     <div class="flex items-center gap-2 text-red-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                         </svg>
-                        <span class="text-sm">{downloadProgress.errorMessage}</span>
+                        <span class="text-sm"
+                            >{downloadProgress.errorMessage}</span
+                        >
                     </div>
                 {:else if downloadProgress.status === "complete"}
                     <div class="flex items-center gap-2 text-green-600">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M5 13l4 4L19 7"
+                            />
                         </svg>
-                        <span class="text-sm">Your zip file is ready and downloading!</span>
+                        <span class="text-sm"
+                            >Your zip file is ready and downloading!</span
+                        >
                     </div>
                 {:else}
                     <p class="text-sm text-gray-600">
                         {#if downloadProgress.status === "downloading"}
-                            Downloading file {downloadProgress.currentFileIndex} of {downloadProgress.totalFiles}
+                            Downloading file {downloadProgress.currentFileIndex} of
+                            {downloadProgress.totalFiles}
                         {:else if downloadProgress.status === "zipping"}
-                            Compressing {downloadProgress.totalFiles} files into a zip...
+                            Compressing {downloadProgress.totalFiles} files into a
+                            zip...
                         {:else}
                             Please wait while we prepare your download...
                         {/if}
                     </p>
                     {#if downloadProgress.currentFile && downloadProgress.status === "downloading"}
-                        <p class="text-xs text-gray-500 mt-1 truncate" title={downloadProgress.currentFile}>
+                        <p
+                            class="text-xs text-gray-500 mt-1 truncate"
+                            title={downloadProgress.currentFile}
+                        >
                             Current: {downloadProgress.currentFile}
                         </p>
                     {/if}
@@ -2385,9 +2462,16 @@
                     <span>Overall Progress</span>
                     <span>{downloadProgress.overallProgress}%</span>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                    class="w-full bg-gray-200 rounded-full h-3 overflow-hidden"
+                >
                     <div
-                        class="h-full rounded-full transition-all duration-300 ease-out {downloadProgress.status === 'error' ? 'bg-red-500' : downloadProgress.status === 'complete' ? 'bg-green-500' : 'bg-blue-600'}"
+                        class="h-full rounded-full transition-all duration-300 ease-out {downloadProgress.status ===
+                        'error'
+                            ? 'bg-red-500'
+                            : downloadProgress.status === 'complete'
+                              ? 'bg-green-500'
+                              : 'bg-blue-600'}"
                         style="width: {downloadProgress.overallProgress}%"
                     ></div>
                 </div>
@@ -2395,28 +2479,54 @@
 
             <!-- File List -->
             {#if downloadProgress.downloadedFiles.length > 0}
-                <div class="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                <div
+                    class="border border-gray-200 rounded-lg max-h-48 overflow-y-auto"
+                >
                     <div class="divide-y divide-gray-100">
                         {#each downloadProgress.downloadedFiles as file, idx}
-                            <div class="flex items-center gap-3 px-3 py-2 text-sm {file.status === 'downloading' ? 'bg-blue-50' : ''}">
+                            <div
+                                class="flex items-center gap-3 px-3 py-2 text-sm {file.status ===
+                                'downloading'
+                                    ? 'bg-blue-50'
+                                    : ''}"
+                            >
                                 <!-- Status Icon -->
                                 <div class="flex-shrink-0">
                                     {#if file.status === "done"}
-                                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        <svg
+                                            class="w-4 h-4 text-green-500"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M5 13l4 4L19 7"
+                                            />
                                         </svg>
                                     {:else if file.status === "downloading"}
-                                        <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <div
+                                            class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
+                                        ></div>
                                     {:else}
-                                        <div class="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+                                        <div
+                                            class="w-4 h-4 border-2 border-gray-300 rounded-full"
+                                        ></div>
                                     {/if}
                                 </div>
                                 <!-- File Name -->
-                                <span class="flex-1 truncate text-gray-700" title={file.name}>
+                                <span
+                                    class="flex-1 truncate text-gray-700"
+                                    title={file.name}
+                                >
                                     {file.name}
                                 </span>
                                 <!-- File Size -->
-                                <span class="flex-shrink-0 text-xs text-gray-400">
+                                <span
+                                    class="flex-shrink-0 text-xs text-gray-400"
+                                >
                                     {formatFileSize(file.size)}
                                 </span>
                             </div>
@@ -2427,13 +2537,26 @@
 
             <!-- Warning Message -->
             {#if downloadProgress.status === "downloading" || downloadProgress.status === "zipping"}
-                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div
+                    class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg"
+                >
                     <div class="flex items-start gap-2">
-                        <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        <svg
+                            class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
                         </svg>
                         <p class="text-xs text-amber-700">
-                            Please don't close this window or navigate away while the download is in progress.
+                            Please don't close this window or navigate away
+                            while the download is in progress.
                         </p>
                     </div>
                 </div>
