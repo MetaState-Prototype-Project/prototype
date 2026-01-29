@@ -45,9 +45,9 @@ The adapter does not poll the database. The platform must detect changes (e.g. v
 
 After data is stored or updated in an eVault, the [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) delivers webhooks to all other registered platforms. Those platforms use the same adapter's `fromGlobal` and ID mapping to apply the change locally. So the full loop is: Platform A → adapter → eVault → Awareness Protocol → Platform B's webhook → adapter → Platform B's DB.
 
-### Design implications
+### Design Limitations
 
-You can get better results by:
+Current implementation has the following known limitations, which we aim to fix with subsequent versions:
 
 - **Ontology design**: Clear schema versioning, optional vs required fields, and conventions for references (e.g. eNames vs local IDs in payloads).
 - **Mapping expressiveness**: Richer `ownerEnamePath` (e.g. fallbacks), relation resolution, and handling of arrays and nested structures.
@@ -112,7 +112,7 @@ graph TB
 
 ### Mapping configuration (IMapping)
 
-Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the **Web3 Adapter Mapping Rules** in the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
+Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the [Web3 Adapter Mapping Rules](../../../infrastructure/web3-adapter/MAPPING_RULES.md).
 
 Each mapping is a JSON file with:
 
@@ -121,8 +121,6 @@ Each mapping is a JSON file with:
 - **ownerEnamePath**: Path to the owner eName in the local entity (e.g. `"ename"` or `"users(createdBy.ename)"`). Supports fallbacks with `||`.
 - **localToUniversalMap**: Object mapping local field names to global field names or expressions (e.g. `"createdAt": "__date(createdAt)"`, relation syntax `"tableName(path),globalAlias"`).
 - **readOnly** (optional): If true, `handleChange` does not sync this table to the eVault.
-
-For full syntax (direct, relation, array, `__date`, `__calc`, owner path), see the mapping rules in the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
 
 ### Receiving data (inbound)
 
@@ -134,7 +132,7 @@ When a platform receives an awareness protocol packet at `POST /api/webhook`:
 4. Call `mappingDb.getLocalId(body.id)`; if found, update the existing local entity; otherwise create and then `mappingDb.storeMapping({ localId: newEntity.id, globalId: body.id })`.
 5. Return 200.
 
-See the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) for a full implementation example.
+See the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) for a full implementation example and the [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) for the packet format and delivery mechanism.
 
 ## Sequence: Platform → Adapter → eVault
 
@@ -165,10 +163,9 @@ sequenceDiagram
     end
 ```
 
-## Extension points
+## Limitations & Planned Extensions
 
-- **Ontology versioning**: Today `schemaId` is a single UUID; you could version schemas and map multiple local tables to different versions.
+- **Ontology versioning**: Today `schemaId` is a single UUID, there are plans for adding a `schemaVersion` key to allow for schema versioning.
 - **Conflict resolution**: Add version or timestamp fields and resolve conflicts in the adapter or in a separate service.
 - **Idempotency**: Use idempotency keys in payloads or in the mapping DB to make webhook handling and outbound sync idempotent.
-- **ID mapping storage**: Replace SQLite with a shared store if multiple instances of the platform need the same mappings.
 - **Transactional outbox**: Have the platform write changes to an outbox table and have a worker call `handleChange` so that sync is tied to the same transaction as the local write.

@@ -5,7 +5,7 @@ sidebar_position: 4
 # Awareness Protocol
 
 :::warning Prototype-level implementation
-The Awareness Protocol described here is **prototype-level**. The packet format, delivery behavior, and platform contract are subject to change. Do not rely on them for production without checking for updates.
+The Awareness Protocol described here is **prototype-level**. The packet format, delivery behavior, and platform contract are subject to change in upcoming updates
 :::
 
 The Awareness Protocol is the webhook deliverability mechanism in W3DS. When data in an eVault changes (create or update), the eVault notifies all other registered platforms so they can stay in sync. "Awareness" means platforms become aware of changes that happened elsewhere.
@@ -101,11 +101,11 @@ For a step-by-step implementation guide, see the [Webhook Controller Guide](/doc
 
 ## Limitations and Extension Points
 
-The current protocol has intentional limitations that readers may improve in their own implementations:
+The current protocol has  limitations which are going to be improved in subsequent versions:
 
 - **No retries**: Failed webhooks are not retried. A more robust system could add retries with backoff or a dead-letter queue.
 - **No ordering guarantee**: Webhooks to different platforms are sent in parallel; there is no guarantee of order across platforms or across multiple mutations.
 - **No at-least-once guarantee**: Because delivery is fire-and-forget and there are no retries, a platform might never receive a given update. At-least-once delivery would require acknowledgments and retries (and possibly idempotency keys).
-- **Platform list from Registry**: The set of recipients is whatever the Registry returns for `GET /platforms`. How that list is maintained and updated is registry-specific.
+- **Platform list from Registry**: The set of recipients is whatever the Registry returns for `GET /platforms`.  This is a prototype level shortcut and will be phased out.
 
 Designing retries, ordering, or delivery guarantees would be natural extension points for a production-grade awareness mechanism.
