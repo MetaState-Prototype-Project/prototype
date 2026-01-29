@@ -112,7 +112,7 @@ graph TB
 
 ### Mapping configuration (IMapping)
 
-Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the [Web3 Adapter Mapping Rules](../../../infrastructure/web3-adapter/MAPPING_RULES.md).
+Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the **Web3 Adapter Mapping Rules** in the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
 
 Each mapping is a JSON file with:
 
