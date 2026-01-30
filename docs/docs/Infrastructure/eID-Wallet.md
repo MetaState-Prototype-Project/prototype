@@ -160,13 +160,13 @@ Verify a signature against a payload (for testing):
 When a new user first opens the wallet:
 
 1. **Generate Keys**: Create default key pair (hardware keys for real users, software keys only for pre-verification/test users)
-2. **Request Entropy**: Get entropy token from Registry
-3. **Generate Namespace**: Create UUID for namespace
-4. **Provision eVault**: Send provision request with public key to the Provisioner service (not to eVault Core, as no eVault exists yet, and not to Registry)
+2. **Request Entropy**: Get entropy token from [Registry](/docs/Infrastructure/Registry)
+3. **Generate Namespace**: Create a unique identifier for namespace
+4. **Provision eVault**: Send provision request with public key to the [Provisioner](/docs/W3DS%20Basics/Links) service (not to eVault Core, as no eVault exists yet, and not to Registry)
 5. **Receive Credentials**: Get W3ID (eName) and eVault URI
 6. **Store Locally**: Save credentials in wallet storage
 
-**API Flow**:
+**API Flow** (see [Registry](/docs/Infrastructure/Registry) for entropy and key binding):
 ```
 Wallet → Registry: GET /entropy
 Registry → Wallet: JWT entropy token
@@ -201,7 +201,7 @@ For detailed information on:
 - Uses key ID `"default"`
 - Uses context `"onboarding"` for real users (always hardware keys) or `"pre-verification"` for fake/test users (software keys)
 - For real KYC-verified users: Always uses hardware keys, never software keys
-- Signs the exact session ID string (UUID)
+- Signs the exact session ID string
 - Returns base64 or multibase-encoded signature
 
 ### Key Rotation (Conceptual - Not Yet Implemented)
@@ -224,7 +224,7 @@ Public keys must be synced to eVault so platforms can verify signatures.
 1. **Get Public Key**: Retrieve public key from key manager
 2. **Format**: Ensure public key is in multibase format
 3. **Send to eVault**: POST to eVault's key storage endpoint
-4. **Certificate Generation**: eVault requests key binding certificate from Registry
+4. **Certificate Generation**: [eVault](/docs/Infrastructure/eVault) requests key binding certificate from [Registry](/docs/Infrastructure/Registry)
 5. **Storage**: Certificate stored in eVault for future verification
 
 ### Sync Timing
@@ -240,7 +240,7 @@ The wallet creates signatures for various purposes:
 
 **Purpose**: Prove identity to platforms
 
-**Payload**: Session ID (UUID string)
+**Payload**: Session ID (string)
 
 **Process**:
 1. Platform generates session ID
@@ -404,6 +404,9 @@ const { token } = await response.json();
 
 ## References
 
+- [Registry](/docs/Infrastructure/Registry) - Entropy and key binding certificates
+- [W3ID](/docs/W3DS%20Basics/W3ID) - Identifiers and eName resolution
+- [Links](/docs/W3DS%20Basics/Links) - Production URLs (Provisioner, Registry, Ontology)
 - [Authentication](/docs/W3DS%20Protocol/Authentication) - How wallet authentication works
 - [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation details
 - [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Technical signature format details

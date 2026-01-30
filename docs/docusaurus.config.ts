@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
     title: 'W3DS Documentation',
     tagline: 'Documentation for Web 3 Data Spaces',
-    favicon: 'img/favicon.ico',
+    favicon: 'img/w3dslogo.svg',
 
     // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
     future: {
@@ -20,16 +20,12 @@ const config: Config = {
 
     themes: ['@docusaurus/theme-mermaid'],
 
-    // Set the production url of your site here
-    url: 'https://MetaState-Prototype-Project.github.io',
-    // Set the /<baseUrl>/ pathname under which your site is served
-    // For GitHub pages deployment, it is often '/<projectName>/'
-    baseUrl: '/prototype',
+    // Production URL: hosted at docs.w3ds.metastate.foundation
+    url: 'https://docs.w3ds.metastate.foundation',
+    baseUrl: '/',
 
-    // GitHub pages deployment config.
-    // If you aren't using GitHub pages, you don't need these.
-    organizationName: 'MetaState-Prototype-Project', // Usually your GitHub org/user name.
-    projectName: 'MetaState-Prototype-Project.github.io', // Usually your repo name.
+    organizationName: 'MetaState-Prototype-Project',
+    projectName: 'metastate',
     trailingSlash: false,
 
     onBrokenLinks: 'throw',
@@ -48,18 +44,14 @@ const config: Config = {
             {
                 docs: {
                     sidebarPath: './sidebars.ts',
-                    // Please change this to your repo.
-                    // Remove this to remove the "edit this page" links.
-                    editUrl:
-                        'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+                    editUrl: 'https://github.com/MetaState-Prototype-Project/prototype/tree/main/docs/docs/',
                 },
             } satisfies Preset.Options,
         ],
     ],
 
     themeConfig: {
-        // Replace with your project's social card
-        image: 'img/docusaurus-social-card.jpg',
+        image: 'img/w3dslogo.svg',
         colorMode: {
             respectPrefersColorScheme: true,
         },
@@ -73,7 +65,7 @@ const config: Config = {
                     type: 'docSidebar',
                     sidebarId: 'tutorialSidebar',
                     position: 'left',
-                    label: 'Tutorial',
+                    label: 'Docs',
                 },
                 {
                     href: 'https://github.com/MetaState-Prototype-Project/prototype',
@@ -89,13 +81,25 @@ const config: Config = {
                     title: 'Docs',
                     items: [
                         {
-                            label: 'Documentaion',
+                            label: 'Getting Started',
                             to: '/docs/Getting%20Started/getting-started',
+                        },
+                        {
+                            label: 'W3DS Basics',
+                            to: '/docs/W3DS%20Basics/getting-started',
+                        },
+                        {
+                            label: 'Infrastructure',
+                            to: '/docs/Infrastructure/eVault',
+                        },
+                        {
+                            label: 'Links',
+                            to: '/docs/W3DS%20Basics/Links',
                         },
                     ],
                 },
             ],
-            copyright: `Copyright © ${new Date().getFullYear()} Stichting MetasState Foundation. Built with Docusaurus.`,
+            copyright: `Copyright © ${new Date().getFullYear()} Stichting MetaState Foundation.`,
         },
         prism: {
             theme: prismThemes.github,

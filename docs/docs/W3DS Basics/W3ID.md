@@ -4,7 +4,7 @@ sidebar_position: 2
 
 # W3ID
 
-W3ID (Web 3 Identifier) is the main identifier for the whole W3DS ecosystem. W3IDs are UUID-based, persistent, and globally unique. When the term **eName** is used, it means a universally resolvable W3ID—one that can be resolved via the Registry to an eVault (or service) endpoint.
+W3ID (Web 3 Identifier) is the main identifier for the whole W3DS ecosystem. W3IDs are UUID-based, persistent, and globally unique. When the term **eName** is used, it means a universally resolvable W3ID—one that can be resolved via the [Registry](/docs/Infrastructure/Registry) to an eVault (or service) endpoint.
 
 ## Overview
 
@@ -27,7 +27,7 @@ The UUID namespace has range 2^122, which is far larger than the expected number
 
 ## Registry Resolution (eName)
 
-What makes a W3ID an **eName** is that it is registered in the Registry and can be resolved to a service URL:
+What makes a W3ID an **eName** is that it is registered in the [Registry](/docs/Infrastructure/Registry) and can be resolved to a service URL:
 
 1. A client sends `GET /resolve?w3id=@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a` to the Registry.
 2. The Registry returns the eVault (or controller) URL for that W3ID.
@@ -62,10 +62,10 @@ graph LR
 ```
 
 - **Users and groups**: Each has a persistent W3ID (typically an eName). For a person, the W3ID is the long-lived anchor that connects keys (eID certificate, PKI) and the physical person (body characteristics, passport, friends).
-- **eVaults**: An eVault may have its own internal W3ID used for syncing between clones or by the hosting provider; the user’s eName is what identifies the “owner” of the vault.
-- **MetaEnvelopes**: Each envelope has an owner (a W3ID/eName) and an optional global ID; the W3ID URI scheme can be used to refer to an envelope (e.g. `@<owner-uuid>/<envelope-uuid>`).
-- **ACLs**: Access control lists reference W3IDs (eNames) to indicate who can access data.
-- **Key binding**: Public keys in the eVault are bound to the user’s W3ID (eName) via key binding certificates.
+- **eVaults**: An [eVault](/docs/Infrastructure/eVault) may have its own internal W3ID used for syncing between clones or by the hosting provider; the user’s eName is what identifies the “owner” of the vault.
+- **MetaEnvelopes**: Each envelope has an owner (a W3ID/eName) and an optional global ID; see [eVault](/docs/Infrastructure/eVault). The W3ID URI scheme can be used to refer to an envelope (e.g. `@<owner-uuid>/<envelope-uuid>`).
+- **ACLs**: [Access control lists](/docs/Infrastructure/eVault#access-control) reference W3IDs (eNames) to indicate who can access data.
+- **Key binding**: Public keys in the eVault are bound to the user’s W3ID (eName) via [key binding certificates](/docs/Infrastructure/eVault#key-binding-certificates) (issued by the [Registry](/docs/Infrastructure/Registry)).
 
 ## Key Binding and Recovery
 
@@ -73,11 +73,11 @@ The identifier is **loosely bound** to a set of keys: the W3ID is not derived fr
 
 - **Key rotation**: Keys can be changed (e.g. after compromise or device loss) without changing the W3ID.
 - **Friend-based recovery**: A trust list (e.g. 2–3 friends or notaries) can verify identity and approve key changes. The user defines this list while they still have access to their keys.
-- **eVault migration**: When a user migrates from one eVault to another, the Registry can store also-known-as (redirect) records so that resolution of the same eName continues to work (e.g. requests for the old eVault W3ID are redirected to the new eVault).
+- **eVault migration**: When a user migrates from one eVault to another, the [Registry](/docs/Infrastructure/Registry) can store also-known-as (redirect) records so that resolution of the same eName continues to work (e.g. requests for the old eVault W3ID are redirected to the new eVault).
 
 ## Document Binding
 
-The identifier can be loosely bound to a passport via a binding document certified by a root CA, where the identifier is connected to entropy derived from passport details. Passport verification itself is out of scope for W3ID and is handled by the eID Wallet application.
+The identifier can be loosely bound to a passport via a binding document certified by a root CA, where the identifier is connected to entropy derived from passport details. Passport verification itself is out of scope for W3ID and is handled by the [eID Wallet](/docs/Infrastructure/eID-Wallet) application.
 
 ## Technical Requirements and Guarantees
 
@@ -98,3 +98,9 @@ This package is useful to create W3IDs with keys or make them global, it is
 consumed currently by [eID Wallet](/docs/Infrastructure/eID-Wallet) and [Web3 Adapter](/docs/Infrastructure/Web3-Adapter)
 
 For implementation details (builder API, storage backends, logging format), see the `w3id` package in the repository.
+
+## References
+
+- [Registry](/docs/Infrastructure/Registry) — eName resolution and key binding
+- [eVault](/docs/Infrastructure/eVault) — Storage, ACLs, and key binding certificates
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and onboarding

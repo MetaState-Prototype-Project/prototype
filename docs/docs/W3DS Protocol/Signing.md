@@ -57,23 +57,23 @@ sequenceDiagram
 
 The platform creates a signing session with:
 
-1. **Generate Session ID**: Create a unique UUID for the signing session
+1. **Generate Session ID**: Create a unique session ID for the signing session
 2. **Prepare Data**: Create a JSON object containing:
    - `message`: Human-readable description of what's being signed
-   - `sessionId`: The session UUID
+   - `sessionId`: The session ID
    - Any additional context-specific data
 3. **Encode Data**: Base64-encode the JSON string
 4. **Build w3ds://sign URI**: Create URI with format:
    ```text
    w3ds://sign?session={sessionId}&data={base64Data}&redirect_uri={encodedRedirectUri}
    ```
-   - `session`: The session UUID
+   - `session`: The session ID
    - `data`: Base64-encoded JSON containing the message and context
    - `redirect_uri`: URL-encoded endpoint where the eID wallet will POST the signed payload (this is the callback URL)
 5. **Store Session**: Store session in memory/database with expiration (typically 15 minutes)
 
 **Implementation Requirements**:
-- Generate UUID v4 for session ID
+- Generate a cryptographically secure random session ID
 - Create JSON object with message and context data
 - Base64-encode the JSON string
 - URL-encode the redirect_uri parameter
@@ -96,7 +96,7 @@ const qrData = `w3ds://sign?session=${sessionId}&data=${base64Data}&redirect_uri
 ```
 
 **Language-Agnostic Implementation**:
-- Use any UUID library to generate session ID (uuid in Node.js, uuid in Python, google/uuid in Go, etc.)
+- Use any library to generate a unique session ID (e.g. crypto.randomUUID in Node.js, uuid in Python, google/uuid in Go)
 - Use standard JSON serialization
 - Use standard base64 encoding (base64 in Python, base64 in Go, Buffer in Node.js, etc.)
 - Use URL encoding for the redirect_uri parameter
@@ -167,7 +167,7 @@ Content-Type: application/json
 ```
 
 **Field Descriptions**:
-- `sessionId`: The session UUID from the signing request
+- `sessionId`: The session ID from the signing request
 - `signature`: The base64 or multibase-encoded signature of the session ID
 - `w3id`: The user's eName (W3ID)
 - `message`: The session ID that was signed (for verification)
@@ -240,7 +240,7 @@ async handleSignedPayload(req: Request, res: Response) {
 1. **Session Expiration**: Sessions should expire after a reasonable time (15 minutes recommended)
 2. **One-Time Use**: Each session ID should only be used once
 3. **User Verification**: Verify that the signing user matches the expected user
-4. **Signature Verification**: Always verify signatures using eVault before processing
+4. **Signature Verification**: Always verify signatures using [eVault](/docs/Infrastructure/eVault) before processing
 5. **Payload Validation**: Ensure the signed message (session ID) matches the stored session
 
 ### Use Cases
@@ -258,7 +258,7 @@ Signature verification is a multi-step process that platforms must implement. Th
 ### Overview
 
 The verification process:
-1. Resolve eVault URL from Registry using eName
+1. Resolve [eVault](/docs/Infrastructure/eVault) URL from [Registry](/docs/Infrastructure/Registry) using eName
 2. Fetch key binding certificates from eVault
 3. Verify JWT certificates using Registry's public keys
 4. Extract public keys from verified certificates
@@ -266,7 +266,7 @@ The verification process:
 
 ### Step 1: Resolve eVault URL
 
-Make an HTTP GET request to the Registry service:
+Make an HTTP GET request to the [Registry](/docs/Infrastructure/Registry) service:
 
 **Request**:
 ```http
@@ -284,7 +284,7 @@ GET {registryBaseUrl}/resolve?w3id=@user-a.w3id
 
 ### Step 2: Get Key Binding Certificates
 
-Make an HTTP GET request to the eVault's `/whois` endpoint:
+Make an HTTP GET request to the [eVault](/docs/Infrastructure/eVault)'s `/whois` endpoint:
 
 **Request**:
 ```http
@@ -504,6 +504,9 @@ To implement signature verification, you'll need:
 
 ## References
 
+- [eVault](/docs/Infrastructure/eVault) — Public keys and `/whois`
+- [Registry](/docs/Infrastructure/Registry) — W3ID resolution and JWKS
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and signing
 - [Authentication](/docs/W3DS%20Protocol/Authentication) - How authentication uses signatures
 - [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Detailed signature format documentation
 - [ECDSA Specification](https://tools.ietf.org/html/rfc6979) - ECDSA algorithm details

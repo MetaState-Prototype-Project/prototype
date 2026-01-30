@@ -88,7 +88,7 @@ graph TB
 
 ### eVault Core
 
-The **eVault Core** is the central storage system that manages user data. It provides:
+The [eVault Core](/docs/Infrastructure/eVault) is the central storage system that manages user data. It provides:
 
 - **GraphQL API** for storing and retrieving data using MetaEnvelope storage for structured data
 - **Webhook delivery** to notify platforms of data changes
@@ -96,17 +96,17 @@ The **eVault Core** is the central storage system that manages user data. It pro
 
 ### Web3 Adapter
 
-The **Web3 Adapter** is a library that platforms use to:
+The [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) is a library that platforms use to:
 
 - Handle bidirectional data synchronization between local databases and eVaults
 - Convert between platform-specific schemas and global ontology schemas
 
 ### Registry Service
 
-The **Registry Service** provides:
+The [Registry Service](/docs/Infrastructure/Registry) provides:
 
 - **W3ID resolution**: Maps eNames (like `@user-a.w3id`) to eVault URLs
-- **Key binding certificates**: Stores user public keys for signature verification (used when platforms verify user signatures during authentication)
+- **Key binding certificates**: Stores user public keys for signature verification (used when platforms verify user signatures during authentication). See [eVault — Key Binding Certificates](/docs/Infrastructure/eVault#key-binding-certificates) and [Registry](/docs/Infrastructure/Registry).
 - **Platform registration**: Tracks active platforms for webhook delivery
 
 ### Platforms
@@ -130,7 +130,7 @@ User Action → Platform Database → Web3 Adapter → User's eVault → Webhook
 1. **User Action**: User creates a post, message, or other data
 2. **Platform Database**: Platform stores data locally
 3. **Web3 Adapter**: Adapter converts data to global schema and syncs to eVault
-4. **User's eVault**: eVault stores the data as a MetaEnvelope
+4. **User's eVault**: eVault stores the data as a [MetaEnvelope](/docs/Infrastructure/eVault#data-model)
 5. **Webhooks**: eVault sends webhooks to all registered platforms (except the originating one)
 6. **All Platforms**: Other platforms receive webhooks and create the data locally
 
@@ -169,7 +169,7 @@ sequenceDiagram
 
 ### Registration Sequence
 
-The following sequence diagram shows how a new user registers and creates their eVault, illustrating the roles of the Provisioner and Registry services:
+The following sequence diagram shows how a new user registers and creates their eVault, illustrating the roles of the [Provisioner](/docs/W3DS%20Basics/Links) (production URL) and [Registry](/docs/Infrastructure/Registry) services:
 
 ```mermaid
 sequenceDiagram
@@ -194,6 +194,8 @@ sequenceDiagram
     Wallet->>Wallet: Store eVault URL
     Wallet-->>User: Onboarding complete
 ```
+
+The [Provisioner](/docs/W3DS%20Basics/Links) hosts `/provision`; the [Registry](/docs/Infrastructure/Registry) resolves eNames and issues key binding certificates; [eVault Core](/docs/Infrastructure/eVault) stores user data.
 
 ## Next Steps
 

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Authentication
 
-W3DS uses cryptographic signature-based authentication. Users authenticate with platforms by signing a session ID with their private key, which platforms verify using public keys stored in eVaults.
+W3DS uses cryptographic signature-based authentication. Users authenticate with platforms by signing a session ID with their private key, which platforms verify using public keys stored in [eVaults](/docs/Infrastructure/eVault).
 
 ## Overview
 
@@ -12,8 +12,8 @@ Unlike traditional password-based authentication, W3DS uses **cryptographic sign
 
 - **No passwords**: Users never share secrets with platforms
 - **Cryptographic proof**: Platforms can cryptographically verify user identity
-- **Key-based**: Uses ECDSA P-256 keys managed by the eID wallet
-- **Decentralized**: Public keys stored in user's eVault, verified via Registry
+- **Key-based**: Uses ECDSA P-256 keys managed by the [eID wallet](/docs/Infrastructure/eID-Wallet)
+- **Decentralized**: Public keys stored in user's [eVault](/docs/Infrastructure/eVault), verified via [Registry](/docs/Infrastructure/Registry)
 
 ## Authentication Flow
 
@@ -57,7 +57,7 @@ sequenceDiagram
 
 When a user wants to log in, the platform must:
 
-1. **Generate a unique session identifier**: Use a cryptographically secure random UUID (version 4). This session ID will be signed by the user, so it must be unique and unpredictable.
+1. **Generate a unique session identifier**: Use a cryptographically secure random session ID (128-bit). This session ID will be signed by the user, so it must be unique and unpredictable.
 
 2. **Construct the redirect URL**: Build the full URL where the eID wallet will POST the signed session data. This is typically `{platformBaseUrl}/api/auth/login` or similar. The wallet will make an HTTP POST request to this URL with the signed authentication data.
 
@@ -66,7 +66,7 @@ When a user wants to log in, the platform must:
    w3ds://auth?redirect={redirectUrl}&session={sessionId}&platform={platformName}
    ```
    - `redirect`: URL-encoded redirect endpoint where the eID wallet will POST the signed session (this is the callback URL)
-   - `session`: The generated session UUID
+   - `session`: The generated session ID
    - `platform`: Platform identifier (for display purposes)
 
 4. **Return JSON response**: Send a JSON object with the `uri` field containing the w3ds://auth URI.
@@ -83,7 +83,7 @@ When a user wants to log in, the platform must:
 ```
 
 **Implementation Requirements**:
-- Generate UUID v4 (128-bit random UUID)
+- Generate a cryptographically secure random session ID (128-bit)
 - URL-encode the redirect parameter
 - Return JSON with Content-Type: application/json
 - Store the session ID temporarily (in memory, cache, or database) to validate it later
@@ -105,7 +105,7 @@ getOffer = async (req: Request, res: Response) => {
 
 The user's eID wallet signs the session ID using their private key. The signing process:
 
-1. **Parse the w3ds://auth URI**: Extract the `session` parameter from the query string. The session ID is a UUID string that must be signed exactly as received.
+1. **Parse the w3ds://auth URI**: Extract the `session` parameter from the query string. The session ID must be signed exactly as received.
 
 2. **Hash the session ID**: Convert the session ID string to bytes using UTF-8 encoding, then compute SHA-256 hash. This produces a 32-byte hash digest.
 
@@ -156,7 +156,7 @@ After the user signs the session ID, the eID wallet makes an HTTP POST request t
 
 **Field Descriptions**:
 - `w3id`: The user's W3ID (eName) identifier, always starts with '@'
-- `session`: The session UUID that was generated in Step 1
+- `session`: The session ID that was generated in Step 1
 - `signature`: The base64 or multibase-encoded signature of the session ID
 - `appVersion`: Optional version string for compatibility checking
 
@@ -385,7 +385,7 @@ export class AuthController {
 
 ### 1. Session ID Uniqueness
 
-- Session IDs must be **cryptographically random** (use UUID v4)
+- Session IDs must be **cryptographically random** (e.g. 128-bit random)
 - Each session ID should be used **only once**
 - Expire session IDs after a reasonable time (e.g., 5 minutes)
 
@@ -437,5 +437,8 @@ By enforcing uniqueness, one-time use, and expiration, platforms ensure that eve
 
 ## References
 
+- [eVault](/docs/Infrastructure/eVault) — Public keys and key binding certificates
+- [Registry](/docs/Infrastructure/Registry) — W3ID resolution and JWKS
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and signing
 - [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation and verification details
 - [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Detailed signature format documentation
