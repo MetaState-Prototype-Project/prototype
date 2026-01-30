@@ -668,6 +668,13 @@ export class FileController {
                 return res.status(400).json({ error: "Maximum 500 files per download" });
             }
 
+            // Validate all file IDs are non-empty strings
+            for (const entry of fileEntries) {
+                if (!entry.id || typeof entry.id !== 'string' || entry.id.trim() === '') {
+                    return res.status(400).json({ error: "Invalid file id in request" });
+                }
+            }
+
             // Validate all files exist and user has access
             const validatedFiles = await this.fileService.getFilesMetadataByIds(
                 fileEntries.map(f => f.id),
@@ -725,6 +732,43 @@ export class FileController {
 
             // Track full paths to handle duplicates
             const usedPaths = new Map<string, number>();
+
+            // Sanitize filename to prevent zip-slip attacks
+            const sanitizeFilename = (filename: string): string => {
+                if (!filename) return 'file';
+                
+                let safe = filename;
+                
+                // Convert backslashes to forward slashes
+                safe = safe.replace(/\\/g, '/');
+                
+                // Strip Windows drive letters (C:, D:, etc.)
+                safe = safe.replace(/^[a-zA-Z]:/, '');
+                
+                // Strip any leading slashes or dots
+                safe = safe.replace(/^[\/\.]+/, '');
+                
+                // Take only the basename (after last slash)
+                const lastSlash = safe.lastIndexOf('/');
+                if (lastSlash !== -1) {
+                    safe = safe.slice(lastSlash + 1);
+                }
+                
+                // Remove or replace dangerous characters
+                // Keep: alphanumeric, spaces, dots, dashes, underscores, parentheses
+                safe = safe.replace(/[^\w\s.\-()]/g, '_');
+                
+                // Collapse multiple dots to prevent .. traversal
+                safe = safe.replace(/\.{2,}/g, '.');
+                
+                // Remove leading/trailing dots and spaces
+                safe = safe.replace(/^[.\s]+|[.\s]+$/g, '');
+                
+                // If empty after sanitization, use default
+                if (!safe) return 'file';
+                
+                return safe;
+            };
 
             // Sanitize path to prevent directory traversal attacks
             const sanitizePath = (p: string): string => {
@@ -788,7 +832,7 @@ export class FileController {
                     
                     if (fileData) {
                         const sanitizedPath = sanitizePath(entry.path);
-                        const baseName = fileData.name;
+                        const baseName = sanitizeFilename(fileData.name);
                         
                         // Build full path in zip
                         let fullPath = sanitizedPath ? `${sanitizedPath}/${baseName}` : baseName;
