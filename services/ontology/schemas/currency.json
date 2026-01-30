@@ -1,0 +1,46 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440008",
+    "title": "Currency",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the currency"
+        },
+        "name": {
+            "type": "string",
+            "description": "Human-readable name of the currency"
+        },
+        "ename": {
+            "type": "string",
+            "description": "eName (W3ID) of the currency owner"
+        },
+        "groupId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the group this currency belongs to"
+        },
+        "allowNegative": {
+            "type": "boolean",
+            "description": "Whether account balances may go negative"
+        },
+        "createdBy": {
+            "type": "string",
+            "description": "ID or eName of the user who created the currency"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the currency was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the currency was last updated"
+        }
+    },
+    "required": ["name", "ename", "createdAt"],
+    "additionalProperties": false
+}

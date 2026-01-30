@@ -1,9 +1,0 @@
-{
-	"/(protected)": [],
-	"/": [],
-	"/(auth)/auth": [],
-	"/(auth)/deeplink-login": [],
-	"/(protected)/files": [],
-	"/(protected)/files/new": [],
-	"/(protected)/files/[id]": []
-}

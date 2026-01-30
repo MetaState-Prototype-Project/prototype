@@ -1,0 +1,55 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "550e8400-e29b-41d4-a716-446655440006",
+    "title": "Ledger",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the ledger entry"
+        },
+        "currencyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the currency this ledger entry belongs to"
+        },
+        "accountId": {
+            "type": "string",
+            "description": "ID of the account"
+        },
+        "accountType": {
+            "type": "string",
+            "description": "Type of account (e.g. user, group)"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Transaction amount"
+        },
+        "type": {
+            "type": "string",
+            "description": "Type of ledger entry or transaction"
+        },
+        "description": {
+            "type": "string",
+            "description": "Optional description of the entry"
+        },
+        "balance": {
+            "type": "number",
+            "description": "Account balance after this entry"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the ledger entry was created"
+        }
+    },
+    "required": [
+        "currencyId",
+        "accountId",
+        "amount",
+        "type",
+        "createdAt"
+    ],
+    "additionalProperties": false
+}
