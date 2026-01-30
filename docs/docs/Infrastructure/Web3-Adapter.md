@@ -6,14 +6,21 @@ sidebar_position: 4
 
 The Web3 Adapter is the bridge between a platform's local database and eVault. It enables "write once, sync everywhere": when data changes locally, the adapter converts it to the global schema and stores it in the owner's eVault; when awareness protocol packets arrive from other platforms, the adapter converts them back to the local schema and applies them locally.
 
+Web3 Adapter is only needed when you have a database which you want to
+automatically sync with eVaults, if your application is stateless or the application only writes to the eVault directly then you don't need a Web3 Adapter.
+
 ## Overview
 
 Platforms keep their own schemas and databases. To participate in W3DS, they need a component that:
 
-- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's eVault (via the user's [eName](/docs/W3DS%20Basics/W3ID) / Registry), and writes to the eVault (GraphQL).
-- **Inbound**: Receives awareness protocol packets at `POST /api/webhook`, maps global data to the local schema, and creates or updates local entities while maintaining global-ID-to-local-ID mappings.
+- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's and/or target eVault (via the user's [eName](/docs/W3DS%20Basics/W3ID) / Registry), and writes to the eVault (GraphQL).
+- **Inbound**: Receives awareness protocol packets at `POST /api/webhook`, maps global data to the local schema, and creates or updates local entities while maintaining global-ID-to-local-ID mappings. See [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) for more details.
+
+Please Note: That neither inbound or outbound are immediate, or have any transactional guarantees.
 
 The Web3 Adapter implements this bridge. Understanding its core ideas helps you design better ontologies, mappings, and consistency strategies.
+
+Please note that the web3 adapter may not come pre-assembled with hooks for all databases.
 
 ### Key Features
 
@@ -26,7 +33,7 @@ The Web3 Adapter implements this bridge. Understanding its core ideas helps you 
 
 ### 1. Universal ontology as the common language
 
-All platforms agree on a small set of global schemas (e.g. User, Post, Group) identified by UUIDs. Each platform maps its local tables to these schemas. The ontology is the contract: if you store data in that shape in an eVault, other platforms can interpret it via their own mappings. Better ontology design (versioning, optional fields, extensibility) leads to easier evolution and fewer breaking changes.
+All platforms agree on a small set of global schemas (e.g. User, Post, Group) identified by W3IDs. Each platform maps its local tables to these schemas. The ontology is the contract: if you store data in that shape in an eVault, other platforms can interpret it via their own mappings. Better ontology design (versioning, optional fields, extensibility) leads to easier evolution and fewer breaking changes.
 
 ### 2. Per-entity owner eVault (W3ID)
 
