@@ -132,33 +132,59 @@ export class AIMatchingService {
             // Process any existing matches that haven't been messaged yet
             await this.processUnmessagedMatches();
 
-            // Send no-match messages to all users with a wishlist (even empty) who did not get a match this run
-            await this.sendNoMatchNotifications(wishlists, matchResults);
+            // Send no-match messages to ALL users with any non-null wishlist (even empty) who did not get a match this run
+            const allWishlistUserIds = await this.getAllWishlistUserIdsForNoMatch();
+            await this.sendNoMatchNotifications(allWishlistUserIds, matchResults);
         });
+    }
+
+    /**
+     * Get all user IDs that have at least one active wishlist (non-null record), regardless of content/empty.
+     * Used for no-match notifications so we include users whose wishlists may be considered "empty".
+     */
+    private async getAllWishlistUserIdsForNoMatch(): Promise<string[]> {
+        const rows = await this.wishlistRepository
+            .createQueryBuilder("wishlist")
+            .select("DISTINCT wishlist.userId")
+            .leftJoin("wishlist.user", "user")
+            .where("wishlist.isActive = :isActive", { isActive: true })
+            .andWhere("user.isPrivate = :isPrivate", { isPrivate: false })
+            .getRawMany<Record<string, string>>();
+        const userIds = rows.map(r => Object.values(r)[0]).filter(Boolean) as string[];
+        console.log(`📋 [no-match] Found ${userIds.length} distinct users with at least one active wishlist (including empty wishlists)`);
+        return userIds;
     }
 
     /**
      * Send no-match notifications to users who have a wishlist (even if empty) but did not get a match this run.
      */
-    private async sendNoMatchNotifications(wishlists: Wishlist[], matchResults: MatchResult[]): Promise<void> {
-        const wishlistUserIds = [...new Set(wishlists.map(w => w.userId))];
+    private async sendNoMatchNotifications(allWishlistUserIds: string[], matchResults: MatchResult[]): Promise<void> {
         const matchedUserIds = new Set(matchResults.flatMap(r => r.userIds));
-        const noMatchUserIds = wishlistUserIds.filter(userId => !matchedUserIds.has(userId));
+        const noMatchUserIds = allWishlistUserIds.filter(userId => !matchedUserIds.has(userId));
+
+        console.log(`📋 [no-match] Total wishlist users: ${allWishlistUserIds.length}, matched this run: ${matchedUserIds.size}, will send no-match to: ${noMatchUserIds.length}`);
 
         if (noMatchUserIds.length === 0) {
-            console.log("✅ No users to notify for no-match (all wishlist users got a match)");
+            console.log("✅ [no-match] No users to notify (all wishlist users got a match this run)");
             return;
         }
 
-        console.log(`📨 Sending no-match notifications to ${noMatchUserIds.length} users with a wishlist who didn't get a match`);
-        for (const userId of noMatchUserIds) {
+        console.log(`📨 [no-match] Sending no-match notifications to ${noMatchUserIds.length} users`);
+        let sentCount = 0;
+        let errorCount = 0;
+        for (let i = 0; i < noMatchUserIds.length; i++) {
+            const userId = noMatchUserIds[i];
             try {
+                console.log(`📨 [no-match] (${i + 1}/${noMatchUserIds.length}) Sending no-match notification to user: ${userId}`);
                 await this.notificationService.sendNoMatchNotification(userId);
+                sentCount++;
+                console.log(`✅ [no-match] Sent to user ${userId} (${sentCount}/${noMatchUserIds.length})`);
             } catch (error) {
-                console.error(`❌ Error sending no-match notification to user ${userId}:`, error);
+                errorCount++;
+                console.error(`❌ [no-match] Error sending no-match notification to user ${userId}:`, error);
             }
         }
-        console.log(`🎉 No-match notifications sent to ${noMatchUserIds.length} users`);
+        console.log(`🎉 [no-match] Completed: ${sentCount} sent, ${errorCount} errors (total no-match candidates: ${noMatchUserIds.length})`);
     }
 
     /**

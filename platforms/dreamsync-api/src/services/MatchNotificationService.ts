@@ -690,31 +690,33 @@ Reply with the Match ID "${match.id}" to connect with the other ${otherUserIds.l
      */
     async sendNoMatchNotification(userId: string): Promise<void> {
         try {
-            console.log(`📨 Sending no-match notification to user: ${userId}`);
+            console.log(`📨 [no-match] sendNoMatchNotification: starting for user ${userId}`);
 
             const dreamsyncUser = await this.findDreamSyncUser();
             if (!dreamsyncUser) {
-                console.error("Cannot send no-match notification: DreamSync user not found");
+                console.error("[no-match] Cannot send: DreamSync user not found");
                 return;
             }
 
             const user = await this.userService.getUserById(userId);
             if (!user) {
-                console.error(`Cannot send no-match notification: User ${userId} not found`);
+                console.error(`[no-match] Cannot send: User ${userId} not found`);
                 return;
             }
+            console.log(`📨 [no-match] User found: ${userId} (${user.name || user.ename || "no name"})`);
 
             const chatResult = await this.findOrCreateMutualChat(userId);
             if (!chatResult.chat) {
-                console.error(`Cannot send no-match notification: Could not find/create chat for user ${userId}`);
+                console.error(`[no-match] Cannot send: Could not find/create chat for user ${userId}`);
                 return;
             }
+            console.log(`📨 [no-match] Chat ready: ${chatResult.chat.id} (wasCreated: ${chatResult.wasCreated})`);
 
             const { chat, wasCreated } = chatResult;
             if (wasCreated) {
-                console.log(`⏳ Chat was just created, waiting 15 seconds before sending no-match message...`);
+                console.log(`⏳ [no-match] Chat was just created, waiting 15 seconds before sending...`);
                 await new Promise(resolve => setTimeout(resolve, 15000));
-                console.log(`✅ 15-second delay completed for no-match message`);
+                console.log(`✅ [no-match] 15-second delay completed`);
             }
 
             const displayName = user.name || user.ename || "User";
@@ -738,9 +740,9 @@ DreamSync`;
             });
 
             await messageRepository.save(message);
-            console.log(`✅ No-match notification sent to user: ${userId}`);
+            console.log(`✅ [no-match] Message saved for user ${userId} (messageId: ${message.id})`);
         } catch (error) {
-            console.error(`❌ Error sending no-match notification to user ${userId}:`, error);
+            console.error(`❌ [no-match] Error sending no-match notification to user ${userId}:`, error);
         }
     }
 
