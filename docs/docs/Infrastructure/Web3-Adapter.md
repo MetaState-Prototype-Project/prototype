@@ -139,6 +139,10 @@ When a platform receives an awareness protocol packet at `POST /api/webhook`:
 4. Call `mappingDb.getLocalId(body.id)`; if found, update the existing local entity; otherwise create and then `mappingDb.storeMapping({ localId: newEntity.id, globalId: body.id })`.
 5. Return 200.
 
+#### fromGlobal
+
+`fromGlobal` is the adapter method that turns a global (ontology) payload into local-shaped data using the mapping's `localToUniversalMap`. It is used in the inbound flow above (step 3) and is the inverse of `toGlobal` used for outbound sync.
+
 See the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) for a full implementation example and the [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) for the packet format and delivery mechanism.
 
 ## Sequence: Platform → Adapter → eVault

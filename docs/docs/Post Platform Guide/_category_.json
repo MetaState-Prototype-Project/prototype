@@ -1,8 +1,4 @@
 {
     "label": "Post Platforms Guide",
-    "position": 5,
-    "link": {
-        "type": "doc",
-        "id": "Post Platform Guide/getting-started"
-    }
+    "position": 5
 }

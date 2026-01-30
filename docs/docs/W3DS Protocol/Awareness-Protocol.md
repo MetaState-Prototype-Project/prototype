@@ -99,7 +99,7 @@ Platforms that participate in W3DS must implement an HTTP endpoint that accepts 
 
 - **Method and path**: `POST /api/webhook`
 - **Request**: JSON body as described above.
-- **Behavior**: The platform should (1) use `schemaId` to find the correct mapping from global ontology to local schema, (2) transform `data` from global to local format (e.g. using the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter)'s `fromGlobal`), (3) resolve or create the local entity and store the global-ID-to-local-ID mapping, (4) return HTTP 200 on success.
+- **Behavior**: The platform should (1) use `schemaId` to find the correct mapping from global ontology to local schema, (2) transform `data` from global to local format (e.g. using the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter#fromglobal)'s `fromGlobal`), (3) resolve or create the local entity and store the global-ID-to-local-ID mapping, (4) return HTTP 200 on success.
 - **Idempotency**: Implementors are encouraged to treat the same `id` (global ID) as idempotent (create or update the same local entity) so that duplicate or retried deliveries do not create duplicates.
 
 For a step-by-step implementation guide, see the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) in the Post Platform Guide.
@@ -120,5 +120,5 @@ Designing retries, ordering, or delivery guarantees would be natural extension p
 - [eVault](/docs/Infrastructure/eVault) — Webhook delivery and GraphQL API
 - [Registry](/docs/Infrastructure/Registry) — Platform list (prototype)
 - [Ontology](/docs/Infrastructure/Ontology) — Schema IDs
-- [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) — `fromGlobal` and mapping
+- [Web3 Adapter](/docs/Infrastructure/Web3-Adapter#fromglobal) — `fromGlobal` and mapping
 - [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) — Implementation

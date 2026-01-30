@@ -1,8 +1,4 @@
 {
     "label": "Infrastructure",
-    "position": 3,
-    "link": {
-        "type": "doc",
-        "id": "Infrastructure/eVault"
-    }
+    "position": 3
 }

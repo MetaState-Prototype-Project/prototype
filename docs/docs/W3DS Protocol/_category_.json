@@ -1,8 +1,4 @@
 {
     "label": "W3DS Protocol",
-    "position": 4,
-    "link": {
-        "type": "doc",
-        "id": "W3DS Protocol/Authentication"
-    }
+    "position": 4
 }
