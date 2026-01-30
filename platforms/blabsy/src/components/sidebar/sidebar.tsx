@@ -72,8 +72,8 @@ export function Sidebar(): JSX.Element {
     return (
         <header
             id='sidebar'
-            className='flex w-0 shrink-0 transition-opacity duration-200 xs:w-20 md:w-24
-                 lg:max-w-none xl:-mr-4 xl:w-full xl:max-w-xs xl:justify-end'
+            className='flex shrink-0 w-16 transition-opacity duration-200
+                 lg:max-w-none xl:-mr-4 xl:w-full xl:max-w-xs xl:justify-end xs:w-20 md:w-24 xl:w-72"'
         >
             <Modal
                 className='flex items-start justify-center'
@@ -83,11 +83,7 @@ export function Sidebar(): JSX.Element {
             >
                 <Input modal closeModal={closeModal} />
             </Modal>
-            <div
-                className='fixed bottom-0 left-0 right-0 z-10 flex w-full flex-col justify-between border-t border-light-border
-                   bg-main-background py-0 dark:border-dark-border xs:top-0 xs:h-full xs:w-auto xs:border-0
-                   xs:bg-transparent xs:px-2 xs:py-3 xs:pt-2 md:px-4 xl:w-72'
-            >
+            <div className='fixed bottom-0 left-0 right-0 z-10 flex w-full flex-col justify-between border-t border-light-border bg-main-background xs:static xs:h-full xs:w-auto xs:border-0 xs:bg-transparent xl:sticky xl:top-0 xl:h-screen xl:w-72'>
                 <section className='flex flex-col justify-center gap-2 xs:items-center xl:items-stretch'>
                     <h1 className='hidden xs:flex'>
                         <Link
