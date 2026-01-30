@@ -1,17 +1,20 @@
 import { useEffect, type ReactNode } from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import { useHistory } from "@docusaurus/router"
+import { useHistory, useLocation } from '@docusaurus/router';
 
 export default function Home(): ReactNode {
     const { siteConfig } = useDocusaurusContext();
     const history = useHistory();
-
+    const location = useLocation();
 
     useEffect(() => {
-        const baseUrl = siteConfig.baseUrl ?? '/';
-        history.push(`${baseUrl}docs/Getting%20Started/getting-started`);
-    }, [siteConfig.baseUrl]);
+        const raw = siteConfig.baseUrl ?? '/';
+        const baseUrl = raw.endsWith('/') ? raw : `${raw}/`;
+        const rootPathname = baseUrl === '/' ? '/' : baseUrl.replace(/\/$/, '');
+        if (location.pathname !== rootPathname && location.pathname !== baseUrl) return;
+        history.replace(`${baseUrl}docs/Getting%20Started/getting-started`);
+    }, [siteConfig.baseUrl, location.pathname, history]);
 
     return (
         <Layout
