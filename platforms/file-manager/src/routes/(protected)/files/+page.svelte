@@ -987,6 +987,13 @@
             selectedFileIds.has(f.id),
         );
 
+        // Guard against stale selection - no matching files found
+        if (filesToDownload.length === 0) {
+            toast.info("No selected files found");
+            clearSelection();
+            return;
+        }
+
         // If only one file, download directly without zipping
         if (filesToDownload.length === 1) {
             const file = filesToDownload[0];
@@ -1201,7 +1208,12 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(zipUrl);
+            
+            // Delay revoking the object URL to ensure the download starts
+            // Some browsers may cancel the download if revoked immediately
+            setTimeout(() => {
+                URL.revokeObjectURL(zipUrl);
+            }, 500);
 
             // Close modal after a short delay (longer if there were failures)
             setTimeout(() => {
