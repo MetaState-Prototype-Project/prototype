@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import multer from "multer";
 import archiver from "archiver";
+import fs from "fs";
+import path from "path";
 import { FileService } from "../services/FileService";
 
 const upload = multer({
@@ -15,9 +17,43 @@ const uploadMultiple = multer({
 
 export class FileController {
     private fileService: FileService;
-
+    private ZIP_TEMP_DIR = process.env.ZIP_TEMP_DIR as string;
     constructor() {
+        if (!this.ZIP_TEMP_DIR) {
+            throw new Error("ZIP_TEMP_DIR is not set");
+        }
+
         this.fileService = new FileService();
+        
+        // Ensure temp directory exists
+        if (!fs.existsSync(this.ZIP_TEMP_DIR)) {
+            fs.mkdirSync(this.ZIP_TEMP_DIR, { recursive: true });
+        }
+    }
+
+    /**
+     * Cleanup old zip files (older than 24 hours)
+     */
+    private cleanupOldZips() {
+        try {
+            const now = Date.now();
+            const TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+            const files = fs.readdirSync(this.ZIP_TEMP_DIR);
+            for (const file of files) {
+                if (!file.startsWith('files-') || !file.endsWith('.zip')) continue;
+                
+                const filePath = path.join(this.ZIP_TEMP_DIR, file);
+                const stats = fs.statSync(filePath);
+                
+                if (now - stats.mtimeMs > TTL) {
+                    fs.unlinkSync(filePath);
+                    console.log(`Cleaned up old zip: ${file}`);
+                }
+            }
+        } catch (error) {
+            console.error('Error cleaning up old zips:', error);
+        }
     }
 
     uploadFile = [
@@ -589,15 +625,8 @@ export class FileController {
     };
 
     /**
-     * Download multiple files as a streaming ZIP archive.
-     * Uses server-side zip generation with archiver for better performance
-     * compared to client-side zipping.
-     * 
-     * POST /api/files/download-zip
-     * 
-     * Accepts JSON body: { files: Array<{ id: string, path?: string }> }
-     * Or form-encoded: files=JSON_STRING (for native browser download via form submit)
-     * Or simple format: { fileIds: string[] }
+     * Download multiple files as ZIP. Creates zip on disk then serves it.
+     * Old zips (24h+) are cleaned up before creating new ones.
      */
     downloadFilesAsZip = async (req: Request, res: Response) => {
         try {
@@ -606,6 +635,9 @@ export class FileController {
                     .status(401)
                     .json({ error: "Authentication required" });
             }
+
+            // Cleanup old zips first
+            this.cleanupOldZips();
 
             let { files, fileIds } = req.body;
 
@@ -649,31 +681,47 @@ export class FileController {
             // Create a map of id -> metadata for quick lookup
             const fileMetaMap = new Map(validatedFiles.map(f => [f.id, f]));
 
-            // Set response headers for streaming zip download
+            // Create zip file on disk with timestamp
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const zipFilename = `files-${timestamp}.zip`;
+            const zipPath = path.join(this.ZIP_TEMP_DIR, zipFilename);
             
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
-            // Don't set Content-Length - we're streaming and don't know final size
-
-            // Create archiver instance with STORE (no compression) for maximum speed
-            // Use 'zip' format with store compression to minimize CPU usage
+            const output = fs.createWriteStream(zipPath);
             const archive = archiver('zip', {
-                store: true, // No compression - just store files (fastest, minimal CPU)
+                store: true, // No compression for speed
+            });
+
+            // Track if request was aborted
+            let aborted = false;
+
+            // Handle client disconnect
+            req.on('close', () => {
+                if (!res.writableEnded) {
+                    aborted = true;
+                    archive.abort();
+                    // Delete incomplete zip
+                    if (fs.existsSync(zipPath)) {
+                        fs.unlinkSync(zipPath);
+                    }
+                    console.log('Download aborted by client');
+                }
             });
 
             // Handle archive errors
             archive.on('error', (err: Error) => {
+                if (aborted) return;
                 console.error('Archive error:', err);
-                // If headers already sent, we can't send error response
+                // Delete failed zip
+                if (fs.existsSync(zipPath)) {
+                    fs.unlinkSync(zipPath);
+                }
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Failed to create archive' });
                 }
             });
 
-            // Pipe archive to response
-            archive.pipe(res);
+            // Pipe archive to file on disk
+            archive.pipe(output);
 
             // Track full paths to handle duplicates
             const usedPaths = new Map<string, number>();
@@ -729,6 +777,9 @@ export class FileController {
 
             // Stream each file into the archive one at a time
             for (const entry of fileEntries) {
+                // Stop processing if client disconnected
+                if (aborted) break;
+
                 const fileMeta = fileMetaMap.get(entry.id);
                 if (!fileMeta) continue; // User doesn't have access
 
@@ -766,7 +817,30 @@ export class FileController {
             }
 
             // Finalize the archive (this is when the stream ends)
-            await archive.finalize();
+            if (!aborted) {
+                await archive.finalize();
+                
+                // Wait for file to be written
+                await new Promise<void>((resolve, reject) => {
+                    output.on('close', resolve);
+                    output.on('error', reject);
+                });
+
+                // Send the file
+                res.setHeader('Content-Type', 'application/zip');
+                res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+                res.setHeader('Content-Length', fs.statSync(zipPath).size.toString());
+                
+                const fileStream = fs.createReadStream(zipPath);
+                fileStream.pipe(res);
+                
+                fileStream.on('error', (err) => {
+                    console.error('Error streaming zip file:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Failed to send zip file' });
+                    }
+                });
+            }
 
         } catch (error) {
             console.error("Error creating zip download:", error);
