@@ -156,7 +156,8 @@
         downloadedFiles: Array<{
             name: string;
             size: number;
-            status: "done" | "downloading" | "pending";
+            status: "done" | "downloading" | "pending" | "error";
+            errorMessage?: string;
         }>;
     }>({
         currentFile: "",
@@ -1049,18 +1050,31 @@
                     const globalIdx = i + batchIdx;
                     const url = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
 
-                    try {
-                        const response = await fetch(url);
-                        if (!response.ok) {
-                            throw new Error(`Failed to download ${file.name}`);
-                        }
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: Failed to download`);
+                    }
 
-                        const blob = await response.blob();
+                    const blob = await response.blob();
+                    return { name: file.displayName || file.name, blob, globalIdx };
+                });
 
-                        // Update progress for this file
+                const settledResults = await Promise.allSettled(batchPromises);
+
+                // Process each settled result
+                for (let batchIdx = 0; batchIdx < settledResults.length; batchIdx++) {
+                    const result = settledResults[batchIdx];
+                    const globalIdx = i + batchIdx;
+                    const file = batch[batchIdx];
+                    const fileName = file.displayName || file.name;
+
+                    if (result.status === "fulfilled") {
+                        // Success - add to downloadedBlobs and mark as done
+                        downloadedBlobs.push({ name: result.value.name, blob: result.value.blob });
+                        
                         downloadProgress = {
                             ...downloadProgress,
-                            currentFile: file.displayName || file.name,
+                            currentFile: fileName,
                             currentFileIndex: globalIdx + 1,
                             overallProgress: Math.round(
                                 ((globalIdx + 1) / filesToDownload.length) * 80,
@@ -1073,16 +1087,47 @@
                                             : f,
                                 ),
                         };
-
-                        return { name: file.displayName || file.name, blob };
-                    } catch (error) {
-                        console.error(`Error downloading ${file.name}:`, error);
-                        throw error;
+                    } else {
+                        // Failed - log error and mark as error
+                        const errorMessage = result.reason instanceof Error 
+                            ? result.reason.message 
+                            : "Unknown error";
+                        console.error(`Error downloading ${fileName}:`, result.reason);
+                        
+                        downloadProgress = {
+                            ...downloadProgress,
+                            currentFile: fileName,
+                            currentFileIndex: globalIdx + 1,
+                            overallProgress: Math.round(
+                                ((globalIdx + 1) / filesToDownload.length) * 80,
+                            ),
+                            downloadedFiles:
+                                downloadProgress.downloadedFiles.map(
+                                    (f, idx) =>
+                                        idx === globalIdx
+                                            ? { ...f, status: "error" as const, errorMessage }
+                                            : f,
+                                ),
+                        };
                     }
-                });
+                }
+            }
 
-                const results = await Promise.all(batchPromises);
-                downloadedBlobs.push(...results);
+            // Count successful and failed downloads
+            const failedCount = downloadProgress.downloadedFiles.filter(
+                (f) => f.status === "error"
+            ).length;
+            const successCount = downloadedBlobs.length;
+
+            // Check if all downloads failed
+            if (successCount === 0) {
+                downloadProgress = {
+                    ...downloadProgress,
+                    status: "error",
+                    overallProgress: 100,
+                    errorMessage: `All ${failedCount} file(s) failed to download`,
+                };
+                return;
             }
 
             // Zipping phase
@@ -1093,9 +1138,36 @@
                 overallProgress: 85,
             };
 
-            // Add all files to zip
+            // Add all successfully downloaded files to zip with unique filenames
+            const usedFilenames = new Set<string>();
+            
+            function getUniqueFilename(originalName: string): string {
+                if (!usedFilenames.has(originalName)) {
+                    usedFilenames.add(originalName);
+                    return originalName;
+                }
+                
+                // Split name into base and extension
+                const lastDotIndex = originalName.lastIndexOf('.');
+                const hasExtension = lastDotIndex > 0 && lastDotIndex < originalName.length - 1;
+                const baseName = hasExtension ? originalName.slice(0, lastDotIndex) : originalName;
+                const extension = hasExtension ? originalName.slice(lastDotIndex) : '';
+                
+                // Find a unique name by incrementing suffix
+                let counter = 1;
+                let uniqueName = `${baseName} (${counter})${extension}`;
+                while (usedFilenames.has(uniqueName)) {
+                    counter++;
+                    uniqueName = `${baseName} (${counter})${extension}`;
+                }
+                
+                usedFilenames.add(uniqueName);
+                return uniqueName;
+            }
+            
             for (const { name, blob } of downloadedBlobs) {
-                zip.file(name, blob);
+                const uniqueName = getUniqueFilename(name);
+                zip.file(uniqueName, blob);
             }
 
             downloadProgress = {
@@ -1114,7 +1186,9 @@
                 ...downloadProgress,
                 status: "complete",
                 overallProgress: 100,
-                currentFile: "Download ready!",
+                currentFile: failedCount > 0 
+                    ? `Download ready (${failedCount} file(s) failed)` 
+                    : "Download ready!",
             };
 
             // Trigger download of the zip file
@@ -1129,14 +1203,19 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(zipUrl);
 
-            // Close modal after a short delay
+            // Close modal after a short delay (longer if there were failures)
             setTimeout(() => {
                 showDownloadModal = false;
                 resetDownloadProgress();
                 clearSelection();
-            }, 1500);
+            }, failedCount > 0 ? 3000 : 1500);
 
-            toast.success(`Downloaded ${filesToDownload.length} files as zip`);
+            // Show appropriate toast message
+            if (failedCount > 0) {
+                toast.success(`Downloaded ${successCount} of ${filesToDownload.length} files as zip (${failedCount} failed)`);
+            } else {
+                toast.success(`Downloaded ${successCount} files as zip`);
+            }
         } catch (error) {
             console.error("Download error:", error);
             downloadProgress = {
@@ -2437,23 +2516,31 @@
                         >
                     </div>
                 {:else if downloadProgress.status === "complete"}
-                    <div class="flex items-center gap-2 text-green-600">
+                    {@const hasFailures = downloadProgress.downloadedFiles.some(f => f.status === "error")}
+                    <div class="flex items-center gap-2 {hasFailures ? 'text-amber-600' : 'text-green-600'}">
                         <svg
                             class="w-5 h-5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
                         >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M5 13l4 4L19 7"
-                            />
+                            {#if hasFailures}
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                />
+                            {:else}
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 13l4 4L19 7"
+                                />
+                            {/if}
                         </svg>
-                        <span class="text-sm"
-                            >Your zip file is ready and downloading!</span
-                        >
+                        <span class="text-sm">{downloadProgress.currentFile}</span>
                     </div>
                 {:else}
                     <p class="text-sm text-gray-600">
@@ -2510,7 +2597,9 @@
                                 class="flex items-center gap-3 px-3 py-2 text-sm {file.status ===
                                 'downloading'
                                     ? 'bg-blue-50'
-                                    : ''}"
+                                    : file.status === 'error'
+                                      ? 'bg-red-50'
+                                      : ''}"
                             >
                                 <!-- Status Icon -->
                                 <div class="flex-shrink-0">
@@ -2532,6 +2621,20 @@
                                         <div
                                             class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
                                         ></div>
+                                    {:else if file.status === "error"}
+                                        <svg
+                                            class="w-4 h-4 text-red-500"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            />
+                                        </svg>
                                     {:else}
                                         <div
                                             class="w-4 h-4 border-2 border-gray-300 rounded-full"
@@ -2539,12 +2642,19 @@
                                     {/if}
                                 </div>
                                 <!-- File Name -->
-                                <span
-                                    class="flex-1 truncate text-gray-700"
-                                    title={file.name}
-                                >
-                                    {file.name}
-                                </span>
+                                <div class="flex-1 min-w-0">
+                                    <span
+                                        class="truncate block {file.status === 'error' ? 'text-red-700' : 'text-gray-700'}"
+                                        title={file.name}
+                                    >
+                                        {file.name}
+                                    </span>
+                                    {#if file.status === "error" && file.errorMessage}
+                                        <span class="text-xs text-red-500 truncate block" title={file.errorMessage}>
+                                            {file.errorMessage}
+                                        </span>
+                                    {/if}
+                                </div>
                                 <!-- File Size -->
                                 <span
                                     class="flex-shrink-0 text-xs text-gray-400"
