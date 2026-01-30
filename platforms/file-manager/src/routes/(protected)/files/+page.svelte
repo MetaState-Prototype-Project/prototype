@@ -969,34 +969,79 @@
     /**
      * Recursively fetch all files from a folder, including subfolders.
      * Returns an array of { file, path } where path is the folder path within the zip.
+     * 
+     * @param folderId - The ID of the folder to fetch
+     * @param folderName - The display name of the folder
+     * @param basePath - The accumulated path from parent folders
+     * @param maxDepth - Maximum recursion depth to prevent runaway recursion (default: 100)
+     * @param currentDepth - Current recursion depth (internal use)
+     * @param visited - Set of already-visited folder IDs to prevent cycles (internal use)
+     * @throws Error if max depth exceeded or if folder fetch fails
      */
     async function getAllFilesFromFolder(
         folderId: string,
         folderName: string,
-        basePath: string = ""
+        basePath: string = "",
+        maxDepth: number = 100,
+        currentDepth: number = 0,
+        visited: Set<string> = new Set()
     ): Promise<Array<{ file: any; path: string }>> {
+        // Check depth limit
+        if (currentDepth > maxDepth) {
+            throw new Error(
+                `Maximum folder depth (${maxDepth}) exceeded at folder "${folderName}" (id: ${folderId}). ` +
+                `This may indicate a very deep folder structure or a configuration issue.`
+            );
+        }
+
+        // Check for cycles (folder already visited)
+        if (visited.has(folderId)) {
+            console.warn(
+                `Cycle detected: folder "${folderName}" (id: ${folderId}) already visited at depth ${currentDepth}. Skipping.`
+            );
+            return [];
+        }
+
+        // Mark this folder as visited
+        visited.add(folderId);
+
         const result: Array<{ file: any; path: string }> = [];
         const currentPath = basePath ? `${basePath}/${folderName}` : folderName;
 
+        let contents;
         try {
-            const contents = await getFolderContents(folderId);
-
-            // Add all files in this folder with the current path
-            for (const file of contents.files || []) {
-                result.push({ file, path: currentPath });
-            }
-
-            // Recursively process subfolders
-            for (const subfolder of contents.folders || []) {
-                const subfolderFiles = await getAllFilesFromFolder(
-                    subfolder.id,
-                    subfolder.name,
-                    currentPath
-                );
-                result.push(...subfolderFiles);
-            }
+            contents = await getFolderContents(folderId);
         } catch (error) {
-            console.error(`Error fetching contents of folder ${folderName}:`, error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(
+                `Failed to fetch contents of folder "${folderName}" (id: ${folderId}) at depth ${currentDepth}: ${errorMessage}`
+            );
+        }
+
+        // Add all files in this folder with the current path
+        for (const file of contents.files || []) {
+            result.push({ file, path: currentPath });
+        }
+
+        // Recursively process subfolders
+        for (const subfolder of contents.folders || []) {
+            // Skip if subfolder was already visited (additional cycle check)
+            if (visited.has(subfolder.id)) {
+                console.warn(
+                    `Cycle detected: subfolder "${subfolder.name}" (id: ${subfolder.id}) already visited. Skipping.`
+                );
+                continue;
+            }
+
+            const subfolderFiles = await getAllFilesFromFolder(
+                subfolder.id,
+                subfolder.name,
+                currentPath,
+                maxDepth,
+                currentDepth + 1,
+                visited
+            );
+            result.push(...subfolderFiles);
         }
 
         return result;
@@ -1076,19 +1121,37 @@
             }
 
             // Process selected folders - gather all files recursively
+            // Use a shared visited set across all selected folders to detect cross-folder cycles
+            const visitedFolders = new Set<string>();
+            
             for (const folder of selectedFolders) {
                 downloadProgress = {
                     ...downloadProgress,
                     currentFile: `Scanning folder: ${folder.name}...`,
                 };
 
-                const folderFiles = await getAllFilesFromFolder(folder.id, folder.name, "");
-                for (const { file, path } of folderFiles) {
-                    allFilesToDownload.push({
-                        file,
-                        path,
-                        displayName: file.displayName || file.name,
-                    });
+                try {
+                    const folderFiles = await getAllFilesFromFolder(
+                        folder.id, 
+                        folder.name, 
+                        "",
+                        100, // maxDepth
+                        0,   // currentDepth
+                        visitedFolders
+                    );
+                    for (const { file, path } of folderFiles) {
+                        allFilesToDownload.push({
+                            file,
+                            path,
+                            displayName: file.displayName || file.name,
+                        });
+                    }
+                } catch (folderError) {
+                    // Re-throw with additional context about which top-level folder failed
+                    const errorMessage = folderError instanceof Error 
+                        ? folderError.message 
+                        : String(folderError);
+                    throw new Error(`Error scanning folder "${folder.name}": ${errorMessage}`);
                 }
             }
 
