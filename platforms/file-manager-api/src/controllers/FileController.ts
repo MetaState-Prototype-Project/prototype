@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
 import multer from "multer";
+import archiver from "archiver";
+import fs from "fs";
+import path from "path";
+import os from "os";
 import { FileService } from "../services/FileService";
 
 const upload = multer({
@@ -14,9 +18,15 @@ const uploadMultiple = multer({
 
 export class FileController {
     private fileService: FileService;
+    private ZIP_TEMP_DIR = path.join(os.tmpdir(), 'file-manager-zips');
 
     constructor() {
         this.fileService = new FileService();
+        
+        // Ensure temp directory exists
+        if (!fs.existsSync(this.ZIP_TEMP_DIR)) {
+            fs.mkdirSync(this.ZIP_TEMP_DIR, { recursive: true });
+        }
     }
 
     uploadFile = [
@@ -584,6 +594,320 @@ export class FileController {
         } catch (error) {
             console.error("Error getting storage usage:", error);
             res.status(500).json({ error: "Failed to get storage usage" });
+        }
+    };
+
+    /**
+     * Download multiple files as ZIP. Creates zip on disk then serves it.
+     * Zip is deleted after serving via finally block.
+     */
+    downloadFilesAsZip = async (req: Request, res: Response) => {
+        let output: fs.WriteStream | null = null;
+        let archive: archiver.Archiver | null = null;
+        let zipPath: string | null = null;
+
+        try {
+            if (!req.user) {
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
+            }
+
+            let { files, fileIds } = req.body;
+
+            // Handle form-encoded data where files is a JSON string
+            if (typeof files === 'string') {
+                try {
+                    files = JSON.parse(files);
+                } catch {
+                    return res.status(400).json({ error: "Invalid files JSON" });
+                }
+            }
+
+            // Support both formats: { files: [{id, path}] } or { fileIds: [id] }
+            let fileEntries: Array<{ id: string; path: string }>;
+            
+            if (Array.isArray(files) && files.length > 0) {
+                fileEntries = files.map((f: any) => ({
+                    id: typeof f === 'string' ? f : f.id,
+                    path: (typeof f === 'object' && f.path) || '',
+                }));
+            } else if (Array.isArray(fileIds) && fileIds.length > 0) {
+                fileEntries = fileIds.map((id: string) => ({ id, path: '' }));
+            } else {
+                return res.status(400).json({ error: "files or fileIds array is required" });
+            }
+
+            if (fileEntries.length > 500) {
+                return res.status(400).json({ error: "Maximum 500 files per download" });
+            }
+
+            // Validate all file IDs are non-empty strings
+            for (const entry of fileEntries) {
+                if (!entry.id || typeof entry.id !== 'string' || entry.id.trim() === '') {
+                    return res.status(400).json({ error: "Invalid file id in request" });
+                }
+            }
+
+            // Validate all files exist and user has access
+            const validatedFiles = await this.fileService.getFilesMetadataByIds(
+                fileEntries.map(f => f.id),
+                req.user.id
+            );
+            
+            if (validatedFiles.length === 0) {
+                return res.status(404).json({ error: "No accessible files found" });
+            }
+
+            // Create a map of id -> metadata for quick lookup
+            const fileMetaMap = new Map(validatedFiles.map(f => [f.id, f]));
+
+            // Create zip file on disk with timestamp
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const zipFilename = `files-${timestamp}.zip`;
+            zipPath = path.join(this.ZIP_TEMP_DIR, zipFilename);
+            
+            console.log(`[ZIP] Creating zip file at: ${zipPath}`);
+            
+            output = fs.createWriteStream(zipPath);
+            archive = archiver('zip', {
+                store: true, // No compression for speed
+            });
+            
+            console.log(`[ZIP] Archive and output stream initialized`);
+
+            // Track if request was aborted
+            let aborted = false;
+
+            // Handle client disconnect
+            req.on('close', () => {
+                if (!res.writableEnded) {
+                    aborted = true;
+                    if (archive) archive.abort();
+                    console.log('Download aborted by client');
+                }
+            });
+
+            // Handle archive errors
+            archive.on('error', (err: Error) => {
+                if (aborted) return;
+                console.error('Archive error:', err);
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Failed to create archive' });
+                }
+            });
+
+            // Pipe archive to file on disk
+            archive.pipe(output);
+
+            // Set up promise to wait for file write completion (BEFORE finalize)
+            const writeComplete = new Promise<void>((resolve, reject) => {
+                output!.on('finish', resolve); // 'finish' fires when all data written
+                output!.on('error', reject);
+            });
+
+            // Track full paths to handle duplicates
+            const usedPaths = new Map<string, number>();
+
+            // Sanitize filename to prevent zip-slip attacks
+            const sanitizeFilename = (filename: string): string => {
+                if (!filename) return 'file';
+                
+                let safe = filename;
+                
+                // Convert backslashes to forward slashes
+                safe = safe.replace(/\\/g, '/');
+                
+                // Strip Windows drive letters (C:, D:, etc.)
+                safe = safe.replace(/^[a-zA-Z]:/, '');
+                
+                // Strip any leading slashes or dots
+                safe = safe.replace(/^[\/\.]+/, '');
+                
+                // Take only the basename (after last slash)
+                const lastSlash = safe.lastIndexOf('/');
+                if (lastSlash !== -1) {
+                    safe = safe.slice(lastSlash + 1);
+                }
+                
+                // Remove or replace dangerous characters
+                // Keep: alphanumeric, spaces, dots, dashes, underscores, parentheses
+                safe = safe.replace(/[^\w\s.\-()]/g, '_');
+                
+                // Collapse multiple dots to prevent .. traversal
+                safe = safe.replace(/\.{2,}/g, '.');
+                
+                // Remove leading/trailing dots and spaces
+                safe = safe.replace(/^[.\s]+|[.\s]+$/g, '');
+                
+                // If empty after sanitization, use default
+                if (!safe) return 'file';
+                
+                return safe;
+            };
+
+            // Sanitize path to prevent directory traversal attacks
+            const sanitizePath = (p: string): string => {
+                if (!p) return '';
+                
+                // Normalize separators: convert backslashes to forward slashes
+                let normalized = p.replace(/\\/g, '/');
+                
+                // Strip Windows drive letters (C:, D:, etc.)
+                normalized = normalized.replace(/^[a-zA-Z]:/, '');
+                
+                // Strip UNC paths (//server/share or \\server\share already normalized)
+                normalized = normalized.replace(/^\/\/[^/]*\/[^/]*/, '');
+                
+                // Strip any leading slashes
+                normalized = normalized.replace(/^\/+/, '');
+                
+                // Split into segments and resolve . and ..
+                const segments = normalized.split('/');
+                const resolved: string[] = [];
+                let escapedRoot = false;
+                
+                for (const segment of segments) {
+                    // Skip empty segments and current directory references
+                    if (segment === '' || segment === '.') {
+                        continue;
+                    }
+                    
+                    if (segment === '..') {
+                        // Pop parent directory if possible
+                        if (resolved.length > 0) {
+                            resolved.pop();
+                        } else {
+                            // Attempted to escape root - mark as invalid
+                            escapedRoot = true;
+                        }
+                    } else {
+                        // Regular segment - add it
+                        resolved.push(segment);
+                    }
+                }
+                
+                // If any attempt to escape root was detected, return empty string
+                if (escapedRoot) {
+                    return '';
+                }
+                
+                return resolved.join('/');
+            };
+
+            // Stream each file into the archive one at a time
+            for (const entry of fileEntries) {
+                // Stop processing if client disconnected
+                if (aborted) break;
+
+                const fileMeta = fileMetaMap.get(entry.id);
+                if (!fileMeta) continue; // User doesn't have access
+
+                try {
+                    const fileData = await this.fileService.getFileDataStream(entry.id, req.user.id);
+                    
+                    if (fileData) {
+                        const sanitizedPath = sanitizePath(entry.path);
+                        const baseName = sanitizeFilename(fileData.name);
+                        
+                        // Build full path in zip
+                        let fullPath = sanitizedPath ? `${sanitizedPath}/${baseName}` : baseName;
+                        
+                        // Handle duplicate paths by appending a number
+                        const count = usedPaths.get(fullPath) || 0;
+                        if (count > 0) {
+                            const ext = baseName.lastIndexOf('.');
+                            let uniqueName: string;
+                            if (ext > 0) {
+                                uniqueName = `${baseName.slice(0, ext)} (${count})${baseName.slice(ext)}`;
+                            } else {
+                                uniqueName = `${baseName} (${count})`;
+                            }
+                            fullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
+                        }
+                        usedPaths.set(sanitizedPath ? `${sanitizedPath}/${baseName}` : baseName, count + 1);
+
+                        // Append stream to archive
+                        archive.append(fileData.stream, { name: fullPath });
+                    }
+                } catch (fileError) {
+                    console.error(`Error adding file ${entry.id} to archive:`, fileError);
+                    // Continue with other files
+                }
+            }
+
+            // Finalize the archive (this is when the stream ends)
+            if (!aborted && output && archive) {
+                console.log(`[ZIP] Finalizing archive...`);
+                await archive.finalize();
+                console.log(`[ZIP] Archive finalized, waiting for disk write...`);
+                
+                // Wait for file to be completely written to disk
+                await writeComplete;
+                console.log(`[ZIP] Disk write complete!`);
+
+                // Send the file
+                console.log(`[ZIP] Starting to stream file: ${zipPath}, size: ${fs.statSync(zipPath).size} bytes`);
+                
+                res.setHeader('Content-Type', 'application/zip');
+                res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+                res.setHeader('Content-Length', fs.statSync(zipPath).size.toString());
+                
+                const fileStream = fs.createReadStream(zipPath);
+                
+                // Wait for the stream to finish BEFORE exiting try block (so finally doesn't delete file mid-stream)
+                await new Promise<void>((resolve, reject) => {
+                    fileStream.on('end', () => {
+                        console.log(`[ZIP] Finished streaming file: ${zipPath}`);
+                        resolve();
+                    });
+                    fileStream.on('error', (err) => {
+                        console.error('Error streaming zip file:', err);
+                        if (!res.headersSent) {
+                            res.status(500).json({ error: 'Failed to send zip file' });
+                        }
+                        reject(err);
+                    });
+                    
+                    fileStream.pipe(res);
+                });
+            }
+
+        } catch (error) {
+            console.error("Error creating zip download:", error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: "Failed to create zip download" });
+            }
+        } finally {
+            console.log(`[ZIP] Cleanup starting for: ${zipPath}`);
+            
+            // Always cleanup resources
+            if (archive) {
+                try {
+                    archive.abort();
+                } catch (e) {
+                    // Ignore abort errors (may already be finalized)
+                }
+            }
+            if (output) {
+                try {
+                    output.close();
+                } catch (e) {
+                    // Ignore close errors
+                }
+            }
+            // Delete zip file - no longer needed after serving
+            if (zipPath && fs.existsSync(zipPath)) {
+                try {
+                    console.log(`[ZIP] Deleting temp file: ${zipPath}`);
+                    fs.unlinkSync(zipPath);
+                    console.log(`[ZIP] Successfully deleted: ${zipPath}`);
+                } catch (e) {
+                    console.error('[ZIP] Error deleting temp zip:', e);
+                }
+            } else {
+                console.log(`[ZIP] File already gone or path not set: ${zipPath}`);
+            }
         }
     };
 }

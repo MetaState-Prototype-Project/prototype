@@ -6,6 +6,7 @@ import { FolderAccess } from "../database/entities/FolderAccess";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
 import { In, IsNull, Not } from "typeorm";
 import crypto from "crypto";
+import { Readable } from "stream";
 
 /** Soft-delete marker: file is hidden and syncs to eSigner so they can hide it too (no delete webhook). */
 export const SOFT_DELETED_FILE_NAME = "[[deleted]]";
@@ -357,6 +358,93 @@ export class FileService {
         const limit = 1073741824; // 1GB in bytes
 
         return { used, limit, fileCount, folderCount };
+    }
+
+    /**
+     * Get file metadata without the data blob (for bulk operations)
+     */
+    async getFileMetadataById(id: string, userId: string): Promise<Omit<File, 'data'> | null> {
+        const file = await this.fileRepository.findOne({
+            where: { id },
+            select: ["id", "name", "displayName", "mimeType", "size", "md5Hash", "ownerId", "folderId", "createdAt", "updatedAt"],
+        });
+
+        if (!file || file.name === SOFT_DELETED_FILE_NAME) {
+            return null;
+        }
+
+        // Check access: owner or has access permission
+        if (file.ownerId === userId) {
+            return file;
+        }
+        
+        // Check for direct file access
+        const access = await this.fileAccessRepository.findOne({
+            where: { fileId: id, userId },
+        });
+        
+        if (access) {
+            return file;
+        }
+
+        // Check if user has access via parent folder (if file is in a folder)
+        if (file.folderId) {
+            const hasAccessViaParent = await this.hasAccessViaParentFolder(file.folderId, userId);
+            if (hasAccessViaParent) {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Stream file data as a Readable stream (fetches data blob separately)
+     * This avoids loading the entire file into memory at once for the caller,
+     * though the DB query still loads it. For true streaming, you'd need
+     * PostgreSQL large objects or file system storage.
+     */
+    async getFileDataStream(id: string, userId: string): Promise<{ stream: Readable; size: number; name: string; mimeType: string } | null> {
+        // First verify access with metadata only
+        const metadata = await this.getFileMetadataById(id, userId);
+        if (!metadata) {
+            return null;
+        }
+
+        // Fetch only the data column
+        const result = await this.fileRepository
+            .createQueryBuilder('file')
+            .select('file.data')
+            .where('file.id = :id', { id })
+            .getRawOne();
+
+        if (!result || !result.file_data) {
+            return null;
+        }
+
+        // Convert Buffer to Readable stream
+        const stream = Readable.from(result.file_data);
+
+        return {
+            stream,
+            size: Number(metadata.size),
+            name: metadata.displayName || metadata.name,
+            mimeType: metadata.mimeType,
+        };
+    }
+
+    /**
+     * Get multiple files' metadata by IDs (for bulk download validation)
+     */
+    async getFilesMetadataByIds(ids: string[], userId: string): Promise<Array<Omit<File, 'data'>>> {
+        const files: Array<Omit<File, 'data'>> = [];
+        for (const id of ids) {
+            const file = await this.getFileMetadataById(id, userId);
+            if (file) {
+                files.push(file);
+            }
+        }
+        return files;
     }
 }
 

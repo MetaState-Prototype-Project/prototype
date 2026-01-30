@@ -86,6 +86,7 @@ app.use(authMiddleware);
 
 // File routes
 app.post("/api/files", authGuard, fileController.uploadFile);
+app.post("/api/files/download-zip", authGuard, fileController.downloadFilesAsZip);
 app.get("/api/files", authGuard, fileController.getFiles);
 app.get("/api/files/:id", authGuard, fileController.getFile);
 app.get("/api/files/:id/download", authGuard, fileController.downloadFile);

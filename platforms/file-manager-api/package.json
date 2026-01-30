@@ -13,6 +13,7 @@
         "migration:revert": "npm run typeorm migration:revert -- -d src/database/data-source.ts"
     },
     "dependencies": {
+        "archiver": "^7.0.1",
         "axios": "^1.6.7",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
@@ -29,6 +30,7 @@
         "web3-adapter": "workspace:*"
     },
     "devDependencies": {
+        "@types/archiver": "^6.0.3",
         "@types/cors": "^2.8.17",
         "@types/express": "^4.17.21",
         "@types/jsonwebtoken": "^9.0.5",
