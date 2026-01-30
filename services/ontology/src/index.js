@@ -4,7 +4,11 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 6767;
+
+// View engine
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '../views'));
 
 // Middleware
 app.use(cors());
@@ -41,6 +45,21 @@ async function loadSchemas() {
     }
 }
 
+// Build schema list for UI (optionally filtered by search query)
+function getSchemaList(q) {
+    const list = Array.from(schemaIndex.entries()).map(([id, schema]) => ({
+        id,
+        title: schema.title
+    }));
+    if (!q || typeof q !== 'string' || q.trim() === '') return list;
+    const lower = q.toLowerCase().trim();
+    return list.filter(
+        (s) =>
+            s.title.toLowerCase().includes(lower) ||
+            s.id.toLowerCase().includes(lower)
+    );
+}
+
 // Ensure schemas directory exists
 async function ensureSchemasDirectory() {
     try {
@@ -50,7 +69,48 @@ async function ensureSchemasDirectory() {
     }
 }
 
-// Get schema by UUID
+// Ontology viewer page (list + search + optional detail)
+app.get('/', async (req, res) => {
+    try {
+        const searchQuery = req.query.q || '';
+        const schemaId = req.query.schema;
+        const schemas = getSchemaList(searchQuery);
+        let selectedSchema = null;
+        if (schemaId) {
+            selectedSchema = schemaIndex.get(schemaId) || null;
+        }
+        res.render('index', {
+            schemas,
+            searchQuery,
+            selectedSchema
+        });
+    } catch (error) {
+        console.error('Error rendering ontology viewer:', error);
+        res.status(500).send('Internal server error');
+    }
+});
+
+// Permalink to one schema (same page with detail)
+app.get('/schema/:uuid', async (req, res) => {
+    try {
+        const schemaId = req.params.uuid;
+        const selectedSchema = schemaIndex.get(schemaId);
+        if (!selectedSchema) {
+            return res.status(404).send('Schema not found');
+        }
+        const schemas = getSchemaList('');
+        res.render('index', {
+            schemas,
+            searchQuery: '',
+            selectedSchema
+        });
+    } catch (error) {
+        console.error('Error rendering schema page:', error);
+        res.status(500).send('Internal server error');
+    }
+});
+
+// Get schema by UUID (raw JSON)
 app.get('/schemas/:uuid', async (req, res) => {
     try {
         const schemaId = req.params.uuid;

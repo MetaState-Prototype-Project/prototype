@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ontology viewer</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #fff;
+            color: #111;
+            margin: 0;
+            padding: 1rem;
+            line-height: 1.5;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { margin-top: 0; font-size: 1.5rem; font-weight: 600; }
+        h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; }
+        h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+        form { margin-bottom: 1.5rem; }
+        input[type="text"] {
+            padding: 0.5rem 0.75rem;
+            width: 280px;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        button, .btn {
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            background: #fff;
+            color: #374151;
+        }
+        button:hover, .btn:hover { background: #f9fafb; border-color: #9ca3af; }
+        table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; font-size: 0.875rem; }
+        th, td { border: 1px solid #e5e7eb; padding: 0.5rem 0.75rem; text-align: left; }
+        th { background: #f9fafb; font-weight: 500; color: #374151; }
+        .schema-list { list-style: none; padding: 0; margin: 0; }
+        .schema-list li {
+            padding: 0.6rem 0;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .schema-list li .title { font-weight: 600; min-width: 140px; }
+        .schema-list li .id { font-size: 0.8rem; color: #6b7280; font-family: ui-monospace, monospace; }
+        .schema-list .link-view { color: #2563eb; text-decoration: none; font-size: 0.875rem; }
+        .schema-list .link-view:hover { text-decoration: underline; }
+        .schema-list .link-raw { color: #6b7280; text-decoration: none; font-size: 0.875rem; }
+        .schema-list .link-raw:hover { text-decoration: underline; }
+
+        /* Drawer */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 40;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        .drawer-overlay.open { opacity: 1; visibility: visible; }
+        .drawer-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            max-width: 420px;
+            height: 100%;
+            background: #fff;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        @media (min-width: 768px) {
+            .drawer-panel {
+                width: 40%;
+                min-width: 40%;
+                max-width: none;
+            }
+        }
+        .drawer-panel.open { transform: translateX(0); }
+        .drawer-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .drawer-header h2 { margin: 0; font-size: 1.125rem; }
+        .drawer-close {
+            padding: 0.35rem 0.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 1.25rem;
+            line-height: 1;
+            color: #6b7280;
+            border-radius: 0.25rem;
+        }
+        .drawer-close:hover { background: #f3f4f6; color: #111; }
+        .drawer-content {
+            padding: 1.25rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .drawer-content .raw-link { margin-bottom: 1rem; }
+        .drawer-content .raw-link a { color: #2563eb; text-decoration: none; font-size: 0.875rem; }
+        .drawer-content .raw-link a:hover { text-decoration: underline; }
+        .drawer-content code { font-family: ui-monospace, monospace; font-size: 0.8rem; background: #f3f4f6; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
+        .drawer-content .type-cell { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ontology viewer</h1>
+
+        <form method="GET" action="/">
+            <input type="text" name="q" value="<%= searchQuery %>" placeholder="Search by name or schema ID">
+            <button type="submit">Search</button>
+        </form>
+
+        <h2>Schemas</h2>
+        <ul class="schema-list">
+            <% if (schemas.length === 0) { %>
+                <li>No schemas match your search.</li>
+            <% } else { %>
+                <% schemas.forEach(function(s) { %>
+                    <li>
+                        <span class="title"><%= s.title %></span>
+                        <span class="id"><%= s.id %></span>
+                        <a href="/schemas/<%= s.id %>" target="_blank" rel="noopener" class="link-raw">Raw JSON</a>
+                        <a href="#" class="link-view" data-schema-id="<%= s.id %>">View</a>
+                    </li>
+                <% }); %>
+            <% } %>
+        </ul>
+    </div>
+
+    <!-- Right-side drawer -->
+    <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true"></div>
+    <div class="drawer-panel" id="drawerPanel" role="dialog" aria-label="Schema detail">
+        <div class="drawer-header">
+            <h2 id="drawerTitle">Schema</h2>
+            <button type="button" class="drawer-close" id="drawerClose" aria-label="Close">&times;</button>
+        </div>
+        <div class="drawer-content" id="drawerContent">
+            <% if (selectedSchema) { %>
+                <p><strong>Schema ID:</strong> <code><%= selectedSchema.schemaId %></code></p>
+                <div class="raw-link"><a href="/schemas/<%= selectedSchema.schemaId %>" target="_blank" rel="noopener">Raw JSON</a></div>
+                <% if (selectedSchema.required && selectedSchema.required.length) { %>
+                    <p><strong>Required:</strong> <%= selectedSchema.required.join(', ') %></p>
+                <% } %>
+                <% if (selectedSchema.properties && Object.keys(selectedSchema.properties).length) { %>
+                    <h3>Properties</h3>
+                    <table>
+                        <thead>
+                            <tr><th>Name</th><th>Type</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <% Object.entries(selectedSchema.properties).forEach(function([name, prop]) { %>
+                                <tr>
+                                    <td><code><%= name %></code></td>
+                                    <td class="type-cell"><%= Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-') %><%= prop.format ? ' (' + prop.format + ')' : '' %></td>
+                                    <td><%= prop.description || '-' %></td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                <% } else { %>
+                    <p>No properties defined.</p>
+                <% } %>
+            <% } else { %>
+                <p id="drawerPlaceholder">Click View on a schema to see details.</p>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var overlay = document.getElementById('drawerOverlay');
+            var panel = document.getElementById('drawerPanel');
+            var content = document.getElementById('drawerContent');
+            var titleEl = document.getElementById('drawerTitle');
+            var placeholder = document.getElementById('drawerPlaceholder');
+
+            function openDrawer() {
+                overlay.classList.add('open');
+                panel.classList.add('open');
+                overlay.setAttribute('aria-hidden', 'false');
+            }
+            function closeDrawer() {
+                overlay.classList.remove('open');
+                panel.classList.remove('open');
+                overlay.setAttribute('aria-hidden', 'true');
+            }
+
+            document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+            overlay.addEventListener('click', closeDrawer);
+
+            document.querySelectorAll('.schema-list a[data-schema-id]').forEach(function(a) {
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var id = a.getAttribute('data-schema-id');
+                    fetch('/schemas/' + encodeURIComponent(id))
+                        .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Not found')); })
+                        .then(function(schema) {
+                            titleEl.textContent = schema.title || 'Schema';
+                            var html = '<p><strong>Schema ID:</strong> <code>' + escapeHtml(schema.schemaId) + '</code></p>';
+                            html += '<div class="raw-link"><a href="/schemas/' + escapeHtml(schema.schemaId) + '" target="_blank" rel="noopener">Raw JSON</a></div>';
+                            if (schema.required && schema.required.length) {
+                                html += '<p><strong>Required:</strong> ' + escapeHtml(schema.required.join(', ')) + '</p>';
+                            }
+                            if (schema.properties && Object.keys(schema.properties).length) {
+                                html += '<h3>Properties</h3><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>';
+                                for (var propName in schema.properties) {
+                                    var prop = schema.properties[propName];
+                                    var typeStr = Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-');
+                                    if (prop.format) typeStr += ' (' + prop.format + ')';
+                                    html += '<tr><td><code>' + escapeHtml(propName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(prop.description || '-') + '</td></tr>';
+                                }
+                                html += '</tbody></table>';
+                            } else {
+                                html += '<p>No properties defined.</p>';
+                            }
+                            content.innerHTML = html;
+                            if (placeholder) placeholder.style.display = 'none';
+                            openDrawer();
+                        })
+                        .catch(function() {
+                            content.innerHTML = '<p>Failed to load schema.</p>';
+                            openDrawer();
+                        });
+                });
+            });
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                var div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            }
+
+            <% if (selectedSchema) { %>
+            openDrawer();
+            <% } %>
+        })();
+    </script>
+</body>
+</html>

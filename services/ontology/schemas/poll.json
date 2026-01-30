@@ -1,0 +1,63 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440100",
+    "title": "Poll",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the poll"
+        },
+        "title": {
+            "type": "string",
+            "description": "Title of the poll"
+        },
+        "mode": {
+            "type": "string",
+            "description": "Voting mode (e.g. single, multiple)"
+        },
+        "visibility": {
+            "type": "string",
+            "description": "Visibility of the poll (e.g. public, private)"
+        },
+        "votingWeight": {
+            "type": "string",
+            "description": "How voting weight is determined (e.g. one-per-user, reputation-weighted)"
+        },
+        "options": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Poll options to vote on"
+        },
+        "deadline": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When voting closes"
+        },
+        "creatorId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who created the poll"
+        },
+        "group": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Global ID of the group this poll belongs to"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the poll was created"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the poll was last updated"
+        }
+    },
+    "required": ["id", "title", "createdAt"],
+    "additionalProperties": false
+}

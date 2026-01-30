@@ -1,0 +1,56 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "660e8400-e29b-41d4-a716-446655440101",
+    "title": "Vote",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for the vote"
+        },
+        "pollId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the poll being voted on"
+        },
+        "poll": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Global ID of the poll (reference)"
+        },
+        "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the user who cast the vote"
+        },
+        "voterId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of the voter (user or delegate)"
+        },
+        "data": {
+            "type": "object",
+            "description": "Vote payload. Shape depends on the poll voting mode. Must include mode matching the poll. Allowed: (1) normal: mode and data array of option indices as strings. (2) point: mode and data object mapping option index to points. (3) rank: mode and data array of objects with option and points, rank 1 = first choice. (4) blind: mode, commitment, proof, revealed; optional actualVote, randomness, revealedAt after reveal.",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["normal", "point", "rank", "blind"],
+                    "description": "Must match the poll voting mode"
+                }
+            }
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the vote was cast"
+        },
+        "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the vote was last updated"
+        }
+    },
+    "required": ["id", "pollId", "voterId", "createdAt"],
+    "additionalProperties": false
+}
