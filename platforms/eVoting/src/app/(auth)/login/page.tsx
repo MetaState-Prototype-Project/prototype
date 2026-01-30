@@ -14,6 +14,8 @@ export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [redirectTo, setRedirectTo] = useState<string>("/");
+
 
     useEffect(() => {
         setIsMobile(isMobileDevice());
@@ -24,6 +26,7 @@ export default function LoginPage() {
         if (typeof window === 'undefined') return;
 
         const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect");
         const ename = params.get('ename');
         const session = params.get('session');
         const signature = params.get('signature');
@@ -32,10 +35,15 @@ export default function LoginPage() {
         if (ename && session && signature) {
             // Clean up URL
             window.history.replaceState({}, '', window.location.pathname);
-            
+
             // Auto-submit login
             handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
             return;
+        }
+
+        if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+            setRedirectTo(redirect);
+            sessionStorage.setItem("postLoginRedirect", redirect);
         }
 
         // If no query params, proceed with normal flow
@@ -84,7 +92,11 @@ export default function LoginPage() {
                 if (data.token && data.user) {
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
-                    window.location.href = "/";
+                    const redirect =
+                        sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+
+                    sessionStorage.removeItem("postLoginRedirect");
+                    window.location.href = redirect;
                 }
             } else {
                 const errorData = await response.json();
@@ -110,7 +122,7 @@ export default function LoginPage() {
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                
+
                 // Check for error messages (version mismatch)
                 if (data.error && data.type === 'version_mismatch') {
                     setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
@@ -122,7 +134,11 @@ export default function LoginPage() {
                 if (data.token && data.user) {
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
-                    window.location.href = "/";
+                    const redirect =
+                        sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+
+                    sessionStorage.removeItem("postLoginRedirect");
+                    window.location.href = redirect;
                 }
             } catch (error) {
                 console.error("Error parsing SSE data:", error);
@@ -134,7 +150,7 @@ export default function LoginPage() {
         };
 
         return () => eventSource.close();
-    }, [sessionId, login]);
+    }, [sessionId, login, redirectTo]);
 
     const getAppStoreLink = () => {
         if (typeof navigator === 'undefined') return "https://play.google.com/store/apps/details?id=foundation.metastate.eid_wallet";
@@ -170,7 +186,7 @@ export default function LoginPage() {
                     <div className="text-lg sm:text-xl space-x-1">
                         {isMobile ? (
                             <>
-                                <span>Click the button below using your</span>
+                                <span>Click the button below using you</span>
                                 <a href={getAppStoreLink()}><span className="font-bold underline">eID App</span></a>
                                 <span>to login</span>
                             </>
@@ -184,7 +200,7 @@ export default function LoginPage() {
                     </div>
 
                     {error && <div className="w-full text-red-500">{error}</div>}
-                    
+
                     {errorMessage && (
                         <div className="w-full mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
                             <p className="font-semibold">Authentication Error</p>
