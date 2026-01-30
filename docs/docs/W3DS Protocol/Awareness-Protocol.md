@@ -68,7 +68,7 @@ The body of each webhook request is JSON with the following fields:
 | `schemaId` | Ontology/schema UUID (identifies the type of entity and which mapping the platform should use). |
 | `data` | The entity payload in the **global ontology** shape (parsed key-value structure). |
 
-In the current version of the implementation the entitre payload is sent in
+In the current version of the implementation the entire payload is sent in
 plain text to any registered platform, so all data is sent to every platform and
 it's the platform's responsibility to reject any packets it doesn't use, in
 future versions of awareness protocol, it will be changed so that platforms can
