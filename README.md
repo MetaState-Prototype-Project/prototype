@@ -1,5 +1,7 @@
 # MetaState Prototype
 
+**[Documentation](https://metastate-prototype-project.github.io/prototype/)** — Getting started with W3DS and the MetaState prototype.
+
 ## Docker Development Environment
 
 ### Port Assignments
