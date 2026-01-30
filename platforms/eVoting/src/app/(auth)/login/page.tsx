@@ -35,16 +35,16 @@ export default function LoginPage() {
         if (ename && session && signature) {
             // Clean up URL
             window.history.replaceState({}, '', window.location.pathname);
-            
+
             // Auto-submit login
             handleAutoLogin(ename, session, signature, appVersion || '0.4.0');
             return;
         }
 
         if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
-        setRedirectTo(redirect);
-        sessionStorage.setItem("postLoginRedirect", redirect);
-    }
+            setRedirectTo(redirect);
+            sessionStorage.setItem("postLoginRedirect", redirect);
+        }
 
         // If no query params, proceed with normal flow
         const fetchQRCode = async () => {
@@ -93,10 +93,10 @@ export default function LoginPage() {
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
                     const redirect =
-    sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+                        sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
 
-sessionStorage.removeItem("postLoginRedirect");
-window.location.href = redirect;
+                    sessionStorage.removeItem("postLoginRedirect");
+                    window.location.href = redirect;
                 }
             } else {
                 const errorData = await response.json();
@@ -122,7 +122,7 @@ window.location.href = redirect;
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                
+
                 // Check for error messages (version mismatch)
                 if (data.error && data.type === 'version_mismatch') {
                     setErrorMessage(data.message || 'Your eID Wallet app version is outdated. Please update to continue.');
@@ -135,10 +135,10 @@ window.location.href = redirect;
                     setAuthToken(data.token);
                     setAuthId(data.user.id);
                     const redirect =
-    sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
+                        sessionStorage.getItem("postLoginRedirect") || redirectTo || "/";
 
-sessionStorage.removeItem("postLoginRedirect");
-window.location.href = redirect;
+                    sessionStorage.removeItem("postLoginRedirect");
+                    window.location.href = redirect;
                 }
             } catch (error) {
                 console.error("Error parsing SSE data:", error);
@@ -200,7 +200,7 @@ window.location.href = redirect;
                     </div>
 
                     {error && <div className="w-full text-red-500">{error}</div>}
-                    
+
                     {errorMessage && (
                         <div className="w-full mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
                             <p className="font-semibold">Authentication Error</p>
