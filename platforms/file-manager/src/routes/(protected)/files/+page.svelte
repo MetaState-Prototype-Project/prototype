@@ -24,6 +24,7 @@
         fetchFolders,
         folderTree,
         folders,
+        getFolderContents,
         moveFolder,
     } from "$lib/stores/folders";
     import { toast } from "$lib/stores/toast";
@@ -928,36 +929,34 @@
         });
     });
 
-    // Multi-file selection derived states
-    const selectableFiles = $derived(
-        allItems.filter((item) => item.type === "file"),
-    );
-    const allFilesSelected = $derived(
-        selectableFiles.length > 0 &&
-            selectableFiles.every((f) => selectedFileIds.has(f.id)),
+    // Multi-item selection derived states (files and folders)
+    const selectableItems = $derived(allItems);
+    const allItemsSelected = $derived(
+        selectableItems.length > 0 &&
+            selectableItems.every((item) => selectedFileIds.has(item.id)),
     );
 
-    function toggleFileSelection(fileId: string, event: Event) {
+    function toggleItemSelection(itemId: string, event: Event) {
         event.stopPropagation();
         const newSet = new Set(selectedFileIds);
-        if (newSet.has(fileId)) {
-            newSet.delete(fileId);
+        if (newSet.has(itemId)) {
+            newSet.delete(itemId);
         } else {
-            newSet.add(fileId);
+            newSet.add(itemId);
         }
         selectedFileIds = newSet;
     }
 
     function toggleSelectAll(event: Event) {
         event.stopPropagation();
-        if (allFilesSelected) {
+        if (allItemsSelected) {
             // Deselect all
             selectedFileIds = new Set();
         } else {
-            // Select all files
+            // Select all items (files and folders)
             const newSet = new Set<string>();
-            for (const file of selectableFiles) {
-                newSet.add(file.id);
+            for (const item of selectableItems) {
+                newSet.add(item.id);
             }
             selectedFileIds = newSet;
         }
@@ -965,6 +964,42 @@
 
     function clearSelection() {
         selectedFileIds = new Set();
+    }
+
+    /**
+     * Recursively fetch all files from a folder, including subfolders.
+     * Returns an array of { file, path } where path is the folder path within the zip.
+     */
+    async function getAllFilesFromFolder(
+        folderId: string,
+        folderName: string,
+        basePath: string = ""
+    ): Promise<Array<{ file: any; path: string }>> {
+        const result: Array<{ file: any; path: string }> = [];
+        const currentPath = basePath ? `${basePath}/${folderName}` : folderName;
+
+        try {
+            const contents = await getFolderContents(folderId);
+
+            // Add all files in this folder with the current path
+            for (const file of contents.files || []) {
+                result.push({ file, path: currentPath });
+            }
+
+            // Recursively process subfolders
+            for (const subfolder of contents.folders || []) {
+                const subfolderFiles = await getAllFilesFromFolder(
+                    subfolder.id,
+                    subfolder.name,
+                    currentPath
+                );
+                result.push(...subfolderFiles);
+            }
+        } catch (error) {
+            console.error(`Error fetching contents of folder ${folderName}:`, error);
+        }
+
+        return result;
     }
 
     function resetDownloadProgress() {
@@ -983,20 +1018,25 @@
         if (selectedFileIds.size === 0) return;
 
         const token = localStorage.getItem("file_manager_auth_token");
-        const filesToDownload = selectableFiles.filter((f) =>
-            selectedFileIds.has(f.id),
+        
+        // Separate selected items into files and folders
+        const selectedItems = selectableItems.filter((item) =>
+            selectedFileIds.has(item.id),
         );
 
-        // Guard against stale selection - no matching files found
-        if (filesToDownload.length === 0) {
-            toast.info("No selected files found");
+        // Guard against stale selection - no matching items found
+        if (selectedItems.length === 0) {
+            toast.info("No selected items found");
             clearSelection();
             return;
         }
 
-        // If only one file, download directly without zipping
-        if (filesToDownload.length === 1) {
-            const file = filesToDownload[0];
+        const selectedFiles = selectedItems.filter((item) => item.type === "file");
+        const selectedFolders = selectedItems.filter((item) => item.type === "folder");
+
+        // If only one file and no folders, download directly without zipping
+        if (selectedFiles.length === 1 && selectedFolders.length === 0) {
+            const file = selectedFiles[0];
             const url = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
             const link = document.createElement("a");
             link.href = url;
@@ -1010,37 +1050,83 @@
             return;
         }
 
-        // Show download modal for multiple files
+        // Show download modal
         showDownloadModal = true;
         resetDownloadProgress();
 
         downloadProgress = {
             ...downloadProgress,
-            totalFiles: filesToDownload.length,
             status: "preparing",
-            downloadedFiles: filesToDownload.map((f) => ({
-                name: f.displayName || f.name,
-                size: f.size,
-                status: "pending" as const,
-            })),
+            currentFile: "Gathering files...",
+            downloadedFiles: [],
         };
 
         try {
+            // Build the list of all files to download with their paths
+            // Structure: { file, path } where path is the directory path in the zip
+            const allFilesToDownload: Array<{ file: any; path: string; displayName: string }> = [];
+
+            // Add directly selected files (at root level)
+            for (const file of selectedFiles) {
+                allFilesToDownload.push({
+                    file,
+                    path: "",
+                    displayName: file.displayName || file.name,
+                });
+            }
+
+            // Process selected folders - gather all files recursively
+            for (const folder of selectedFolders) {
+                downloadProgress = {
+                    ...downloadProgress,
+                    currentFile: `Scanning folder: ${folder.name}...`,
+                };
+
+                const folderFiles = await getAllFilesFromFolder(folder.id, folder.name, "");
+                for (const { file, path } of folderFiles) {
+                    allFilesToDownload.push({
+                        file,
+                        path,
+                        displayName: file.displayName || file.name,
+                    });
+                }
+            }
+
+            // Guard against empty result (folders might be empty)
+            if (allFilesToDownload.length === 0) {
+                toast.info("No files found in selected items");
+                showDownloadModal = false;
+                resetDownloadProgress();
+                clearSelection();
+                return;
+            }
+
+            // Update progress with actual file count
+            downloadProgress = {
+                ...downloadProgress,
+                totalFiles: allFilesToDownload.length,
+                status: "downloading",
+                downloadedFiles: allFilesToDownload.map(({ displayName, path }) => ({
+                    name: path ? `${path}/${displayName}` : displayName,
+                    size: 0, // Size not known for folder files until downloaded
+                    status: "pending" as const,
+                })),
+            };
+
             const zip = new JSZip();
-            const downloadedBlobs: Array<{ name: string; blob: Blob }> = [];
+            const downloadedBlobs: Array<{ name: string; path: string; blob: Blob }> = [];
 
             // Download files in batches
             for (
                 let i = 0;
-                i < filesToDownload.length;
+                i < allFilesToDownload.length;
                 i += DOWNLOAD_BATCH_SIZE
             ) {
-                const batch = filesToDownload.slice(i, i + DOWNLOAD_BATCH_SIZE);
+                const batch = allFilesToDownload.slice(i, i + DOWNLOAD_BATCH_SIZE);
 
                 // Mark batch files as downloading
                 downloadProgress = {
                     ...downloadProgress,
-                    status: "downloading",
                     downloadedFiles: downloadProgress.downloadedFiles.map(
                         (f, idx) => ({
                             ...f,
@@ -1053,7 +1139,7 @@
                 };
 
                 // Download batch in parallel
-                const batchPromises = batch.map(async (file, batchIdx) => {
+                const batchPromises = batch.map(async ({ file, path, displayName }, batchIdx) => {
                     const globalIdx = i + batchIdx;
                     const url = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
 
@@ -1063,7 +1149,7 @@
                     }
 
                     const blob = await response.blob();
-                    return { name: file.displayName || file.name, blob, globalIdx };
+                    return { name: displayName, path, blob, globalIdx };
                 });
 
                 const settledResults = await Promise.allSettled(batchPromises);
@@ -1072,19 +1158,23 @@
                 for (let batchIdx = 0; batchIdx < settledResults.length; batchIdx++) {
                     const result = settledResults[batchIdx];
                     const globalIdx = i + batchIdx;
-                    const file = batch[batchIdx];
-                    const fileName = file.displayName || file.name;
+                    const { displayName, path } = batch[batchIdx];
+                    const fullName = path ? `${path}/${displayName}` : displayName;
 
                     if (result.status === "fulfilled") {
                         // Success - add to downloadedBlobs and mark as done
-                        downloadedBlobs.push({ name: result.value.name, blob: result.value.blob });
+                        downloadedBlobs.push({ 
+                            name: result.value.name, 
+                            path: result.value.path,
+                            blob: result.value.blob 
+                        });
                         
                         downloadProgress = {
                             ...downloadProgress,
-                            currentFile: fileName,
+                            currentFile: fullName,
                             currentFileIndex: globalIdx + 1,
                             overallProgress: Math.round(
-                                ((globalIdx + 1) / filesToDownload.length) * 80,
+                                ((globalIdx + 1) / allFilesToDownload.length) * 80,
                             ), // 80% for downloads, 20% for zipping
                             downloadedFiles:
                                 downloadProgress.downloadedFiles.map(
@@ -1099,14 +1189,14 @@
                         const errorMessage = result.reason instanceof Error 
                             ? result.reason.message 
                             : "Unknown error";
-                        console.error(`Error downloading ${fileName}:`, result.reason);
+                        console.error(`Error downloading ${fullName}:`, result.reason);
                         
                         downloadProgress = {
                             ...downloadProgress,
-                            currentFile: fileName,
+                            currentFile: fullName,
                             currentFileIndex: globalIdx + 1,
                             overallProgress: Math.round(
-                                ((globalIdx + 1) / filesToDownload.length) * 80,
+                                ((globalIdx + 1) / allFilesToDownload.length) * 80,
                             ),
                             downloadedFiles:
                                 downloadProgress.downloadedFiles.map(
@@ -1146,35 +1236,83 @@
             };
 
             // Add all successfully downloaded files to zip with unique filenames
-            const usedFilenames = new Set<string>();
+            // Track used full paths to handle collisions
+            const usedPaths = new Set<string>();
             
-            function getUniqueFilename(originalName: string): string {
-                if (!usedFilenames.has(originalName)) {
-                    usedFilenames.add(originalName);
-                    return originalName;
+            /**
+             * Sanitize a filename to prevent path traversal and invalid paths.
+             */
+            function sanitizeFilename(rawName: string): string {
+                let name = rawName;
+                name = name.replace(/^[a-zA-Z]:/, '');
+                name = name.replace(/\\/g, '/');
+                name = name.replace(/\.\./g, '');
+                const lastSlashIndex = name.lastIndexOf('/');
+                if (lastSlashIndex !== -1) {
+                    name = name.slice(lastSlashIndex + 1);
+                }
+                name = name.replace(/[/\\]/g, '');
+                name = name.replace(/^[.\s]+/, '');
+                name = name.trim();
+                // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentional removal of control chars
+                name = name.replace(/[\x00-\x1f\x7f]/g, '');
+                if (!name) {
+                    name = 'file';
+                }
+                return name;
+            }
+
+            /**
+             * Sanitize a folder path component
+             */
+            function sanitizePath(rawPath: string): string {
+                if (!rawPath) return "";
+                // Split path, sanitize each component, rejoin
+                const parts = rawPath.split('/').filter(Boolean);
+                const sanitizedParts = parts.map(part => {
+                    let p = part;
+                    p = p.replace(/\.\./g, '');
+                    p = p.replace(/[\\:*?"<>|]/g, '');
+                    p = p.replace(/^[.\s]+/, '');
+                    p = p.trim();
+                    return p || 'folder';
+                });
+                return sanitizedParts.join('/');
+            }
+            
+            function getUniqueFilePath(originalPath: string, originalName: string): string {
+                const sanitizedPath = sanitizePath(originalPath);
+                const sanitizedName = sanitizeFilename(originalName);
+                const fullPath = sanitizedPath ? `${sanitizedPath}/${sanitizedName}` : sanitizedName;
+                
+                if (!usedPaths.has(fullPath)) {
+                    usedPaths.add(fullPath);
+                    return fullPath;
                 }
                 
                 // Split name into base and extension
-                const lastDotIndex = originalName.lastIndexOf('.');
-                const hasExtension = lastDotIndex > 0 && lastDotIndex < originalName.length - 1;
-                const baseName = hasExtension ? originalName.slice(0, lastDotIndex) : originalName;
-                const extension = hasExtension ? originalName.slice(lastDotIndex) : '';
+                const lastDotIndex = sanitizedName.lastIndexOf('.');
+                const hasExtension = lastDotIndex > 0 && lastDotIndex < sanitizedName.length - 1;
+                const baseName = hasExtension ? sanitizedName.slice(0, lastDotIndex) : sanitizedName;
+                const extension = hasExtension ? sanitizedName.slice(lastDotIndex) : '';
                 
                 // Find a unique name by incrementing suffix
                 let counter = 1;
                 let uniqueName = `${baseName} (${counter})${extension}`;
-                while (usedFilenames.has(uniqueName)) {
+                let uniqueFullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
+                while (usedPaths.has(uniqueFullPath)) {
                     counter++;
                     uniqueName = `${baseName} (${counter})${extension}`;
+                    uniqueFullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
                 }
                 
-                usedFilenames.add(uniqueName);
-                return uniqueName;
+                usedPaths.add(uniqueFullPath);
+                return uniqueFullPath;
             }
             
-            for (const { name, blob } of downloadedBlobs) {
-                const uniqueName = getUniqueFilename(name);
-                zip.file(uniqueName, blob);
+            for (const { name, path, blob } of downloadedBlobs) {
+                const uniqueFullPath = getUniqueFilePath(path, name);
+                zip.file(uniqueFullPath, blob);
             }
 
             downloadProgress = {
@@ -1224,7 +1362,7 @@
 
             // Show appropriate toast message
             if (failedCount > 0) {
-                toast.success(`Downloaded ${successCount} of ${filesToDownload.length} files as zip (${failedCount} failed)`);
+                toast.success(`Downloaded ${successCount} of ${allFilesToDownload.length} files as zip (${failedCount} failed)`);
             } else {
                 toast.success(`Downloaded ${successCount} files as zip`);
             }
@@ -1457,14 +1595,14 @@
                             >
                                 <input
                                     type="checkbox"
-                                    checked={allFilesSelected &&
-                                        selectableFiles.length > 0}
-                                    disabled={selectableFiles.length === 0}
+                                    checked={allItemsSelected &&
+                                        selectableItems.length > 0}
+                                    disabled={selectableItems.length === 0}
                                     onclick={toggleSelectAll}
                                     class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                    title={allFilesSelected
+                                    title={allItemsSelected
                                         ? "Deselect all"
-                                        : "Select all files"}
+                                        : "Select all items"}
                                 />
                             </th>
                             <th
@@ -1495,13 +1633,7 @@
                     >
                         {#each allItems as item}
                             <tr
-                                class="hover:bg-gray-50 transition-colors cursor-pointer {item.type ===
-                                'folder'
-                                    ? ''
-                                    : ''} {item.type === 'file' &&
-                                selectedFileIds.has(item.id)
-                                    ? 'bg-blue-50'
-                                    : ''}"
+                                class="hover:bg-gray-50 transition-colors cursor-pointer {selectedFileIds.has(item.id) ? 'bg-blue-50' : ''}"
                                 onclick={(e) => {
                                     e.stopPropagation();
                                     if (item.type === "folder") {
@@ -1515,18 +1647,13 @@
                                 <td
                                     class="px-2 sm:px-3 py-4 whitespace-nowrap text-center w-8 sm:w-10"
                                 >
-                                    {#if item.type === "file"}
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedFileIds.has(
-                                                item.id,
-                                            )}
-                                            onclick={(e) =>
-                                                toggleFileSelection(item.id, e)}
-                                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                                            title="Select for download"
-                                        />
-                                    {/if}
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedFileIds.has(item.id)}
+                                        onclick={(e) => toggleItemSelection(item.id, e)}
+                                        class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                                        title={item.type === "folder" ? "Select folder for download" : "Select for download"}
+                                    />
                                 </td>
                                 <td
                                     class="px-4 sm:px-6 py-4 whitespace-nowrap w-full sm:w-auto"
