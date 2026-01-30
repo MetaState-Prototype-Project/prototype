@@ -9,15 +9,15 @@ This guide will help you get started building platforms in the metastate ecosyst
 ## Overview
 
 Platforms in the metastate ecosystem follow a standard architecture pattern:
-1. **Authentication** - Users authenticate using their W3ID (Web3 Identity) via the `w3ds://auth` protocol
-2. **Webhooks** - Platform data syncs from the global eVault system via webhooks
-3. **Mappings** - Data transformation between global ontology and local database schemas
+1. **[Authentication](/docs/W3DS%20Protocol/Authentication)** — Users authenticate using their W3ID (Web3 Identity) via the `w3ds://auth` protocol
+2. **[Webhooks](/docs/Post%20Platform%20Guide/webhook-controller)** — Platform data syncs from the global eVault system via webhooks
+3. **[Mappings](/docs/Post%20Platform%20Guide/mapping-rules)** — Data transformation between global ontology and local database schemas
 
 This document focuses on authentication. For webhooks and mappings, see the other documentation files.
 
 ## Authentication
 
-All platforms use a signature-based authentication system that leverages users' existing ename and keys attached to that. The authentication flow follows the `w3ds://auth` protocol.
+All platforms use a signature-based authentication system that leverages users' existing ename and keys attached to that. The authentication flow follows the [`w3ds://auth`](/docs/W3DS%20Protocol/Authentication) protocol.
 
 ### Authentication Flow
 
@@ -55,7 +55,7 @@ getOffer = async (req: Request, res: Response) => {
 }
 ```
 
-The client opens this URL in a w3ds-compatible client (like eID Wallet), which handles the user's signature and redirects back to your platform.
+The client opens this URL in a w3ds-compatible client (like the [eID Wallet](/docs/Infrastructure/eID-Wallet)), which handles the user's signature and redirects back to your platform.
 
 #### 2. Login Endpoint (`POST /api/auth`)
 
@@ -76,7 +76,7 @@ This endpoint receives the authentication result from the w3ds client and verifi
 login = async (req: Request, res: Response) => {
     const { ename, session, signature } = req.body;
     
-    // Verify signature using signature-validator
+    // Verify signature using signature-validator (see [Signing](/docs/W3DS%20Protocol/Signing) / [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats))
     const verificationResult = await verifySignature({
         eName: ename,
         signature: signature,
@@ -96,7 +96,7 @@ login = async (req: Request, res: Response) => {
     if (!user) {
         return res.status(404).json({ 
             error: "User not found",
-            message: "User must be created via eVault webhook before authentication" 
+            message: "User must be created via [eVault](/docs/Infrastructure/eVault) [webhook](/docs/Post%20Platform%20Guide/webhook-controller) before authentication" 
         });
     }
     
@@ -112,11 +112,11 @@ login = async (req: Request, res: Response) => {
 
 **Key points:**
 - The `session` string is what was signed by the user
-- Signature verification uses the `signature-validator` package, which:
-  - Fetches the user's public key from their eVault
+- Signature verification uses the `signature-validator` package (see [Signing](/docs/W3DS%20Protocol/Signing)), which:
+  - Fetches the user's public key from their [eVault](/docs/Infrastructure/eVault)
   - Verifies the signature using Web Crypto API
   - Supports multiple signature formats (multibase, base64, etc.)
-- Users must exist in your database before they can authenticate (created via webhooks)
+- Users must exist in your database before they can authenticate (created via [webhooks](/docs/Post%20Platform%20Guide/webhook-controller))
 - The JWT token contains the `userId` and expires in 7 days
 
 #### 3. JWT Token Generation
@@ -216,4 +216,14 @@ JWT_SECRET=your-secret-key-here
 
 # Registry base URL for signature verification
 PUBLIC_REGISTRY_URL=https://registry.example.com
+
+## References
+
+- [Authentication](/docs/W3DS%20Protocol/Authentication) — w3ds://auth protocol
+- [Signing](/docs/W3DS%20Protocol/Signing) — Signature creation and verification
+- [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) — Cryptographic details
+- [Webhook Controller](/docs/Post%20Platform%20Guide/webhook-controller) — Receiving webhooks
+- [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) — Schema mapping
+- [eVault](/docs/Infrastructure/eVault) — Storage and key binding
+- [Registry](/docs/Infrastructure/Registry) — W3ID resolution and JWKS
 

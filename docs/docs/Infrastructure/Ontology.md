@@ -4,13 +4,13 @@ sidebar_position: 5
 
 # Ontology
 
-The Ontology service is the schema registry for W3DS. It serves JSON Schema (draft-07) definitions identified by a UUID (`schemaId`). eVault uses these schema IDs in MetaEnvelopes to indicate the type of stored data and to map envelope fields to schema property names.
+The Ontology service is the schema registry for W3DS. It serves JSON Schema (draft-07) definitions identified by a W3ID (`schemaId`). eVault uses these schema IDs in MetaEnvelopes to indicate the type of stored data and to map envelope fields to schema property names.
 
 ## Overview
 
 - **Schema registry**: Schemas define the shape of data stored in eVault (posts, users, messages, votes, etc.).
-- **Schema IDs**: Each schema has a unique `schemaId` (UUID). eVault’s MetaEnvelope `ontology` field stores this UUID; each Envelope’s `ontology` field stores the **property name** from the schema (e.g. `content`, `authorId`, `createdAt`).
-- **API**: List schemas and fetch a schema by UUID as raw JSON. A human-facing viewer is also available at the service root.
+- **Schema IDs**: Each schema has a unique `schemaId` (W3ID). eVault’s MetaEnvelope `ontology` field stores this W3ID; each Envelope’s `ontology` field stores the **property name** from the schema (e.g. `content`, `authorId`, `createdAt`).
+- **API**: List schemas and fetch a schema by W3ID as raw JSON. A human-facing viewer is also available at the service root.
 
 See [eVault — Data Model](/docs/Infrastructure/eVault#data-model) for how MetaEnvelopes and Envelopes use ontology.
 
@@ -29,33 +29,33 @@ Returns a list of all available schemas.
 ]
 ```
 
-- `id`: Schema UUID (`schemaId`).
+- `id`: Schema W3ID (`schemaId`).
 - `title`: Human-readable schema title.
 
-### GET /schemas/:uuid
+### GET /schemas/:id
 
-Returns the full JSON Schema for the given UUID. Use this when you need the complete schema definition (e.g. for validation or to know required fields and types).
+Returns the full JSON Schema for the given W3ID. Use this when you need the complete schema definition (e.g. for validation or to know required fields and types).
 
-**Path parameter**: `uuid` — the schema’s `schemaId` (e.g. `550e8400-e29b-41d4-a716-446655440001`).
+**Path parameter**: `id` — the schema’s `schemaId` (W3ID, e.g. `550e8400-e29b-41d4-a716-446655440001`).
 
 **Response** (200): JSON Schema object (draft-07) with `schemaId`, `title`, `type`, `properties`, `required`, `additionalProperties`, etc.
 
 **Errors**:
 
-- **404**: Schema not found for the given UUID.
+- **404**: Schema not found for the given W3ID.
 
 ### Human-facing viewer
 
-- **GET /** — Renders a viewer page that lists schemas and supports search. Optional query `?q=...` filters by title or ID; `?schema=<uuid>` shows one schema.
-- **GET /schema/:uuid** — Same viewer with a specific schema selected (permalink).
+- **GET /** — Renders a viewer page that lists schemas and supports search. Optional query `?q=...` filters by title or ID; `?schema=<id>` shows one schema.
+- **GET /schema/:id** — Same viewer with a specific schema selected (permalink).
 
-These endpoints are for browsing in a browser; for integration use `GET /schemas` and `GET /schemas/:uuid`.
+These endpoints are for browsing in a browser; for integration use `GET /schemas` and `GET /schemas/:id`.
 
 ## Schema format
 
 Each schema file is JSON Schema draft-07 and must include:
 
-- **schemaId**: UUID that uniquely identifies the schema (used in eVault MetaEnvelopes).
+- **schemaId**: W3ID that uniquely identifies the schema (used in eVault MetaEnvelopes).
 - **title**: Short name (e.g. `SocialMediaPost`, `User`).
 - **type**: Typically `"object"`.
 - **properties**: Map of property names to JSON Schema types (string, number, array, object, etc.). In eVault, each property becomes an Envelope whose `ontology` field is this property name.
@@ -71,8 +71,8 @@ Example (conceptually):
     "title": "SocialMediaPost",
     "type": "object",
     "properties": {
-        "id": { "type": "string", "format": "uuid" },
-        "authorId": { "type": "string", "format": "uuid" },
+        "id": { "type": "string", "format": "uri", "description": "W3ID" },
+        "authorId": { "type": "string", "format": "uri", "description": "W3ID" },
         "content": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
     },
@@ -85,31 +85,12 @@ In eVault, a MetaEnvelope for a post would have `ontology: "550e8400-e29b-41d4-a
 
 ## Available schemas
 
-The Ontology service ships with the following schemas (titles and typical use):
-
-| Title | Purpose |
-|-------|---------|
-| User | User profile and identity |
-| SocialMediaPost | Social posts (content, author, media, visibility) |
-| Chat | Chat/conversation metadata |
-| Message | Chat or direct messages |
-| Currency | Currency definition (eCurrency) |
-| Ledger | Ledger entries |
-| Vote | Voting / ballot choices |
-| Poll | Poll definition |
-| File | File metadata |
-| Signature (fileSignature) | File signature |
-| Charter Signature | Charter signing |
-| GroupManifest | Group manifest |
-| Reference | Reference/link |
-| Bookmark | Bookmark |
-
-For the full list and latest schemas, query `GET /schemas` on the [Ontology production service](/docs/W3DS%20Basics/Links) or see the schemas in the repository under `services/ontology/schemas/`.
+To see all available schemas, call `GET /schemas` on the [Ontology production service](/docs/W3DS%20Basics/Links) or browse the [viewer](https://ontology.w3ds.metastate.foundation/) at the production base URL.
 
 ## Integration
 
-- **eVault**: Stores `schemaId` in MetaEnvelope `ontology` and property names in Envelope `ontology`. Platforms and clients use the Ontology service to resolve UUIDs to full schemas for validation and display. See [eVault](/docs/Infrastructure/eVault).
-- **Platforms**: Use schema IDs when calling eVault (e.g. `storeMetaEnvelope`, `findMetaEnvelopesByOntology`) and fetch schemas from the Ontology service when they need field definitions or validation.
+- **eVault**: Stores `schemaId` in MetaEnvelope `ontology` and property names in Envelope `ontology`. Platforms and clients use the Ontology service to resolve schema W3IDs to full schemas for validation and display. See [eVault](/docs/Infrastructure/eVault).
+- **Platforms**: Use schema IDs when calling eVault (e.g. `storeMetaEnvelope`, `findMetaEnvelopesByOntology`) and fetch schemas from the Ontology service when they need field definitions or validation. See [Post Platform Guide](/docs/Post%20Platform%20Guide/getting-started) and [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules).
 
 ## References
 

@@ -8,7 +8,7 @@ eVault is the core storage system for W3DS. It provides a GraphQL API for storin
 
 ## Overview
 
-An **eVault** is a personal data store identified by a **W3ID**. Each user, group, or object has their own eVault where all their data is stored in a standardized format called **MetaEnvelopes**.
+An **eVault** is a personal data store identified by a [W3ID](/docs/W3DS%20Basics/W3ID). Each user, group, or object has their own eVault where all their data is stored in a standardized format called **MetaEnvelopes**.
 
 ### Key Features
 
@@ -40,7 +40,7 @@ graph TB
     end
 
     subgraph External["External Services"]
-        Registry[Registry Service<br/>W3ID Resolution]
+        Registry[Registry<br/>W3ID Resolution]
     end
 
     Platform -->|GraphQL Mutations/Queries| GraphQL
@@ -63,8 +63,8 @@ graph TB
 
 A **MetaEnvelope** is the top-level container for an entity (post, user, message, etc.). It contains:
 
-- **id**: Unique identifier (UUID). Note: Only IDs registered in the Registry are guaranteed to be globally unique.
-- **ontology**: Schema identifier (UUID, e.g., "550e8400-e29b-41d4-a716-446655440001"). Ontology UUIDs can be resolved to their schema definitions via the ontology service. See [W3DS Basics](/docs/W3DS%20Basics/getting-started) for more information on ontology schemas.
+- **id**: Unique identifier (W3ID). Note: Only IDs registered in the Registry are guaranteed to be globally unique.
+- **ontology**: Schema identifier (W3ID, e.g., "550e8400-e29b-41d4-a716-446655440001"). Schema W3IDs can be resolved to their schema definitions via the [Ontology](/docs/Infrastructure/Ontology) service. See [W3DS Basics](/docs/W3DS%20Basics/getting-started) for more information on ontology schemas.
 - **acl**: Access Control List (who can access this data)
 - **envelopes**: Array of individual Envelope nodes
 
@@ -303,7 +303,7 @@ ACLs are arrays of W3IDs or special values:
 
 The Access Guard middleware enforces ACLs:
 
-1. **Extract W3ID**: From `X-ENAME` header or Bearer token
+1. **Extract W3ID**: From `X-ENAME` header or [Bearer token](/docs/W3DS%20Protocol/Authentication)
 2. **Check ACL**: Verify the requesting W3ID is in the MetaEnvelope's ACL
 3. **Filter Results**: Remove ACL field from responses (security)
 4. **Allow/Deny**: Grant or deny access based on ACL
@@ -322,9 +322,9 @@ When data is stored or updated, eVault automatically sends webhooks to all regis
 
 1. **Data Stored**: MetaEnvelope is stored in Neo4j
 2. **Wait 3 Seconds**: Delay prevents webhook ping-pong (same platform receiving its own webhook)
-3. **Get Active Platforms**: Query Registry for list of active platforms
+3. **Get Active Platforms**: Query [Registry](/docs/Infrastructure/Registry) for list of active platforms
 4. **Filter Requesting Platform**: Exclude the platform that made the request
-5. **Send Webhooks**: POST to each platform's `/api/webhook` endpoint
+5. **Send Webhooks**: POST to each platform's `/api/webhook` endpoint (see [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller))
 
 ### Webhook Payload
 
@@ -354,9 +354,9 @@ When data is stored or updated, eVault automatically sends webhooks to all regis
 
 eVault stores public keys for users and issues **key binding certificates** (JWTs) that bind public keys to W3IDs. These certificates serve two important purposes:
 
-1. **Tamper Protection**: Even if HTTPS is not used (though it should be), the JWT signature prevents tampering with public keys in transit. The Registry signs each certificate, ensuring the public key hasn't been modified.
+1. **Tamper Protection**: Even if HTTPS is not used (though it should be), the JWT signature prevents tampering with public keys in transit. The [Registry](/docs/Infrastructure/Registry) signs each certificate, ensuring the public key hasn't been modified.
 
-2. **Registry Accountability**: The Registry is accountable for the W3ID-to-public-key binding. By signing the certificates, the Registry attests to the binding between a W3ID and a public key, preventing spoofing of W3ID resolution.
+2. **Registry Accountability**: The [Registry](/docs/Infrastructure/Registry) is accountable for the W3ID-to-public-key binding. By signing the certificates, the Registry attests to the binding between a W3ID and a public key, preventing spoofing of W3ID resolution.
 
 ### Certificate Structure
 
@@ -423,5 +423,10 @@ curl -X GET http://localhost:4000/whois \
 ## References
 
 - [W3DS Basics](/docs/W3DS%20Basics/getting-started) - Understanding eVault ownership
+- [W3ID](/docs/W3DS%20Basics/W3ID) - Identifiers and eName resolution
+- [Registry](/docs/Infrastructure/Registry) - W3ID resolution and key binding
+- [Ontology](/docs/Infrastructure/Ontology) - Schema registry
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) - Key management and provisioning
+- [Links](/docs/W3DS%20Basics/Links) - Production service URLs
 - [Authentication](/docs/W3DS%20Protocol/Authentication) - How platforms authenticate users
 - [Signing](/docs/W3DS%20Protocol/Signing) - Signature verification using eVault keys

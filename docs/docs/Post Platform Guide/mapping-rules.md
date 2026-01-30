@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Mapping Rules
 
-This document explains how to create mappings for the web3-adapter system, which enables data exchange between different platforms using a universal ontology.
+This document explains how to create mappings for the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) system, which enables data exchange between different platforms using the [universal ontology](/docs/Infrastructure/Ontology).
 
 ## Basic Structure
 
@@ -13,7 +13,7 @@ A mapping file defines how local database fields map to global ontology fields. 
 ```json
 {
     "tableName": "local_table_name",
-    "schemaId": "global_schema_uuid",
+    "schemaId": "global_schema_w3id",
     "ownerEnamePath": "path_to_owner_ename",
     "ownedJunctionTables": ["junction_table1", "junction_table2"],
     "localToUniversalMap": {
@@ -94,7 +94,7 @@ Performs mathematical calculations using field values.
 
 ## Owner Path
 
-The `ownerEnamePath` defines how to determine which eVault owns the data:
+The `ownerEnamePath` defines how to determine which [eVault](/docs/Infrastructure/eVault) owns the data (via the owner's [eName](/docs/W3DS%20Basics/W3ID)):
 
 ```json
 "ownerEnamePath": "ename"                    // Direct field
@@ -180,4 +180,10 @@ When junction table data changes, it triggers updates to the parent entity.
 - Verify that all referenced tables have mappings
 - Test with simple data first, then add complexity
 - Use the `__calc()` function to debug field values
+
+## References
+
+- [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) — Bridge between platform DB and eVault
+- [Ontology](/docs/Infrastructure/Ontology) — Schema registry and schemaIds
+- [Webhook Controller](/docs/Post%20Platform%20Guide/webhook-controller) — Using mappings for inbound webhooks
 

@@ -4,11 +4,11 @@ sidebar_position: 3
 
 # Signature Formats
 
-This document explains the signature formats used in the eID wallet and how to verify signatures using public keys from eVault.
+This document explains the signature formats used in the [eID wallet](/docs/Infrastructure/eID-Wallet) and how to verify signatures using public keys from [eVault](/docs/Infrastructure/eVault).
 
 ## Overview
 
-Signatures in the eID wallet are created using ECDSA P-256 with SHA-256 hashing. The signature format varies depending on whether a hardware or software key is used. All signatures can be verified using the public keys stored in eVault.
+Signatures in the eID wallet are created using ECDSA P-256 with SHA-256 hashing. The signature format varies depending on whether a hardware or software key is used. All signatures can be verified using the public keys stored in [eVault](/docs/Infrastructure/eVault).
 
 ## Signature Formats
 
@@ -84,7 +84,7 @@ The public key can be in two formats:
 
 ### Verification Flow
 
-The verification process retrieves the public key from eVault and verifies the signature:
+The verification process retrieves the public key from [eVault](/docs/Infrastructure/eVault) and verifies the signature (see [Registry](/docs/Infrastructure/Registry) for resolution and JWKS):
 
 ```mermaid
 sequenceDiagram
@@ -321,12 +321,12 @@ The provisioning process creates an eVault tied to your generated public key:
    - Receive JWT token containing entropy value
 
 2. **Generate Namespace**
-   - Create a UUID v4 for the namespace identifier
+   - Create a unique identifier for the namespace
 
 3. **Provision eVault**
    - Send POST request to Provisioner `/provision` endpoint with:
      - `registryEntropy`: JWT token from step 1
-     - `namespace`: UUID from step 2
+     - `namespace`: Identifier from step 2
      - `verificationId`: Verification code (demo code or your verification ID)
      - `publicKey`: Multibase-encoded public key from key generation
    - Provisioner validates entropy, generates W3ID, creates eVault, stores public key, and requests key binding certificate from Registry
@@ -567,6 +567,11 @@ This workflow enables full desktop-based development and testing of authenticati
 
 ## References
 
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and signature creation
+- [eVault](/docs/Infrastructure/eVault) — Public keys and key binding certificates
+- [Registry](/docs/Infrastructure/Registry) — JWKS for JWT verification
+- [Signing](/docs/W3DS%20Protocol/Signing) — Verification flow
+- [Authentication](/docs/W3DS%20Protocol/Authentication) — How platforms verify signatures
 - [ECDSA Specification](https://tools.ietf.org/html/rfc6979)
 - [Multibase Encoding](https://github.com/multiformats/multibase)
 - [JWT Specification](https://tools.ietf.org/html/rfc7519)

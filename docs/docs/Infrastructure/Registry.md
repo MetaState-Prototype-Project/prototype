@@ -147,11 +147,14 @@ Entropy and key binding tokens are JWTs signed with ES256; structure is describe
 ## Integration
 
 - **eVault**: Calls Registry to resolve W3IDs (access control, webhook targets), and uses key binding certificates for `/whois`. See [eVault](/docs/Infrastructure/eVault) and [Authentication](/docs/W3DS%20Protocol/Authentication).
-- **eID Wallet**: Uses `/entropy` during provisioning. Verifies JWTs using `/.well-known/jwks.json`.
-- **Platforms**: Use `/resolve` and `/list` for discovery. Verify tokens with the Registry’s JWKS.
+- **[eID Wallet](/docs/Infrastructure/eID-Wallet)**: Uses `/entropy` during provisioning. Verifies JWTs using `/.well-known/jwks.json`.
+- **Platforms**: Use `/resolve` and `/list` for discovery; see [Post Platform Guide](/docs/Post%20Platform%20Guide/getting-started). Verify tokens with the Registry’s JWKS.
 
 ## References
 
 - [eVault](/docs/Infrastructure/eVault) — Resolution, key binding, and webhook delivery
+- [eID Wallet](/docs/Infrastructure/eID-Wallet) — Provisioning and entropy
+- [W3ID](/docs/W3DS%20Basics/W3ID) — Identifiers and eName resolution
+- [Links](/docs/W3DS%20Basics/Links) — Production Registry URL
 - [Authentication](/docs/W3DS%20Protocol/Authentication) — How platforms authenticate users
 - [Signing](/docs/W3DS%20Protocol/Signing) — Signature verification using eVault keys

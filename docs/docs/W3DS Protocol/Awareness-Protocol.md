@@ -8,11 +8,11 @@ sidebar_position: 4
 The Awareness Protocol described here is **prototype-level**. The packet format, delivery behavior, and platform contract are subject to change in upcoming updates
 :::
 
-The Awareness Protocol is the webhook delivery mechanism in W3DS. When data in an eVault changes (create or update), the eVault notifies every registered platforms so they can stay in sync. "Awareness" means platforms become aware of changes that happened elsewhere.
+The Awareness Protocol is the webhook delivery mechanism in W3DS. When data in an [eVault](/docs/Infrastructure/eVault) changes (create or update), the eVault notifies every registered platform so they can stay in sync. "Awareness" means platforms become aware of changes that happened elsewhere.
 
 ## Overview
 
-Platforms do not poll eVaults for changes. Instead, eVault Core pushes change notifications to every registered platform (except the one that originated the change) via HTTP POST to each platform's `/api/webhook` endpoint. The payload is called an **awareness protocol packet**. Platforms use this packet to apply the same change locally (e.g. create or update an entity in their database) and to maintain ID mappings between global and local IDs.
+Platforms do not poll eVaults for changes. Instead, [eVault](/docs/Infrastructure/eVault) Core pushes change notifications to every registered platform (except the one that originated the change) via HTTP POST to each platform's `/api/webhook` endpoint. The payload is called an **awareness protocol packet**. Platforms use this packet to apply the same change locally (e.g. create or update an entity in their database) and to maintain ID mappings between global and local IDs.
 
 ### Key Properties
 
@@ -25,8 +25,8 @@ Platforms do not poll eVaults for changes. Instead, eVault Core pushes change no
 
 The Awareness Protocol is triggered after:
 
-1. **storeMetaEnvelope** (create): After the new MetaEnvelope is stored in the eVault, webhooks are **scheduled with a 3-second delay** to ensure the requesting platform can be reliably identified and excluded from recipients, preventing the same platform from receiving its own write-back and creating a feedback loop ("webhook ping-pong").
-2. **updateMetaEnvelopeById** (update): After the MetaEnvelope is updated, webhooks are sent **immediately** (fire-and-forget, no delay).
+1. **[storeMetaEnvelope](/docs/Infrastructure/eVault#graphql-api)** (create): After the new MetaEnvelope is stored in the eVault, webhooks are **scheduled with a 3-second delay** to ensure the requesting platform can be reliably identified and excluded from recipients, preventing the same platform from receiving its own write-back and creating a feedback loop ("webhook ping-pong").
+2. **[updateMetaEnvelopeById](/docs/Infrastructure/eVault#graphql-api)** (update): After the MetaEnvelope is updated, webhooks are sent **immediately** (fire-and-forget, no delay).
 
 ## Mechanism
 
@@ -53,7 +53,7 @@ sequenceDiagram
 
 ### Step-by-Step
 
-1. **Platform list**: eVault calls the Registry with `GET /platforms` and receives a list of platform base URLs (e.g. `["https://blabsy.example.com", "https://pictique.example.com", ...]`).
+1. **Platform list**: [eVault](/docs/Infrastructure/eVault) calls the [Registry](/docs/Infrastructure/Registry) with `GET /platforms` and receives a list of platform base URLs (e.g. `["https://blabsy.example.com", "https://pictique.example.com", ...]`).
 2. **Filter**: The requesting platform is removed from the list. The requestor is identified from the Bearer token's `platform` claim (the platform URL that was certified when the token was issued). URL comparison is normalized so that equivalent URLs are treated as the same.
 3. **Delivery**: For each remaining URL, the eVault sends `POST {platformUrl}/api/webhook` with the awareness protocol payload. Each request has a 5-second timeout. Requests are sent in parallel (`Promise.allSettled`); if one fails, others still run, and failures are logged without blocking the mutation.
 
@@ -65,8 +65,8 @@ The body of each webhook request is JSON with the following fields:
 |-------|-------------|
 | `id` | MetaEnvelope ID (W3ID). |
 | `w3id` | Owner eName (eVault owner W3ID). |
-| `schemaId` | Ontology/schema UUID (identifies the type of entity and which mapping the platform should use). |
-| `data` | The entity payload in the **global ontology** shape (parsed key-value structure). |
+| `schemaId` | [Ontology](/docs/Infrastructure/Ontology) schema W3ID (identifies the type of entity and which mapping the platform should use). |
+| `data` | The entity payload in the **global ontology** shape (parsed key-value structure). See [eVault](/docs/Infrastructure/eVault) for MetaEnvelope storage. |
 
 In the current version of the implementation the entire payload is sent in
 plain text to any registered platform, so all data is sent to every platform and
@@ -99,7 +99,7 @@ Platforms that participate in W3DS must implement an HTTP endpoint that accepts 
 
 - **Method and path**: `POST /api/webhook`
 - **Request**: JSON body as described above.
-- **Behavior**: The platform should (1) use `schemaId` to find the correct mapping from global ontology to local schema, (2) transform `data` from global to local format (e.g. using the Web3 Adapter's `fromGlobal`), (3) resolve or create the local entity and store the global-ID-to-local-ID mapping, (4) return HTTP 200 on success.
+- **Behavior**: The platform should (1) use `schemaId` to find the correct mapping from global ontology to local schema, (2) transform `data` from global to local format (e.g. using the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter)'s `fromGlobal`), (3) resolve or create the local entity and store the global-ID-to-local-ID mapping, (4) return HTTP 200 on success.
 - **Idempotency**: Implementors are encouraged to treat the same `id` (global ID) as idempotent (create or update the same local entity) so that duplicate or retried deliveries do not create duplicates.
 
 For a step-by-step implementation guide, see the [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) in the Post Platform Guide.
@@ -114,3 +114,11 @@ The current protocol has  limitations which are going to be improved in subseque
 - **Platform list from Registry**: The set of recipients is whatever the Registry returns for `GET /platforms`.  This is a prototype level shortcut and will be phased out.
 
 Designing retries, ordering, or delivery guarantees would be natural extension points for a production-grade awareness mechanism.
+
+## References
+
+- [eVault](/docs/Infrastructure/eVault) — Webhook delivery and GraphQL API
+- [Registry](/docs/Infrastructure/Registry) — Platform list (prototype)
+- [Ontology](/docs/Infrastructure/Ontology) — Schema IDs
+- [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) — `fromGlobal` and mapping
+- [Webhook Controller Guide](/docs/Post%20Platform%20Guide/webhook-controller) — Implementation

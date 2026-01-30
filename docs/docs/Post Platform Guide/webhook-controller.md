@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Webhook Controller Guide
 
-The webhook controller receives awareness protocol packets from the eVault system and saves them to your local database.
+The webhook controller receives [awareness protocol](/docs/W3DS%20Protocol/Awareness-Protocol) packets from the [eVault](/docs/Infrastructure/eVault) system and saves them to your local database.
 
 ## What the Webhook Receives
 
@@ -13,7 +13,7 @@ The webhook endpoint (`POST /api/webhook`) receives awareness protocol packets w
 ```json
 {
   "id": "global-id-123",
-  "schemaId": "uuid-of-schema",
+  "schemaId": "schema-w3id",
   "w3id": "https://evault.example.com/users/123",
   "data": {
     "displayName": "John Doe",
@@ -23,7 +23,7 @@ The webhook endpoint (`POST /api/webhook`) receives awareness protocol packets w
 }
 ```
 
-The `schemaId` identifies which mapping to use for transforming the data, and `data` contains the entity information in the global ontology format.
+The `schemaId` (see [Ontology](/docs/Infrastructure/Ontology)) identifies which [mapping](/docs/Post%20Platform%20Guide/mapping-rules) to use for transforming the data, and `data` contains the entity information in the global ontology format.
 
 ## What to Do
 
@@ -34,7 +34,7 @@ const mapping = Object.values(this.adapter.mapping).find(
 );
 ```
 
-2. **Convert from global to local** using the adapter's `fromGlobal` method:
+2. **Convert from global to local** using the [Web3 Adapter](/docs/Infrastructure/Web3-Adapter)'s `fromGlobal` method:
 ```typescript
 const local = await this.adapter.fromGlobal({
     data: req.body.data,
@@ -42,7 +42,7 @@ const local = await this.adapter.fromGlobal({
 });
 ```
 
-This method uses your mapping configuration to transform the global ontology data into your local database schema format. See the [Mapping Rules documentation](./mapping-rules.md) for details on creating mappings.
+This method uses your mapping configuration to transform the global ontology data into your local database schema format. See the [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) for details on creating mappings.
 
 3. **Check if entity exists** using the global ID:
 ```typescript
@@ -105,4 +105,11 @@ handleWebhook = async (req: Request, res: Response) => {
         res.status(500).send();
     }
 };
+
+## References
+
+- [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) — Webhook payload and delivery
+- [eVault](/docs/Infrastructure/eVault) — Webhook delivery from eVault
+- [Ontology](/docs/Infrastructure/Ontology) — Schema IDs and schema registry
+- [Web3 Adapter](/docs/Infrastructure/Web3-Adapter) — `fromGlobal` and mapping
 

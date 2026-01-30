@@ -13,7 +13,7 @@ automatically sync with eVaults, if your application is stateless or the applica
 
 Platforms keep their own schemas and databases. To participate in W3DS, they need a component that:
 
-- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's and/or target eVault (via the user's [eName](/docs/W3DS%20Basics/W3ID) / Registry), and writes to the eVault (GraphQL).
+- **Outbound**: Detects local changes, maps local data to the global ontology, resolves the owner's and/or target eVault (via the user's [eName](/docs/W3DS%20Basics/W3ID) / [Registry](/docs/Infrastructure/Registry)), and writes to the [eVault](/docs/Infrastructure/eVault) (GraphQL).
 - **Inbound**: Receives awareness protocol packets at `POST /api/webhook`, maps global data to the local schema, and creates or updates local entities while maintaining global-ID-to-local-ID mappings. See [Awareness Protocol](/docs/W3DS%20Protocol/Awareness-Protocol) for more details.
 
 Please Note: That neither inbound or outbound are immediate, or have any transactional guarantees.
@@ -26,14 +26,14 @@ Please note that the web3 adapter may not come pre-assembled with hooks for all 
 
 - **Bidirectional mapping**: Local schema ↔ global ontology via JSON mapping configs.
 - **ID mapping**: Stores pairs of (localId, globalId) so the same entity is recognized across sync and webhooks. When using our implementation of the Web3 Adapter, you don't need to worry about ID Mapping yourself, the adapter already handles it.
-- **eVault client**: Resolves [eNames](/docs/W3DS%20Basics/W3ID) via the Registry, obtains platform tokens, and calls eVault GraphQL (store/update) with retries and health checks.
+- **eVault client**: Resolves [eNames](/docs/W3DS%20Basics/W3ID) via the [Registry](/docs/Infrastructure/Registry), obtains platform tokens, and calls [eVault](/docs/Infrastructure/eVault) GraphQL (store/update) with retries and health checks.
 - **Change handling**: `handleChange` is the main entry for outbound sync; webhook handlers use `fromGlobal` for inbound.
 
 ## Theory: Core Ideas
 
 ### 1. Universal ontology as the common language
 
-All platforms agree on a small set of global schemas (e.g. User, Post, Group) identified by W3IDs. Each platform maps its local tables to these schemas. The ontology is the contract: if you store data in that shape in an eVault, other platforms can interpret it via their own mappings. Better ontology design (versioning, optional fields, extensibility) leads to easier evolution and fewer breaking changes.
+All platforms agree on a small set of [global schemas](/docs/Infrastructure/Ontology) (e.g. User, Post, Group) identified by W3IDs. Each platform maps its local tables to these schemas. The [ontology](/docs/Infrastructure/Ontology) is the contract: if you store data in that shape in an eVault, other platforms can interpret it via their own mappings. Better ontology design (versioning, optional fields, extensibility) leads to easier evolution and fewer breaking changes.
 
 ### 2. Per-entity owner eVault (W3ID)
 
@@ -119,12 +119,12 @@ graph TB
 
 ### Mapping configuration (IMapping)
 
-Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the **Web3 Adapter Mapping Rules** in the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
+Mapping configs define how local fields map to the global ontology. For the full syntax (direct fields, relations, arrays, `__date`, `__calc`, owner path), see the [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) or the repository at `infrastructure/web3-adapter/MAPPING_RULES.md`.
 
 Each mapping is a JSON file with:
 
 - **tableName**: Local table (or entity) name.
-- **schemaId**: Global ontology UUID.
+- **schemaId**: Global ontology W3ID.
 - **ownerEnamePath**: Path to the owner eName in the local entity (e.g. `"ename"` or `"users(createdBy.ename)"`). Supports fallbacks with `||`.
 - **localToUniversalMap**: Object mapping local field names to global field names or expressions (e.g. `"createdAt": "__date(createdAt)"`, relation syntax `"tableName(path),globalAlias"`).
 - **readOnly** (optional): If true, `handleChange` does not sync this table to the eVault.
@@ -134,7 +134,7 @@ Each mapping is a JSON file with:
 When a platform receives an awareness protocol packet at `POST /api/webhook`:
 
 1. Parse body: `id`, `w3id`, `schemaId`, `data`.
-2. Find the mapping whose `schemaId` matches (or map by schema UUID to table name).
+2. Find the mapping whose `schemaId` matches (or map by schema W3ID to table name).
 3. Call `adapter.fromGlobal({ data: body.data, mapping })` to get local-shaped data.
 4. Call `mappingDb.getLocalId(body.id)`; if found, update the existing local entity; otherwise create and then `mappingDb.storeMapping({ localId: newEntity.id, globalId: body.id })`.
 5. Return 200.
@@ -172,7 +172,14 @@ sequenceDiagram
 
 ## Limitations & Planned Extensions
 
-- **Ontology versioning**: Today `schemaId` is a single UUID, there are plans for adding a `schemaVersion` key to allow for schema versioning.
+- **Ontology versioning**: Today `schemaId` is a single W3ID, there are plans for adding a `schemaVersion` key to allow for schema versioning.
 - **Conflict resolution**: Add version or timestamp fields and resolve conflicts in the adapter or in a separate service.
 - **Idempotency**: Use idempotency keys in payloads or in the mapping DB to make webhook handling and outbound sync idempotent.
 - **Transactional outbox**: Have the platform write changes to an outbox table and have a worker call `handleChange` so that sync is tied to the same transaction as the local write.
+
+## References
+
+- [eVault](/docs/Infrastructure/eVault) — GraphQL API and storage
+- [Registry](/docs/Infrastructure/Registry) — eName resolution
+- [Ontology](/docs/Infrastructure/Ontology) — Schema registry
+- [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) — Mapping configuration syntax

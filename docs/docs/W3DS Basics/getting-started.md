@@ -12,7 +12,7 @@ In W3DS, **every user, group, and object owns their own eVault**. This is the fu
 
 ### What is an eVault?
 
-An **eVault** is a personal data store identified by a **W3ID** (also called an **eName**). It's where all data about a person, group, or object is stored in a standardized format called **MetaEnvelopes**.
+An **eVault** is a personal data store identified by a [W3ID](/docs/W3DS%20Basics/W3ID) (also called an **eName**). It's where all data about a person, group, or object is stored in a standardized format called [MetaEnvelopes](/docs/Infrastructure/eVault#data-model).
 
 ### Ownership Structure
 
@@ -98,7 +98,7 @@ The adapter makes an HTTP POST request to the eVault's GraphQL endpoint. The req
 
 **HTTP Request Details**:
 - **Method**: POST
-- **URL**: `{evaultUrl}/graphql` (where evaultUrl is resolved from the user's eName via Registry)
+- **URL**: `{evaultUrl}/graphql` (where evaultUrl is resolved from the user's [eName](/docs/W3DS%20Basics/W3ID) via [Registry](/docs/Infrastructure/Registry))
 - **Headers**: 
   - `Content-Type: application/json`
   - `X-ENAME: @user-a.w3id` (the owner's eName)
@@ -143,11 +143,11 @@ mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
 
 #### 5. eVault Stores MetaEnvelope
 
-The eVault stores the data as a MetaEnvelope, which is a flat graph structure of Envelopes. Each field becomes a separate Envelope node in Neo4j.
+The [eVault](/docs/Infrastructure/eVault) stores the data as a [MetaEnvelope](/docs/Infrastructure/eVault#data-model), which is a flat graph structure of Envelopes. Each field becomes a separate Envelope node in Neo4j.
 
 #### 6. Webhook Delivery (After 3 Second Delay)
 
-After a 3-second delay (to prevent webhook ping-pong), the eVault sends webhooks to all registered platforms **except** the one that made the request (Blabsy).
+After a 3-second delay (to prevent webhook ping-pong), the [eVault](/docs/Infrastructure/eVault) sends webhooks to all registered platforms (see [Registry](/docs/Infrastructure/Registry)) **except** the one that made the request (Blabsy).
 
 The webhook payload contains:
 ```json
@@ -224,7 +224,7 @@ Every webhook contains:
 
 - **id**: The global ID of the MetaEnvelope
 - **w3id**: The eName (W3ID) of the owner
-- **schemaId**: The ontology schema ID (UUID)
+- **schemaId**: The ontology schema ID (W3ID)
 - **data**: The actual data in global ontology format
 - **evaultPublicKey**: The eVault's public key (for verification)
 
@@ -253,12 +253,12 @@ A **MetaEnvelope** is the storage format in eVaults. It's a flat graph structure
 
 ### Ontology Schemas
 
-**Ontology schemas** define the global data format. They're JSON Schema files that specify:
+[Ontology schemas](/docs/Infrastructure/Ontology) define the global data format. They're JSON Schema files that specify:
 
 - Field names and types
 - Required fields
 - Validation rules
-- Schema IDs (UUIDs)
+- Schema IDs (W3IDs) — see [Ontology](/docs/Infrastructure/Ontology) for the schema registry
 
 Example: `SocialMediaPost` schema defines fields like `content`, `mediaUrls`, `authorId`, etc.
 
@@ -266,16 +266,16 @@ All platforms must map their local schemas to these global schemas. See [Mapping
 
 ## W3ID (eName) System
 
-**W3ID** (also called **eName**) is the persistent identifier for users, groups, and objects.
+[W3ID](/docs/W3DS%20Basics/W3ID) (also called **eName**) is the persistent identifier for users, groups, and objects.
 
 ### Format
 
-- Global IDs: `@<UUID>` (e.g., `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`)
-- Local IDs: `@<UUID>/<UUID>` (for objects within an eVault)
+- Global IDs: `@<W3ID>` (e.g., `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`)
+- Local IDs: `@<W3ID>/<W3ID>` (for objects within an eVault)
 
 ### Resolution
 
-W3IDs are resolved to eVault URLs via the Registry Service:
+W3IDs are resolved to eVault URLs via the [Registry Service](/docs/Infrastructure/Registry):
 
 ```
 GET /resolve?w3id=@user-a.w3id
@@ -285,7 +285,7 @@ GET /resolve?w3id=@user-a.w3id
 ### Key Properties
 
 1. **Persistent**: Never changes, even if eVault URL changes
-2. **Globally Unique**: UUID-based ensures uniqueness
+2. **Globally Unique**: W3ID-based ensures uniqueness
 3. **Loosely Bound to Keys**: Can rotate keys without changing W3ID
 4. **Resolvable**: Registry maps W3ID to current eVault URL
 
@@ -293,7 +293,7 @@ GET /resolve?w3id=@user-a.w3id
 
 ### Access Control Lists (ACLs)
 
-ACLs determine who can access data in an eVault. Common patterns:
+[ACLs](/docs/Infrastructure/eVault#access-control) determine who can access data in an eVault. Common patterns:
 
 - `["*"]`: Public access (anyone can read)
 - `["@user-a.w3id"]`: Only User A can access
@@ -353,6 +353,8 @@ graph LR
 
 ## Next Steps
 
+- [Links](/docs/W3DS%20Basics/Links) — Production URLs for Provisioner, Registry, Ontology
+- [Ontology](/docs/Infrastructure/Ontology) — Schema registry and available schemas
 - Learn about [Authentication](/docs/W3DS%20Protocol/Authentication) - How users authenticate
 - Understand [Signing](/docs/W3DS%20Protocol/Signing) - Signature creation and verification
 - Explore [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) - Cryptographic details
