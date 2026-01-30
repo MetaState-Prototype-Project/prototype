@@ -12,7 +12,7 @@ The Registry enables clients and services to:
 
 - **Resolve eNames** to service endpoints (eVault URIs, platform URLs)
 - **Obtain entropy** as signed JWTs for use in provisioning and other operations
-- **Verify tokens** supply JSON Web Key Set to verify JWTs via public JWK endpoint
+- **Verify tokens** using the JSON Web Key Set provided via public JWK endpoint
 
 :::warning Remote Notary / Remote CA
 
