@@ -8,7 +8,7 @@ sidebar_position: 4
 The Awareness Protocol described here is **prototype-level**. The packet format, delivery behavior, and platform contract are subject to change in upcoming updates
 :::
 
-The Awareness Protocol is the webhook deliverability mechanism in W3DS. When data in an eVault changes (create or update), the eVault notifies all other registered platforms so they can stay in sync. "Awareness" means platforms become aware of changes that happened elsewhere.
+The Awareness Protocol is the webhook delivery mechanism in W3DS. When data in an eVault changes (create or update), the eVault notifies every registered platforms so they can stay in sync. "Awareness" means platforms become aware of changes that happened elsewhere.
 
 ## Overview
 
@@ -63,11 +63,17 @@ The body of each webhook request is JSON with the following fields:
 
 | Field | Description |
 |-------|-------------|
-| `id` | Global MetaEnvelope ID (UUID). |
+| `id` | MetaEnvelope ID (W3ID). |
 | `w3id` | Owner eName (eVault owner W3ID). |
 | `schemaId` | Ontology/schema UUID (identifies the type of entity and which mapping the platform should use). |
 | `data` | The entity payload in the **global ontology** shape (parsed key-value structure). |
-| `evaultPublicKey` | Optional; eVault public key. |
+
+In the current version of the implementation the entitre payload is sent in
+plain text to any registered platform, so all data is sent to every platform and
+it's the platform's responsibility to reject any packets it doesn't use, in
+future versions of awareness protocol, it will be changed so that platforms can
+subscribe to certain ontology changes and they will be provided details of the
+updated MetaEnvelope by reference instead of value.
 
 **Content-Type**: `application/json`
 
@@ -83,8 +89,7 @@ The body of each webhook request is JSON with the following fields:
     "mediaUrls": [],
     "authorId": "@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a",
     "createdAt": "2025-01-24T10:00:00Z"
-  },
-  "evaultPublicKey": "z..."
+  }
 }
 ```
 

@@ -94,4 +94,7 @@ The W3ID system is implemented in the `w3id` package (TypeScript) and provides:
 - **ID log manager**: Immutable, signed event logs for key rotation and identity updates.
 - **JWT signing**: A W3ID with a signer can sign JWTs (e.g. for authentication or key binding certificates).
 
+This package is useful to create W3IDs with keys or make them global, it is
+consumed currently by [eID Wallet](/docs/Infrastructure/eID-Wallet) and [Web3 Adapter](/docs/Infrastructure/Web3-Adapter)
+
 For implementation details (builder API, storage backends, logging format), see the `w3id` package in the repository.
