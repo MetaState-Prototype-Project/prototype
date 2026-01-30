@@ -9,13 +9,14 @@ export default function Home(): ReactNode {
 
 
     useEffect(() => {
-        history.push("/prototype/docs/Getting Started/getting-started")
-    }, [])
+        const baseUrl = siteConfig.baseUrl ?? '/';
+        history.push(`${baseUrl}docs/Getting%20Started/getting-started`);
+    }, [siteConfig.baseUrl]);
 
     return (
         <Layout
-            title={`Hello from ${siteConfig.title}`}
-            description="Description will go into a meta tag in <head />">
+            title="W3DS Documentation"
+            description="Documentation for Web 3 Data Spaces — eVault, Registry, Ontology, and the W3DS protocol.">
         </Layout>
     );
 }

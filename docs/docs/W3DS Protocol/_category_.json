@@ -2,6 +2,7 @@
     "label": "W3DS Protocol",
     "position": 4,
     "link": {
-        "type": "generated-index"
+        "type": "doc",
+        "id": "W3DS Protocol/Authentication"
     }
 }

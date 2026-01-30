@@ -2,6 +2,7 @@
     "label": "W3DS Basics",
     "position": 2,
     "link": {
-        "type": "generated-index"
+        "type": "doc",
+        "id": "W3DS Basics/getting-started"
     }
 }

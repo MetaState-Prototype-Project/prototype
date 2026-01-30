@@ -48,18 +48,14 @@ const config: Config = {
             {
                 docs: {
                     sidebarPath: './sidebars.ts',
-                    // Please change this to your repo.
-                    // Remove this to remove the "edit this page" links.
-                    editUrl:
-                        'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+                    editUrl: 'https://github.com/MetaState-Prototype-Project/metastate/tree/main/docs/docs/',
                 },
             } satisfies Preset.Options,
         ],
     ],
 
     themeConfig: {
-        // Replace with your project's social card
-        image: 'img/docusaurus-social-card.jpg',
+        image: 'img/w3dslogo.svg',
         colorMode: {
             respectPrefersColorScheme: true,
         },
@@ -73,7 +69,7 @@ const config: Config = {
                     type: 'docSidebar',
                     sidebarId: 'tutorialSidebar',
                     position: 'left',
-                    label: 'Tutorial',
+                    label: 'Docs',
                 },
                 {
                     href: 'https://github.com/MetaState-Prototype-Project/prototype',
@@ -89,13 +85,25 @@ const config: Config = {
                     title: 'Docs',
                     items: [
                         {
-                            label: 'Documentaion',
+                            label: 'Getting Started',
                             to: '/docs/Getting%20Started/getting-started',
+                        },
+                        {
+                            label: 'W3DS Basics',
+                            to: '/docs/W3DS%20Basics/getting-started',
+                        },
+                        {
+                            label: 'Infrastructure',
+                            to: '/docs/Infrastructure/eVault',
+                        },
+                        {
+                            label: 'Links',
+                            to: '/docs/W3DS%20Basics/Links',
                         },
                     ],
                 },
             ],
-            copyright: `Copyright © ${new Date().getFullYear()} Stichting MetasState Foundation. Built with Docusaurus.`,
+            copyright: `Copyright © ${new Date().getFullYear()} Stichting MetaState Foundation.`,
         },
         prism: {
             theme: prismThemes.github,
