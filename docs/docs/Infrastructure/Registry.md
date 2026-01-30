@@ -10,9 +10,9 @@ The Registry is a core W3DS service that provides W3ID-based service discovery, 
 
 The Registry enables clients and services to:
 
-- **Resolve W3IDs** to service endpoints (eVault URIs, platform URLs)
+- **Resolve eNames** to service endpoints (eVault URIs, platform URLs)
 - **Obtain entropy** as signed JWTs for use in provisioning and other operations
-- **Verify tokens** via a public JWK endpoint
+- **Verify tokens** using the JSON Web Key Set provided via public JWK endpoint
 
 :::warning Remote Notary / Remote CA
 
