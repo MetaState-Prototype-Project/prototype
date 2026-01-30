@@ -29,7 +29,7 @@
     } from "$lib/stores/folders";
     import { toast } from "$lib/stores/toast";
     import { apiClient } from "$lib/utils/axios";
-    import JSZip from "jszip";
+    // JSZip removed - using server-side zip generation
     import { onMount } from "svelte";
     import { get } from "svelte/store";
 
@@ -141,7 +141,7 @@
     let downloadUrl = $state<string | null>(null);
 
     // Multi-file selection for download
-    const DOWNLOAD_BATCH_SIZE = 3; // Number of concurrent downloads
+    // Server-side zip generation - no batch size needed
     let selectedFileIds = $state<Set<string>>(new Set());
 
     // Download modal state
@@ -1164,239 +1164,65 @@
                 return;
             }
 
-            // Update progress with actual file count
+            // Update progress - preparing server-side zip
             downloadProgress = {
                 ...downloadProgress,
                 totalFiles: allFilesToDownload.length,
                 status: "downloading",
+                currentFile: `Preparing ${allFilesToDownload.length} files for download...`,
                 downloadedFiles: allFilesToDownload.map(({ displayName, path }) => ({
                     name: path ? `${path}/${displayName}` : displayName,
-                    size: 0, // Size not known for folder files until downloaded
+                    size: 0,
                     status: "pending" as const,
                 })),
             };
 
-            const zip = new JSZip();
-            const downloadedBlobs: Array<{ name: string; path: string; blob: Blob }> = [];
+            // Build the request payload for server-side zip
+            const filesPayload = allFilesToDownload.map(({ file, path }) => ({
+                id: file.id,
+                path: path,
+            }));
 
-            // Download files in batches
-            for (
-                let i = 0;
-                i < allFilesToDownload.length;
-                i += DOWNLOAD_BATCH_SIZE
-            ) {
-                const batch = allFilesToDownload.slice(i, i + DOWNLOAD_BATCH_SIZE);
-
-                // Mark batch files as downloading
-                downloadProgress = {
-                    ...downloadProgress,
-                    downloadedFiles: downloadProgress.downloadedFiles.map(
-                        (f, idx) => ({
-                            ...f,
-                            status:
-                                idx >= i && idx < i + batch.length
-                                    ? ("downloading" as const)
-                                    : f.status,
-                        }),
-                    ),
-                };
-
-                // Download batch in parallel
-                const batchPromises = batch.map(async ({ file, path, displayName }, batchIdx) => {
-                    const globalIdx = i + batchIdx;
-                    const url = `${API_BASE_URL}/api/files/${file.id}/download?token=${token || ""}`;
-
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: Failed to download`);
-                    }
-
-                    const blob = await response.blob();
-                    return { name: displayName, path, blob, globalIdx };
-                });
-
-                const settledResults = await Promise.allSettled(batchPromises);
-
-                // Process each settled result
-                for (let batchIdx = 0; batchIdx < settledResults.length; batchIdx++) {
-                    const result = settledResults[batchIdx];
-                    const globalIdx = i + batchIdx;
-                    const { displayName, path } = batch[batchIdx];
-                    const fullName = path ? `${path}/${displayName}` : displayName;
-
-                    if (result.status === "fulfilled") {
-                        // Success - add to downloadedBlobs and mark as done
-                        downloadedBlobs.push({ 
-                            name: result.value.name, 
-                            path: result.value.path,
-                            blob: result.value.blob 
-                        });
-                        
-                        downloadProgress = {
-                            ...downloadProgress,
-                            currentFile: fullName,
-                            currentFileIndex: globalIdx + 1,
-                            overallProgress: Math.round(
-                                ((globalIdx + 1) / allFilesToDownload.length) * 80,
-                            ), // 80% for downloads, 20% for zipping
-                            downloadedFiles:
-                                downloadProgress.downloadedFiles.map(
-                                    (f, idx) =>
-                                        idx === globalIdx
-                                            ? { ...f, status: "done" as const }
-                                            : f,
-                                ),
-                        };
-                    } else {
-                        // Failed - log error and mark as error
-                        const errorMessage = result.reason instanceof Error 
-                            ? result.reason.message 
-                            : "Unknown error";
-                        console.error(`Error downloading ${fullName}:`, result.reason);
-                        
-                        downloadProgress = {
-                            ...downloadProgress,
-                            currentFile: fullName,
-                            currentFileIndex: globalIdx + 1,
-                            overallProgress: Math.round(
-                                ((globalIdx + 1) / allFilesToDownload.length) * 80,
-                            ),
-                            downloadedFiles:
-                                downloadProgress.downloadedFiles.map(
-                                    (f, idx) =>
-                                        idx === globalIdx
-                                            ? { ...f, status: "error" as const, errorMessage }
-                                            : f,
-                                ),
-                        };
-                    }
-                }
-            }
-
-            // Count successful and failed downloads
-            const failedCount = downloadProgress.downloadedFiles.filter(
-                (f) => f.status === "error"
-            ).length;
-            const successCount = downloadedBlobs.length;
-
-            // Check if all downloads failed
-            if (successCount === 0) {
-                downloadProgress = {
-                    ...downloadProgress,
-                    status: "error",
-                    overallProgress: 100,
-                    errorMessage: `All ${failedCount} file(s) failed to download`,
-                };
-                return;
-            }
-
-            // Zipping phase
             downloadProgress = {
                 ...downloadProgress,
                 status: "zipping",
-                currentFile: "Creating zip file...",
-                overallProgress: 85,
+                currentFile: "Server is creating zip file...",
+                overallProgress: 50,
             };
 
-            // Add all successfully downloaded files to zip with unique filenames
-            // Track used full paths to handle collisions
-            const usedPaths = new Set<string>();
-            
-            /**
-             * Sanitize a filename to prevent path traversal and invalid paths.
-             */
-            function sanitizeFilename(rawName: string): string {
-                let name = rawName;
-                name = name.replace(/^[a-zA-Z]:/, '');
-                name = name.replace(/\\/g, '/');
-                name = name.replace(/\.\./g, '');
-                const lastSlashIndex = name.lastIndexOf('/');
-                if (lastSlashIndex !== -1) {
-                    name = name.slice(lastSlashIndex + 1);
-                }
-                name = name.replace(/[/\\]/g, '');
-                name = name.replace(/^[.\s]+/, '');
-                name = name.trim();
-                // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentional removal of control chars
-                name = name.replace(/[\x00-\x1f\x7f]/g, '');
-                if (!name) {
-                    name = 'file';
-                }
-                return name;
-            }
+            // Request server-side zip generation
+            const response = await fetch(`${API_BASE_URL}/api/files/download-zip`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ files: filesPayload }),
+            });
 
-            /**
-             * Sanitize a folder path component
-             */
-            function sanitizePath(rawPath: string): string {
-                if (!rawPath) return "";
-                // Split path, sanitize each component, rejoin
-                const parts = rawPath.split('/').filter(Boolean);
-                const sanitizedParts = parts.map(part => {
-                    let p = part;
-                    p = p.replace(/\.\./g, '');
-                    p = p.replace(/[\\:*?"<>|]/g, '');
-                    p = p.replace(/^[.\s]+/, '');
-                    p = p.trim();
-                    return p || 'folder';
-                });
-                return sanitizedParts.join('/');
-            }
-            
-            function getUniqueFilePath(originalPath: string, originalName: string): string {
-                const sanitizedPath = sanitizePath(originalPath);
-                const sanitizedName = sanitizeFilename(originalName);
-                const fullPath = sanitizedPath ? `${sanitizedPath}/${sanitizedName}` : sanitizedName;
-                
-                if (!usedPaths.has(fullPath)) {
-                    usedPaths.add(fullPath);
-                    return fullPath;
-                }
-                
-                // Split name into base and extension
-                const lastDotIndex = sanitizedName.lastIndexOf('.');
-                const hasExtension = lastDotIndex > 0 && lastDotIndex < sanitizedName.length - 1;
-                const baseName = hasExtension ? sanitizedName.slice(0, lastDotIndex) : sanitizedName;
-                const extension = hasExtension ? sanitizedName.slice(lastDotIndex) : '';
-                
-                // Find a unique name by incrementing suffix
-                let counter = 1;
-                let uniqueName = `${baseName} (${counter})${extension}`;
-                let uniqueFullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
-                while (usedPaths.has(uniqueFullPath)) {
-                    counter++;
-                    uniqueName = `${baseName} (${counter})${extension}`;
-                    uniqueFullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
-                }
-                
-                usedPaths.add(uniqueFullPath);
-                return uniqueFullPath;
-            }
-            
-            for (const { name, path, blob } of downloadedBlobs) {
-                const uniqueFullPath = getUniqueFilePath(path, name);
-                zip.file(uniqueFullPath, blob);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP ${response.status}: Failed to create zip`);
             }
 
             downloadProgress = {
                 ...downloadProgress,
-                overallProgress: 95,
+                overallProgress: 80,
+                currentFile: "Downloading zip file...",
             };
 
-            // Generate zip file
-            const zipBlob = await zip.generateAsync({
-                type: "blob",
-                compression: "DEFLATE",
-                compressionOptions: { level: 1 },
-            });
+            // Get the zip blob from response
+            const zipBlob = await response.blob();
 
             downloadProgress = {
                 ...downloadProgress,
                 status: "complete",
                 overallProgress: 100,
-                currentFile: failedCount > 0 
-                    ? `Download ready (${failedCount} file(s) failed)` 
-                    : "Download ready!",
+                currentFile: "Download ready!",
+                downloadedFiles: downloadProgress.downloadedFiles.map(f => ({
+                    ...f,
+                    status: "done" as const,
+                })),
             };
 
             // Trigger download of the zip file
@@ -1411,24 +1237,18 @@
             document.body.removeChild(link);
             
             // Delay revoking the object URL to ensure the download starts
-            // Some browsers may cancel the download if revoked immediately
             setTimeout(() => {
                 URL.revokeObjectURL(zipUrl);
             }, 500);
 
-            // Close modal after a short delay (longer if there were failures)
+            // Close modal after a short delay
             setTimeout(() => {
                 showDownloadModal = false;
                 resetDownloadProgress();
                 clearSelection();
-            }, failedCount > 0 ? 3000 : 1500);
+            }, 1500);
 
-            // Show appropriate toast message
-            if (failedCount > 0) {
-                toast.success(`Downloaded ${successCount} of ${allFilesToDownload.length} files as zip (${failedCount} failed)`);
-            } else {
-                toast.success(`Downloaded ${successCount} files as zip`);
-            }
+            toast.success(`Downloaded ${allFilesToDownload.length} files as zip`)
         } catch (error) {
             console.error("Download error:", error);
             downloadProgress = {

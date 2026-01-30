@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import multer from "multer";
+import archiver from "archiver";
 import { FileService } from "../services/FileService";
 
 const upload = multer({
@@ -584,6 +585,150 @@ export class FileController {
         } catch (error) {
             console.error("Error getting storage usage:", error);
             res.status(500).json({ error: "Failed to get storage usage" });
+        }
+    };
+
+    /**
+     * Download multiple files as a streaming ZIP archive.
+     * Uses server-side zip generation with archiver for better performance
+     * compared to client-side zipping.
+     * 
+     * POST /api/files/download-zip
+     * Body: { files: Array<{ id: string, path?: string }> }
+     *   - id: file UUID
+     *   - path: optional directory path in the zip (e.g. "folder1/subfolder")
+     * 
+     * Alternative simple format (for backwards compatibility):
+     * Body: { fileIds: string[] }
+     */
+    downloadFilesAsZip = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res
+                    .status(401)
+                    .json({ error: "Authentication required" });
+            }
+
+            const { files, fileIds } = req.body;
+
+            // Support both formats: { files: [{id, path}] } or { fileIds: [id] }
+            let fileEntries: Array<{ id: string; path: string }>;
+            
+            if (Array.isArray(files) && files.length > 0) {
+                fileEntries = files.map((f: any) => ({
+                    id: typeof f === 'string' ? f : f.id,
+                    path: (typeof f === 'object' && f.path) || '',
+                }));
+            } else if (Array.isArray(fileIds) && fileIds.length > 0) {
+                fileEntries = fileIds.map((id: string) => ({ id, path: '' }));
+            } else {
+                return res.status(400).json({ error: "files or fileIds array is required" });
+            }
+
+            if (fileEntries.length > 500) {
+                return res.status(400).json({ error: "Maximum 500 files per download" });
+            }
+
+            // Validate all files exist and user has access
+            const validatedFiles = await this.fileService.getFilesMetadataByIds(
+                fileEntries.map(f => f.id),
+                req.user.id
+            );
+            
+            if (validatedFiles.length === 0) {
+                return res.status(404).json({ error: "No accessible files found" });
+            }
+
+            // Create a map of id -> metadata for quick lookup
+            const fileMetaMap = new Map(validatedFiles.map(f => [f.id, f]));
+
+            // Set response headers for streaming zip download
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const zipFilename = `files-${timestamp}.zip`;
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+            // Don't set Content-Length - we're streaming and don't know final size
+
+            // Create archiver instance with STORE (no compression) for maximum speed
+            // Use 'zip' format with store compression to minimize CPU usage
+            const archive = archiver('zip', {
+                store: true, // No compression - just store files (fastest, minimal CPU)
+            });
+
+            // Handle archive errors
+            archive.on('error', (err: Error) => {
+                console.error('Archive error:', err);
+                // If headers already sent, we can't send error response
+                if (!res.headersSent) {
+                    res.status(500).json({ error: 'Failed to create archive' });
+                }
+            });
+
+            // Pipe archive to response
+            archive.pipe(res);
+
+            // Track full paths to handle duplicates
+            const usedPaths = new Map<string, number>();
+
+            // Sanitize path to prevent directory traversal
+            const sanitizePath = (p: string): string => {
+                if (!p) return '';
+                return p
+                    .replace(/\.\./g, '')
+                    .replace(/^\/+/, '')
+                    .replace(/\/+$/, '')
+                    .split('/')
+                    .filter(Boolean)
+                    .join('/');
+            };
+
+            // Stream each file into the archive one at a time
+            for (const entry of fileEntries) {
+                const fileMeta = fileMetaMap.get(entry.id);
+                if (!fileMeta) continue; // User doesn't have access
+
+                try {
+                    const fileData = await this.fileService.getFileDataStream(entry.id, req.user.id);
+                    
+                    if (fileData) {
+                        const sanitizedPath = sanitizePath(entry.path);
+                        const baseName = fileData.name;
+                        
+                        // Build full path in zip
+                        let fullPath = sanitizedPath ? `${sanitizedPath}/${baseName}` : baseName;
+                        
+                        // Handle duplicate paths by appending a number
+                        const count = usedPaths.get(fullPath) || 0;
+                        if (count > 0) {
+                            const ext = baseName.lastIndexOf('.');
+                            let uniqueName: string;
+                            if (ext > 0) {
+                                uniqueName = `${baseName.slice(0, ext)} (${count})${baseName.slice(ext)}`;
+                            } else {
+                                uniqueName = `${baseName} (${count})`;
+                            }
+                            fullPath = sanitizedPath ? `${sanitizedPath}/${uniqueName}` : uniqueName;
+                        }
+                        usedPaths.set(sanitizedPath ? `${sanitizedPath}/${baseName}` : baseName, count + 1);
+
+                        // Append stream to archive
+                        archive.append(fileData.stream, { name: fullPath });
+                    }
+                } catch (fileError) {
+                    console.error(`Error adding file ${entry.id} to archive:`, fileError);
+                    // Continue with other files
+                }
+            }
+
+            // Finalize the archive (this is when the stream ends)
+            await archive.finalize();
+
+        } catch (error) {
+            console.error("Error creating zip download:", error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: "Failed to create zip download" });
+            }
         }
     };
 }
