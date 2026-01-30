@@ -25,7 +25,7 @@ Platforms do not poll eVaults for changes. Instead, eVault Core pushes change no
 
 The Awareness Protocol is triggered after:
 
-1. **storeMetaEnvelope** (create): After the new MetaEnvelope is stored in the eVault, webhooks are **scheduled with a 3-second delay**. The delay exists because the requesting platform's URL may not be known immediately from the Bearer token; without the delay, the same platform could receive its own write back and create a feedback loop ("webhook ping-pong").
+1. **storeMetaEnvelope** (create): After the new MetaEnvelope is stored in the eVault, webhooks are **scheduled with a 3-second delay** to ensure the requesting platform can be reliably identified and excluded from recipients, preventing the same platform from receiving its own write back and creating a feedback loop ("webhook ping-pong").
 2. **updateMetaEnvelopeById** (update): After the MetaEnvelope is updated, webhooks are sent **immediately** (fire-and-forget, no delay).
 
 ## Mechanism
