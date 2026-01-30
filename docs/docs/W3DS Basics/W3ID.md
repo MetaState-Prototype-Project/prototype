@@ -1,10 +1,10 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # W3ID
 
-W3ID (Web 3 Identifier) is the main identifier for the whole W3DS ecosystem. W3IDs are UUID-based, persistent, and globally unique. When the term **eName** is used, it means a universally resolvable W3ID—one that can be resolved via the [Registry](/docs/Infrastructure/Registry) to an eVault (or service) endpoint.
+[W3ID](/docs/W3DS%20Basics/glossary#web-30-identifier-w3id-ename) (Web 3 Identifier) is the main identifier for the whole W3DS ecosystem. W3IDs are UUID-based, persistent, and globally unique. When the term **eName** is used, it means a universally resolvable W3ID—one that can be resolved via the [Registry](/docs/Infrastructure/Registry) to an eVault (or service) endpoint.
 
 ## Overview
 
@@ -101,6 +101,7 @@ For implementation details (builder API, storage backends, logging format), see 
 
 ## References
 
+- [Glossary](/docs/W3DS%20Basics/glossary#web-30-identifier-w3id-ename) — W3ID / eName definition
 - [Registry](/docs/Infrastructure/Registry) — eName resolution and key binding
 - [eVault](/docs/Infrastructure/eVault) — Storage, ACLs, and key binding certificates
 - [eID Wallet](/docs/Infrastructure/eID-Wallet) — Key management and onboarding

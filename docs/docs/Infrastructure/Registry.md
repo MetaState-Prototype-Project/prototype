@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Registry
 
-The Registry is a core W3DS service that provides W3ID-based service discovery, entropy generation for cryptographic operations, and—as a temporary shortcut—key binding certificates. In the future, key binding will be provided by a Remote Notary (Remote CA).
+The [Registry](/docs/W3DS%20Basics/glossary#registry) is a core W3DS service that provides [W3ID](/docs/W3DS%20Basics/W3ID)-based service discovery, entropy generation for cryptographic operations, and—as a temporary shortcut—key binding certificates. In the future, key binding will be provided by a Remote Notary (Remote CA).
 
 ## Overview
 
@@ -12,7 +12,7 @@ The Registry enables clients and services to:
 
 - **Resolve eNames** to service endpoints (eVault URIs, platform URLs)
 - **Obtain entropy** as signed JWTs for use in provisioning and other operations
-- **Verify tokens** using the JSON Web Key Set provided via public JWK endpoint
+- **Verify tokens** supply JSON Web Key Set to verify JWTs via public JWK endpoint
 
 :::warning Remote Notary / Remote CA
 

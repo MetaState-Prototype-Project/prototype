@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # eVault
 
-eVault is the core storage system for W3DS. It provides a GraphQL API for storing and retrieving user data, manages access control, and delivers webhooks to platforms when data changes.
+[eVault](/docs/W3DS%20Basics/glossary#evault) is the core storage system for W3DS. It provides a GraphQL API for storing and retrieving user data, manages access control, and delivers webhooks to platforms when data changes.
 
 ## Overview
 
-An **eVault** is a personal data store identified by a [W3ID](/docs/W3DS%20Basics/W3ID). Each user, group, or object has their own eVault where all their data is stored in a standardized format called **MetaEnvelopes**.
+An **eVault** is a personal data store identified by a [W3ID](/docs/W3DS%20Basics/W3ID). Each user, group, or object has their own eVault where all their data is stored in a standardized format called [**MetaEnvelopes**](/docs/W3DS%20Basics/glossary#metaenvelope).
 
 ### Key Features
 
