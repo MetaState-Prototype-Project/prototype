@@ -30,16 +30,69 @@
             "description": "ID of the voter (user or delegate)"
         },
         "data": {
-            "type": "object",
-            "description": "Vote payload. Shape depends on the poll voting mode. Must include mode matching the poll. Allowed: (1) normal: mode and data array of option indices as strings. (2) point: mode and data object mapping option index to points. (3) rank: mode and data array of objects with option and points, rank 1 = first choice. (4) blind: mode, commitment, proof, revealed; optional actualVote, randomness, revealedAt after reveal.",
-            "properties": {
-                "mode": {
-                    "type": "string",
-                    "enum": ["normal", "point", "rank", "blind"],
-                    "description": "Must match the poll voting mode"
+            "description": "Vote payload. Shape depends on the poll voting mode; must match the poll's mode.",
+            "oneOf": [
+                {
+                    "type": "object",
+                    "description": "Normal vote: single or multiple option indices as strings.",
+                    "properties": {
+                        "mode": { "const": "normal", "description": "Must match poll voting mode" },
+                        "options": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Option indices selected (e.g. [\"0\", \"1\"])"
+                        }
+                    },
+                    "required": ["mode", "options"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "description": "Point vote: option index → points.",
+                    "properties": {
+                        "mode": { "const": "point", "description": "Must match poll voting mode" },
+                        "points": {
+                            "type": "object",
+                            "additionalProperties": { "type": "number" },
+                            "description": "Option index to points (e.g. { \"0\": 5, \"1\": 3 })"
+                        }
+                    },
+                    "required": ["mode", "points"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "description": "Rank vote: ordered choices; rank 1 = first choice.",
+                    "properties": {
+                        "mode": { "const": "rank", "description": "Must match poll voting mode" },
+                        "rankings": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "option": { "type": "string", "description": "Option index" },
+                                    "rank": { "type": "integer", "minimum": 1, "description": "1 = first choice" }
+                                },
+                                "required": ["option", "rank"]
+                            },
+                            "description": "Ordered choices by rank"
+                        }
+                    },
+                    "required": ["mode", "rankings"],
+                    "additionalProperties": false
+                },
+                {
+                    "type": "object",
+                    "description": "Blind vote: commitment and proof.",
+                    "properties": {
+                        "mode": { "const": "blind", "description": "Must match poll voting mode" },
+                        "commitment": { "type": "string", "description": "Commitment to the vote" },
+                        "proof": { "type": "string", "description": "Proof binding commitment" }
+                    },
+                    "required": ["mode", "commitment", "proof"],
+                    "additionalProperties": false
                 }
-            },
-            "required": ["mode"]
+            ]
         },
         "createdAt": {
             "type": "string",

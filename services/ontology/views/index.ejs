@@ -124,6 +124,12 @@
         .drawer-content .raw-link a:hover { text-decoration: underline; }
         .drawer-content code { font-family: ui-monospace, monospace; font-size: 0.8rem; background: #f3f4f6; padding: 0.15rem 0.35rem; border-radius: 0.25rem; }
         .drawer-content .type-cell { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+        .schema-oneof { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+        .schema-oneof h4 { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.5rem; color: #374151; }
+        .schema-oneof-alt { margin-bottom: 1rem; padding: 0.75rem; background: #f9fafb; border-radius: 0.375rem; border-left: 3px solid #3b82f6; }
+        .schema-oneof-alt:last-child { margin-bottom: 0; }
+        .schema-oneof-alt .alt-desc { font-size: 0.875rem; color: #4b5563; margin-bottom: 0.5rem; }
+        .schema-oneof-alt table { margin-top: 0.25rem; font-size: 0.8125rem; }
     </style>
 </head>
 <body>
@@ -176,12 +182,89 @@
                             <% Object.entries(selectedSchema.properties).forEach(function([name, prop]) { %>
                                 <tr>
                                     <td><code><%= name %></code></td>
-                                    <td class="type-cell"><%= Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-') %><%= prop.format ? ' (' + prop.format + ')' : '' %></td>
+                                    <td class="type-cell">
+                                        <% if (prop.oneOf) { %>one of (<%= prop.oneOf.length %> alternatives)<% } else if (prop.anyOf) { %>any of (<%= prop.anyOf.length %>)<% } else if (prop.allOf) { %>all of (<%= prop.allOf.length %>)<% } else { %><%= Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-') %><%= prop.format ? ' (' + (prop.format) + ')' : '' %><% } %>
+                                    </td>
                                     <td><%= prop.description || '-' %></td>
                                 </tr>
                             <% }); %>
                         </tbody>
                     </table>
+                    <% Object.entries(selectedSchema.properties).forEach(function([name, prop]) { %>
+                        <% if (prop.oneOf && prop.oneOf.length) { %>
+                            <div class="schema-oneof">
+                                <h4><code><%= name %></code> — one of:</h4>
+                                <% prop.oneOf.forEach(function(alt, idx) { %>
+                                    <div class="schema-oneof-alt">
+                                        <% if (alt.description) { %><p class="alt-desc"><%= alt.description %></p><% } %>
+                                        <% if (alt.properties && Object.keys(alt.properties).length) { %>
+                                            <table>
+                                                <thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+                                                <tbody>
+                                                    <% Object.entries(alt.properties).forEach(function([pName, p]) { %>
+                                                        <tr>
+                                                            <td><code><%= pName %></code></td>
+                                                            <td class="type-cell"><%= Array.isArray(p.type) ? p.type.join(' | ') : (p.type || (p.const !== undefined ? JSON.stringify(p.const) : '-')) %><%= p.format ? ' (' + p.format + ')' : '' %></td>
+                                                            <td><%= p.description || '-' %></td>
+                                                        </tr>
+                                                    <% }); %>
+                                                </tbody>
+                                            </table>
+                                            <% if (alt.required && alt.required.length) { %><p class="alt-desc"><strong>Required:</strong> <%= alt.required.join(', ') %></p><% } %>
+                                        <% } %>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } else if (prop.anyOf && prop.anyOf.length) { %>
+                            <div class="schema-oneof">
+                                <h4><code><%= name %></code> — any of:</h4>
+                                <% prop.anyOf.forEach(function(alt) { %>
+                                    <div class="schema-oneof-alt">
+                                        <% if (alt.description) { %><p class="alt-desc"><%= alt.description %></p><% } %>
+                                        <% if (alt.properties && Object.keys(alt.properties).length) { %>
+                                            <table>
+                                                <thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+                                                <tbody>
+                                                    <% Object.entries(alt.properties).forEach(function([pName, p]) { %>
+                                                        <tr>
+                                                            <td><code><%= pName %></code></td>
+                                                            <td class="type-cell"><%= Array.isArray(p.type) ? p.type.join(' | ') : (p.type || (p.const !== undefined ? JSON.stringify(p.const) : '-')) %><%= p.format ? ' (' + p.format + ')' : '' %></td>
+                                                            <td><%= p.description || '-' %></td>
+                                                        </tr>
+                                                    <% }); %>
+                                                </tbody>
+                                            </table>
+                                            <% if (alt.required && alt.required.length) { %><p class="alt-desc"><strong>Required:</strong> <%= alt.required.join(', ') %></p><% } %>
+                                        <% } %>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } else if (prop.allOf && prop.allOf.length) { %>
+                            <div class="schema-oneof">
+                                <h4><code><%= name %></code> — all of:</h4>
+                                <% prop.allOf.forEach(function(alt) { %>
+                                    <div class="schema-oneof-alt">
+                                        <% if (alt.description) { %><p class="alt-desc"><%= alt.description %></p><% } %>
+                                        <% if (alt.properties && Object.keys(alt.properties).length) { %>
+                                            <table>
+                                                <thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+                                                <tbody>
+                                                    <% Object.entries(alt.properties).forEach(function([pName, p]) { %>
+                                                        <tr>
+                                                            <td><code><%= pName %></code></td>
+                                                            <td class="type-cell"><%= Array.isArray(p.type) ? p.type.join(' | ') : (p.type || (p.const !== undefined ? JSON.stringify(p.const) : '-')) %><%= p.format ? ' (' + p.format + ')' : '' %></td>
+                                                            <td><%= p.description || '-' %></td>
+                                                        </tr>
+                                                    <% }); %>
+                                                </tbody>
+                                            </table>
+                                            <% if (alt.required && alt.required.length) { %><p class="alt-desc"><strong>Required:</strong> <%= alt.required.join(', ') %></p><% } %>
+                                        <% } %>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } %>
+                    <% }); %>
                 <% } else { %>
                     <p>No properties defined.</p>
                 <% } %>
@@ -213,6 +296,63 @@
             document.getElementById('drawerClose').addEventListener('click', closeDrawer);
             overlay.addEventListener('click', closeDrawer);
 
+            function propTypeStr(prop) {
+                if (prop.oneOf) return 'one of (' + prop.oneOf.length + ' alternatives)';
+                if (prop.anyOf) return 'any of (' + prop.anyOf.length + ')';
+                if (prop.allOf) return 'all of (' + prop.allOf.length + ')';
+                var t = Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || (prop.const !== undefined ? JSON.stringify(prop.const) : '-'));
+                if (prop.format) t += ' (' + prop.format + ')';
+                return t;
+            }
+            function renderAltTable(alt) {
+                if (!alt.properties || !Object.keys(alt.properties).length) return '';
+                var h = '<table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>';
+                for (var pName in alt.properties) {
+                    var p = alt.properties[pName];
+                    var typeStr = propTypeStr(p);
+                    h += '<tr><td><code>' + escapeHtml(pName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(p.description || '-') + '</td></tr>';
+                }
+                h += '</tbody></table>';
+                if (alt.required && alt.required.length) h += '<p class="alt-desc"><strong>Required:</strong> ' + escapeHtml(alt.required.join(', ')) + '</p>';
+                return h;
+            }
+            function renderSchemaDetail(schema) {
+                var html = '<p><strong>Schema ID:</strong> <code>' + escapeHtml(schema.schemaId) + '</code></p>';
+                html += '<div class="raw-link"><a href="/schemas/' + escapeHtml(schema.schemaId) + '" target="_blank" rel="noopener">Raw JSON</a></div>';
+                if (schema.required && schema.required.length) {
+                    html += '<p><strong>Required:</strong> ' + escapeHtml(schema.required.join(', ')) + '</p>';
+                }
+                if (schema.properties && Object.keys(schema.properties).length) {
+                    html += '<h3>Properties</h3><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>';
+                    for (var propName in schema.properties) {
+                        var prop = schema.properties[propName];
+                        var typeStr = propTypeStr(prop);
+                        html += '<tr><td><code>' + escapeHtml(propName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(prop.description || '-') + '</td></tr>';
+                    }
+                    html += '</tbody></table>';
+                    var labels = { oneOf: 'one of', anyOf: 'any of', allOf: 'all of' };
+                    for (var key in labels) {
+                        for (var propName in schema.properties) {
+                            var prop = schema.properties[propName];
+                            var arr = prop && prop[key];
+                            if (!arr || !arr.length) continue;
+                            html += '<div class="schema-oneof"><h4><code>' + escapeHtml(propName) + '</code> — ' + labels[key] + ':</h4>';
+                            for (var i = 0; i < arr.length; i++) {
+                                var alt = arr[i];
+                                html += '<div class="schema-oneof-alt">';
+                                if (alt.description) html += '<p class="alt-desc">' + escapeHtml(alt.description) + '</p>';
+                                html += renderAltTable(alt);
+                                html += '</div>';
+                            }
+                            html += '</div>';
+                        }
+                    }
+                } else {
+                    html += '<p>No properties defined.</p>';
+                }
+                return html;
+            }
+
             document.querySelectorAll('.schema-list a[data-schema-id]').forEach(function(a) {
                 a.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -221,24 +361,7 @@
                         .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Not found')); })
                         .then(function(schema) {
                             titleEl.textContent = schema.title || 'Schema';
-                            var html = '<p><strong>Schema ID:</strong> <code>' + escapeHtml(schema.schemaId) + '</code></p>';
-                            html += '<div class="raw-link"><a href="/schemas/' + escapeHtml(schema.schemaId) + '" target="_blank" rel="noopener">Raw JSON</a></div>';
-                            if (schema.required && schema.required.length) {
-                                html += '<p><strong>Required:</strong> ' + escapeHtml(schema.required.join(', ')) + '</p>';
-                            }
-                            if (schema.properties && Object.keys(schema.properties).length) {
-                                html += '<h3>Properties</h3><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>';
-                                for (var propName in schema.properties) {
-                                    var prop = schema.properties[propName];
-                                    var typeStr = Array.isArray(prop.type) ? prop.type.join(' | ') : (prop.type || '-');
-                                    if (prop.format) typeStr += ' (' + prop.format + ')';
-                                    html += '<tr><td><code>' + escapeHtml(propName) + '</code></td><td class="type-cell">' + escapeHtml(typeStr) + '</td><td>' + escapeHtml(prop.description || '-') + '</td></tr>';
-                                }
-                                html += '</tbody></table>';
-                            } else {
-                                html += '<p>No properties defined.</p>';
-                            }
-                            content.innerHTML = html;
+                            content.innerHTML = renderSchemaDetail(schema);
                             if (placeholder) placeholder.style.display = 'none';
                             openDrawer();
                         })
