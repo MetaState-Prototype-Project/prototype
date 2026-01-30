@@ -141,34 +141,8 @@
     let downloadUrl = $state<string | null>(null);
 
     // Multi-file selection for download
-    // Server-side zip generation - no batch size needed
     let selectedFileIds = $state<Set<string>>(new Set());
 
-    // Download modal state
-    let showDownloadModal = $state(false);
-    let downloadProgress = $state<{
-        currentFile: string;
-        currentFileIndex: number;
-        totalFiles: number;
-        fileProgress: number; // 0-100 for current file
-        overallProgress: number; // 0-100 for all files
-        status: "preparing" | "downloading" | "zipping" | "complete" | "error";
-        errorMessage?: string;
-        downloadedFiles: Array<{
-            name: string;
-            size: number;
-            status: "done" | "downloading" | "pending" | "error";
-            errorMessage?: string;
-        }>;
-    }>({
-        currentFile: "",
-        currentFileIndex: 0,
-        totalFiles: 0,
-        fileProgress: 0,
-        overallProgress: 0,
-        status: "preparing",
-        downloadedFiles: [],
-    });
     let breadcrumbs = $state<Array<{ id: string | null; name: string }>>([
         { id: null, name: "My Files" },
     ]);
@@ -1047,18 +1021,6 @@
         return result;
     }
 
-    function resetDownloadProgress() {
-        downloadProgress = {
-            currentFile: "",
-            currentFileIndex: 0,
-            totalFiles: 0,
-            fileProgress: 0,
-            overallProgress: 0,
-            status: "preparing",
-            downloadedFiles: [],
-        };
-    }
-
     async function downloadSelectedFiles() {
         if (selectedFileIds.size === 0) return;
 
@@ -1095,59 +1057,35 @@
             return;
         }
 
-        // Show download modal
-        showDownloadModal = true;
-        resetDownloadProgress();
-
-        downloadProgress = {
-            ...downloadProgress,
-            status: "preparing",
-            currentFile: "Gathering files...",
-            downloadedFiles: [],
-        };
+        // For multiple files/folders, use server-side zip with native browser download
+        toast.info("Preparing download...");
 
         try {
             // Build the list of all files to download with their paths
-            // Structure: { file, path } where path is the directory path in the zip
-            const allFilesToDownload: Array<{ file: any; path: string; displayName: string }> = [];
+            const allFilesToDownload: Array<{ file: any; path: string }> = [];
 
             // Add directly selected files (at root level)
             for (const file of selectedFiles) {
-                allFilesToDownload.push({
-                    file,
-                    path: "",
-                    displayName: file.displayName || file.name,
-                });
+                allFilesToDownload.push({ file, path: "" });
             }
 
             // Process selected folders - gather all files recursively
-            // Use a shared visited set across all selected folders to detect cross-folder cycles
             const visitedFolders = new Set<string>();
             
             for (const folder of selectedFolders) {
-                downloadProgress = {
-                    ...downloadProgress,
-                    currentFile: `Scanning folder: ${folder.name}...`,
-                };
-
                 try {
                     const folderFiles = await getAllFilesFromFolder(
                         folder.id, 
                         folder.name, 
                         "",
-                        100, // maxDepth
-                        0,   // currentDepth
+                        100,
+                        0,
                         visitedFolders
                     );
                     for (const { file, path } of folderFiles) {
-                        allFilesToDownload.push({
-                            file,
-                            path,
-                            displayName: file.displayName || file.name,
-                        });
+                        allFilesToDownload.push({ file, path });
                     }
                 } catch (folderError) {
-                    // Re-throw with additional context about which top-level folder failed
                     const errorMessage = folderError instanceof Error 
                         ? folderError.message 
                         : String(folderError);
@@ -1155,116 +1093,43 @@
                 }
             }
 
-            // Guard against empty result (folders might be empty)
             if (allFilesToDownload.length === 0) {
                 toast.info("No files found in selected items");
-                showDownloadModal = false;
-                resetDownloadProgress();
                 clearSelection();
                 return;
             }
 
-            // Update progress - preparing server-side zip
-            downloadProgress = {
-                ...downloadProgress,
-                totalFiles: allFilesToDownload.length,
-                status: "downloading",
-                currentFile: `Preparing ${allFilesToDownload.length} files for download...`,
-                downloadedFiles: allFilesToDownload.map(({ file, displayName, path }) => ({
-                    name: path ? `${path}/${displayName}` : displayName,
-                    size: file.size || 0,
-                    status: "pending" as const,
-                })),
-            };
-
-            // Build the request payload for server-side zip
+            // Build payload and trigger server-side zip download via hidden form
             const filesPayload = allFilesToDownload.map(({ file, path }) => ({
                 id: file.id,
                 path: path,
             }));
 
-            downloadProgress = {
-                ...downloadProgress,
-                status: "zipping",
-                currentFile: "Server is creating zip file...",
-                overallProgress: 50,
-            };
+            // Create a hidden form to POST and trigger native browser download
+            const form = document.createElement("form");
+            form.method = "POST";
+            // Pass token in query param so auth middleware picks it up
+            form.action = `${API_BASE_URL}/api/files/download-zip?token=${encodeURIComponent(token || "")}`;
+            form.style.display = "none";
 
-            // Request server-side zip generation
-            const response = await fetch(`${API_BASE_URL}/api/files/download-zip`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ files: filesPayload }),
-            });
+            // Add files payload as hidden field (JSON string)
+            const filesInput = document.createElement("input");
+            filesInput.type = "hidden";
+            filesInput.name = "files";
+            filesInput.value = JSON.stringify(filesPayload);
+            form.appendChild(filesInput);
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}: Failed to create zip`);
-            }
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
 
-            downloadProgress = {
-                ...downloadProgress,
-                overallProgress: 80,
-                currentFile: "Downloading zip file...",
-            };
-
-            // Get the zip blob from response
-            const zipBlob = await response.blob();
-
-            downloadProgress = {
-                ...downloadProgress,
-                status: "complete",
-                overallProgress: 100,
-                currentFile: "Download ready!",
-                downloadedFiles: downloadProgress.downloadedFiles.map(f => ({
-                    ...f,
-                    status: "done" as const,
-                })),
-            };
-
-            // Trigger download of the zip file
-            const zipUrl = URL.createObjectURL(zipBlob);
-            const link = document.createElement("a");
-            link.href = zipUrl;
-            const timestamp = new Date().toISOString().slice(0, 10);
-            link.download = `files-${timestamp}.zip`;
-            link.style.display = "none";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Delay revoking the object URL to ensure the download starts
-            setTimeout(() => {
-                URL.revokeObjectURL(zipUrl);
-            }, 500);
-
-            // Close modal after a short delay
-            setTimeout(() => {
-                showDownloadModal = false;
-                resetDownloadProgress();
-                clearSelection();
-            }, 1500);
-
-            toast.success(`Downloaded ${allFilesToDownload.length} files as zip`)
+            toast.success(`Downloading ${allFilesToDownload.length} files as zip`);
+            clearSelection();
         } catch (error) {
             console.error("Download error:", error);
-            downloadProgress = {
-                ...downloadProgress,
-                status: "error",
-                errorMessage:
-                    error instanceof Error
-                        ? error.message
-                        : "Failed to download files",
-            };
+            toast.error(error instanceof Error ? error.message : "Failed to prepare download");
+            clearSelection();
         }
-    }
-
-    function cancelDownload() {
-        showDownloadModal = false;
-        resetDownloadProgress();
     }
 </script>
 
@@ -2456,289 +2321,6 @@
                 >
                     View Details
                 </button>
-            </div>
-        </div>
-    </div>
-{/if}
-
-<!-- Download Progress Modal -->
-{#if showDownloadModal}
-    <div
-        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        onclick={(e) => {
-            if (
-                e.target === e.currentTarget &&
-                downloadProgress.status !== "downloading" &&
-                downloadProgress.status !== "zipping"
-            ) {
-                cancelDownload();
-            }
-        }}
-    >
-        <div
-            class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
-            onclick={(e) => e.stopPropagation()}
-        >
-            <!-- Header -->
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">
-                    {#if downloadProgress.status === "preparing"}
-                        Preparing Download...
-                    {:else if downloadProgress.status === "downloading"}
-                        Downloading Files
-                    {:else if downloadProgress.status === "zipping"}
-                        Creating Zip File
-                    {:else if downloadProgress.status === "complete"}
-                        Download Complete!
-                    {:else if downloadProgress.status === "error"}
-                        Download Failed
-                    {/if}
-                </h3>
-                {#if downloadProgress.status !== "downloading" && downloadProgress.status !== "zipping"}
-                    <button
-                        onclick={cancelDownload}
-                        class="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <svg
-                            class="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                {/if}
-            </div>
-
-            <!-- Status message -->
-            <div class="mb-4">
-                {#if downloadProgress.status === "error"}
-                    <div class="flex items-center gap-2 text-red-600">
-                        <svg
-                            class="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        <span class="text-sm"
-                            >{downloadProgress.errorMessage}</span
-                        >
-                    </div>
-                {:else if downloadProgress.status === "complete"}
-                    {@const hasFailures = downloadProgress.downloadedFiles.some(f => f.status === "error")}
-                    <div class="flex items-center gap-2 {hasFailures ? 'text-amber-600' : 'text-green-600'}">
-                        <svg
-                            class="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            {#if hasFailures}
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                />
-                            {:else}
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M5 13l4 4L19 7"
-                                />
-                            {/if}
-                        </svg>
-                        <span class="text-sm">{downloadProgress.currentFile}</span>
-                    </div>
-                {:else}
-                    <p class="text-sm text-gray-600">
-                        {#if downloadProgress.status === "downloading"}
-                            Downloading file {downloadProgress.currentFileIndex} of
-                            {downloadProgress.totalFiles}
-                        {:else if downloadProgress.status === "zipping"}
-                            Compressing {downloadProgress.totalFiles} files into a
-                            zip...
-                        {:else}
-                            Please wait while we prepare your download...
-                        {/if}
-                    </p>
-                    {#if downloadProgress.currentFile && downloadProgress.status === "downloading"}
-                        <p
-                            class="text-xs text-gray-500 mt-1 truncate"
-                            title={downloadProgress.currentFile}
-                        >
-                            Current: {downloadProgress.currentFile}
-                        </p>
-                    {/if}
-                {/if}
-            </div>
-
-            <!-- Overall Progress Bar -->
-            <div class="mb-4">
-                <div class="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Overall Progress</span>
-                    <span>{downloadProgress.overallProgress}%</span>
-                </div>
-                <div
-                    class="w-full bg-gray-200 rounded-full h-3 overflow-hidden"
-                >
-                    <div
-                        class="h-full rounded-full transition-all duration-300 ease-out {downloadProgress.status ===
-                        'error'
-                            ? 'bg-red-500'
-                            : downloadProgress.status === 'complete'
-                              ? 'bg-green-500'
-                              : 'bg-blue-600'}"
-                        style="width: {downloadProgress.overallProgress}%"
-                    ></div>
-                </div>
-            </div>
-
-            <!-- File List -->
-            {#if downloadProgress.downloadedFiles.length > 0}
-                <div
-                    class="border border-gray-200 rounded-lg max-h-48 overflow-y-auto"
-                >
-                    <div class="divide-y divide-gray-100">
-                        {#each downloadProgress.downloadedFiles as file, idx}
-                            <div
-                                class="flex items-center gap-3 px-3 py-2 text-sm {file.status ===
-                                'downloading'
-                                    ? 'bg-blue-50'
-                                    : file.status === 'error'
-                                      ? 'bg-red-50'
-                                      : ''}"
-                            >
-                                <!-- Status Icon -->
-                                <div class="flex-shrink-0">
-                                    {#if file.status === "done"}
-                                        <svg
-                                            class="w-4 h-4 text-green-500"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M5 13l4 4L19 7"
-                                            />
-                                        </svg>
-                                    {:else if file.status === "downloading"}
-                                        <div
-                                            class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
-                                        ></div>
-                                    {:else if file.status === "error"}
-                                        <svg
-                                            class="w-4 h-4 text-red-500"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12"
-                                            />
-                                        </svg>
-                                    {:else}
-                                        <div
-                                            class="w-4 h-4 border-2 border-gray-300 rounded-full"
-                                        ></div>
-                                    {/if}
-                                </div>
-                                <!-- File Name -->
-                                <div class="flex-1 min-w-0">
-                                    <span
-                                        class="truncate block {file.status === 'error' ? 'text-red-700' : 'text-gray-700'}"
-                                        title={file.name}
-                                    >
-                                        {file.name}
-                                    </span>
-                                    {#if file.status === "error" && file.errorMessage}
-                                        <span class="text-xs text-red-500 truncate block" title={file.errorMessage}>
-                                            {file.errorMessage}
-                                        </span>
-                                    {/if}
-                                </div>
-                                <!-- File Size -->
-                                <span
-                                    class="flex-shrink-0 text-xs text-gray-400"
-                                >
-                                    {formatFileSize(file.size)}
-                                </span>
-                            </div>
-                        {/each}
-                    </div>
-                </div>
-            {/if}
-
-            <!-- Warning Message -->
-            {#if downloadProgress.status === "downloading" || downloadProgress.status === "zipping"}
-                <div
-                    class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg"
-                >
-                    <div class="flex items-start gap-2">
-                        <svg
-                            class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                            />
-                        </svg>
-                        <p class="text-xs text-amber-700">
-                            Please don't close this window or navigate away
-                            while the download is in progress.
-                        </p>
-                    </div>
-                </div>
-            {/if}
-
-            <!-- Action Buttons -->
-            <div class="mt-4 flex justify-end gap-2">
-                {#if downloadProgress.status === "error"}
-                    <button
-                        onclick={cancelDownload}
-                        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                        Close
-                    </button>
-                    <button
-                        onclick={downloadSelectedFiles}
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        Retry
-                    </button>
-                {:else if downloadProgress.status === "complete"}
-                    <button
-                        onclick={cancelDownload}
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                        Done
-                    </button>
-                {/if}
             </div>
         </div>
     </div>

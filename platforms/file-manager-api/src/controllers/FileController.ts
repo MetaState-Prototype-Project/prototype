@@ -594,12 +594,10 @@ export class FileController {
      * compared to client-side zipping.
      * 
      * POST /api/files/download-zip
-     * Body: { files: Array<{ id: string, path?: string }> }
-     *   - id: file UUID
-     *   - path: optional directory path in the zip (e.g. "folder1/subfolder")
      * 
-     * Alternative simple format (for backwards compatibility):
-     * Body: { fileIds: string[] }
+     * Accepts JSON body: { files: Array<{ id: string, path?: string }> }
+     * Or form-encoded: files=JSON_STRING (for native browser download via form submit)
+     * Or simple format: { fileIds: string[] }
      */
     downloadFilesAsZip = async (req: Request, res: Response) => {
         try {
@@ -609,7 +607,16 @@ export class FileController {
                     .json({ error: "Authentication required" });
             }
 
-            const { files, fileIds } = req.body;
+            let { files, fileIds } = req.body;
+
+            // Handle form-encoded data where files is a JSON string
+            if (typeof files === 'string') {
+                try {
+                    files = JSON.parse(files);
+                } catch {
+                    return res.status(400).json({ error: "Invalid files JSON" });
+                }
+            }
 
             // Support both formats: { files: [{id, path}] } or { fileIds: [id] }
             let fileEntries: Array<{ id: string; path: string }>;
