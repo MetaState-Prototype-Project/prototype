@@ -696,6 +696,12 @@ export class FileController {
             // Pipe archive to file on disk
             archive.pipe(output);
 
+            // Set up promise to wait for file write completion (BEFORE finalize)
+            const writeComplete = new Promise<void>((resolve, reject) => {
+                output!.on('finish', resolve); // 'finish' fires when all data written
+                output!.on('error', reject);
+            });
+
             // Track full paths to handle duplicates
             const usedPaths = new Map<string, number>();
 
@@ -830,11 +836,8 @@ export class FileController {
             if (!aborted && output && archive) {
                 await archive.finalize();
                 
-                // Wait for file to be written
-                await new Promise<void>((resolve, reject) => {
-                    output!.on('close', resolve);
-                    output!.on('error', reject);
-                });
+                // Wait for file to be completely written to disk
+                await writeComplete;
 
                 // Send the file
                 res.setHeader('Content-Type', 'application/zip');
