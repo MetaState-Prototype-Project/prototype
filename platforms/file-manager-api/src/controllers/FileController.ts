@@ -667,10 +667,14 @@ export class FileController {
             const zipFilename = `files-${timestamp}.zip`;
             zipPath = path.join(this.ZIP_TEMP_DIR, zipFilename);
             
+            console.log(`[ZIP] Creating zip file at: ${zipPath}`);
+            
             output = fs.createWriteStream(zipPath);
             archive = archiver('zip', {
                 store: true, // No compression for speed
             });
+            
+            console.log(`[ZIP] Archive and output stream initialized`);
 
             // Track if request was aborted
             let aborted = false;
@@ -834,24 +838,38 @@ export class FileController {
 
             // Finalize the archive (this is when the stream ends)
             if (!aborted && output && archive) {
+                console.log(`[ZIP] Finalizing archive...`);
                 await archive.finalize();
+                console.log(`[ZIP] Archive finalized, waiting for disk write...`);
                 
                 // Wait for file to be completely written to disk
                 await writeComplete;
+                console.log(`[ZIP] Disk write complete!`);
 
                 // Send the file
+                console.log(`[ZIP] Starting to stream file: ${zipPath}, size: ${fs.statSync(zipPath).size} bytes`);
+                
                 res.setHeader('Content-Type', 'application/zip');
                 res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
                 res.setHeader('Content-Length', fs.statSync(zipPath).size.toString());
                 
                 const fileStream = fs.createReadStream(zipPath);
-                fileStream.pipe(res);
                 
-                fileStream.on('error', (err) => {
-                    console.error('Error streaming zip file:', err);
-                    if (!res.headersSent) {
-                        res.status(500).json({ error: 'Failed to send zip file' });
-                    }
+                // Wait for the stream to finish BEFORE exiting try block (so finally doesn't delete file mid-stream)
+                await new Promise<void>((resolve, reject) => {
+                    fileStream.on('end', () => {
+                        console.log(`[ZIP] Finished streaming file: ${zipPath}`);
+                        resolve();
+                    });
+                    fileStream.on('error', (err) => {
+                        console.error('Error streaming zip file:', err);
+                        if (!res.headersSent) {
+                            res.status(500).json({ error: 'Failed to send zip file' });
+                        }
+                        reject(err);
+                    });
+                    
+                    fileStream.pipe(res);
                 });
             }
 
@@ -861,6 +879,8 @@ export class FileController {
                 res.status(500).json({ error: "Failed to create zip download" });
             }
         } finally {
+            console.log(`[ZIP] Cleanup starting for: ${zipPath}`);
+            
             // Always cleanup resources
             if (archive) {
                 try {
@@ -879,10 +899,14 @@ export class FileController {
             // Delete zip file - no longer needed after serving
             if (zipPath && fs.existsSync(zipPath)) {
                 try {
+                    console.log(`[ZIP] Deleting temp file: ${zipPath}`);
                     fs.unlinkSync(zipPath);
+                    console.log(`[ZIP] Successfully deleted: ${zipPath}`);
                 } catch (e) {
-                    console.error('Error deleting temp zip:', e);
+                    console.error('[ZIP] Error deleting temp zip:', e);
                 }
+            } else {
+                console.log(`[ZIP] File already gone or path not set: ${zipPath}`);
             }
         }
     };
