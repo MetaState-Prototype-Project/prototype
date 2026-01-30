@@ -671,16 +671,53 @@ export class FileController {
             // Track full paths to handle duplicates
             const usedPaths = new Map<string, number>();
 
-            // Sanitize path to prevent directory traversal
+            // Sanitize path to prevent directory traversal attacks
             const sanitizePath = (p: string): string => {
                 if (!p) return '';
-                return p
-                    .replace(/\.\./g, '')
-                    .replace(/^\/+/, '')
-                    .replace(/\/+$/, '')
-                    .split('/')
-                    .filter(Boolean)
-                    .join('/');
+                
+                // Normalize separators: convert backslashes to forward slashes
+                let normalized = p.replace(/\\/g, '/');
+                
+                // Strip Windows drive letters (C:, D:, etc.)
+                normalized = normalized.replace(/^[a-zA-Z]:/, '');
+                
+                // Strip UNC paths (//server/share or \\server\share already normalized)
+                normalized = normalized.replace(/^\/\/[^/]*\/[^/]*/, '');
+                
+                // Strip any leading slashes
+                normalized = normalized.replace(/^\/+/, '');
+                
+                // Split into segments and resolve . and ..
+                const segments = normalized.split('/');
+                const resolved: string[] = [];
+                let escapedRoot = false;
+                
+                for (const segment of segments) {
+                    // Skip empty segments and current directory references
+                    if (segment === '' || segment === '.') {
+                        continue;
+                    }
+                    
+                    if (segment === '..') {
+                        // Pop parent directory if possible
+                        if (resolved.length > 0) {
+                            resolved.pop();
+                        } else {
+                            // Attempted to escape root - mark as invalid
+                            escapedRoot = true;
+                        }
+                    } else {
+                        // Regular segment - add it
+                        resolved.push(segment);
+                    }
+                }
+                
+                // If any attempt to escape root was detected, return empty string
+                if (escapedRoot) {
+                    return '';
+                }
+                
+                return resolved.join('/');
             };
 
             // Stream each file into the archive one at a time

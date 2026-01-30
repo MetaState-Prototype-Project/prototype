@@ -1170,9 +1170,9 @@
                 totalFiles: allFilesToDownload.length,
                 status: "downloading",
                 currentFile: `Preparing ${allFilesToDownload.length} files for download...`,
-                downloadedFiles: allFilesToDownload.map(({ displayName, path }) => ({
+                downloadedFiles: allFilesToDownload.map(({ file, displayName, path }) => ({
                     name: path ? `${path}/${displayName}` : displayName,
-                    size: 0,
+                    size: file.size || 0,
                     status: "pending" as const,
                 })),
             };
