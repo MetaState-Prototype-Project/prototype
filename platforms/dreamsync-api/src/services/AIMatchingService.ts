@@ -131,7 +131,34 @@ export class AIMatchingService {
             
             // Process any existing matches that haven't been messaged yet
             await this.processUnmessagedMatches();
+
+            // Send no-match messages to all users with a wishlist (even empty) who did not get a match this run
+            await this.sendNoMatchNotifications(wishlists, matchResults);
         });
+    }
+
+    /**
+     * Send no-match notifications to users who have a wishlist (even if empty) but did not get a match this run.
+     */
+    private async sendNoMatchNotifications(wishlists: Wishlist[], matchResults: MatchResult[]): Promise<void> {
+        const wishlistUserIds = [...new Set(wishlists.map(w => w.userId))];
+        const matchedUserIds = new Set(matchResults.flatMap(r => r.userIds));
+        const noMatchUserIds = wishlistUserIds.filter(userId => !matchedUserIds.has(userId));
+
+        if (noMatchUserIds.length === 0) {
+            console.log("✅ No users to notify for no-match (all wishlist users got a match)");
+            return;
+        }
+
+        console.log(`📨 Sending no-match notifications to ${noMatchUserIds.length} users with a wishlist who didn't get a match`);
+        for (const userId of noMatchUserIds) {
+            try {
+                await this.notificationService.sendNoMatchNotification(userId);
+            } catch (error) {
+                console.error(`❌ Error sending no-match notification to user ${userId}:`, error);
+            }
+        }
+        console.log(`🎉 No-match notifications sent to ${noMatchUserIds.length} users`);
     }
 
     /**

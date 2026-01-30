@@ -685,6 +685,66 @@ Reply with the Match ID "${match.id}" to connect with the other ${otherUserIds.l
     }
 
     /**
+     * Send a no-match notification to a user who has a wishlist but did not get a match this run.
+     * Condition: they have made a wishlist (even if empty).
+     */
+    async sendNoMatchNotification(userId: string): Promise<void> {
+        try {
+            console.log(`📨 Sending no-match notification to user: ${userId}`);
+
+            const dreamsyncUser = await this.findDreamSyncUser();
+            if (!dreamsyncUser) {
+                console.error("Cannot send no-match notification: DreamSync user not found");
+                return;
+            }
+
+            const user = await this.userService.getUserById(userId);
+            if (!user) {
+                console.error(`Cannot send no-match notification: User ${userId} not found`);
+                return;
+            }
+
+            const chatResult = await this.findOrCreateMutualChat(userId);
+            if (!chatResult.chat) {
+                console.error(`Cannot send no-match notification: Could not find/create chat for user ${userId}`);
+                return;
+            }
+
+            const { chat, wasCreated } = chatResult;
+            if (wasCreated) {
+                console.log(`⏳ Chat was just created, waiting 15 seconds before sending no-match message...`);
+                await new Promise(resolve => setTimeout(resolve, 15000));
+                console.log(`✅ 15-second delay completed for no-match message`);
+            }
+
+            const displayName = user.name || user.ename || "User";
+            const messageContent = `$$system-message$$
+
+Dear ${displayName},
+
+DreamSync tried to find matches with other users using your wishlist but no conclusive matches were found.
+
+we would encourage you to add more details to your wishlist and add more topics you are interested in.
+
+Best Wishes,
+DreamSync`;
+
+            const messageRepository = AppDataSource.getRepository(Message);
+            const message = messageRepository.create({
+                text: messageContent,
+                sender: dreamsyncUser,
+                group: chat,
+                isSystemMessage: true,
+            });
+
+            await messageRepository.save(message);
+            console.log(`✅ No-match notification sent to user: ${userId}`);
+        } catch (error) {
+            console.error(`❌ Error sending no-match notification to user ${userId}:`, error);
+        }
+    }
+
+    /**
      * Process a new match and send notifications
      */
     async processMatch(match: Match): Promise<void> {
