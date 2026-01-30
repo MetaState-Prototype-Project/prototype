@@ -57,7 +57,7 @@ onMount(() => {
 </script>
 
 <main
-    class="h-[85vh] pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="h-[85vh] pt-[4svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
 >
     <section>
         <div>
@@ -83,9 +83,9 @@ onMount(() => {
 
 <Drawer bind:isPaneOpen={showDrawer}>
     <div
-        class="relative bg-gray w-[72px] h-[72px] rounded-[24px] flex justify-center items-center mb-[2.3svh]"
+        class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-[2.3svh]"
     >
-        <span class="relative z-[1]">
+        <span class="relative z-1">
             <HugeiconsIcon
                 icon={CircleLock01Icon}
                 color="var(--color-primary)"

@@ -101,7 +101,7 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="h-full pt-[5.2svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
 >
     <section>
         {#if currentStep === "CREATE"}

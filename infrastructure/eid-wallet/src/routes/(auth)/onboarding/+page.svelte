@@ -336,7 +336,7 @@ onMount(async () => {
             </ButtonAction>
         </div>
 
-        <p class="mt-2 text-center">
+        <p class="mt-2 text-center pb-12">
             Already have a pre-verification code? <button
                 onclick={handlePreVerified}
                 class="text-primary-500">Click Here</button
@@ -440,7 +440,7 @@ onMount(async () => {
                 {/if}
             </article>
 
-            <div class="flex-none pt-8 pb-4">
+            <div class="flex-none pt-8 pb-12">
                 {#if !loading && !checkingHardware}
                     <div class="flex w-full items-stretch gap-3">
                         <div class="flex-1">

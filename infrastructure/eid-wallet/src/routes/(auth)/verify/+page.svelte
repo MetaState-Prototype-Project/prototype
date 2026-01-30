@@ -453,7 +453,7 @@ onDestroy(() => {
                 {/if}
             </div>
 
-            <div class="flex-none px-[5vw] pb-[4.5svh] pt-4">
+            <div class="flex-none px-[5vw] pb-[8svh] pt-4">
                 {#if !loading}
                     <div class="flex w-full items-stretch gap-3">
                         <ButtonAction

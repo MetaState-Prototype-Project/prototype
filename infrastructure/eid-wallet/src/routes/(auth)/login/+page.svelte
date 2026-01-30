@@ -238,9 +238,7 @@ onMount(async () => {
 });
 </script>
 
-<main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
->
+<main class="h-full pt-[5.2svh] px-[5vw] flex flex-col justify-between">
     <section>
         <Hero title="Log in to your account" class="mb-4">
             {#snippet subtitle()}

@@ -198,12 +198,15 @@ onDestroy(() => {
         </div>
     </Drawer>
 
-    <Button.Nav href="/scan-qr">
+    <Button.Nav
+        href="/scan-qr"
+        class="fixed bottom-12 left-1/2 -translate-x-1/2"
+    >
         <Button.Action
             variant="solid"
-            size="sm"
+            size="md"
             onclick={() => alert("Action button clicked!")}
-            class="mx-auto text-nowrap flex gap-8 fixed bottom-5 left-1/2 -translate-x-1/2 z-10"
+            class="mx-auto text-nowrap flex gap-8"
         >
             <HugeiconsIcon
                 size={32}

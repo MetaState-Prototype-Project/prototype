@@ -681,7 +681,7 @@ $effect(() => {
     ></div>
     <div
         bind:this={mainWrapper}
-        class="bg-white h-screen overflow-scroll pt-10"
+        class="bg-white h-screen overflow-scroll py-10"
     >
         {#if children}
             {@render children()}
