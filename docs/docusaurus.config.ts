@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
     title: 'W3DS Documentation',
     tagline: 'Documentation for Web 3 Data Spaces',
-    favicon: 'img/favicon.ico',
+    favicon: 'img/w3dslogo.svg',
 
     // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
     future: {
