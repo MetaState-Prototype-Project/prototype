@@ -1,26 +1,26 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero, IdentityCard } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { ButtonAction } from "$lib/ui";
-import axios from "axios";
-import { getContext, onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { Hero, IdentityCard } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { ButtonAction } from "$lib/ui";
+    import axios from "axios";
+    import { getContext, onMount } from "svelte";
 
-let globalState = getContext<() => GlobalState>("globalState")();
-let ename = $state();
+    let globalState = getContext<() => GlobalState>("globalState")();
+    let ename = $state();
 
-const handleNext = async () => {
-    await goto("/e-passport");
-};
+    const handleNext = async () => {
+        await goto("/e-passport");
+    };
 
-onMount(async () => {
-    const vault = await globalState.vaultController.vault;
-    ename = vault?.ename;
-});
+    onMount(async () => {
+        const vault = await globalState.vaultController.vault;
+        ename = vault?.ename;
+    });
 </script>
 
 <main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="h-full pt-[5.2svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
 >
     <section>
         <Hero title="Here’s your eName" class="mb-4">
