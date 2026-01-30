@@ -49,6 +49,3 @@ evault-cache.json
 
 .pnpm-store
 .pnpm-store/
-
-# Temporary file storage
-platforms/file-manager-api/temp/
