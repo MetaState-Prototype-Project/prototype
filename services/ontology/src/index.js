@@ -49,14 +49,14 @@ async function loadSchemas() {
 function getSchemaList(q) {
     const list = Array.from(schemaIndex.entries()).map(([id, schema]) => ({
         id,
-        title: schema.title
+        title: schema.title == null ? '' : String(schema.title)
     }));
     if (!q || typeof q !== 'string' || q.trim() === '') return list;
     const lower = q.toLowerCase().trim();
     return list.filter(
         (s) =>
-            s.title.toLowerCase().includes(lower) ||
-            s.id.toLowerCase().includes(lower)
+            (s.title || '').toLowerCase().includes(lower) ||
+            (s.id || '').toLowerCase().includes(lower)
     );
 }
 

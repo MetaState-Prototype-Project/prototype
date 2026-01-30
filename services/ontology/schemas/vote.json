@@ -38,7 +38,8 @@
                     "enum": ["normal", "point", "rank", "blind"],
                     "description": "Must match the poll voting mode"
                 }
-            }
+            },
+            "required": ["mode"]
         },
         "createdAt": {
             "type": "string",
