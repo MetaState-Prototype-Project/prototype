@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # Getting Started with W3DS
 
-Welcome to **W3DS (Web 3 Data Spaces)** - a decentralized data synchronization protocol that puts users in control of their data.
+Welcome to **W3DS (Web 3 Data Spaces)** — a decentralized data synchronization protocol that puts users in control of their data. For definitions of key terms (eVault, W3ID, MetaState, Post-Platform, etc.), see the [Glossary](/docs/W3DS%20Basics/glossary).
 
 ## What is W3DS?
 
-W3DS is a protocol that enables seamless data synchronization across multiple platforms while ensuring users own and control their data. Instead of platforms storing user data in silos, W3DS allows users to store their data in their own **eVaults** and have platforms sync from these vaults.
+W3DS is a protocol that enables seamless data synchronization across multiple platforms while ensuring users own and control their data. Instead of platforms storing user data in silos, W3DS allows users to store their data in their own [**eVaults**](/docs/W3DS%20Basics/glossary#evault) and have platforms sync from these vaults.
 
 ## Core Concept
 

@@ -1,10 +1,10 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # W3DS Basics
 
-This document provides a deep dive into the core concepts of W3DS (Web 3 Data Spaces), including eVault ownership, data synchronization, and the webhook notification system.
+This document provides a deep dive into the core concepts of W3DS (Web 3 Data Spaces), including [eVault](/docs/W3DS%20Basics/glossary#evault) ownership, data synchronization, and the webhook notification system. See the [Glossary](/docs/W3DS%20Basics/glossary) for other terms.
 
 ## eVault Ownership Model
 
