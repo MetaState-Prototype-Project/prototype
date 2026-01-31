@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Getting Started with W3DS
 
-Welcome to **W3DS (Web 3.0 Data Spaces)** — a decentralized data synchronization protocol that puts users in control of their data. For definitions of key terms (eVault, W3ID, MetaState, Post-Platform, etc.), see the [Glossary](/docs/W3DS%20Basics/glossary).
+Welcome to **W3DS (Web 3.0 Data Spaces)** — a decentralized datprotocol that puts users in control of their data. For definitions of key terms (eVault, W3ID, MetaState, Post-Platform, etc.), see the [Glossary](/docs/W3DS%20Basics/glossary).
 
 ## What is W3DS?
 
@@ -12,13 +12,13 @@ W3DS is a protocol that enables seamless data synchronization across multiple pl
 
 ## Core Concept
 
-The fundamental principle of W3DS is simple: **Users, groups, and objects own their own eVaults**. All data about a person, group, or object is stored in their eVault, and platforms act as frontends that display and interact with this data, while also serving as caches and aggregators for improved performance and user experience.
+The fundamental principle of W3DS is simple: **Users, groups, and objects owproved performance and user experience.
 
 ### Key Principles
 
 1. **Data Ownership & Decentralized Storage**: Users own their data, not platforms. Each user has their own eVault for data storage, ensuring true data ownership and control.
 
-2. **Platform Independence & Automatic Synchronization**: Platforms are interchangeable frontends that automatically synchronize data, while also serving as caches and aggregators. Data created on one platform automatically appears on all platforms, enabling true interoperability across the ecosystem.
+2. **Platform Independence & Automatic Synchronization**: Platforms are!!!! interchangeable frontends that automatically synchronize data, while also serving as caches and aggregators. Data created on one platform automatically appears on all platforms, enabling true interoperability across the ecosystem.
 
 ## How It Works: A Simple Example
 
@@ -26,7 +26,6 @@ Imagine User A creates a post on **Blabsy** (a social media platform):
 
 1. User A posts "Hello, world!" on Blabsy
 2. Blabsy's Web3 Adapter syncs the post to User A's eVault
-3. User A's eVault stores the post and notifies all registered platforms
 4. **Pictique** (another social media platform) receives the notification
 5. Pictique creates the post locally - User A's post automatically appears on Pictique through the synchronization system
 
@@ -49,9 +48,7 @@ graph TB
     end
 
     subgraph Platforms["Platforms"]
-        Blabsy[Blabsy]
-        Pictique[Pictique]
-        OtherPlatform[Other Platforms]
+
     end
 
     subgraph Infrastructure["Infrastructure"]
@@ -113,12 +110,7 @@ The [Registry Service](/docs/Infrastructure/Registry) provides:
 
 **Platforms** are applications that:
 
-- Display and interact with user data
-- Act as caches and aggregators for improved performance
-- Sync data to/from user eVaults
-- Convert between local and global data schemas
-- Handle webhooks to receive data updates
-
+- Display and inte
 ## Data Flow
 
 When a user creates data on a platform:
@@ -129,11 +121,7 @@ User Action → Platform Database → Web3 Adapter → User's eVault → Webhook
 
 1. **User Action**: User creates a post, message, or other data
 2. **Platform Database**: Platform stores data locally
-3. **Web3 Adapter**: Adapter converts data to global schema and syncs to eVault
-4. **User's eVault**: eVault stores the data as a [MetaEnvelope](/docs/Infrastructure/eVault#data-model)
-5. **Webhooks**: eVault sends webhooks to all registered platforms (except the originating one)
-6. **All Platforms**: Other platforms receive webhooks and create the data locally
-
+3. **Web3 Adapter
 > **Note**: This is a simplified overview of the data flow. The current implementation uses a basic webhook delivery mechanism. For production deployments, platforms should implement message delivery queues to handle eVault and platform downtime gracefully, ensuring reliable data synchronization.
 
 ### Detailed Data Flow Sequence
@@ -169,7 +157,7 @@ sequenceDiagram
 
 ### Registration Sequence
 
-The following sequence diagram shows how a new user registers and creates their eVault, illustrating the roles of the [Provisioner](/docs/W3DS%20Basics/Links) (production URL) and [Registry](/docs/Infrastructure/Registry) services:
+The  diagram shows how a new user registers and creates their eVault, illustrating the roles of the [Provisioner](/docs/W3DS%20Basics/Links) (production URL) and [Registry](/docs/Infrastructure/Registry) services:
 
 ```mermaid
 sequenceDiagram
@@ -185,10 +173,7 @@ sequenceDiagram
     Provisioner->>EVault: Create eVault instance
     EVault-->>Provisioner: eVault URL
     Provisioner->>Registry: Register eName → eVault URL
-    Registry->>Registry: Store W3ID mapping
-    Registry->>Registry: Issue key binding certificate<br/>(JWT with public key)
-    Registry-->>Provisioner: Registration complete
-    Provisioner->>EVault: Store public key<br/>(for signature verification)
+    Registry->>Registry: Storer/>(for signature verification)
     EVault-->>Provisioner: Public key stored
     Provisioner-->>Wallet: eVault URL + certificate
     Wallet->>Wallet: Store eVault URL
