@@ -301,7 +301,10 @@ export class MigrationService extends EventEmitter {
      */
     private async getPlatformToken(): Promise<string> {
         try {
-            const platformUrl = process.env.EMOVER_API_URL || "http://localhost:4003";
+            const platformUrl = process.env.EMOVER_API_URL;
+            if (!platformUrl) {
+                throw new Error("EMOVER_API_URL is not set");
+            }
             const response = await axios.post(
                 new URL("/platforms/certification", this.registryUrl).toString(),
                 { platform: platformUrl },
@@ -382,9 +385,9 @@ export class MigrationService extends EventEmitter {
 
                 const data = response.data.data!.metaEnvelopes;
                 const edges = data.edges || [];
-                
+
                 allEnvelopes.push(...edges.map((e: any) => e.node));
-                
+
                 hasNextPage = data.pageInfo.hasNextPage;
                 cursor = data.pageInfo.endCursor;
 
@@ -522,16 +525,16 @@ export class MigrationService extends EventEmitter {
             console.log(`[MIGRATION] Obtaining platform token from registry`);
             migration.logs += `[MIGRATION] Obtaining platform token from registry\n`;
             await this.migrationRepository.save(migration);
-            
+
             const token = await this.getPlatformToken();
 
             // Step 2: Fetch all envelopes from old eVault
             console.log(`[MIGRATION] Fetching all metaEnvelopes from old eVault`);
             migration.logs += `[MIGRATION] Fetching all metaEnvelopes from old eVault\n`;
             await this.migrationRepository.save(migration);
-            
+
             const envelopes = await this.fetchAllMetaEnvelopes(oldEvaultUri, eName, token);
-            
+
             if (envelopes.length === 0) {
                 console.log(`[MIGRATION] No metaEnvelopes found for eName: ${eName}`);
                 migration.logs += `[MIGRATION] No metaEnvelopes to copy\n`;
@@ -547,7 +550,7 @@ export class MigrationService extends EventEmitter {
             console.log(`[MIGRATION] Creating metaEnvelopes on new eVault`);
             migration.logs += `[MIGRATION] Creating metaEnvelopes on new eVault (webhooks disabled)\n`;
             await this.migrationRepository.save(migration);
-            
+
             const count = await this.bulkCreateOnNewEvault(newEvaultUri, eName, token, envelopes, migration);
 
             migration.logs += `[MIGRATION] Successfully copied ${count} metaEnvelopes\n`;

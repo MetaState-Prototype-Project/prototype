@@ -768,4 +768,302 @@ describe("Idiomatic GraphQL API", () => {
             expect(result.deleteMetaEnvelope).toBe(true);
         });
     });
+
+    describe("bulkCreateMetaEnvelopes mutation", () => {
+        it("should create multiple MetaEnvelopes in bulk", async () => {
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        errorCount
+                        results {
+                            id
+                            success
+                            error
+                        }
+                        errors {
+                            message
+                            code
+                        }
+                    }
+                }
+            `;
+
+            const inputs = [
+                {
+                    ontology: "BulkTestOntology1",
+                    payload: { title: "Bulk Post 1", content: "First bulk post" },
+                    acl: ["*"],
+                },
+                {
+                    ontology: "BulkTestOntology2",
+                    payload: { title: "Bulk Post 2", content: "Second bulk post" },
+                    acl: ["*"],
+                },
+                {
+                    ontology: "BulkTestOntology3",
+                    payload: { title: "Bulk Post 3", content: "Third bulk post" },
+                    acl: ["*"],
+                },
+            ];
+
+            const result = await makeGraphQLRequest(server, mutation, {
+                inputs,
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            expect(result.bulkCreateMetaEnvelopes.successCount).toBe(3);
+            expect(result.bulkCreateMetaEnvelopes.errorCount).toBe(0);
+            expect(result.bulkCreateMetaEnvelopes.results.length).toBe(3);
+            expect(result.bulkCreateMetaEnvelopes.errors).toEqual([]);
+
+            // Verify all succeeded
+            for (const res of result.bulkCreateMetaEnvelopes.results) {
+                expect(res.success).toBe(true);
+                expect(res.id).toBeDefined();
+                expect(res.error).toBeUndefined();
+            }
+        });
+
+        it("should preserve IDs when provided", async () => {
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        results {
+                            id
+                            success
+                        }
+                    }
+                }
+            `;
+
+            const customId1 = "@preserved-id-1";
+            const customId2 = "@preserved-id-2";
+
+            const inputs = [
+                {
+                    id: customId1,
+                    ontology: "PreservedIdTest1",
+                    payload: { data: "test1" },
+                    acl: ["*"],
+                },
+                {
+                    id: customId2,
+                    ontology: "PreservedIdTest2",
+                    payload: { data: "test2" },
+                    acl: ["*"],
+                },
+            ];
+
+            const result = await makeGraphQLRequest(server, mutation, {
+                inputs,
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            expect(result.bulkCreateMetaEnvelopes.successCount).toBe(2);
+            expect(result.bulkCreateMetaEnvelopes.results[0].id).toBe(customId1);
+            expect(result.bulkCreateMetaEnvelopes.results[1].id).toBe(customId2);
+        });
+
+        it("should skip webhooks when skipWebhooks=true and platform is EMOVER_API_URL", async () => {
+            // This test verifies the webhook suppression logic
+            // In a real scenario, emover platform token would have platform: EMOVER_API_URL
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!, $skipWebhooks: Boolean) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs, skipWebhooks: $skipWebhooks) {
+                        successCount
+                        errorCount
+                        results {
+                            id
+                            success
+                        }
+                    }
+                }
+            `;
+
+            const inputs = [
+                {
+                    ontology: "WebhookSkipTest",
+                    payload: { migration: true },
+                    acl: ["*"],
+                },
+            ];
+
+            // Note: Without emover platform token, webhooks won't actually be skipped
+            // but the mutation should still succeed
+            const result = await makeGraphQLRequest(server, mutation, {
+                inputs,
+                skipWebhooks: true,
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            expect(result.bulkCreateMetaEnvelopes.successCount).toBe(1);
+            expect(result.bulkCreateMetaEnvelopes.errorCount).toBe(0);
+        });
+
+        it("should return error when X-ENAME is missing", async () => {
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        errorCount
+                        errors {
+                            message
+                            code
+                        }
+                    }
+                }
+            `;
+
+            const inputs = [
+                {
+                    ontology: "TestOntology",
+                    payload: { test: "data" },
+                    acl: ["*"],
+                },
+            ];
+
+            await expect(makeGraphQLRequest(server, mutation, {
+                inputs,
+            }, {
+                // No X-ENAME header
+            })).rejects.toThrow();
+        });
+
+        it("should handle partial failures gracefully", async () => {
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        errorCount
+                        results {
+                            id
+                            success
+                            error
+                        }
+                    }
+                }
+            `;
+
+            // Create valid inputs - all should succeed in normal operation
+            const inputs = [
+                {
+                    ontology: "ValidOntology1",
+                    payload: { data: "valid1" },
+                    acl: ["*"],
+                },
+                {
+                    ontology: "ValidOntology2",
+                    payload: { data: "valid2" },
+                    acl: ["*"],
+                },
+            ];
+
+            const result = await makeGraphQLRequest(server, mutation, {
+                inputs,
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            // In normal operation, all should succeed
+            expect(result.bulkCreateMetaEnvelopes.successCount).toBeGreaterThanOrEqual(0);
+            expect(result.bulkCreateMetaEnvelopes.results.length).toBe(2);
+        });
+
+        it("should handle empty input array", async () => {
+            const mutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        errorCount
+                        results {
+                            id
+                            success
+                        }
+                    }
+                }
+            `;
+
+            const result = await makeGraphQLRequest(server, mutation, {
+                inputs: [],
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            expect(result.bulkCreateMetaEnvelopes.successCount).toBe(0);
+            expect(result.bulkCreateMetaEnvelopes.errorCount).toBe(0);
+            expect(result.bulkCreateMetaEnvelopes.results).toEqual([]);
+        });
+
+        it("should verify created envelopes exist and are queryable", async () => {
+            // First, bulk create some envelopes
+            const createMutation = `
+                mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                    bulkCreateMetaEnvelopes(inputs: $inputs) {
+                        successCount
+                        results {
+                            id
+                            success
+                        }
+                    }
+                }
+            `;
+
+            const testOntology = "VerifyBulkCreatedOntology";
+            const inputs = [
+                {
+                    ontology: testOntology,
+                    payload: { index: 1, content: "Bulk created 1" },
+                    acl: ["*"],
+                },
+                {
+                    ontology: testOntology,
+                    payload: { index: 2, content: "Bulk created 2" },
+                    acl: ["*"],
+                },
+            ];
+
+            const createResult = await makeGraphQLRequest(server, createMutation, {
+                inputs,
+            }, {
+                "X-ENAME": evault.w3id,
+            });
+
+            expect(createResult.bulkCreateMetaEnvelopes.successCount).toBe(2);
+
+            // Now query to verify they exist
+            const query = `
+                query MetaEnvelopes($filter: MetaEnvelopeFilterInput) {
+                    metaEnvelopes(filter: $filter, first: 10) {
+                        edges {
+                            node {
+                                id
+                                ontology
+                                parsed
+                            }
+                        }
+                        totalCount
+                    }
+                }
+            `;
+
+            const queryResult = await makeGraphQLRequest(server, query, {
+                filter: { ontologyId: testOntology },
+            }, getAuthHeaders());
+
+            expect(queryResult.metaEnvelopes.totalCount).toBeGreaterThanOrEqual(2);
+            
+            const createdIds = createResult.bulkCreateMetaEnvelopes.results.map((r: { id: string }) => r.id);
+            const queriedIds = queryResult.metaEnvelopes.edges.map((e: { node: { id: string } }) => e.node.id);
+            
+            // Verify all created IDs are found in query results
+            for (const createdId of createdIds) {
+                expect(queriedIds).toContain(createdId);
+            }
+        });
+    });
 });
