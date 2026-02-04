@@ -60,3 +60,48 @@ export type SearchMetaEnvelopesResult<
  * Result type for retrieving all envelopes.
  */
 export type GetAllEnvelopesResult<T = any> = Envelope<T>[];
+
+/**
+ * Operation type for envelope operation logs.
+ */
+export type EnvelopeOperationType =
+    | "create"
+    | "update"
+    | "delete"
+    | "update_envelope_value";
+
+/**
+ * A single envelope operation log entry (returned by GET /logs).
+ */
+export type EnvelopeOperationLogEntry = {
+    id: string;
+    eName: string;
+    metaEnvelopeId: string;
+    envelopeHash: string;
+    operation: EnvelopeOperationType;
+    platform: string | null;
+    timestamp: string;
+    ontology?: string;
+};
+
+/**
+ * Parameters for appending an envelope operation log.
+ */
+export type AppendEnvelopeOperationLogParams = {
+    eName: string;
+    metaEnvelopeId: string;
+    envelopeHash: string;
+    operation: EnvelopeOperationType;
+    platform: string | null;
+    timestamp: string;
+    ontology?: string;
+};
+
+/**
+ * Result of getEnvelopeOperationLogs (paginated).
+ */
+export type GetEnvelopeOperationLogsResult = {
+    logs: EnvelopeOperationLogEntry[];
+    nextCursor: string | null;
+    hasMore: boolean;
+};

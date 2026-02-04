@@ -109,6 +109,22 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
         console.warn("Failed to migrate publicKey to publicKeys array:", error);
     }
 
+    // Create EnvelopeOperationLog indexes for /logs endpoint
+    try {
+        const { createEnvelopeOperationLogIndexes } = await import("./core/db/migrations/add-envelope-operation-log-index");
+        await createEnvelopeOperationLogIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create EnvelopeOperationLog indexes:", error);
+    }
+
+    // One-time backfill: create operation logs for existing metaenvelopes (platform inferred from ontology)
+    try {
+        const { backfillEnvelopeOperationLogs } = await import("./core/db/migrations/backfill-envelope-operation-logs");
+        await backfillEnvelopeOperationLogs(driver);
+    } catch (error) {
+        console.warn("Failed to backfill envelope operation logs:", error);
+    }
+
     const dbService = new DbService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;

@@ -102,6 +102,14 @@ export async function setupE2ETestServer(
         console.warn("Failed to create eName index:", error);
     }
 
+    // Create EnvelopeOperationLog indexes for /logs endpoint
+    try {
+        const { createEnvelopeOperationLogIndexes } = await import("../core/db/migrations/add-envelope-operation-log-index");
+        await createEnvelopeOperationLogIndexes(driver);
+    } catch (error) {
+        console.warn("Failed to create EnvelopeOperationLog indexes:", error);
+    }
+
     // Initialize services
     const verificationService = new VerificationService(
         testDataSource.getRepository(Verification)

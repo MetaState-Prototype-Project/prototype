@@ -4,6 +4,10 @@ import { typeDefs } from "./typedefs";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { getJWTHeader } from "w3id";
 import { DbService } from "../db/db.service";
+import {
+    computeEnvelopeHash,
+    computeEnvelopeHashForDelete,
+} from "../db/envelope-hash";
 import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
 import { GraphQLSchema } from "graphql";
 import { exampleQueries } from "./examples/examples";
@@ -237,6 +241,32 @@ export class GraphQLServer {
                             );
                         }, 3_000);
 
+                        // Log envelope operation best-effort (do not fail mutation)
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const metaEnvelopeId = result.metaEnvelope.id;
+                        const envelopeHash = computeEnvelopeHash({
+                            id: metaEnvelopeId,
+                            ontology: input.ontology,
+                            payload: input.payload,
+                        });
+                        this.db
+                            .appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId,
+                                envelopeHash,
+                                operation: "create",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: input.ontology,
+                            })
+                            .catch((err) =>
+                                console.error(
+                                    "appendEnvelopeOperationLog (create) failed:",
+                                    err,
+                                ),
+                            );
+
                         return {
                             ...result,
                             metaEnvelope: metaEnvelopeWithParsed,
@@ -291,6 +321,31 @@ export class GraphQLServer {
                                 webhookPayload
                             );
 
+                            // Log envelope operation best-effort (do not fail mutation)
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: input.ontology,
+                                payload: input.payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: "update",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: input.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (update) failed:",
+                                        err,
+                                    ),
+                                );
+
                             return result;
                         } catch (error) {
                             console.error(
@@ -306,7 +361,29 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
+                        const meta =
+                            await this.db.findMetaEnvelopeById(id, context.eName);
                         await this.db.deleteMetaEnvelope(id, context.eName);
+                        // Log after delete succeeds, best-effort
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const envelopeHash = computeEnvelopeHashForDelete(id);
+                        this.db
+                            .appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId: id,
+                                envelopeHash,
+                                operation: "delete",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: meta?.ontology ?? undefined,
+                            })
+                            .catch((err) =>
+                                console.error(
+                                    "appendEnvelopeOperationLog (delete) failed:",
+                                    err,
+                                ),
+                            );
                         return true;
                     }
                 ),
@@ -322,7 +399,41 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
-                        await this.db.updateEnvelopeValue(envelopeId, newValue, context.eName);
+                        const metaInfo =
+                            await this.db.getMetaEnvelopeIdByEnvelopeId(
+                                envelopeId,
+                                context.eName,
+                            );
+                        await this.db.updateEnvelopeValue(
+                            envelopeId,
+                            newValue,
+                            context.eName,
+                        );
+                        if (metaInfo) {
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id: envelopeId,
+                                ontology: metaInfo.ontology,
+                                payload: { envelopeId, newValue },
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: metaInfo.metaEnvelopeId,
+                                    envelopeHash,
+                                    operation: "update_envelope_value",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: metaInfo.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (update_envelope_value) failed:",
+                                        err,
+                                    ),
+                                );
+                        }
                         return true;
                     }
                 ),

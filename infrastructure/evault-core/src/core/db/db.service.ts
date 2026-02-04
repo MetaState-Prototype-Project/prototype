@@ -1,9 +1,12 @@
-import type { Driver } from "neo4j-driver";
+import neo4j, { type Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { deserializeValue, serializeValue } from "./schema";
 import type {
+    AppendEnvelopeOperationLogParams,
     Envelope,
+    EnvelopeOperationLogEntry,
     GetAllEnvelopesResult,
+    GetEnvelopeOperationLogsResult,
     MetaEnvelope,
     MetaEnvelopeResult,
     SearchMetaEnvelopesResult,
@@ -886,6 +889,155 @@ export class DbService {
         );
 
         return count;
+    }
+
+    /**
+     * Gets the metaEnvelope id and ontology for an envelope by envelope id.
+     * Used when logging updateEnvelopeValue (resolver only has envelopeId).
+     */
+    async getMetaEnvelopeIdByEnvelopeId(
+        envelopeId: string,
+        eName: string,
+    ): Promise<{ metaEnvelopeId: string; ontology: string } | null> {
+        if (!eName) {
+            throw new Error("eName is required");
+        }
+        const result = await this.runQueryInternal(
+            `
+            MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
+            RETURN m.id AS metaEnvelopeId, m.ontology AS ontology
+            `,
+            { envelopeId, eName },
+        );
+        const record = result.records[0];
+        if (!record) return null;
+        return {
+            metaEnvelopeId: record.get("metaEnvelopeId"),
+            ontology: record.get("ontology"),
+        };
+    }
+
+    /**
+     * Appends an envelope operation log entry (create, update, delete, update_envelope_value).
+     */
+    async appendEnvelopeOperationLog(
+        params: AppendEnvelopeOperationLogParams,
+    ): Promise<void> {
+        if (!params.eName) {
+            throw new Error("eName is required for envelope operation logs");
+        }
+        const logId = (await new W3IDBuilder().build()).id;
+        const platformValue =
+            params.platform !== null && params.platform !== undefined
+                ? params.platform
+                : null;
+        await this.runQueryInternal(
+            `
+            CREATE (l:EnvelopeOperationLog {
+                id: $id,
+                eName: $eName,
+                metaEnvelopeId: $metaEnvelopeId,
+                envelopeHash: $envelopeHash,
+                operation: $operation,
+                platform: $platform,
+                timestamp: $timestamp,
+                ontology: $ontology
+            })
+            `,
+            {
+                id: logId,
+                eName: params.eName,
+                metaEnvelopeId: params.metaEnvelopeId,
+                envelopeHash: params.envelopeHash,
+                operation: params.operation,
+                platform: platformValue,
+                timestamp: params.timestamp,
+                ontology: params.ontology ?? null,
+            },
+        );
+    }
+
+    /**
+     * Returns paginated envelope operation logs for an eName.
+     * Ordered by timestamp DESC, then id ASC for stable cursor pagination.
+     */
+    async getEnvelopeOperationLogs(
+        eName: string,
+        options: { limit: number; cursor?: string | null },
+    ): Promise<GetEnvelopeOperationLogsResult> {
+        if (!eName) {
+            throw new Error("eName is required for getting envelope operation logs");
+        }
+        const limit = Math.min(Math.max(1, options.limit || 20), 100);
+        const cursor = options.cursor ?? null;
+
+        // Fetch limit+1 to know if there's a next page. Cursor format: "timestamp|id" (| avoids colons in ISO timestamp).
+        const [cursorTs = "", cursorId = ""] = cursor
+            ? cursor.split("|")
+            : [];
+        const result = await this.runQueryInternal(
+            cursor
+                ? `
+            MATCH (l:EnvelopeOperationLog { eName: $eName })
+            WHERE (l.timestamp < $cursorTs) OR (l.timestamp = $cursorTs AND l.id > $cursorId)
+            WITH l
+            ORDER BY l.timestamp DESC, l.id ASC
+            LIMIT $limitPlusOne
+            RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
+                   l.envelopeHash AS envelopeHash, l.operation AS operation,
+                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+            `
+                : `
+            MATCH (l:EnvelopeOperationLog { eName: $eName })
+            WITH l
+            ORDER BY l.timestamp DESC, l.id ASC
+            LIMIT $limitPlusOne
+            RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
+                   l.envelopeHash AS envelopeHash, l.operation AS operation,
+                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+            `,
+            cursor
+                ? {
+                      eName,
+                      limitPlusOne: neo4j.int(limit + 1),
+                      cursorTs,
+                      cursorId,
+                  }
+                : { eName, limitPlusOne: neo4j.int(limit + 1) },
+        );
+
+        const rows = result.records.map((r) => ({
+            id: r.get("id"),
+            eName: r.get("eName"),
+            metaEnvelopeId: r.get("metaEnvelopeId"),
+            envelopeHash: r.get("envelopeHash"),
+            operation: r.get("operation"),
+            platform: r.get("platform"),
+            timestamp: r.get("timestamp"),
+            ontology: r.get("ontology"),
+        }));
+
+        const hasMore = rows.length > limit;
+        const logs = (hasMore ? rows.slice(0, limit) : rows).map(
+            (r): EnvelopeOperationLogEntry => ({
+                id: r.id,
+                eName: r.eName,
+                metaEnvelopeId: r.metaEnvelopeId,
+                envelopeHash: r.envelopeHash,
+                operation: r.operation,
+                platform: r.platform,
+                timestamp: r.timestamp,
+                ...(r.ontology != null && { ontology: r.ontology }),
+            }),
+        );
+
+        const last = logs[logs.length - 1];
+        const nextCursor =
+            hasMore && last
+                ? `${last.timestamp}|${last.id}`
+                : null;
+
+        return { logs, nextCursor, hasMore };
     }
 
     /**
