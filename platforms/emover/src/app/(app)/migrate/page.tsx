@@ -127,7 +127,7 @@ function MigrateContent() {
         const interval = setInterval(pollStatus, 2000);
 
         return () => clearInterval(interval);
-    }, [migrationId, router]);
+    }, [migrationId]);
 
     // Listen for signing confirmation via SSE
     useEffect(() => {
@@ -160,8 +160,8 @@ function MigrateContent() {
 
     if (error && migrationStatus !== "failed") {
         return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="rounded-lg border border-red-400 bg-red-100 p-4 text-red-700">
                     {error}
                 </div>
             </div>
@@ -176,17 +176,19 @@ function MigrateContent() {
     };
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <h1 className="text-3xl font-bold mb-8">Migration in Progress</h1>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">
+                Migration in Progress
+            </h1>
 
             {qrData && !isSigned && (
-                <div className="bg-white p-6 rounded-lg shadow mb-6">
-                    <h2 className="text-xl font-semibold mb-4">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         Scan QR Code to Confirm Migration
                     </h2>
                     <p className="text-sm text-gray-600 mb-4">
-                        Please scan this QR code with your eID Wallet app to confirm
-                        the migration.
+                        Please scan this QR code with your eID Wallet app to
+                        confirm the migration.
                     </p>
                     <div className="flex justify-center">
                         <QRCodeSVG value={qrData} size={256} />
@@ -196,7 +198,7 @@ function MigrateContent() {
 
             {(migrationStatus || isActivated) && (
                 <div
-                    className={`p-6 rounded-lg shadow mb-6 ${getStatusColor(
+                    className={`p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200 mb-6 ${getStatusColor(
                         isActivated ? "completed" : migrationStatus,
                     )}`}
                 >
@@ -213,6 +215,7 @@ function MigrateContent() {
                                 activated!
                             </p>
                             <button
+                                type="button"
                                 onClick={() => router.push("/")}
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
                             >
@@ -233,11 +236,16 @@ function MigrateContent() {
             )}
 
             {logs.length > 0 && (
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold mb-4">Migration Logs</h2>
-                    <div className="space-y-1 font-mono text-sm max-h-96 overflow-y-auto bg-gray-50 p-4 rounded">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Migration Logs
+                    </h2>
+                    <div className="space-y-1 font-mono text-sm max-h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg">
                         {logs.map((log, index) => (
-                            <div key={index} className="text-gray-700">
+                            <div
+                                key={`${log.slice(0, 50)}-${index}`}
+                                className="text-gray-700"
+                            >
                                 {log}
                             </div>
                         ))}
@@ -250,7 +258,16 @@ function MigrateContent() {
 
 export default function MigratePage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-[50vh] bg-gray-50">
+                    <div className="text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
+                        <p className="text-gray-600">Loading...</p>
+                    </div>
+                </div>
+            }
+        >
             <MigrateContent />
         </Suspense>
     );

@@ -18,7 +18,7 @@ interface Provisioner {
 }
 
 export default function DashboardPage() {
-    const { user, isAuthenticated, isLoading, logout } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [evaultInfo, setEvaultInfo] = useState<EvaultInfo | null>(null);
     const [provisioners, setProvisioners] = useState<Provisioner[]>([]);
@@ -63,8 +63,11 @@ export default function DashboardPage() {
 
     if (isLoading || isLoadingInfo) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div>Loading...</div>
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
+                    <p className="text-gray-600">Loading...</p>
+                </div>
             </div>
         );
     }
@@ -74,31 +77,34 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold">Evault Migration</h1>
-                <button
-                    onClick={logout}
-                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                >
-                    Logout
-                </button>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mb-6">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                    Evault Migration
+                </h1>
+                <p className="text-sm sm:text-base text-gray-600">
+                    Migrate your evault to a new provider
+                </p>
             </div>
 
             <div className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold mb-4">Current Evault</h2>
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Current Evault
+                    </h2>
                     {evaultInfo ? (
                         <div className="space-y-2">
                             <p>
-                                <span className="font-medium">eName:</span> {evaultInfo.eName}
+                                <span className="font-medium">eName:</span>{" "}
+                                {evaultInfo.eName}
                             </p>
                             <p>
                                 <span className="font-medium">Provider:</span>{" "}
                                 {evaultInfo.provider}
                             </p>
                             <p>
-                                <span className="font-medium">URI:</span> {evaultInfo.uri}
+                                <span className="font-medium">URI:</span>{" "}
+                                {evaultInfo.uri}
                             </p>
                             <p>
                                 <span className="font-medium">Evault ID:</span>{" "}
@@ -106,44 +112,55 @@ export default function DashboardPage() {
                             </p>
                         </div>
                     ) : (
-                        <p className="text-muted-foreground">No evault information available</p>
+                        <p className="text-gray-500">
+                            No evault information available
+                        </p>
                     )}
                 </div>
 
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <h2 className="text-xl font-semibold mb-4">Select New Provider</h2>
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Select New Provider
+                    </h2>
                     {provisioners.length > 0 ? (
                         <div className="space-y-4">
                             {provisioners.map((provisioner) => (
-                                <div
+                                <button
                                     key={provisioner.url}
-                                    className={`p-4 border rounded cursor-pointer ${
+                                    type="button"
+                                    className={`w-full text-left p-4 border rounded-lg cursor-pointer ${
                                         selectedProvisioner === provisioner.url
                                             ? "border-blue-500 bg-blue-50"
                                             : "border-gray-200 hover:border-gray-300"
                                     }`}
-                                    onClick={() => setSelectedProvisioner(provisioner.url)}
+                                    onClick={() =>
+                                        setSelectedProvisioner(provisioner.url)
+                                    }
                                 >
-                                    <h3 className="font-medium">{provisioner.name}</h3>
-                                    <p className="text-sm text-muted-foreground">
+                                    <h3 className="font-medium text-gray-900">
+                                        {provisioner.name}
+                                    </h3>
+                                    <p className="text-sm text-gray-600">
                                         {provisioner.description}
                                     </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                    <p className="text-xs text-gray-500 mt-1">
                                         {provisioner.url}
                                     </p>
-                                </div>
+                                </button>
                             ))}
                             <button
+                                type="button"
                                 onClick={handleStartMigration}
                                 disabled={!selectedProvisioner}
-                                className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
                                 Start Migration
                             </button>
                         </div>
                     ) : (
-                        <p className="text-muted-foreground">
-                            No provisioners available. Check environment variables.
+                        <p className="text-gray-500">
+                            No provisioners available. Check environment
+                            variables.
                         </p>
                     )}
                 </div>
