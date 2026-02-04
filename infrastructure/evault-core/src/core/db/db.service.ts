@@ -141,6 +141,90 @@ export class DbService {
     }
 
     /**
+     * Store a meta-envelope with a specific ID (for migrations)
+     * Similar to storeMetaEnvelope but allows preserving the original ID
+     * @param meta - The meta-envelope data (without id)
+     * @param acl - Access control list
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param id - Optional ID to use (if not provided, generates new one)
+     * @returns The stored meta-envelope with its envelopes
+     */
+    async storeMetaEnvelopeWithId<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        meta: Omit<MetaEnvelope<T>, "id">,
+        acl: string[],
+        eName: string,
+        id?: string,
+    ): Promise<StoreMetaEnvelopeResult<T>> {
+        if (!eName) {
+            throw new Error("eName is required for storing meta-envelopes");
+        }
+
+        // Use provided ID or generate new one
+        const metaId = id || (await new W3IDBuilder().build()).id;
+
+        const cypher: string[] = [
+            `CREATE (m:MetaEnvelope { id: $metaId, ontology: $ontology, acl: $acl, eName: $eName })`,
+        ];
+
+        const envelopeParams: Record<string, any> = {
+            metaId: metaId,
+            ontology: meta.ontology,
+            acl: acl,
+            eName: eName,
+        };
+
+        const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+        let counter = 0;
+
+        for (const [key, value] of Object.entries(meta.payload)) {
+            const envW3id = await new W3IDBuilder().build();
+            const envelopeId = envW3id.id;
+            const alias = `e${counter}`;
+
+            const { value: storedValue, type: valueType } =
+                serializeValue(value);
+
+            cypher.push(`
+      CREATE (${alias}:Envelope {
+        id: $${alias}_id,
+        ontology: $${alias}_ontology,
+        value: $${alias}_value,
+        valueType: $${alias}_type
+      })
+      WITH m, ${alias}
+      MERGE (m)-[:LINKS_TO]->(${alias})
+    `);
+
+            envelopeParams[`${alias}_id`] = envelopeId;
+            envelopeParams[`${alias}_ontology`] = key;
+            envelopeParams[`${alias}_value`] = storedValue;
+            envelopeParams[`${alias}_type`] = valueType;
+
+            createdEnvelopes.push({
+                id: envelopeId,
+                ontology: key,
+                value: value as T[keyof T],
+                valueType,
+            });
+
+            counter++;
+        }
+
+        await this.runQueryInternal(cypher.join("\n"), envelopeParams);
+
+        return {
+            metaEnvelope: {
+                id: metaId,
+                ontology: meta.ontology,
+                acl: acl,
+            },
+            envelopes: createdEnvelopes,
+        };
+    }
+
+    /**
      * Finds meta-envelopes containing the search term in any of their envelopes.
      * Returns all envelopes from the matched meta-envelopes.
      * @param ontology - The ontology to search within
