@@ -105,3 +105,68 @@ export type GetEnvelopeOperationLogsResult = {
     nextCursor: string | null;
     hasMore: boolean;
 };
+
+// ============================================================================
+// Pagination Types for Idiomatic GraphQL API
+// ============================================================================
+
+/**
+ * Search mode for MetaEnvelope queries.
+ */
+export type SearchMode = "CONTAINS" | "STARTS_WITH" | "EXACT";
+
+/**
+ * Search input for MetaEnvelope queries.
+ */
+export type MetaEnvelopeSearchInput = {
+    term?: string;
+    caseSensitive?: boolean;
+    fields?: string[];
+    mode?: SearchMode;
+};
+
+/**
+ * Filter input for MetaEnvelope queries.
+ */
+export type MetaEnvelopeFilterInput = {
+    ontologyId?: string;
+    search?: MetaEnvelopeSearchInput;
+};
+
+/**
+ * Pagination info for Relay-style connections.
+ */
+export type PageInfo = {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+};
+
+/**
+ * Edge type for MetaEnvelope connections.
+ */
+export type MetaEnvelopeEdge<T extends Record<string, any> = Record<string, any>> = {
+    cursor: string;
+    node: MetaEnvelopeResult<T>;
+};
+
+/**
+ * Connection type for paginated MetaEnvelope queries.
+ */
+export type MetaEnvelopeConnection<T extends Record<string, any> = Record<string, any>> = {
+    edges: MetaEnvelopeEdge<T>[];
+    pageInfo: PageInfo;
+    totalCount: number;
+};
+
+/**
+ * Options for paginated MetaEnvelope queries.
+ */
+export type FindMetaEnvelopesPaginatedOptions = {
+    filter?: MetaEnvelopeFilterInput;
+    first?: number;
+    after?: string;
+    last?: number;
+    before?: string;
+};

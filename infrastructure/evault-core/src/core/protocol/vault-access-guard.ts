@@ -156,6 +156,10 @@ export class VaultAccessGuard {
      */
     private filterACL(metaEnvelope: any) {
         if (!metaEnvelope) return null;
+        // Return primitives (boolean, string, number) as-is - don't try to destructure
+        if (typeof metaEnvelope !== 'object') {
+            return metaEnvelope;
+        }
         const { acl, ...filtered } = metaEnvelope;
         return filtered;
     }

@@ -73,9 +73,10 @@ A **MetaEnvelope** is the top-level container for an entity (post, user, message
 Each field in a MetaEnvelope becomes a separate **Envelope** node in Neo4j:
 
 - **id**: Unique identifier
-- **ontology**: The field name from the ontology schema (e.g., "content", "authorId", "createdAt") - this identifies which field in the schema this envelope represents
+- **fieldKey**: The field name from the payload (e.g., "content", "authorId", "createdAt") - this identifies which field in the payload this envelope represents
+- **ontology**: Alias for fieldKey (kept for backward compatibility)
 - **value**: The actual field value (string, number, object, array)
-- **valueType**: Type of the value ("string", "number", "object", "array") - cached from the ontology schema for optimization purposes
+- **valueType**: Type of the value ("string", "number", "object", "array")
 
 ### Storage Structure
 
@@ -97,24 +98,29 @@ This flat graph structure allows:
 
 ## GraphQL API
 
-eVault exposes a GraphQL API at `/graphql` for all data operations. 
+eVault exposes a GraphQL API at `/graphql` for all data operations. All operations require the `X-ENAME` header to identify the eVault owner.
+
+**Required Header for all operations:**
+```http
+X-ENAME: @user-a.w3id
+```
 
 ### Queries
 
-#### getMetaEnvelopeById
+#### metaEnvelope
 
-Retrieve a specific MetaEnvelope by its global ID.
+Retrieve a single MetaEnvelope by its ID.
 
 **Query**:
 ```graphql
 query {
-  getMetaEnvelopeById(id: "global-id-123") {
+  metaEnvelope(id: "global-id-123") {
     id
     ontology
     parsed
     envelopes {
       id
-      ontology
+      fieldKey
       value
       valueType
     }
@@ -122,50 +128,65 @@ query {
 }
 ```
 
-**Headers Required**:
-- `X-ENAME`: The W3ID of the eVault owner
-- `Authorization: Bearer <token>`: Platform authentication token
+#### metaEnvelopes
 
-#### findMetaEnvelopesByOntology
-
-Find all MetaEnvelopes of a specific ontology type.
+Retrieve MetaEnvelopes with cursor-based pagination and optional filtering.
 
 **Query**:
 ```graphql
 query {
-  findMetaEnvelopesByOntology(ontology: "550e8400-e29b-41d4-a716-446655440001") {
-    id
-    ontology
-    parsed
+  metaEnvelopes(
+    filter: {
+      ontologyId: "550e8400-e29b-41d4-a716-446655440001"
+      search: {
+        term: "hello"
+        caseSensitive: false
+        mode: CONTAINS
+      }
+    }
+    first: 10
+    after: "cursor-string"
+  ) {
+    edges {
+      cursor
+      node {
+        id
+        ontology
+        parsed
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
   }
 }
 ```
 
-#### searchMetaEnvelopes
+**Filter Options**:
+- `ontologyId`: Filter by ontology schema ID
+- `search.term`: Search term to match against envelope values
+- `search.caseSensitive`: Whether search is case-sensitive (default: false)
+- `search.fields`: Specific field names to search within (optional)
+- `search.mode`: `CONTAINS`, `STARTS_WITH`, or `EXACT` (default: CONTAINS)
 
-Search MetaEnvelopes by content within a specific ontology. The `term` parameter performs case-sensitive text matching against the string values in any of the envelopes within MetaEnvelopes of the specified ontology. The search looks for the term within envelope values (not field names).
-
-**Query**:
-```graphql
-query {
-  searchMetaEnvelopes(ontology: "550e8400-e29b-41d4-a716-446655440001", term: "hello") {
-    id
-    ontology
-    parsed
-  }
-}
-```
+**Pagination**:
+- `first` / `after`: Forward pagination
+- `last` / `before`: Backward pagination
 
 ### Mutations
 
-#### storeMetaEnvelope
+#### createMetaEnvelope
 
-Store a new MetaEnvelope in the eVault.
+Create a new MetaEnvelope. Returns a structured payload with the created entity or errors.
 
 **Mutation**:
 ```graphql
 mutation {
-  storeMetaEnvelope(input: {
+  createMetaEnvelope(input: {
     ontology: "550e8400-e29b-41d4-a716-446655440001"
     payload: {
       content: "Hello, world!"
@@ -179,56 +200,29 @@ mutation {
       id
       ontology
       parsed
+      envelopes {
+        id
+        fieldKey
+        value
+      }
     }
-    envelopes {
-      id
-      value
-      valueType
+    errors {
+      field
+      message
+      code
     }
   }
 }
 ```
 
-**Headers Required**:
-- `X-ENAME`: The W3ID of the eVault owner (required)
-- `Authorization: Bearer <token>`: Optional, but recommended for webhook delivery
+#### updateMetaEnvelope
 
-**Response Structure**:
-
-The `envelopes` array in the response contains one envelope per field in the payload, where each envelope's `ontology` field contains the field name from the schema. For example, storing a post with `content`, `authorId`, and `createdAt` fields produces:
-
-```json
-{
-  "envelopes": [
-    {
-      "ontology": "content",
-      "value": "Hello, world!"
-    },
-    {
-      "ontology": "authorId",
-      "value": "..."
-    },
-    {
-      "ontology": "createdAt",
-      "value": "2025-01-24T10:00:00Z"
-    },
-    {
-      "ontology": "mediaUrls",
-      "value": []
-    }
-  ],
-  "id": "9a84e965-2604-52bf-97a7-5c4f4151fea2"
-}
-```
-
-#### updateMetaEnvelopeById
-
-Update an existing MetaEnvelope.
+Update an existing MetaEnvelope. Returns a structured payload with the updated entity or errors.
 
 **Mutation**:
 ```graphql
 mutation {
-  updateMetaEnvelopeById(
+  updateMetaEnvelope(
     id: "global-id-123"
     input: {
       ontology: "550e8400-e29b-41d4-a716-446655440001"
@@ -244,20 +238,49 @@ mutation {
       ontology
       parsed
     }
+    errors {
+      message
+      code
+    }
   }
 }
 ```
 
-#### deleteMetaEnvelope
+#### removeMetaEnvelope
 
-Delete a MetaEnvelope and all its Envelopes.
+Delete a MetaEnvelope and all its Envelopes. Returns a structured payload confirming deletion.
 
 **Mutation**:
 ```graphql
 mutation {
-  deleteMetaEnvelope(id: "global-id-123")
+  removeMetaEnvelope(id: "global-id-123") {
+    deletedId
+    success
+    errors {
+      message
+      code
+    }
+  }
 }
 ```
+
+### Legacy API
+
+The following queries and mutations are preserved for backward compatibility but are considered legacy. New integrations should use the idiomatic API above.
+
+#### Legacy Queries
+
+- `getMetaEnvelopeById(id: String!)` - Use `metaEnvelope(id: ID!)` instead
+- `findMetaEnvelopesByOntology(ontology: String!)` - Use `metaEnvelopes(filter: {ontologyId: ...})` instead
+- `searchMetaEnvelopes(ontology: String!, term: String!)` - Use `metaEnvelopes(filter: {search: ...})` instead
+- `getAllEnvelopes` - Returns all envelopes (no pagination)
+
+#### Legacy Mutations
+
+- `storeMetaEnvelope(input: MetaEnvelopeInput!)` - Use `createMetaEnvelope` instead
+- `updateMetaEnvelopeById(id: String!, input: MetaEnvelopeInput!)` - Use `updateMetaEnvelope` instead
+- `deleteMetaEnvelope(id: String!)` - Use `removeMetaEnvelope` instead (returns `Boolean!`)
+- `updateEnvelopeValue(envelopeId: String!, newValue: JSON!)` - Update individual envelope value
 
 ## HTTP API
 
@@ -451,18 +474,18 @@ The provisioning layer supports shared tenancy (multiple W3IDs can be provisione
 
 ## API Examples
 
-### Storing a Post
+### Creating a Post
 
 ```bash
 curl -X POST http://localhost:4000/graphql \
   -H "Content-Type: application/json" \
   -H "X-ENAME: @user-a.w3id" \
   -d '{
-    "query": "mutation { storeMetaEnvelope(input: { ontology: \"550e8400-e29b-41d4-a716-446655440001\", payload: { content: \"Hello!\", authorId: \"...\", createdAt: \"2025-01-24T10:00:00Z\" }, acl: [\"*\"] }) { metaEnvelope { id ontology } } }"
+    "query": "mutation { createMetaEnvelope(input: { ontology: \"550e8400-e29b-41d4-a716-446655440001\", payload: { content: \"Hello!\", authorId: \"...\", createdAt: \"2025-01-24T10:00:00Z\" }, acl: [\"*\"] }) { metaEnvelope { id ontology } errors { message } } }"
   }'
 ```
 
-### Querying Posts
+### Querying Posts with Pagination
 
 ```bash
 curl -X POST http://localhost:4000/graphql \
@@ -470,7 +493,29 @@ curl -X POST http://localhost:4000/graphql \
   -H "X-ENAME: @user-a.w3id" \
   -H "Authorization: Bearer <token>" \
   -d '{
-    "query": "{ findMetaEnvelopesByOntology(ontology: \"550e8400-e29b-41d4-a716-446655440001\") { id parsed } }"
+    "query": "{ metaEnvelopes(filter: { ontologyId: \"550e8400-e29b-41d4-a716-446655440001\" }, first: 10) { edges { node { id parsed } } pageInfo { hasNextPage endCursor } } }"
+  }'
+```
+
+### Searching Posts
+
+```bash
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "X-ENAME: @user-a.w3id" \
+  -d '{
+    "query": "{ metaEnvelopes(filter: { ontologyId: \"550e8400-e29b-41d4-a716-446655440001\", search: { term: \"hello\", mode: CONTAINS } }, first: 10) { edges { node { id parsed } } totalCount } }"
+  }'
+```
+
+### Deleting a Post
+
+```bash
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "X-ENAME: @user-a.w3id" \
+  -d '{
+    "query": "mutation { removeMetaEnvelope(id: \"global-id-123\") { deletedId success errors { message } } }"
   }'
 ```
 
