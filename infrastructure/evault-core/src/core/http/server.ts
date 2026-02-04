@@ -37,6 +37,7 @@ export async function registerHttpRoutes(
             },
             tags: [
                 { name: "identity", description: "Identity related endpoints" },
+                { name: "logs", description: "Envelope operation logs" },
                 {
                     name: "watchers",
                     description: "Watcher signature related endpoints",
@@ -158,6 +159,112 @@ export async function registerHttpRoutes(
                 keyBindingCertificates: keyBindingCertificates,
             };
             return result;
+        },
+    );
+
+    // Logs endpoint - paginated envelope operation logs (akin to whois)
+    server.get<{
+        Querystring: { limit?: string; cursor?: string };
+    }>(
+        "/logs",
+        {
+            schema: {
+                tags: ["logs"],
+                description:
+                    "Get paginated envelope operation logs for an eName (X-ENAME required)",
+                headers: {
+                    type: "object",
+                    required: ["X-ENAME"],
+                    properties: {
+                        "X-ENAME": { type: "string" },
+                    },
+                },
+                querystring: {
+                    type: "object",
+                    properties: {
+                        limit: { type: "string", description: "Page size (default 20, max 100)" },
+                        cursor: { type: "string", description: "Opaque cursor for next page" },
+                    },
+                },
+                response: {
+                    200: {
+                        type: "object",
+                        properties: {
+                            logs: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        id: { type: "string" },
+                                        eName: { type: "string" },
+                                        metaEnvelopeId: { type: "string" },
+                                        envelopeHash: { type: "string" },
+                                        operation: { type: "string" },
+                                        platform: { type: ["string", "null"] },
+                                        timestamp: { type: "string" },
+                                        ontology: { type: "string" },
+                                    },
+                                },
+                            },
+                            nextCursor: { type: ["string", "null"] },
+                            hasMore: { type: "boolean" },
+                        },
+                    },
+                    400: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                    500: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            const eName =
+                request.headers["x-ename"] || request.headers["X-ENAME"];
+
+            if (!eName || typeof eName !== "string") {
+                return reply
+                    .status(400)
+                    .send({ error: "X-ENAME header is required" });
+            }
+
+            if (!dbService) {
+                return reply
+                    .status(500)
+                    .send({ error: "Database service not available" });
+            }
+
+            try {
+                const limit = Math.min(
+                    Math.max(1, parseInt(request.query.limit || "20", 10) || 20),
+                    100,
+                );
+                const cursor = request.query.cursor ?? null;
+                const result = await dbService.getEnvelopeOperationLogs(
+                    eName,
+                    { limit, cursor },
+                );
+                return {
+                    logs: result.logs,
+                    nextCursor: result.nextCursor,
+                    hasMore: result.hasMore,
+                };
+            } catch (error) {
+                console.error("Error fetching envelope operation logs:", error);
+                return reply.status(500).send({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to fetch logs",
+                });
+            }
         },
     );
 

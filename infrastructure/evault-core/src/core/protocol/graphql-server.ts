@@ -4,6 +4,10 @@ import { typeDefs } from "./typedefs";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { getJWTHeader } from "w3id";
 import { DbService } from "../db/db.service";
+import {
+    computeEnvelopeHash,
+    computeEnvelopeHashForDelete,
+} from "../db/envelope-hash";
 import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
 import { GraphQLSchema } from "graphql";
 import { exampleQueries } from "./examples/examples";
@@ -237,6 +241,24 @@ export class GraphQLServer {
                             );
                         }, 3_000);
 
+                        // Log envelope operation (platform from token only)
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const envelopeHash = computeEnvelopeHash({
+                            id: result.metaEnvelope.id,
+                            ontology: input.ontology,
+                            payload: input.payload,
+                        });
+                        await this.db.appendEnvelopeOperationLog({
+                            eName: context.eName,
+                            metaEnvelopeId: result.metaEnvelope.id,
+                            envelopeHash,
+                            operation: "create",
+                            platform,
+                            timestamp: new Date().toISOString(),
+                            ontology: input.ontology,
+                        });
+
                         return {
                             ...result,
                             metaEnvelope: metaEnvelopeWithParsed,
@@ -291,6 +313,24 @@ export class GraphQLServer {
                                 webhookPayload
                             );
 
+                            // Log envelope operation (platform from token only)
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: input.ontology,
+                                payload: input.payload,
+                            });
+                            await this.db.appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId: id,
+                                envelopeHash,
+                                operation: "update",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: input.ontology,
+                            });
+
                             return result;
                         } catch (error) {
                             console.error(
@@ -306,6 +346,20 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
+                        // Load metaEnvelope before delete for logging (ontology, hash)
+                        const meta = await this.db.findMetaEnvelopeById(id, context.eName);
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const envelopeHash = computeEnvelopeHashForDelete(id);
+                        await this.db.appendEnvelopeOperationLog({
+                            eName: context.eName,
+                            metaEnvelopeId: id,
+                            envelopeHash,
+                            operation: "delete",
+                            platform,
+                            timestamp: new Date().toISOString(),
+                            ontology: meta?.ontology,
+                        });
                         await this.db.deleteMetaEnvelope(id, context.eName);
                         return true;
                     }
@@ -322,7 +376,33 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
-                        await this.db.updateEnvelopeValue(envelopeId, newValue, context.eName);
+                        const metaInfo =
+                            await this.db.getMetaEnvelopeIdByEnvelopeId(
+                                envelopeId,
+                                context.eName,
+                            );
+                        await this.db.updateEnvelopeValue(
+                            envelopeId,
+                            newValue,
+                            context.eName,
+                        );
+                        if (metaInfo) {
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                ontology: metaInfo.ontology,
+                                payload: { envelopeId, newValue },
+                            });
+                            await this.db.appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId: metaInfo.metaEnvelopeId,
+                                envelopeHash,
+                                operation: "update_envelope_value",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: metaInfo.ontology,
+                            });
+                        }
                         return true;
                     }
                 ),

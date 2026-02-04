@@ -562,4 +562,78 @@ describe("DbService (integration)", () => {
             ).rejects.toThrow("eName is required");
         });
     });
+
+    describe("Envelope operation logs", () => {
+        it("should append and retrieve envelope operation logs with pagination", async () => {
+            const result = await service.storeMetaEnvelope(
+                { ontology: "LogTest", payload: { x: 1 }, acl: ["*"] },
+                ["*"],
+                TEST_ENAME,
+            );
+            const metaId = result.metaEnvelope.id;
+            await service.appendEnvelopeOperationLog({
+                eName: TEST_ENAME,
+                metaEnvelopeId: metaId,
+                envelopeHash: "abc123",
+                operation: "create",
+                platform: "test-platform",
+                timestamp: new Date().toISOString(),
+                ontology: "LogTest",
+            });
+            const page1 = await service.getEnvelopeOperationLogs(TEST_ENAME, {
+                limit: 10,
+            });
+            expect(page1.logs.length).toBeGreaterThanOrEqual(1);
+            const log = page1.logs.find((l) => l.metaEnvelopeId === metaId);
+            expect(log).toBeDefined();
+            expect(log?.operation).toBe("create");
+            expect(log?.platform).toBe("test-platform");
+            expect(log?.envelopeHash).toBe("abc123");
+            expect(log?.ontology).toBe("LogTest");
+        });
+
+        it("should return getMetaEnvelopeIdByEnvelopeId for an envelope", async () => {
+            const result = await service.storeMetaEnvelope(
+                { ontology: "ResolveTest", payload: { key: "v" }, acl: ["*"] },
+                ["*"],
+                TEST_ENAME,
+            );
+            const envelopeId = result.envelopes[0].id;
+            const metaInfo = await service.getMetaEnvelopeIdByEnvelopeId(
+                envelopeId,
+                TEST_ENAME,
+            );
+            expect(metaInfo).not.toBeNull();
+            expect(metaInfo?.metaEnvelopeId).toBe(result.metaEnvelope.id);
+            expect(metaInfo?.ontology).toBe("ResolveTest");
+        });
+
+        it("should return null from getMetaEnvelopeIdByEnvelopeId for unknown envelope", async () => {
+            const metaInfo = await service.getMetaEnvelopeIdByEnvelopeId(
+                "nonexistent-id",
+                TEST_ENAME,
+            );
+            expect(metaInfo).toBeNull();
+        });
+
+        it("should support cursor-based pagination for logs", async () => {
+            const page1 = await service.getEnvelopeOperationLogs(TEST_ENAME, {
+                limit: 2,
+            });
+            if (page1.logs.length < 2 && !page1.hasMore) return;
+            if (page1.nextCursor) {
+                const page2 = await service.getEnvelopeOperationLogs(
+                    TEST_ENAME,
+                    { limit: 2, cursor: page1.nextCursor },
+                );
+                expect(page2.logs.length).toBeLessThanOrEqual(2);
+                expect(
+                    page2.logs.every(
+                        (l) =>
+                            !page1.logs.some((p) => p.id === l.id),
+                    ),
+                ).toBe(true);
+            }
+        });
+    });
 });

@@ -596,4 +596,45 @@ describe("web3-adapter + evault-core Integration", () => {
             expect(fetchedEvault1.data.hacked).toBeUndefined();
         });
     });
+
+    describe("GET /logs endpoint", () => {
+        it("should return paginated envelope operation logs after store", async () => {
+            const envelopeId = await client.storeMetaEnvelope({
+                w3id: evault1.w3id,
+                schemaId: "LogsTest",
+                data: { test: "logs-e2e" },
+            });
+            expect(envelopeId).toBeDefined();
+
+            const logsUrl = new URL("/logs", evault1.uri).toString();
+            const res = await fetch(logsUrl, {
+                method: "GET",
+                headers: { "X-ENAME": evault1.w3id },
+            });
+            expect(res.status).toBe(200);
+            const body = await res.json();
+            expect(body).toHaveProperty("logs");
+            expect(Array.isArray(body.logs)).toBe(true);
+            expect(body).toHaveProperty("hasMore");
+            expect(typeof body.hasMore).toBe("boolean");
+
+            const createLog = body.logs.find(
+                (l: any) =>
+                    l.metaEnvelopeId === envelopeId && l.operation === "create",
+            );
+            expect(createLog).toBeDefined();
+            expect(createLog.id).toBeDefined();
+            expect(createLog.envelopeHash).toBeDefined();
+            expect(createLog.timestamp).toBeDefined();
+            expect(createLog.ontology).toBe("LogsTest");
+        });
+
+        it("should require X-ENAME and return 400 when missing", async () => {
+            const logsUrl = new URL("/logs", evault1.uri).toString();
+            const res = await fetch(logsUrl, { method: "GET" });
+            expect(res.status).toBe(400);
+            const body = await res.json();
+            expect(body.error).toContain("X-ENAME");
+        });
+    });
 });
