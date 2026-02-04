@@ -116,6 +116,27 @@ export const typeDefs = /* GraphQL */ `
         errors: [UserError!]
     }
 
+    "Individual result for bulk create operation"
+    type BulkCreateResult {
+        "The ID of the created/attempted MetaEnvelope"
+        id: ID!
+        "Whether this individual create was successful"
+        success: Boolean!
+        "Error message if creation failed"
+        error: String
+    }
+
+    type BulkCreateMetaEnvelopesPayload {
+        "Individual results for each input"
+        results: [BulkCreateResult!]!
+        "Total number of successfully created MetaEnvelopes"
+        successCount: Int!
+        "Total number of failed creations"
+        errorCount: Int!
+        "Global errors (e.g., authentication failures)"
+        errors: [UserError!]
+    }
+
     # ============================================================================
     # Queries
     # ============================================================================
@@ -156,6 +177,15 @@ export const typeDefs = /* GraphQL */ `
         acl: [String!]!
     }
 
+    "Input for bulk create operations (e.g., migrations)"
+    input BulkMetaEnvelopeInput {
+        "Optional ID to preserve during migration (generated if not provided)"
+        id: ID
+        ontology: String!
+        payload: JSON!
+        acl: [String!]!
+    }
+
     # ============================================================================
     # Mutations
     # ============================================================================
@@ -170,6 +200,14 @@ export const typeDefs = /* GraphQL */ `
 
         "Delete a MetaEnvelope by ID"
         removeMetaEnvelope(id: ID!): DeleteMetaEnvelopePayload!
+
+        "Bulk create MetaEnvelopes (optimized for migrations)"
+        bulkCreateMetaEnvelopes(
+            "Array of MetaEnvelopes to create"
+            inputs: [BulkMetaEnvelopeInput!]!
+            "Skip webhook delivery (only allowed for migration platforms)"
+            skipWebhooks: Boolean = false
+        ): BulkCreateMetaEnvelopesPayload!
 
         # --- LEGACY API (preserved for backward compatibility) ---
         storeMetaEnvelope(input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!

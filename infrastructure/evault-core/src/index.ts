@@ -1,30 +1,30 @@
 import "reflect-metadata";
-import express, { Request, Response } from "express";
-import dotenv from "dotenv";
 import path from "path";
-import { createHmacSignature } from "./utils/hmac";
 import cors from "cors";
+import dotenv from "dotenv";
+import express, { type Request, type Response } from "express";
 import { AppDataSource } from "./config/database";
-import { VerificationService } from "./services/VerificationService";
-import { VerificationController } from "./controllers/VerificationController";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
+import { VerificationController } from "./controllers/VerificationController";
 import { ProvisioningService } from "./services/ProvisioningService";
+import { VerificationService } from "./services/VerificationService";
+import { createHmacSignature } from "./utils/hmac";
 
+import fastifyCors from "@fastify/cors";
+import fastify, {
+    type FastifyInstance,
+    type FastifyRequest,
+    type FastifyReply,
+} from "fastify";
+import { renderVoyagerPage } from "graphql-voyager/middleware";
+import neo4j, { type Driver } from "neo4j-driver";
 // Import evault-core functionality
 import { DbService } from "./core/db/db.service";
-import { LogService } from "./core/w3id/log-service";
-import { GraphQLServer } from "./core/protocol/graphql-server";
-import { registerHttpRoutes } from "./core/http/server";
-import fastify, {
-    FastifyInstance,
-    FastifyRequest,
-    FastifyReply,
-} from "fastify";
-import fastifyCors from "@fastify/cors";
-import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { connectWithRetry } from "./core/db/retry-neo4j";
-import neo4j, { Driver } from "neo4j-driver";
+import { registerHttpRoutes } from "./core/http/server";
+import { GraphQLServer } from "./core/protocol/graphql-server";
+import { LogService } from "./core/w3id/log-service";
 
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -39,12 +39,12 @@ expressApp.use(
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
         allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
         credentials: true,
-    })
+    }),
 );
 
 // Increase JSON payload limit to 50MB
-expressApp.use(express.json({ limit: "50mb" }));
-expressApp.use(express.urlencoded({ limit: "50mb", extended: true }));
+expressApp.use(express.json({ limit: "250mb" }));
+expressApp.use(express.urlencoded({ limit: "250mb", extended: true }));
 
 // Initialize database connection
 const initializeDatabase = async () => {
@@ -70,16 +70,21 @@ let logService: LogService;
 let driver: Driver;
 let provisioningService: ProvisioningService | undefined;
 
-
 // Initialize eVault Core
-const initializeEVault = async (provisioningServiceInstance?: ProvisioningService) => {
+const initializeEVault = async (
+    provisioningServiceInstance?: ProvisioningService,
+) => {
     const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
     const user = process.env.NEO4J_USER || "neo4j";
     const password = process.env.NEO4J_PASSWORD || "neo4j";
 
-    if (!process.env.NEO4J_URI || !process.env.NEO4J_USER || !process.env.NEO4J_PASSWORD) {
+    if (
+        !process.env.NEO4J_URI ||
+        !process.env.NEO4J_USER ||
+        !process.env.NEO4J_PASSWORD
+    ) {
         console.warn(
-            "Using default Neo4j connection parameters. Set NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD environment variables for custom configuration."
+            "Using default Neo4j connection parameters. Set NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD environment variables for custom configuration.",
         );
     }
 
@@ -87,7 +92,9 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
 
     // Create eName index for multi-tenant performance
     try {
-        const { createENameIndex } = await import("./core/db/migrations/add-ename-index");
+        const { createENameIndex } = await import(
+            "./core/db/migrations/add-ename-index"
+        );
         await createENameIndex(driver);
     } catch (error) {
         console.warn("Failed to create eName index:", error);
@@ -95,7 +102,9 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
 
     // Create User index for public key lookups
     try {
-        const { createUserIndex } = await import("./core/db/migrations/add-user-index");
+        const { createUserIndex } = await import(
+            "./core/db/migrations/add-user-index"
+        );
         await createUserIndex(driver);
     } catch (error) {
         console.warn("Failed to create User index:", error);
@@ -103,7 +112,9 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
 
     // Migrate publicKey (string) to publicKeys (array)
     try {
-        const { migratePublicKeyToArray } = await import("./core/db/migrations/migrate-publickey-to-array");
+        const { migratePublicKeyToArray } = await import(
+            "./core/db/migrations/migrate-publickey-to-array"
+        );
         await migratePublicKeyToArray(driver);
     } catch (error) {
         console.warn("Failed to migrate publicKey to publicKeys array:", error);
@@ -111,7 +122,9 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
 
     // Create EnvelopeOperationLog indexes for /logs endpoint
     try {
-        const { createEnvelopeOperationLogIndexes } = await import("./core/db/migrations/add-envelope-operation-log-index");
+        const { createEnvelopeOperationLogIndexes } = await import(
+            "./core/db/migrations/add-envelope-operation-log-index"
+        );
         await createEnvelopeOperationLogIndexes(driver);
     } catch (error) {
         console.warn("Failed to create EnvelopeOperationLog indexes:", error);
@@ -119,7 +132,9 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
 
     // One-time backfill: create operation logs for existing metaenvelopes (platform inferred from ontology)
     try {
-        const { backfillEnvelopeOperationLogs } = await import("./core/db/migrations/backfill-envelope-operation-logs");
+        const { backfillEnvelopeOperationLogs } = await import(
+            "./core/db/migrations/backfill-envelope-operation-logs"
+        );
         await backfillEnvelopeOperationLogs(driver);
     } catch (error) {
         console.warn("Failed to backfill envelope operation logs:", error);
@@ -129,15 +144,20 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
     const w3id = process.env.W3ID || null;
-    
+
     const evaultInstance = {
         publicKey,
         w3id,
         evaultId: process.env.EVAULT_ID || undefined,
     };
 
-    graphqlServer = new GraphQLServer(dbService, publicKey, w3id, evaultInstance);
-    
+    graphqlServer = new GraphQLServer(
+        dbService,
+        publicKey,
+        w3id,
+        evaultInstance,
+    );
+
     fastifyServer = fastify({
         logger: true,
         bodyLimit: 20 * 1024 * 1024, // 20MB (default is 1MB; needed for createMetaEnvelope etc.)
@@ -152,7 +172,12 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     });
 
     // Register HTTP routes with provisioning service if available
-    await registerHttpRoutes(fastifyServer, evaultInstance, provisioningServiceInstance, dbService);
+    await registerHttpRoutes(
+        fastifyServer,
+        evaultInstance,
+        provisioningServiceInstance,
+        dbService,
+    );
 
     // Setup GraphQL
     const yoga = graphqlServer.init();
@@ -164,20 +189,31 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     });
 
     // Mount Voyager endpoint
-    fastifyServer.get("/voyager", (req: FastifyRequest, reply: FastifyReply) => {
-        reply.type("text/html").send(
-            renderVoyagerPage({
-                endpointUrl: "/graphql",
-            })
-        );
-    });
+    fastifyServer.get(
+        "/voyager",
+        (req: FastifyRequest, reply: FastifyReply) => {
+            reply.type("text/html").send(
+                renderVoyagerPage({
+                    endpointUrl: "/graphql",
+                }),
+            );
+        },
+    );
 
     // Start Fastify server
     await fastifyServer.listen({ port: Number(fastifyPort), host: "0.0.0.0" });
-    console.log(`Fastify server (GraphQL/HTTP) started on http://0.0.0.0:${fastifyPort}`);
-    console.log(`GraphQL endpoint available at http://0.0.0.0:${fastifyPort}/graphql`);
-    console.log(`GraphQL Voyager available at http://0.0.0.0:${fastifyPort}/voyager`);
-    console.log(`API Documentation available at http://0.0.0.0:${fastifyPort}/docs`);
+    console.log(
+        `Fastify server (GraphQL/HTTP) started on http://0.0.0.0:${fastifyPort}`,
+    );
+    console.log(
+        `GraphQL endpoint available at http://0.0.0.0:${fastifyPort}/graphql`,
+    );
+    console.log(
+        `GraphQL Voyager available at http://0.0.0.0:${fastifyPort}/voyager`,
+    );
+    console.log(
+        `API Documentation available at http://0.0.0.0:${fastifyPort}/docs`,
+    );
 };
 
 // Health check endpoint
@@ -189,18 +225,22 @@ expressApp.get("/health", (req: Request, res: Response) => {
 const start = async () => {
     try {
         await initializeDatabase();
-        
+
         // Initialize services
         const { Verification } = await import("./entities/Verification");
         verificationService = new VerificationService(
-            AppDataSource.getRepository(Verification)
+            AppDataSource.getRepository(Verification),
         );
-        verificationController = new VerificationController(verificationService);
+        verificationController = new VerificationController(
+            verificationService,
+        );
         notificationController = new NotificationController();
-        
+
         // Initialize provisioning service (uses shared AppDataSource)
         provisioningService = new ProvisioningService(verificationService);
-        provisioningController = new ProvisioningController(provisioningService);
+        provisioningController = new ProvisioningController(
+            provisioningService,
+        );
 
         // Register verification, notification, and provisioning routes
         verificationController.registerRoutes(expressApp);
@@ -212,7 +252,9 @@ const start = async () => {
 
         // Start Express server for provisioning (after Fastify is ready)
         expressApp.listen(expressPort, () => {
-            console.log(`Express server (Provisioning API) running on port ${expressPort}`);
+            console.log(
+                `Express server (Provisioning API) running on port ${expressPort}`,
+            );
         });
     } catch (err) {
         console.error(err);

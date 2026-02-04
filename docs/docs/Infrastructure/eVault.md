@@ -264,6 +264,79 @@ mutation {
 }
 ```
 
+#### bulkCreateMetaEnvelopes
+
+Create multiple MetaEnvelopes in a single operation. This is optimized for bulk data import and migration scenarios. Returns a structured payload with per-item results and aggregated success/error counts.
+
+**Mutation**:
+```graphql
+mutation {
+  bulkCreateMetaEnvelopes(
+    inputs: [
+      {
+        id: "custom-id-1"  # Optional: preserve specific IDs during migration
+        ontology: "550e8400-e29b-41d4-a716-446655440001"
+        payload: {
+          content: "First item"
+          authorId: "..."
+          createdAt: "2025-02-04T10:00:00Z"
+        }
+        acl: ["*"]
+      }
+      {
+        # id omitted: will generate a new ID
+        ontology: "550e8400-e29b-41d4-a716-446655440001"
+        payload: {
+          content: "Second item"
+          authorId: "..."
+          createdAt: "2025-02-04T10:01:00Z"
+        }
+        acl: ["platform-a.w3id"]
+      }
+    ]
+    skipWebhooks: false  # Optional: set to true to skip webhook delivery
+  ) {
+    results {
+      id        # ID of the created envelope (or attempted ID if failed)
+      success   # Whether this individual item succeeded
+      error     # Error message if failed (null if succeeded)
+    }
+    successCount  # Total number of successful creates
+    errorCount    # Total number of failed creates
+    errors {      # Global errors (usually empty)
+      message
+      code
+    }
+  }
+}
+```
+
+**Features**:
+- **Batch Creation**: Create multiple MetaEnvelopes in a single request
+- **ID Preservation**: Optionally specify IDs for created envelopes (useful for migrations)
+- **Partial Success**: Returns individual results for each item, allowing some to succeed and others to fail
+- **Webhook Control**: `skipWebhooks` parameter can suppress webhook delivery (requires platform authorization)
+
+**Use Cases**:
+- **Data Migration**: Import existing data from another system while preserving IDs
+- **Bulk Import**: Efficiently create many envelopes at once
+- **Initial Setup**: Populate an eVault with default or seed data
+
+**Authentication**:
+This mutation requires a valid Bearer token in the `Authorization` header in addition to the `X-ENAME` header:
+
+```http
+X-ENAME: @user-a.w3id
+Authorization: Bearer <jwt-token>
+```
+
+**Webhook Suppression**:
+The `skipWebhooks` parameter only suppresses webhooks when:
+1. The parameter is set to `true`, AND
+2. The requesting platform is authorized for migrations (e.g., Emover)
+
+For regular platform requests, webhooks are always delivered regardless of this parameter.
+
 ### Legacy API
 
 The following queries and mutations are preserved for backward compatibility but are considered legacy. New integrations should use the idiomatic API above.

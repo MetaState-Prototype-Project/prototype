@@ -495,6 +495,122 @@ export class GraphQLServer {
                     }
                 ),
 
+                // Bulk create MetaEnvelopes (optimized for migrations)
+                bulkCreateMetaEnvelopes: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            inputs,
+                            skipWebhooks,
+                        }: {
+                            inputs: Array<{
+                                id?: string;
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            }>;
+                            skipWebhooks?: boolean;
+                        },
+                        context: VaultContext
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                results: [],
+                                successCount: 0,
+                                errorCount: inputs.length,
+                                errors: [{ message: "X-ENAME header is required", code: "MISSING_ENAME" }],
+                            };
+                        }
+
+                        // Check if this is an authorized migration (emover platform with skipWebhooks)
+                        const isEmoverMigration = 
+                            skipWebhooks && 
+                            context.tokenPayload?.platform === process.env.EMOVER_API_URL;
+                        
+                        // Only allow webhook skipping for authorized migration platforms
+                        const shouldSkipWebhooks = isEmoverMigration;
+
+                        const results: Array<{ id: string; success: boolean; error?: string }> = [];
+                        let successCount = 0;
+                        let errorCount = 0;
+
+                        for (const input of inputs) {
+                            try {
+                                const result = await this.db.storeMetaEnvelopeWithId(
+                                    {
+                                        ontology: input.ontology,
+                                        payload: input.payload,
+                                        acl: input.acl,
+                                    },
+                                    input.acl,
+                                    context.eName,
+                                    input.id // Preserve ID if provided
+                                );
+
+                                results.push({
+                                    id: result.metaEnvelope.id,
+                                    success: true,
+                                });
+                                successCount++;
+
+                                // Deliver webhooks if not skipping
+                                if (!shouldSkipWebhooks) {
+                                    const requestingPlatform = context.tokenPayload?.platform || null;
+                                    const webhookPayload = {
+                                        id: result.metaEnvelope.id,
+                                        w3id: context.eName,
+                                        evaultPublicKey: this.evaultPublicKey,
+                                        data: input.payload,
+                                        schemaId: input.ontology,
+                                    };
+
+                                    // Fire and forget webhook delivery
+                                    this.deliverWebhooks(requestingPlatform, webhookPayload).catch((err) =>
+                                        console.error("Webhook delivery failed in bulk create:", err)
+                                    );
+                                }
+
+                                // Log envelope operation best-effort
+                                const platform = context.tokenPayload?.platform ?? null;
+                                const envelopeHash = computeEnvelopeHash({
+                                    id: result.metaEnvelope.id,
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                });
+                                this.db
+                                    .appendEnvelopeOperationLog({
+                                        eName: context.eName,
+                                        metaEnvelopeId: result.metaEnvelope.id,
+                                        envelopeHash,
+                                        operation: "create",
+                                        platform,
+                                        timestamp: new Date().toISOString(),
+                                        ontology: input.ontology,
+                                    })
+                                    .catch((err) =>
+                                        console.error("appendEnvelopeOperationLog (bulk create) failed:", err)
+                                    );
+                            } catch (error) {
+                                const errorMessage = error instanceof Error ? error.message : "Failed to create MetaEnvelope";
+                                results.push({
+                                    id: input.id || "unknown",
+                                    success: false,
+                                    error: errorMessage,
+                                });
+                                errorCount++;
+                                console.error(`Error creating envelope in bulk: ${errorMessage}`);
+                            }
+                        }
+
+                        return {
+                            results,
+                            successCount,
+                            errorCount,
+                            errors: [],
+                        };
+                    }
+                ),
+
                 // ============================================================
                 // LEGACY API (preserved for backward compatibility)
                 // ============================================================

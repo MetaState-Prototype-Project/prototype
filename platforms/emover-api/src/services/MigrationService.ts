@@ -87,7 +87,7 @@ export class MigrationService extends EventEmitter {
                         },
                     },
                 );
-                
+
                 // Extract public key from keyBindingCertificates array
                 const keyBindingCertificates = whoisResponse.data?.keyBindingCertificates;
                 if (keyBindingCertificates && Array.isArray(keyBindingCertificates) && keyBindingCertificates.length > 0) {
@@ -103,7 +103,7 @@ export class MigrationService extends EventEmitter {
                         for (const jwt of keyBindingCertificates) {
                             try {
                                 const { payload } = await jose.jwtVerify(jwt, JWKS);
-                                
+
                                 // Verify ename matches
                                 if (payload.ename !== eName) {
                                     continue;
@@ -230,13 +230,13 @@ export class MigrationService extends EventEmitter {
             migration.newEvaultUri = uri;
             migration.logs += `[MIGRATION] New evault provisioned: ${evaultId}, URI: ${uri}\n`;
             migration.logs += `[MIGRATION] Old evault ID: ${migration.oldEvaultId || "N/A"}, New evault ID: ${evaultId}\n`;
-            
+
             if (publicKey !== "0x0000000000000000000000000000000000000000") {
                 migration.logs += `[MIGRATION] Public key preserved: ${publicKey.substring(0, 20)}...\n`;
             } else {
                 migration.logs += `[MIGRATION] Keyless evault provisioned successfully\n`;
             }
-            
+
             await this.migrationRepository.save(migration);
 
             console.log(
@@ -296,6 +296,201 @@ export class MigrationService extends EventEmitter {
         }
     }
 
+    /**
+     * Get platform token from registry for authenticated GraphQL requests
+     */
+    private async getPlatformToken(): Promise<string> {
+        try {
+            const platformUrl = process.env.EMOVER_API_URL;
+            if (!platformUrl) {
+                throw new Error("EMOVER_API_URL is not set");
+            }
+            const response = await axios.post(
+                new URL("/platforms/certification", this.registryUrl).toString(),
+                { platform: platformUrl },
+                { timeout: 10000 }
+            );
+            return response.data.token;
+        } catch (error) {
+            console.error("[MIGRATION ERROR] Failed to get platform token:", error);
+            throw new Error("Failed to obtain platform token from registry");
+        }
+    }
+
+    /**
+     * Fetch all MetaEnvelopes from an eVault using paginated GraphQL queries
+     */
+    private async fetchAllMetaEnvelopes(
+        evaultUri: string,
+        eName: string,
+        token: string,
+    ): Promise<Array<{ id: string; ontology: string; parsed: any }>> {
+        const graphqlUrl = new URL("/graphql", evaultUri).toString();
+        const allEnvelopes: Array<{ id: string; ontology: string; parsed: any }> = [];
+        let cursor: string | null = null;
+        let hasNextPage = true;
+
+        const query = `
+            query FetchAllMetaEnvelopes($first: Int, $after: String) {
+                metaEnvelopes(first: $first, after: $after) {
+                    edges {
+                        node {
+                            id
+                            ontology
+                            parsed
+                        }
+                    }
+                    pageInfo {
+                        hasNextPage
+                        endCursor
+                    }
+                }
+            }
+        `;
+
+        while (hasNextPage) {
+            try {
+                const response: {
+                    data: {
+                        data?: {
+                            metaEnvelopes: {
+                                edges: Array<{ node: { id: string; ontology: string; parsed: any } }>;
+                                pageInfo: { hasNextPage: boolean; endCursor: string | null };
+                            };
+                        };
+                        errors?: any[];
+                    };
+                } = await axios.post(
+                    graphqlUrl,
+                    {
+                        query,
+                        variables: {
+                            first: 100,
+                            after: cursor,
+                        },
+                    },
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`,
+                            "X-ENAME": eName,
+                        },
+                        timeout: 60000, // 1 minute timeout per page
+                    }
+                );
+
+                if (response.data.errors) {
+                    throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+                }
+
+                const data = response.data.data!.metaEnvelopes;
+                const edges = data.edges || [];
+
+                allEnvelopes.push(...edges.map((e: any) => e.node));
+
+                hasNextPage = data.pageInfo.hasNextPage;
+                cursor = data.pageInfo.endCursor;
+
+                console.log(
+                    `[MIGRATION] Fetched ${edges.length} envelopes (total: ${allEnvelopes.length})`
+                );
+            } catch (error) {
+                console.error("[MIGRATION ERROR] Failed to fetch page:", error);
+                throw error;
+            }
+        }
+
+        return allEnvelopes;
+    }
+
+    /**
+     * Bulk create MetaEnvelopes on the new eVault using GraphQL mutation
+     */
+    private async bulkCreateOnNewEvault(
+        newEvaultUri: string,
+        eName: string,
+        token: string,
+        envelopes: Array<{ id: string; ontology: string; parsed: any }>,
+        migration: Migration,
+    ): Promise<number> {
+        const graphqlUrl = new URL("/graphql", newEvaultUri).toString();
+        const batchSize = 50; // Process in batches to avoid timeout
+        let totalCreated = 0;
+
+        const mutation = `
+            mutation BulkCreate($inputs: [BulkMetaEnvelopeInput!]!) {
+                bulkCreateMetaEnvelopes(inputs: $inputs, skipWebhooks: true) {
+                    successCount
+                    errorCount
+                    results {
+                        id
+                        success
+                        error
+                    }
+                }
+            }
+        `;
+
+        // Process in batches
+        for (let i = 0; i < envelopes.length; i += batchSize) {
+            const batch = envelopes.slice(i, i + batchSize);
+            const inputs = batch.map(env => ({
+                id: env.id, // Preserve original ID
+                ontology: env.ontology,
+                payload: env.parsed || {},
+                acl: ["*"], // Default ACL for migrations
+            }));
+
+            try {
+                const response = await axios.post(
+                    graphqlUrl,
+                    {
+                        query: mutation,
+                        variables: { inputs },
+                    },
+                    {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${token}`,
+                            "X-ENAME": eName,
+                        },
+                        timeout: 120000, // 2 minutes timeout per batch
+                    }
+                );
+
+                if (response.data.errors) {
+                    throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
+                }
+
+                const result = response.data.data.bulkCreateMetaEnvelopes;
+                totalCreated += result.successCount;
+
+                console.log(
+                    `[MIGRATION] Batch ${Math.floor(i / batchSize) + 1}: Created ${result.successCount}/${batch.length} envelopes`
+                );
+
+                migration.logs += `[MIGRATION] Batch ${Math.floor(i / batchSize) + 1}: Created ${result.successCount}/${batch.length} envelopes\n`;
+                await this.migrationRepository.save(migration);
+
+                // Log any errors
+                if (result.errorCount > 0) {
+                    const failedIds = result.results
+                        .filter((r: any) => !r.success)
+                        .map((r: any) => `${r.id}: ${r.error}`)
+                        .join(", ");
+                    console.warn(`[MIGRATION] Failed to create ${result.errorCount} envelopes: ${failedIds}`);
+                    migration.logs += `[MIGRATION WARNING] Failed to create ${result.errorCount} envelopes in batch\n`;
+                    await this.migrationRepository.save(migration);
+                }
+            } catch (error) {
+                console.error(`[MIGRATION ERROR] Failed to create batch:`, error);
+                throw error;
+            }
+        }
+
+        return totalCreated;
+    }
+
     async copyMetaEnvelopes(
         migrationId: string,
         oldEvaultUri: string,
@@ -322,52 +517,43 @@ export class MigrationService extends EventEmitter {
                 message: "Copying metaEnvelopes...",
             });
 
-            // Get Neo4j connection details
-            // Neo4j uses bolt:// protocol, not http://
-            // Derive Neo4j URI from eVault URI: same host, port 7687
-            // TODO: In production, these should be retrieved from evault metadata or the provisioner response
-            const oldEvaultUrl = new URL(oldEvaultUri);
-            const newEvaultUrl = new URL(newEvaultUri);
+            console.log(`[MIGRATION] Using GraphQL API for migration`);
+            migration.logs += `[MIGRATION] Using GraphQL API for migration\n`;
+            await this.migrationRepository.save(migration);
 
-            const oldNeo4jUri = `bolt://${oldEvaultUrl.hostname}:7687`;
-            const newNeo4jUri = `bolt://${newEvaultUrl.hostname}:7687`;
+            // Step 1: Get platform token
+            console.log(`[MIGRATION] Obtaining platform token from registry`);
+            migration.logs += `[MIGRATION] Obtaining platform token from registry\n`;
+            await this.migrationRepository.save(migration);
 
-            // Neo4j credentials are typically consistent across eVaults in a deployment
-            const neo4jUser = process.env.NEO4J_USER || "neo4j";
-            const neo4jPassword = process.env.NEO4J_PASSWORD || "neo4j";
+            const token = await this.getPlatformToken();
 
-            console.log(
-                `[MIGRATION] Copying from old eVault (${oldEvaultUri}) to new eVault (${newEvaultUri})`,
-            );
-            console.log(
-                `[MIGRATION] Old Neo4j URI: ${oldNeo4jUri}, New Neo4j URI: ${newNeo4jUri}`,
-            );
-            console.log(
-                `[MIGRATION] Neo4j credentials: user=${neo4jUser}, password=${neo4jPassword ? "***" : "not set"}`,
-            );
+            // Step 2: Fetch all envelopes from old eVault
+            console.log(`[MIGRATION] Fetching all metaEnvelopes from old eVault`);
+            migration.logs += `[MIGRATION] Fetching all metaEnvelopes from old eVault\n`;
+            await this.migrationRepository.save(migration);
 
-            // Call the emover endpoint on the old evault
-            const copyResponse = await axios.post(
-                new URL("/emover", oldEvaultUri).toString(),
-                {
-                    eName,
-                    targetNeo4jUri: newNeo4jUri,
-                    targetNeo4jUser: neo4jUser,
-                    targetNeo4jPassword: neo4jPassword,
-                },
-                {
-                    timeout: 300000, // 5 minutes timeout for large migrations
-                },
-            );
+            const envelopes = await this.fetchAllMetaEnvelopes(oldEvaultUri, eName, token);
 
-            if (!copyResponse.data.success) {
-                throw new Error(
-                    copyResponse.data.error || "Failed to copy metaEnvelopes",
-                );
+            if (envelopes.length === 0) {
+                console.log(`[MIGRATION] No metaEnvelopes found for eName: ${eName}`);
+                migration.logs += `[MIGRATION] No metaEnvelopes to copy\n`;
+                await this.migrationRepository.save(migration);
+                return 0;
             }
 
-            const count = copyResponse.data.count;
-            migration.logs += `[MIGRATION] Copied ${count} metaEnvelopes successfully\n`;
+            console.log(`[MIGRATION] Found ${envelopes.length} metaEnvelopes to copy`);
+            migration.logs += `[MIGRATION] Found ${envelopes.length} metaEnvelopes to copy\n`;
+            await this.migrationRepository.save(migration);
+
+            // Step 3: Bulk create on new eVault
+            console.log(`[MIGRATION] Creating metaEnvelopes on new eVault`);
+            migration.logs += `[MIGRATION] Creating metaEnvelopes on new eVault (webhooks disabled)\n`;
+            await this.migrationRepository.save(migration);
+
+            const count = await this.bulkCreateOnNewEvault(newEvaultUri, eName, token, envelopes, migration);
+
+            migration.logs += `[MIGRATION] Successfully copied ${count} metaEnvelopes\n`;
             await this.migrationRepository.save(migration);
 
             console.log(

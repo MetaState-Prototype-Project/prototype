@@ -1,8 +1,8 @@
-import { YogaInitialContext } from "graphql-yoga";
-import { DbService } from "../db/db.service";
-import { MetaEnvelope } from "../db/types";
-import * as jose from "jose";
 import axios from "axios";
+import type { YogaInitialContext } from "graphql-yoga";
+import * as jose from "jose";
+import type { DbService } from "../db/db.service";
+import type { MetaEnvelope } from "../db/types";
 
 export type VaultContext = YogaInitialContext & {
     currentUser: string | null;
@@ -19,7 +19,7 @@ export class VaultAccessGuard {
      * @returns Promise<any> - The validated token payload
      */
     private async validateToken(
-        authHeader: string | null
+        authHeader: string | null,
     ): Promise<any | null> {
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             return null;
@@ -28,16 +28,15 @@ export class VaultAccessGuard {
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
         try {
-            if (!process.env.REGISTRY_URL) {
-                console.error("REGISTRY_URL is not set");
+            const registryUrl =
+                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            if (!registryUrl) {
+                console.error("PUBLIC_REGISTRY_URL or REGISTRY_URL is not set");
                 return null;
             }
 
             const jwksResponse = await axios.get(
-                new URL(
-                    `/.well-known/jwks.json`,
-                    process.env.REGISTRY_URL
-                ).toString()
+                new URL(`/.well-known/jwks.json`, registryUrl).toString(),
             );
 
             const JWKS = jose.createLocalJWKSet(jwksResponse.data);
@@ -58,14 +57,24 @@ export class VaultAccessGuard {
      * @param isStoreOperation - If true, only requires X-ENAME (for storeMetaEnvelope)
      * @throws Error if authentication fails
      */
-    private async validateAuthentication(context: VaultContext, isStoreOperation: boolean = false): Promise<void> {
+    private async validateAuthentication(
+        context: VaultContext,
+        isStoreOperation = false,
+    ): Promise<void> {
         // Special case: storeMetaEnvelope only requires X-ENAME, no Bearer token
         if (isStoreOperation) {
             if (!context.eName) {
-                throw new Error("X-ENAME header is required for storeMetaEnvelope");
+                throw new Error(
+                    "X-ENAME header is required for storeMetaEnvelope",
+                );
             }
-            if (typeof context.eName !== "string" || context.eName.trim().length === 0) {
-                throw new Error("Invalid X-ENAME header: eName must be a non-empty string");
+            if (
+                typeof context.eName !== "string" ||
+                context.eName.trim().length === 0
+            ) {
+                throw new Error(
+                    "Invalid X-ENAME header: eName must be a non-empty string",
+                );
             }
             // Try to validate token if present (optional for store operations)
             const authHeader =
@@ -82,12 +91,14 @@ export class VaultAccessGuard {
         const authHeader =
             context.request?.headers?.get("authorization") ??
             context.request?.headers?.get("Authorization");
-        
+
         // Validate JWT token - this is REQUIRED
         const tokenPayload = await this.validateToken(authHeader);
-        
+
         if (!tokenPayload) {
-            throw new Error("Authentication required: A valid Bearer token in Authorization header is required");
+            throw new Error(
+                "Authentication required: A valid Bearer token in Authorization header is required",
+            );
         }
 
         // Valid token found - set token payload
@@ -102,7 +113,7 @@ export class VaultAccessGuard {
      */
     private async checkAccess(
         metaEnvelopeId: string,
-        context: VaultContext
+        context: VaultContext,
     ): Promise<{ hasAccess: boolean; exists: boolean }> {
         // Validate token if present
         const authHeader =
@@ -117,7 +128,10 @@ export class VaultAccessGuard {
             if (!context.eName) {
                 return { hasAccess: true, exists: false };
             }
-            const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId, context.eName);
+            const metaEnvelope = await this.db.findMetaEnvelopeById(
+                metaEnvelopeId,
+                context.eName,
+            );
             return { hasAccess: true, exists: metaEnvelope !== null };
         }
 
@@ -126,7 +140,10 @@ export class VaultAccessGuard {
             throw new Error("X-ENAME header is required for access control");
         }
 
-        const metaEnvelope = await this.db.findMetaEnvelopeById(metaEnvelopeId, context.eName);
+        const metaEnvelope = await this.db.findMetaEnvelopeById(
+            metaEnvelopeId,
+            context.eName,
+        );
         if (!metaEnvelope) {
             return { hasAccess: false, exists: false };
         }
@@ -157,7 +174,7 @@ export class VaultAccessGuard {
     private filterACL(metaEnvelope: any) {
         if (!metaEnvelope) return null;
         // Return primitives (boolean, string, number) as-is - don't try to destructure
-        if (typeof metaEnvelope !== 'object') {
+        if (typeof metaEnvelope !== "object") {
             return metaEnvelope;
         }
         const { acl, ...filtered } = metaEnvelope;
@@ -172,7 +189,7 @@ export class VaultAccessGuard {
      */
     private async filterEnvelopesByAccess(
         envelopes: MetaEnvelope[],
-        context: VaultContext
+        context: VaultContext,
     ): Promise<any[]> {
         const filteredEnvelopes = [];
         for (const envelope of envelopes) {
@@ -192,15 +209,20 @@ export class VaultAccessGuard {
      * @returns A wrapped resolver that checks access before executing
      */
     public middleware<T, Args extends { [key: string]: any }>(
-        resolver: (parent: T, args: Args, context: VaultContext) => Promise<any>
+        resolver: (
+            parent: T,
+            args: Args,
+            context: VaultContext,
+        ) => Promise<any>,
     ) {
         return async (parent: T, args: Args, context: VaultContext) => {
             // Check if this is storeMetaEnvelope operation (has input with ontology, payload, acl)
-            const isStoreOperation = args.input && 
-                typeof args.input === 'object' && 
-                'ontology' in args.input && 
-                'payload' in args.input && 
-                'acl' in args.input &&
+            const isStoreOperation =
+                args.input &&
+                typeof args.input === "object" &&
+                "ontology" in args.input &&
+                "payload" in args.input &&
+                "acl" in args.input &&
                 !args.id; // storeMetaEnvelope doesn't have id, updateMetaEnvelopeById does
 
             // CRITICAL: Validate authentication BEFORE executing any resolver
@@ -214,7 +236,11 @@ export class VaultAccessGuard {
                 // If the result is an array
                 if (Array.isArray(result)) {
                     // Check if it's an array of Envelopes (no ACL) or MetaEnvelopes (has ACL)
-                    if (result.length > 0 && result[0] && !('acl' in result[0])) {
+                    if (
+                        result.length > 0 &&
+                        result[0] &&
+                        !("acl" in result[0])
+                    ) {
                         // It's an array of Envelopes - already filtered by eName, just return as-is
                         return result;
                     }
@@ -235,15 +261,18 @@ export class VaultAccessGuard {
             }
 
             // Check if envelope exists and user has access
-            const { hasAccess, exists } = await this.checkAccess(metaEnvelopeId, context);
-            
+            const { hasAccess, exists } = await this.checkAccess(
+                metaEnvelopeId,
+                context,
+            );
+
             // For update operations with input, allow in-place creation if envelope doesn't exist
             if (!exists && args.input) {
                 // Envelope doesn't exist for this eName - allow in-place creation
                 const result = await resolver(parent, args, context);
                 return this.filterACL(result);
             }
-            
+
             if (!hasAccess) {
                 // If envelope doesn't exist, return null (not found)
                 if (!exists) {
@@ -255,12 +284,12 @@ export class VaultAccessGuard {
 
             // Execute resolver and filter ACL
             const result = await resolver(parent, args, context);
-            
+
             // If result is null (envelope not found), return null
             if (result === null) {
                 return null;
             }
-            
+
             return this.filterACL(result);
         };
     }

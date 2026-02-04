@@ -141,6 +141,87 @@ export class DbService {
     }
 
     /**
+     * Store a meta-envelope with a specific ID (for migrations)
+     * Similar to storeMetaEnvelope but allows preserving the original ID
+     * @param meta - The meta-envelope data (without id)
+     * @param acl - Access control list
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param id - Optional ID to use (if not provided, generates new one)
+     * @returns The stored meta-envelope with its envelopes
+     */
+    async storeMetaEnvelopeWithId<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        meta: Omit<MetaEnvelope<T>, "id">,
+        acl: string[],
+        eName: string,
+        id?: string,
+    ): Promise<StoreMetaEnvelopeResult<T>> {
+        if (!eName) {
+            throw new Error("eName is required for storing meta-envelopes");
+        }
+
+        // Use provided ID or generate new one
+        const metaId = id || (await new W3IDBuilder().build()).id;
+
+        const cypher: string[] = [
+            "MERGE (m:MetaEnvelope { id: $metaId })",
+            "ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.eName = $eName",
+        ];
+
+        const envelopeParams: Record<string, any> = {
+            metaId: metaId,
+            ontology: meta.ontology,
+            acl: acl,
+            eName: eName,
+        };
+
+        const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+        let counter = 0;
+
+        for (const [key, value] of Object.entries(meta.payload)) {
+            const envW3id = await new W3IDBuilder().build();
+            const envelopeId = envW3id.id;
+            const alias = `e${counter}`;
+
+            const { value: storedValue, type: valueType } =
+                serializeValue(value);
+
+            cypher.push(`
+      MERGE (${alias}:Envelope { id: $${alias}_id })
+      ON CREATE SET ${alias}.ontology = $${alias}_ontology, ${alias}.value = $${alias}_value, ${alias}.valueType = $${alias}_type
+      WITH m, ${alias}
+      MERGE (m)-[:LINKS_TO]->(${alias})
+    `);
+
+            envelopeParams[`${alias}_id`] = envelopeId;
+            envelopeParams[`${alias}_ontology`] = key;
+            envelopeParams[`${alias}_value`] = storedValue;
+            envelopeParams[`${alias}_type`] = valueType;
+
+            createdEnvelopes.push({
+                id: envelopeId,
+                ontology: key,
+                value: value as T[keyof T],
+                valueType,
+            });
+
+            counter++;
+        }
+
+        await this.runQueryInternal(cypher.join("\n"), envelopeParams);
+
+        return {
+            metaEnvelope: {
+                id: metaId,
+                ontology: meta.ontology,
+                acl: acl,
+            },
+            envelopes: createdEnvelopes,
+        };
+    }
+
+    /**
      * Finds meta-envelopes containing the search term in any of their envelopes.
      * Returns all envelopes from the matched meta-envelopes.
      * @param ontology - The ontology to search within
@@ -797,8 +878,10 @@ export class DbService {
                 );
 
                 // Ensure value and valueType are explicitly null if undefined (Neo4j requires explicit null)
-                const valueParam = storedValue !== undefined ? storedValue : null;
-                const valueTypeParam = valueType !== undefined ? valueType : null;
+                const valueParam =
+                    storedValue !== undefined ? storedValue : null;
+                const valueTypeParam =
+                    valueType !== undefined ? valueType : null;
 
                 await targetDbService.runQuery(
                     `
@@ -831,7 +914,11 @@ export class DbService {
 
             if (userResult.records.length > 0) {
                 const publicKeys = userResult.records[0].get("publicKeys");
-                if (publicKeys && Array.isArray(publicKeys) && publicKeys.length > 0) {
+                if (
+                    publicKeys &&
+                    Array.isArray(publicKeys) &&
+                    publicKeys.length > 0
+                ) {
                     console.log(
                         `[MIGRATION] Copying User node with public keys for eName: ${eName}`,
                     );
@@ -972,15 +1059,15 @@ export class DbService {
         options: { limit: number; cursor?: string | null },
     ): Promise<GetEnvelopeOperationLogsResult> {
         if (!eName) {
-            throw new Error("eName is required for getting envelope operation logs");
+            throw new Error(
+                "eName is required for getting envelope operation logs",
+            );
         }
         const limit = Math.min(Math.max(1, options.limit || 20), 100);
         const cursor = options.cursor ?? null;
 
         // Fetch limit+1 to know if there's a next page. Cursor format: "timestamp|id" (| avoids colons in ISO timestamp).
-        const [cursorTs = "", cursorId = ""] = cursor
-            ? cursor.split("|")
-            : [];
+        const [cursorTs = "", cursorId = ""] = cursor ? cursor.split("|") : [];
         const result = await this.runQueryInternal(
             cursor
                 ? `
@@ -1039,9 +1126,7 @@ export class DbService {
 
         const last = logs[logs.length - 1];
         const nextCursor =
-            hasMore && last
-                ? `${last.timestamp}|${last.id}`
-                : null;
+            hasMore && last ? `${last.timestamp}|${last.id}` : null;
 
         return { logs, nextCursor, hasMore };
     }
@@ -1074,17 +1159,18 @@ export class DbService {
         }
         // Reject mixed-direction cursor usage
         if (first !== undefined && before !== undefined) {
-            throw new Error("Cannot use 'first' with 'before' - use 'first' with 'after' for forward pagination");
+            throw new Error(
+                "Cannot use 'first' with 'before' - use 'first' with 'after' for forward pagination",
+            );
         }
         if (last !== undefined && after !== undefined) {
-            throw new Error("Cannot use 'last' with 'after' - use 'last' with 'before' for backward pagination");
+            throw new Error(
+                "Cannot use 'last' with 'after' - use 'last' with 'before' for backward pagination",
+            );
         }
 
         // Default limit
-        const limit = Math.min(
-            Math.max(1, first ?? last ?? 20),
-            100,
-        );
+        const limit = Math.min(Math.max(1, first ?? last ?? 20), 100);
         const isBackward = last !== undefined;
 
         // Build WHERE conditions
@@ -1123,14 +1209,17 @@ export class DbService {
             } else {
                 switch (mode) {
                     case "EXACT":
-                        matchExpr = "toLower(toString(e.value)) = toLower($searchTerm)";
+                        matchExpr =
+                            "toLower(toString(e.value)) = toLower($searchTerm)";
                         break;
                     case "STARTS_WITH":
-                        matchExpr = "toLower(toString(e.value)) STARTS WITH toLower($searchTerm)";
+                        matchExpr =
+                            "toLower(toString(e.value)) STARTS WITH toLower($searchTerm)";
                         break;
                     default:
                         // CONTAINS is the default mode
-                        matchExpr = "toLower(toString(e.value)) CONTAINS toLower($searchTerm)";
+                        matchExpr =
+                            "toLower(toString(e.value)) CONTAINS toLower($searchTerm)";
                         break;
                 }
             }
@@ -1181,8 +1270,10 @@ export class DbService {
             RETURN count(m) AS total
         `;
         const countResult = await this.runQueryInternal(countQuery, params);
-        const totalCount = countResult.records[0]?.get("total")?.toNumber?.() ??
-                          countResult.records[0]?.get("total") ?? 0;
+        const totalCount =
+            countResult.records[0]?.get("total")?.toNumber?.() ??
+            countResult.records[0]?.get("total") ??
+            0;
 
         // Build main query with pagination
         const orderDirection = isBackward ? "DESC" : "ASC";
@@ -1255,8 +1346,8 @@ export class DbService {
 
         // Build pageInfo
         const pageInfo: PageInfo = {
-            hasNextPage: isBackward ? (before !== undefined) : hasExtraRecord,
-            hasPreviousPage: isBackward ? hasExtraRecord : (after !== undefined),
+            hasNextPage: isBackward ? before !== undefined : hasExtraRecord,
+            hasPreviousPage: isBackward ? hasExtraRecord : after !== undefined,
             startCursor: edges.length > 0 ? edges[0].cursor : null,
             endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
         };
