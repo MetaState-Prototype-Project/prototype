@@ -24,7 +24,6 @@ export default function AdminDashboard() {
     const router = useRouter();
     const [enames, setEnames] = useState<EnameInfo[]>([]);
     const [provisioners, setProvisioners] = useState<Provisioner[]>([]);
-    const [selectedEname, setSelectedEname] = useState<string>("");
     const [selectedProvisioner, setSelectedProvisioner] = useState<string>("");
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -72,9 +71,11 @@ export default function AdminDashboard() {
     };
 
     const toggleSelectAll = () => {
-        if (selectedEnames.size === paginatedEnames.length && paginatedEnames.length > 0) {
-            // Deselect all on current page
-            setSelectedEnames(prev => {
+        const allOnPageSelected =
+            paginatedEnames.length > 0 &&
+            paginatedEnames.every((e) => selectedEnames.has(e.ename));
+        if (allOnPageSelected) {
+            setSelectedEnames((prev) => {
                 const next = new Set(prev);
                 for (const e of paginatedEnames) {
                     next.delete(e.ename);
@@ -82,8 +83,7 @@ export default function AdminDashboard() {
                 return next;
             });
         } else {
-            // Select all on current page
-            setSelectedEnames(prev => {
+            setSelectedEnames((prev) => {
                 const next = new Set(prev);
                 for (const e of paginatedEnames) {
                     next.add(e.ename);
@@ -98,15 +98,21 @@ export default function AdminDashboard() {
             return;
         }
 
-        // Use bulk endpoint if multiple selected, otherwise single
         const enameList = Array.from(selectedEnames);
-
-        if (enameList.length === 0 && !selectedEname) {
+        if (enameList.length === 0) {
             return;
         }
 
         try {
-            if (enameList.length > 0) {
+            if (enameList.length === 1) {
+                // Single migration
+                const response = await apiClient.post("/api/admin/migrate", {
+                    ename: enameList[0],
+                    provisionerUrl: selectedProvisioner,
+                });
+                setSelectedEnames(new Set());
+                router.push(`/migrate?migrationId=${response.data.migrationId}`);
+            } else {
                 // Bulk migration
                 const response = await apiClient.post("/api/admin/migrate/bulk", {
                     enames: enameList,
@@ -116,25 +122,13 @@ export default function AdminDashboard() {
                 const started = response.data.results.filter((r: { status: string; migrationId?: string; ename?: string }) => r.status === 'started');
 
                 if (started.length > 0) {
-                    // Build query param: "id1:ename1,id2:ename2,..."
                     const migrationsParam = started
                         .map((r: { migrationId?: string; ename?: string }) => `${r.migrationId}:${r.ename}`)
                         .join(",");
-                    
-                    // Redirect to bulk migration status page
                     router.push(`/admin/bulk-migrate?migrations=${encodeURIComponent(migrationsParam)}`);
                 }
 
-                // Clear selections
                 setSelectedEnames(new Set());
-            } else {
-                // Single migration (backward compatibility)
-                const response = await apiClient.post("/api/admin/migrate", {
-                    ename: selectedEname,
-                    provisionerUrl: selectedProvisioner,
-                });
-
-                router.push(`/migrate?migrationId=${response.data.migrationId}`);
             }
         } catch (error) {
             console.error("Error starting migration:", error);
@@ -250,7 +244,7 @@ export default function AdminDashboard() {
                                             <tr
                                                 key={row.ename}
                                                 className={`transition-colors ${
-                                                    selectedEname === row.ename
+                                                    selectedEnames.has(row.ename)
                                                         ? "bg-blue-50"
                                                         : "hover:bg-gray-50"
                                                 }`}
@@ -371,11 +365,11 @@ export default function AdminDashboard() {
                             <button
                                 type="button"
                                 onClick={handleStartMigration}
-                                disabled={!selectedProvisioner || (selectedEnames.size === 0 && !selectedEname)}
+                                disabled={!selectedProvisioner || selectedEnames.size === 0}
                                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
                                 {selectedEnames.size > 0
-                                    ? `Start ${selectedEnames.size} Migration${selectedEnames.size > 1 ? "s" : ""}`
+                                    ? `Start ${selectedEnames.size} Migration${selectedEnames.size !== 1 ? "s" : ""}`
                                     : "Start Migration"
                                 }
                             </button>

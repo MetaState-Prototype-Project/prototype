@@ -48,18 +48,30 @@ function BulkMigrateContent() {
         try {
             // Parse migration data from query param: "id1:ename1,id2:ename2,..."
             const pairs = migrationIdsParam.split(",");
-            const initialMigrations = pairs.map(pair => {
-                const [migrationId, ename] = pair.split(":");
-                return {
+            const initialMigrations = pairs
+                .map((pair) => {
+                    const parts = pair.split(":");
+                    const migrationId = parts[0]?.trim() ?? "";
+                    const ename = parts.slice(1).join(":").trim() ?? "";
+                    return { migrationId, ename };
+                })
+                .filter(({ migrationId, ename }) => migrationId.length > 0 && ename.length > 0)
+                .map(({ migrationId, ename }) => ({
                     migrationId,
                     ename,
                     status: null,
                     logs: [],
-                };
-            });
+                }));
+
+            if (initialMigrations.length === 0) {
+                router.push("/admin");
+                return;
+            }
+
             setMigrations(initialMigrations);
-            if (initialMigrations.length > 0) {
-                setSelectedMigrationId(initialMigrations[0].migrationId);
+            const first = initialMigrations[0];
+            if (first?.migrationId) {
+                setSelectedMigrationId(first.migrationId);
             }
             setIsLoading(false);
         } catch (error) {
@@ -85,7 +97,7 @@ function BulkMigrateContent() {
 
                         // Detect completion from logs if status is still marking_active
                         let finalStatus = data.status as MigrationStatus;
-                        if (finalStatus === "marking_active" && 
+                        if (finalStatus === "marking_active" &&
                             logLines.some((log: string) => log.includes("New evault marked as active and verified working"))) {
                             finalStatus = "completed";
                         }

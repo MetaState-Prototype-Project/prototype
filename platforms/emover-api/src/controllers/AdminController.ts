@@ -27,15 +27,26 @@ export class AdminController {
         try {
             const response = await axios.get(`${this.registryUrl}/list`);
             const vaults = response.data;
-            
-            // Return simplified list: ename, evault, uri, provider
-            const enames = vaults.map((v: any) => ({
-                ename: v.ename,
-                evault: v.evault,
-                uri: v.uri,
-                provider: new URL(v.uri).hostname, // Extract hostname as provider
-            }));
-            
+
+            // Return simplified list: ename, evault, uri, provider (defensive for malformed URIs)
+            const enames = vaults.map((v: { ename?: string; evault?: string; uri?: string }) => {
+                let provider: string | null = null;
+                if (v.uri) {
+                    try {
+                        provider = new URL(v.uri).hostname;
+                    } catch {
+                        // Malformed URI: use empty string so one bad record does not crash the request
+                        provider = "";
+                    }
+                }
+                return {
+                    ename: v.ename,
+                    evault: v.evault,
+                    uri: v.uri,
+                    provider: provider ?? "",
+                };
+            });
+
             return res.json(enames);
         } catch (error) {
             console.error("Error listing enames:", error);
@@ -47,10 +58,10 @@ export class AdminController {
     initiateMigration = async (req: Request, res: Response) => {
         try {
             const { ename, provisionerUrl } = req.body;
-            
+
             if (!ename || !provisionerUrl) {
-                return res.status(400).json({ 
-                    error: "ename and provisionerUrl are required" 
+                return res.status(400).json({
+                    error: "ename and provisionerUrl are required"
                 });
             }
 
@@ -67,14 +78,14 @@ export class AdminController {
                 console.error(`Admin migration ${migration.id} failed:`, error);
             });
 
-            return res.json({ 
+            return res.json({
                 migrationId: migration.id,
                 message: `Migration started for ${ename}`,
             });
         } catch (error) {
             console.error("Error initiating admin migration:", error);
-            return res.status(500).json({ 
-                error: error instanceof Error ? error.message : "Internal server error" 
+            return res.status(500).json({
+                error: error instanceof Error ? error.message : "Internal server error"
             });
         }
     };
@@ -83,21 +94,21 @@ export class AdminController {
     initiateBulkMigration = async (req: Request, res: Response) => {
         try {
             const { enames, provisionerUrl } = req.body;
-            
+
             if (!enames || !Array.isArray(enames) || enames.length === 0) {
-                return res.status(400).json({ 
-                    error: "enames array is required and must not be empty" 
+                return res.status(400).json({
+                    error: "enames array is required and must not be empty"
                 });
             }
-            
+
             if (!provisionerUrl) {
-                return res.status(400).json({ 
-                    error: "provisionerUrl is required" 
+                return res.status(400).json({
+                    error: "provisionerUrl is required"
                 });
             }
 
             const results = [];
-            
+
             // Initiate migration for each ename
             for (const ename of enames) {
                 try {
@@ -112,7 +123,7 @@ export class AdminController {
                         console.error(`Admin bulk migration ${migration.id} for ${ename} failed:`, error);
                     });
 
-                    results.push({ 
+                    results.push({
                         ename,
                         migrationId: migration.id,
                         status: 'started'
@@ -126,14 +137,14 @@ export class AdminController {
                 }
             }
 
-            return res.json({ 
+            return res.json({
                 results,
                 message: `Started ${results.filter(r => r.status === 'started').length} of ${enames.length} migrations`,
             });
         } catch (error) {
             console.error("Error initiating bulk admin migration:", error);
-            return res.status(500).json({ 
-                error: error instanceof Error ? error.message : "Internal server error" 
+            return res.status(500).json({
+                error: error instanceof Error ? error.message : "Internal server error"
             });
         }
     };
@@ -158,10 +169,16 @@ export class AdminController {
                     migration.eName,
                 );
 
-            // Step 2: Copy metaEnvelopes
+            // Step 2: Copy metaEnvelopes (validate oldEvaultUri so we fail fast)
+            const oldEvaultUri = migration.oldEvaultUri;
+            if (oldEvaultUri == null || oldEvaultUri.trim() === "") {
+                const msg = `Migration ${migrationId} (eName: ${migration.eName ?? "unknown"}) is missing oldEvaultUri; cannot copy metaEnvelopes`;
+                console.error(`[ADMIN MIGRATION ERROR] ${msg}`);
+                throw new Error(msg);
+            }
             const count = await this.migrationService.copyMetaEnvelopes(
                 migrationId,
-                migration.oldEvaultUri || "",
+                oldEvaultUri,
                 newEvaultUri,
                 migration.eName,
             );
