@@ -18,7 +18,7 @@ interface Provisioner {
 }
 
 export default function DashboardPage() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, isAdmin } = useAuth();
     const router = useRouter();
     const [evaultInfo, setEvaultInfo] = useState<EvaultInfo | null>(null);
     const [provisioners, setProvisioners] = useState<Provisioner[]>([]);
@@ -86,6 +86,26 @@ export default function DashboardPage() {
                     Migrate your evault to a new provider
                 </p>
             </div>
+
+            {isAdmin && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-semibold text-blue-900">
+                            Admin Access
+                        </p>
+                        <p className="text-xs text-blue-700">
+                            You can migrate any user's evault
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/admin")}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+                    >
+                        Go to Admin Dashboard
+                    </button>
+                </div>
+            )}
 
             <div className="space-y-6">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">

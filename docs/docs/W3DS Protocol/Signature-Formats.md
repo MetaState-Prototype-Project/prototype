@@ -328,8 +328,9 @@ The provisioning process creates an eVault tied to your generated public key:
      - `registryEntropy`: JWT token from step 1
      - `namespace`: Identifier from step 2
      - `verificationId`: Verification code (demo code or your verification ID)
-     - `publicKey`: Multibase-encoded public key from key generation
-   - Provisioner validates entropy, generates W3ID, creates eVault, stores public key, and requests key binding certificate from Registry
+     - `publicKey` (optional): Multibase-encoded public key from key generation
+   - Provisioner validates entropy, generates W3ID, creates eVault, and if publicKey is provided, stores it and requests key binding certificate from Registry
+   - **Note**: `publicKey` is required for user eVaults that need signature verification, but optional for keyless eVaults (platforms, groups)
 
 4. **Receive Credentials**
    - Receive `w3id` (eName) and `uri` (eVault URI) in response

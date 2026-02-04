@@ -173,19 +173,34 @@ export class MigrationService extends EventEmitter {
             );
 
             // Provision new evault with preserved public key
-            console.log(
-                `[MIGRATION] Provisioning new evault with public key: ${publicKey.substring(0, 20)}...`,
-            );
+            const provisionBody: {
+                registryEntropy: string;
+                namespace: string;
+                verificationId: string;
+                publicKey?: string;
+            } = {
+                registryEntropy,
+                namespace: namespace,
+                verificationId:
+                    process.env.DEMO_VERIFICATION_CODE ||
+                    "d66b7138-538a-465f-a6ce-f6985854c3f4",
+            };
+
+            // Only include publicKey if it's not the default fallback
+            if (publicKey !== "0x0000000000000000000000000000000000000000") {
+                provisionBody.publicKey = publicKey;
+                console.log(
+                    `[MIGRATION] Provisioning new evault with public key: ${publicKey.substring(0, 20)}...`,
+                );
+                migration.logs += `[MIGRATION] Provisioning with public key: ${publicKey.substring(0, 20)}...\n`;
+            } else {
+                console.log(`[MIGRATION] Provisioning keyless evault (no public key)`);
+                migration.logs += `[MIGRATION] Provisioning keyless evault (no public key)\n`;
+            }
+
             const provisionResponse = await axios.post(
                 new URL("/provision", provisionerUrl).toString(),
-                {
-                    registryEntropy,
-                    namespace: namespace,
-                    verificationId:
-                        process.env.DEMO_VERIFICATION_CODE ||
-                        "d66b7138-538a-465f-a6ce-f6985854c3f4",
-                    publicKey: publicKey,
-                },
+                provisionBody,
             );
 
             if (!provisionResponse.data.success) {
@@ -193,6 +208,10 @@ export class MigrationService extends EventEmitter {
             }
 
             const { w3id, uri } = provisionResponse.data;
+
+            // Persist newW3id immediately so cleanup can remove the Registry entry on any later failure
+            migration.newW3id = w3id;
+            await this.migrationRepository.save(migration);
 
             // Get evault ID from registry
             const evaultInfo = await axios.get(
@@ -211,7 +230,13 @@ export class MigrationService extends EventEmitter {
             migration.newEvaultUri = uri;
             migration.logs += `[MIGRATION] New evault provisioned: ${evaultId}, URI: ${uri}\n`;
             migration.logs += `[MIGRATION] Old evault ID: ${migration.oldEvaultId || "N/A"}, New evault ID: ${evaultId}\n`;
-            migration.logs += `[MIGRATION] Public key preserved: ${publicKey.substring(0, 20)}...\n`;
+            
+            if (publicKey !== "0x0000000000000000000000000000000000000000") {
+                migration.logs += `[MIGRATION] Public key preserved: ${publicKey.substring(0, 20)}...\n`;
+            } else {
+                migration.logs += `[MIGRATION] Keyless evault provisioned successfully\n`;
+            }
+            
             await this.migrationRepository.save(migration);
 
             console.log(
@@ -233,6 +258,41 @@ export class MigrationService extends EventEmitter {
             migration.logs += `[MIGRATION ERROR] Provisioning failed: ${migration.error}\n`;
             await this.migrationRepository.save(migration);
             throw error;
+        }
+    }
+
+    /**
+     * Removes the ghost Registry entry (provisioner-created w3id -> new evault) when a migration fails.
+     * Best-effort; does not throw.
+     */
+    async cleanupGhostEvault(migrationId: string): Promise<void> {
+        const migration = await this.migrationRepository.findOneBy({
+            id: migrationId,
+        });
+        if (!migration?.newW3id) {
+            return;
+        }
+        try {
+            await axios.delete(
+                new URL(
+                    `/register?ename=${encodeURIComponent(migration.newW3id)}`,
+                    this.registryUrl,
+                ).toString(),
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.REGISTRY_SHARED_SECRET}`,
+                    },
+                    validateStatus: (status) => status === 200 || status === 404,
+                },
+            );
+            console.log(
+                `[MIGRATION] Cleaned up ghost Registry entry for w3id: ${migration.newW3id}`,
+            );
+        } catch (error) {
+            console.warn(
+                `[MIGRATION] Failed to cleanup ghost Registry entry for w3id ${migration.newW3id}:`,
+                error,
+            );
         }
     }
 
@@ -541,6 +601,7 @@ export class MigrationService extends EventEmitter {
             });
 
             migration.logs += `[MIGRATION] New evault marked as active and verified working\n`;
+            migration.status = MigrationStatus.COMPLETED;
             await this.migrationRepository.save(migration);
 
             console.log(`[MIGRATION] New evault marked as active for ${eName}`);

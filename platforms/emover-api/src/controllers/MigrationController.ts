@@ -312,6 +312,7 @@ export class MigrationController {
                 `[MIGRATION ERROR] Migration ${migrationId} failed:`,
                 error,
             );
+            await this.migrationService.cleanupGhostEvault(migrationId);
             throw error;
         }
     }
