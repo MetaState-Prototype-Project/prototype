@@ -86,7 +86,7 @@ function BulkMigrateContent() {
                         // Detect completion from logs if status is still marking_active
                         let finalStatus = data.status as MigrationStatus;
                         if (finalStatus === "marking_active" && 
-                            logLines.some(log => log.includes("New evault marked as active and verified working"))) {
+                            logLines.some((log: string) => log.includes("New evault marked as active and verified working"))) {
                             finalStatus = "completed";
                         }
 
