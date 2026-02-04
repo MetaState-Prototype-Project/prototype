@@ -76,6 +76,15 @@ export class SigningService extends EventEmitter {
             return { success: false, error: "Session expired" };
         }
 
+        // Verify signer's w3id matches the migration owner's eName
+        const expectedEName = session.data.eName as string;
+        if (w3id !== expectedEName) {
+            return {
+                success: false,
+                error: `Signer w3id (${w3id}) does not match migration owner (${expectedEName})`,
+            };
+        }
+
         // Verify signature (simplified - in production, use proper signature verification)
         // For now, we'll just check that signature exists
         if (!signature) {
