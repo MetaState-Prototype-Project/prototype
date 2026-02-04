@@ -31,6 +31,10 @@ export class Migration {
     @Column({ nullable: true })
     newEvaultId!: string;
 
+    /** Provisioner-created w3id registered with Registry; used for cleanup on failure. */
+    @Column({ nullable: true })
+    newW3id!: string;
+
     @Column({ nullable: true })
     eName!: string;
 

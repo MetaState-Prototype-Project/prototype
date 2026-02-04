@@ -682,7 +682,6 @@ export async function registerHttpRoutes(
                             "registryEntropy",
                             "namespace",
                             "verificationId",
-                            "publicKey",
                         ],
                         properties: {
                             registryEntropy: { type: "string" },

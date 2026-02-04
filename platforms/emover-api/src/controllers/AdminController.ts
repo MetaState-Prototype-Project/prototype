@@ -200,6 +200,7 @@ export class AdminController {
                 `[ADMIN MIGRATION ERROR] Migration ${migrationId} failed:`,
                 error,
             );
+            await this.migrationService.cleanupGhostEvault(migrationId);
             throw error;
         }
     }
