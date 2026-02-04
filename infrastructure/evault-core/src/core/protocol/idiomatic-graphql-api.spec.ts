@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import * as jose from "jose";
 import {
     setupE2ETestServer,
     teardownE2ETestServer,
@@ -7,18 +8,34 @@ import {
     type E2ETestServer,
     type ProvisionedEVault,
 } from "../../test-utils/e2e-setup";
+import { getSharedTestKeyPair } from "../../test-utils/shared-test-keys";
 
 describe("Idiomatic GraphQL API", () => {
     let server: E2ETestServer;
     let evault: ProvisionedEVault;
+    let authToken: string;
 
     beforeAll(async () => {
         server = await setupE2ETestServer();
         evault = await provisionTestEVault(server);
+        
+        // Create auth token for tests that require authentication
+        const { privateKey } = await getSharedTestKeyPair();
+        authToken = await new jose.SignJWT({ platform: "http://localhost:3000" })
+            .setProtectedHeader({ alg: "ES256", kid: "entropy-key-1" })
+            .setIssuedAt()
+            .setExpirationTime("1h")
+            .sign(privateKey);
     }, 120000);
 
     afterAll(async () => {
         await teardownE2ETestServer(server);
+    });
+    
+    // Helper to get auth headers
+    const getAuthHeaders = () => ({
+        "X-ENAME": evault.w3id,
+        "Authorization": `Bearer ${authToken}`,
     });
 
     describe("createMetaEnvelope mutation", () => {
@@ -73,13 +90,13 @@ describe("Idiomatic GraphQL API", () => {
             // Verify envelopes have fieldKey
             const envelopes = result.createMetaEnvelope.metaEnvelope.envelopes;
             expect(envelopes.length).toBe(3);
-            
+
             const contentEnvelope = envelopes.find((e: { fieldKey: string; value: string }) => e.fieldKey === "content");
             expect(contentEnvelope).toBeDefined();
             expect(contentEnvelope.value).toBe(testData.content);
         });
 
-        it("should return errors when X-ENAME is missing", async () => {
+        it("should throw GraphQL error when X-ENAME is missing", async () => {
             const mutation = `
                 mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
                     createMetaEnvelope(input: $input) {
@@ -94,7 +111,8 @@ describe("Idiomatic GraphQL API", () => {
                 }
             `;
 
-            const result = await makeGraphQLRequest(server, mutation, {
+            // X-ENAME validation happens at middleware level, throws GraphQL error
+            await expect(makeGraphQLRequest(server, mutation, {
                 input: {
                     ontology: "TestOntology",
                     payload: { test: "data" },
@@ -102,11 +120,7 @@ describe("Idiomatic GraphQL API", () => {
                 },
             }, {
                 // No X-ENAME header
-            });
-
-            expect(result.createMetaEnvelope.metaEnvelope).toBeNull();
-            expect(result.createMetaEnvelope.errors.length).toBeGreaterThan(0);
-            expect(result.createMetaEnvelope.errors[0].code).toBe("MISSING_ENAME");
+            })).rejects.toThrow();
         });
     });
 
@@ -156,9 +170,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, query, {
                 id: createdId,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.metaEnvelope).toBeDefined();
             expect(result.metaEnvelope.id).toBe(createdId);
@@ -178,9 +190,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, query, {
                 id: "non-existent-id-12345",
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.metaEnvelope).toBeNull();
         });
@@ -240,9 +250,7 @@ describe("Idiomatic GraphQL API", () => {
             const result = await makeGraphQLRequest(server, query, {
                 filter: { ontologyId: testOntology },
                 first: 3,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.metaEnvelopes).toBeDefined();
             expect(result.metaEnvelopes.edges.length).toBe(3);
@@ -282,9 +290,7 @@ describe("Idiomatic GraphQL API", () => {
             const firstPage = await makeGraphQLRequest(server, query, {
                 filter: { ontologyId: testOntology },
                 first: 2,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(firstPage.metaEnvelopes.edges.length).toBe(2);
             const endCursor = firstPage.metaEnvelopes.edges[1].cursor;
@@ -294,9 +300,7 @@ describe("Idiomatic GraphQL API", () => {
                 filter: { ontologyId: testOntology },
                 first: 2,
                 after: endCursor,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(secondPage.metaEnvelopes.edges.length).toBe(2);
             expect(secondPage.metaEnvelopes.pageInfo.hasPreviousPage).toBe(true);
@@ -326,9 +330,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, query, {
                 filter: { ontologyId: testOntology },
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             // All results should have the filtered ontology
             for (const edge of result.metaEnvelopes.edges) {
@@ -392,9 +394,7 @@ describe("Idiomatic GraphQL API", () => {
                         mode: "CONTAINS",
                     },
                 },
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.metaEnvelopes.totalCount).toBeGreaterThanOrEqual(2);
             
@@ -430,9 +430,7 @@ describe("Idiomatic GraphQL API", () => {
                         fields: ["title"],
                     },
                 },
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             // Should find "Hello World" and "Hello Again" but not the one with "hello" only in content
             expect(result.metaEnvelopes.totalCount).toBeGreaterThanOrEqual(2);
@@ -490,16 +488,14 @@ describe("Idiomatic GraphQL API", () => {
                     payload: updatedData,
                     acl: ["*"],
                 },
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.updateMetaEnvelope.errors).toEqual([]);
             expect(result.updateMetaEnvelope.metaEnvelope.id).toBe(envelopeId);
             expect(result.updateMetaEnvelope.metaEnvelope.parsed).toEqual(updatedData);
         });
 
-        it("should return errors when X-ENAME is missing", async () => {
+        it("should throw GraphQL error when authentication is missing", async () => {
             const mutation = `
                 mutation UpdateMetaEnvelope($id: ID!, $input: MetaEnvelopeInput!) {
                     updateMetaEnvelope(id: $id, input: $input) {
@@ -509,7 +505,8 @@ describe("Idiomatic GraphQL API", () => {
                 }
             `;
 
-            const result = await makeGraphQLRequest(server, mutation, {
+            // Authentication validation happens at middleware level
+            await expect(makeGraphQLRequest(server, mutation, {
                 id: envelopeId,
                 input: {
                     ontology: "TestOntology",
@@ -517,11 +514,8 @@ describe("Idiomatic GraphQL API", () => {
                     acl: ["*"],
                 },
             }, {
-                // No X-ENAME header
-            });
-
-            expect(result.updateMetaEnvelope.metaEnvelope).toBeNull();
-            expect(result.updateMetaEnvelope.errors[0].code).toBe("MISSING_ENAME");
+                // No X-ENAME or Authorization header
+            })).rejects.toThrow();
         });
     });
 
@@ -566,9 +560,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, mutation, {
                 id: envelopeId,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.removeMetaEnvelope.deletedId).toBe(envelopeId);
             expect(result.removeMetaEnvelope.success).toBe(true);
@@ -583,9 +575,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const queryResult = await makeGraphQLRequest(server, query, {
                 id: envelopeId,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(queryResult.metaEnvelope).toBeNull();
         });
@@ -603,15 +593,13 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, mutation, {
                 id: "non-existent-id-99999",
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.removeMetaEnvelope.success).toBe(false);
             expect(result.removeMetaEnvelope.errors[0].code).toBe("NOT_FOUND");
         });
 
-        it("should return error when X-ENAME is missing", async () => {
+        it("should throw GraphQL error when authentication is missing", async () => {
             const mutation = `
                 mutation RemoveMetaEnvelope($id: ID!) {
                     removeMetaEnvelope(id: $id) {
@@ -622,14 +610,12 @@ describe("Idiomatic GraphQL API", () => {
                 }
             `;
 
-            const result = await makeGraphQLRequest(server, mutation, {
+            // Authentication validation happens at middleware level
+            await expect(makeGraphQLRequest(server, mutation, {
                 id: "any-id",
             }, {
-                // No X-ENAME header
-            });
-
-            expect(result.removeMetaEnvelope.success).toBe(false);
-            expect(result.removeMetaEnvelope.errors[0].code).toBe("MISSING_ENAME");
+                // No X-ENAME or Authorization header
+            })).rejects.toThrow();
         });
     });
 
@@ -651,7 +637,7 @@ describe("Idiomatic GraphQL API", () => {
             const result = await makeGraphQLRequest(server, mutation, {
                 input: {
                     ontology: "FieldKeyTestOntology",
-                    payload: { 
+                    payload: {
                         testField: "value1",
                         anotherField: "value2",
                     },
@@ -662,7 +648,7 @@ describe("Idiomatic GraphQL API", () => {
             });
 
             const envelopes = result.createMetaEnvelope.metaEnvelope.envelopes;
-            
+
             // Each envelope should have matching ontology and fieldKey
             for (const envelope of envelopes) {
                 expect(envelope.fieldKey).toBe(envelope.ontology);
@@ -729,7 +715,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const id = createResult.storeMetaEnvelope.metaEnvelope.id;
 
-            // Query using legacy endpoint
+            // Query using legacy endpoint - requires auth token
             const query = `
                 query GetMetaEnvelopeById($id: String!) {
                     getMetaEnvelopeById(id: $id) {
@@ -742,9 +728,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, query, {
                 id,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.getMetaEnvelopeById.id).toBe(id);
             expect(result.getMetaEnvelopeById.ontology).toBe("LegacyQueryTest");
@@ -770,7 +754,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const id = createResult.storeMetaEnvelope.metaEnvelope.id;
 
-            // Delete using legacy endpoint
+            // Delete using legacy endpoint - requires auth token
             const mutation = `
                 mutation DeleteMetaEnvelope($id: String!) {
                     deleteMetaEnvelope(id: $id)
@@ -779,9 +763,7 @@ describe("Idiomatic GraphQL API", () => {
 
             const result = await makeGraphQLRequest(server, mutation, {
                 id,
-            }, {
-                "X-ENAME": evault.w3id,
-            });
+            }, getAuthHeaders());
 
             expect(result.deleteMetaEnvelope).toBe(true);
         });
