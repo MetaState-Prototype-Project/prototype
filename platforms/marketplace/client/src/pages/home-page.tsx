@@ -14,12 +14,12 @@ export default function HomePage() {
   const apps = appsData;
   const isLoadingApps = false;
 
-  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness", "Finance"];
+  const categories = ["All Apps", "Identity", "Social", "Governance", "Wellness", "Finance", "Storage", "Productivity"];
 
   const filteredApps = apps.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          app.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All Apps" || 
+    const matchesCategory = selectedCategory === "All Apps" ||
                            app.category.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
@@ -31,9 +31,9 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-4">
-              <img 
-                src={w3dsLogo} 
-                alt="W3DS Logo" 
+              <img
+                src={w3dsLogo}
+                alt="W3DS Logo"
                 className="h-8 w-auto"
               />
               <div className="text-sm font-medium text-gray-600">Marketplace</div>
@@ -51,9 +51,9 @@ export default function HomePage() {
           </p>
           <div className="flex justify-center">
             <div className="relative max-w-lg w-full">
-              <Input 
-                type="search" 
-                placeholder="What are you looking for?" 
+              <Input
+                type="search"
+                placeholder="What are you looking for?"
                 className="w-full h-16 pl-6 pr-16 rounded-full border-0 text-black text-lg font-medium shadow-lg"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -117,9 +117,9 @@ export default function HomePage() {
                   <div className="bg-white rounded-3xl p-8 border border-gray-100 hover:border-gray-300 transition-all duration-200 group cursor-pointer">
                     <div className="flex items-start space-x-6 mb-6">
                       {app.logoUrl ? (
-                        <img 
-                          src={app.logoUrl} 
-                          alt={`${app.name} logo`} 
+                        <img
+                          src={app.logoUrl}
+                          alt={`${app.name} logo`}
                           className="w-20 h-20 rounded-2xl object-cover flex-shrink-0"
                         />
                       ) : (
@@ -144,9 +144,9 @@ export default function HomePage() {
                     <div className="flex items-center justify-end gap-3">
                       {(app as any).appStoreUrl && (app as any).playStoreUrl ? (
                         <>
-                          <a 
-                            href={(app as any).appStoreUrl} 
-                            target="_blank" 
+                          <a
+                            href={(app as any).appStoreUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1"
                             onClick={(e) => e.stopPropagation()}
@@ -155,9 +155,9 @@ export default function HomePage() {
                               App Store
                             </Button>
                           </a>
-                          <a 
-                            href={(app as any).playStoreUrl} 
-                            target="_blank" 
+                          <a
+                            href={(app as any).playStoreUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1"
                             onClick={(e) => e.stopPropagation()}
@@ -168,9 +168,9 @@ export default function HomePage() {
                           </a>
                         </>
                       ) : (
-                        <a 
-                          href={(app as any).url || '#'} 
-                          target="_blank" 
+                        <a
+                          href={(app as any).url || '#'}
+                          target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                         >

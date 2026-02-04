@@ -79,5 +79,13 @@
     "category": "Storage",
     "logoUrl": "/file-manager.png",
     "url": "https://file-manager.w3ds.metastate.foundation"
+  },
+  {
+    "id": "emover",
+    "name": "Emover",
+    "description": "Migrate your eVault to a new provider. Move your data between eVault instances with full control and minimal downtime.",
+    "category": "Storage",
+    "logoUrl": "/emover.png",
+    "url": "https://emover.w3ds.metastate.foundation"
   }
 ]
