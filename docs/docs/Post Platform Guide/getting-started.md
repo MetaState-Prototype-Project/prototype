@@ -216,6 +216,7 @@ JWT_SECRET=your-secret-key-here
 
 # Registry base URL for signature verification
 PUBLIC_REGISTRY_URL=https://registry.example.com
+```
 
 ## References
 
