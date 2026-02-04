@@ -282,8 +282,63 @@ X-ENAME: @user-a.w3id
 }
 ```
 
+**Example**:
+```bash
+curl -X GET http://localhost:4000/whois \
+  -H "X-ENAME: @user-a.w3id"
+```
+
 **Use Case**: Platforms use this endpoint to retrieve public keys for signature verification.
 
+### /logs
+
+Get paginated envelope operation logs for an eName. Each log entry describes a create, update, delete, or update_envelope_value operation (metaEnvelope id, hash, operation type, platform, timestamp).
+
+**Request**:
+```http
+GET /logs HTTP/1.1
+Host: evault.example.com
+X-ENAME: @user-a.w3id
+```
+
+Optional query parameters:
+
+- `limit` — Page size (default 20, max 100).
+- `cursor` — Opaque cursor for the next page (returned as `nextCursor` in the response).
+
+**Response**:
+```json
+{
+    "logs": [
+        {
+            "id": "log-entry-id",
+            "eName": "@user-a.w3id",
+            "metaEnvelopeId": "meta-envelope-id",
+            "envelopeHash": "sha256-hex",
+            "operation": "create",
+            "platform": "https://platform.example.com",
+            "timestamp": "2025-02-04T12:00:00.000Z",
+            "ontology": "550e8400-e29b-41d4-a716-446655440001"
+        }
+    ],
+    "nextCursor": "2025-02-04T12:00:00.000Z|log-entry-id",
+    "hasMore": true
+}
+```
+
+**Example — first page**:
+```bash
+curl -X GET "http://localhost:4000/logs?limit=20" \
+  -H "X-ENAME: @user-a.w3id"
+```
+
+**Example — next page (using cursor)**:
+```bash
+curl -X GET "http://localhost:4000/logs?limit=20&cursor=2025-02-04T12:00:00.000Z%7Clog-entry-id" \
+  -H "X-ENAME: @user-a.w3id"
+```
+
+(Use the `nextCursor` value from the previous response; URL-encode the cursor if it contains special characters such as `|`.)
 
 ## Access Control
 
