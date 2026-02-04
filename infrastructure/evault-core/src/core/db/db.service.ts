@@ -979,7 +979,7 @@ export class DbService {
             cursor
                 ? `
             MATCH (l:EnvelopeOperationLog { eName: $eName })
-            WHERE (l.timestamp < $cursorTs) OR (l.timestamp = $cursorTs AND l.id < $cursorId)
+            WHERE (l.timestamp < $cursorTs) OR (l.timestamp = $cursorTs AND l.id > $cursorId)
             WITH l
             ORDER BY l.timestamp DESC, l.id ASC
             LIMIT $limitPlusOne

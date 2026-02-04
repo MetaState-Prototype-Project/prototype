@@ -598,6 +598,19 @@ describe("web3-adapter + evault-core Integration", () => {
     });
 
     describe("GET /logs endpoint", () => {
+        let client: any;
+
+        beforeAll(() => {
+            const registryUrl = `http://localhost:${server.registryPort}`;
+            client = new EVaultClientClass(registryUrl, "test-platform");
+        });
+
+        afterAll(() => {
+            if (client) {
+                client.dispose();
+            }
+        });
+
         it("should return paginated envelope operation logs after store", async () => {
             const envelopeId = await client.storeMetaEnvelope({
                 w3id: evault1.w3id,
