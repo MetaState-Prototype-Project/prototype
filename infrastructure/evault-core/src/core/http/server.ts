@@ -185,7 +185,10 @@ export async function registerHttpRoutes(
                     }
                 } catch (error) {
                     // 404 or network error: evault not registered for this eName, or registry unavailable
-                    if (axios.isAxiosError(error) && error.response?.status !== 404) {
+                    if (
+                        axios.isAxiosError(error) &&
+                        error.response?.status !== 404
+                    ) {
                         console.error(
                             "Error resolving eName via Registry for whois evaultId:",
                             error.message,
