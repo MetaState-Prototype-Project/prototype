@@ -5,10 +5,16 @@ import type {
     AppendEnvelopeOperationLogParams,
     Envelope,
     EnvelopeOperationLogEntry,
+    FindMetaEnvelopesPaginatedOptions,
     GetAllEnvelopesResult,
     GetEnvelopeOperationLogsResult,
     MetaEnvelope,
+    MetaEnvelopeConnection,
+    MetaEnvelopeEdge,
+    MetaEnvelopeFilterInput,
     MetaEnvelopeResult,
+    MetaEnvelopeSearchInput,
+    PageInfo,
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
 } from "./types";
@@ -1038,6 +1044,221 @@ export class DbService {
                 : null;
 
         return { logs, nextCursor, hasMore };
+    }
+
+    /**
+     * Finds meta-envelopes with Relay-style cursor pagination and optional filtering.
+     * Supports filtering by ontology and searching within envelope values.
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param options - Pagination and filter options
+     * @returns A connection object with edges, pageInfo, and totalCount
+     */
+    async findMetaEnvelopesPaginated<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        eName: string,
+        options: FindMetaEnvelopesPaginatedOptions = {},
+    ): Promise<MetaEnvelopeConnection<T>> {
+        if (!eName) {
+            throw new Error("eName is required for finding meta-envelopes");
+        }
+
+        const { filter, first, after, last, before } = options;
+
+        // Validate pagination parameters
+        if (first !== undefined && last !== undefined) {
+            throw new Error("Cannot specify both 'first' and 'last'");
+        }
+        if (after !== undefined && before !== undefined) {
+            throw new Error("Cannot specify both 'after' and 'before'");
+        }
+
+        // Default limit
+        const limit = Math.min(
+            Math.max(1, first ?? last ?? 20),
+            100,
+        );
+        const isBackward = last !== undefined;
+
+        // Build WHERE conditions
+        const conditions: string[] = ["m.eName = $eName"];
+        const params: Record<string, any> = { eName };
+
+        // Filter by ontology
+        if (filter?.ontologyId) {
+            conditions.push("m.ontology = $ontologyId");
+            params.ontologyId = filter.ontologyId;
+        }
+
+        // Build search condition if provided
+        let searchCondition = "";
+        if (filter?.search?.term) {
+            const search = filter.search;
+            const caseSensitive = search.caseSensitive ?? false;
+            const mode = search.mode ?? "CONTAINS";
+            const fields = search.fields;
+
+            // Build the value match expression based on mode
+            let matchExpr: string;
+            if (caseSensitive) {
+                switch (mode) {
+                    case "EXACT":
+                        matchExpr = "e.value = $searchTerm";
+                        break;
+                    case "STARTS_WITH":
+                        matchExpr = "e.value STARTS WITH $searchTerm";
+                        break;
+                    default:
+                        // CONTAINS is the default mode
+                        matchExpr = "e.value CONTAINS $searchTerm";
+                        break;
+                }
+            } else {
+                switch (mode) {
+                    case "EXACT":
+                        matchExpr = "toLower(toString(e.value)) = toLower($searchTerm)";
+                        break;
+                    case "STARTS_WITH":
+                        matchExpr = "toLower(toString(e.value)) STARTS WITH toLower($searchTerm)";
+                        break;
+                    default:
+                        // CONTAINS is the default mode
+                        matchExpr = "toLower(toString(e.value)) CONTAINS toLower($searchTerm)";
+                        break;
+                }
+            }
+
+            params.searchTerm = search.term;
+
+            // Add field restriction if specified
+            if (fields && fields.length > 0) {
+                params.searchFields = fields;
+                searchCondition = `
+                    AND EXISTS {
+                        MATCH (m)-[:LINKS_TO]->(e:Envelope)
+                        WHERE e.ontology IN $searchFields AND ${matchExpr}
+                    }
+                `;
+            } else {
+                searchCondition = `
+                    AND EXISTS {
+                        MATCH (m)-[:LINKS_TO]->(e:Envelope)
+                        WHERE ${matchExpr}
+                    }
+                `;
+            }
+        }
+
+        // Handle cursor pagination
+        let cursorCondition = "";
+        if (after) {
+            // Decode cursor (format: base64 encoded "id")
+            const cursorId = Buffer.from(after, "base64").toString("utf-8");
+            params.cursorId = cursorId;
+            cursorCondition = isBackward
+                ? "AND m.id < $cursorId"
+                : "AND m.id > $cursorId";
+        } else if (before) {
+            const cursorId = Buffer.from(before, "base64").toString("utf-8");
+            params.cursorId = cursorId;
+            cursorCondition = isBackward
+                ? "AND m.id > $cursorId"
+                : "AND m.id < $cursorId";
+        }
+
+        // Get total count (without pagination)
+        const countQuery = `
+            MATCH (m:MetaEnvelope)
+            WHERE ${conditions.join(" AND ")}
+            ${searchCondition}
+            RETURN count(m) AS total
+        `;
+        const countResult = await this.runQueryInternal(countQuery, params);
+        const totalCount = countResult.records[0]?.get("total")?.toNumber?.() ?? 
+                          countResult.records[0]?.get("total") ?? 0;
+
+        // Build main query with pagination
+        const orderDirection = isBackward ? "DESC" : "ASC";
+        const mainQuery = `
+            MATCH (m:MetaEnvelope)
+            WHERE ${conditions.join(" AND ")}
+            ${searchCondition}
+            ${cursorCondition}
+            WITH m
+            ORDER BY m.id ${orderDirection}
+            LIMIT $limitPlusOne
+            MATCH (m)-[:LINKS_TO]->(e:Envelope)
+            RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+        `;
+
+        params.limitPlusOne = neo4j.int(limit + 1);
+        const result = await this.runQueryInternal(mainQuery, params);
+
+        // Process results
+        let records = result.records;
+        const hasExtraRecord = records.length > limit;
+        if (hasExtraRecord) {
+            records = records.slice(0, limit);
+        }
+
+        // Reverse if backward pagination to maintain correct order
+        if (isBackward) {
+            records = records.reverse();
+        }
+
+        // Build edges
+        const edges: MetaEnvelopeEdge<T>[] = records.map((record) => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const properties = node.properties;
+                    return {
+                        id: properties.id,
+                        ontology: properties.ontology,
+                        value: deserializeValue(
+                            properties.value,
+                            properties.valueType,
+                        ) as T[keyof T],
+                        valueType: properties.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, envelope: Envelope<T[keyof T]>) => {
+                    (acc as any)[envelope.ontology] = envelope.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            const id = record.get("id");
+            const node: MetaEnvelopeResult<T> = {
+                id,
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                envelopes,
+                parsed,
+            };
+
+            return {
+                cursor: Buffer.from(id).toString("base64"),
+                node,
+            };
+        });
+
+        // Build pageInfo
+        const pageInfo: PageInfo = {
+            hasNextPage: isBackward ? (after !== undefined) : hasExtraRecord,
+            hasPreviousPage: isBackward ? hasExtraRecord : (after !== undefined),
+            startCursor: edges.length > 0 ? edges[0].cursor : null,
+            endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+        };
+
+        return {
+            edges,
+            pageInfo,
+            totalCount,
+        };
     }
 
     /**

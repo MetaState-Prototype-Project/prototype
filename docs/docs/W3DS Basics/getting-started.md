@@ -106,12 +106,16 @@ The adapter makes an HTTP POST request to the eVault's GraphQL endpoint. The req
 
 **GraphQL Mutation**:
 ```graphql
-mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
-  storeMetaEnvelope(input: $input) {
+mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
+  createMetaEnvelope(input: $input) {
     metaEnvelope {
       id
       ontology
       parsed
+    }
+    errors {
+      message
+      code
     }
   }
 }
@@ -133,7 +137,7 @@ mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
 }
 ```
 
-**Response**: The eVault returns the created MetaEnvelope with a global ID that should be stored for future reference.
+**Response**: The eVault returns a payload containing the created MetaEnvelope with a global ID (or errors if the operation failed). The ID should be stored for future reference.
 
 **Implementation Notes**:
 - Use any HTTP client library in your language (requests in Python, http in Go, fetch in JavaScript, etc.)
