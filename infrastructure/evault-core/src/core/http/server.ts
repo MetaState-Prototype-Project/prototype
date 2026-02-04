@@ -807,8 +807,10 @@ export async function registerHttpRoutes(
                     console.log(
                         `[MIGRATION] No metaEnvelopes found for eName: ${eName}`,
                     );
-                    return reply.status(400).send({
-                        error: `No metaEnvelopes found for eName: ${eName}`,
+                    return reply.status(200).send({
+                        success: true,
+                        count: 0,
+                        message: "No metaEnvelopes to copy",
                     });
                 }
 
