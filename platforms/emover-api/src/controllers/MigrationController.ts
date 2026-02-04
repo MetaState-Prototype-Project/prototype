@@ -171,7 +171,10 @@ export class MigrationController {
                 });
             }
 
-            await this.processMigration(migrationId);
+            // Fire and forget - don't block eID wallet UI
+            this.processMigration(migrationId).catch((error) => {
+                console.error(`Migration ${migrationId} failed:`, error);
+            });
 
             return res.status(200).json({
                 success: true,

@@ -414,7 +414,7 @@ export class MigrationService extends EventEmitter {
         migration: Migration,
     ): Promise<number> {
         const graphqlUrl = new URL("/graphql", newEvaultUri).toString();
-        const batchSize = 50; // Process in batches to avoid timeout
+        const batchSize = 10; // Process in batches to avoid 413 payload too large
         let totalCreated = 0;
 
         const mutation = `
