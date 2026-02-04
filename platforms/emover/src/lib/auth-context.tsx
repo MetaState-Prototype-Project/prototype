@@ -8,6 +8,7 @@ interface User {
     id: string;
     ename: string;
     name?: string;
+    role: "user" | "admin";
     createdAt: string;
     updatedAt: string;
 }
@@ -15,6 +16,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
+    isAdmin: boolean;
     isLoading: boolean;
     login: (ename: string) => Promise<void>;
     logout: () => void;
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     const isAuthenticated = !!user;
+    const isAdmin = user?.role === "admin";
 
     useEffect(() => {
         const initializeAuth = async () => {
@@ -68,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isLoading, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

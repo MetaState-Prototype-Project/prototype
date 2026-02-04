@@ -12,6 +12,7 @@ export class UserController {
                 id: req.user.id,
                 ename: req.user.ename,
                 name: req.user.name,
+                role: req.user.role,
                 createdAt: req.user.createdAt,
                 updatedAt: req.user.updatedAt,
             });

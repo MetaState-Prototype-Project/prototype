@@ -29,6 +29,7 @@ function MigrateContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const provisionerUrl = searchParams?.get("provisioner");
+    const migrationIdParam = searchParams?.get("migrationId"); // Admin provides this
     const [migrationId, setMigrationId] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [qrData, setQrData] = useState<string | null>(null);
@@ -38,7 +39,17 @@ function MigrateContent() {
     const [isSigned, setIsSigned] = useState(false);
     const [isActivated, setIsActivated] = useState(false);
 
+    // If migrationId is provided (admin flow), skip initiation and signing
+    const isAdminMigration = !!migrationIdParam;
+
     useEffect(() => {
+        if (isAdminMigration) {
+            // Admin flow: migration already started, just set ID and poll
+            setMigrationId(migrationIdParam);
+            return;
+        }
+
+        // User flow: initiate migration (existing code)
         if (!provisionerUrl) {
             setError("Provisioner URL is required");
             return;
@@ -57,10 +68,10 @@ function MigrateContent() {
         };
 
         initiateMigration();
-    }, [provisionerUrl]);
+    }, [provisionerUrl, isAdminMigration, migrationIdParam]);
 
     useEffect(() => {
-        if (!migrationId) return;
+        if (!migrationId || isAdminMigration) return; // Skip signing for admin
 
         const createSigningSession = async () => {
             try {
@@ -76,7 +87,7 @@ function MigrateContent() {
         };
 
         createSigningSession();
-    }, [migrationId]);
+    }, [migrationId, isAdminMigration]);
 
     // Poll migration status
     useEffect(() => {
@@ -131,7 +142,7 @@ function MigrateContent() {
 
     // Listen for signing confirmation via SSE
     useEffect(() => {
-        if (!sessionId || isSigned) return;
+        if (!sessionId || isSigned || isAdminMigration) return; // Skip for admin
 
         const baseUrl =
             process.env.NEXT_PUBLIC_EMOVER_BASE_URL || "http://localhost:4003";
@@ -181,7 +192,7 @@ function MigrateContent() {
                 Migration in Progress
             </h1>
 
-            {qrData && !isSigned && (
+            {qrData && !isSigned && !isAdminMigration && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
                         Scan QR Code to Confirm Migration

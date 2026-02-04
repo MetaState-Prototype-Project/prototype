@@ -9,7 +9,7 @@ export default function AppLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { isAuthenticated, isLoading, logout } = useAuth();
+    const { isAuthenticated, isLoading, isAdmin, logout } = useAuth();
     const router = useRouter();
 
     function handleLogout() {
@@ -51,13 +51,20 @@ export default function AppLayout({
                                 Emover
                             </h1>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
-                        >
-                            Logout
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {isAdmin && (
+                                <span className="px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded">
+                                    ADMIN
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+                            >
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>
