@@ -133,6 +133,7 @@ const initializeEVault = async (provisioningServiceInstance?: ProvisioningServic
     const evaultInstance = {
         publicKey,
         w3id,
+        evaultId: process.env.EVAULT_ID || undefined,
     };
 
     graphqlServer = new GraphQLServer(dbService, publicKey, w3id, evaultInstance);

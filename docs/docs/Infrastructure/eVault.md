@@ -275,6 +275,8 @@ X-ENAME: @user-a.w3id
 **Response**:
 ```json
 {
+    "w3id": "@user-a.w3id",
+    "evaultId": "@evault-identifier",
     "keyBindingCertificates": [
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...",
         "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -282,13 +284,17 @@ X-ENAME: @user-a.w3id
 }
 ```
 
+- `w3id`: The W3ID (eName) from the request.
+- `evaultId`: The eVault instance identifier (when configured via `EVAULT_ID`). Matches the `evault` value registered with the Registry.
+- `keyBindingCertificates`: JWTs binding the eName to public keys.
+
 **Example**:
 ```bash
 curl -X GET http://localhost:4000/whois \
   -H "X-ENAME: @user-a.w3id"
 ```
 
-**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification.
+**Use Case**: Platforms use this endpoint to retrieve public keys for signature verification and the eVault instance id for routing or auditing.
 
 ### /logs
 

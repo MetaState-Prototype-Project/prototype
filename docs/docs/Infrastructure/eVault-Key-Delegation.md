@@ -141,11 +141,14 @@ X-ENAME: @user.w3id
 ```json
 {
   "w3id": "@user.w3id",
+  "evaultId": "evault-identifier",
   "keyBindingCertificates": [
     "eyJhbGciOiJFUzI1NiIsImtpZCI6ImVudHJvcHkta2V5LTEifQ.eyJlbmFtZSI6IkB1c2VyLnczaWQiLCJwdWJsaWNLZXkiOiJ6MzA1OTMwMTMwNjA3MmE4NjQ4Y2UzZDAyMDEwNjA4MmE4NjQ4Y2UzZDAzMDEwNzAzNDIwMDA0Li4uIn0..."
   ]
 }
 ```
+
+`evaultId` is the eVault instance identifier (when configured); it matches the `evault` value registered with the Registry.
 
 ## Code Examples
 

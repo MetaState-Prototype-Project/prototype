@@ -73,6 +73,7 @@ export async function registerHttpRoutes(
                         type: "object",
                         properties: {
                             w3id: { type: "string" },
+                            evaultId: { type: ["string", "null"] },
                             keyBindingCertificates: {
                                 type: "array",
                                 items: { type: "string" },
@@ -114,7 +115,8 @@ export async function registerHttpRoutes(
 
             // Generate key binding certificates for each public key
             const keyBindingCertificates: string[] = [];
-            const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            const registryUrl =
+                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
             const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
 
             if (registryUrl && sharedSecret && publicKeys.length > 0) {
@@ -122,7 +124,10 @@ export async function registerHttpRoutes(
                     for (const publicKey of publicKeys) {
                         try {
                             const response = await axios.post(
-                                new URL("/key-binding-certificate", registryUrl).toString(),
+                                new URL(
+                                    "/key-binding-certificate",
+                                    registryUrl,
+                                ).toString(),
                                 {
                                     ename: eName,
                                     publicKey: publicKey,
@@ -132,10 +137,12 @@ export async function registerHttpRoutes(
                                         Authorization: `Bearer ${sharedSecret}`,
                                     },
                                     timeout: 10000,
-                                }
+                                },
                             );
                             if (response.data?.token) {
-                                keyBindingCertificates.push(response.data.token);
+                                keyBindingCertificates.push(
+                                    response.data.token,
+                                );
                             }
                         } catch (error) {
                             console.error(
@@ -154,8 +161,44 @@ export async function registerHttpRoutes(
                 }
             }
 
+            // Resolve eName via Registry (same logic as /resolve) to get evault id
+            let evaultId: string | null = null;
+            const registryUrlForResolve =
+                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            if (registryUrlForResolve) {
+                try {
+                    const resolveResponse = await axios.get<{
+                        ename: string;
+                        uri: string;
+                        evault: string;
+                        originalUri?: string;
+                        resolved?: boolean;
+                    }>(
+                        new URL(
+                            `/resolve?w3id=${encodeURIComponent(eName)}`,
+                            registryUrlForResolve,
+                        ).toString(),
+                        { timeout: 10000 },
+                    );
+                    if (resolveResponse.data?.evault) {
+                        evaultId = resolveResponse.data.evault;
+                    }
+                } catch (error) {
+                    // 404 or network error: evault not registered for this eName, or registry unavailable
+                    if (
+                        axios.isAxiosError(error) &&
+                        error.response?.status !== 404
+                    ) {
+                        console.error(
+                            "Error resolving eName via Registry for whois evaultId:",
+                            error.message,
+                        );
+                    }
+                }
+            }
             const result = {
                 w3id: eName,
+                evaultId,
                 keyBindingCertificates: keyBindingCertificates,
             };
             return result;
@@ -182,8 +225,14 @@ export async function registerHttpRoutes(
                 querystring: {
                     type: "object",
                     properties: {
-                        limit: { type: "string", description: "Page size (default 20, max 100)" },
-                        cursor: { type: "string", description: "Opaque cursor for next page" },
+                        limit: {
+                            type: "string",
+                            description: "Page size (default 20, max 100)",
+                        },
+                        cursor: {
+                            type: "string",
+                            description: "Opaque cursor for next page",
+                        },
                     },
                 },
                 response: {
@@ -243,14 +292,17 @@ export async function registerHttpRoutes(
 
             try {
                 const limit = Math.min(
-                    Math.max(1, parseInt(request.query.limit || "20", 10) || 20),
+                    Math.max(
+                        1,
+                        Number.parseInt(request.query.limit || "20", 10) || 20,
+                    ),
                     100,
                 );
                 const cursor = request.query.cursor ?? null;
-                const result = await dbService.getEnvelopeOperationLogs(
-                    eName,
-                    { limit, cursor },
-                );
+                const result = await dbService.getEnvelopeOperationLogs(eName, {
+                    limit,
+                    cursor,
+                });
                 return {
                     logs: result.logs,
                     nextCursor: result.nextCursor,
