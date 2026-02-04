@@ -68,6 +68,7 @@ app.post("/api/migration/delete-old", authGuard, migrationController.deleteOld);
 // Admin routes (requires admin role)
 app.get("/api/admin/enames", authGuard, adminGuard, adminController.listEnames);
 app.post("/api/admin/migrate", authGuard, adminGuard, adminController.initiateMigration);
+app.post("/api/admin/migrate/bulk", authGuard, adminGuard, adminController.initiateBulkMigration);
 
 // Health check
 app.get("/health", (req, res) => {
