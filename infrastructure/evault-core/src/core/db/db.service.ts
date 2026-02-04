@@ -1072,6 +1072,13 @@ export class DbService {
         if (after !== undefined && before !== undefined) {
             throw new Error("Cannot specify both 'after' and 'before'");
         }
+        // Reject mixed-direction cursor usage
+        if (first !== undefined && before !== undefined) {
+            throw new Error("Cannot use 'first' with 'before' - use 'first' with 'after' for forward pagination");
+        }
+        if (last !== undefined && after !== undefined) {
+            throw new Error("Cannot use 'last' with 'after' - use 'last' with 'before' for backward pagination");
+        }
 
         // Default limit
         const limit = Math.min(
@@ -1174,7 +1181,7 @@ export class DbService {
             RETURN count(m) AS total
         `;
         const countResult = await this.runQueryInternal(countQuery, params);
-        const totalCount = countResult.records[0]?.get("total")?.toNumber?.() ?? 
+        const totalCount = countResult.records[0]?.get("total")?.toNumber?.() ??
                           countResult.records[0]?.get("total") ?? 0;
 
         // Build main query with pagination
@@ -1248,7 +1255,7 @@ export class DbService {
 
         // Build pageInfo
         const pageInfo: PageInfo = {
-            hasNextPage: isBackward ? (after !== undefined) : hasExtraRecord,
+            hasNextPage: isBackward ? (before !== undefined) : hasExtraRecord,
             hasPreviousPage: isBackward ? hasExtraRecord : (after !== undefined),
             startCursor: edges.length > 0 ? edges[0].cursor : null,
             endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
