@@ -1,4 +1,4 @@
-import type { Driver } from "neo4j-driver";
+import neo4j, { type Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { deserializeValue, serializeValue } from "./schema";
 import type {
@@ -999,11 +999,11 @@ export class DbService {
             cursor
                 ? {
                       eName,
-                      limitPlusOne: limit + 1,
+                      limitPlusOne: neo4j.int(limit + 1),
                       cursorTs,
                       cursorId,
                   }
-                : { eName, limitPlusOne: limit + 1 },
+                : { eName, limitPlusOne: neo4j.int(limit + 1) },
         );
 
         const rows = result.records.map((r) => ({

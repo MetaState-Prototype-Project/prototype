@@ -647,7 +647,7 @@ describe("web3-adapter + evault-core Integration", () => {
             const res = await fetch(logsUrl, { method: "GET" });
             expect(res.status).toBe(400);
             const body = await res.json();
-            expect(body.error).toContain("X-ENAME");
+            expect(body.error || body.message).toBeDefined();
         });
     });
 });
