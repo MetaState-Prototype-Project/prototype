@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const API_URL =
-  process.env.NEXT_PUBLIC_CALENDAR_API_URL || 'http://localhost:4001'
+  process.env.NEXT_PUBLIC_CALENDAR_API_URL ?? "http://localhost:4001";
 
 export default function LoginScreen() {
   const { login } = useAuth()

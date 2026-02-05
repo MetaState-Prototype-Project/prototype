@@ -1,5 +1,6 @@
+// From root .env (loaded in next.config)
 const API_URL =
-  process.env.NEXT_PUBLIC_CALENDAR_API_URL || "http://localhost:4001";
+  process.env.NEXT_PUBLIC_CALENDAR_API_URL ?? "http://localhost:4001";
 const TOKEN_KEY = "calendar-w3ds-token";
 
 export function getToken(): string | null {

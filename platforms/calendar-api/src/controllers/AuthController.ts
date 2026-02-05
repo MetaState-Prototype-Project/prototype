@@ -14,17 +14,17 @@ export class AuthController {
 
   getOffer = async (_req: Request, res: Response) => {
     console.log("[auth] GET /api/auth/offer hit");
-    const baseUrl = process.env.PUBLIC_CALENDAR_BASE_URL;
+    const baseUrl = process.env.NEXT_PUBLIC_CALENDAR_APP_URL;
     if (!baseUrl) {
-      console.error("[auth] PUBLIC_CALENDAR_BASE_URL is not set");
-      return res.status(500).json({ error: "Server configuration error: PUBLIC_CALENDAR_BASE_URL not set" });
+      console.error("[auth] NEXT_PUBLIC_CALENDAR_APP_URL is not set");
+      return res.status(500).json({ error: "Server configuration error: NEXT_PUBLIC_CALENDAR_APP_URL not set" });
     }
 
     let redirectUri: string;
     try {
       redirectUri = new URL("/api/auth", baseUrl).toString();
     } catch (err) {
-      console.error("[auth] Invalid PUBLIC_CALENDAR_BASE_URL:", baseUrl, err);
+      console.error("[auth] Invalid NEXT_PUBLIC_CALENDAR_APP_URL:", baseUrl, err);
       return res.status(500).json({ error: "Server configuration error: invalid base URL" });
     }
 

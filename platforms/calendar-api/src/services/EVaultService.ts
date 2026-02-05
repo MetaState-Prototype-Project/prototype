@@ -107,9 +107,9 @@ export class EVaultService {
       throw new Error("PUBLIC_REGISTRY_URL not configured");
     }
 
-    const baseUrl = process.env.PUBLIC_CALENDAR_BASE_URL;
+    const baseUrl = process.env.NEXT_PUBLIC_CALENDAR_APP_URL;
     if (!baseUrl) {
-      throw new Error("PUBLIC_CALENDAR_BASE_URL not configured");
+      throw new Error("NEXT_PUBLIC_CALENDAR_APP_URL not configured");
     }
 
     const response = await fetch(
