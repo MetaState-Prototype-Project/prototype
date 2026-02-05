@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { calendarApi, parseSessionFromUri } from '@/lib/calendar-api'
+import {
+  calendarApi,
+  getCalendarApiUrl,
+  parseSessionFromUri,
+} from '@/lib/calendar-api'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-const API_URL =
-  process.env.NEXT_PUBLIC_CALENDAR_API_URL ?? "http://localhost:4001";
 
 export default function LoginScreen() {
   const { login } = useAuth()
@@ -22,6 +23,10 @@ export default function LoginScreen() {
     setLoading(true)
     setError(null)
     try {
+      const apiUrl = getCalendarApiUrl()
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[auth] fetching offer from', `${apiUrl}/api/auth/offer`)
+      }
       const data = await calendarApi.getOffer()
       setUri(data.uri)
       const sid = data.sessionId ?? parseSessionFromUri(data.uri)
@@ -41,8 +46,9 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!sessionId) return
+    const apiUrl = getCalendarApiUrl()
     const eventSource = new EventSource(
-      `${API_URL}/api/auth/sessions/${sessionId}`
+      `${apiUrl}/api/auth/sessions/${sessionId}`
     )
     eventSource.onmessage = (event) => {
       try {
