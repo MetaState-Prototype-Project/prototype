@@ -1,0 +1,159 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { useCalendarContext } from '../calendar-context'
+import { DateTimePicker } from '@/components/form/date-time-picker'
+import { ColorPicker } from '@/components/form/color-picker'
+
+const formSchemaBase = z.object({
+  title: z.string().min(1, 'Title is required'),
+  start: z.string().datetime(),
+  end: z.string().datetime(),
+  color: z.string(),
+})
+
+type FormValues = z.infer<typeof formSchemaBase>
+
+export default function CalendarNewEventDialog() {
+  const {
+    newEventDialogOpen,
+    setNewEventDialogOpen,
+    date,
+    setEvents,
+    refetchEvents,
+  } = useCalendarContext()
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchemaBase as any),
+    defaultValues: {
+      title: '',
+      start: date.toISOString(),
+      end: date.toISOString(),
+      color: 'blue',
+    },
+  })
+
+  async function onSubmit(values: FormValues) {
+    const startDate = new Date(values.start)
+    const endDate = new Date(values.end)
+    if (endDate < startDate) {
+      form.setError('end', { message: 'End time must be after start time' })
+      return
+    }
+    setSubmitError(null)
+    setSubmitting(true)
+    try {
+      const { calendarApi } = await import('@/lib/calendar-api')
+      await calendarApi.createEvent({
+        title: values.title,
+        color: values.color,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      })
+      await refetchEvents?.()
+      setNewEventDialogOpen(false)
+      form.reset()
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to create event')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={newEventDialogOpen} onOpenChange={setNewEventDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create event</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Event title" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="start"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Start</FormLabel>
+                  <FormControl>
+                    <DateTimePicker field={field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="end"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">End</FormLabel>
+                  <FormControl>
+                    <DateTimePicker field={field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Color</FormLabel>
+                  <FormControl>
+                    <ColorPicker field={field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {submitError && (
+              <p className="text-destructive text-sm">{submitError}</p>
+            )}
+            <div className="flex justify-end">
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Creating…' : 'Create event'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  )
+}
