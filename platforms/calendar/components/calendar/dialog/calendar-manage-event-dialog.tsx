@@ -20,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useCalendarContext } from '../calendar-context'
-import { format } from 'date-fns'
 import { DateTimePicker } from '@/components/form/date-time-picker'
 import { ColorPicker } from '@/components/form/color-picker'
 import {
@@ -68,10 +67,18 @@ export default function CalendarManageEventDialog() {
 
   useEffect(() => {
     if (selectedEvent) {
+      const start =
+        selectedEvent.start instanceof Date
+          ? selectedEvent.start
+          : new Date(selectedEvent.start)
+      const end =
+        selectedEvent.end instanceof Date
+          ? selectedEvent.end
+          : new Date(selectedEvent.end)
       form.reset({
         title: selectedEvent.title,
-        start: format(selectedEvent.start, "yyyy-MM-dd'T'HH:mm"),
-        end: format(selectedEvent.end, "yyyy-MM-dd'T'HH:mm"),
+        start: start.toISOString(),
+        end: end.toISOString(),
         color: selectedEvent.color,
       })
     }

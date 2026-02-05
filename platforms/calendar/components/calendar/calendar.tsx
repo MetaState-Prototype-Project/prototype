@@ -28,14 +28,20 @@ export default function Calendar({
       calendarIconIsToday={calendarIconIsToday}
       refetchEvents={refetchEvents}
     >
-      <CalendarHeader>
-        <CalendarHeaderDate />
-        <CalendarHeaderActions>
-          <CalendarHeaderActionsMode />
-          <CalendarHeaderActionsAdd />
-        </CalendarHeaderActions>
-      </CalendarHeader>
-      <CalendarBody />
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="shrink-0">
+          <CalendarHeader>
+            <CalendarHeaderDate />
+            <CalendarHeaderActions>
+              <CalendarHeaderActionsMode />
+              <CalendarHeaderActionsAdd />
+            </CalendarHeaderActions>
+          </CalendarHeader>
+        </div>
+        <div className="flex-1 min-h-0">
+          <CalendarBody />
+        </div>
+      </div>
     </CalendarProvider>
   )
 }

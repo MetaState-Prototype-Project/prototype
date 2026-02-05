@@ -19,7 +19,6 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { useCalendarContext } from '../calendar-context'
-import { format } from 'date-fns'
 import { DateTimePicker } from '@/components/form/date-time-picker'
 import { ColorPicker } from '@/components/form/color-picker'
 
@@ -47,8 +46,8 @@ export default function CalendarNewEventDialog() {
     resolver: zodResolver(formSchemaBase as any),
     defaultValues: {
       title: '',
-      start: format(date, "yyyy-MM-dd'T'HH:mm"),
-      end: format(date, "yyyy-MM-dd'T'HH:mm"),
+      start: date.toISOString(),
+      end: date.toISOString(),
       color: 'blue',
     },
   })

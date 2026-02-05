@@ -7,10 +7,14 @@ export default function CalendarBody() {
   const { mode } = useCalendarContext()
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0">
       {mode === 'day' && <CalendarBodyDay />}
       {mode === 'week' && <CalendarBodyWeek />}
-      {mode === 'month' && <CalendarBodyMonth />}
-    </>
+      {mode === 'month' && (
+        <div className="flex-1 min-h-0 overflow-auto">
+          <CalendarBodyMonth />
+        </div>
+      )}
+    </div>
   )
 }

@@ -26,7 +26,7 @@ function mapApiToEvent(e: {
 export default function CalendarDemo() {
   const { isAuthenticated, isReady } = useAuth()
   const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [mode, setMode] = useState<Mode>('month')
+  const [mode, setMode] = useState<Mode>('week')
   const [date, setDate] = useState<Date>(new Date())
   const [eventsLoading, setEventsLoading] = useState(false)
   const [eventsError, setEventsError] = useState<string | null>(null)
@@ -63,26 +63,28 @@ export default function CalendarDemo() {
   }
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0">
       {eventsLoading && events.length === 0 && (
-        <div className="flex justify-center p-4">
+        <div className="flex justify-center p-4 shrink-0">
           <p className="text-muted-foreground">Loading events…</p>
         </div>
       )}
       {eventsError && (
-        <div className="bg-destructive/10 text-destructive mx-4 rounded-md p-3 text-sm">
+        <div className="bg-destructive/10 text-destructive mx-4 rounded-md p-3 text-sm shrink-0">
           {eventsError}
         </div>
       )}
-      <Calendar
-        events={events}
-        setEvents={setEvents}
-        mode={mode}
-        setMode={setMode}
-        date={date}
-        setDate={setDate}
-        refetchEvents={refetchEvents}
-      />
-    </>
+      <div className="flex-1 min-h-0 flex flex-col">
+        <Calendar
+          events={events}
+          setEvents={setEvents}
+          mode={mode}
+          setMode={setMode}
+          date={date}
+          setDate={setDate}
+          refetchEvents={refetchEvents}
+        />
+      </div>
+    </div>
   )
 }
