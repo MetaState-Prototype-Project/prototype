@@ -35,32 +35,14 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
-const formSchema = z
-  .object({
-    title: z.string().min(1, 'Title is required'),
-    start: z.string().refine((val) => !isNaN(Date.parse(val)), {
-      message: 'Invalid start date',
-    }),
-    end: z.string().refine((val) => !isNaN(Date.parse(val)), {
-      message: 'Invalid end date',
-    }),
-    color: z.string(),
-  })
-  .refine(
-    (data) => {
-      try {
-        const start = new Date(data.start)
-        const end = new Date(data.end)
-        return end >= start
-      } catch {
-        return false
-      }
-    },
-    {
-      message: 'End time must be after start time',
-      path: ['end'],
-    }
-  )
+const formSchemaBase = z.object({
+  title: z.string().min(1, 'Title is required'),
+  start: z.string().datetime(),
+  end: z.string().datetime(),
+  color: z.string(),
+})
+
+type FormValues = z.infer<typeof formSchemaBase>
 
 export default function CalendarManageEventDialog() {
   const {
@@ -74,8 +56,8 @@ export default function CalendarManageEventDialog() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchemaBase as any),
     defaultValues: {
       title: '',
       start: '',
@@ -95,16 +77,22 @@ export default function CalendarManageEventDialog() {
     }
   }, [selectedEvent, form])
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     if (!selectedEvent) return
+    const start = new Date(values.start)
+    const end = new Date(values.end)
+    if (end < start) {
+      form.setError('end', { message: 'End time must be after start time' })
+      return
+    }
     setSubmitError(null)
     setSubmitting(true)
     try {
       const { calendarApi } = await import('@/lib/calendar-api')
       await calendarApi.updateEvent(selectedEvent.id, {
         title: values.title,
-        start: new Date(values.start).toISOString(),
-        end: new Date(values.end).toISOString(),
+        start: start.toISOString(),
+        end: end.toISOString(),
         color: values.color,
       })
       await refetchEvents?.()

@@ -23,24 +23,14 @@ import { format } from 'date-fns'
 import { DateTimePicker } from '@/components/form/date-time-picker'
 import { ColorPicker } from '@/components/form/color-picker'
 
-const formSchema = z
-  .object({
-    title: z.string().min(1, 'Title is required'),
-    start: z.string().datetime(),
-    end: z.string().datetime(),
-    color: z.string(),
-  })
-  .refine(
-    (data) => {
-      const start = new Date(data.start)
-      const end = new Date(data.end)
-      return end >= start
-    },
-    {
-      message: 'End time must be after start time',
-      path: ['end'],
-    }
-  )
+const formSchemaBase = z.object({
+  title: z.string().min(1, 'Title is required'),
+  start: z.string().datetime(),
+  end: z.string().datetime(),
+  color: z.string(),
+})
+
+type FormValues = z.infer<typeof formSchemaBase>
 
 export default function CalendarNewEventDialog() {
   const {
@@ -53,8 +43,8 @@ export default function CalendarNewEventDialog() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchemaBase as any),
     defaultValues: {
       title: '',
       start: format(date, "yyyy-MM-dd'T'HH:mm"),
@@ -63,13 +53,17 @@ export default function CalendarNewEventDialog() {
     },
   })
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
+    const startDate = new Date(values.start)
+    const endDate = new Date(values.end)
+    if (endDate < startDate) {
+      form.setError('end', { message: 'End time must be after start time' })
+      return
+    }
     setSubmitError(null)
     setSubmitting(true)
     try {
       const { calendarApi } = await import('@/lib/calendar-api')
-      const startDate = new Date(values.start)
-      const endDate = new Date(values.end)
       await calendarApi.createEvent({
         title: values.title,
         color: values.color,
