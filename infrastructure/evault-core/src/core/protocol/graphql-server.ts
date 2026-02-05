@@ -886,6 +886,13 @@ export class GraphQLServer {
             graphiql: {
                 defaultQuery: exampleQueries,
             },
+            maskedErrors: false,
+            logging: {
+                debug: (...args) => console.log('[GraphQL Debug]', ...args),
+                info: (...args) => console.log('[GraphQL Info]', ...args),
+                warn: (...args) => console.warn('[GraphQL Warn]', ...args),
+                error: (...args) => console.error('[GraphQL Error]', ...args),
+            },
             context: async ({ request }) => {
                 const authHeader = request.headers.get("authorization") ?? "";
                 const token = authHeader.replace("Bearer ", "");
