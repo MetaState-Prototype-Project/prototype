@@ -46,7 +46,7 @@
 </script>
 
 <Modal {open} onclose={closeCreatePostModal}>
-	<div class="w-full max-w-2xl rounded-lg bg-white p-6">
+	<div class="w-[80vw] max-w-sm rounded-lg bg-white p-6 sm:max-w-md md:max-w-lg lg:max-w-2xl">
 		<div class="mb-4 flex items-center justify-between">
 			<h2 class="text-xl font-semibold">Create Post</h2>
 			<button
@@ -91,12 +91,17 @@
 		{/if}
 
 		<div class="flex items-center justify-between gap-2">
-			<label
-				class="w-full cursor-pointer rounded-full bg-gray-100 px-4 py-3 text-center hover:bg-gray-200"
-			>
-				<input type="file" accept="image/*" class="hidden" onchange={handleImageUpload} />
-				Add Photo
-			</label>
+			<Button variant="primary" size="sm">
+				<label class="text-nowrap">
+					<input
+						type="file"
+						accept="image/*"
+						class="hidden"
+						onchange={handleImageUpload}
+					/>
+					Add Photo
+				</label>
+			</Button>
 
 			<Button
 				variant="secondary"
