@@ -15,11 +15,23 @@ export class AuthController {
   getOffer = async (_req: Request, res: Response) => {
     console.log("[auth] GET /api/auth/offer hit");
     const baseUrl = process.env.PUBLIC_CALENDAR_BASE_URL;
-    const redirectUri = new URL("/api/auth", baseUrl).toString();
+    if (!baseUrl) {
+      console.error("[auth] PUBLIC_CALENDAR_BASE_URL is not set");
+      return res.status(500).json({ error: "Server configuration error: PUBLIC_CALENDAR_BASE_URL not set" });
+    }
+
+    let redirectUri: string;
+    try {
+      redirectUri = new URL("/api/auth", baseUrl).toString();
+    } catch (err) {
+      console.error("[auth] Invalid PUBLIC_CALENDAR_BASE_URL:", baseUrl, err);
+      return res.status(500).json({ error: "Server configuration error: invalid base URL" });
+    }
+
     const session = uuidv4();
     addSession(session);
-    const offer = `w3ds://auth?redirect=${encodeURIComponent(redirectUri)}&session=${session}&platform=calendar`;
-    console.log("[auth] offer created, redirectUri=", redirectUri);
+    const offer = `w3ds://auth?redirect=${encodeURIComponent(redirectUri)}&session=${session}&platform=${encodeURIComponent(baseUrl)}`;
+    console.log("[auth] offer created, redirectUri=", redirectUri, "platform=", baseUrl);
     res.json({ uri: offer, sessionId: session });
   };
 
