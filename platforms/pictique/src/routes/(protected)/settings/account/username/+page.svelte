@@ -86,7 +86,7 @@
 	{/if}
 	<div>
 		<Label>Change your profile picture</Label>
-		<p class="mb-2 text-sm text-gray-600">Maximum file size: 1MB</p>
+		<p class="mb-2 text-sm text-gray-600">Maximum file size: 500KB</p>
 
 		<div class="flex items-center gap-4">
 			{#if profileImageDataUrl}

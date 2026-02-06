@@ -41,7 +41,6 @@
 		reader.onload = (e) => {
 			const result = e.target?.result;
 			if (typeof result === 'string') {
-				console.log(result);
 				// Atomically add both file and dataUrl together
 				uploadItems = [...uploadItems, { file, dataUrl: result }];
 			} else {
