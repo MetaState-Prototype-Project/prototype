@@ -17,14 +17,14 @@
 	function handleFileChange() {
 		if (files?.[0]) {
 			const file = files[0];
-			
+
 			// Validate file size
 			if (file.size > MAX_FILE_SIZE) {
 				error = 'Image must be smaller than 1MB';
 				files = undefined;
 				return;
 			}
-			
+
 			error = '';
 			const reader = new FileReader();
 
@@ -40,7 +40,7 @@
 
 	async function saveProfileData() {
 		if (isSaving) return;
-		
+
 		try {
 			isSaving = true;
 			await apiClient.patch('/api/users/', {
@@ -86,20 +86,20 @@
 	<div>
 		<Label>Change your profile picture</Label>
 		<p class="mb-2 text-sm text-gray-600">Maximum file size: 1MB</p>
-		
+
 		<div class="flex items-center gap-4">
 			{#if profileImageDataUrl}
 				<img
 					src={profileImageDataUrl}
 					alt="Profile preview"
-					class="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
+					class="h-24 w-24 rounded-full border-2 border-gray-200 object-cover"
 				/>
 			{:else}
-				<div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
-					<span class="text-gray-400 text-sm">No image</span>
+				<div class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-200">
+					<span class="text-sm text-gray-400">No image</span>
 				</div>
 			{/if}
-			
+
 			<div class="flex-1">
 				<InputFile
 					bind:files
@@ -132,9 +132,9 @@
 	</div>
 </div>
 <hr class="text-grey" />
-<Button 
-	size="sm" 
-	variant="secondary" 
+<Button
+	size="sm"
+	variant="secondary"
 	callback={saveProfileData}
 	isLoading={isSaving}
 	disabled={isSaving}

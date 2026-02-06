@@ -192,6 +192,9 @@
 
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
+		{#if !messages || messages.length === 0}
+			<p class="m-4 text-center text-gray-500">No messages yet. Start the conversation!</p>
+		{/if}
 		{#each removeDuplicateMessages(messages) as msg (msg.id)}
 			<ChatMessage
 				isOwn={msg.isOwn as boolean}
