@@ -1,27 +1,26 @@
 <script lang="ts">
 	import { closeCreatePostModal, createPost } from '$lib/stores/posts';
 	import { Button, Modal } from '$lib/ui';
+	import { formatSize, validateFileSize } from '$lib/utils/fileValidation';
 
 	let { open = $bindable() }: { open: boolean } = $props();
 
+	interface UploadItem {
+		file: File;
+		dataUrl: string;
+	}
+
 	let text = $state('');
-	let images = $state<string[]>([]);
-	let imageFiles = $state<File[]>([]);
+	let uploadItems = $state<UploadItem[]>([]);
 	let isSubmitting = $state(false);
 	let error = $state('');
 
 	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
 	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB per individual image
 
-	let totalSize = $derived(imageFiles.reduce((sum, file) => sum + file.size, 0));
+	let totalSize = $derived(uploadItems.reduce((sum, item) => sum + item.file.size, 0));
 	let usagePercentage = $derived((totalSize / MAX_TOTAL_SIZE) * 100);
 	let remainingSize = $derived(MAX_TOTAL_SIZE - totalSize);
-
-	const formatSize = (bytes: number) => {
-		if (bytes < 1024) return `${bytes}B`;
-		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-		return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-	};
 
 	const handleImageUpload = (event: Event) => {
 		const input = event.target as HTMLInputElement;
@@ -29,54 +28,52 @@
 
 		const file = input.files[0];
 
-		// Validate individual file size
-		if (file.size > MAX_FILE_SIZE) {
-			error = `Image must be smaller than ${formatSize(MAX_FILE_SIZE)}`;
-			input.value = '';
-			return;
-		}
-
-		// Validate total size
-		if (totalSize + file.size > MAX_TOTAL_SIZE) {
-			error = `Adding this image would exceed the total limit of ${formatSize(MAX_TOTAL_SIZE)}`;
+		const validation = validateFileSize(file, MAX_FILE_SIZE, totalSize, MAX_TOTAL_SIZE);
+		if (!validation.valid) {
+			error = validation.error || 'Invalid file';
 			input.value = '';
 			return;
 		}
 
 		error = '';
-		imageFiles = [...imageFiles, file];
 
 		const reader = new FileReader();
 		reader.onload = (e) => {
 			const result = e.target?.result;
 			if (typeof result === 'string') {
 				console.log(result);
-				images = [...images, result];
+				// Atomically add both file and dataUrl together
+				uploadItems = [...uploadItems, { file, dataUrl: result }];
+			} else {
+				error = 'Failed to read image file';
 			}
+		};
+		reader.onerror = () => {
+			error = 'Error reading image file';
 		};
 		reader.readAsDataURL(file);
 		input.value = '';
 	};
 
 	const removeImage = (index: number) => {
-		images = images.filter((_, i) => i !== index);
-		imageFiles = imageFiles.filter((_, i) => i !== index);
+		uploadItems = uploadItems.filter((_, i) => i !== index);
 		error = '';
 	};
 
 	const handleSubmit = async () => {
-		if (!text.trim() && images.length === 0) return;
+		if (!text.trim() && uploadItems.length === 0) return;
 
 		try {
 			isSubmitting = true;
+			const images = uploadItems.map((item) => item.dataUrl);
 			await createPost(text, images);
 			closeCreatePostModal();
 			text = '';
-			images = [];
-			imageFiles = [];
+			uploadItems = [];
 			error = '';
-		} catch (error) {
-			console.error('Failed to create post:', error);
+		} catch (err) {
+			error = err instanceof Error ? err.message : String(err);
+			console.error('Failed to create post:', err);
 		} finally {
 			isSubmitting = false;
 		}
@@ -113,11 +110,11 @@
 		</div>
 
 		<div class="mb-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-			{#each images as image, index (index)}
+			{#each uploadItems as item, index (index)}
 				<div class="relative">
 					<!-- svelte-ignore a11y_img_redundant_alt -->
 					<img
-						src={image}
+						src={item.dataUrl}
 						alt="Post image"
 						class="aspect-square w-full rounded-lg object-cover"
 					/>
@@ -158,7 +155,7 @@
 			{/if}
 		</div>
 
-		{#if images.length > 1}
+		{#if uploadItems.length > 1}
 			<div class="mb-4">
 				<div class="mb-2 flex items-center justify-between text-sm">
 					<span class="text-gray-600">
@@ -184,7 +181,7 @@
 				size="sm"
 				callback={handleSubmit}
 				isLoading={isSubmitting}
-				disabled={!text.trim() && images.length === 0}
+				disabled={!text.trim() && uploadItems.length === 0}
 			>
 				Post
 			</Button>

@@ -5,8 +5,13 @@
 	import { createPost } from '$lib/stores/posts';
 	import { Button, Textarea } from '$lib/ui';
 	import { revokeImageUrls } from '$lib/utils';
+	import { formatSize, validateFileSize } from '$lib/utils/fileValidation';
+
+	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
+	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB per individual image
 
 	let caption: string = $state('');
+	let error: string = $state('');
 
 	$effect(() => {
 		if (!uploadedImages.value || uploadedImages.value.length === 0) {
@@ -19,12 +24,34 @@
 		if (!input.files?.length) return;
 
 		const file = input.files[0];
+
+		// Calculate current total size
+		const currentTotal = (uploadedImages.value || []).reduce(
+			(sum, img) => sum + (img.size || 0),
+			0
+		);
+
+		const validation = validateFileSize(file, MAX_FILE_SIZE, currentTotal, MAX_TOTAL_SIZE);
+		if (!validation.valid) {
+			error = validation.error || 'Invalid file';
+			input.value = '';
+			return;
+		}
+
+		error = '';
+
 		const reader = new FileReader();
 		reader.onload = (e) => {
 			const result = e.target?.result;
 			if (typeof result === 'string' && uploadedImages.value) {
-				uploadedImages.value = [...uploadedImages.value, { url: result, alt: file.name }];
+				uploadedImages.value = [
+					...uploadedImages.value,
+					{ url: result, alt: file.name, size: file.size }
+				];
 			}
+		};
+		reader.onerror = () => {
+			error = 'Error reading image file';
 		};
 		reader.readAsDataURL(file);
 		input.value = '';
@@ -42,8 +69,14 @@
 </script>
 
 <section class="flex h-fit w-full flex-col justify-stretch gap-3">
+	{#if error}
+		<div class="rounded-md bg-red-500 px-4 py-2 text-sm text-white">
+			{error}
+		</div>
+	{/if}
+
 	<div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-		{#each uploadedImages.value ?? [] as image, i (i)}
+		{#each uploadedImages.value ?? [] as image, i (image.url)}
 			<div class="group relative aspect-square">
 				<button
 					type="button"

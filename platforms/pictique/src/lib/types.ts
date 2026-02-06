@@ -73,6 +73,7 @@ export type userProfile = {
 export type Image = {
 	url: string;
 	alt: string;
+	size?: number;
 };
 
 export type GroupInfo = {

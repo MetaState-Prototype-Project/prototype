@@ -24,7 +24,7 @@
 	{...restProps}
 	class={cn(['grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4', restProps.class].join(' '))}
 >
-	{#each images as image, i (i)}
+	{#each images as image, i (image.url)}
 		<div class="group relative aspect-square">
 			<Cross
 				class="absolute top-2 right-2 z-10 cursor-pointer rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
@@ -33,7 +33,7 @@
 			<img
 				src={image.url}
 				alt={image.alt}
-				class="h-full w-full rounded-lg object-cover outline-[#DA4A11] group-hover:outline group-hover:outline-2"
+				class="h-full w-full rounded-lg object-cover outline-[#DA4A11] group-hover:outline-2"
 			/>
 		</div>
 	{/each}

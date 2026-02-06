@@ -2,6 +2,7 @@
 	import { InputFile } from '$lib/fragments';
 	import { Button, Input, Label, Textarea } from '$lib/ui';
 	import { apiClient } from '$lib/utils/axios';
+	import { validateFileSize } from '$lib/utils/fileValidation';
 	import { onMount } from 'svelte';
 
 	let handle = $state();
@@ -12,15 +13,15 @@
 	let isSaving = $state(false);
 	let error = $state('');
 
-	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+	const MAX_FILE_SIZE = 0.5 * 1024 * 1024; // 500KB
 
 	function handleFileChange() {
 		if (files?.[0]) {
 			const file = files[0];
 
-			// Validate file size
-			if (file.size > MAX_FILE_SIZE) {
-				error = 'Image must be smaller than 1MB';
+			const validation = validateFileSize(file, MAX_FILE_SIZE);
+			if (!validation.valid) {
+				error = validation.error || 'Invalid file';
 				files = undefined;
 				return;
 			}
