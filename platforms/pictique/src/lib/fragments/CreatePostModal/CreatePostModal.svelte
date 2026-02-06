@@ -10,7 +10,7 @@
 	let isSubmitting = $state(false);
 	let error = $state('');
 
-	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total for all images
+	const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
 	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB per individual image
 
 	let totalSize = $derived(imageFiles.reduce((sum, file) => sum + file.size, 0));

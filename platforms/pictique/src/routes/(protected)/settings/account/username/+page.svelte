@@ -12,7 +12,7 @@
 	let isSaving = $state(false);
 	let error = $state('');
 
-	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB (actual image file size before base64 encoding)
+	const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
 
 	function handleFileChange() {
 		if (files?.[0]) {

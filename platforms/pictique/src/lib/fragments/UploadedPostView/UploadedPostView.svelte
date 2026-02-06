@@ -22,23 +22,18 @@
 
 <article
 	{...restProps}
-	class={cn(
-		[
-			'flex min-h-max max-w-screen flex-row items-center gap-4 overflow-x-auto pr-4 pl-0.5',
-			restProps.class
-		].join(' ')
-	)}
+	class={cn(['grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4', restProps.class].join(' '))}
 >
 	{#each images as image, i (i)}
-		<div class={cn(['group relative mt-3 mb-2 shrink-0'])}>
+		<div class="group relative aspect-square">
 			<Cross
-				class="absolute top-0 right-0 hidden translate-x-1/2 -translate-y-1/2 cursor-pointer group-hover:block"
+				class="absolute top-2 right-2 z-10 cursor-pointer rounded-full bg-black/50 p-1 text-white hover:bg-black/70"
 				onclick={() => callback(i)}
 			/>
 			<img
 				src={image.url}
 				alt={image.alt}
-				class={cn(['rounded-lg outline-[#DA4A11] group-hover:outline-2', width, height])}
+				class="h-full w-full rounded-lg object-cover outline-[#DA4A11] group-hover:outline group-hover:outline-2"
 			/>
 		</div>
 	{/each}
