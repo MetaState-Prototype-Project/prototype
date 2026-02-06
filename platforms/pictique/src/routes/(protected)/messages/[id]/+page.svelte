@@ -13,6 +13,7 @@
 	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
+	let historyLoaded = $state(false);
 
 	// Function to remove duplicate messages by ID
 	function removeDuplicateMessages(
@@ -53,6 +54,7 @@
 
 		eventSource.onopen = () => {
 			console.log('Successfully connected.');
+			historyLoaded = true;
 		};
 
 		eventSource.onmessage = (e) => {
@@ -192,6 +194,9 @@
 
 <section class="chat relative px-0">
 	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
+		{#if historyLoaded && messages.length === 0}
+			<p class="m-4 text-center text-gray-500">No messages yet. Start the conversation!</p>
+		{/if}
 		{#each removeDuplicateMessages(messages) as msg (msg.id)}
 			<ChatMessage
 				isOwn={msg.isOwn as boolean}

@@ -2,6 +2,7 @@
 	import { InputFile } from '$lib/fragments';
 	import { Button, Input, Label, Textarea } from '$lib/ui';
 	import { apiClient } from '$lib/utils/axios';
+	import { validateFileSize } from '$lib/utils/fileValidation';
 	import { onMount } from 'svelte';
 
 	let handle = $state();
@@ -9,10 +10,23 @@
 	let profileImageDataUrl = $state('');
 	let files = $state<FileList | undefined>();
 	let saved = $state(false);
+	let isSaving = $state(false);
+	let error = $state('');
+
+	const MAX_FILE_SIZE = 0.5 * 1024 * 1024; // 500KB
 
 	function handleFileChange() {
 		if (files?.[0]) {
 			const file = files[0];
+
+			const validation = validateFileSize(file, MAX_FILE_SIZE);
+			if (!validation.valid) {
+				error = validation.error || 'Invalid file';
+				files = undefined;
+				return;
+			}
+
+			error = '';
 			const reader = new FileReader();
 
 			reader.onload = (e) => {
@@ -26,7 +40,10 @@
 	}
 
 	async function saveProfileData() {
+		if (isSaving) return;
+
 		try {
+			isSaving = true;
 			await apiClient.patch('/api/users/', {
 				name,
 				avatar: profileImageDataUrl
@@ -36,7 +53,9 @@
 				saved = false;
 			}, 3_000);
 		} catch (err) {
-			console.log(err instanceof Error ? err.message : 'please check the info again');
+			error = err instanceof Error ? err.message : 'Failed to save changes';
+		} finally {
+			isSaving = false;
 		}
 	}
 
@@ -56,29 +75,46 @@
 
 <div class="flex flex-col gap-6">
 	{#if saved}
-		<div class=" w-full rounded-md bg-[#33cc33] px-10 py-2 text-center text-white">
+		<div class="w-full rounded-md bg-[#33cc33] px-10 py-2 text-center text-white">
 			Changes Saved!
+		</div>
+	{/if}
+	{#if error}
+		<div class="w-full rounded-md bg-red-500 px-10 py-2 text-center text-white">
+			{error}
 		</div>
 	{/if}
 	<div>
 		<Label>Change your profile picture</Label>
-		<InputFile
-			bind:files
-			accept="image/*"
-			label="Upload Profile Picture"
-			cancelLabel="Remove"
-			oncancel={() => {
-				profileImageDataUrl = '';
-				files = undefined;
-			}}
-		/>
-		{#if profileImageDataUrl}
-			<img
-				src={profileImageDataUrl}
-				alt="Profile preview"
-				class="mt-2 h-32 w-32 rounded-full object-cover"
-			/>
-		{/if}
+		<p class="mb-2 text-sm text-gray-600">Maximum file size: 500KB</p>
+
+		<div class="flex items-center gap-4">
+			{#if profileImageDataUrl}
+				<img
+					src={profileImageDataUrl}
+					alt="Profile preview"
+					class="h-24 w-24 rounded-full border-2 border-gray-200 object-cover"
+				/>
+			{:else}
+				<div class="flex h-24 w-24 items-center justify-center rounded-full bg-gray-200">
+					<span class="text-sm text-gray-400">No image</span>
+				</div>
+			{/if}
+
+			<div class="flex-1">
+				<InputFile
+					bind:files
+					accept="image/*"
+					label="Upload Profile Picture"
+					cancelLabel="Remove"
+					oncancel={() => {
+						profileImageDataUrl = '';
+						files = undefined;
+						error = '';
+					}}
+				/>
+			</div>
+		</div>
 	</div>
 
 	<div>
@@ -97,4 +133,12 @@
 	</div>
 </div>
 <hr class="text-grey" />
-<Button size="sm" variant="secondary" callback={saveProfileData}>Save Changes</Button>
+<Button
+	size="sm"
+	variant="secondary"
+	callback={saveProfileData}
+	isLoading={isSaving}
+	disabled={isSaving}
+>
+	{isSaving ? 'Saving...' : 'Save Changes'}
+</Button>

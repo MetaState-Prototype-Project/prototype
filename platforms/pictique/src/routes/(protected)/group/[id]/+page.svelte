@@ -133,7 +133,7 @@
 		<Button
 			variant="secondary"
 			size="sm"
-			class="w-[max-content]"
+			class="w-max"
 			callback={() => {
 				goto(`/group/${id}/members`);
 			}}
@@ -197,7 +197,7 @@
 	class="absolute start-[50%] top-[50%] z-50 w-[90vw] translate-x-[-50%] translate-y-[-50%] rounded-3xl border border-gray-400 bg-white p-4 shadow-xl md:max-w-[30vw]"
 >
 	<div class="flex flex-col gap-6">
-		<div class="relative h-[96px] w-[96px] self-center">
+		<div class="relative h-24 w-24 self-center">
 			<img
 				src={groupImageDataUrl || '/images/avatar-placeholder.png'}
 				alt="Group Avatar"

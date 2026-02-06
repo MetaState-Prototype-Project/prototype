@@ -256,17 +256,16 @@
 
 <div class="flex">
 	<section class="flex-1 px-4 py-4">
-		<div class="mb-4 flex justify-end">
-			<Button
-				variant="secondary"
-				size="sm"
-				callback={() => {
-					openNewGroupModal = true;
-				}}
-			>
-				New Group
-			</Button>
-		</div>
+		<Button
+			variant="secondary"
+			size="sm"
+			callback={() => {
+				openNewGroupModal = true;
+			}}
+			class="mb-4 ml-auto w-min text-nowrap"
+		>
+			New Group
+		</Button>
 
 		{#if isLoading && messages.length === 0}
 			<div class="flex items-center justify-center py-8">
