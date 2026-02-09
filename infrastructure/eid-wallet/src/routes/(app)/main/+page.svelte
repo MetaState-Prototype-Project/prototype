@@ -176,7 +176,7 @@ onDestroy(() => {
             href="https://marketplace.w3ds.metastate.foundation/"
             target="_blank"
             rel="noopener noreferrer"
-            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer"
         >
             <span class="text-lg font-medium flex gap-2"
                 >Discover <img
