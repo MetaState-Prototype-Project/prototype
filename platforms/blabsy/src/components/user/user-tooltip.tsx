@@ -68,7 +68,7 @@ export function UserTooltip({
         >
             {children}
             <div
-                className='menu-container invisible absolute left-1/2 w-72 -translate-x-1/2 rounded-2xl 
+                className='menu-container invisible absolute left-1/2 w-72 rounded-2xl 
                    opacity-0 [transition:visibility_0ms_ease_400ms,opacity_200ms_ease_200ms] group-hover:visible 
                    group-hover:opacity-100 group-hover:delay-500'
             >
