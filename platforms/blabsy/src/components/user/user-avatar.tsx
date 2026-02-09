@@ -22,7 +22,7 @@ export function UserAvatar({
     const image = (
         <NextImage
             useSkeleton
-            imgClassName='rounded-full'
+            imgClassName='rounded-full aspect-square'
             width={pictureSize}
             height={pictureSize}
             src={src}
@@ -35,7 +35,7 @@ export function UserAvatar({
         return (
             <div
                 className={cn(
-                    'blur-picture flex self-start pointer-events-none',
+                    'blur-picture flex self-start pointer-events-none aspect-square',
                     className
                 )}
             >
