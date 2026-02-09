@@ -182,7 +182,7 @@ onDestroy(() => {
                 >Discover <img
                     class="w-12"
                     src="/images/W3DSLogoWhite.svg"
-                    alt="logo"
+                    alt="w3ds logo"
                 /> Post Platforms</span
             >
             <HugeiconsIcon size={24} strokeWidth={2} icon={LinkSquare02Icon} />
