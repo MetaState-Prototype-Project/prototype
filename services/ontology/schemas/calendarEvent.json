@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "schemaId": "880e8400-e29b-41d4-a716-446655440099",
+  "title": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Event title"
+    },
+    "color": {
+      "type": "string",
+      "description": "Event color (hex or named)"
+    },
+    "start": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event start time (ISO 8601)"
+    },
+    "end": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event end time (ISO 8601)"
+    }
+  },
+  "required": ["title", "start", "end"],
+  "additionalProperties": false
+}

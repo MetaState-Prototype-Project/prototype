@@ -170,13 +170,15 @@ When a new user first opens the wallet:
 ```
 Wallet → Registry: GET /entropy
 Registry → Wallet: JWT entropy token
-Wallet → Provisioner: POST /provision (entropy, namespace, publicKey)
-Provisioner → Registry: Request key binding certificate
-Registry → Provisioner: JWT certificate
+Wallet → Provisioner: POST /provision (entropy, namespace, publicKey?)
+Provisioner → Registry: Request key binding certificate (if publicKey provided)
+Registry → Provisioner: JWT certificate (if publicKey provided)
 Provisioner → Wallet: w3id, evaultUri
 ```
 
 **Note**: The `/provision` endpoint is part of the Provisioner service, not eVault Core. This is the **provisioning protocol** - any vault provider should expose such an endpoint to enable eVault creation.
+
+**Note**: The `publicKey` parameter is optional. User eVaults require it for signature verification and key binding, while keyless eVaults (platforms, groups) can be provisioned without it.
 
 ### Platform Authentication
 
@@ -343,14 +345,14 @@ const provisionResponse = await fetch(`${provisionerUrl}/provision`, {
         registryEntropy: entropyToken,
         namespace: namespace,
         verificationId: verificationCode,
-        publicKey: publicKey
+        publicKey: publicKey  // Optional: omit for keyless eVaults (platforms, groups)
     })
 });
 
 const { w3id, uri } = await provisionResponse.json();
 ```
 
-**Note**: The `/provision` endpoint is hosted by the Provisioner service, not eVault Core.
+**Note**: The `/provision` endpoint is hosted by the Provisioner service, not eVault Core. The `publicKey` parameter is optional - it's required for user eVaults that need signature verification, but can be omitted for keyless eVaults like platforms or groups.
 
 ### Platform Authentication
 

@@ -101,6 +101,7 @@ export class AuthController {
                 user: {
                     id: user.id,
                     ename: user.ename,
+                    role: user.role,
                 },
                 token,
             };

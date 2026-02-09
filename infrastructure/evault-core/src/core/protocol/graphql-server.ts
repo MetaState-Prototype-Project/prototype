@@ -4,6 +4,10 @@ import { typeDefs } from "./typedefs";
 import { renderVoyagerPage } from "graphql-voyager/middleware";
 import { getJWTHeader } from "w3id";
 import { DbService } from "../db/db.service";
+import {
+    computeEnvelopeHash,
+    computeEnvelopeHashForDelete,
+} from "../db/envelope-hash";
 import { VaultAccessGuard, VaultContext } from "./vault-access-guard";
 import { GraphQLSchema } from "graphql";
 import { exampleQueries } from "./examples/examples";
@@ -134,7 +138,64 @@ export class GraphQLServer {
         const resolvers = {
             JSON: require("graphql-type-json"),
 
+            // Field resolver for Envelope.fieldKey (alias for ontology)
+            Envelope: {
+                fieldKey: (parent: any) => parent.ontology,
+            },
+
             Query: {
+                // ============================================================
+                // NEW IDIOMATIC API
+                // ============================================================
+
+                // Retrieve a single MetaEnvelope by ID
+                metaEnvelope: this.accessGuard.middleware(
+                    (_: any, { id }: { id: string }, context: VaultContext) => {
+                        if (!context.eName) {
+                            throw new Error("X-ENAME header is required");
+                        }
+                        return this.db.findMetaEnvelopeById(id, context.eName);
+                    }
+                ),
+
+                // Retrieve MetaEnvelopes with pagination and filtering
+                metaEnvelopes: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        args: {
+                            filter?: {
+                                ontologyId?: string;
+                                search?: {
+                                    term?: string;
+                                    caseSensitive?: boolean;
+                                    fields?: string[];
+                                    mode?: "CONTAINS" | "STARTS_WITH" | "EXACT";
+                                };
+                            };
+                            first?: number;
+                            after?: string;
+                            last?: number;
+                            before?: string;
+                        },
+                        context: VaultContext
+                    ) => {
+                        if (!context.eName) {
+                            throw new Error("X-ENAME header is required");
+                        }
+                        return this.db.findMetaEnvelopesPaginated(context.eName, {
+                            filter: args.filter,
+                            first: args.first,
+                            after: args.after,
+                            last: args.last,
+                            before: args.before,
+                        });
+                    }
+                ),
+
+                // ============================================================
+                // LEGACY API (preserved for backward compatibility)
+                // ============================================================
+
                 getMetaEnvelopeById: this.accessGuard.middleware(
                     (_: any, { id }: { id: string }, context: VaultContext) => {
                         if (!context.eName) {
@@ -176,6 +237,384 @@ export class GraphQLServer {
             },
 
             Mutation: {
+                // ============================================================
+                // NEW IDIOMATIC API
+                // ============================================================
+
+                // Create a new MetaEnvelope with structured payload
+                createMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            input,
+                        }: {
+                            input: {
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            };
+                        },
+                        context: VaultContext
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                metaEnvelope: null,
+                                errors: [{ message: "X-ENAME header is required", code: "MISSING_ENAME" }],
+                            };
+                        }
+
+                        try {
+                            const result = await this.db.storeMetaEnvelope(
+                                {
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                    acl: input.acl,
+                                },
+                                input.acl,
+                                context.eName
+                            );
+
+                            // Build the full metaEnvelope response
+                            const metaEnvelope = {
+                                id: result.metaEnvelope.id,
+                                ontology: result.metaEnvelope.ontology,
+                                envelopes: result.envelopes,
+                                parsed: input.payload,
+                            };
+
+                            // Deliver webhooks for create operation
+                            const requestingPlatform = context.tokenPayload?.platform || null;
+                            const webhookPayload = {
+                                id: result.metaEnvelope.id,
+                                w3id: context.eName,
+                                evaultPublicKey: this.evaultPublicKey,
+                                data: input.payload,
+                                schemaId: input.ontology,
+                            };
+
+                            // Delayed webhook delivery to prevent ping-pong
+                            setTimeout(() => {
+                                this.deliverWebhooks(requestingPlatform, webhookPayload);
+                            }, 3_000);
+
+                            // Log envelope operation best-effort
+                            const platform = context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id: result.metaEnvelope.id,
+                                ontology: input.ontology,
+                                payload: input.payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: result.metaEnvelope.id,
+                                    envelopeHash,
+                                    operation: "create",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: input.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error("appendEnvelopeOperationLog (create) failed:", err)
+                                );
+
+                            return {
+                                metaEnvelope,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            console.error("Error in createMetaEnvelope:", error);
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message: error instanceof Error ? error.message : "Failed to create MetaEnvelope",
+                                        code: "CREATE_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    }
+                ),
+
+                // Update an existing MetaEnvelope with structured payload
+                updateMetaEnvelope: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            id,
+                            input,
+                        }: {
+                            id: string;
+                            input: {
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            };
+                        },
+                        context: VaultContext
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                metaEnvelope: null,
+                                errors: [{ message: "X-ENAME header is required", code: "MISSING_ENAME" }],
+                            };
+                        }
+
+                        try {
+                            const result = await this.db.updateMetaEnvelopeById(
+                                id,
+                                {
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                    acl: input.acl,
+                                },
+                                input.acl,
+                                context.eName
+                            );
+
+                            // Build the full metaEnvelope response
+                            const metaEnvelope = {
+                                id: result.metaEnvelope.id,
+                                ontology: result.metaEnvelope.ontology,
+                                envelopes: result.envelopes,
+                                parsed: input.payload,
+                            };
+
+                            // Deliver webhooks for update operation
+                            const requestingPlatform = context.tokenPayload?.platform || null;
+                            const webhookPayload = {
+                                id,
+                                w3id: context.eName,
+                                evaultPublicKey: this.evaultPublicKey,
+                                data: input.payload,
+                                schemaId: input.ontology,
+                            };
+
+                            // Fire and forget webhook delivery
+                            this.deliverWebhooks(requestingPlatform, webhookPayload);
+
+                            // Log envelope operation best-effort
+                            const platform = context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: input.ontology,
+                                payload: input.payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: "update",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: input.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error("appendEnvelopeOperationLog (update) failed:", err)
+                                );
+
+                            return {
+                                metaEnvelope,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            console.error("Error in updateMetaEnvelope:", error);
+                            return {
+                                metaEnvelope: null,
+                                errors: [
+                                    {
+                                        message: error instanceof Error ? error.message : "Failed to update MetaEnvelope",
+                                        code: "UPDATE_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    }
+                ),
+
+                // Delete a MetaEnvelope with structured result
+                removeMetaEnvelope: this.accessGuard.middleware(
+                    async (_: any, { id }: { id: string }, context: VaultContext) => {
+                        if (!context.eName) {
+                            return {
+                                deletedId: id,
+                                success: false,
+                                errors: [{ message: "X-ENAME header is required", code: "MISSING_ENAME" }],
+                            };
+                        }
+
+                        try {
+                            const meta = await this.db.findMetaEnvelopeById(id, context.eName);
+                            if (!meta) {
+                                return {
+                                    deletedId: id,
+                                    success: false,
+                                    errors: [{ message: "MetaEnvelope not found", code: "NOT_FOUND" }],
+                                };
+                            }
+
+                            await this.db.deleteMetaEnvelope(id, context.eName);
+
+                            // Log after delete succeeds, best-effort
+                            const platform = context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHashForDelete(id);
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: "delete",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: meta.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error("appendEnvelopeOperationLog (delete) failed:", err)
+                                );
+
+                            return {
+                                deletedId: id,
+                                success: true,
+                                errors: [],
+                            };
+                        } catch (error) {
+                            console.error("Error in removeMetaEnvelope:", error);
+                            return {
+                                deletedId: id,
+                                success: false,
+                                errors: [
+                                    {
+                                        message: error instanceof Error ? error.message : "Failed to delete MetaEnvelope",
+                                        code: "DELETE_FAILED",
+                                    },
+                                ],
+                            };
+                        }
+                    }
+                ),
+
+                // Bulk create MetaEnvelopes (optimized for migrations)
+                bulkCreateMetaEnvelopes: this.accessGuard.middleware(
+                    async (
+                        _: any,
+                        {
+                            inputs,
+                            skipWebhooks,
+                        }: {
+                            inputs: Array<{
+                                id?: string;
+                                ontology: string;
+                                payload: any;
+                                acl: string[];
+                            }>;
+                            skipWebhooks?: boolean;
+                        },
+                        context: VaultContext
+                    ) => {
+                        if (!context.eName) {
+                            return {
+                                results: [],
+                                successCount: 0,
+                                errorCount: inputs.length,
+                                errors: [{ message: "X-ENAME header is required", code: "MISSING_ENAME" }],
+                            };
+                        }
+
+                        // Check if this is an authorized migration (emover platform with skipWebhooks)
+                        const isEmoverMigration = 
+                            skipWebhooks && 
+                            context.tokenPayload?.platform === process.env.EMOVER_API_URL;
+                        
+                        // Only allow webhook skipping for authorized migration platforms
+                        const shouldSkipWebhooks = isEmoverMigration;
+
+                        const results: Array<{ id: string; success: boolean; error?: string }> = [];
+                        let successCount = 0;
+                        let errorCount = 0;
+
+                        for (const input of inputs) {
+                            try {
+                                const result = await this.db.storeMetaEnvelopeWithId(
+                                    {
+                                        ontology: input.ontology,
+                                        payload: input.payload,
+                                        acl: input.acl,
+                                    },
+                                    input.acl,
+                                    context.eName,
+                                    input.id // Preserve ID if provided
+                                );
+
+                                results.push({
+                                    id: result.metaEnvelope.id,
+                                    success: true,
+                                });
+                                successCount++;
+
+                                // Deliver webhooks if not skipping
+                                if (!shouldSkipWebhooks) {
+                                    const requestingPlatform = context.tokenPayload?.platform || null;
+                                    const webhookPayload = {
+                                        id: result.metaEnvelope.id,
+                                        w3id: context.eName,
+                                        evaultPublicKey: this.evaultPublicKey,
+                                        data: input.payload,
+                                        schemaId: input.ontology,
+                                    };
+
+                                    // Fire and forget webhook delivery
+                                    this.deliverWebhooks(requestingPlatform, webhookPayload).catch((err) =>
+                                        console.error("Webhook delivery failed in bulk create:", err)
+                                    );
+                                }
+
+                                // Log envelope operation best-effort
+                                const platform = context.tokenPayload?.platform ?? null;
+                                const envelopeHash = computeEnvelopeHash({
+                                    id: result.metaEnvelope.id,
+                                    ontology: input.ontology,
+                                    payload: input.payload,
+                                });
+                                this.db
+                                    .appendEnvelopeOperationLog({
+                                        eName: context.eName,
+                                        metaEnvelopeId: result.metaEnvelope.id,
+                                        envelopeHash,
+                                        operation: "create",
+                                        platform,
+                                        timestamp: new Date().toISOString(),
+                                        ontology: input.ontology,
+                                    })
+                                    .catch((err) =>
+                                        console.error("appendEnvelopeOperationLog (bulk create) failed:", err)
+                                    );
+                            } catch (error) {
+                                const errorMessage = error instanceof Error ? error.message : "Failed to create MetaEnvelope";
+                                results.push({
+                                    id: input.id || "unknown",
+                                    success: false,
+                                    error: errorMessage,
+                                });
+                                errorCount++;
+                                console.error(`Error creating envelope in bulk: ${errorMessage}`);
+                            }
+                        }
+
+                        return {
+                            results,
+                            successCount,
+                            errorCount,
+                            errors: [],
+                        };
+                    }
+                ),
+
+                // ============================================================
+                // LEGACY API (preserved for backward compatibility)
+                // ============================================================
+
                 storeMetaEnvelope: this.accessGuard.middleware(
                     async (
                         _: any,
@@ -237,6 +676,32 @@ export class GraphQLServer {
                             );
                         }, 3_000);
 
+                        // Log envelope operation best-effort (do not fail mutation)
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const metaEnvelopeId = result.metaEnvelope.id;
+                        const envelopeHash = computeEnvelopeHash({
+                            id: metaEnvelopeId,
+                            ontology: input.ontology,
+                            payload: input.payload,
+                        });
+                        this.db
+                            .appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId,
+                                envelopeHash,
+                                operation: "create",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: input.ontology,
+                            })
+                            .catch((err) =>
+                                console.error(
+                                    "appendEnvelopeOperationLog (create) failed:",
+                                    err,
+                                ),
+                            );
+
                         return {
                             ...result,
                             metaEnvelope: metaEnvelopeWithParsed,
@@ -291,6 +756,31 @@ export class GraphQLServer {
                                 webhookPayload
                             );
 
+                            // Log envelope operation best-effort (do not fail mutation)
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id,
+                                ontology: input.ontology,
+                                payload: input.payload,
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: id,
+                                    envelopeHash,
+                                    operation: "update",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: input.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (update) failed:",
+                                        err,
+                                    ),
+                                );
+
                             return result;
                         } catch (error) {
                             console.error(
@@ -306,7 +796,29 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
+                        const meta =
+                            await this.db.findMetaEnvelopeById(id, context.eName);
                         await this.db.deleteMetaEnvelope(id, context.eName);
+                        // Log after delete succeeds, best-effort
+                        const platform =
+                            context.tokenPayload?.platform ?? null;
+                        const envelopeHash = computeEnvelopeHashForDelete(id);
+                        this.db
+                            .appendEnvelopeOperationLog({
+                                eName: context.eName,
+                                metaEnvelopeId: id,
+                                envelopeHash,
+                                operation: "delete",
+                                platform,
+                                timestamp: new Date().toISOString(),
+                                ontology: meta?.ontology ?? undefined,
+                            })
+                            .catch((err) =>
+                                console.error(
+                                    "appendEnvelopeOperationLog (delete) failed:",
+                                    err,
+                                ),
+                            );
                         return true;
                     }
                 ),
@@ -322,7 +834,41 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
-                        await this.db.updateEnvelopeValue(envelopeId, newValue, context.eName);
+                        const metaInfo =
+                            await this.db.getMetaEnvelopeIdByEnvelopeId(
+                                envelopeId,
+                                context.eName,
+                            );
+                        await this.db.updateEnvelopeValue(
+                            envelopeId,
+                            newValue,
+                            context.eName,
+                        );
+                        if (metaInfo) {
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id: envelopeId,
+                                ontology: metaInfo.ontology,
+                                payload: { envelopeId, newValue },
+                            });
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: metaInfo.metaEnvelopeId,
+                                    envelopeHash,
+                                    operation: "update_envelope_value",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology: metaInfo.ontology,
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (update_envelope_value) failed:",
+                                        err,
+                                    ),
+                                );
+                        }
                         return true;
                     }
                 ),

@@ -8,7 +8,7 @@ export interface ProvisionRequest {
     registryEntropy: string;
     namespace: string;
     verificationId: string;
-    publicKey: string;
+    publicKey?: string;
 }
 
 export interface ProvisionResponse {
@@ -41,15 +41,19 @@ export class ProvisioningService {
             if (
                 !registryEntropy ||
                 !namespace ||
-                !verificationId ||
-                !publicKey
+                !verificationId
             ) {
                 return {
                     success: false,
                     error: "Missing required fields",
                     message:
-                        "Missing required fields: registryEntropy, namespace, verificationId, publicKey",
+                        "Missing required fields: registryEntropy, namespace, verificationId",
                 };
+            }
+
+            // Log if keyless provisioning
+            if (!publicKey) {
+                console.log(`[PROVISIONING] Keyless eVault provisioning (no publicKey provided)`);
             }
 
             // Verify the registry entropy token

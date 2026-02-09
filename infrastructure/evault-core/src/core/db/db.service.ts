@@ -1,11 +1,20 @@
-import type { Driver } from "neo4j-driver";
+import neo4j, { type Driver } from "neo4j-driver";
 import { W3IDBuilder } from "w3id";
 import { deserializeValue, serializeValue } from "./schema";
 import type {
+    AppendEnvelopeOperationLogParams,
     Envelope,
+    EnvelopeOperationLogEntry,
+    FindMetaEnvelopesPaginatedOptions,
     GetAllEnvelopesResult,
+    GetEnvelopeOperationLogsResult,
     MetaEnvelope,
+    MetaEnvelopeConnection,
+    MetaEnvelopeEdge,
+    MetaEnvelopeFilterInput,
     MetaEnvelopeResult,
+    MetaEnvelopeSearchInput,
+    PageInfo,
     SearchMetaEnvelopesResult,
     StoreMetaEnvelopeResult,
 } from "./types";
@@ -124,6 +133,87 @@ export class DbService {
         return {
             metaEnvelope: {
                 id: w3id.id,
+                ontology: meta.ontology,
+                acl: acl,
+            },
+            envelopes: createdEnvelopes,
+        };
+    }
+
+    /**
+     * Store a meta-envelope with a specific ID (for migrations)
+     * Similar to storeMetaEnvelope but allows preserving the original ID
+     * @param meta - The meta-envelope data (without id)
+     * @param acl - Access control list
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param id - Optional ID to use (if not provided, generates new one)
+     * @returns The stored meta-envelope with its envelopes
+     */
+    async storeMetaEnvelopeWithId<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        meta: Omit<MetaEnvelope<T>, "id">,
+        acl: string[],
+        eName: string,
+        id?: string,
+    ): Promise<StoreMetaEnvelopeResult<T>> {
+        if (!eName) {
+            throw new Error("eName is required for storing meta-envelopes");
+        }
+
+        // Use provided ID or generate new one
+        const metaId = id || (await new W3IDBuilder().build()).id;
+
+        const cypher: string[] = [
+            "MERGE (m:MetaEnvelope { id: $metaId })",
+            "ON CREATE SET m.ontology = $ontology, m.acl = $acl, m.eName = $eName",
+        ];
+
+        const envelopeParams: Record<string, any> = {
+            metaId: metaId,
+            ontology: meta.ontology,
+            acl: acl,
+            eName: eName,
+        };
+
+        const createdEnvelopes: Envelope<T[keyof T]>[] = [];
+        let counter = 0;
+
+        for (const [key, value] of Object.entries(meta.payload)) {
+            const envW3id = await new W3IDBuilder().build();
+            const envelopeId = envW3id.id;
+            const alias = `e${counter}`;
+
+            const { value: storedValue, type: valueType } =
+                serializeValue(value);
+
+            cypher.push(`
+      MERGE (${alias}:Envelope { id: $${alias}_id })
+      ON CREATE SET ${alias}.ontology = $${alias}_ontology, ${alias}.value = $${alias}_value, ${alias}.valueType = $${alias}_type
+      WITH m, ${alias}
+      MERGE (m)-[:LINKS_TO]->(${alias})
+    `);
+
+            envelopeParams[`${alias}_id`] = envelopeId;
+            envelopeParams[`${alias}_ontology`] = key;
+            envelopeParams[`${alias}_value`] = storedValue;
+            envelopeParams[`${alias}_type`] = valueType;
+
+            createdEnvelopes.push({
+                id: envelopeId,
+                ontology: key,
+                value: value as T[keyof T],
+                valueType,
+            });
+
+            counter++;
+        }
+
+        await this.runQueryInternal(cypher.join("\n"), envelopeParams);
+
+        return {
+            metaEnvelope: {
+                id: metaId,
                 ontology: meta.ontology,
                 acl: acl,
             },
@@ -788,8 +878,10 @@ export class DbService {
                 );
 
                 // Ensure value and valueType are explicitly null if undefined (Neo4j requires explicit null)
-                const valueParam = storedValue !== undefined ? storedValue : null;
-                const valueTypeParam = valueType !== undefined ? valueType : null;
+                const valueParam =
+                    storedValue !== undefined ? storedValue : null;
+                const valueTypeParam =
+                    valueType !== undefined ? valueType : null;
 
                 await targetDbService.runQuery(
                     `
@@ -822,7 +914,11 @@ export class DbService {
 
             if (userResult.records.length > 0) {
                 const publicKeys = userResult.records[0].get("publicKeys");
-                if (publicKeys && Array.isArray(publicKeys) && publicKeys.length > 0) {
+                if (
+                    publicKeys &&
+                    Array.isArray(publicKeys) &&
+                    publicKeys.length > 0
+                ) {
                     console.log(
                         `[MIGRATION] Copying User node with public keys for eName: ${eName}`,
                     );
@@ -886,6 +982,381 @@ export class DbService {
         );
 
         return count;
+    }
+
+    /**
+     * Gets the metaEnvelope id and ontology for an envelope by envelope id.
+     * Used when logging updateEnvelopeValue (resolver only has envelopeId).
+     */
+    async getMetaEnvelopeIdByEnvelopeId(
+        envelopeId: string,
+        eName: string,
+    ): Promise<{ metaEnvelopeId: string; ontology: string } | null> {
+        if (!eName) {
+            throw new Error("eName is required");
+        }
+        const result = await this.runQueryInternal(
+            `
+            MATCH (m:MetaEnvelope { eName: $eName })-[:LINKS_TO]->(e:Envelope { id: $envelopeId })
+            RETURN m.id AS metaEnvelopeId, m.ontology AS ontology
+            `,
+            { envelopeId, eName },
+        );
+        const record = result.records[0];
+        if (!record) return null;
+        return {
+            metaEnvelopeId: record.get("metaEnvelopeId"),
+            ontology: record.get("ontology"),
+        };
+    }
+
+    /**
+     * Appends an envelope operation log entry (create, update, delete, update_envelope_value).
+     */
+    async appendEnvelopeOperationLog(
+        params: AppendEnvelopeOperationLogParams,
+    ): Promise<void> {
+        if (!params.eName) {
+            throw new Error("eName is required for envelope operation logs");
+        }
+        const logId = (await new W3IDBuilder().build()).id;
+        const platformValue =
+            params.platform !== null && params.platform !== undefined
+                ? params.platform
+                : null;
+        await this.runQueryInternal(
+            `
+            CREATE (l:EnvelopeOperationLog {
+                id: $id,
+                eName: $eName,
+                metaEnvelopeId: $metaEnvelopeId,
+                envelopeHash: $envelopeHash,
+                operation: $operation,
+                platform: $platform,
+                timestamp: $timestamp,
+                ontology: $ontology
+            })
+            `,
+            {
+                id: logId,
+                eName: params.eName,
+                metaEnvelopeId: params.metaEnvelopeId,
+                envelopeHash: params.envelopeHash,
+                operation: params.operation,
+                platform: platformValue,
+                timestamp: params.timestamp,
+                ontology: params.ontology ?? null,
+            },
+        );
+    }
+
+    /**
+     * Returns paginated envelope operation logs for an eName.
+     * Ordered by timestamp DESC, then id ASC for stable cursor pagination.
+     */
+    async getEnvelopeOperationLogs(
+        eName: string,
+        options: { limit: number; cursor?: string | null },
+    ): Promise<GetEnvelopeOperationLogsResult> {
+        if (!eName) {
+            throw new Error(
+                "eName is required for getting envelope operation logs",
+            );
+        }
+        const limit = Math.min(Math.max(1, options.limit || 20), 100);
+        const cursor = options.cursor ?? null;
+
+        // Fetch limit+1 to know if there's a next page. Cursor format: "timestamp|id" (| avoids colons in ISO timestamp).
+        const [cursorTs = "", cursorId = ""] = cursor ? cursor.split("|") : [];
+        const result = await this.runQueryInternal(
+            cursor
+                ? `
+            MATCH (l:EnvelopeOperationLog { eName: $eName })
+            WHERE (l.timestamp < $cursorTs) OR (l.timestamp = $cursorTs AND l.id > $cursorId)
+            WITH l
+            ORDER BY l.timestamp DESC, l.id ASC
+            LIMIT $limitPlusOne
+            RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
+                   l.envelopeHash AS envelopeHash, l.operation AS operation,
+                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+            `
+                : `
+            MATCH (l:EnvelopeOperationLog { eName: $eName })
+            WITH l
+            ORDER BY l.timestamp DESC, l.id ASC
+            LIMIT $limitPlusOne
+            RETURN l.id AS id, l.eName AS eName, l.metaEnvelopeId AS metaEnvelopeId,
+                   l.envelopeHash AS envelopeHash, l.operation AS operation,
+                   l.platform AS platform, l.timestamp AS timestamp, l.ontology AS ontology
+            `,
+            cursor
+                ? {
+                      eName,
+                      limitPlusOne: neo4j.int(limit + 1),
+                      cursorTs,
+                      cursorId,
+                  }
+                : { eName, limitPlusOne: neo4j.int(limit + 1) },
+        );
+
+        const rows = result.records.map((r) => ({
+            id: r.get("id"),
+            eName: r.get("eName"),
+            metaEnvelopeId: r.get("metaEnvelopeId"),
+            envelopeHash: r.get("envelopeHash"),
+            operation: r.get("operation"),
+            platform: r.get("platform"),
+            timestamp: r.get("timestamp"),
+            ontology: r.get("ontology"),
+        }));
+
+        const hasMore = rows.length > limit;
+        const logs = (hasMore ? rows.slice(0, limit) : rows).map(
+            (r): EnvelopeOperationLogEntry => ({
+                id: r.id,
+                eName: r.eName,
+                metaEnvelopeId: r.metaEnvelopeId,
+                envelopeHash: r.envelopeHash,
+                operation: r.operation,
+                platform: r.platform,
+                timestamp: r.timestamp,
+                ...(r.ontology != null && { ontology: r.ontology }),
+            }),
+        );
+
+        const last = logs[logs.length - 1];
+        const nextCursor =
+            hasMore && last ? `${last.timestamp}|${last.id}` : null;
+
+        return { logs, nextCursor, hasMore };
+    }
+
+    /**
+     * Finds meta-envelopes with Relay-style cursor pagination and optional filtering.
+     * Supports filtering by ontology and searching within envelope values.
+     * @param eName - The eName identifier for multi-tenant isolation
+     * @param options - Pagination and filter options
+     * @returns A connection object with edges, pageInfo, and totalCount
+     */
+    async findMetaEnvelopesPaginated<
+        T extends Record<string, any> = Record<string, any>,
+    >(
+        eName: string,
+        options: FindMetaEnvelopesPaginatedOptions = {},
+    ): Promise<MetaEnvelopeConnection<T>> {
+        if (!eName) {
+            throw new Error("eName is required for finding meta-envelopes");
+        }
+
+        const { filter, first, after, last, before } = options;
+
+        // Validate pagination parameters
+        if (first !== undefined && last !== undefined) {
+            throw new Error("Cannot specify both 'first' and 'last'");
+        }
+        if (after !== undefined && before !== undefined) {
+            throw new Error("Cannot specify both 'after' and 'before'");
+        }
+        // Reject mixed-direction cursor usage
+        if (first !== undefined && before !== undefined) {
+            throw new Error(
+                "Cannot use 'first' with 'before' - use 'first' with 'after' for forward pagination",
+            );
+        }
+        if (last !== undefined && after !== undefined) {
+            throw new Error(
+                "Cannot use 'last' with 'after' - use 'last' with 'before' for backward pagination",
+            );
+        }
+
+        // Default limit
+        const limit = Math.min(Math.max(1, first ?? last ?? 20), 100);
+        const isBackward = last !== undefined;
+
+        // Build WHERE conditions
+        const conditions: string[] = ["m.eName = $eName"];
+        const params: Record<string, any> = { eName };
+
+        // Filter by ontology
+        if (filter?.ontologyId) {
+            conditions.push("m.ontology = $ontologyId");
+            params.ontologyId = filter.ontologyId;
+        }
+
+        // Build search condition if provided
+        let searchCondition = "";
+        if (filter?.search?.term) {
+            const search = filter.search;
+            const caseSensitive = search.caseSensitive ?? false;
+            const mode = search.mode ?? "CONTAINS";
+            const fields = search.fields;
+
+            // Build the value match expression based on mode
+            let matchExpr: string;
+            if (caseSensitive) {
+                switch (mode) {
+                    case "EXACT":
+                        matchExpr = "e.value = $searchTerm";
+                        break;
+                    case "STARTS_WITH":
+                        matchExpr = "e.value STARTS WITH $searchTerm";
+                        break;
+                    default:
+                        // CONTAINS is the default mode
+                        matchExpr = "e.value CONTAINS $searchTerm";
+                        break;
+                }
+            } else {
+                switch (mode) {
+                    case "EXACT":
+                        matchExpr =
+                            "toLower(toString(e.value)) = toLower($searchTerm)";
+                        break;
+                    case "STARTS_WITH":
+                        matchExpr =
+                            "toLower(toString(e.value)) STARTS WITH toLower($searchTerm)";
+                        break;
+                    default:
+                        // CONTAINS is the default mode
+                        matchExpr =
+                            "toLower(toString(e.value)) CONTAINS toLower($searchTerm)";
+                        break;
+                }
+            }
+
+            params.searchTerm = search.term;
+
+            // Add field restriction if specified
+            if (fields && fields.length > 0) {
+                params.searchFields = fields;
+                searchCondition = `
+                    AND EXISTS {
+                        MATCH (m)-[:LINKS_TO]->(e:Envelope)
+                        WHERE e.ontology IN $searchFields AND ${matchExpr}
+                    }
+                `;
+            } else {
+                searchCondition = `
+                    AND EXISTS {
+                        MATCH (m)-[:LINKS_TO]->(e:Envelope)
+                        WHERE ${matchExpr}
+                    }
+                `;
+            }
+        }
+
+        // Handle cursor pagination
+        let cursorCondition = "";
+        if (after) {
+            // Decode cursor (format: base64 encoded "id")
+            const cursorId = Buffer.from(after, "base64").toString("utf-8");
+            params.cursorId = cursorId;
+            cursorCondition = isBackward
+                ? "AND m.id < $cursorId"
+                : "AND m.id > $cursorId";
+        } else if (before) {
+            const cursorId = Buffer.from(before, "base64").toString("utf-8");
+            params.cursorId = cursorId;
+            cursorCondition = isBackward
+                ? "AND m.id > $cursorId"
+                : "AND m.id < $cursorId";
+        }
+
+        // Get total count (without pagination)
+        const countQuery = `
+            MATCH (m:MetaEnvelope)
+            WHERE ${conditions.join(" AND ")}
+            ${searchCondition}
+            RETURN count(m) AS total
+        `;
+        const countResult = await this.runQueryInternal(countQuery, params);
+        const totalCount =
+            countResult.records[0]?.get("total")?.toNumber?.() ??
+            countResult.records[0]?.get("total") ??
+            0;
+
+        // Build main query with pagination
+        const orderDirection = isBackward ? "DESC" : "ASC";
+        const mainQuery = `
+            MATCH (m:MetaEnvelope)
+            WHERE ${conditions.join(" AND ")}
+            ${searchCondition}
+            ${cursorCondition}
+            WITH m
+            ORDER BY m.id ${orderDirection}
+            LIMIT $limitPlusOne
+            MATCH (m)-[:LINKS_TO]->(e:Envelope)
+            RETURN m.id AS id, m.ontology AS ontology, m.acl AS acl, collect(e) AS envelopes
+        `;
+
+        params.limitPlusOne = neo4j.int(limit + 1);
+        const result = await this.runQueryInternal(mainQuery, params);
+
+        // Process results
+        let records = result.records;
+        const hasExtraRecord = records.length > limit;
+        if (hasExtraRecord) {
+            records = records.slice(0, limit);
+        }
+
+        // Reverse if backward pagination to maintain correct order
+        if (isBackward) {
+            records = records.reverse();
+        }
+
+        // Build edges
+        const edges: MetaEnvelopeEdge<T>[] = records.map((record) => {
+            const envelopes = record
+                .get("envelopes")
+                .map((node: any): Envelope<T[keyof T]> => {
+                    const properties = node.properties;
+                    return {
+                        id: properties.id,
+                        ontology: properties.ontology,
+                        value: deserializeValue(
+                            properties.value,
+                            properties.valueType,
+                        ) as T[keyof T],
+                        valueType: properties.valueType,
+                    };
+                });
+
+            const parsed = envelopes.reduce(
+                (acc: T, envelope: Envelope<T[keyof T]>) => {
+                    (acc as any)[envelope.ontology] = envelope.value;
+                    return acc;
+                },
+                {} as T,
+            );
+
+            const id = record.get("id");
+            const node: MetaEnvelopeResult<T> = {
+                id,
+                ontology: record.get("ontology"),
+                acl: record.get("acl"),
+                envelopes,
+                parsed,
+            };
+
+            return {
+                cursor: Buffer.from(id).toString("base64"),
+                node,
+            };
+        });
+
+        // Build pageInfo
+        const pageInfo: PageInfo = {
+            hasNextPage: isBackward ? before !== undefined : hasExtraRecord,
+            hasPreviousPage: isBackward ? hasExtraRecord : after !== undefined,
+            startCursor: edges.length > 0 ? edges[0].cursor : null,
+            endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+        };
+
+        return {
+            edges,
+            pageInfo,
+            totalCount,
+        };
     }
 
     /**

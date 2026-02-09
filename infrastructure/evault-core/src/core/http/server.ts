@@ -37,6 +37,7 @@ export async function registerHttpRoutes(
             },
             tags: [
                 { name: "identity", description: "Identity related endpoints" },
+                { name: "logs", description: "Envelope operation logs" },
                 {
                     name: "watchers",
                     description: "Watcher signature related endpoints",
@@ -72,6 +73,7 @@ export async function registerHttpRoutes(
                         type: "object",
                         properties: {
                             w3id: { type: "string" },
+                            evaultId: { type: ["string", "null"] },
                             keyBindingCertificates: {
                                 type: "array",
                                 items: { type: "string" },
@@ -113,7 +115,8 @@ export async function registerHttpRoutes(
 
             // Generate key binding certificates for each public key
             const keyBindingCertificates: string[] = [];
-            const registryUrl = process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            const registryUrl =
+                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
             const sharedSecret = process.env.REGISTRY_SHARED_SECRET;
 
             if (registryUrl && sharedSecret && publicKeys.length > 0) {
@@ -121,7 +124,10 @@ export async function registerHttpRoutes(
                     for (const publicKey of publicKeys) {
                         try {
                             const response = await axios.post(
-                                new URL("/key-binding-certificate", registryUrl).toString(),
+                                new URL(
+                                    "/key-binding-certificate",
+                                    registryUrl,
+                                ).toString(),
                                 {
                                     ename: eName,
                                     publicKey: publicKey,
@@ -131,10 +137,12 @@ export async function registerHttpRoutes(
                                         Authorization: `Bearer ${sharedSecret}`,
                                     },
                                     timeout: 10000,
-                                }
+                                },
                             );
                             if (response.data?.token) {
-                                keyBindingCertificates.push(response.data.token);
+                                keyBindingCertificates.push(
+                                    response.data.token,
+                                );
                             }
                         } catch (error) {
                             console.error(
@@ -153,11 +161,162 @@ export async function registerHttpRoutes(
                 }
             }
 
+            // Resolve eName via Registry (same logic as /resolve) to get evault id
+            let evaultId: string | null = null;
+            const registryUrlForResolve =
+                process.env.PUBLIC_REGISTRY_URL || process.env.REGISTRY_URL;
+            if (registryUrlForResolve) {
+                try {
+                    const resolveResponse = await axios.get<{
+                        ename: string;
+                        uri: string;
+                        evault: string;
+                        originalUri?: string;
+                        resolved?: boolean;
+                    }>(
+                        new URL(
+                            `/resolve?w3id=${encodeURIComponent(eName)}`,
+                            registryUrlForResolve,
+                        ).toString(),
+                        { timeout: 10000 },
+                    );
+                    if (resolveResponse.data?.evault) {
+                        evaultId = resolveResponse.data.evault;
+                    }
+                } catch (error) {
+                    // 404 or network error: evault not registered for this eName, or registry unavailable
+                    if (
+                        axios.isAxiosError(error) &&
+                        error.response?.status !== 404
+                    ) {
+                        console.error(
+                            "Error resolving eName via Registry for whois evaultId:",
+                            error.message,
+                        );
+                    }
+                }
+            }
             const result = {
                 w3id: eName,
+                evaultId,
                 keyBindingCertificates: keyBindingCertificates,
             };
             return result;
+        },
+    );
+
+    // Logs endpoint - paginated envelope operation logs (akin to whois)
+    server.get<{
+        Querystring: { limit?: string; cursor?: string };
+    }>(
+        "/logs",
+        {
+            schema: {
+                tags: ["logs"],
+                description:
+                    "Get paginated envelope operation logs for an eName (X-ENAME required)",
+                headers: {
+                    type: "object",
+                    required: ["X-ENAME"],
+                    properties: {
+                        "X-ENAME": { type: "string" },
+                    },
+                },
+                querystring: {
+                    type: "object",
+                    properties: {
+                        limit: {
+                            type: "string",
+                            description: "Page size (default 20, max 100)",
+                        },
+                        cursor: {
+                            type: "string",
+                            description: "Opaque cursor for next page",
+                        },
+                    },
+                },
+                response: {
+                    200: {
+                        type: "object",
+                        properties: {
+                            logs: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        id: { type: "string" },
+                                        eName: { type: "string" },
+                                        metaEnvelopeId: { type: "string" },
+                                        envelopeHash: { type: "string" },
+                                        operation: { type: "string" },
+                                        platform: { type: ["string", "null"] },
+                                        timestamp: { type: "string" },
+                                        ontology: { type: "string" },
+                                    },
+                                },
+                            },
+                            nextCursor: { type: ["string", "null"] },
+                            hasMore: { type: "boolean" },
+                        },
+                    },
+                    400: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                    500: {
+                        type: "object",
+                        properties: {
+                            error: { type: "string" },
+                        },
+                    },
+                },
+            },
+        },
+        async (request, reply) => {
+            const eName =
+                request.headers["x-ename"] || request.headers["X-ENAME"];
+
+            if (!eName || typeof eName !== "string") {
+                return reply
+                    .status(400)
+                    .send({ error: "X-ENAME header is required" });
+            }
+
+            if (!dbService) {
+                return reply
+                    .status(500)
+                    .send({ error: "Database service not available" });
+            }
+
+            try {
+                const limit = Math.min(
+                    Math.max(
+                        1,
+                        Number.parseInt(request.query.limit || "20", 10) || 20,
+                    ),
+                    100,
+                );
+                const cursor = request.query.cursor ?? null;
+                const result = await dbService.getEnvelopeOperationLogs(eName, {
+                    limit,
+                    cursor,
+                });
+                return {
+                    logs: result.logs,
+                    nextCursor: result.nextCursor,
+                    hasMore: result.hasMore,
+                };
+            } catch (error) {
+                console.error("Error fetching envelope operation logs:", error);
+                return reply.status(500).send({
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to fetch logs",
+                });
+            }
         },
     );
 
@@ -523,7 +682,6 @@ export async function registerHttpRoutes(
                             "registryEntropy",
                             "namespace",
                             "verificationId",
-                            "publicKey",
                         ],
                         properties: {
                             registryEntropy: { type: "string" },
@@ -560,233 +718,4 @@ export async function registerHttpRoutes(
             },
         );
     }
-
-    // Emover endpoint - Copy metaEnvelopes to new evault instance
-    server.post<{
-        Body: {
-            eName: string;
-            targetNeo4jUri: string;
-            targetNeo4jUser: string;
-            targetNeo4jPassword: string;
-        };
-    }>(
-        "/emover",
-        {
-            schema: {
-                tags: ["migration"],
-                description:
-                    "Copy all metaEnvelopes for an eName to a new evault instance",
-                body: {
-                    type: "object",
-                    required: [
-                        "eName",
-                        "targetNeo4jUri",
-                        "targetNeo4jUser",
-                        "targetNeo4jPassword",
-                    ],
-                    properties: {
-                        eName: { type: "string" },
-                        targetNeo4jUri: { type: "string" },
-                        targetNeo4jUser: { type: "string" },
-                        targetNeo4jPassword: { type: "string" },
-                    },
-                },
-                response: {
-                    200: {
-                        type: "object",
-                        properties: {
-                            success: { type: "boolean" },
-                            count: { type: "number" },
-                            message: { type: "string" },
-                        },
-                    },
-                    400: {
-                        type: "object",
-                        properties: {
-                            error: { type: "string" },
-                        },
-                    },
-                    500: {
-                        type: "object",
-                        properties: {
-                            error: { type: "string" },
-                        },
-                    },
-                },
-            },
-        },
-        async (
-            request: TypedRequest<{
-                eName: string;
-                targetNeo4jUri: string;
-                targetNeo4jUser: string;
-                targetNeo4jPassword: string;
-            }>,
-            reply: TypedReply,
-        ) => {
-            const {
-                eName,
-                targetNeo4jUri,
-                targetNeo4jUser,
-                targetNeo4jPassword,
-            } = request.body;
-
-            if (!dbService) {
-                return reply.status(500).send({
-                    error: "Database service not available",
-                });
-            }
-
-            try {
-                console.log(
-                    `[MIGRATION] Starting migration for eName: ${eName} to target evault`,
-                );
-
-                // Step 1: Validate eName exists in current evault
-                const existingMetaEnvelopes =
-                    await dbService.findAllMetaEnvelopesByEName(eName);
-                if (existingMetaEnvelopes.length === 0) {
-                    console.log(
-                        `[MIGRATION] No metaEnvelopes found for eName: ${eName}`,
-                    );
-                    return reply.status(400).send({
-                        error: `No metaEnvelopes found for eName: ${eName}`,
-                    });
-                }
-
-                console.log(
-                    `[MIGRATION] Found ${existingMetaEnvelopes.length} metaEnvelopes for eName: ${eName}`,
-                );
-
-                // Step 2: Create connection to target evault's Neo4j
-                console.log(
-                    `[MIGRATION] Connecting to target Neo4j at: ${targetNeo4jUri}`,
-                );
-                const targetDriver = await connectWithRetry(
-                    targetNeo4jUri,
-                    targetNeo4jUser,
-                    targetNeo4jPassword,
-                );
-                const targetDbService = new DbService(targetDriver);
-
-                try {
-                    // Step 3: Copy all metaEnvelopes to target evault
-                    console.log(
-                        `[MIGRATION] Copying ${existingMetaEnvelopes.length} metaEnvelopes to target evault`,
-                    );
-                    const copiedCount =
-                        await dbService.copyMetaEnvelopesToNewEvaultInstance(
-                            eName,
-                            targetDbService,
-                        );
-
-                    // Step 4: Verify copy
-                    console.log(
-                        `[MIGRATION] Verifying copy: checking ${copiedCount} metaEnvelopes in target evault`,
-                    );
-                    const targetMetaEnvelopes =
-                        await targetDbService.findAllMetaEnvelopesByEName(
-                            eName,
-                        );
-
-                    if (
-                        targetMetaEnvelopes.length !==
-                        existingMetaEnvelopes.length
-                    ) {
-                        const error = `Copy verification failed: expected ${existingMetaEnvelopes.length} metaEnvelopes, found ${targetMetaEnvelopes.length}`;
-                        console.error(`[MIGRATION ERROR] ${error}`);
-                        return reply.status(500).send({ error });
-                    }
-
-                    // Verify IDs match
-                    const sourceIds = new Set(
-                        existingMetaEnvelopes.map((m) => m.id),
-                    );
-                    const targetIds = new Set(
-                        targetMetaEnvelopes.map((m) => m.id),
-                    );
-
-                    if (sourceIds.size !== targetIds.size) {
-                        const error =
-                            "Copy verification failed: ID count mismatch";
-                        console.error(`[MIGRATION ERROR] ${error}`);
-                        return reply.status(500).send({ error });
-                    }
-
-                    for (const id of sourceIds) {
-                        if (!targetIds.has(id)) {
-                            const error = `Copy verification failed: missing metaEnvelope ID: ${id}`;
-                            console.error(`[MIGRATION ERROR] ${error}`);
-                            return reply.status(500).send({ error });
-                        }
-                    }
-
-                    // Verify envelope relationships for each metaEnvelope
-                    console.log(
-                        `[MIGRATION] Verifying envelope relationships for each metaEnvelope`,
-                    );
-                    for (const sourceMeta of existingMetaEnvelopes) {
-                        const sourceEnvelopeIds = new Set(
-                            sourceMeta.envelopes.map((e) => e.id),
-                        );
-
-                        const targetMeta = targetMetaEnvelopes.find(
-                            (m) => m.id === sourceMeta.id,
-                        );
-                        if (!targetMeta) {
-                            const error = `Copy verification failed: missing metaEnvelope ID: ${sourceMeta.id}`;
-                            console.error(`[MIGRATION ERROR] ${error}`);
-                            return reply.status(500).send({ error });
-                        }
-
-                        const targetEnvelopeIds = new Set(
-                            targetMeta.envelopes.map((e) => e.id),
-                        );
-
-                        if (sourceEnvelopeIds.size !== targetEnvelopeIds.size) {
-                            const error = `Copy verification failed: envelope count mismatch for metaEnvelope ${sourceMeta.id} - expected ${sourceEnvelopeIds.size}, got ${targetEnvelopeIds.size}`;
-                            console.error(`[MIGRATION ERROR] ${error}`);
-                            return reply.status(500).send({ error });
-                        }
-
-                        for (const envelopeId of sourceEnvelopeIds) {
-                            if (!targetEnvelopeIds.has(envelopeId)) {
-                                const error = `Copy verification failed: missing envelope ID ${envelopeId} for metaEnvelope ${sourceMeta.id}`;
-                                console.error(`[MIGRATION ERROR] ${error}`);
-                                return reply.status(500).send({ error });
-                            }
-                        }
-
-                        console.log(
-                            `[MIGRATION] Verified ${sourceEnvelopeIds.size} envelopes for metaEnvelope ${sourceMeta.id}`,
-                        );
-                    }
-
-                    console.log(
-                        `[MIGRATION] Verification successful: ${copiedCount} metaEnvelopes with all envelopes copied and verified`,
-                    );
-
-                    // Close target connection
-                    await targetDriver.close();
-
-                    return {
-                        success: true,
-                        count: copiedCount,
-                        message: `Successfully copied ${copiedCount} metaEnvelopes to target evault`,
-                    };
-                } catch (copyError) {
-                    await targetDriver.close();
-                    throw copyError;
-                }
-            } catch (error) {
-                console.error(`[MIGRATION ERROR] Migration failed:`, error);
-                return reply.status(500).send({
-                    error:
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to migrate metaEnvelopes",
-                });
-            }
-        },
-    );
 }

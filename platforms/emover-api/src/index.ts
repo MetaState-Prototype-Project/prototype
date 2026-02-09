@@ -7,8 +7,10 @@ import { AuthController } from "./controllers/AuthController";
 import { EvaultInfoController } from "./controllers/EvaultInfoController";
 import { MigrationController } from "./controllers/MigrationController";
 import { UserController } from "./controllers/UserController";
+import { AdminController } from "./controllers/AdminController";
 import { AppDataSource } from "./database/data-source";
 import { authGuard, authMiddleware } from "./middleware/auth";
+import { adminGuard } from "./middleware/admin";
 
 config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -43,6 +45,7 @@ const authController = new AuthController();
 const userController = new UserController();
 const evaultInfoController = new EvaultInfoController();
 const migrationController = new MigrationController();
+const adminController = new AdminController();
 
 // Public routes (no auth required)
 app.get("/api/auth/offer", authController.getOffer);
@@ -61,6 +64,11 @@ app.get("/api/migration/sessions/:id", migrationController.getSessionStatus);
 app.post("/api/migration/callback", migrationController.callback);
 app.get("/api/migration/status/:id", migrationController.getStatus);
 app.post("/api/migration/delete-old", authGuard, migrationController.deleteOld);
+
+// Admin routes (requires admin role)
+app.get("/api/admin/enames", authGuard, adminGuard, adminController.listEnames);
+app.post("/api/admin/migrate", authGuard, adminGuard, adminController.initiateMigration);
+app.post("/api/admin/migrate/bulk", authGuard, adminGuard, adminController.initiateBulkMigration);
 
 // Health check
 app.get("/health", (req, res) => {

@@ -25,7 +25,7 @@ The default key ID is `"default"` and is used for all signing operations.
 
 ### Setting Keys During eVault Creation
 
-During the eVault provisioning process (onboarding), the public key can be set directly when creating the eVault. The `/provision` endpoint accepts a `publicKey` parameter:
+During the eVault provisioning process (onboarding), the public key can be set directly when creating the eVault. The `/provision` endpoint accepts an optional `publicKey` parameter:
 
 **Provision Request:**
 ```http
@@ -36,16 +36,20 @@ Content-Type: application/json
   "registryEntropy": "<entropy-token>",
   "namespace": "<w3id>",
   "verificationId": "<verification-code>",
-  "publicKey": "z3059301306072a8648ce3d020106082a8648ce3d03010703420004..."
+  "publicKey": "z3059301306072a8648ce3d020106082a8648ce3d03010703420004..."  // Optional
 }
 ```
 
-When provisioning an eVault during onboarding, the eID wallet:
+**Note**: The `publicKey` parameter is optional. It is required for user eVaults that need key binding for signature verification, but can be omitted for keyless eVaults (such as platform or group eVaults) that don't require cryptographic identity.
+
+When provisioning a user eVault during onboarding, the eID wallet:
 1. Generates or retrieves the public key using `getApplicationPublicKey()`
 2. Includes the `publicKey` in the provision request
 3. The eVault stores the public key and generates a key binding certificate automatically
 
 This eliminates the need for a separate sync step when the eVault is first created.
+
+For platform or group eVaults that don't need key binding, the `publicKey` can be omitted entirely.
 
 ### Syncing Public Keys to eVault
 
@@ -141,18 +145,21 @@ X-ENAME: @user.w3id
 ```json
 {
   "w3id": "@user.w3id",
+  "evaultId": "evault-identifier",
   "keyBindingCertificates": [
     "eyJhbGciOiJFUzI1NiIsImtpZCI6ImVudHJvcHkta2V5LTEifQ.eyJlbmFtZSI6IkB1c2VyLnczaWQiLCJwdWJsaWNLZXkiOiJ6MzA1OTMwMTMwNjA3MmE4NjQ4Y2UzZDAyMDEwNjA4MmE4NjQ4Y2UzZDAzMDEwNzAzNDIwMDA0Li4uIn0..."
   ]
 }
 ```
 
+`evaultId` is the eVault instance identifier (when configured); it matches the `evault` value registered with the Registry.
+
 ## Code Examples
 
 ### Setting Public Key During eVault Creation
 
 ```typescript
-// During onboarding - provision eVault with public key
+// During onboarding - provision user eVault with public key
 const publicKey = await getApplicationPublicKey(); // Get public key from KeyService
 
 const provisionResponse = await axios.post(
@@ -161,11 +168,28 @@ const provisionResponse = await axios.post(
     registryEntropy,
     namespace: uuidv4(),
     verificationId,
-    publicKey: publicKey, // Public key included in provision request
+    publicKey: publicKey, // Optional: include for user eVaults, omit for keyless eVaults
   }
 );
 
-// eVault is created with the public key already stored
+// eVault is created with the public key already stored (if provided)
+const { w3id, uri } = provisionResponse.data;
+```
+
+For keyless eVaults (platforms, groups), omit the `publicKey` parameter:
+
+```typescript
+// Provision a keyless eVault (e.g., for a platform or group)
+const provisionResponse = await axios.post(
+  new URL("/provision", provisionerUrl).toString(),
+  {
+    registryEntropy,
+    namespace: uuidv4(),
+    verificationId,
+    // No publicKey - this is a keyless eVault
+  }
+);
+
 const { w3id, uri } = provisionResponse.data;
 ```
 
