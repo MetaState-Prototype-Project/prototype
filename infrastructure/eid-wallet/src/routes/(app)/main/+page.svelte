@@ -1,101 +1,102 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero, IdentityCard } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { Drawer, Toast } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import {
-    CircleArrowDataTransferDiagonalFreeIcons,
-    QrCodeIcon,
-    Settings02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import { type Snippet, getContext, onMount } from "svelte";
-import { onDestroy } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
-import QrCode from "svelte-qrcode";
+    import { goto } from "$app/navigation";
+    import { Hero, IdentityCard } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { Drawer, Toast } from "$lib/ui";
+    import * as Button from "$lib/ui/Button";
+    import {
+        LinkSquare02Icon,
+        QrCodeIcon,
+        Settings02Icon,
+    } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import { type Snippet, getContext, onMount } from "svelte";
+    import { onDestroy } from "svelte";
+    import { Shadow } from "svelte-loading-spinners";
+    import QrCode from "svelte-qrcode";
 
-let userData: Record<string, unknown> | undefined = $state(undefined);
-let greeting: string | undefined = $state(undefined);
-let ename: string | undefined = $state(undefined);
-let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
-    $state("idle");
+    let userData: Record<string, unknown> | undefined = $state(undefined);
+    let greeting: string | undefined = $state(undefined);
+    let ename: string | undefined = $state(undefined);
+    let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
+        $state("idle");
 
-let shareQRdrawerOpen = $state(false);
-let statusInterval: ReturnType<typeof setInterval> | undefined =
-    $state(undefined);
-let showToast = $state(false);
-let toastMessage = $state("");
+    let shareQRdrawerOpen = $state(false);
+    let statusInterval: ReturnType<typeof setInterval> | undefined =
+        $state(undefined);
+    let showToast = $state(false);
+    let toastMessage = $state("");
 
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
-}
-
-async function copyEName() {
-    if (!ename) return;
-    try {
-        await navigator.clipboard.writeText(ename);
-        toastMessage = "eName copied to clipboard!";
-        showToast = true;
-    } catch (error) {
-        console.error("Failed to copy eName:", error);
-        toastMessage = "Failed to copy eName";
-        showToast = true;
+    function shareQR() {
+        alert("QR Code shared!");
+        shareQRdrawerOpen = false;
     }
-}
 
-function handleToastClose() {
-    showToast = false;
-}
-
-async function retryProfileCreation() {
-    try {
-        await globalState.vaultController.retryProfileCreation();
-    } catch (error) {
-        console.error("Retry failed:", error);
+    async function copyEName() {
+        if (!ename) return;
+        try {
+            await navigator.clipboard.writeText(ename);
+            toastMessage = "eName copied to clipboard!";
+            showToast = true;
+        } catch (error) {
+            console.error("Failed to copy eName:", error);
+            toastMessage = "Failed to copy eName";
+            showToast = true;
+        }
     }
-}
 
-const globalState = getContext<() => GlobalState>("globalState")();
+    function handleToastClose() {
+        showToast = false;
+    }
 
-onMount(() => {
-    // Load initial data
-    (async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
-        const vaultData = await globalState.vaultController.vault;
-        ename = vaultData?.ename;
-    })();
+    async function retryProfileCreation() {
+        try {
+            await globalState.vaultController.retryProfileCreation();
+        } catch (error) {
+            console.error("Retry failed:", error);
+        }
+    }
 
-    // Get initial profile creation status
-    profileCreationStatus = globalState.vaultController.profileCreationStatus;
-    console.log("status current", profileCreationStatus);
+    const globalState = getContext<() => GlobalState>("globalState")();
 
-    // Set up a watcher for profile creation status changes
-    const checkStatus = () => {
+    onMount(() => {
+        // Load initial data
+        (async () => {
+            const userInfo = await globalState.userController.user;
+            const isFake = await globalState.userController.isFake;
+            userData = { ...userInfo, isFake };
+            const vaultData = await globalState.vaultController.vault;
+            ename = vaultData?.ename;
+        })();
+
+        // Get initial profile creation status
         profileCreationStatus =
             globalState.vaultController.profileCreationStatus;
-    };
+        console.log("status current", profileCreationStatus);
 
-    // Check status periodically
-    statusInterval = setInterval(checkStatus, 1000);
+        // Set up a watcher for profile creation status changes
+        const checkStatus = () => {
+            profileCreationStatus =
+                globalState.vaultController.profileCreationStatus;
+        };
 
-    const currentHour = new Date().getHours();
-    greeting =
-        currentHour > 17
-            ? "Good Evening"
-            : currentHour > 12
-              ? "Good Afternoon"
-              : "Good Morning";
-});
+        // Check status periodically
+        statusInterval = setInterval(checkStatus, 1000);
 
-onDestroy(() => {
-    if (statusInterval) {
-        clearInterval(statusInterval);
-    }
-});
+        const currentHour = new Date().getHours();
+        greeting =
+            currentHour > 17
+                ? "Good Evening"
+                : currentHour > 12
+                  ? "Good Afternoon"
+                  : "Good Morning";
+    });
+
+    onDestroy(() => {
+        if (statusInterval) {
+            clearInterval(statusInterval);
+        }
+    });
 </script>
 
 {#if profileCreationStatus === "loading"}
@@ -135,6 +136,7 @@ onDestroy(() => {
                 Welcome back to your eID Wallet
             {/snippet}
         </Hero>
+
         <Button.Nav href="/settings">
             <HugeiconsIcon
                 size={32}
@@ -166,14 +168,24 @@ onDestroy(() => {
             userData={userData as Record<string, string>}
         />
     {/snippet}
-    {#snippet eVault()}
-        <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
-    {/snippet}
 
     <main class="pb-12">
         {@render Section("eName", eName)}
         {@render Section("ePassport", ePassport)}
-        {@render Section("eVault", eVault)}
+
+        <Button.Nav
+            href="https://marketplace.w3ds.metastate.foundation/"
+            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer hover:bg-gray-200 transition-colors"
+        >
+            <span class="text-lg font-medium flex gap-2"
+                >Discover <img
+                    class="w-12"
+                    src="/images/W3DSLogoWhite.svg"
+                    alt="logo"
+                /> Post Platforms</span
+            >
+            <HugeiconsIcon size={24} strokeWidth={2} icon={LinkSquare02Icon} />
+        </Button.Nav>
     </main>
 
     <Drawer
