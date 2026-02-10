@@ -118,6 +118,7 @@ services:
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
       - EVAULT_PUBLIC_KEY=${EVAULT_PUBLIC_KEY:-}
       - W3ID=${W3ID:-}
+      - PUBLIC_EVAULT_SERVER_URI=${PUBLIC_EVAULT_SERVER_URI:-http://localhost:4000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,6 +126,32 @@ services:
         condition: service_started
       neo4j:
         condition: service_healthy
+    networks:
+      - metastate-core-network
+    <<: *common-host-access
+    restart: unless-stopped
+
+  # Dev sandbox (provision + w3ds flows against registry + evault-core)
+  sandbox:
+    profiles:
+      - core
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.dev-sandbox
+      network: host
+    container_name: metastate-sandbox
+    ports:
+      - "5173:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3000
+      - PUBLIC_REGISTRY_URL=${PUBLIC_REGISTRY_URL:-http://localhost:4321}
+      - PUBLIC_PROVISIONER_URL=${PUBLIC_PROVISIONER_URL:-http://localhost:3001}
+    depends_on:
+      registry:
+        condition: service_started
+      evault-core:
+        condition: service_started
     networks:
       - metastate-core-network
     <<: *common-host-access

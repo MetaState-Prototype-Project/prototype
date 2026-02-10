@@ -55,7 +55,7 @@ getOffer = async (req: Request, res: Response) => {
 }
 ```
 
-The client opens this URL in a w3ds-compatible client (like the [eID Wallet](/docs/Infrastructure/eID-Wallet)), which handles the user's signature and redirects back to your platform.
+The client opens this URL in a w3ds-compatible client (like the [eID Wallet](/docs/Infrastructure/eID-Wallet)), which handles the user's signature and redirects back to your platform. For local development and testing you can use the [Dev Sandbox](/docs/Post%20Platform%20Guide/dev-sandbox) instead of the eID wallet — it runs in the browser and lets you provision test identities and complete auth/sign flows against your platform.
 
 #### 2. Login Endpoint (`POST /api/auth`)
 
@@ -223,6 +223,7 @@ PUBLIC_REGISTRY_URL=https://registry.example.com
 - [Authentication](/docs/W3DS%20Protocol/Authentication) — w3ds://auth protocol
 - [Signing](/docs/W3DS%20Protocol/Signing) — Signature creation and verification
 - [Signature Formats](/docs/W3DS%20Protocol/Signature-Formats) — Cryptographic details
+- [Using the Dev Sandbox](/docs/Post%20Platform%20Guide/dev-sandbox) — Test auth and sign flows without the eID wallet
 - [Webhook Controller](/docs/Post%20Platform%20Guide/webhook-controller) — Receiving webhooks
 - [Mapping Rules](/docs/Post%20Platform%20Guide/mapping-rules) — Schema mapping
 - [eVault](/docs/Infrastructure/eVault) — Storage and key binding

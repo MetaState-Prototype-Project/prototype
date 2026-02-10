@@ -2,6 +2,8 @@
 
 **[Documentation](https://docs.w3ds.metastate.foundation)** — Getting started with W3DS and the MetaState prototype.
 
+**Quick start (registry + evault-core + dev-sandbox):** see **[QUICKSTART.md](QUICKSTART.md)** — one script to run Postgres + Neo4j in Docker and the core services locally. Dev sandbox runs at **http://localhost:8080**.
+
 ## Docker Development Environment
 
 ### Port Assignments
@@ -26,7 +28,7 @@
 - **1111** - Pictique API
 
 #### Frontend Services
-- **8080** - Blabsy Frontend
+- **8080** - Dev sandbox (W3DS) / Blabsy Frontend
 - **5173** - Pictique Frontend
 - **3004** - Group Charter Manager Frontend
 - **3005** - eVoting Frontend

@@ -1,0 +1,47 @@
+# Postgres + Neo4j only. Use with scripts/start-dev.sh for local DX.
+# Loads .env for POSTGRES_USER, POSTGRES_PASSWORD, NEO4J_USER, NEO4J_PASSWORD.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: metastate-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_MULTIPLE_DATABASES=registry
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init-multiple-databases.sh:/docker-entrypoint-initdb.d/init-multiple-databases.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  neo4j:
+    # 4.4 defaults to unencrypted Bolt; 5.x often requires TLS and env var naming is brittle
+    image: neo4j:4.4
+    container_name: metastate-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-neo4j}
+      - NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:7687
+      - NEO4J_dbms_connector_http_listen__address=0.0.0.0:7474
+    volumes:
+      - neo4j_data:/var/lib/neo4j/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-neo4j} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  neo4j_data:
