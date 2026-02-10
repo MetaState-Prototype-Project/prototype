@@ -13,6 +13,15 @@ function bufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+/** Same as eID: multibase "z" + hex(SPKI) for key-binding certs. */
+function bufferToMultibaseHex(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  return `z${hex}`;
+}
+
 /**
  * In-memory key store (keyId -> CryptoKeyPair). Keys are lost on page reload.
  */
@@ -30,17 +39,16 @@ export class WebCryptoAdapter implements CryptoAdapter {
       ["sign", "verify"]
     );
     const spki = await crypto.subtle.exportKey("spki", pair.publicKey);
-    const publicKey = bufferToBase64(spki);
     const keyId = `${KEY_ID_PREFIX}${bufferToBase64(crypto.getRandomValues(new Uint8Array(8))).replace(/[/+=]/g, "_")}`;
     keyStore.set(keyId, pair);
-    return { keyId, publicKey };
+    return { keyId, publicKey: bufferToMultibaseHex(spki) };
   }
 
   async getPublicKey(keyId: string): Promise<string> {
     const pair = keyStore.get(keyId);
     if (!pair) throw new Error(`Key not found: ${keyId}`);
     const spki = await crypto.subtle.exportKey("spki", pair.publicKey);
-    return bufferToBase64(spki);
+    return bufferToMultibaseHex(spki);
   }
 
   async sign(keyId: string, payload: string): Promise<string> {

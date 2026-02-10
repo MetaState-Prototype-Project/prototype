@@ -10,6 +10,7 @@
     "prepare": "svelte-kit sync || echo ''"
   },
   "dependencies": {
+    "@ngneat/falso": "^7.4.0",
     "wallet-sdk": "workspace:*"
   },
   "devDependencies": {

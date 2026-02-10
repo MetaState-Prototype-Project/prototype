@@ -68,8 +68,8 @@ export async function authenticateToPlatform(
     ename: w3id,
     session: sessionId,
     signature,
+    appVersion: appVersion ?? "1.0.0",
   };
-  if (appVersion != null) body.appVersion = appVersion;
 
   const res = await fetch(redirectUrl, {
     method: "POST",
