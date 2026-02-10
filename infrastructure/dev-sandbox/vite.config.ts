@@ -1,9 +1,9 @@
 import path from "node:path";
 import { defineConfig } from "vite";
-import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { sveltekit } from "@sveltejs/kit/vite";
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [sveltekit()],
   resolve: {
     alias: {
       "wallet-sdk": path.resolve(__dirname, "../../packages/wallet-sdk/src/index.ts"),

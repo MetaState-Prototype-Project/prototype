@@ -21,13 +21,12 @@ The app opens at `http://localhost:5174`.
 
 ## Config
 
-Set env vars (e.g. in `.env` in this directory or in the shell) or rely on defaults:
+Env vars use the **PUBLIC_** prefix (SvelteKit) and are loaded from the **repo root** `.env`. Set them there or rely on defaults:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VITE_REGISTRY_URL` | `http://localhost:3001` | Registry base URL (entropy) |
-| `VITE_PROVISIONER_URL` | `http://localhost:4321` | Provisioner base URL (POST /provision) |
-| `VITE_PLATFORM_BASE_URL` | `http://localhost:9888` | Platform base URL (for auth offers) |
+| `PUBLIC_REGISTRY_URL` | `http://localhost:3001` | Registry base URL (entropy) |
+| `PUBLIC_PROVISIONER_URL` | `http://localhost:4321` | Provisioner base URL (POST /provision) |
 
 ## Walkthrough: provision → sync key → auth
 
@@ -38,7 +37,7 @@ Set env vars (e.g. in `.env` in this directory or in the shell) or rely on defau
    To register the adapter’s public key with the eVault, enter a Bearer token (if your eVault’s PATCH /public-key requires one) and click “Sync public key”. For local dev you may need to obtain a token from your eVault/backend or skip this step.
 
 3. **Authenticate to platform**  
-   Paste a `w3ds://auth?redirect=...&session=...&platform=...` URI, or a platform URL that returns such an offer (e.g. `GET /api/auth/offer`). Click “Authenticate”. The app signs the session ID and POSTs to the platform’s redirect URL.
+   Paste a `w3ds://auth?redirect=...&session=...&platform=...` URI. Click “Authenticate”. The app signs the session ID and POSTs to the redirect URL from the URI.
 
 4. **Sign payload**  
    Type any string and click “Sign” to get a signature from the selected identity’s key (e.g. for testing or custom flows).

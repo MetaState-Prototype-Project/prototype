@@ -1,9 +1,17 @@
 <script lang="ts">
-  import { provision, authenticateToPlatform, syncPublicKeyToEvault, signPayload } from "wallet-sdk";
-  import { getConfig } from "./config";
-  import { WebCryptoAdapter } from "./WebCryptoAdapter";
+  import {
+    provision,
+    authenticateToPlatform,
+    syncPublicKeyToEvault,
+    signPayload,
+  } from "wallet-sdk";
+  import { env } from "$env/dynamic/public";
+  import { WebCryptoAdapter } from "$lib/WebCryptoAdapter";
 
-  const config = getConfig();
+  const config = {
+    registryUrl: env.PUBLIC_REGISTRY_URL ?? "http://localhost:3001",
+    provisionerUrl: env.PUBLIC_PROVISIONER_URL ?? "http://localhost:4321",
+  };
   const adapter = new WebCryptoAdapter();
 
   interface Identity {
@@ -45,7 +53,10 @@
         registryUrl: config.registryUrl,
         provisionerUrl: config.provisionerUrl,
       });
-      identities = [...identities, { w3id: result.w3id, uri: result.uri, keyId: result.keyId }];
+      identities = [
+        ...identities,
+        { w3id: result.w3id, uri: result.uri, keyId: result.keyId },
+      ];
       selectedIndex = identities.length - 1;
       provisionSuccess = identities[identities.length - 1];
     } catch (e) {
@@ -55,29 +66,20 @@
     }
   }
 
-  async function getAuthUri(input: string): Promise<string> {
-    const trimmed = input.trim();
-    if (trimmed.startsWith("w3ds://")) return trimmed;
-    try {
-      const url = new URL(trimmed);
-      const res = await fetch(url.toString());
-      const data = (await res.json()) as { offer?: string; uri?: string };
-      return data.offer ?? data.uri ?? trimmed;
-    } catch {
-      return trimmed;
-    }
-  }
-
   async function doAuth() {
     if (!selectedIdentity) {
       authError = "Provision an identity first.";
+      return;
+    }
+    const uri = authInput.trim();
+    if (!uri.startsWith("w3ds://")) {
+      authError = "Paste a w3ds://auth URI.";
       return;
     }
     authBusy = true;
     authError = null;
     authSuccess = null;
     try {
-      const uri = await getAuthUri(authInput);
       await authenticateToPlatform({
         cryptoAdapter: adapter,
         keyId: selectedIdentity.keyId,
@@ -140,8 +142,8 @@
 <main>
   <h1>W3DS Dev Sandbox</h1>
   <p class="config">
-    Registry: <code>{config.registryUrl}</code> · Provisioner: <code>{config.provisionerUrl}</code> ·
-    Platform: <code>{config.platformBaseUrl}</code>
+    Registry: <code>{config.registryUrl}</code> · Provisioner:
+    <code>{config.provisionerUrl}</code>
   </p>
 
   <section>
@@ -154,8 +156,23 @@
     {/if}
     {#if provisionSuccess}
       <div class="result">
-        <p><strong>W3ID:</strong> <code>{provisionSuccess.w3id}</code> <button type="button" onclick={() => copyToClipboard(provisionSuccess!.w3id)}>Copy</button></p>
-        <p><strong>eVault URI:</strong> <code>{provisionSuccess.uri}</code> <button type="button" onclick={() => copyToClipboard(provisionSuccess!.uri)}>Copy</button></p>
+        <p>
+          <strong>W3ID:</strong> <code>{provisionSuccess.w3id}</code>
+          <button
+            type="button"
+            onclick={() => copyToClipboard(provisionSuccess!.w3id)}
+            >Copy</button
+          >
+        </p>
+        <p>
+          <strong>eVault URI:</strong>
+          <code>{provisionSuccess.uri}</code>
+          <button
+            type="button"
+            onclick={() => copyToClipboard(provisionSuccess!.uri)}
+            >Copy</button
+          >
+        </p>
       </div>
     {/if}
   </section>
@@ -172,8 +189,15 @@
 
     <section>
       <h2>Sync public key</h2>
-      <p>PATCH the selected identity’s public key to its eVault. Enter a Bearer token (eVault PATCH /public-key requires auth).</p>
-      <input type="text" bind:value={syncToken} placeholder="Bearer token" />
+      <p>
+        PATCH the selected identity's public key to its eVault. Enter a
+        Bearer token (eVault PATCH /public-key requires auth).
+      </p>
+      <input
+        type="text"
+        bind:value={syncToken}
+        placeholder="Bearer token"
+      />
       <button disabled={syncBusy || !syncToken.trim()} onclick={doSync}>
         {syncBusy ? "Syncing…" : "Sync public key"}
       </button>
@@ -187,8 +211,15 @@
 
     <section>
       <h2>Sign payload</h2>
-      <p>Sign a string (e.g. session ID or message) with the selected identity’s key.</p>
-      <input type="text" bind:value={signPayloadInput} placeholder="Payload to sign" />
+      <p>
+        Sign a string (e.g. session ID or message) with the selected
+        identity's key.
+      </p>
+      <input
+        type="text"
+        bind:value={signPayloadInput}
+        placeholder="Payload to sign"
+      />
       <button disabled={signBusy} onclick={doSign}>
         {signBusy ? "Signing…" : "Sign"}
       </button>
@@ -196,14 +227,29 @@
         <p class="error">{signError}</p>
       {/if}
       {#if signResult}
-        <p><strong>Signature:</strong> <code class="signature">{signResult}</code> <button type="button" onclick={() => copyToClipboard(signResult!)}>Copy</button></p>
+        <p>
+          <strong>Signature:</strong>
+          <code class="signature">{signResult}</code>
+          <button
+            type="button"
+            onclick={() => copyToClipboard(signResult!)}
+            >Copy</button
+          >
+        </p>
       {/if}
     </section>
 
     <section>
       <h2>Authenticate to platform</h2>
-      <p>Paste a <code>w3ds://auth</code> URI or a platform auth-offer URL that returns one.</p>
-      <input type="text" bind:value={authInput} placeholder="w3ds://auth?redirect=...&session=... or https://platform/api/auth/offer" />
+      <p>
+        Paste a <code>w3ds://auth</code> URI (redirect, session, platform
+        params).
+      </p>
+      <input
+        type="text"
+        bind:value={authInput}
+        placeholder="w3ds://auth?redirect=...&session=...&platform=..."
+      />
       <button disabled={authBusy} onclick={doAuth}>
         {authBusy ? "Authenticating…" : "Authenticate"}
       </button>
