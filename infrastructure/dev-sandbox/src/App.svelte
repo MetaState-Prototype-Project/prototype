@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { provision, authenticateToPlatform } from "wallet-sdk";
+  import { provision, authenticateToPlatform, syncPublicKeyToEvault, signPayload } from "wallet-sdk";
   import { getConfig } from "./config";
   import { WebCryptoAdapter } from "./WebCryptoAdapter";
 
@@ -22,6 +22,16 @@
   let authBusy = $state(false);
   let authError = $state<string | null>(null);
   let authSuccess = $state<string | null>(null);
+
+  let syncToken = $state("");
+  let syncBusy = $state(false);
+  let syncError = $state<string | null>(null);
+  let syncSuccess = $state(false);
+
+  let signPayloadInput = $state("");
+  let signBusy = $state(false);
+  let signResult = $state<string | null>(null);
+  let signError = $state<string | null>(null);
 
   const selectedIdentity = $derived(identities[selectedIndex] ?? null);
 
@@ -85,6 +95,46 @@
   async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
   }
+
+  async function doSync() {
+    if (!selectedIdentity || !syncToken.trim()) return;
+    syncBusy = true;
+    syncError = null;
+    syncSuccess = false;
+    try {
+      await syncPublicKeyToEvault({
+        evaultUrl: selectedIdentity.uri,
+        eName: selectedIdentity.w3id,
+        cryptoAdapter: adapter,
+        keyId: selectedIdentity.keyId,
+        token: syncToken.trim(),
+      });
+      syncSuccess = true;
+    } catch (e) {
+      syncError = e instanceof Error ? e.message : String(e);
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  async function doSign() {
+    if (!selectedIdentity) return;
+    signBusy = true;
+    signError = null;
+    signResult = null;
+    try {
+      const sig = await signPayload({
+        cryptoAdapter: adapter,
+        keyId: selectedIdentity.keyId,
+        payload: signPayloadInput,
+      });
+      signResult = sig;
+    } catch (e) {
+      signError = e instanceof Error ? e.message : String(e);
+    } finally {
+      signBusy = false;
+    }
+  }
 </script>
 
 <main>
@@ -118,6 +168,36 @@
           <option value={i}>{id.w3id}</option>
         {/each}
       </select>
+    </section>
+
+    <section>
+      <h2>Sync public key</h2>
+      <p>PATCH the selected identity’s public key to its eVault. Enter a Bearer token (eVault PATCH /public-key requires auth).</p>
+      <input type="text" bind:value={syncToken} placeholder="Bearer token" />
+      <button disabled={syncBusy || !syncToken.trim()} onclick={doSync}>
+        {syncBusy ? "Syncing…" : "Sync public key"}
+      </button>
+      {#if syncError}
+        <p class="error">{syncError}</p>
+      {/if}
+      {#if syncSuccess}
+        <p class="success">Public key synced.</p>
+      {/if}
+    </section>
+
+    <section>
+      <h2>Sign payload</h2>
+      <p>Sign a string (e.g. session ID or message) with the selected identity’s key.</p>
+      <input type="text" bind:value={signPayloadInput} placeholder="Payload to sign" />
+      <button disabled={signBusy} onclick={doSign}>
+        {signBusy ? "Signing…" : "Sign"}
+      </button>
+      {#if signError}
+        <p class="error">{signError}</p>
+      {/if}
+      {#if signResult}
+        <p><strong>Signature:</strong> <code class="signature">{signResult}</code> <button type="button" onclick={() => copyToClipboard(signResult!)}>Copy</button></p>
+      {/if}
     </section>
 
     <section>
@@ -190,5 +270,9 @@
   }
   .result p {
     margin: 0.5rem 0;
+  }
+  .signature {
+    word-break: break-all;
+    font-size: 0.8em;
   }
 </style>
