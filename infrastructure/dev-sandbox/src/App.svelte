@@ -1,16 +1,140 @@
 <script lang="ts">
+  import { provision, authenticateToPlatform } from "wallet-sdk";
   import { getConfig } from "./config";
+  import { WebCryptoAdapter } from "./WebCryptoAdapter";
 
   const config = getConfig();
+  const adapter = new WebCryptoAdapter();
+
+  interface Identity {
+    w3id: string;
+    uri: string;
+    keyId: string;
+  }
+
+  let identities: Identity[] = $state([]);
+  let selectedIndex = $state(0);
+  let provisionBusy = $state(false);
+  let provisionError = $state<string | null>(null);
+  let provisionSuccess = $state<Identity | null>(null);
+
+  let authInput = $state("");
+  let authBusy = $state(false);
+  let authError = $state<string | null>(null);
+  let authSuccess = $state<string | null>(null);
+
+  const selectedIdentity = $derived(identities[selectedIndex] ?? null);
+
+  async function doProvision() {
+    provisionBusy = true;
+    provisionError = null;
+    provisionSuccess = null;
+    try {
+      const result = await provision({
+        cryptoAdapter: adapter,
+        registryUrl: config.registryUrl,
+        provisionerUrl: config.provisionerUrl,
+      });
+      identities = [...identities, { w3id: result.w3id, uri: result.uri, keyId: result.keyId }];
+      selectedIndex = identities.length - 1;
+      provisionSuccess = identities[identities.length - 1];
+    } catch (e) {
+      provisionError = e instanceof Error ? e.message : String(e);
+    } finally {
+      provisionBusy = false;
+    }
+  }
+
+  async function getAuthUri(input: string): Promise<string> {
+    const trimmed = input.trim();
+    if (trimmed.startsWith("w3ds://")) return trimmed;
+    try {
+      const url = new URL(trimmed);
+      const res = await fetch(url.toString());
+      const data = (await res.json()) as { offer?: string; uri?: string };
+      return data.offer ?? data.uri ?? trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  async function doAuth() {
+    if (!selectedIdentity) {
+      authError = "Provision an identity first.";
+      return;
+    }
+    authBusy = true;
+    authError = null;
+    authSuccess = null;
+    try {
+      const uri = await getAuthUri(authInput);
+      await authenticateToPlatform({
+        cryptoAdapter: adapter,
+        keyId: selectedIdentity.keyId,
+        w3id: selectedIdentity.w3id,
+        authUri: uri,
+      });
+      authSuccess = "Logged in successfully.";
+    } catch (e) {
+      authError = e instanceof Error ? e.message : String(e);
+    } finally {
+      authBusy = false;
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    await navigator.clipboard.writeText(text);
+  }
 </script>
 
 <main>
   <h1>W3DS Dev Sandbox</h1>
-  <p>
+  <p class="config">
     Registry: <code>{config.registryUrl}</code> · Provisioner: <code>{config.provisionerUrl}</code> ·
     Platform: <code>{config.platformBaseUrl}</code>
   </p>
-  <p>Use this app to test provisioning, auth, sync key, and sign payload.</p>
+
+  <section>
+    <h2>Provision new eVault</h2>
+    <button disabled={provisionBusy} onclick={doProvision}>
+      {provisionBusy ? "Provisioning…" : "Provision new eVault"}
+    </button>
+    {#if provisionError}
+      <p class="error">{provisionError}</p>
+    {/if}
+    {#if provisionSuccess}
+      <div class="result">
+        <p><strong>W3ID:</strong> <code>{provisionSuccess.w3id}</code> <button type="button" onclick={() => copyToClipboard(provisionSuccess!.w3id)}>Copy</button></p>
+        <p><strong>eVault URI:</strong> <code>{provisionSuccess.uri}</code> <button type="button" onclick={() => copyToClipboard(provisionSuccess!.uri)}>Copy</button></p>
+      </div>
+    {/if}
+  </section>
+
+  {#if identities.length > 0}
+    <section>
+      <h2>Selected identity</h2>
+      <select bind:value={selectedIndex}>
+        {#each identities as id, i}
+          <option value={i}>{id.w3id}</option>
+        {/each}
+      </select>
+    </section>
+
+    <section>
+      <h2>Authenticate to platform</h2>
+      <p>Paste a <code>w3ds://auth</code> URI or a platform auth-offer URL that returns one.</p>
+      <input type="text" bind:value={authInput} placeholder="w3ds://auth?redirect=...&session=... or https://platform/api/auth/offer" />
+      <button disabled={authBusy} onclick={doAuth}>
+        {authBusy ? "Authenticating…" : "Authenticate"}
+      </button>
+      {#if authError}
+        <p class="error">{authError}</p>
+      {/if}
+      {#if authSuccess}
+        <p class="success">{authSuccess}</p>
+      {/if}
+    </section>
+  {/if}
 </main>
 
 <style>
@@ -20,10 +144,51 @@
     margin: 2rem auto;
     padding: 0 1rem;
   }
+  .config {
+    font-size: 0.85rem;
+    color: #666;
+  }
   code {
     background: #eee;
     padding: 0.2em 0.4em;
     border-radius: 4px;
     font-size: 0.9em;
+  }
+  section {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  h2 {
+    margin-top: 0;
+    font-size: 1.1rem;
+  }
+  button {
+    margin: 0 0.25rem;
+    padding: 0.4em 0.8em;
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  input[type="text"] {
+    display: block;
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+  .error {
+    color: #c00;
+    margin: 0.5rem 0;
+  }
+  .success {
+    color: #060;
+    margin: 0.5rem 0;
+  }
+  .result p {
+    margin: 0.5rem 0;
   }
 </style>
