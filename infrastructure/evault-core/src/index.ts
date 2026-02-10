@@ -74,7 +74,7 @@ let provisioningService: ProvisioningService | undefined;
 const initializeEVault = async (
     provisioningServiceInstance?: ProvisioningService,
 ) => {
-    const uri = process.env.NEO4J_URI || "bolt://127.0.0.1:7687";
+    const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
     const user = process.env.NEO4J_USER || "neo4j";
     const password = process.env.NEO4J_PASSWORD || "neo4j";
 

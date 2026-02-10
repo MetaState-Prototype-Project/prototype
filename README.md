@@ -54,22 +54,9 @@ Runs all services (core + all APIs + all frontends)
 
 ### Usage
 
-Start all services:
-```bash
-pnpm dev:docker:all
-```
+**Local dev (recommended):** `pnpm dev:core` — see [QUICKSTART.md](QUICKSTART.md). Runs Postgres + Neo4j in Docker, then registry, evault-core, and dev-sandbox locally.
 
-Start specific profile:
-```bash
-pnpm dev:docker:socials
-pnpm dev:docker:charter-blabsy
-```
-
-Or use docker compose directly:
-```bash
-docker compose -f dev-docker-compose.yaml --profile socials up --watch
-docker compose -f dev-docker-compose.yaml --profile charter-blabsy up --watch
-```
+**Databases only:** `pnpm docker:core` (Postgres + Neo4j). Stop with `pnpm docker:core:down`.
 
 ## Project Structure
 
@@ -95,5 +82,5 @@ prototype/
 │  └─ marketplace/
 ├─ docker/
 │  └─ Dockerfile.* (Dedicated Dockerfiles for each service)
-└─ dev-docker-compose.yaml (Docker Compose configuration)
+└─ docker-compose.databases.yml (Postgres + Neo4j)
 ```
