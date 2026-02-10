@@ -219,6 +219,25 @@ importers:
         specifier: ^7.0.4
         version: 7.2.7(@types/node@22.19.2)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
+  infrastructure/dev-sandbox:
+    dependencies:
+      wallet-sdk:
+        specifier: workspace:*
+        version: link:../../packages/wallet-sdk
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.0
+        version: 5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+      svelte:
+        specifier: ^5.0.0
+        version: 5.45.10
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
+
   infrastructure/eid-wallet:
     dependencies:
       '@auvo/tauri-plugin-crypto-hw-api':
