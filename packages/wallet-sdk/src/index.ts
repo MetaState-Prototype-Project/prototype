@@ -11,3 +11,9 @@ export {
   type AuthenticateToPlatformOptions,
   type AuthenticateToPlatformResult,
 } from "./auth";
+export {
+  syncPublicKeyToEvault,
+  signPayload,
+  type SyncPublicKeyToEvaultOptions,
+  type SignPayloadOptions,
+} from "./sync-and-sign";
