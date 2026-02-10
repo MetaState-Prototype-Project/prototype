@@ -2,6 +2,8 @@
 
 **[Documentation](https://docs.w3ds.metastate.foundation)** — Getting started with W3DS and the MetaState prototype.
 
+**Quick start (registry + evault-core + dev-sandbox):** see **[QUICKSTART.md](QUICKSTART.md)** — one script to run Postgres + Neo4j in Docker and the core services locally. Dev sandbox runs at **http://localhost:8080**.
+
 ## Docker Development Environment
 
 ### Port Assignments
@@ -26,7 +28,7 @@
 - **1111** - Pictique API
 
 #### Frontend Services
-- **8080** - Blabsy Frontend
+- **8080** - Dev sandbox (W3DS) / Blabsy Frontend
 - **5173** - Pictique Frontend
 - **3004** - Group Charter Manager Frontend
 - **3005** - eVoting Frontend
@@ -52,22 +54,9 @@ Runs all services (core + all APIs + all frontends)
 
 ### Usage
 
-Start all services:
-```bash
-pnpm dev:docker:all
-```
+**Local dev (recommended):** `pnpm dev:core` — see [QUICKSTART.md](QUICKSTART.md). Runs Postgres + Neo4j in Docker, then registry, evault-core, and dev-sandbox locally.
 
-Start specific profile:
-```bash
-pnpm dev:docker:socials
-pnpm dev:docker:charter-blabsy
-```
-
-Or use docker compose directly:
-```bash
-docker compose -f dev-docker-compose.yaml --profile socials up --watch
-docker compose -f dev-docker-compose.yaml --profile charter-blabsy up --watch
-```
+**Databases only:** `pnpm docker:core` (Postgres + Neo4j). Stop with `pnpm docker:core:down`.
 
 ## Project Structure
 
@@ -93,5 +82,5 @@ prototype/
 │  └─ marketplace/
 ├─ docker/
 │  └─ Dockerfile.* (Dedicated Dockerfiles for each service)
-└─ dev-docker-compose.yaml (Docker Compose configuration)
+└─ docker-compose.databases.yml (Postgres + Neo4j)
 ```

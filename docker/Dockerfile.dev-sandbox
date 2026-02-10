@@ -1,0 +1,40 @@
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
+
+ENV CI=true
+ENV PYTHON=/usr/bin/python3
+RUN ln -sf python3 /usr/bin/python
+
+# ---
+FROM base AS prepare
+RUN npm install -g pnpm@10.25.0 turbo@^2
+COPY . .
+RUN turbo prune dev-sandbox --docker
+
+# ---
+FROM base AS builder
+RUN npm install -g pnpm@10.25.0
+COPY --from=prepare /app/out/json/ .
+RUN pnpm install --frozen-lockfile
+COPY --from=prepare /app/out/full/ .
+RUN pnpm turbo build --filter=dev-sandbox
+
+# ---
+FROM base AS runner
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/packages/wallet-sdk ./packages/wallet-sdk
+COPY --from=builder /app/infrastructure/dev-sandbox/build ./infrastructure/dev-sandbox/build
+COPY --from=builder /app/infrastructure/dev-sandbox/package.json ./infrastructure/dev-sandbox/
+COPY --from=builder /app/infrastructure/dev-sandbox/node_modules ./infrastructure/dev-sandbox/node_modules
+COPY --from=builder /app/node_modules ./node_modules
+
+WORKDIR /app/infrastructure/dev-sandbox
+
+ENV PORT=3000
+ENV HOST=0.0.0.0
+EXPOSE 3000
+
+CMD ["node", "build"]
