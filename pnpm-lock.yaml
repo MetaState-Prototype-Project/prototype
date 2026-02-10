@@ -673,6 +673,12 @@ importers:
 
   packages/typescript-config: {}
 
+  packages/wallet-sdk:
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
   platforms/blabsy:
     dependencies:
       '@headlessui/react':
