@@ -11,6 +11,7 @@ import {
 import { openUrl } from "@tauri-apps/plugin-opener";
 import axios from "axios";
 import { type Writable, get, writable } from "svelte/store";
+import { authenticate } from "wallet-sdk";
 
 import type { GlobalState } from "$lib/global";
 
@@ -281,43 +282,22 @@ export function createScanLogic({
         authLoading.set(true);
 
         try {
-            const KEY_ID = "default";
             const isFake = await globalState.userController.isFake;
             const signingContext = isFake ? "pre-verification" : "onboarding";
-
-            console.log("=".repeat(70));
-            console.log(
-                "🔐 [scanLogic] handleAuth - Preparing to sign payload",
-            );
-            console.log("=".repeat(70));
-            console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
-            console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
-            console.log(
-                "⚠️  This ensures we use the SAME key that was synced to eVault",
-            );
-            console.log("=".repeat(70));
-
-            const { created } = await globalState.keyService.ensureKey(
-                KEY_ID,
-                signingContext,
-            );
-            console.log(
-                "Key generation result for signing:",
-                created ? "key-generated" : "key-exists",
-            );
-
-            const w3idResult = vault.ename;
-            if (!w3idResult) {
-                throw new Error("Failed to get W3ID");
-            }
-
             const sessionPayload = get(session) as string;
 
-            const signature = await globalState.keyService.signPayload(
-                KEY_ID,
-                signingContext,
-                sessionPayload,
+            const { signature } = await authenticate(
+                globalState.walletSdkAdapter,
+                {
+                    sessionId: sessionPayload,
+                    keyId: "default",
+                    context: signingContext,
+                },
             );
+
+            if (!vault.ename) {
+                throw new Error("Failed to get W3ID");
+            }
 
             const redirectUrl = get(redirect);
             if (!redirectUrl) {
@@ -664,55 +644,28 @@ export function createScanLogic({
                 throw new Error("No vault available for signing");
             }
 
-            // ⚠️ CRITICAL: Use the SAME keyId and context that was synced to eVault!
-            // The key synced to eVault uses keyId="default" with context="onboarding" or "pre-verification"
-            // NOT vault.ename with context="signing"!
-            const KEY_ID = "default";
+            // Use same keyId/context as synced to eVault (default + onboarding/pre-verification)
             const isFake = await globalState.userController.isFake;
             const signingContext = isFake ? "pre-verification" : "onboarding";
 
-            console.log("=".repeat(70));
-            console.log("🔐 [scanLogic] Preparing to sign payload");
-            console.log("=".repeat(70));
-            console.log(`⚠️  Using keyId: ${KEY_ID} (NOT ${vault.ename})`);
-            console.log(`⚠️  Using context: ${signingContext} (NOT "signing")`);
-            console.log(
-                "⚠️  This ensures we use the SAME key that was synced to eVault",
-            );
-            console.log("=".repeat(70));
-
-            const { created } = await globalState.keyService.ensureKey(
-                KEY_ID,
-                signingContext,
-            );
-            console.log(
-                "Key generation result for signing:",
-                created ? "key-generated" : "key-exists",
+            const { signature } = await authenticate(
+                globalState.walletSdkAdapter,
+                {
+                    sessionId: currentSigningSessionId,
+                    keyId: "default",
+                    context: signingContext,
+                },
             );
 
-            const w3idResult = vault.ename;
-            if (!w3idResult) {
+            if (!vault.ename) {
                 throw new Error("Failed to get W3ID");
             }
 
-            const messageToSign = currentSigningSessionId;
-
-            console.log(
-                "🔐 Starting cryptographic signing process with KeyManager...",
-            );
-
-            const signature = await globalState.keyService.signPayload(
-                KEY_ID,
-                signingContext,
-                currentSigningSessionId,
-            );
-            console.log("✅ Message signed successfully");
-
             const signedPayload = {
                 sessionId: currentSigningSessionId,
-                signature: signature,
-                w3id: w3idResult,
-                message: messageToSign,
+                signature,
+                w3id: vault.ename,
+                message: currentSigningSessionId,
             };
 
             const redirectUri = get(redirect);

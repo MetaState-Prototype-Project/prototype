@@ -11,8 +11,8 @@ import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import * as falso from "@ngneat/falso";
-import axios from "axios";
 import { getContext, onMount } from "svelte";
+import { provision } from "wallet-sdk";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 
@@ -205,30 +205,20 @@ onMount(async () => {
             await initializeKeyManager();
             await ensureKeyForContext();
 
-            const entropyRes = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-            const registryEntropy = entropyRes.data.token;
-            console.log("Registry entropy:", registryEntropy);
-
-            const provisionRes = await axios.post(
-                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                {
-                    registryEntropy,
-                    namespace: uuidv4(),
-                    verificationId,
-                    publicKey: await getApplicationPublicKey(),
-                },
-            );
-            console.log("Provision response:", provisionRes.data);
-
-            if (!provisionRes.data?.success) {
-                throw new Error("Invalid verification code");
-            }
+            const result = await provision(globalState.walletSdkAdapter, {
+                registryUrl: PUBLIC_REGISTRY_URL,
+                provisionerUrl: PUBLIC_PROVISIONER_URL,
+                namespace: uuidv4(),
+                verificationId,
+                keyId: "default",
+                context: "pre-verification",
+                isPreVerification: true,
+            });
+            console.log("Provision response:", result);
 
             verificationSuccess = true;
-            uri = provisionRes.data.uri;
-            ename = provisionRes.data.w3id;
+            uri = result.uri;
+            ename = result.w3id;
         } catch (err) {
             console.error("Pre-verification failed:", err);
 

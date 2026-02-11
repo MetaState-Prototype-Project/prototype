@@ -1,0 +1,31 @@
+{
+  "name": "wallet-sdk",
+  "version": "0.1.0",
+  "description": "BYOC wallet SDK for provisioning, auth, and public key sync",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check-types": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "jose": "^5.2.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.2",
+    "vitest": "^3.0.9"
+  }
+}

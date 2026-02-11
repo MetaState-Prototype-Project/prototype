@@ -16,6 +16,7 @@ import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
+import { provision } from "wallet-sdk";
 import DocumentType from "./steps/document-type.svelte";
 import Passport from "./steps/passport.svelte";
 import Selfie from "./steps/selfie.svelte";
@@ -336,26 +337,21 @@ onMount(async () => {
                 ename: existingW3id,
             };
         } else {
-            // Normal flow for approved status
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-            const { data } = await axios.post(
-                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                {
-                    registryEntropy,
-                    namespace: uuidv4(),
-                    verificationId: $verificaitonId,
-                    publicKey: await getApplicationPublicKey(),
-                },
-            );
-            if (data.success === true) {
+            // Normal flow for approved status via wallet-sdk
+            const result = await provision(globalState.walletSdkAdapter, {
+                registryUrl: PUBLIC_REGISTRY_URL,
+                provisionerUrl: PUBLIC_PROVISIONER_URL,
+                namespace: uuidv4(),
+                verificationId: $verificaitonId,
+                keyId: "default",
+                context: "onboarding",
+                isPreVerification: false,
+            });
+            if (result.success) {
                 // Set vault in controller - this will trigger profile creation with retry logic
                 globalState.vaultController.vault = {
-                    uri: data.uri,
-                    ename: data.w3id,
+                    uri: result.uri,
+                    ename: result.w3id,
                 };
             }
         }

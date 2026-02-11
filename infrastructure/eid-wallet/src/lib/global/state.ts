@@ -1,4 +1,6 @@
 import { Store } from "@tauri-apps/plugin-store";
+import type { CryptoAdapter } from "wallet-sdk";
+import { createKeyServiceCryptoAdapter } from "../wallet-sdk-adapter";
 import NotificationService from "../services/NotificationService";
 import { VaultController } from "./controllers/evault";
 import { KeyService } from "./controllers/key";
@@ -24,14 +26,20 @@ import { UserController } from "./controllers/user";
  */
 export class GlobalState {
     #store: Store;
+    #walletSdkAdapter: CryptoAdapter;
     securityController: SecurityController;
     userController: UserController;
     vaultController: VaultController;
     notificationService: NotificationService;
     keyService: KeyService;
 
+    get walletSdkAdapter(): CryptoAdapter {
+        return this.#walletSdkAdapter;
+    }
+
     private constructor(store: Store, keyService: KeyService) {
         this.#store = store;
+        this.#walletSdkAdapter = createKeyServiceCryptoAdapter(keyService);
         this.securityController = new SecurityController(store);
         this.userController = new UserController(store);
         this.keyService = keyService;
@@ -39,6 +47,7 @@ export class GlobalState {
             store,
             this.userController,
             keyService,
+            this.#walletSdkAdapter,
         );
         this.notificationService = NotificationService.getInstance();
     }

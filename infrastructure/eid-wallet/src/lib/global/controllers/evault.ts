@@ -6,7 +6,7 @@ import {
 import type { Store } from "@tauri-apps/plugin-store";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
-import * as jose from "jose";
+import { syncPublicKeyToEvault } from "wallet-sdk";
 import NotificationService from "../../services/NotificationService";
 import type { KeyService } from "./key";
 import type { UserController } from "./user";
@@ -54,6 +54,7 @@ export class VaultController {
     #endpoint: string | null = null;
     #userController: UserController;
     #keyService: KeyService | null = null;
+    #walletSdkAdapter: import("wallet-sdk").CryptoAdapter | null = null;
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
     #notificationService: NotificationService;
 
@@ -61,10 +62,12 @@ export class VaultController {
         store: Store,
         userController: UserController,
         keyService?: KeyService,
+        walletSdkAdapter?: import("wallet-sdk").CryptoAdapter,
     ) {
         this.#store = store;
         this.#userController = userController;
         this.#keyService = keyService || null;
+        this.#walletSdkAdapter = walletSdkAdapter ?? null;
         this.#notificationService = NotificationService.getInstance();
     }
 
@@ -87,169 +90,32 @@ export class VaultController {
     }
 
     /**
-     * Sync public key to eVault core
-     * Checks if public key was already saved, calls /whois, and PATCH if needed
+     * Sync public key to eVault core via wallet-sdk.
+     * SDK checks /whois and skips PATCH if current key already in certs; otherwise PATCHes /public-key.
      */
     async syncPublicKey(eName: string): Promise<void> {
+        if (!this.#walletSdkAdapter) {
+            console.warn(
+                "Wallet SDK adapter not available, cannot sync public key",
+            );
+            return;
+        }
+        const vault = await this.vault;
+        if (!vault?.uri) {
+            console.warn("No vault URI available, cannot sync public key");
+            return;
+        }
+        const isFake = await this.#userController.isFake;
+        const context = isFake ? "pre-verification" : "onboarding";
         try {
-            // Note: We always check the actual source (whois endpoint) instead of relying on localStorage
-            // localStorage flag is only used as a hint, but we verify against the server
-            const savedKey = localStorage.getItem(`publicKeySaved_${eName}`);
-
-            if (!this.#keyService) {
-                console.warn(
-                    "KeyService not available, cannot sync public key",
-                );
-                return;
-            }
-
-            // Get the eVault URI
-            const vault = await this.vault;
-            if (!vault?.uri) {
-                console.warn("No vault URI available, cannot sync public key");
-                return;
-            }
-
-            // Call /whois to check if public key exists
-            const whoisUrl = new URL("/whois", vault.uri).toString();
-            const whoisResponse = await axios.get(whoisUrl, {
-                headers: {
-                    "X-ENAME": eName,
-                },
+            await syncPublicKeyToEvault(this.#walletSdkAdapter, {
+                evaultUri: vault.uri,
+                eName,
+                keyId: "default",
+                context,
+                authToken: PUBLIC_EID_WALLET_TOKEN || null,
+                registryUrl: PUBLIC_REGISTRY_URL,
             });
-
-            // Get key binding certificates array from whois response
-            const keyBindingCertificates =
-                whoisResponse.data?.keyBindingCertificates;
-
-            // Get current device's public key to check if it already exists
-            const KEY_ID = "default";
-            const isFake = await this.#userController.isFake;
-            const context = isFake ? "pre-verification" : "onboarding";
-
-            let currentPublicKey: string | undefined;
-            try {
-                currentPublicKey = await this.#keyService.getPublicKey(
-                    KEY_ID,
-                    context,
-                );
-            } catch (error) {
-                console.error(
-                    "Failed to get current public key for comparison:",
-                    error,
-                );
-                // Continue to sync anyway
-            }
-
-            // If we have certificates and current key, check if it already exists
-            if (
-                keyBindingCertificates &&
-                Array.isArray(keyBindingCertificates) &&
-                keyBindingCertificates.length > 0 &&
-                currentPublicKey
-            ) {
-                try {
-                    // Get registry JWKS for JWT verification
-                    const registryUrl = PUBLIC_REGISTRY_URL;
-                    if (registryUrl) {
-                        const jwksUrl = new URL(
-                            "/.well-known/jwks.json",
-                            registryUrl,
-                        ).toString();
-                        const jwksResponse = await axios.get(jwksUrl, {
-                            timeout: 10000,
-                        });
-                        const JWKS = jose.createLocalJWKSet(jwksResponse.data);
-
-                        // Extract public keys from certificates and check if current key exists
-                        for (const jwt of keyBindingCertificates) {
-                            try {
-                                const { payload } = await jose.jwtVerify(
-                                    jwt,
-                                    JWKS,
-                                );
-
-                                // Verify ename matches
-                                if (payload.ename !== eName) {
-                                    continue;
-                                }
-
-                                // Extract publicKey from JWT payload
-                                const extractedPublicKey =
-                                    payload.publicKey as string;
-                                if (extractedPublicKey === currentPublicKey) {
-                                    // Current device's key already exists, mark as saved
-                                    localStorage.setItem(
-                                        `publicKeySaved_${eName}`,
-                                        "true",
-                                    );
-                                    console.log(
-                                        `Public key already exists for ${eName}`,
-                                    );
-                                    return;
-                                }
-                            } catch (error) {
-                                // JWT verification failed, try next certificate
-                                console.warn(
-                                    "Failed to verify key binding certificate:",
-                                    error,
-                                );
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error(
-                        "Error checking existing public keys:",
-                        error,
-                    );
-                    // Continue to sync anyway
-                }
-            }
-
-            // Get public key using the same method as getApplicationPublicKey() in onboarding/verify
-            let publicKey: string | undefined;
-            try {
-                publicKey = await this.#keyService.getPublicKey(
-                    KEY_ID,
-                    context,
-                );
-            } catch (error) {
-                console.error(
-                    `Failed to get public key for ${KEY_ID} with context ${context}:`,
-                    error,
-                );
-                return;
-            }
-
-            if (!publicKey) {
-                console.warn(
-                    `No public key found for ${KEY_ID} with context ${context}, cannot sync`,
-                );
-                return;
-            }
-
-            // Get authentication token from environment variable
-            const authToken = PUBLIC_EID_WALLET_TOKEN || null;
-            if (!authToken) {
-                console.warn(
-                    "PUBLIC_EID_WALLET_TOKEN not set, request may fail authentication",
-                );
-            }
-
-            // Call PATCH /public-key to save the public key
-            const patchUrl = new URL("/public-key", vault.uri).toString();
-            const headers: Record<string, string> = {
-                "X-ENAME": eName,
-                "Content-Type": "application/json",
-            };
-
-            if (authToken) {
-                headers.Authorization = `Bearer ${authToken}`;
-            }
-
-            await axios.patch(patchUrl, { publicKey }, { headers });
-
-            // Mark as saved
             localStorage.setItem(`publicKeySaved_${eName}`, "true");
             console.log(`Public key synced successfully for ${eName}`);
         } catch (error) {
