@@ -1,101 +1,102 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero, IdentityCard } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { Drawer, Toast } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import {
-    LinkSquare02Icon,
-    QrCodeIcon,
-    Settings02Icon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
-import { type Snippet, getContext, onMount } from "svelte";
-import { onDestroy } from "svelte";
-import { Shadow } from "svelte-loading-spinners";
-import QrCode from "svelte-qrcode";
+    import { goto } from "$app/navigation";
+    import { Hero, IdentityCard } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { Drawer, Toast } from "$lib/ui";
+    import * as Button from "$lib/ui/Button";
+    import {
+        LinkSquare02Icon,
+        QrCodeIcon,
+        Settings02Icon,
+    } from "@hugeicons/core-free-icons";
+    import { HugeiconsIcon } from "@hugeicons/svelte";
+    import { type Snippet, getContext, onMount } from "svelte";
+    import { onDestroy } from "svelte";
+    import { Shadow } from "svelte-loading-spinners";
+    import QrCode from "svelte-qrcode";
 
-let userData: Record<string, unknown> | undefined = $state(undefined);
-let greeting: string | undefined = $state(undefined);
-let ename: string | undefined = $state(undefined);
-let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
-    $state("idle");
+    let userData: Record<string, unknown> | undefined = $state(undefined);
+    let greeting: string | undefined = $state(undefined);
+    let ename: string | undefined = $state(undefined);
+    let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
+        $state("idle");
 
-let shareQRdrawerOpen = $state(false);
-let statusInterval: ReturnType<typeof setInterval> | undefined =
-    $state(undefined);
-let showToast = $state(false);
-let toastMessage = $state("");
+    let shareQRdrawerOpen = $state(false);
+    let statusInterval: ReturnType<typeof setInterval> | undefined =
+        $state(undefined);
+    let showToast = $state(false);
+    let toastMessage = $state("");
 
-function shareQR() {
-    alert("QR Code shared!");
-    shareQRdrawerOpen = false;
-}
-
-async function copyEName() {
-    if (!ename) return;
-    try {
-        await navigator.clipboard.writeText(ename);
-        toastMessage = "eName copied to clipboard!";
-        showToast = true;
-    } catch (error) {
-        console.error("Failed to copy eName:", error);
-        toastMessage = "Failed to copy eName";
-        showToast = true;
+    function shareQR() {
+        alert("QR Code shared!");
+        shareQRdrawerOpen = false;
     }
-}
 
-function handleToastClose() {
-    showToast = false;
-}
-
-async function retryProfileCreation() {
-    try {
-        await globalState.vaultController.retryProfileCreation();
-    } catch (error) {
-        console.error("Retry failed:", error);
+    async function copyEName() {
+        if (!ename) return;
+        try {
+            await navigator.clipboard.writeText(ename);
+            toastMessage = "eName copied to clipboard!";
+            showToast = true;
+        } catch (error) {
+            console.error("Failed to copy eName:", error);
+            toastMessage = "Failed to copy eName";
+            showToast = true;
+        }
     }
-}
 
-const globalState = getContext<() => GlobalState>("globalState")();
+    function handleToastClose() {
+        showToast = false;
+    }
 
-onMount(() => {
-    // Load initial data
-    (async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
-        const vaultData = await globalState.vaultController.vault;
-        ename = vaultData?.ename;
-    })();
+    async function retryProfileCreation() {
+        try {
+            await globalState.vaultController.retryProfileCreation();
+        } catch (error) {
+            console.error("Retry failed:", error);
+        }
+    }
 
-    // Get initial profile creation status
-    profileCreationStatus = globalState.vaultController.profileCreationStatus;
-    console.log("status current", profileCreationStatus);
+    const globalState = getContext<() => GlobalState>("globalState")();
 
-    // Set up a watcher for profile creation status changes
-    const checkStatus = () => {
+    onMount(() => {
+        // Load initial data
+        (async () => {
+            const userInfo = await globalState.userController.user;
+            const isFake = await globalState.userController.isFake;
+            userData = { ...userInfo, isFake };
+            const vaultData = await globalState.vaultController.vault;
+            ename = vaultData?.ename;
+        })();
+
+        // Get initial profile creation status
         profileCreationStatus =
             globalState.vaultController.profileCreationStatus;
-    };
+        console.log("status current", profileCreationStatus);
 
-    // Check status periodically
-    statusInterval = setInterval(checkStatus, 1000);
+        // Set up a watcher for profile creation status changes
+        const checkStatus = () => {
+            profileCreationStatus =
+                globalState.vaultController.profileCreationStatus;
+        };
 
-    const currentHour = new Date().getHours();
-    greeting =
-        currentHour > 17
-            ? "Good Evening"
-            : currentHour > 12
-              ? "Good Afternoon"
-              : "Good Morning";
-});
+        // Check status periodically
+        statusInterval = setInterval(checkStatus, 1000);
 
-onDestroy(() => {
-    if (statusInterval) {
-        clearInterval(statusInterval);
-    }
-});
+        const currentHour = new Date().getHours();
+        greeting =
+            currentHour > 17
+                ? "Good Evening"
+                : currentHour > 12
+                  ? "Good Afternoon"
+                  : "Good Morning";
+    });
+
+    onDestroy(() => {
+        if (statusInterval) {
+            clearInterval(statusInterval);
+        }
+    });
 </script>
 
 {#if profileCreationStatus === "loading"}
@@ -176,16 +177,39 @@ onDestroy(() => {
             href="https://marketplace.w3ds.metastate.foundation/"
             target="_blank"
             rel="noopener noreferrer"
-            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer"
+            class="rounded-3xl z-0 w-full border border-gray-300 h-48 text-black p-3 mt-8 flex flex-col justify-end cursor-pointer relative overflow-hidden  transition-shadow"
         >
-            <span class="text-lg font-medium flex gap-2"
-                >Discover <img
-                    class="w-12"
-                    src="/images/W3DSLogoWhite.svg"
-                    alt="w3ds logo"
-                /> Post Platforms</span
+            <img
+                src="/marketplace.png"
+                alt="Marketplace"
+                class="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
+            />
+            <!-- Gradient overlay that fades towards the bottom -->
+            <div
+                class="absolute inset-0 z-1 bg-linear-to-t from-white via-white/60 to-transparent"
+            ></div>
+
+            <span
+                class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg"
+                >Discover Post Platforms</span
             >
-            <HugeiconsIcon size={24} strokeWidth={2} icon={LinkSquare02Icon} />
+            <span
+                class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
+                >Explore
+                <img
+                    src="/images/W3DSLogoBlack.svg"
+                    alt="W3DS Logo"
+                    class="h-4"
+                />
+                Marketplace
+                <span class="relative z-10">
+                    <HugeiconsIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        icon={LinkSquare02Icon}
+                    />
+                </span></span
+            >
         </Button.Nav>
     </main>
 
