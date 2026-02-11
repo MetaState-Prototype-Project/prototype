@@ -4,10 +4,8 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
-import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
-import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import * as falso from "@ngneat/falso";
@@ -22,7 +20,6 @@ let loading = $state(false);
 let verificationId = $state("");
 let demoName = $state("");
 let verificationSuccess = $state(false);
-let keyManager: KeyManager | null = $state(null);
 let showHardwareError = $state(false);
 let checkingHardware = $state(false);
 const KEY_ID = "default";
@@ -95,71 +92,13 @@ function generatePassportNumber() {
     return randomLetters() + randomDigits();
 }
 
-function getKeyContext(): KeyServiceContext {
-    return preVerified ? "pre-verification" : "onboarding";
-}
-
-async function initializeKeyManager() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        keyManager = await globalState.keyService.getManager(KEY_ID, context);
-        console.log(`Key manager initialized: ${keyManager.getType()}`);
-        return keyManager;
-    } catch (error) {
-        console.error("Failed to initialize key manager:", error);
-        throw error;
-    }
-}
-
-async function ensureKeyForContext() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        const { manager, created } = await globalState.keyService.ensureKey(
-            KEY_ID,
-            context,
-        );
-        keyManager = manager;
-        console.log(
-            "Key generation result:",
-            created ? "key-generated" : "key-exists",
-        );
-        return { manager, created };
-    } catch (error) {
-        console.error("Failed to ensure key:", error);
-        throw error;
-    }
-}
-
-async function getApplicationPublicKey() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        if (!keyManager) {
-            await initializeKeyManager();
-        }
-        const context = getKeyContext();
-        const publicKey = await globalState.keyService.getPublicKey(
-            KEY_ID,
-            context,
-        );
-        console.log("Public key retrieved:", publicKey);
-        return publicKey;
-    } catch (error) {
-        console.error("Public key retrieval failed:", error);
-        throw error;
-    }
-}
-
 const handleNext = async () => {
-    // Initialize keys for onboarding context before going to verify
     try {
         loading = true;
         if (!globalState) {
             globalState = getContext<() => GlobalState>("globalState")();
         }
-        await initializeKeyManager();
-        await ensureKeyForContext();
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
         loading = false;
         goto("/verify");
     } catch (err) {
@@ -201,9 +140,7 @@ onMount(async () => {
         error = null;
 
         try {
-            // Initialize key manager for pre-verification context
-            await initializeKeyManager();
-            await ensureKeyForContext();
+            await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
 
             const result = await provision(globalState.walletSdkAdapter, {
                 registryUrl: PUBLIC_REGISTRY_URL,
@@ -211,7 +148,7 @@ onMount(async () => {
                 namespace: uuidv4(),
                 verificationId,
                 keyId: "default",
-                context: "pre-verification",
+                context: "onboarding",
                 isPreVerification: true,
             });
             console.log("Provision response:", result);

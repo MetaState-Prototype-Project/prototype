@@ -282,8 +282,6 @@ export function createScanLogic({
         authLoading.set(true);
 
         try {
-            const isFake = await globalState.userController.isFake;
-            const signingContext = isFake ? "pre-verification" : "onboarding";
             const sessionPayload = get(session) as string;
 
             const { signature } = await authenticate(
@@ -291,7 +289,7 @@ export function createScanLogic({
                 {
                     sessionId: sessionPayload,
                     keyId: "default",
-                    context: signingContext,
+                    context: "onboarding",
                 },
             );
 
@@ -644,16 +642,12 @@ export function createScanLogic({
                 throw new Error("No vault available for signing");
             }
 
-            // Use same keyId/context as synced to eVault (default + onboarding/pre-verification)
-            const isFake = await globalState.userController.isFake;
-            const signingContext = isFake ? "pre-verification" : "onboarding";
-
             const { signature } = await authenticate(
                 globalState.walletSdkAdapter,
                 {
                     sessionId: currentSigningSessionId,
                     keyId: "default",
-                    context: signingContext,
+                    context: "onboarding",
                 },
             );
 
@@ -784,28 +778,14 @@ export function createScanLogic({
                 throw new Error("No vault available for blind voting");
             }
 
-            let voterPublicKey: string;
-            try {
-                const { created } = await globalState.keyService.ensureKey(
-                    vault.ename,
-                    "signing",
-                );
-                console.log(
-                    "Key generation result for blind voting:",
-                    created ? "key-generated" : "key-exists",
-                );
+            // Same default key via wallet-sdk adapter (no separate signing context)
+            await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
 
-                const w3idResult = vault.ename;
-                if (!w3idResult) {
-                    throw new Error("Failed to get W3ID");
-                }
-                voterPublicKey = w3idResult;
-
-                console.log("🔑 Voter W3ID retrieved:", voterPublicKey);
-            } catch (error) {
-                console.error("Failed to get W3ID using KeyManager:", error);
-                voterPublicKey = vault.ename || "unknown_public_key";
+            const voterPublicKey = vault.ename;
+            if (!voterPublicKey) {
+                throw new Error("Failed to get W3ID");
             }
+            console.log("🔑 Voter W3ID retrieved:", voterPublicKey);
 
             const { VotingSystem } = await import("blindvote");
 

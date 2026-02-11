@@ -105,14 +105,12 @@ export class VaultController {
             console.warn("No vault URI available, cannot sync public key");
             return;
         }
-        const isFake = await this.#userController.isFake;
-        const context = isFake ? "pre-verification" : "onboarding";
         try {
             await syncPublicKeyToEvault(this.#walletSdkAdapter, {
                 evaultUri: vault.uri,
                 eName,
                 keyId: "default",
-                context,
+                context: "onboarding",
                 authToken: PUBLIC_EID_WALLET_TOKEN || null,
                 registryUrl: PUBLIC_REGISTRY_URL,
             });
