@@ -1,22 +1,25 @@
 /**
- * Bring-your-own-crypto adapter interface.
- * The SDK uses this for key generation, public key export, and signing;
- * it does not ship or mandate a concrete implementation.
+ * Crypto adapter interface (BYOC – bring your own crypto).
+ * Implement this to plug your key storage (e.g. KeyService + hardware/software managers) into the SDK.
  */
 export interface CryptoAdapter {
-  /**
-   * Generate a new key pair. Returns an opaque keyId and the public key
-   * in the format required by provisioning/whois (e.g. multibase).
-   */
-  generateKeyPair(): Promise<{ keyId: string; publicKey: string }>;
+    /**
+     * Return the public key for the given key id and context, or undefined if not found.
+     */
+    getPublicKey(keyId: string, context: string): Promise<string | undefined>;
 
-  /**
-   * Get the public key for the given keyId (multibase or format required by protocol).
-   */
-  getPublicKey(keyId: string): Promise<string>;
+    /**
+     * Sign a payload with the given key id and context. Must use the same key as getPublicKey.
+     */
+    signPayload(
+        keyId: string,
+        context: string,
+        payload: string,
+    ): Promise<string>;
 
-  /**
-   * Sign a payload string. Returns signature as base64 or multibase per protocol.
-   */
-  sign(keyId: string, payload: string): Promise<string>;
+    /**
+     * Ensure a key exists for the given key id and context (create if needed).
+     * Return value can be used to know if a key was created (optional).
+     */
+    ensureKey(keyId: string, context: string): Promise<{ created: boolean }>;
 }

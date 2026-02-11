@@ -292,7 +292,8 @@ The wallet creates signatures for various purposes:
 
 - **Framework**: Tauri (Rust + Web frontend)
 - **Frontend**: SvelteKit + TypeScript
-- **Key APIs**: 
+- **wallet-sdk**: The wallet uses the [wallet-sdk](/docs/Infrastructure/wallet-sdk) package for provisioning, platform authentication (signing), and public-key sync to eVault. Crypto is provided by the existing KeyService via a **CryptoAdapter** (BYOC), so hardware/software key manager behavior is unchanged.
+- **Key APIs**:
   - iOS: LocalAuthentication (Secure Enclave)
   - Android: KeyStore (HSM)
   - Web: Web Crypto API

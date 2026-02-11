@@ -4,10 +4,8 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
-import type { KeyManager } from "$lib/crypto";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
-import type { KeyServiceContext } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
@@ -16,6 +14,7 @@ import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
+import { provision } from "wallet-sdk";
 import DocumentType from "./steps/document-type.svelte";
 import Passport from "./steps/passport.svelte";
 import Selfie from "./steps/selfie.svelte";
@@ -103,7 +102,6 @@ let showVeriffModal = $state(false);
 let person: Person;
 let document: Document;
 let loading = $state(false);
-let keyManager: KeyManager | null = $state(null);
 let websocketData: { w3id?: string } | null = $state(null); // Store websocket data for duplicate case
 let hardwareKeySupported = $state(false);
 let hardwareKeyCheckComplete = $state(false);
@@ -111,17 +109,12 @@ const KEY_ID = "default";
 
 async function handleVerification() {
     try {
-        // Ensure keys are initialized before starting verification
-        if (!keyManager) {
-            try {
-                await initializeKeyManager();
-                await ensureKeyForVerification();
-            } catch (keyError) {
-                console.error("Failed to initialize keys:", keyError);
-                // If key initialization fails, go back to onboarding
-                await goto("/onboarding");
-                return;
-            }
+        try {
+            await globalState?.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        } catch (keyError) {
+            console.error("Failed to ensure key:", keyError);
+            await goto("/onboarding");
+            return;
         }
 
         const { data } = await axios.post(
@@ -187,10 +180,6 @@ function closeEventStream() {
     }
 }
 
-function getKeyContext(): KeyServiceContext {
-    return "verification";
-}
-
 // Check if hardware key is supported on this device
 async function checkHardwareKeySupport() {
     try {
@@ -205,57 +194,6 @@ async function checkHardwareKeySupport() {
         console.log("Hardware key is NOT supported on this device:", error);
     } finally {
         hardwareKeyCheckComplete = true;
-    }
-}
-
-// Initialize key manager for verification context
-async function initializeKeyManager() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        keyManager = await globalState.keyService.getManager(KEY_ID, context);
-        console.log(`Key manager initialized: ${keyManager.getType()}`);
-        return keyManager;
-    } catch (error) {
-        console.error("Failed to initialize key manager:", error);
-        throw error;
-    }
-}
-
-async function ensureKeyForVerification() {
-    try {
-        if (!globalState) throw new Error("Global state is not defined");
-        const context = getKeyContext();
-        const { manager, created } = await globalState.keyService.ensureKey(
-            KEY_ID,
-            context,
-        );
-        keyManager = manager;
-        console.log(
-            "Key generation result:",
-            created ? "key-generated" : "key-exists",
-        );
-        return { manager, created };
-    } catch (error) {
-        console.error("Failed to ensure key:", error);
-        throw error;
-    }
-}
-
-async function getApplicationPublicKey() {
-    if (!globalState) throw new Error("Global state is not defined");
-    if (!keyManager) {
-        await initializeKeyManager();
-    }
-
-    try {
-        const context = getKeyContext();
-        const res = await globalState.keyService.getPublicKey(KEY_ID, context);
-        console.log("Public key retrieved:", res);
-        return res;
-    } catch (e) {
-        console.error("Public key retrieval failed:", e);
-        throw e;
     }
 }
 
@@ -275,13 +213,10 @@ onMount(async () => {
         return;
     }
 
-    // Initialize key manager and check if default key pair exists
     try {
-        await initializeKeyManager();
-        await ensureKeyForVerification();
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
     } catch (error) {
-        console.error("Failed to initialize keys for verification:", error);
-        // If key initialization fails, redirect back to onboarding
+        console.error("Failed to ensure key for verification:", error);
         await goto("/onboarding");
         return;
     }
@@ -336,26 +271,25 @@ onMount(async () => {
                 ename: existingW3id,
             };
         } else {
-            // Normal flow for approved status
-            const {
-                data: { token: registryEntropy },
-            } = await axios.get(
-                new URL("/entropy", PUBLIC_REGISTRY_URL).toString(),
-            );
-            const { data } = await axios.post(
-                new URL("/provision", PUBLIC_PROVISIONER_URL).toString(),
-                {
-                    registryEntropy,
-                    namespace: uuidv4(),
-                    verificationId: $verificaitonId,
-                    publicKey: await getApplicationPublicKey(),
-                },
-            );
-            if (data.success === true) {
+            // Normal flow for approved status via wallet-sdk
+            const verificationId = $verificaitonId;
+            if (!verificationId) {
+                throw new Error("Verification ID required");
+            }
+            const result = await provision(globalState.walletSdkAdapter, {
+                registryUrl: PUBLIC_REGISTRY_URL,
+                provisionerUrl: PUBLIC_PROVISIONER_URL,
+                namespace: uuidv4(),
+                verificationId,
+                keyId: "default",
+                context: "onboarding",
+                isPreVerification: false,
+            });
+            if (result.success) {
                 // Set vault in controller - this will trigger profile creation with retry logic
                 globalState.vaultController.vault = {
-                    uri: data.uri,
-                    ename: data.w3id,
+                    uri: result.uri,
+                    ename: result.w3id,
                 };
             }
         }

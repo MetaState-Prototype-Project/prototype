@@ -46,7 +46,8 @@
         "svelte-loading-spinners": "^0.3.6",
         "svelte-qrcode": "^1.0.1",
         "tailwind-merge": "^3.0.2",
-        "uuid": "^11.1.0"
+        "uuid": "^11.1.0",
+        "wallet-sdk": "workspace:*"
     },
     "devDependencies": {
         "@biomejs/biome": "^1.9.4",
