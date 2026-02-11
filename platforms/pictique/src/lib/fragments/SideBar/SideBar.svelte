@@ -15,7 +15,7 @@
 	}
 	let {
 		activeTab = $bindable('home'),
-		profileSrc = 'images/user.png',
+		profileSrc = '/images/user.png',
 		handlePost,
 		...restProps
 	}: ISideBarProps = $props();
@@ -164,7 +164,7 @@
 				/>
 			</span>
 			<h3
-				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-[4px]`}
+				class={`${activeTab === 'profile' ? 'text-brand-burnt-orange' : 'text-black-800'} mt-1`}
 			>
 				Profile
 			</h3>

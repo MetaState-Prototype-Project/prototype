@@ -5,7 +5,7 @@ import type { GlobalState } from "$lib/global";
 import { Drawer, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
-    CircleArrowDataTransferDiagonalFreeIcons,
+    LinkSquare02Icon,
     QrCodeIcon,
     Settings02Icon,
 } from "@hugeicons/core-free-icons";
@@ -135,6 +135,7 @@ onDestroy(() => {
                 Welcome back to your eID Wallet
             {/snippet}
         </Hero>
+
         <Button.Nav href="/settings">
             <HugeiconsIcon
                 size={32}
@@ -166,14 +167,26 @@ onDestroy(() => {
             userData={userData as Record<string, string>}
         />
     {/snippet}
-    {#snippet eVault()}
-        <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
-    {/snippet}
 
     <main class="pb-12">
         {@render Section("eName", eName)}
         {@render Section("ePassport", ePassport)}
-        {@render Section("eVault", eVault)}
+
+        <Button.Nav
+            href="https://marketplace.w3ds.metastate.foundation/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer"
+        >
+            <span class="text-lg font-medium flex gap-2"
+                >Discover <img
+                    class="w-12"
+                    src="/images/W3DSLogoWhite.svg"
+                    alt="w3ds logo"
+                /> Post Platforms</span
+            >
+            <HugeiconsIcon size={24} strokeWidth={2} icon={LinkSquare02Icon} />
+        </Button.Nav>
     </main>
 
     <Drawer

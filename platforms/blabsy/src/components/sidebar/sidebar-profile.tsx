@@ -142,7 +142,7 @@ export function SidebarProfile(): JSX.Element {
                                                 onClick={openModal}
                                             >
                                                 <HeroIcon iconName='ArrowRightOnRectangleIcon' />
-                                                Log out @{username || 'user'}
+                                                Log out
                                             </Button>
                                         )}
                                     </Menu.Item>
