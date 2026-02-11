@@ -1,26 +1,33 @@
-import type { CryptoAdapter } from "../crypto-adapter";
+import type { CryptoAdapter } from "../crypto-adapter.js";
 
 const TEST_PUBLIC_KEY = "test-public-key-base64-or-multibase";
 const KEY_ID = "test-key-1";
+
+function toBase64(s: string): string {
+	return btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+}
 
 /**
  * In-memory test double for CryptoAdapter. Deterministic key and fake signatures.
  * For use in SDK unit/integration tests only; no real crypto.
  */
 export class TestCryptoAdapter implements CryptoAdapter {
-  private keys = new Map<string, string>();
+	private keys = new Map<string, string>();
 
-  async generateKeyPair(): Promise<{ keyId: string; publicKey: string }> {
-    this.keys.set(KEY_ID, TEST_PUBLIC_KEY);
-    return { keyId: KEY_ID, publicKey: TEST_PUBLIC_KEY };
-  }
+	async getPublicKey(keyId: string, _context: string): Promise<string | undefined> {
+		const pk = this.keys.get(keyId) ?? TEST_PUBLIC_KEY;
+		return pk;
+	}
 
-  async getPublicKey(keyId: string): Promise<string> {
-    const pk = this.keys.get(keyId) ?? TEST_PUBLIC_KEY;
-    return pk;
-  }
+	async signPayload(keyId: string, _context: string, payload: string): Promise<string> {
+		return `sig:${keyId}:${toBase64(payload)}`;
+	}
 
-  async sign(keyId: string, payload: string): Promise<string> {
-    return `sig:${keyId}:${Buffer.from(payload, "utf-8").toString("base64")}`;
-  }
+	async ensureKey(keyId: string, _context: string): Promise<{ created: boolean }> {
+		if (!this.keys.has(keyId)) {
+			this.keys.set(keyId, TEST_PUBLIC_KEY);
+			return { created: true };
+		}
+		return { created: false };
+	}
 }
