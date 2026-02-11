@@ -1,5 +1,9 @@
 <script lang="ts">
-    import { provision, syncPublicKeyToEvault, signPayload } from "wallet-sdk";
+    import {
+        provision,
+        syncPublicKeyToEvaultWithOptions,
+        signPayload,
+    } from "wallet-sdk";
     import { env } from "$env/dynamic/public";
     import { PersistingWebCryptoAdapter } from "$lib/PersistingWebCryptoAdapter";
     import {
@@ -204,11 +208,12 @@
             addLog("info", "Syncing public key…");
             try {
                 const token = await ensurePlatformToken(identity);
-                await syncPublicKeyToEvault({
+                await syncPublicKeyToEvaultWithOptions({
                     evaultUrl: identity.uri,
                     eName: identity.w3id,
                     cryptoAdapter: adapter,
                     keyId: identity.keyId,
+                    context: "onboarding",
                     token,
                 });
                 addLog("success", "Public key synced");
@@ -296,6 +301,7 @@
                 const signature = await signPayload({
                     cryptoAdapter: adapter,
                     keyId: selectedIdentity.keyId,
+                    context: "onboarding",
                     payload: sessionId,
                 });
                 const body = {
@@ -339,6 +345,7 @@
                 const signature = await signPayload({
                     cryptoAdapter: adapter,
                     keyId: selectedIdentity.keyId,
+                    context: "onboarding",
                     payload: sessionId,
                 });
                 const body = {
@@ -404,6 +411,7 @@
             const sig = await signPayload({
                 cryptoAdapter: adapter,
                 keyId: selectedIdentity.keyId,
+                context: "onboarding",
                 payload: signPayloadInput,
             });
             signResult = sig;

@@ -272,11 +272,15 @@ onMount(async () => {
             };
         } else {
             // Normal flow for approved status via wallet-sdk
+            const verificationId = $verificaitonId;
+            if (!verificationId) {
+                throw new Error("Verification ID required");
+            }
             const result = await provision(globalState.walletSdkAdapter, {
                 registryUrl: PUBLIC_REGISTRY_URL,
                 provisionerUrl: PUBLIC_PROVISIONER_URL,
                 namespace: uuidv4(),
-                verificationId: $verificaitonId,
+                verificationId,
                 keyId: "default",
                 context: "onboarding",
                 isPreVerification: false,
