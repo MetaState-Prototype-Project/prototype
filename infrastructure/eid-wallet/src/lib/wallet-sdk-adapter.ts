@@ -1,6 +1,6 @@
-import type { CryptoAdapter } from "wallet-sdk";
 import type { KeyService } from "$lib/global/controllers/key";
 import type { KeyServiceContext } from "$lib/global/controllers/key";
+import type { CryptoAdapter } from "wallet-sdk";
 
 /**
  * Adapts KeyService to wallet-sdk CryptoAdapter (BYOC).

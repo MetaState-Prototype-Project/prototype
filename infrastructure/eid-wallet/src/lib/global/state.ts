@@ -1,7 +1,7 @@
 import { Store } from "@tauri-apps/plugin-store";
 import type { CryptoAdapter } from "wallet-sdk";
-import { createKeyServiceCryptoAdapter } from "../wallet-sdk-adapter";
 import NotificationService from "../services/NotificationService";
+import { createKeyServiceCryptoAdapter } from "../wallet-sdk-adapter";
 import { VaultController } from "./controllers/evault";
 import { KeyService } from "./controllers/key";
 import { SecurityController } from "./controllers/security";

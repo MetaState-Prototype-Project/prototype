@@ -10,9 +10,9 @@ import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import * as falso from "@ngneat/falso";
 import { getContext, onMount } from "svelte";
-import { provision } from "wallet-sdk";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
+import { provision } from "wallet-sdk";
 
 let isPaneOpen = $state(false);
 let preVerified = $state(false);
