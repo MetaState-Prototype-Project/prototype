@@ -8,6 +8,6 @@ export type { SyncPublicKeyOptions } from "./sync-public-key.js";
 export { signPayload } from "./sync-and-sign.js";
 export type { SignPayloadOptions } from "./sync-and-sign.js";
 export {
-	syncPublicKeyToEvault as syncPublicKeyToEvaultWithOptions,
+    syncPublicKeyToEvault as syncPublicKeyToEvaultWithOptions,
 } from "./sync-and-sign.js";
 export type { SyncPublicKeyToEvaultOptions } from "./sync-and-sign.js";

@@ -6,28 +6,25 @@ import type { KeyServiceContext } from "$lib/global/controllers/key";
  * Adapts KeyService to wallet-sdk CryptoAdapter (BYOC).
  */
 export function createKeyServiceCryptoAdapter(
-	keyService: KeyService,
+    keyService: KeyService,
 ): CryptoAdapter {
-	return {
-		async getPublicKey(keyId: string, context: string) {
-			return keyService.getPublicKey(
-				keyId,
-				context as KeyServiceContext,
-			);
-		},
-		async signPayload(keyId: string, context: string, payload: string) {
-			return keyService.signPayload(
-				keyId,
-				context as KeyServiceContext,
-				payload,
-			);
-		},
-		async ensureKey(keyId: string, context: string) {
-			const { created } = await keyService.ensureKey(
-				keyId,
-				context as KeyServiceContext,
-			);
-			return { created };
-		},
-	};
+    return {
+        async getPublicKey(keyId: string, context: string) {
+            return keyService.getPublicKey(keyId, context as KeyServiceContext);
+        },
+        async signPayload(keyId: string, context: string, payload: string) {
+            return keyService.signPayload(
+                keyId,
+                context as KeyServiceContext,
+                payload,
+            );
+        },
+        async ensureKey(keyId: string, context: string) {
+            const { created } = await keyService.ensureKey(
+                keyId,
+                context as KeyServiceContext,
+            );
+            return { created };
+        },
+    };
 }

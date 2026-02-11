@@ -779,7 +779,10 @@ export function createScanLogic({
             }
 
             // Same default key via wallet-sdk adapter (no separate signing context)
-            await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
+            await globalState.walletSdkAdapter.ensureKey(
+                "default",
+                "onboarding",
+            );
 
             const voterPublicKey = vault.ename;
             if (!voterPublicKey) {
