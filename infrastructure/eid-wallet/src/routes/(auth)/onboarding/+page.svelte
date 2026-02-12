@@ -7,203 +7,194 @@ import {
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
-import { capitalize } from "$lib/utils";
-import * as falso from "@ngneat/falso";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
 
-let isPaneOpen = $state(false);
-let preVerified = $state(false);
+// ========================================
+// DEMO MODE - Set to true to test without backend
+// ========================================
+const DEMO_MODE = true; // Toggle this for testing
+
+// Component state
 let loading = $state(false);
-let verificationId = $state("");
-let demoName = $state("");
-let verificationSuccess = $state(false);
-let showHardwareError = $state(false);
-let checkingHardware = $state(false);
+let creatingIdentity = $state(false);
+let error: string | null = $state(null);
+let statusMessage: string | null = $state(null);
+
 const KEY_ID = "default";
 
-const handleGetStarted = async () => {
-    isPaneOpen = true;
-    preVerified = false;
-    checkingHardware = true;
-    showHardwareError = false;
+let globalState: GlobalState;
+
+// Identit creation result
+let ename: string = $state("");
+let vaultUri: string = $state("");
+
+onMount(async () => {
+    globalState = getContext<() => GlobalState>("globalState")();
+});
+
+/**
+ * Entry point - user clicks "Get Started"
+ * Creates baseline identity then navigates to KYC page
+ */
+async function handleGetStarted() {
+    console.log("=== Onboarding: Get Started ===");
     error = null;
 
     try {
-        if (!globalState) {
-            globalState = getContext<() => GlobalState>("globalState")();
-        }
-        globalState.userController.isFake = false;
-        // Actually try to generate a test hardware key
-        const testKeyId = `hardware-test-${Date.now()}`;
-        console.log(
-            "Testing hardware key generation with test key:",
-            testKeyId,
-        );
+        console.log("Starting baseline identity creation...");
+        // Create baseline identity first
+        await createBaselineIdentity();
 
-        try {
-            const { manager, created } = await globalState.keyService.ensureKey(
-                testKeyId,
-                "onboarding",
-            );
-            console.log(
-                "Test key result - Manager type:",
-                manager.getType(),
-                "Created:",
-                created,
-            );
-
-            // Check if we got hardware manager and it actually created a key
-            if (manager.getType() !== "hardware") {
-                throw new Error("Got software fallback instead of hardware");
-            }
-
-            // Hardware works! Clean up test key and proceed
-            console.log("Hardware keys are working");
-            checkingHardware = false;
-        } catch (keyError) {
-            console.error("Hardware key test failed:", keyError);
-            showHardwareError = true;
-            checkingHardware = false;
-        }
+        console.log("Identity created, navigating to /kyc...");
+        // Navigate to KYC page
+        await goto("/kyc");
     } catch (err) {
-        console.error("Error checking hardware:", err);
-        showHardwareError = true;
-        checkingHardware = false;
-    }
-};
-
-const handlePreVerified = () => {
-    globalState.userController.isFake = true;
-    isPaneOpen = true;
-    preVerified = true;
-};
-
-function generatePassportNumber() {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const randomLetters = () =>
-        letters.charAt(Math.floor(Math.random() * letters.length)) +
-        letters.charAt(Math.floor(Math.random() * letters.length));
-    const randomDigits = () =>
-        String(Math.floor(1000000 + Math.random() * 9000000)); // 7 digits
-
-    return randomLetters() + randomDigits();
-}
-
-const handleNext = async () => {
-    try {
-        loading = true;
-        if (!globalState) {
-            globalState = getContext<() => GlobalState>("globalState")();
-        }
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
-        loading = false;
-        goto("/verify");
-    } catch (err) {
-        console.error("Failed to initialize keys for onboarding:", err);
-        error = "Failed to initialize security keys. Please try again.";
-        loading = false;
+        console.error("Failed to create identity:", err);
+        error = "Failed to create identity. Please try again.";
         setTimeout(() => {
             error = null;
         }, 5000);
     }
-};
+}
 
-let globalState: GlobalState;
-let handleContinue: () => Promise<void> | void = $state(() => {});
-let handleFinalSubmit: () => Promise<void> | void = $state(() => {});
-let ename: string;
-let uri: string;
+/**
+ * Core identity creation flow
+ * Always executed regardless of KYC choice
+ *
+ * Creates:
+ * 1. Keypair (hardware on real device, software for testing)
+ * 2. eVault instance
+ * 3. ePassport (Remote CA signed certificate binding eName to publicKey)
+ * 4. Self-asserted profile binding (self-signed)
+ * 5. Passphrase hash binding (created during PIN setup in /register)
+ */
+async function createBaselineIdentity() {
+    creatingIdentity = true;
+    loading = true;
 
-let error: string | null = $state(null);
+    try {
+        console.log("=== Baseline Identity Creation Started ===");
 
-onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    // handle verification logic + sec user data in the store
+        if (!globalState) {
+            throw new Error(
+                "GlobalState not initialized. Please wait a moment and try again.",
+            );
+        }
 
-    // Don't initialize key manager here - wait until user chooses their path
+        if (DEMO_MODE) {
+            console.log("🎭 DEMO MODE: Creating mock identity");
+            statusMessage = "🎭 Demo: Generating mock identity...";
 
-    handleContinue = async () => {
-        // Require both verification code and name
-        if (
-            !verificationId ||
-            !demoName ||
-            verificationId.length === 0 ||
-            demoName.length === 0
-        ) {
+            // Enable demo mode on vault controller to skip network operations
+            globalState.vaultController.demoMode = true;
+
+            // Simulate some delay to show it's working
+            await new Promise((resolve) => setTimeout(resolve, 800));
+
+            // Generate mock data
+            ename = `@demo-${uuidv4().substring(0, 8)}`;
+            vaultUri = `http://localhost:4000/evault/${ename}`;
+            const mockPublicKey = `demo-pubkey-${ename}`;
+
+            statusMessage = `🎭 Demo: Created ${ename}`;
+            console.log("🎭 DEMO: Mock eVault provisioned:", {
+                ename,
+                uri: vaultUri,
+            });
+
+            // Store vault info in controller
+            globalState.vaultController.vault = {
+                uri: vaultUri,
+                ename,
+            };
+
+            globalState.vaultController.emitAuditEvent("KEYPAIR_GENERATED", {
+                keyType: "demo-software",
+            });
+
+            globalState.vaultController.emitAuditEvent("EVAULT_PROVISIONED", {
+                ename,
+            });
+
+            // Step 4: Request ePassport from Remote CA (stub)
+            statusMessage = "🎭 Demo: Requesting ePassport...";
+            await globalState.vaultController.requestEPassport(
+                ename,
+                mockPublicKey,
+            );
+
+            // Step 5: Create self-asserted profile binding (stub)
+            statusMessage = "🎭 Demo: Creating profile binding...";
+            await globalState.vaultController.createBindingDocument(
+                "SELF_ASSERTED_PROFILE",
+                { ename, source: "onboarding", selfAsserted: true },
+                "demo-self-signed-signature",
+            );
+
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            statusMessage = null;
+
+            console.log("=== Baseline Identity Creation Complete (DEMO) ===");
             return;
         }
 
-        loading = true;
-        error = null;
+        console.log("=== Step 1: Generate Keypair ===");
 
-        try {
-            await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        // Generate keypair via wallet-sdk adapter
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
 
-            const result = await provision(globalState.walletSdkAdapter, {
-                registryUrl: PUBLIC_REGISTRY_URL,
-                provisionerUrl: PUBLIC_PROVISIONER_URL,
-                namespace: uuidv4(),
-                verificationId,
-                keyId: "default",
-                context: "onboarding",
-                isPreVerification: true,
-            });
-            console.log("Provision response:", result);
+        console.log("=== Steps 2-4: Provision eVault ===");
 
-            verificationSuccess = true;
-            uri = result.uri;
-            ename = result.w3id;
-        } catch (err) {
-            console.error("Pre-verification failed:", err);
+        // Provision eVault (handles entropy, provisioning, and key binding)
+        const result = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: "",
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: true,
+        });
 
-            preVerified = false;
-            verificationId = "";
-            demoName = "";
-            error = "Wrong pre-verification code";
+        console.log("Provision response:", result);
 
-            setTimeout(() => {
-                error = null;
-            }, 6000);
-        } finally {
-            loading = false;
-        }
-    };
+        ename = result.w3id;
+        vaultUri = result.uri;
 
-    // New function to handle final submission with demo name
-    handleFinalSubmit = async () => {
-        loading = true;
-
-        const tenYearsLater = new Date();
-        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-        globalState.userController.user = {
-            name:
-                demoName ||
-                capitalize(`${falso.randFirstName()} ${falso.randLastName()}`),
-            "Date of Birth": new Date().toDateString(),
-            "ID submitted": `Passport - ${falso.randCountryCode()}`,
-            "Passport Number": generatePassportNumber(),
-        };
-        globalState.userController.isFake = true;
-        globalState.userController.document = {
-            "Valid From": new Date(Date.now()).toDateString(),
-            "Valid Until": tenYearsLater.toDateString(),
-            "Verified On": new Date().toDateString(),
-        };
-
-        // Set vault in controller - this will trigger profile creation with retry logic
+        // Store vault info in controller
         globalState.vaultController.vault = {
-            uri,
+            uri: vaultUri,
             ename,
         };
 
-        setTimeout(() => {
-            goto("/register");
-        }, 10_000);
-    };
-});
+        // Emit audit event for eVault creation
+        globalState.vaultController.emitAuditEvent("EVAULT_PROVISIONED", {
+            ename,
+        });
+
+        console.log("=== Step 5: Create Self-Asserted Profile Binding ===");
+
+        // Create self-asserted profile binding document (stub)
+        await globalState.vaultController.createBindingDocument(
+            "SELF_ASSERTED_PROFILE",
+            { ename, source: "onboarding", selfAsserted: true },
+            "self-signed",
+        );
+
+        // Note: Passphrase hash binding will be created during PIN setup in /register
+
+        console.log("=== Baseline Identity Creation Complete ===");
+    } catch (err) {
+        console.error("Baseline identity creation failed:", err);
+        throw err;
+    } finally {
+        creatingIdentity = false;
+        loading = false;
+    }
+}
 </script>
 
 <main
@@ -216,215 +207,85 @@ onMount(async () => {
             alt="Infographic card"
         />
     </article>
+
     <section>
         <Hero class="mb-4" titleClasses="text-[42px]/[1.1] font-medium">
             {#snippet subtitle()}
                 Your Digital Self consists of three core elements: <br />
                 <strong>– eName</strong> – your digital identifier, a number
                 <br />
-                <strong>– ePassport</strong> – your cryptographic keys, enabling
-                your agency and control
+                <strong>– ePassport</strong> – your cryptographic keys,
+                enabling your agency and control
                 <br />
-                <strong>– eVault</strong> – the secure repository of all your
-                personal data. You will decide who can access it, and how. You
-                are going to get them now.
+                <strong>– eVault</strong> – the secure repository of all
+                your personal data. You will decide who can access it, and how.
+                You are going to get them now.
                 <br />
             {/snippet}
             Your Digital Self<br />
             <h4>in Web 3.0 Data Space</h4>
         </Hero>
     </section>
-    <section>
-        <p class="text-center small text-black-500">
-            By continuing you agree to our <br />
-            <a
-                href="https://metastate.foundation/"
-                rel="noopener noreferrer"
-                class="text-primary underline underline-offset-4"
-                target="_blank"
-                >Terms & Conditions
-            </a>
-            and
-            <a
-                href="https://metastate.foundation/"
-                rel="noopener noreferrer"
-                target="_blank"
-                class="text-primary underline underline-offset-4"
-                >Privacy Policy.</a
-            >
-        </p>
-        <div class="flex justify-center whitespace-nowrap mt-1">
-            <ButtonAction
-                class="w-full"
-                callback={handleGetStarted}
-                disabled={checkingHardware}
-            >
-                {checkingHardware ? "Checking device..." : "Get Started"}
-            </ButtonAction>
+
+    {#if error}
+        <div class="bg-red-500 text-white rounded-md p-3 mb-4 text-center">
+            {error}
         </div>
-
-        <p class="mt-2 text-center pb-12">
-            Already have a pre-verification code? <button
-                onclick={handlePreVerified}
-                class="text-primary-500">Click Here</button
-            >
+    {:else if statusMessage}
+        <p class="text-sm text-blue-600 dark:text-blue-400 font-mono">
+            {statusMessage}
         </p>
-    </section>
-</main>
-
-{#if isPaneOpen}
-    <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
-        <div class="min-h-full flex flex-col p-6">
-            <article class="grow flex flex-col items-start w-full">
-                <img
-                    src="/images/GetStarted.svg"
-                    alt="get-started"
-                    class="w-full mb-4"
-                />
-
-                {#if error}
-                    <div
-                        class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white mb-4"
-                    >
-                        {error}
-                    </div>
-                {/if}
-
-                {#if loading}
-                    <div
-                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255)" />
-                        <h4 class="text-center">Generating your eName</h4>
-                    </div>
-                {:else if preVerified}
-                    {#if verificationSuccess}
-                        <h4 class="mt-2 mb-2 text-left">
-                            Verification Successful!
-                        </h4>
-                        <p class="text-black-700">
-                            Your demo name: <strong>{demoName}</strong>
-                        </p>
-                        <p class="text-black-700 mt-2">
-                            You can now continue to create your ePassport.
-                        </p>
-                    {:else}
-                        <h4 class="mt-2 mb-2 text-left">
-                            Welcome to Web 3.0 Data Spaces
-                        </h4>
-                        <p class="text-black-700 font-medium">
-                            Enter Verification Code
-                        </p>
-                        <input
-                            type="text"
-                            bind:value={verificationId}
-                            class="border border-gray-200 w-full rounded-md font-medium my-2 p-3 bg-gray-50 focus:bg-white transition-colors"
-                            placeholder="Enter verification code"
-                        />
-                        <p class="text-black-700 font-medium mt-4">
-                            Enter Demo Name for your ePassport
-                        </p>
-                        <input
-                            type="text"
-                            bind:value={demoName}
-                            class="border border-gray-200 w-full rounded-md font-medium my-2 p-3 bg-gray-50 focus:bg-white transition-colors"
-                            placeholder="Enter your demo name"
-                        />
-                    {/if}
-                {:else if checkingHardware}
-                    <div
-                        class="w-full py-20 flex flex-col items-center justify-center gap-6"
-                    >
-                        <Shadow size={40} color="rgb(142, 82, 255)" />
-                        <h4 class="text-center">
-                            Checking device capabilities...
-                        </h4>
-                    </div>
-                {:else if showHardwareError}
-                    <h4 class="mt-2 mb-2 text-red-600 text-left">
-                        Hardware Security Not Available
-                    </h4>
-                    <p class="text-black-700 mb-4">
-                        Your phone doesn't support hardware crypto keys, which
-                        is a requirement for verified IDs.
+    {/if}
+    {#if creatingIdentity}
+        <div class="flex flex-col items-center justify-center py-8 gap-4">
+            <Shadow size={40} color="rgb(142, 82, 255)" />
+            <p class="text-center text-gray-700 dark:text-gray-300">
+                Creating your Digital Identity...
+            </p>
+            {#if DEMO_MODE}
+                <p class="text-xs text-blue-600 dark:text-blue-400">
+                    🎭 Demo Mode Active
+                </p>
+            {/if}
+        </div>
+    {:else}
+        <section>
+            <p class="text-center small text-black-500">
+                By continuing you agree to our <br />
+                <a
+                    href="https://metastate.foundation/"
+                    rel="noopener noreferrer"
+                    class="text-primary underline underline-offset-4"
+                    target="_blank"
+                    >Terms & Conditions
+                </a>
+                and
+                <a
+                    href="https://metastate.foundation/"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                    class="text-primary underline underline-offset-4"
+                    >Privacy Policy.</a
+                >
+            </p>
+            {#if DEMO_MODE}
+                <div
+                    class="bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-lg p-2 mb-2 text-center"
+                >
+                    <p class="text-xs text-blue-800 dark:text-blue-200">
+                        🎭 Demo Mode - No backend required
                     </p>
-                    <p class="text-black-700">
-                        Please use the pre-verification code option to create a
-                        demo account instead.
-                    </p>
-                {:else}
-                    <h4 class="mt-2 mb-4 text-left">
-                        Your Digital Self begins with the Real You
-                    </h4>
-                    <p class="text-black-700 leading-relaxed">
-                        In the Web 3.0 Data Space, identity is linked to
-                        reality. We begin by verifying your real-world passport,
-                        which serves as the foundation for issuing your secure
-                        ePassport. At the same time, we generate your eName – a
-                        unique digital identifier – and create your eVault to
-                        store and protect your personal data.
-                    </p>
-                {/if}
-            </article>
-
-            <div class="flex-none pt-8 pb-12">
-                {#if !loading && !checkingHardware}
-                    <div class="flex w-full items-stretch gap-3">
-                        <div class="flex-1">
-                            <ButtonAction
-                                variant="soft"
-                                class="w-full h-full"
-                                callback={() => {
-                                    isPaneOpen = false;
-                                }}
-                            >
-                                Back
-                            </ButtonAction>
-                        </div>
-
-                        <div class="flex-1 flex">
-                            {#if preVerified}
-                                {#if verificationSuccess}
-                                    <ButtonAction
-                                        variant="solid"
-                                        class="w-full h-full"
-                                        callback={handleFinalSubmit}
-                                    >
-                                        Continue
-                                    </ButtonAction>
-                                {:else}
-                                    <ButtonAction
-                                        variant={verificationId.length === 0 ||
-                                        demoName.length === 0
-                                            ? "soft"
-                                            : "solid"}
-                                        disabled={verificationId.length === 0 ||
-                                            demoName.length === 0}
-                                        class="w-full h-full"
-                                        callback={handleContinue}
-                                    >
-                                        Next
-                                    </ButtonAction>
-                                {/if}
-                            {:else if showHardwareError}
-                                <ButtonAction
-                                    class="w-full h-full whitespace-nowrap"
-                                    callback={handlePreVerified}
-                                >
-                                    Enter Code
-                                </ButtonAction>
-                            {:else}
-                                <ButtonAction
-                                    class="w-full h-full"
-                                    callback={handleNext}
-                                >
-                                    Next
-                                </ButtonAction>
-                            {/if}
-                        </div>
-                    </div>
-                {/if}
+                </div>
+            {/if}
+            <div class="flex justify-center whitespace-nowrap mt-1">
+                <ButtonAction
+                    class="w-full"
+                    callback={handleGetStarted}
+                    disabled={loading}
+                >
+                    Get Started
+                </ButtonAction>
             </div>
-        </div>
-    </div>
-{/if}
+        </section>
+    {/if}
+</main>

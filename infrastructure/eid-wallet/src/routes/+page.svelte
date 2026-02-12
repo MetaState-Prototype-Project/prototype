@@ -11,8 +11,24 @@ let clearPin = $state(async () => {});
 let cleared = $state(false);
 
 onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-    if (!globalState) throw new Error("Global state is not defined");
+    // Wait for globalState to be available (it's initialized in the layout)
+    const getGlobalState = getContext<() => GlobalState>("globalState");
+    let retries = 0;
+    const maxRetries = 50; // Wait up to 5 seconds
+
+    while (!globalState && retries < maxRetries) {
+        globalState = getGlobalState();
+        if (!globalState) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            retries++;
+        }
+    }
+
+    if (!globalState) {
+        console.error("Global state is still not defined after waiting");
+        return;
+    }
+
     clearPin = async () => {
         try {
             await globalState?.securityController.clearPin();

@@ -35,6 +35,25 @@ async function ensureMinimumDelay() {
     await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
+/**
+ * Helper to add a timeout to any promise
+ */
+function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    name: string,
+): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(
+                () => reject(new Error(`${name} timed out after ${ms}ms`)),
+                ms,
+            ),
+        ),
+    ]);
+}
+
 onMount(async () => {
     let status: Status | undefined = undefined;
     try {
@@ -46,8 +65,13 @@ onMount(async () => {
         };
     }
     runtime.biometry = status.biometryType;
+
     try {
-        globalState = await GlobalState.create();
+        globalState = await withTimeout(
+            GlobalState.create(),
+            10000,
+            "GlobalState.create",
+        );
     } catch (error) {
         console.error("Failed to initialize global state:", error);
         // Show error and prevent app from continuing without global state

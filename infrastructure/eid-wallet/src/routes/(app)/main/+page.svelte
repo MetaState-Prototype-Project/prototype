@@ -2,12 +2,17 @@
 import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { AssuranceLevel } from "$lib/global/controllers/user";
 import { Drawer, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
+    ArrowRight01Icon,
     LinkSquare02Icon,
     QrCodeIcon,
+    SecurityCheckIcon,
+    SecurityValidationIcon,
     Settings02Icon,
+    ShieldKeyIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { type Snippet, getContext, onMount } from "svelte";
@@ -18,6 +23,7 @@ import QrCode from "svelte-qrcode";
 let userData: Record<string, unknown> | undefined = $state(undefined);
 let greeting: string | undefined = $state(undefined);
 let ename: string | undefined = $state(undefined);
+let assuranceLevel = $state<AssuranceLevel>(AssuranceLevel.UNVERIFIED);
 let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
 
@@ -64,7 +70,8 @@ onMount(() => {
     (async () => {
         const userInfo = await globalState.userController.user;
         const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
+        assuranceLevel = (await globalState.userController.assuranceLevel) ?? AssuranceLevel.UNVERIFIED;
+        userData = { ...userInfo, isFake, assuranceLevel };
         const vaultData = await globalState.vaultController.vault;
         ename = vaultData?.ename;
     })();
@@ -161,11 +168,44 @@ onDestroy(() => {
         />
     {/snippet}
     {#snippet ePassport()}
-        <IdentityCard
-            variant="ePassport"
-            viewBtn={() => goto("/ePassport")}
-            userData={userData as Record<string, string>}
-        />
+        <div class="relative">
+            <IdentityCard
+                variant="ePassport"
+                viewBtn={() => goto("/ePassport")}
+                userData={userData as Record<string, string>}
+            />
+
+            <!-- Show upgrade banner for UNVERIFIED users -->
+            {#if assuranceLevel === AssuranceLevel.UNVERIFIED}
+                <button
+                    onclick={() => {
+                        // Emit audit event
+                        globalState.vaultController.emitAuditEvent(
+                            "KYC_UPGRADE_INITIATED",
+                            {
+                                source: "epassport_card",
+                                timestamp: new Date().toISOString(),
+                            },
+                        );
+                        goto("/verify");
+                    }}
+                    class="mt-2 w-full bg-linear-to-r from-primary-500 to-primary-300 text-white rounded-3xl p-3 flex items-center justify-between transition-all shadow-md"
+                >
+                    <div class="flex items-center gap-2">
+                        <HugeiconsIcon icon={SecurityCheckIcon} />
+                        <div class="text-left">
+                            <p class="font-semibold text-sm text-white">
+                                Verify Your Identity
+                            </p>
+                            <p class="text-xs opacity-90 text-white">
+                                Unlock all features
+                            </p>
+                        </div>
+                    </div>
+                    <HugeiconsIcon icon={ArrowRight01Icon} />
+                </button>
+            {/if}
+        </div>
     {/snippet}
 
     <main class="pb-12">

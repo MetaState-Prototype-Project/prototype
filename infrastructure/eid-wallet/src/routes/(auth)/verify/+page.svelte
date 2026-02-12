@@ -6,15 +6,12 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import { AssuranceLevel } from "$lib/global/controllers/user";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/svelte";
 import axios from "axios";
 import { getContext, onDestroy, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import { v4 as uuidv4 } from "uuid";
-import { provision } from "wallet-sdk";
 import DocumentType from "./steps/document-type.svelte";
 import Passport from "./steps/passport.svelte";
 import Selfie from "./steps/selfie.svelte";
@@ -98,6 +95,8 @@ type Person = {
 };
 
 let globalState: GlobalState | undefined = $state(undefined);
+let isDemoMode = $state(false);
+let isPostOnboardingUpgrade = $state(false); // True when user already has a vault
 let showVeriffModal = $state(false);
 let person: Person;
 let document: Document;
@@ -109,6 +108,101 @@ const KEY_ID = "default";
 
 async function handleVerification() {
     try {
+        // In demo mode, simulate the verification flow
+        if (isDemoMode) {
+            console.log("🎭 Demo mode: Simulating verification flow");
+
+            // Set step past the document/passport/selfie screens and show
+            // the loading spinner BEFORE opening the modal so the user
+            // never sees <DocumentType /> flash.
+            verifStep.set(3);
+            loading = true;
+            showVeriffModal = true;
+
+            // Simulate backend verification delay
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            status.set("approved");
+            reason.set("Demo verification successful");
+            loading = false;
+
+            // Create mock person and document data
+            person = {
+                firstName: {
+                    value: "Demo",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                lastName: {
+                    value: "User",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                dateOfBirth: {
+                    value: "1990-01-15",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                gender: {
+                    value: "unknown",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                nationality: {
+                    value: "XX",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                idNumber: {
+                    value: "DEMO123456",
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                address: {
+                    value: "Demo Address",
+                    confidenceCategory: "high",
+                    components: {},
+                    sources: ["demo"],
+                },
+                employer: "",
+                extraNames: "",
+                foreignerStatus: "",
+                occupation: "",
+                placeOfBirth: "",
+            };
+
+            document = {
+                type: { value: "passport" },
+                country: { value: "DEMO" },
+                number: {
+                    value: "DEMO" + Date.now().toString().slice(-6),
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                validFrom: {
+                    value: new Date().toISOString(),
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                validUntil: {
+                    value: new Date(
+                        Date.now() + 10 * 365 * 24 * 60 * 60 * 1000,
+                    ).toISOString(),
+                    confidenceCategory: "high",
+                    sources: ["demo"],
+                },
+                firstIssue: new Date(),
+                licenseNumber: "",
+                placeOfIssue: "",
+                processNumber: "",
+                residencePermitType: "",
+            };
+
+            console.log("🎭 Demo mode: Verification simulated as approved");
+            return;
+        }
+
+        // Real verification flow
+        // Ensure keys are initialized before starting verification
         try {
             await globalState?.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
         } catch (keyError) {
@@ -203,22 +297,40 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     // handle verification logic + sec user data in the store
 
-    // Check hardware key support first
-    await checkHardwareKeySupport();
+    // Check if we're in demo mode
+    isDemoMode = globalState.vaultController.demoMode;
+    console.log(
+        `Verify page: Demo mode is ${isDemoMode ? "enabled" : "disabled"}`,
+    );
 
-    // If hardware is not available, redirect back to onboarding
-    if (!hardwareKeySupported) {
-        console.log("Hardware not available, redirecting to onboarding");
-        await goto("/onboarding");
-        return;
-    }
+    // Detect if this is a post-onboarding upgrade (user already completed onboarding)
+    // We check isOnboardingComplete rather than vault existence because
+    // during first-time onboarding the vault is created before reaching this page
+    isPostOnboardingUpgrade = await globalState.isOnboardingComplete;
 
-    try {
-        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
-    } catch (error) {
-        console.error("Failed to ensure key for verification:", error);
-        await goto("/onboarding");
-        return;
+    // In demo mode, skip hardware checks entirely
+    if (isDemoMode) {
+        console.log("Demo mode: Skipping hardware key requirements");
+        hardwareKeySupported = true; // Pretend it's supported
+        hardwareKeyCheckComplete = true;
+    } else {
+        // Check hardware key support first
+        await checkHardwareKeySupport();
+
+        // If hardware is not available, don't redirect to onboarding
+        // (that would recreate identity). Just show the error in the UI.
+        if (!hardwareKeySupported) {
+            console.log("Hardware not available for verification");
+            return;
+        }
+
+        // Ensure keys via wallet-sdk adapter
+        try {
+            await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+        } catch (error) {
+            console.error("Failed to ensure key for verification:", error);
+            return;
+        }
     }
 
     handleContinue = async () => {
@@ -227,76 +339,167 @@ onMount(async () => {
         if (!globalState) throw new Error("Global state is not defined");
 
         loading = true;
-        globalState.userController.user = {
-            name: capitalize(
-                `${person.firstName.value} ${person.lastName.value ?? ""}`,
-            ),
-            "Date of Birth": new Date(person.dateOfBirth.value).toDateString(),
-            "ID submitted":
-                document.type.value === "passport"
-                    ? `Passport - ${document.country.value}`
-                    : document.type.value === "drivers_license"
-                      ? `Driving License - ${document.country.value}`
-                      : `ID Card - ${document.country.value}`,
-            "Document Number": document.number.value,
-        };
-        globalState.userController.document = {
-            "Valid From": new Date(document.validFrom.value).toDateString(),
-            "Valid Until": new Date(document.validUntil.value).toDateString(),
-            "Verified On": new Date().toDateString(),
-        };
-        globalState.userController.isFake = false;
 
-        if ($status === "duplicate") {
-            // For duplicate case, skip provision and resolve the existing eVault URI
-            // The w3id should be provided in the websocket data
-            const existingW3id = websocketData?.w3id; // This should come from the websocket data
-            if (!existingW3id) {
-                throw new Error("No w3id provided for duplicate eVault");
-            }
-
-            // Resolve the eVault URI from the registry
-            const response = await axios.get(
-                new URL(
-                    `resolve?w3id=${existingW3id}`,
-                    PUBLIC_REGISTRY_URL,
-                ).toString(),
-            );
-            // Skip profile creation for duplicates by setting status directly
-            globalState.vaultController.profileCreationStatus = "success";
-            // For duplicates, just set the vault without triggering profile creation
-            // since the eVault already exists with a profile
-            globalState.vaultController.vault = {
-                uri: response.data.uri,
-                ename: existingW3id,
+        try {
+            globalState.userController.user = {
+                name: capitalize(
+                    `${person.firstName.value} ${person.lastName.value ?? ""}`,
+                ),
+                "Date of Birth": new Date(
+                    person.dateOfBirth.value,
+                ).toDateString(),
+                "ID submitted":
+                    document.type.value === "passport"
+                        ? `Passport - ${document.country.value}`
+                        : document.type.value === "drivers_license"
+                          ? `Driving License - ${document.country.value}`
+                          : `ID Card - ${document.country.value}`,
+                "Document Number": document.number.value,
             };
-        } else {
-            // Normal flow for approved status via wallet-sdk
-            const verificationId = $verificaitonId;
-            if (!verificationId) {
-                throw new Error("Verification ID required");
-            }
-            const result = await provision(globalState.walletSdkAdapter, {
-                registryUrl: PUBLIC_REGISTRY_URL,
-                provisionerUrl: PUBLIC_PROVISIONER_URL,
-                namespace: uuidv4(),
-                verificationId,
-                keyId: "default",
-                context: "onboarding",
-                isPreVerification: false,
-            });
-            if (result.success) {
-                // Set vault in controller - this will trigger profile creation with retry logic
-                globalState.vaultController.vault = {
-                    uri: result.uri,
-                    ename: result.w3id,
-                };
-            }
-        }
+            globalState.userController.document = {
+                "Valid From": new Date(document.validFrom.value).toDateString(),
+                "Valid Until": new Date(
+                    document.validUntil.value,
+                ).toDateString(),
+                "Verified On": new Date().toDateString(),
+            };
+            globalState.userController.isFake = isDemoMode;
 
-        setTimeout(() => {
-            goto("/register");
-        }, 10_000);
+            // In demo mode, skip backend provisioning
+            if (isDemoMode) {
+                console.log(
+                    "🎭 Demo mode: Skipping backend provisioning, using existing demo vault",
+                );
+
+                const vaultInfo = await globalState.vaultController.vault;
+
+                // Create Physical ID binding document (stub)
+                await globalState.vaultController.createBindingDocument(
+                    "PHYSICAL_ID",
+                    {
+                        ename: vaultInfo?.ename,
+                        verificationId: "demo-verification",
+                        documentType: document.type.value,
+                        documentCountry: document.country.value,
+                    },
+                    "demo-ca-signed-signature",
+                );
+
+                // Set assurance level to KYC_VERIFIED
+                globalState.userController.assuranceLevel =
+                    AssuranceLevel.KYC_VERIFIED;
+
+                // Emit audit event
+                globalState.vaultController.emitAuditEvent(
+                    "ASSURANCE_UPGRADED",
+                    {
+                        ename: vaultInfo?.ename,
+                        from: AssuranceLevel.UNVERIFIED,
+                        to: AssuranceLevel.KYC_VERIFIED,
+                        source: isPostOnboardingUpgrade
+                            ? "post-onboarding"
+                            : "onboarding",
+                    },
+                );
+
+                // Navigate ΓÇö small delay to let store writes settle
+                setTimeout(() => {
+                    if (isPostOnboardingUpgrade) {
+                        goto("/main");
+                    } else {
+                        goto("/register");
+                    }
+                }, 500);
+                return;
+            }
+
+            if ($status === "duplicate") {
+                // For duplicate case, skip provision and resolve the existing eVault URI
+                const existingW3id = websocketData?.w3id;
+                if (!existingW3id) {
+                    throw new Error("No w3id provided for duplicate eVault");
+                }
+
+                // Resolve the eVault URI from the registry
+                const response = await axios.get(
+                    new URL(
+                        `resolve?w3id=${existingW3id}`,
+                        PUBLIC_REGISTRY_URL,
+                    ).toString(),
+                );
+                globalState.vaultController.profileCreationStatus = "success";
+                globalState.vaultController.vault = {
+                    uri: response.data.uri,
+                    ename: existingW3id,
+                };
+
+                // Set assurance level to KYC_VERIFIED for duplicate (already verified)
+                globalState.userController.assuranceLevel =
+                    AssuranceLevel.KYC_VERIFIED;
+
+                globalState.vaultController.emitAuditEvent(
+                    "ASSURANCE_UPGRADED",
+                    {
+                        ename: existingW3id,
+                        from: AssuranceLevel.UNVERIFIED,
+                        to: AssuranceLevel.KYC_VERIFIED,
+                        source: "duplicate",
+                    },
+                );
+            } else {
+                // Approved status ΓÇö vault already exists from onboarding
+                const vaultInfo = await globalState.vaultController.vault;
+
+                if (!vaultInfo) {
+                    throw new Error(
+                        "No vault found ΓÇö identity must be created during onboarding first",
+                    );
+                }
+
+                // Create Physical ID binding document (stub ΓÇö CA-signed when backend ready)
+                await globalState.vaultController.createBindingDocument(
+                    "PHYSICAL_ID",
+                    {
+                        ename: vaultInfo.ename,
+                        verificationId: $verificaitonId,
+                        documentType: document.type.value,
+                        documentCountry: document.country.value,
+                    },
+                    "ca-signed",
+                );
+
+                // Set assurance level to KYC_VERIFIED
+                globalState.userController.assuranceLevel =
+                    AssuranceLevel.KYC_VERIFIED;
+
+                globalState.vaultController.emitAuditEvent(
+                    "ASSURANCE_UPGRADED",
+                    {
+                        ename: vaultInfo.ename,
+                        verificationId: $verificaitonId,
+                        from: AssuranceLevel.UNVERIFIED,
+                        to: AssuranceLevel.KYC_VERIFIED,
+                        source: isPostOnboardingUpgrade
+                            ? "post-onboarding"
+                            : "onboarding",
+                    },
+                );
+            }
+
+            // Navigate based on context
+            if (isPostOnboardingUpgrade) {
+                // User already has PIN, go to main
+                await goto("/main");
+            } else {
+                // During onboarding, go to PIN setup
+                setTimeout(() => {
+                    goto("/register");
+                }, 10_000);
+            }
+        } catch (err) {
+            console.error("handleContinue failed:", err);
+            loading = false;
+        }
     };
 });
 
@@ -305,26 +508,22 @@ onDestroy(() => {
 });
 </script>
 
-<main
-    class="pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col items-center h-[100svh]"
->
+<main class="pt-[3svh] px-[5vw] pb-[4.5svh] flex flex-col items-center h-svh">
     <section class="flex flex-col items-center">
         <Hero title="Verify your account">
             {#snippet subtitle()}
-                Get any ID ready. You’ll be directed to present your ID and take
-                a quick selfie.
+                Get any ID ready. YouΓÇÖll be directed to present your ID and
+                take a quick selfie.
             {/snippet}
         </Hero>
         <img
-            class="mx-auto mt-10 w-[70vw]"
-            src="images/Passport.svg"
+            class="mx-auto mt-24 w-[70vw]"
+            src="/images/id-card.png"
             alt="passport"
         />
     </section>
 
-    <div class="grow"></div>
-
-    <div class="w-full">
+    <div class="w-full mt-12">
         {#if !hardwareKeyCheckComplete}
             <div class="w-full flex justify-center py-4">
                 <div
@@ -336,13 +535,43 @@ onDestroy(() => {
                 <h3 class="text-red-800 font-semibold mb-2">
                     Hardware Security Not Available
                 </h3>
-                <p class="text-red-700 text-sm">
+                <p class="text-red-700 text-sm mb-3">
                     Your device doesn't support hardware-backed security keys
                     required for verification.
                 </p>
+                <ButtonAction
+                    variant="soft"
+                    class="w-full"
+                    callback={async () => {
+                        if (isPostOnboardingUpgrade) {
+                            await goto("/main");
+                        } else {
+                            if (globalState) {
+                                globalState.userController.assuranceLevel =
+                                    AssuranceLevel.UNVERIFIED;
+                                globalState.vaultController.emitAuditEvent(
+                                    "KYC_HARDWARE_UNAVAILABLE",
+                                    {
+                                        source: isPostOnboardingUpgrade
+                                            ? "post-onboarding"
+                                            : "onboarding",
+                                    },
+                                );
+                            }
+                            await goto("/register");
+                        }
+                    }}
+                >
+                    {isPostOnboardingUpgrade
+                        ? "Go back"
+                        : "Continue without verification"}
+                </ButtonAction>
             </div>
         {:else}
-            <ButtonAction class="w-full" callback={handleVerification}>
+            <ButtonAction
+                class="w-[80vw] absolute bottom-[8svh] left-1/2 transform -translate-x-1/2"
+                callback={handleVerification}
+            >
                 I'm ready
             </ButtonAction>
         {/if}
@@ -366,7 +595,7 @@ onDestroy(() => {
                         class="my-20 flex flex-col items-center justify-center gap-6"
                     >
                         <Shadow size={40} color="rgb(142, 82, 255);" />
-                        <h3>Generating your eName</h3>
+                        <h3>Verifying your identity...</h3>
                     </div>
                 {:else}
                     <div class="flex flex-col gap-6">
@@ -393,21 +622,51 @@ onDestroy(() => {
                         <ButtonAction
                             variant="soft"
                             class="flex-1"
-                            callback={() => {
+                            callback={async () => {
                                 if ($verifStep > 0 && $verifStep <= 2) {
                                     verifStep.set($verifStep - 1);
                                 } else if ($verifStep > 2) {
-                                    goto("/onboarding");
+                                    // Verification result screen ΓÇö handle fail/cancel
+                                    if (
+                                        $status !== "approved" &&
+                                        $status !== "duplicate"
+                                    ) {
+                                        // Failed or cancelled: continue as UNVERIFIED
+                                        if (globalState) {
+                                            globalState.userController.assuranceLevel =
+                                                AssuranceLevel.UNVERIFIED;
+                                            globalState.vaultController.emitAuditEvent(
+                                                "KYC_FAILED_OR_CANCELLED",
+                                                {
+                                                    status: $status,
+                                                    reason: $reason,
+                                                },
+                                            );
+                                        }
+                                        if (isPostOnboardingUpgrade) {
+                                            await goto("/main");
+                                        } else {
+                                            await goto("/register");
+                                        }
+                                    } else {
+                                        // Approved/duplicate ΓÇö go back to KYC decision
+                                        closeEventStream();
+                                        showVeriffModal = false;
+                                    }
                                 } else {
                                     closeEventStream();
                                     showVeriffModal = false;
                                 }
                             }}
                         >
-                            Back
+                            {$verifStep > 2 &&
+                            $status !== "approved" &&
+                            $status !== "duplicate"
+                                ? "Continue without verification"
+                                : "Back"}
                         </ButtonAction>
 
-                        {#if $verifStep > 2 && $status !== "declined"}
+                        {#if $verifStep > 2 && ($status === "approved" || $status === "duplicate")}
                             <ButtonAction
                                 class="flex-1"
                                 callback={handleContinue}
@@ -415,9 +674,15 @@ onDestroy(() => {
                             >
                                 {$status === "approved"
                                     ? "Continue"
-                                    : $status === "duplicate"
-                                      ? "Claim Vault"
-                                      : "Retry"}
+                                    : "Claim Vault"}
+                            </ButtonAction>
+                        {:else if $verifStep > 2 && $status !== "declined"}
+                            <ButtonAction
+                                class="flex-1"
+                                callback={handleContinue}
+                                color="primary"
+                            >
+                                Retry
                             </ButtonAction>
                         {/if}
                     </div>

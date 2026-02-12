@@ -57,6 +57,7 @@ export class VaultController {
     #walletSdkAdapter: import("wallet-sdk").CryptoAdapter | null = null;
     #profileCreationStatus: "idle" | "loading" | "success" | "failed" = "idle";
     #notificationService: NotificationService;
+    #demoMode = false;
 
     constructor(
         store: Store,
@@ -69,6 +70,21 @@ export class VaultController {
         this.#keyService = keyService || null;
         this.#walletSdkAdapter = walletSdkAdapter ?? null;
         this.#notificationService = NotificationService.getInstance();
+    }
+
+    /**
+     * Enable/disable demo mode
+     * When enabled, skips network operations (sync, notifications, profile creation)
+     */
+    set demoMode(value: boolean) {
+        this.#demoMode = value;
+        if (value) {
+            console.log("🎭 VaultController: Demo mode enabled - skipping network operations");
+        }
+    }
+
+    get demoMode() {
+        return this.#demoMode;
     }
 
     /**
@@ -397,6 +413,13 @@ export class VaultController {
         else if (vault?.ename) {
             this.#store.set("vault", vault);
 
+            // Skip network operations in demo mode
+            if (this.#demoMode) {
+                console.log("🎭 Demo mode: Skipping network operations for vault", vault.ename);
+                this.profileCreationStatus = "success";
+                return;
+            }
+
             // Register device for notifications
             this.registerDeviceForNotifications(vault.ename);
 
@@ -466,6 +489,97 @@ export class VaultController {
 
     getendpoint() {
         return this.#endpoint;
+    }
+
+    /**
+     * Create a binding document in the eVault
+     * TODO: Implement when backend endpoint is ready
+     * 
+     * @param type - Type of binding document (PHYSICAL_ID, PASSPHRASE, PHOTOGRAPH, FRIEND)
+     * @param data - Binding document data
+     * @param signature - Signature or JWT proving authenticity
+     */
+    async createBindingDocument(
+        type: string,
+        data: Record<string, unknown>,
+        signature: string
+    ): Promise<void> {
+        console.log("TODO: Create binding document", {
+            type,
+            data,
+            signature: signature.substring(0, 50) + "...",
+        });
+
+        // Emit audit event
+        this.emitAuditEvent("BINDING_DOCUMENT_CREATED", {
+            type,
+            timestamp: new Date().toISOString(),
+        });
+
+        // TODO: Call GraphQL mutation when backend is ready
+        // const CREATE_BINDING_DOC = `
+        //   mutation CreateBindingDocument($input: BindingDocumentInput!) {
+        //     createBindingDocument(input: $input) {
+        //       id
+        //       type
+        //       status
+        //     }
+        //   }
+        // `;
+    }
+
+    /**
+     * Request ePassport certificate from Remote CA
+     * TODO: Implement when CA endpoint is ready
+     * 
+     * @param ename - User's eName
+     * @param publicKey - User's public key
+     */
+    async requestEPassport(ename: string, publicKey: string): Promise<string> {
+        console.log("TODO: Request ePassport from CA", {
+            ename,
+            publicKey: publicKey.substring(0, 50) + "...",
+        });
+
+        // Emit audit event
+        this.emitAuditEvent("EPASSPORT_REQUESTED", {
+            ename,
+            timestamp: new Date().toISOString(),
+        });
+
+        // TODO: Call CA endpoint when ready
+        // const response = await axios.post(
+        //     new URL("/ca/issue-epassport", PUBLIC_REGISTRY_URL).toString(),
+        //     { ename, publicKey }
+        // );
+        // return response.data.certificate;
+
+        return "TODO_EPASSPORT_CERTIFICATE";
+    }
+
+    /**
+     * Emit an audit event
+     * These events are logged for compliance and debugging
+     * 
+     * @param eventType - Type of audit event
+     * @param data - Event data
+     */
+    emitAuditEvent(eventType: string, data: Record<string, unknown>): void {
+        const auditEvent = {
+            type: eventType,
+            timestamp: new Date().toISOString(),
+            ...data,
+        };
+
+        console.log("AUDIT:", auditEvent);
+
+        // TODO: Send to backend audit log when endpoint is ready
+        // Store locally for now
+        const existingEvents = JSON.parse(
+            localStorage.getItem("auditEvents") || "[]"
+        );
+        existingEvents.push(auditEvent);
+        localStorage.setItem("auditEvents", JSON.stringify(existingEvents));
     }
 
     async clear() {

@@ -85,7 +85,13 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     class="bg-white text-black flex items-center leading-0 justify-center rounded-full h-7 px-5 text-xs font-medium"
                 >
                     {#if userData}
-                        {userData.isFake ? "DEMO ID" : "VERIFIED ID"}
+                        {#if userData.assuranceLevel === "KYC_VERIFIED"}
+                            VERIFIED ID
+                        {:else if userData.isFake}
+                            DEMO ID
+                        {:else}
+                            UNVERIFIED
+                        {/if}
                     {/if}
                 </p>
                 {#if viewBtn}
@@ -97,7 +103,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
                     />
                 {/if}
             {:else if variant === "eVault"}
-                <h3 class="text-black-300 text-3xl font-semibold mb-1 z-[1]">
+                <h3 class="text-black-300 text-3xl font-semibold mb-1 z-1">
                     {state.progressWidth} Used
                 </h3>
             {/if}
@@ -111,7 +117,7 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
             {:else if variant === "ePassport"}
                 <div class="flex gap-2 flex-col">
                     {#if userData}
-                        {#each Object.entries(userData).filter(([f, v]) => f !== "isFake") as [fieldName, value]}
+                        {#each Object.entries(userData).filter(([f, v]) => f !== "isFake" && f !== "assuranceLevel") as [fieldName, value]}
                             <div class="flex justify-between">
                                 <p class="text-gray capitalize">{fieldName}</p>
                                 <p class=" font-medium text-white">{value}</p>
@@ -122,8 +128,8 @@ const baseClasses = `relative ${variant === "eName" ? "bg-black-900" : variant =
             {:else if variant === "eVault"}
                 <div>
                     <div class="flex justify-between mb-1">
-                        <p class="z-[1]">{usedStorage}GB Used</p>
-                        <p class="z-[1]">{totalStorage}GB total storage</p>
+                        <p class="z-1">{usedStorage}GB Used</p>
+                        <p class="z-1">{totalStorage}GB total storage</p>
                     </div>
                     <div
                         class="relative w-full h-3 rounded-full overflow-hidden bg-primary-400"

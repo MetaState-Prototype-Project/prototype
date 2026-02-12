@@ -1,6 +1,16 @@
 import type { Store } from "@tauri-apps/plugin-store";
 
 /**
+ * User assurance levels - determines what identity bindings exist
+ */
+export enum AssuranceLevel {
+    /** Baseline identity only - no KYC completed */
+    UNVERIFIED = "UNVERIFIED",
+    /** KYC completed - Physical ID binding exists */
+    KYC_VERIFIED = "KYC_VERIFIED",
+}
+
+/**
  * @author SoSweetHam <soham@auvo.io>
  * @version 0.0.1-alpha/Stub
  * @date 2025-04-16
@@ -10,6 +20,7 @@ import type { Store } from "@tauri-apps/plugin-store";
  *
  * Uses the following namespaces in the store:
  * - `user` - The user state
+ * - `assuranceLevel` - The user's current assurance level (UNVERIFIED | KYC_VERIFIED)
  *
  * @memberof GlobalState
  * You should not use this class directly, it is intended for use through the GlobalState.
@@ -144,9 +155,40 @@ export class UserController {
             });
     }
 
+    /**
+     * Sets the user's assurance level (UNVERIFIED | KYC_VERIFIED)
+     */
+    set assuranceLevel(level: Promise<AssuranceLevel | undefined> | AssuranceLevel | undefined) {
+        if (level instanceof Promise) {
+            level.then((resolved) => {
+                this.#store.set("assuranceLevel", resolved);
+            }).catch((error) => {
+                console.error("Failed to set assurance level:", error);
+            });
+        } else {
+            this.#store.set("assuranceLevel", level);
+        }
+    }
+
+    /**
+     * Gets the user's assurance level, defaults to UNVERIFIED
+     */
+    get assuranceLevel() {
+        return this.#store
+            .get<AssuranceLevel>("assuranceLevel")
+            .then((level) => {
+                return level ?? AssuranceLevel.UNVERIFIED;
+            })
+            .catch((error) => {
+                console.error("Failed to get assurance level:", error);
+                return AssuranceLevel.UNVERIFIED;
+            });
+    }
+
     async clear() {
         await this.#store.delete("user");
         await this.#store.delete("fake");
         await this.#store.delete("doc");
+        await this.#store.delete("assuranceLevel");
     }
 }
