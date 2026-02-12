@@ -158,13 +158,18 @@ export class UserController {
     /**
      * Sets the user's assurance level (UNVERIFIED | KYC_VERIFIED)
      */
-    set assuranceLevel(level: Promise<AssuranceLevel | undefined> | AssuranceLevel | undefined) {
+    set assuranceLevel(level:
+        | Promise<AssuranceLevel | undefined>
+        | AssuranceLevel
+        | undefined) {
         if (level instanceof Promise) {
-            level.then((resolved) => {
-                this.#store.set("assuranceLevel", resolved);
-            }).catch((error) => {
-                console.error("Failed to set assurance level:", error);
-            });
+            level
+                .then((resolved) => {
+                    this.#store.set("assuranceLevel", resolved);
+                })
+                .catch((error) => {
+                    console.error("Failed to set assurance level:", error);
+                });
         } else {
             this.#store.set("assuranceLevel", level);
         }

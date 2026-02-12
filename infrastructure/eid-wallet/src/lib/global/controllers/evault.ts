@@ -79,7 +79,9 @@ export class VaultController {
     set demoMode(value: boolean) {
         this.#demoMode = value;
         if (value) {
-            console.log("🎭 VaultController: Demo mode enabled - skipping network operations");
+            console.log(
+                "🎭 VaultController: Demo mode enabled - skipping network operations",
+            );
         }
     }
 
@@ -415,7 +417,10 @@ export class VaultController {
 
             // Skip network operations in demo mode
             if (this.#demoMode) {
-                console.log("🎭 Demo mode: Skipping network operations for vault", vault.ename);
+                console.log(
+                    "🎭 Demo mode: Skipping network operations for vault",
+                    vault.ename,
+                );
                 this.profileCreationStatus = "success";
                 return;
             }
@@ -494,7 +499,7 @@ export class VaultController {
     /**
      * Create a binding document in the eVault
      * TODO: Implement when backend endpoint is ready
-     * 
+     *
      * @param type - Type of binding document (PHYSICAL_ID, PASSPHRASE, PHOTOGRAPH, FRIEND)
      * @param data - Binding document data
      * @param signature - Signature or JWT proving authenticity
@@ -502,7 +507,7 @@ export class VaultController {
     async createBindingDocument(
         type: string,
         data: Record<string, unknown>,
-        signature: string
+        signature: string,
     ): Promise<void> {
         console.log("TODO: Create binding document", {
             type,
@@ -531,7 +536,7 @@ export class VaultController {
     /**
      * Request ePassport certificate from Remote CA
      * TODO: Implement when CA endpoint is ready
-     * 
+     *
      * @param ename - User's eName
      * @param publicKey - User's public key
      */
@@ -560,7 +565,7 @@ export class VaultController {
     /**
      * Emit an audit event
      * These events are logged for compliance and debugging
-     * 
+     *
      * @param eventType - Type of audit event
      * @param data - Event data
      */
@@ -576,7 +581,7 @@ export class VaultController {
         // TODO: Send to backend audit log when endpoint is ready
         // Store locally for now
         const existingEvents = JSON.parse(
-            localStorage.getItem("auditEvents") || "[]"
+            localStorage.getItem("auditEvents") || "[]",
         );
         existingEvents.push(auditEvent);
         localStorage.setItem("auditEvents", JSON.stringify(existingEvents));

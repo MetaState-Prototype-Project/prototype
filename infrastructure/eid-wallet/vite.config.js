@@ -8,11 +8,11 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
     plugins: [
-        tailwindcss(), 
+        tailwindcss(),
         sveltekit(),
         nodePolyfills({
             // Polyfill specific Node.js core modules
-            include: ['buffer', 'crypto'],
+            include: ["buffer", "crypto"],
             // Polyfill globals
             globals: {
                 Buffer: true,
@@ -22,25 +22,29 @@ export default defineConfig(async () => ({
             // Override specific polyfills
             overrides: {
                 // Use proper Buffer polyfill
-                buffer: 'buffer',
+                buffer: "buffer",
             },
         }),
     ],
 
     // Environment variables
     define: {
-        'process.env.NEXT_PUBLIC_EVOTING_BASE_URL': JSON.stringify(process.env.NEXT_PUBLIC_EVOTING_BASE_URL || 'http://localhost:3001'),
-        'process.env.NEXT_PUBLIC_EID_WALLET_URL': JSON.stringify(process.env.NEXT_PUBLIC_EID_WALLET_URL || 'w3ds://'),
+        "process.env.NEXT_PUBLIC_EVOTING_BASE_URL": JSON.stringify(
+            process.env.NEXT_PUBLIC_EVOTING_BASE_URL || "http://localhost:3001",
+        ),
+        "process.env.NEXT_PUBLIC_EID_WALLET_URL": JSON.stringify(
+            process.env.NEXT_PUBLIC_EID_WALLET_URL || "w3ds://",
+        ),
     },
 
     // Handle workspace dependencies
     optimizeDeps: {
-        include: ['blindvote'],
-        exclude: ['@hugeicons/core-free-icons'],
+        include: ["blindvote"],
+        exclude: ["@hugeicons/core-free-icons"],
         esbuildOptions: {
             // Node.js global to ES global conversion
             define: {
-                global: 'globalThis',
+                global: "globalThis",
             },
         },
     },
@@ -48,9 +52,9 @@ export default defineConfig(async () => ({
     // Handle Node.js modules in browser environment
     resolve: {
         alias: {
-            'noble-secp256k1': 'noble-secp256k1',
-            'blindvote': '../blindvote/src/index.ts'
-        }
+            "noble-secp256k1": "noble-secp256k1",
+            blindvote: "../blindvote/src/index.ts",
+        },
     },
 
     // Build configuration
@@ -59,8 +63,8 @@ export default defineConfig(async () => ({
             external: [],
         },
         commonjsOptions: {
-            include: [/blindvote/, /node_modules/]
-        }
+            include: [/blindvote/, /node_modules/],
+        },
     },
 
     // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

@@ -1,25 +1,20 @@
 {
-  "$schema": "../gen/schemas/mobile-schema.json",
-  "identifier": "mobile-capability",
-  "description": "Capability for the main window on mobile",
-  "windows": [
-    "main"
-  ],
-  "permissions": [
-    "core:default",
-    "opener:default",
-    "store:default",
-    "biometric:default",
-    "barcode-scanner:default",
-    "barcode-scanner:allow-open-app-settings",
-    "deep-link:default",
-    "crypto-hw:default",
-    "notification:default",
-    "process:default",
-    "opener:allow-default-urls"
-  ],
-  "platforms": [
-    "iOS",
-    "android"
-  ]
+    "$schema": "../gen/schemas/mobile-schema.json",
+    "identifier": "mobile-capability",
+    "description": "Capability for the main window on mobile",
+    "windows": ["main"],
+    "permissions": [
+        "core:default",
+        "opener:default",
+        "store:default",
+        "biometric:default",
+        "barcode-scanner:default",
+        "barcode-scanner:allow-open-app-settings",
+        "deep-link:default",
+        "crypto-hw:default",
+        "notification:default",
+        "process:default",
+        "opener:allow-default-urls"
+    ],
+    "platforms": ["iOS", "android"]
 }
