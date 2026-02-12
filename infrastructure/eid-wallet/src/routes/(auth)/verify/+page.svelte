@@ -373,11 +373,17 @@ onMount(async () => {
 
                 const vaultInfo = await globalState.vaultController.vault;
 
+                if (!vaultInfo) {
+                    throw new Error(
+                        "No vault found — identity must be created during onboarding first",
+                    );
+                }
+
                 // Create Physical ID binding document (stub)
                 await globalState.vaultController.createBindingDocument(
                     "PHYSICAL_ID",
                     {
-                        ename: vaultInfo?.ename,
+                        ename: vaultInfo.ename,
                         verificationId: "demo-verification",
                         documentType: document.type.value,
                         documentCountry: document.country.value,
@@ -393,7 +399,7 @@ onMount(async () => {
                 globalState.vaultController.emitAuditEvent(
                     "ASSURANCE_UPGRADED",
                     {
-                        ename: vaultInfo?.ename,
+                        ename: vaultInfo.ename,
                         from: AssuranceLevel.UNVERIFIED,
                         to: AssuranceLevel.KYC_VERIFIED,
                         source: isPostOnboardingUpgrade
@@ -491,10 +497,10 @@ onMount(async () => {
                 // User already has PIN, go to main
                 await goto("/main");
             } else {
-                // During onboarding, go to PIN setup
+                // During onboarding, go to PIN setup — small delay to let store writes settle
                 setTimeout(() => {
                     goto("/register");
-                }, 10_000);
+                }, 500);
             }
         } catch (err) {
             console.error("handleContinue failed:", err);

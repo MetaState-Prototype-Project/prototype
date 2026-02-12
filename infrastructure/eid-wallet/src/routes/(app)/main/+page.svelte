@@ -70,7 +70,9 @@ onMount(() => {
     (async () => {
         const userInfo = await globalState.userController.user;
         const isFake = await globalState.userController.isFake;
-        assuranceLevel = (await globalState.userController.assuranceLevel) ?? AssuranceLevel.UNVERIFIED;
+        assuranceLevel =
+            (await globalState.userController.assuranceLevel) ??
+            AssuranceLevel.UNVERIFIED;
         userData = { ...userInfo, isFake, assuranceLevel };
         const vaultData = await globalState.vaultController.vault;
         ename = vaultData?.ename;

@@ -6,58 +6,108 @@ import { getContext, onMount } from "svelte";
 
 let globalState: GlobalState | undefined = $state(undefined);
 let isRedirecting = $state(true);
+let initializationFailed = $state(false);
 
 let clearPin = $state(async () => {});
 let cleared = $state(false);
 
 onMount(async () => {
-    // Wait for globalState to be available (it's initialized in the layout)
+    // Get the globalState context function
     const getGlobalState = getContext<() => GlobalState>("globalState");
+
+    // Poll for globalState with extended timeout (12 seconds to exceed layout's 10s timeout)
+    const maxRetries = 120; // 12 seconds at 100ms intervals
     let retries = 0;
-    const maxRetries = 50; // Wait up to 5 seconds
 
-    while (!globalState && retries < maxRetries) {
-        globalState = getGlobalState();
-        if (!globalState) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            retries++;
+    const pollInterval = setInterval(() => {
+        if (retries >= maxRetries) {
+            clearInterval(pollInterval);
+            console.error(
+                "Global state initialization timed out after 12 seconds",
+            );
+            initializationFailed = true;
+            isRedirecting = false;
+            return;
         }
-    }
 
-    if (!globalState) {
-        console.error("Global state is still not defined after waiting");
-        return;
-    }
+        const state = getGlobalState();
+        if (state) {
+            globalState = state;
+            clearInterval(pollInterval);
+        }
+        retries++;
+    }, 100);
+});
 
-    clearPin = async () => {
+// Reactive effect - runs when globalState becomes available
+$effect(() => {
+    if (!globalState || initializationFailed) return;
+
+    // Run the initialization and routing logic
+    (async () => {
+        clearPin = async () => {
+            try {
+                await globalState?.securityController.clearPin();
+                cleared = true;
+            } catch (error) {
+                console.error("Failed to clear PIN:", error);
+            }
+        };
+
+        let onboardingComplete = false;
         try {
-            await globalState?.securityController.clearPin();
-            cleared = true;
+            onboardingComplete = await globalState.isOnboardingComplete;
         } catch (error) {
-            console.error("Failed to clear PIN:", error);
-            // Consider adding user-facing error feedback
+            console.error("Failed to determine onboarding status:", error);
         }
-    };
-    let onboardingComplete = false;
-    try {
-        onboardingComplete = await globalState.isOnboardingComplete;
-    } catch (error) {
-        console.error("Failed to determine onboarding status:", error);
-    }
 
-    if (!onboardingComplete || !(await globalState.userController.user)) {
-        await goto("/onboarding");
-        return;
-    }
-    if (!(await globalState.securityController.pinHash)) {
-        await goto("/register");
-        return;
-    }
-    await goto("/login");
+        if (!onboardingComplete || !(await globalState.userController.user)) {
+            await goto("/onboarding");
+            return;
+        }
+        if (!(await globalState.securityController.pinHash)) {
+            await goto("/register");
+            return;
+        }
+        await goto("/login");
+    })();
 });
 </script>
 
-{#if isRedirecting}
+{#if initializationFailed}
+    <div class="fixed inset-0 flex items-center justify-center bg-white p-8">
+        <div class="max-w-md text-center">
+            <div class="mb-4 text-red-500">
+                <svg
+                    class="w-16 h-16 mx-auto"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                </svg>
+            </div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                Initialization Timeout
+            </h2>
+            <p class="text-gray-600 mb-6">
+                The application failed to start. Please reload the page to try
+                again.
+            </p>
+            <button
+                onclick={() => window.location.reload()}
+                class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+                Reload Page
+            </button>
+        </div>
+    </div>
+{:else if isRedirecting}
     <div class="fixed inset-0 flex items-center justify-center bg-white">
         <SplashScreen />
     </div>

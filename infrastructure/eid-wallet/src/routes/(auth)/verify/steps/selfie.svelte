@@ -5,15 +5,13 @@ import { createCameraPermissionManager } from "$lib/utils";
 import axios from "axios";
 import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import { writable } from "svelte/store";
 import { Selfie, permissionGranted, verifStep, verificaitonId } from "../store";
 
-let video: HTMLVideoElement;
-let canvas: HTMLCanvasElement;
-let image = 1;
-let imageCaptured = writable(false);
-let load = false;
-let stream: MediaStream;
+let video: HTMLVideoElement | undefined = $state();
+let canvas: HTMLCanvasElement | undefined = $state();
+let image = $state(1);
+let load = $state(false);
+let stream: MediaStream | undefined = $state();
 
 // Camera permission management
 const cameraPermission = createCameraPermissionManager();
@@ -36,8 +34,8 @@ async function requestCameraPermission() {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" },
         });
-        video.srcObject = stream;
-        video.play();
+        video!.srcObject = stream;
+        video!.play();
         permissionGranted.set(true);
         showPermissionDialog = false;
     } catch (err) {
@@ -59,13 +57,13 @@ onMount(() => {
 
 async function captureImage() {
     if (image === 1) {
-        const context = canvas.getContext("2d");
+        const context = canvas!.getContext("2d");
         if (context) {
-            context.drawImage(video, 0, 0, 1920, 1080);
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/png");
+            context.drawImage(video!, 0, 0, 1920, 1080);
+            canvas!.width = video!.videoWidth;
+            canvas!.height = video!.videoHeight;
+            context.drawImage(video!, 0, 0, canvas!.width, canvas!.height);
+            const dataUrl = canvas!.toDataURL("image/png");
             Selfie.set(dataUrl);
             load = true;
             await axios.post(
@@ -84,7 +82,7 @@ async function captureImage() {
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
             );
-            for (const track of stream.getTracks()) {
+            for (const track of stream!.getTracks()) {
                 track.stop();
             }
             // The verification step will be updated by the SSE response
@@ -108,12 +106,12 @@ async function captureImage() {
             <div
                 class="relative mt-3 flex flex-col items-center justify-center"
             >
-                <!-- svelte-ignore a11y-media-has-caption -->
+                <!-- svelte-ignore a11y_media_has_caption -->
                 <video
                     bind:this={video}
                     autoplay
                     playsinline
-                    class=" aspect-[4/3] w-full rounded-lg object-cover"
+                    class=" aspect-4/3 w-full rounded-lg object-cover"
                 ></video>
                 <img
                     src="/images/CameraCircle.svg"

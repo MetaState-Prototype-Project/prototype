@@ -12,7 +12,8 @@ function shareEPassport() {
     alert("EPassport Code shared!");
 }
 
-let userData: Record<string, string | boolean | undefined> = $state({});
+let userData: Record<string, string | boolean | undefined> | null =
+    $state(null);
 let docData: Record<string, unknown> = $state({});
 let assuranceLevel = $state<AssuranceLevel>(AssuranceLevel.UNVERIFIED);
 
@@ -37,7 +38,6 @@ onMount(async () => {
     assuranceLevel =
         (await globalState.userController.assuranceLevel) ??
         AssuranceLevel.UNVERIFIED;
-    console.log("loggg", userData);
 });
 </script>
 

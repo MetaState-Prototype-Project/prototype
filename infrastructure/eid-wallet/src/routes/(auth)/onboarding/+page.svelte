@@ -22,14 +22,33 @@ let loading = $state(false);
 let creatingIdentity = $state(false);
 let error: string | null = $state(null);
 let statusMessage: string | null = $state(null);
+let hardwareKeySupported = $state(false);
+let hardwareKeyCheckComplete = $state(false);
 
 const KEY_ID = "default";
 
 let globalState: GlobalState;
 
-// Identit creation result
+// Identity creation result
 let ename: string = $state("");
 let vaultUri: string = $state("");
+
+// Check if hardware key is supported on this device
+async function checkHardwareKeySupport() {
+    try {
+        if (!globalState) throw new Error("Global state is not defined");
+        hardwareKeySupported =
+            await globalState.keyService.isHardwareAvailable();
+        console.log(
+            `Hardware key ${hardwareKeySupported ? "is" : "is NOT"} supported on this device`,
+        );
+    } catch (error) {
+        hardwareKeySupported = false;
+        console.log("Hardware key is NOT supported on this device:", error);
+    } finally {
+        hardwareKeyCheckComplete = true;
+    }
+}
 
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
@@ -40,6 +59,10 @@ onMount(async () => {
  * Creates baseline identity then navigates to KYC page
  */
 async function handleGetStarted() {
+    // Prevent double-tap
+    if (loading) return;
+
+    loading = true;
     console.log("=== Onboarding: Get Started ===");
     error = null;
 
@@ -53,10 +76,20 @@ async function handleGetStarted() {
         await goto("/kyc");
     } catch (err) {
         console.error("Failed to create identity:", err);
-        error = "Failed to create identity. Please try again.";
+        // Preserve specific error messages (e.g., hardware key requirements)
+        if (
+            err instanceof Error &&
+            err.message.includes("Hardware security keys")
+        ) {
+            error = err.message;
+        } else {
+            error = "Failed to create identity. Please try again.";
+        }
         setTimeout(() => {
             error = null;
         }, 5000);
+    } finally {
+        loading = false;
     }
 }
 
@@ -73,7 +106,6 @@ async function handleGetStarted() {
  */
 async function createBaselineIdentity() {
     creatingIdentity = true;
-    loading = true;
 
     try {
         console.log("=== Baseline Identity Creation Started ===");
@@ -141,6 +173,15 @@ async function createBaselineIdentity() {
             return;
         }
 
+        // Check hardware key support before proceeding with real onboarding
+        await checkHardwareKeySupport();
+
+        if (!hardwareKeySupported) {
+            throw new Error(
+                "Hardware security keys are required for onboarding. Your device doesn't support hardware-backed security keys.",
+            );
+        }
+
         console.log("=== Step 1: Generate Keypair ===");
 
         // Generate keypair via wallet-sdk adapter
@@ -192,7 +233,6 @@ async function createBaselineIdentity() {
         throw err;
     } finally {
         creatingIdentity = false;
-        loading = false;
     }
 }
 </script>
@@ -214,12 +254,12 @@ async function createBaselineIdentity() {
                 Your Digital Self consists of three core elements: <br />
                 <strong>– eName</strong> – your digital identifier, a number
                 <br />
-                <strong>– ePassport</strong> – your cryptographic keys,
-                enabling your agency and control
+                <strong>– ePassport</strong> – your cryptographic keys, enabling
+                your agency and control
                 <br />
-                <strong>– eVault</strong> – the secure repository of all
-                your personal data. You will decide who can access it, and how.
-                You are going to get them now.
+                <strong>– eVault</strong> – the secure repository of all your
+                personal data. You will decide who can access it, and how. You
+                are going to get them now.
                 <br />
             {/snippet}
             Your Digital Self<br />
