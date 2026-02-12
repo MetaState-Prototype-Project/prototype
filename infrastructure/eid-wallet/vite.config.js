@@ -36,6 +36,7 @@ export default defineConfig(async () => ({
     // Handle workspace dependencies
     optimizeDeps: {
         include: ['blindvote'],
+        exclude: ['@hugeicons/core-free-icons'],
         esbuildOptions: {
             // Node.js global to ES global conversion
             define: {

@@ -1,6 +1,6 @@
 <script lang="ts">
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-import { getContext, onDestroy, onMount, setContext } from "svelte";
+import { onDestroy, onMount, setContext } from "svelte";
 import "../app.css";
 import { goto, onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
@@ -50,7 +50,9 @@ onMount(async () => {
         globalState = await GlobalState.create();
     } catch (error) {
         console.error("Failed to initialize global state:", error);
-        // Consider adding fallback behavior or user notification
+        // Show error and prevent app from continuing without global state
+        alert("Failed to initialize app. Please restart the application.");
+        throw error; // Prevent further execution
     }
 
     // Handle deep links
@@ -593,10 +595,12 @@ onMount(async () => {
 
     await Promise.all([loadData(), ensureMinimumDelay()]);
 
-    showSplashScreen = false;
-
-    // Mark app as ready and process any pending deep links
-    isAppReady = true;
+    // Only hide splash screen if globalState is initialized
+    if (globalState) {
+        showSplashScreen = false;
+        // Mark app as ready and process any pending deep links
+        isAppReady = true;
+    }
 
     // Process queued deep links
     if (pendingDeepLinks.length > 0 && globalState) {
@@ -627,8 +631,6 @@ const safeAreaTop = $derived.by(
             ),
         ) || 0,
 );
-
-$effect(() => console.log("top", safeAreaTop));
 
 onNavigate((navigation) => {
     if (!document.startViewTransition) return;
@@ -673,7 +675,7 @@ $effect(() => {
 });
 </script>
 
-{#if showSplashScreen}
+{#if showSplashScreen || !globalState}
     <SplashScreen />
 {:else}
     <div

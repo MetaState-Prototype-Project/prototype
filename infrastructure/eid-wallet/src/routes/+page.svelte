@@ -1,10 +1,11 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
-import * as Button from "$lib/ui/Button";
+import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import { getContext, onMount } from "svelte";
 
 let globalState: GlobalState | undefined = $state(undefined);
+let isRedirecting = $state(true);
 
 let clearPin = $state(async () => {});
 let cleared = $state(false);
@@ -39,3 +40,9 @@ onMount(async () => {
     await goto("/login");
 });
 </script>
+
+{#if isRedirecting}
+    <div class="fixed inset-0 flex items-center justify-center bg-white">
+        <SplashScreen />
+    </div>
+{/if}
