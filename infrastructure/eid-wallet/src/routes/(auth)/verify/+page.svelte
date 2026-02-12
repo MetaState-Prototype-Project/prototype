@@ -518,8 +518,8 @@ onDestroy(() => {
     <section class="flex flex-col items-center">
         <Hero title="Verify your account">
             {#snippet subtitle()}
-                Get any ID ready. YouΓÇÖll be directed to present your ID and
-                take a quick selfie.
+                Get any ID ready. You'll be directed to present your ID and take
+                a quick selfie.
             {/snippet}
         </Hero>
         <img
@@ -549,21 +549,22 @@ onDestroy(() => {
                     variant="soft"
                     class="w-full"
                     callback={async () => {
+                        if (globalState) {
+                            globalState.userController.assuranceLevel =
+                                AssuranceLevel.UNVERIFIED;
+                            globalState.vaultController.emitAuditEvent(
+                                "KYC_HARDWARE_UNAVAILABLE",
+                                {
+                                    source: isPostOnboardingUpgrade
+                                        ? "post-onboarding"
+                                        : "onboarding",
+                                },
+                            );
+                        }
+
                         if (isPostOnboardingUpgrade) {
                             await goto("/main");
                         } else {
-                            if (globalState) {
-                                globalState.userController.assuranceLevel =
-                                    AssuranceLevel.UNVERIFIED;
-                                globalState.vaultController.emitAuditEvent(
-                                    "KYC_HARDWARE_UNAVAILABLE",
-                                    {
-                                        source: isPostOnboardingUpgrade
-                                            ? "post-onboarding"
-                                            : "onboarding",
-                                    },
-                                );
-                            }
                             await goto("/register");
                         }
                     }}
@@ -639,8 +640,15 @@ onDestroy(() => {
                                     ) {
                                         // Failed or cancelled: continue as UNVERIFIED
                                         if (globalState) {
-                                            globalState.userController.assuranceLevel =
-                                                AssuranceLevel.UNVERIFIED;
+                                            // Only downgrade to UNVERIFIED if not already KYC_VERIFIED
+                                            if (
+                                                globalState.userController
+                                                    .assuranceLevel !==
+                                                AssuranceLevel.KYC_VERIFIED
+                                            ) {
+                                                globalState.userController.assuranceLevel =
+                                                    AssuranceLevel.UNVERIFIED;
+                                            }
                                             globalState.vaultController.emitAuditEvent(
                                                 "KYC_FAILED_OR_CANCELLED",
                                                 {

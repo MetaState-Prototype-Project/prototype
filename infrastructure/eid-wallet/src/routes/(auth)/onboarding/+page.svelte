@@ -7,7 +7,7 @@ import {
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
-import { getContext, onMount } from "svelte";
+import { getContext } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
@@ -27,7 +27,7 @@ let hardwareKeyCheckComplete = $state(false);
 
 const KEY_ID = "default";
 
-let globalState: GlobalState;
+let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
 
 // Identity creation result
 let ename: string = $state("");
@@ -49,10 +49,6 @@ async function checkHardwareKeySupport() {
         hardwareKeyCheckComplete = true;
     }
 }
-
-onMount(async () => {
-    globalState = getContext<() => GlobalState>("globalState")();
-});
 
 /**
  * Entry point - user clicks "Get Started"
@@ -211,10 +207,21 @@ async function createBaselineIdentity() {
             ename,
         };
 
+        // Emit audit event for keypair generation
+        globalState.vaultController.emitAuditEvent("KEYPAIR_GENERATED", {
+            keyType: "hardware",
+        });
+
         // Emit audit event for eVault creation
         globalState.vaultController.emitAuditEvent("EVAULT_PROVISIONED", {
             ename,
         });
+
+        // Step 3: Request ePassport from Remote CA
+        await globalState.vaultController.requestEPassport(
+            ename,
+            /* publicKey from ensureKey result */ "",
+        );
 
         console.log("=== Step 5: Create Self-Asserted Profile Binding ===");
 

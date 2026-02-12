@@ -5,6 +5,7 @@ import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
 import { getContext, onMount } from "svelte";
 
 let globalState: GlobalState | undefined = $state(undefined);
+const getGlobalState = getContext<() => GlobalState>("globalState");
 let isRedirecting = $state(true);
 let initializationFailed = $state(false);
 
@@ -13,7 +14,6 @@ let cleared = $state(false);
 
 onMount(async () => {
     // Get the globalState context function
-    const getGlobalState = getContext<() => GlobalState>("globalState");
 
     // Poll for globalState with extended timeout (12 seconds to exceed layout's 10s timeout)
     const maxRetries = 120; // 12 seconds at 100ms intervals
@@ -54,22 +54,31 @@ $effect(() => {
             }
         };
 
-        let onboardingComplete = false;
         try {
-            onboardingComplete = await globalState.isOnboardingComplete;
-        } catch (error) {
-            console.error("Failed to determine onboarding status:", error);
-        }
+            let onboardingComplete = false;
+            try {
+                onboardingComplete = await globalState.isOnboardingComplete;
+            } catch (error) {
+                console.error("Failed to determine onboarding status:", error);
+            }
 
-        if (!onboardingComplete || !(await globalState.userController.user)) {
-            await goto("/onboarding");
-            return;
+            if (
+                !onboardingComplete ||
+                !(await globalState.userController.user)
+            ) {
+                await goto("/onboarding");
+                return;
+            }
+            if (!(await globalState.securityController.pinHash)) {
+                await goto("/register");
+                return;
+            }
+            await goto("/login");
+        } catch (error) {
+            console.error("Initialization routing failed:", error);
+            initializationFailed = true;
+            isRedirecting = false;
         }
-        if (!(await globalState.securityController.pinHash)) {
-            await goto("/register");
-            return;
-        }
-        await goto("/login");
     })();
 });
 </script>
