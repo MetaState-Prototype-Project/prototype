@@ -572,19 +572,75 @@ export class VaultController {
     emitAuditEvent(eventType: string, data: Record<string, unknown>): void {
         const auditEvent = {
             type: eventType,
-            timestamp: new Date().toISOString(),
             ...data,
+            timestamp: data.timestamp ?? new Date().toISOString(),
         };
 
         console.log("AUDIT:", auditEvent);
 
         // TODO: Send to backend audit log when endpoint is ready
         // Store locally for now
-        const existingEvents = JSON.parse(
-            localStorage.getItem("auditEvents") || "[]",
-        );
+        let existingEvents: unknown[] = [];
+        try {
+            existingEvents = JSON.parse(
+                localStorage.getItem("auditEvents") || "[]",
+            );
+        } catch (parseError) {
+            console.error(
+                "Failed to parse existing audit events, starting fresh",
+                parseError,
+            );
+            existingEvents = [];
+        }
+
         existingEvents.push(auditEvent);
-        localStorage.setItem("auditEvents", JSON.stringify(existingEvents));
+
+        // Cap the array to prevent unbounded growth (keep last 1000 entries)
+        const MAX_AUDIT_EVENTS = 1000;
+        const trimmedEvents =
+            existingEvents.length > MAX_AUDIT_EVENTS
+                ? existingEvents.slice(-MAX_AUDIT_EVENTS)
+                : existingEvents;
+
+        try {
+            localStorage.setItem("auditEvents", JSON.stringify(trimmedEvents));
+        } catch (error) {
+            // Handle QuotaExceededError by aggressively trimming
+            if (
+                error instanceof DOMException &&
+                error.name === "QuotaExceededError"
+            ) {
+                console.warn(
+                    "localStorage quota exceeded, trimming audit events",
+                );
+                const aggressivelyTrimmed = existingEvents.slice(-500);
+                try {
+                    localStorage.setItem(
+                        "auditEvents",
+                        JSON.stringify(aggressivelyTrimmed),
+                    );
+                } catch (retryError) {
+                    console.error(
+                        "Failed to save audit events even after trimming",
+                        retryError,
+                    );
+                    // Last resort: keep only the most recent 100 events
+                    try {
+                        localStorage.setItem(
+                            "auditEvents",
+                            JSON.stringify(existingEvents.slice(-100)),
+                        );
+                    } catch (finalError) {
+                        console.error(
+                            "Critical: Unable to save audit events",
+                            finalError,
+                        );
+                    }
+                }
+            } else {
+                console.error("Failed to save audit event", error);
+            }
+        }
     }
 
     async clear() {
