@@ -14,15 +14,15 @@ import {
     verificaitonId,
 } from "../store";
 
-let error: string | undefined;
+let error = $state<string | undefined>(undefined);
 
 let video: HTMLVideoElement;
 let canvas1: HTMLCanvasElement;
 let canvas2: HTMLCanvasElement;
-let image = 1;
+let image = $state(1);
 let image1Captured = writable(false);
 let image2Captured = writable(false);
-let loading = false;
+let loading = $state(false);
 let stream: MediaStream;
 
 // Camera permission management
@@ -263,12 +263,12 @@ onMount(() => {
                 </p>
             </div>
             <div class="relative flex flex-col items-center justify-center">
-                <!-- svelte-ignore a11y-media-has-caption -->
+                <!-- svelte-ignore a11y_media_has_caption -->
                 <video
                     bind:this={video}
                     autoplay
                     playsinline
-                    class=" aspect-[4/3] w-full rounded-lg object-cover"
+                    class=" aspect-4/3 w-full rounded-lg object-cover"
                 ></video>
                 <img
                     src="/images/CameraFrame.svg"
@@ -368,7 +368,7 @@ onMount(() => {
                                     alt="Document Front"
                                 />
                                 <div
-                                    class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1"
+                                    class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent px-2 py-1"
                                 >
                                     <p class="text-xs text-white font-medium">
                                         Front
@@ -414,7 +414,7 @@ onMount(() => {
                                     alt="Document Back"
                                 />
                                 <div
-                                    class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1"
+                                    class="absolute bottom-0 left-0 right-0 bg-linnear-to-t from-black/60 to-transparent px-2 py-1"
                                 >
                                     <p class="text-xs text-white font-medium">
                                         Back

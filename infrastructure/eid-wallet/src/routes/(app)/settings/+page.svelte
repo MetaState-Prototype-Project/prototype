@@ -6,12 +6,9 @@ import { runtime } from "$lib/global/runtime.svelte";
 import { AssuranceLevel } from "$lib/global/controllers/user";
 import { ButtonAction, Drawer } from "$lib/ui";
 import {
-    Key01Icon,
     LanguageSquareIcon,
-    Link02Icon,
     PinCodeIcon,
     Shield01Icon,
-    CheckmarkBadge04Icon,
 } from "@hugeicons/core-free-icons";
 import { getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
@@ -23,7 +20,7 @@ let globalState = getGlobalState();
 
 let isDeleteConfirmationOpen = $state(false);
 let isFinalConfirmationOpen = $state(false);
-let assuranceLevel = $state<AssuranceLevel>(AssuranceLevel.UNVERIFIED);
+let assuranceLevel = $state<AssuranceLevel | undefined>(undefined);
 
 // Hidden eVault profile retry functionality
 let tapCount = $state(0);
@@ -139,7 +136,7 @@ $effect(() => {
     <!-- header part -->
     <div>
         <!-- Show Verify Identity option if user is UNVERIFIED -->
-        {#if assuranceLevel === AssuranceLevel.UNVERIFIED}
+        {#if assuranceLevel !== undefined && assuranceLevel === AssuranceLevel.UNVERIFIED}
             <button
                 onclick={handleVerifyIdentity}
                 class="w-full px-4 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border-b border-gray-200 dark:border-gray-700"
