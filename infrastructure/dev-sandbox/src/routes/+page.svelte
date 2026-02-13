@@ -4,6 +4,7 @@
         syncPublicKeyToEvaultWithOptions,
         signPayload,
     } from "wallet-sdk";
+    import jsQR from "jsqr";
     import { env } from "$env/dynamic/public";
     import { PersistingWebCryptoAdapter } from "$lib/PersistingWebCryptoAdapter";
     import {
@@ -79,6 +80,10 @@
     let actionBusy = $state(false);
     let actionError = $state<string | null>(null);
     let actionSuccess = $state<string | null>(null);
+
+    let qrDecodeBusy = $state(false);
+    let qrDecodeError = $state<string | null>(null);
+    let qrFileInputEl: HTMLInputElement | null = $state(null);
 
     let signPayloadInput = $state("");
     let signBusy = $state(false);
@@ -281,6 +286,84 @@
         }
     }
 
+    /** Decode QR code from image blob; returns decoded text or null. */
+    function decodeQrFromImageBlob(blob: Blob): Promise<string | null> {
+        return new Promise((resolve) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const canvas = document.createElement("canvas");
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    resolve(null);
+                    return;
+                }
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                );
+                const code = jsQR(
+                    imageData.data,
+                    imageData.width,
+                    imageData.height,
+                );
+                resolve(code?.data ?? null);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve(null);
+            };
+            img.src = url;
+        });
+    }
+
+    async function handleQrImageFromBlob(blob: Blob) {
+        qrDecodeBusy = true;
+        qrDecodeError = null;
+        try {
+            const text = await decodeQrFromImageBlob(blob);
+            if (text) {
+                w3dsInput = text.trim();
+                actionError = null;
+                addLog("info", "Decoded QR", text.slice(0, 50) + (text.length > 50 ? "…" : ""));
+            } else {
+                qrDecodeError = "No QR code found in image.";
+            }
+        } catch {
+            qrDecodeError = "Failed to decode image.";
+        } finally {
+            qrDecodeBusy = false;
+        }
+    }
+
+    function handleQrFileSelect(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        if (file && file.type.startsWith("image/")) {
+            handleQrImageFromBlob(file);
+        } else if (file) {
+            qrDecodeError = "Please choose an image file.";
+        }
+        input.value = "";
+    }
+
+    function handlePaste(e: ClipboardEvent) {
+        const item = Array.from(e.clipboardData?.items ?? []).find(
+            (it) => it.type.startsWith("image/"),
+        );
+        const file = item?.getAsFile();
+        if (file) {
+            e.preventDefault();
+            handleQrImageFromBlob(file);
+        }
+    }
+
     async function performW3dsAction() {
         if (!selectedIdentity) {
             actionError = "Select or create an identity first.";
@@ -432,6 +515,7 @@
     }
 </script>
 
+<svelte:window onpaste={handlePaste} />
 {#if !hydrated}
     <p class="loading">Loading…</p>
 {:else}
@@ -494,7 +578,31 @@
                     <p>
                         Paste a <code>w3ds://auth</code> or
                         <code>w3ds://sign</code> URI (or HTTP URL with session/redirect_uri).
+                        You can also upload or paste an image of a QR code to decode the request.
                     </p>
+                    <div class="w3ds-qr-actions">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onchange={handleQrFileSelect}
+                            bind:this={qrFileInputEl}
+                            class="sr-only"
+                            id="qr-file-input"
+                            aria-label="Upload QR image"
+                        />
+                        <button
+                            type="button"
+                            class="btn-link"
+                            disabled={qrDecodeBusy}
+                            onclick={() => qrFileInputEl?.click()}
+                        >
+                            {qrDecodeBusy ? "Decoding…" : "Upload QR image"}
+                        </button>
+                        <span class="muted">or paste an image (Ctrl+V)</span>
+                    </div>
+                    {#if qrDecodeError}
+                        <p class="error">{qrDecodeError}</p>
+                    {/if}
                     <textarea
                         bind:value={w3dsInput}
                         placeholder="w3ds://auth?redirect=...&session=... or w3ds://sign?session=...&data=...&redirect_uri=..."
@@ -649,6 +757,49 @@
         padding: 0.15em 0.4em;
         border-radius: 4px;
         font-size: 0.9em;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .w3ds-qr-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .btn-link {
+        cursor: pointer;
+        color: var(--link, #2563eb);
+        text-decoration: underline;
+        font-size: 0.9rem;
+        background: none;
+        border: none;
+        padding: 0;
+    }
+
+    .btn-link:hover:not(:disabled) {
+        color: var(--link-hover, #1d4ed8);
+    }
+
+    .btn-link:disabled {
+        cursor: default;
+        opacity: 0.7;
+    }
+
+    .muted {
+        font-size: 0.85rem;
+        color: var(--muted, #64748b);
     }
 
     .card {
