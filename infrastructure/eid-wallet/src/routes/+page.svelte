@@ -9,9 +9,6 @@ const getGlobalState = getContext<() => GlobalState>("globalState");
 let isRedirecting = $state(true);
 let initializationFailed = $state(false);
 
-let clearPin = $state(async () => {});
-let cleared = $state(false);
-
 onMount(async () => {
     // Get the globalState context function
 
@@ -45,15 +42,6 @@ $effect(() => {
 
     // Run the initialization and routing logic
     (async () => {
-        clearPin = async () => {
-            try {
-                await globalState?.securityController.clearPin();
-                cleared = true;
-            } catch (error) {
-                console.error("Failed to clear PIN:", error);
-            }
-        };
-
         try {
             let onboardingComplete = false;
             try {
