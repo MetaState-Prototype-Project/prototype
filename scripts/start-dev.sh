@@ -51,6 +51,28 @@ for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
 done
 echo "Postgres and Neo4j are up."
 
+# Create registry and provisioner databases if they don't exist
+echo "Ensuring registry and provisioner databases exist..."
+for db in registry provisioner; do
+  EXISTS=$(docker compose -f docker-compose.databases.yml exec -T postgres psql -U "${POSTGRES_USER:-postgres}" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" 2>/dev/null | tr -d '[:space:]' || echo "")
+  if [ "$EXISTS" != "1" ]; then
+    echo "Creating database: $db"
+    docker compose -f docker-compose.databases.yml exec -T postgres psql -U "${POSTGRES_USER:-postgres}" -d postgres -c "CREATE DATABASE \"$db\""
+  else
+    echo "Database $db already exists."
+  fi
+done
+
+# Run registry migrations
+echo "Running registry migrations..."
+pnpm --filter registry migration:run
+
+# Build and run evault-core (provisioner) migrations
+# Unset REGISTRY_DATABASE_URL so evault-core uses PROVISIONER_DATABASE_URL for its migrations
+echo "Building evault-core and running provisioner migrations..."
+pnpm --filter evault-core build
+REGISTRY_DATABASE_URL= pnpm --filter evault-core migration:run
+
 echo "Starting registry, evault-core, dev-sandbox (logs prefixed by service)..."
 pnpm exec concurrently -n registry,evault,sandbox \
   "pnpm --filter registry dev" \

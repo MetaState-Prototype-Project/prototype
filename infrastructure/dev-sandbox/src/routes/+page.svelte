@@ -17,6 +17,9 @@
         platformName: env.PUBLIC_DEV_SANDBOX_PLATFORM_NAME ?? "dev-sandbox",
     };
 
+    /** Demo verification code accepted by evault-core when DEMO_CODE_W3DS is set. */
+    const DEMO_VERIFICATION_ID = "d66b7138-538a-465f-a6ce-f6985854c3f4";
+
     const IDENTITIES_STORAGE_KEY = "dev-sandbox-identities";
     const TOKEN_REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -158,15 +161,19 @@
         provisionSuccess = null;
         addLog("info", "Provisioning new eVault…");
         try {
-            const result = await provision({
-                cryptoAdapter: adapter,
+            const { keyId } = await adapter.generateKeyPair();
+            const result = await provision(adapter, {
                 registryUrl: config.registryUrl,
                 provisionerUrl: config.provisionerUrl,
+                namespace: crypto.randomUUID(),
+                verificationId: DEMO_VERIFICATION_ID,
+                keyId,
+                context: "onboarding",
             });
             const identity: Identity = {
                 w3id: result.w3id,
                 uri: result.uri,
-                keyId: result.keyId,
+                keyId,
             };
             identities = [...identities, identity];
             selectedIndex = identities.length - 1;

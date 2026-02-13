@@ -114,7 +114,40 @@ export class PersistingWebCryptoAdapter implements CryptoAdapter {
     return { keyId, publicKey: bufferToMultibaseHex(spki) };
   }
 
-  private async ensureKey(keyId: string): Promise<CryptoKeyPair> {
+  async getPublicKey(keyId: string, _context?: string): Promise<string> {
+    const pair = await this.ensureKeyInMemory(keyId);
+    const spki = await crypto.subtle.exportKey("spki", pair.publicKey);
+    return bufferToMultibaseHex(spki);
+  }
+
+  async sign(keyId: string, payload: string): Promise<string> {
+    const pair = await this.ensureKeyInMemory(keyId);
+    const data = new TextEncoder().encode(payload);
+    const sig = await crypto.subtle.sign(SIGN_ALG, pair.privateKey, data);
+    return bufferToBase64(sig);
+  }
+
+  /** CryptoAdapter: sign with keyId and context (context ignored). */
+  async signPayload(
+    keyId: string,
+    _context: string,
+    payload: string,
+  ): Promise<string> {
+    return this.sign(keyId, payload);
+  }
+
+  /** CryptoAdapter: ensure key exists (load from storage); return created: false (we don't create on demand by keyId). */
+  async ensureKey(keyId: string, _context: string): Promise<{ created: boolean }> {
+    if (keyStore.has(keyId)) return { created: false };
+    const stored = readStoredKeys()[keyId];
+    if (!stored?.privateKeyPkcs8Base64) {
+      throw new Error(`Key not found: ${keyId}. Provision an eVault first to create a key.`);
+    }
+    await this.ensureKeyInMemory(keyId);
+    return { created: false };
+  }
+
+  private async ensureKeyInMemory(keyId: string): Promise<CryptoKeyPair> {
     let pair = keyStore.get(keyId);
     if (pair) return pair;
     const stored = readStoredKeys()[keyId];
@@ -136,18 +169,5 @@ export class PersistingWebCryptoAdapter implements CryptoAdapter {
     pair = { privateKey, publicKey };
     keyStore.set(keyId, pair);
     return pair;
-  }
-
-  async getPublicKey(keyId: string): Promise<string> {
-    const pair = await this.ensureKey(keyId);
-    const spki = await crypto.subtle.exportKey("spki", pair.publicKey);
-    return bufferToMultibaseHex(spki);
-  }
-
-  async sign(keyId: string, payload: string): Promise<string> {
-    const pair = await this.ensureKey(keyId);
-    const data = new TextEncoder().encode(payload);
-    const sig = await crypto.subtle.sign(SIGN_ALG, pair.privateKey, data);
-    return bufferToBase64(sig);
   }
 }
