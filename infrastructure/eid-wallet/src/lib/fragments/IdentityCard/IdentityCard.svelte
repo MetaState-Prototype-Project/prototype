@@ -43,7 +43,9 @@ $effect(() => {
         usedStorage > 0 ? `${(usedStorage / totalStorage) * 100}%` : "0%";
 });
 
-const baseClasses = $derived(`relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[100px] text-white overflow-hidden`);
+const baseClasses = $derived(
+    `relative ${variant === "eName" ? "bg-black-900" : variant === "ePassport" ? "bg-primary" : "bg-gray"}  rounded-3xl w-full min-h-[100px] text-white overflow-hidden`,
+);
 </script>
 
 <div {...restProps} class={cn(baseClasses, restProps.class)}>

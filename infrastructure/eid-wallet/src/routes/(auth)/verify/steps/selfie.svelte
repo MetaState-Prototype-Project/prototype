@@ -7,11 +7,11 @@ import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
 import { Selfie, permissionGranted, verifStep, verificaitonId } from "../store";
 
-let video: HTMLVideoElement | undefined = $state();
-let canvas: HTMLCanvasElement | undefined = $state();
-let image = $state(1);
+let video = $state<HTMLVideoElement>();
+let canvas = $state<HTMLCanvasElement>();
+let image = 1;
 let load = $state(false);
-let stream: MediaStream | undefined = $state();
+let stream: MediaStream;
 
 // Camera permission management
 const cameraPermission = createCameraPermissionManager();
@@ -34,8 +34,10 @@ async function requestCameraPermission() {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" },
         });
-        video!.srcObject = stream;
-        video!.play();
+        if (video) {
+            video.srcObject = stream;
+            video.play();
+        }
         permissionGranted.set(true);
         showPermissionDialog = false;
     } catch (err) {
@@ -56,14 +58,14 @@ onMount(() => {
 });
 
 async function captureImage() {
-    if (image === 1) {
-        const context = canvas!.getContext("2d");
+    if (image === 1 && video && canvas) {
+        const context = canvas.getContext("2d");
         if (context) {
-            context.drawImage(video!, 0, 0, 1920, 1080);
-            canvas!.width = video!.videoWidth;
-            canvas!.height = video!.videoHeight;
-            context.drawImage(video!, 0, 0, canvas!.width, canvas!.height);
-            const dataUrl = canvas!.toDataURL("image/png");
+            context.drawImage(video, 0, 0, 1920, 1080);
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL("image/png");
             Selfie.set(dataUrl);
             load = true;
             await axios.post(
@@ -82,7 +84,7 @@ async function captureImage() {
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
             );
-            for (const track of stream!.getTracks()) {
+            for (const track of stream.getTracks()) {
                 track.stop();
             }
             // The verification step will be updated by the SSE response
