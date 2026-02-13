@@ -408,7 +408,7 @@ onMount(async () => {
                     },
                 );
 
-                // Navigate ΓÇö small delay to let store writes settle
+                // Navigate - small delay to let store writes settle
                 setTimeout(() => {
                     if (isPostOnboardingUpgrade) {
                         goto("/main");
@@ -453,16 +453,16 @@ onMount(async () => {
                     },
                 );
             } else {
-                // Approved status ΓÇö vault already exists from onboarding
+                // Approved status - vault already exists from onboarding
                 const vaultInfo = await globalState.vaultController.vault;
 
                 if (!vaultInfo) {
                     throw new Error(
-                        "No vault found ΓÇö identity must be created during onboarding first",
+                        "No vault found - identity must be created during onboarding first",
                     );
                 }
 
-                // Create Physical ID binding document (stub ΓÇö CA-signed when backend ready)
+                // Create Physical ID binding document (stub - CA-signed when backend ready)
                 await globalState.vaultController.createBindingDocument(
                     "PHYSICAL_ID",
                     {
@@ -633,7 +633,7 @@ onDestroy(() => {
                                 if ($verifStep > 0 && $verifStep <= 2) {
                                     verifStep.set($verifStep - 1);
                                 } else if ($verifStep > 2) {
-                                    // Verification result screen ΓÇö handle fail/cancel
+                                    // Verification result screen - handle fail/cancel
                                     if (
                                         $status !== "approved" &&
                                         $status !== "duplicate"
@@ -663,7 +663,7 @@ onDestroy(() => {
                                             await goto("/register");
                                         }
                                     } else {
-                                        // Approved/duplicate ΓÇö go back to KYC decision
+                                        // Approved/duplicate - go back to KYC decision
                                         closeEventStream();
                                         showVeriffModal = false;
                                     }

@@ -414,7 +414,7 @@ onMount(() => {
                                     alt="Document Back"
                                 />
                                 <div
-                                    class="absolute bottom-0 left-0 right-0 bg-linnear-to-t from-black/60 to-transparent px-2 py-1"
+                                    class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent px-2 py-1"
                                 >
                                     <p class="text-xs text-white font-medium">
                                         Back
