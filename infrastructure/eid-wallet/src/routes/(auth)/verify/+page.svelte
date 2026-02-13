@@ -550,8 +550,15 @@ onDestroy(() => {
                     class="w-full"
                     callback={async () => {
                         if (globalState) {
-                            globalState.userController.assuranceLevel =
-                                AssuranceLevel.UNVERIFIED;
+                            // Only downgrade to UNVERIFIED if not already KYC_VERIFIED
+                            if (
+                                (await globalState.userController
+                                    .assuranceLevel) !==
+                                AssuranceLevel.KYC_VERIFIED
+                            ) {
+                                globalState.userController.assuranceLevel =
+                                    AssuranceLevel.UNVERIFIED;
+                            }
                             globalState.vaultController.emitAuditEvent(
                                 "KYC_HARDWARE_UNAVAILABLE",
                                 {
@@ -642,8 +649,9 @@ onDestroy(() => {
                                         if (globalState) {
                                             // Only downgrade to UNVERIFIED if not already KYC_VERIFIED
                                             if (
-                                                globalState.userController
-                                                    .assuranceLevel !==
+                                                (await globalState
+                                                    .userController
+                                                    .assuranceLevel) !==
                                                 AssuranceLevel.KYC_VERIFIED
                                             ) {
                                                 globalState.userController.assuranceLevel =
