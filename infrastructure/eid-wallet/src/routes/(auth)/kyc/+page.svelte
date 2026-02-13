@@ -1,15 +1,15 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { ButtonAction } from "$lib/ui";
 import { GlobalState } from "$lib/global";
 import { AssuranceLevel } from "$lib/global/controllers/user";
-import { getContext } from "svelte";
-import { HugeiconsIcon } from "@hugeicons/svelte";
+import { ButtonAction } from "$lib/ui";
 import {
     InformationCircleIcon,
     SecurityCheckIcon,
     Tick01Icon,
 } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { getContext } from "svelte";
 
 let loading = $state(false);
 let globalState: GlobalState;

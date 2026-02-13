@@ -174,7 +174,7 @@ async function handleVerification() {
                 type: { value: "passport" },
                 country: { value: "DEMO" },
                 number: {
-                    value: "DEMO" + Date.now().toString().slice(-6),
+                    value: `DEMO${Date.now().toString().slice(-6)}`,
                     confidenceCategory: "high",
                     sources: ["demo"],
                 },

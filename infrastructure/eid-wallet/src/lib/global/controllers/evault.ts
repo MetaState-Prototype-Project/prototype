@@ -512,7 +512,7 @@ export class VaultController {
         console.log("TODO: Create binding document", {
             type,
             data,
-            signature: signature.substring(0, 50) + "...",
+            signature: `${signature.substring(0, 50)}...`,
         });
 
         // Emit audit event
@@ -543,7 +543,7 @@ export class VaultController {
     async requestEPassport(ename: string, publicKey: string): Promise<string> {
         console.log("TODO: Request ePassport from CA", {
             ename,
-            publicKey: publicKey.substring(0, 50) + "...",
+            publicKey: `${publicKey.substring(0, 50)}...`,
         });
 
         // Emit audit event

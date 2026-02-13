@@ -2,8 +2,8 @@
 import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { runtime } from "$lib/global/runtime.svelte";
 import { AssuranceLevel } from "$lib/global/controllers/user";
+import { runtime } from "$lib/global/runtime.svelte";
 import { ButtonAction, Drawer } from "$lib/ui";
 import {
     LanguageSquareIcon,

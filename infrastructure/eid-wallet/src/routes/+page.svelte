@@ -1,7 +1,7 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import type { GlobalState } from "$lib/global";
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
+import type { GlobalState } from "$lib/global";
 import { getContext, onMount } from "svelte";
 
 let globalState: GlobalState | undefined = $state(undefined);
