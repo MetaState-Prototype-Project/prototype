@@ -20,9 +20,15 @@ onMount(async () => {
             return;
         }
 
-        // Check if user is already authenticated
+        // Check if user is already authenticated AND has completed onboarding
         const vault = await globalState.vaultController.vault;
-        if (vault) {
+        const onboardingComplete = await globalState.isOnboardingComplete;
+        const pinHash = await globalState.securityController.pinHash;
+
+        // Allow /verify through even for fully authenticated users (KYC upgrade path)
+        const isVerifyPage = page.url.pathname === "/verify";
+
+        if (vault && onboardingComplete && pinHash && !isVerifyPage) {
             vaultExists = true;
             console.log("User already authenticated, redirecting to main");
             // Use replaceState to prevent infinite back loops
@@ -30,8 +36,7 @@ onMount(async () => {
             return;
         }
 
-        if (globalState.isOnboardingComplete) {
-            const pinHash = await globalState.securityController.pinHash;
+        if (onboardingComplete && !isVerifyPage) {
             const isAlreadyAtLogin = page.url.pathname === "/login";
 
             if (pinHash && !isAlreadyAtLogin) {

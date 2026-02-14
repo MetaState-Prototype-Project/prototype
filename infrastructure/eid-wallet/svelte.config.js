@@ -13,8 +13,8 @@ const config = {
             dir: "../../",
         },
         alias: {
-            blindvote: "../../infrastructure/blindvote/src"
-        }
+            blindvote: "../../infrastructure/blindvote/src",
+        },
     },
 };
 

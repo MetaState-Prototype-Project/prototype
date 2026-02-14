@@ -5,14 +5,12 @@ import { createCameraPermissionManager } from "$lib/utils";
 import axios from "axios";
 import { onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import { writable } from "svelte/store";
 import { Selfie, permissionGranted, verifStep, verificaitonId } from "../store";
 
-let video: HTMLVideoElement;
-let canvas: HTMLCanvasElement;
+let video = $state<HTMLVideoElement>();
+let canvas = $state<HTMLCanvasElement>();
 let image = 1;
-let imageCaptured = writable(false);
-let load = false;
+let load = $state(false);
 let stream: MediaStream;
 
 // Camera permission management
@@ -36,8 +34,10 @@ async function requestCameraPermission() {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" },
         });
-        video.srcObject = stream;
-        video.play();
+        if (video) {
+            video.srcObject = stream;
+            video.play();
+        }
         permissionGranted.set(true);
         showPermissionDialog = false;
     } catch (err) {
@@ -58,7 +58,7 @@ onMount(() => {
 });
 
 async function captureImage() {
-    if (image === 1) {
+    if (image === 1 && video && canvas) {
         const context = canvas.getContext("2d");
         if (context) {
             context.drawImage(video, 0, 0, 1920, 1080);
@@ -108,12 +108,12 @@ async function captureImage() {
             <div
                 class="relative mt-3 flex flex-col items-center justify-center"
             >
-                <!-- svelte-ignore a11y-media-has-caption -->
+                <!-- svelte-ignore a11y_media_has_caption -->
                 <video
                     bind:this={video}
                     autoplay
                     playsinline
-                    class=" aspect-[4/3] w-full rounded-lg object-cover"
+                    class=" aspect-4/3 w-full rounded-lg object-cover"
                 ></video>
                 <img
                     src="/images/CameraCircle.svg"

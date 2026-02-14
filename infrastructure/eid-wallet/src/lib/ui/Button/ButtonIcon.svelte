@@ -93,23 +93,25 @@ const textColor: Record<string, string> = {
     danger: "text-danger",
 } as const;
 
-const resolvedIconSize =
+const resolvedIconSize = $derived(
     iconSize === undefined
         ? iconSizeVariant.md
         : typeof iconSize === "number"
           ? iconSize
           : iconSize in iconSizeVariant
             ? iconSizeVariant[iconSize as keyof typeof iconSizeVariant]
-            : iconSize;
+            : iconSize,
+);
 
-const resolvedBgSize =
+const resolvedBgSize = $derived(
     bgSize === undefined
         ? "" // if bgSize is empty, there is no background
         : typeof bgSize === "number"
           ? `h-${bgSize} w-${bgSize}`
           : bgSize in sizeVariant
             ? sizeVariant[bgSize as keyof typeof sizeVariant]
-            : bgSize;
+            : bgSize,
+);
 
 const classes = $derived({
     common: cn(
@@ -124,17 +126,35 @@ const classes = $derived({
 </script>
 
 <button
-	{...restProps}
-	class={cn([classes.common, classes.bgSize, classes.iconColor, classes.background, disabled && classes.disabled, restProps.class].join(' '))}
-	{disabled}
-	onclick={callback ? handleClick : onclick}
-	{type}
+    {...restProps}
+    class={cn(
+        [
+            classes.common,
+            classes.bgSize,
+            classes.iconColor,
+            classes.background,
+            disabled && classes.disabled,
+            restProps.class,
+        ].join(" "),
+    )}
+    {disabled}
+    onclick={callback ? handleClick : onclick}
+    {type}
 >
-	{#if isLoading || isSubmitting}
-	<div class="loading loading-spinner absolute loading-lg {cn(classes.iconColor)}"></div>
-	{:else}
-	<HugeiconsIcon {icon} size={classes.iconSize} {strokeWidth} color={classes.iconColor} />
-	{/if}
+    {#if isLoading || isSubmitting}
+        <div
+            class="loading loading-spinner absolute loading-lg {cn(
+                classes.iconColor,
+            )}"
+        ></div>
+    {:else}
+        <HugeiconsIcon
+            {icon}
+            size={classes.iconSize}
+            {strokeWidth}
+            color={classes.iconColor}
+        />
+    {/if}
 </button>
 
 <!-- 

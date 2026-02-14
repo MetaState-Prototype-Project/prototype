@@ -1,6 +1,6 @@
 <script lang="ts">
 import SplashScreen from "$lib/fragments/SplashScreen/SplashScreen.svelte";
-import { getContext, onDestroy, onMount, setContext } from "svelte";
+import { onDestroy, onMount, setContext } from "svelte";
 import "../app.css";
 import { goto, onNavigate } from "$app/navigation";
 import { GlobalState } from "$lib/global/state";
@@ -35,6 +35,25 @@ async function ensureMinimumDelay() {
     await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
+/**
+ * Helper to add a timeout to any promise
+ */
+function withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    name: string,
+): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(
+                () => reject(new Error(`${name} timed out after ${ms}ms`)),
+                ms,
+            ),
+        ),
+    ]);
+}
+
 onMount(async () => {
     let status: Status | undefined = undefined;
     try {
@@ -46,11 +65,18 @@ onMount(async () => {
         };
     }
     runtime.biometry = status.biometryType;
+
     try {
-        globalState = await GlobalState.create();
+        globalState = await withTimeout(
+            GlobalState.create(),
+            10000,
+            "GlobalState.create",
+        );
     } catch (error) {
         console.error("Failed to initialize global state:", error);
-        // Consider adding fallback behavior or user notification
+        // Show error and prevent app from continuing without global state
+        alert("Failed to initialize app. Please restart the application.");
+        throw error; // Prevent further execution
     }
 
     // Handle deep links
@@ -593,10 +619,12 @@ onMount(async () => {
 
     await Promise.all([loadData(), ensureMinimumDelay()]);
 
-    showSplashScreen = false;
-
-    // Mark app as ready and process any pending deep links
-    isAppReady = true;
+    // Only hide splash screen if globalState is initialized
+    if (globalState) {
+        showSplashScreen = false;
+        // Mark app as ready and process any pending deep links
+        isAppReady = true;
+    }
 
     // Process queued deep links
     if (pendingDeepLinks.length > 0 && globalState) {
@@ -627,8 +655,6 @@ const safeAreaTop = $derived.by(
             ),
         ) || 0,
 );
-
-$effect(() => console.log("top", safeAreaTop));
 
 onNavigate((navigation) => {
     if (!document.startViewTransition) return;
@@ -673,7 +699,7 @@ $effect(() => {
 });
 </script>
 
-{#if showSplashScreen}
+{#if showSplashScreen || !globalState}
     <SplashScreen />
 {:else}
     <div
