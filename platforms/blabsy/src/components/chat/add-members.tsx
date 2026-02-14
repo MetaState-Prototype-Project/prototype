@@ -363,14 +363,15 @@ export function AddMembers({
         <Dialog open={open} onClose={onClose} className='relative z-10'>
             <div className='fixed inset-0 bg-black/30' aria-hidden='true' />
             <div className='fixed inset-0 flex items-center justify-center p-4'>
-                <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
-                    <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
+                <Dialog.Panel className='flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
+                    <Dialog.Title className='flex shrink-0 items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
                         {newChat ? 'Create New Chat' : 'Members'}
                         <XMarkIcon
                             className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             onClick={onClose}
                         />
                     </Dialog.Title>
+                    <div className='flex min-h-0 flex-1 flex-col overflow-y-auto'>
                     {newChat && selectedUsers.length > 1 && (
                         <div className='mt-4'>
                             <input
@@ -448,7 +449,7 @@ export function AddMembers({
                             className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
                         />
                     </div>
-                    <div className='mt-4 max-h-80 overflow-y-auto'>
+                    <div className='mt-4 min-h-0 flex-1'>
                         {isSearching && (
                             <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 Searching...
@@ -547,8 +548,9 @@ export function AddMembers({
                             );
                         })}
                     </div>
+                    </div>
                     {selectedUsers.length > 0 && (
-                        <div className='mt-4'>
+                        <div className='mt-4 shrink-0'>
                             <button
                                 type='button'
                                 disabled={isAddingMembers}
