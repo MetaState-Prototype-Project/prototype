@@ -152,8 +152,11 @@ app.get("/trust-score", (req, res) => {
     return res.json(result);
 });
 
-app.listen(PORT, () => {
-    console.log(`Trust Score service running on port ${PORT}`);
-});
+// Only start the server if this file is executed directly
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Trust Score service running on port ${PORT}`);
+    });
+}
 
 module.exports = app;
