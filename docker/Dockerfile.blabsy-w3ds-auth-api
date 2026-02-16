@@ -39,14 +39,14 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/infrastructure ./infrastructure
 
 # Copy blabsy-w3ds-auth-api
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/dist ./dist
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/package.json ./
-COPY --from=builder /app/platforms/blabsy-w3ds-auth-api/node_modules ./node_modules
+COPY --from=builder /app/platforms/blabsy/api/dist ./dist
+COPY --from=builder /app/platforms/blabsy/api/package.json ./
+COPY --from=builder /app/platforms/blabsy/api/node_modules ./node_modules
 
 # Copy root node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
-WORKDIR /app/platforms/blabsy-w3ds-auth-api
+WORKDIR /app/platforms/blabsy/api
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

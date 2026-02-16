@@ -38,14 +38,14 @@ COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/infrastructure ./infrastructure
 
 # Copy pictique-api
-COPY --from=builder /app/platforms/pictique-api/dist ./dist
-COPY --from=builder /app/platforms/pictique-api/package.json ./
-COPY --from=builder /app/platforms/pictique-api/node_modules ./node_modules
+COPY --from=builder /app/platforms/pictique/api/dist ./dist
+COPY --from=builder /app/platforms/pictique/api/package.json ./
+COPY --from=builder /app/platforms/pictique/api/node_modules ./node_modules
 
 # Copy root node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
-WORKDIR /app/platforms/pictique-api
+WORKDIR /app/platforms/pictique/api
 
 EXPOSE 1111
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

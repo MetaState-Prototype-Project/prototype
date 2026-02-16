@@ -6,10 +6,11 @@ const config = {
 	kit: {
 		adapter: adapter(),
 		env: {
-			dir: '../../'
+			dir: '../../../'
 		}
 	}
 };
 
 export default config;
+
 
