@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 2
 ---
 
 # Using the Dev Sandbox
@@ -17,7 +17,7 @@ pnpm install
 pnpm dev:core
 ```
 
-The sandbox is available at **http://localhost:8080**. See **QUICKSTART.md** in the repo root for prerequisites and environment variables.
+The sandbox is available at **http://localhost:8080**. See [Local Dev Quick Start](/docs/Post%20Platform%20Guide/local-dev-quick-start) for prerequisites and environment variables.
 
 ### Option 2: Run the sandbox only
 
