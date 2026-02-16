@@ -128,6 +128,20 @@ app.get("/trust-score", (req, res) => {
             .json({ error: 'keyLocation must be "TPM" or "SW"' });
     }
 
+    if (accountAgeDays < 0) {
+        return res
+            .status(400)
+            .json({ error: "accountAgeDays must be a non-negative number" });
+    }
+
+    if (thirdDegreeConnections < 0) {
+        return res
+            .status(400)
+            .json({
+                error: "thirdDegreeConnections must be a non-negative number",
+            });
+    }
+
     const result = calculateTrustScore({
         isVerified,
         accountAgeDays,
