@@ -30,10 +30,10 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 # Copy built application
-COPY --from=builder /app/platforms/registry/dist ./dist
-COPY --from=builder /app/platforms/registry/package.json ./
-COPY --from=builder /app/platforms/registry/motd.json ./
-COPY --from=builder /app/platforms/registry/node_modules ./node_modules
+COPY --from=builder /app/platforms/registry/api/dist ./dist
+COPY --from=builder /app/platforms/registry/api/package.json ./
+COPY --from=builder /app/platforms/registry/api/motd.json ./
+COPY --from=builder /app/platforms/registry/api/node_modules ./node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 4321

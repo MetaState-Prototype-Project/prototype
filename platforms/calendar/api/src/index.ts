@@ -6,8 +6,8 @@ import cors from "cors";
 
 // Load .env: try monorepo root, then calendar-api parent, then cwd (no fallback)
 const candidates = [
-  path.resolve(__dirname, "../../../.env"), // repo root from dist/
-  path.resolve(__dirname, "../../.env"),   // repo root from src/ or platforms/.env
+  path.resolve(__dirname, "../../../../.env"), // repo root from dist/
+  path.resolve(__dirname, "../../../.env"),   // repo root from src/
   path.resolve(process.cwd(), ".env"),
 ];
 const envPath = candidates.find((p) => fs.existsSync(p));

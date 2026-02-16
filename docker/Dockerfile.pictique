@@ -26,9 +26,9 @@ RUN pnpm turbo build --filter=pictique
 # ---
 FROM base AS runner
 # Copy built application
-COPY --from=builder /app/platforms/pictique/build ./build
-COPY --from=builder /app/platforms/pictique/package.json ./
-COPY --from=builder /app/platforms/pictique/node_modules ./node_modules
+COPY --from=builder /app/platforms/pictique/client/build ./build
+COPY --from=builder /app/platforms/pictique/client/package.json ./
+COPY --from=builder /app/platforms/pictique/client/node_modules ./node_modules
 
 EXPOSE 5173
 ENV NODE_ENV=production
