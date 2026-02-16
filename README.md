@@ -68,18 +68,29 @@ prototype/
 │  └─ web3-adapter/
 ├─ platforms/
 │  ├─ registry/
-│  ├─ pictique-api/
+│  │  └─ api/
 │  ├─ pictique/
-│  ├─ blabsy-w3ds-auth-api/
+│  │  ├─ api/
+│  │  └─ client/
 │  ├─ blabsy/
-│  ├─ group-charter-manager-api/
+│  │  ├─ api/
+│  │  └─ client/
 │  ├─ group-charter-manager/
-│  ├─ evoting-api/
-│  ├─ eVoting/
-│  ├─ dreamsync-api/
+│  │  ├─ api/
+│  │  └─ client/
+│  ├─ evoting/
+│  │  ├─ api/
+│  │  └─ client/
+│  ├─ dreamsync/
+│  │  ├─ api/
+│  │  └─ client/
 │  ├─ cerberus/
+│  │  └─ client/
 │  ├─ ereputation/
+│  │  ├─ api/
+│  │  └─ client/
 │  └─ marketplace/
+│     └─ client/
 ├─ docker/
 │  └─ Dockerfile.* (Dedicated Dockerfiles for each service)
 └─ docker-compose.databases.yml (Postgres + Neo4j)

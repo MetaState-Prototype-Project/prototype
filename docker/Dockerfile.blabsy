@@ -26,11 +26,11 @@ RUN pnpm turbo build --filter=blabsy
 # ---
 FROM base AS runner
 # Copy built application
-COPY --from=builder /app/platforms/blabsy/package.json ./
-COPY --from=builder /app/platforms/blabsy/.next ./.next
-COPY --from=builder /app/platforms/blabsy/public ./public
-COPY --from=builder /app/platforms/blabsy/next.config.ts ./
-COPY --from=builder /app/platforms/blabsy/node_modules ./node_modules
+COPY --from=builder /app/platforms/blabsy/client/package.json ./
+COPY --from=builder /app/platforms/blabsy/client/.next ./.next
+COPY --from=builder /app/platforms/blabsy/client/public ./public
+COPY --from=builder /app/platforms/blabsy/client/next.config.ts ./
+COPY --from=builder /app/platforms/blabsy/client/node_modules ./node_modules
 
 EXPOSE 8080
 ENV NODE_ENV=production

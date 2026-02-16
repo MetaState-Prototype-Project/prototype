@@ -176,16 +176,39 @@ onDestroy(() => {
             href="https://marketplace.w3ds.metastate.foundation/"
             target="_blank"
             rel="noopener noreferrer"
-            class="rounded-3xl w-full bg-black-700 text-white p-4 mt-8 flex items-center justify-center gap-3 cursor-pointer"
+            class="rounded-3xl z-0 w-full border border-gray-300 h-48 text-black p-3 mt-8 flex flex-col justify-end cursor-pointer relative overflow-hidden  transition-shadow"
         >
-            <span class="text-lg font-medium flex gap-2"
-                >Discover <img
-                    class="w-12"
-                    src="/images/W3DSLogoWhite.svg"
-                    alt="w3ds logo"
-                /> Post Platforms</span
+            <img
+                src="/marketplace.png"
+                alt="Marketplace"
+                class="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
+            />
+            <!-- Gradient overlay that fades towards the bottom -->
+            <div
+                class="absolute inset-0 z-1 bg-linear-to-t from-white via-white/60 to-transparent"
+            ></div>
+
+            <span
+                class="text-2xl font-bold flex gap-2 relative z-10 drop-shadow-lg"
+                >Discover Post Platforms</span
             >
-            <HugeiconsIcon size={24} strokeWidth={2} icon={LinkSquare02Icon} />
+            <span
+                class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
+                >Explore
+                <img
+                    src="/images/W3DSLogoBlack.svg"
+                    alt="W3DS Logo"
+                    class="h-4"
+                />
+                Marketplace
+                <span class="relative z-10">
+                    <HugeiconsIcon
+                        size={16}
+                        strokeWidth={1.5}
+                        icon={LinkSquare02Icon}
+                    />
+                </span></span
+            >
         </Button.Nav>
     </main>
 

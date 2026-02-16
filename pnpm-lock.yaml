@@ -723,7 +723,104 @@ importers:
         specifier: ^3.0.9
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.10.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(jsdom@19.0.0(bufferutil@4.0.9))(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  platforms/blabsy:
+  platforms/blabsy/api:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      eventsource-polyfill:
+        specifier: ^0.9.6
+        version: 0.9.6
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      firebase-admin:
+        specifier: ^12.0.0
+        version: 12.7.0(encoding@0.1.13)
+      graphql:
+        specifier: ^16.8.1
+        version: 16.12.0
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      reflect-metadata:
+        specifier: ^0.2.1
+        version: 0.2.2
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../../infrastructure/signature-validator
+      typeorm:
+        specifier: ^0.3.20
+        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      web3-adapter:
+        specifier: workspace:*
+        version: link:../../../infrastructure/web3-adapter
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jest':
+        specifier: ^29.5.12
+        version: 29.5.14
+      '@types/jsonwebtoken':
+        specifier: ^9.0.5
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.19
+        version: 20.19.26
+      '@types/pg':
+        specifier: ^8.11.2
+        version: 8.16.0
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.1
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.1
+        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@20.19.26)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      nodemon:
+        specifier: ^3.0.3
+        version: 3.1.11
+      ts-jest:
+        specifier: ^29.1.2
+        version: 29.4.6(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.5))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.26)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2)))(typescript@5.8.2)
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
+      ts-node-dev:
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@20.19.26)(typescript@5.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
+  platforms/blabsy/client:
     dependencies:
       '@headlessui/react':
         specifier: ^1.7.2
@@ -803,7 +900,7 @@ importers:
         version: 5.62.0(eslint@8.57.1)(typescript@5.0.4)
       autoprefixer:
         specifier: ^10.4.8
-        version: 10.4.22(postcss@8.5.6)
+        version: 10.4.23(postcss@8.5.6)
       concurrently:
         specifier: ^8.2.1
         version: 8.2.2
@@ -850,7 +947,7 @@ importers:
         specifier: 5.0.4
         version: 5.0.4
 
-  platforms/blabsy-w3ds-auth-api:
+  platforms/calendar/api:
     dependencies:
       axios:
         specifier: ^1.6.7
@@ -861,42 +958,21 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
-      eventsource-polyfill:
-        specifier: ^0.9.6
-        version: 0.9.6
       express:
         specifier: ^4.18.2
         version: 4.22.1
-      firebase-admin:
-        specifier: ^12.0.0
-        version: 12.7.0(encoding@0.1.13)
-      graphql:
-        specifier: ^16.8.1
-        version: 16.12.0
       graphql-request:
         specifier: ^6.1.0
         version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
-      pg:
-        specifier: ^8.11.3
-        version: 8.16.3
-      reflect-metadata:
-        specifier: ^0.2.1
-        version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
-      typeorm:
-        specifier: ^0.3.20
-        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+        version: link:../../../infrastructure/signature-validator
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
-      web3-adapter:
-        specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -904,50 +980,23 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
-      '@types/jest':
-        specifier: ^29.5.12
-        version: 29.5.14
       '@types/jsonwebtoken':
         specifier: ^9.0.5
         version: 9.0.10
       '@types/node':
         specifier: ^20.11.19
         version: 20.19.26
-      '@types/pg':
-        specifier: ^8.11.2
-        version: 8.16.0
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.0.1
-        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser':
-        specifier: ^7.0.1
-        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
-      eslint:
-        specifier: ^8.56.0
-        version: 8.57.1
-      jest:
-        specifier: ^29.7.0
-        version: 29.7.0(@types/node@20.19.26)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
-      nodemon:
-        specifier: ^3.0.3
-        version: 3.1.11
-      ts-jest:
-        specifier: ^29.1.2
-        version: 29.4.6(@babel/core@7.28.5)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.28.5))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.26)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2)))(typescript@5.8.2)
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      ts-node-dev:
-        specifier: ^2.0.0
-        version: 2.0.0(@types/node@20.19.26)(typescript@5.8.2)
       typescript:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/calendar:
+  platforms/calendar/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.9.1
@@ -1101,7 +1150,7 @@ importers:
         version: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod:
         specifier: ^3.24.1
-        version: 3.25.76
+        version: 3.24.2
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3
@@ -1131,56 +1180,7 @@ importers:
         specifier: ^5
         version: 5.8.2
 
-  platforms/calendar-api:
-    dependencies:
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      graphql-request:
-        specifier: ^6.1.0
-        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      signature-validator:
-        specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.5
-        version: 9.0.10
-      '@types/node':
-        specifier: ^20.11.19
-        version: 20.19.26
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.8.2
-
-  platforms/cerberus:
+  platforms/cerberus/client:
     dependencies:
       axios:
         specifier: ^1.6.7
@@ -1229,7 +1229,7 @@ importers:
         version: 9.0.1
       web3-adapter:
         specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -1280,7 +1280,98 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/dreamSync:
+  platforms/dreamSync/api:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      blindvote:
+        specifier: link:../../../infrastructure/blindvote
+        version: link:../../../infrastructure/blindvote
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      eventsource-polyfill:
+        specifier: ^0.9.6
+        version: 0.9.6
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      node-cron:
+        specifier: ^3.0.3
+        version: 3.0.3
+      openai:
+        specifier: ^4.104.0
+        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9))(zod@3.25.76)
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      reflect-metadata:
+        specifier: ^0.2.1
+        version: 0.2.2
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../../infrastructure/signature-validator
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      web3-adapter:
+        specifier: link:../../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jsonwebtoken':
+        specifier: ^9.0.5
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.19.26
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
+      '@types/pg':
+        specifier: ^8.11.2
+        version: 8.16.0
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.1
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.1
+        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      nodemon:
+        specifier: ^3.0.3
+        version: 3.1.11
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
+  platforms/dreamSync/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -1410,7 +1501,7 @@ importers:
         version: 0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
       drizzle-zod:
         specifier: ^0.7.0
-        version: 0.7.1(drizzle-orm@0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76)
+        version: 0.7.1(drizzle-orm@0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.24.2)
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@18.3.1)
@@ -1479,10 +1570,10 @@ importers:
         version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
-        version: 3.25.76
+        version: 3.24.2
       zod-validation-error:
         specifier: ^3.4.0
-        version: 3.5.4(zod@3.25.76)
+        version: 3.5.4(zod@3.24.2)
     devDependencies:
       '@replit/vite-plugin-cartographer':
         specifier: ^0.4.0
@@ -1513,7 +1604,7 @@ importers:
         version: 4.7.0(vite@5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0))
       autoprefixer:
         specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
+        version: 10.4.23(postcss@8.5.6)
       drizzle-kit:
         specifier: ^0.31.0
         version: 0.31.8
@@ -1534,23 +1625,17 @@ importers:
         specifier: ^4.0.8
         version: 4.0.9
 
-  platforms/dreamsync-api:
+  platforms/eCurrency/api:
     dependencies:
       axios:
         specifier: ^1.6.7
         version: 1.13.2
-      blindvote:
-        specifier: link:../../infrastructure/blindvote
-        version: link:../../infrastructure/blindvote
       cors:
         specifier: ^2.8.5
         version: 2.8.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
-      eventsource-polyfill:
-        specifier: ^0.9.6
-        version: 0.9.6
       express:
         specifier: ^4.18.2
         version: 4.22.1
@@ -1560,12 +1645,6 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
-      node-cron:
-        specifier: ^3.0.3
-        version: 3.0.3
-      openai:
-        specifier: ^4.104.0
-        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9))(zod@3.25.76)
       pg:
         specifier: ^8.11.3
         version: 8.16.3
@@ -1574,7 +1653,7 @@ importers:
         version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
+        version: link:../../../infrastructure/signature-validator
       typeorm:
         specifier: ^0.3.24
         version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -1582,8 +1661,8 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
       web3-adapter:
-        specifier: link:../../infrastructure/web3-adapter
-        version: link:../../infrastructure/web3-adapter
+        specifier: link:../../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -1597,9 +1676,6 @@ importers:
       '@types/node':
         specifier: ^20.11.24
         version: 20.19.26
-      '@types/node-cron':
-        specifier: ^3.0.11
-        version: 3.0.11
       '@types/pg':
         specifier: ^8.11.2
         version: 8.16.0
@@ -1625,7 +1701,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/eCurrency:
+  platforms/eCurrency/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -1692,7 +1768,7 @@ importers:
         version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
-        version: 3.25.76
+        version: 3.24.2
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.1.3
@@ -1711,7 +1787,7 @@ importers:
         version: 4.7.0(vite@5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0))
       autoprefixer:
         specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
+        version: 10.4.23(postcss@8.5.6)
       postcss:
         specifier: ^8.4.47
         version: 8.5.6
@@ -1725,7 +1801,7 @@ importers:
         specifier: ^5.4.19
         version: 5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)
 
-  platforms/eCurrency-api:
+  platforms/eReputation/api:
     dependencies:
       axios:
         specifier: ^1.6.7
@@ -1739,12 +1815,12 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.22.1
-      graphql-request:
-        specifier: ^6.1.0
-        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+      openai:
+        specifier: ^4.20.1
+        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9))(zod@3.25.76)
       pg:
         specifier: ^8.11.3
         version: 8.16.3
@@ -1753,7 +1829,7 @@ importers:
         version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
+        version: link:../../../infrastructure/signature-validator
       typeorm:
         specifier: ^0.3.24
         version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -1761,8 +1837,8 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
       web3-adapter:
-        specifier: link:../../infrastructure/web3-adapter
-        version: link:../../infrastructure/web3-adapter
+        specifier: link:../../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -1801,7 +1877,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/eReputation:
+  platforms/eReputation/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -1967,10 +2043,10 @@ importers:
         version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
-        version: 3.25.76
+        version: 3.24.2
       zod-validation-error:
         specifier: ^3.4.0
-        version: 3.5.4(zod@3.25.76)
+        version: 3.5.4(zod@3.24.2)
     devDependencies:
       '@replit/vite-plugin-cartographer':
         specifier: ^0.4.0
@@ -1998,7 +2074,7 @@ importers:
         version: 4.7.0(vite@5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0))
       autoprefixer:
         specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
+        version: 10.4.23(postcss@8.5.6)
       postcss:
         specifier: ^8.4.47
         version: 8.5.6
@@ -2012,26 +2088,38 @@ importers:
         specifier: ^5.4.19
         version: 5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)
 
-  platforms/eReputation-api:
+  platforms/eVoting/api:
     dependencies:
       axios:
         specifier: ^1.6.7
         version: 1.13.2
+      blindvote:
+        specifier: link:../../../infrastructure/blindvote
+        version: link:../../../infrastructure/blindvote
       cors:
         specifier: ^2.8.5
         version: 2.8.5
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
+      eventsource-polyfill:
+        specifier: ^0.9.6
+        version: 0.9.6
       express:
         specifier: ^4.18.2
         version: 4.22.1
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
-      openai:
-        specifier: ^4.20.1
-        version: 4.104.0(encoding@0.1.13)(ws@8.18.3(bufferutil@4.0.9))(zod@3.25.76)
+      next:
+        specifier: 15.5.9
+        version: 15.5.9(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.96.0)
+      node-cron:
+        specifier: ^3.0.3
+        version: 3.0.3
       pg:
         specifier: ^8.11.3
         version: 8.16.3
@@ -2040,7 +2128,7 @@ importers:
         version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
+        version: link:../../../infrastructure/signature-validator
       typeorm:
         specifier: ^0.3.24
         version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -2048,8 +2136,8 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
       web3-adapter:
-        specifier: link:../../infrastructure/web3-adapter
-        version: link:../../infrastructure/web3-adapter
+        specifier: workspace:*
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -2063,6 +2151,9 @@ importers:
       '@types/node':
         specifier: ^20.11.24
         version: 20.19.26
+      '@types/node-cron':
+        specifier: ^3.0.11
+        version: 3.0.11
       '@types/pg':
         specifier: ^8.11.2
         version: 8.16.0
@@ -2088,7 +2179,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/eVoting:
+  platforms/eVoting/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.9.1
@@ -2233,7 +2324,7 @@ importers:
         version: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       zod:
         specifier: ^3.24.2
-        version: 3.25.76
+        version: 3.24.2
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3
@@ -2263,7 +2354,68 @@ importers:
         specifier: ^5
         version: 5.8.2
 
-  platforms/emover:
+  platforms/emover/api:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      jose:
+        specifier: ^5.2.0
+        version: 5.10.0
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      reflect-metadata:
+        specifier: ^0.2.1
+        version: 0.2.2
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jsonwebtoken':
+        specifier: ^9.0.5
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.19.26
+      '@types/pg':
+        specifier: ^8.11.2
+        version: 8.16.0
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      nodemon:
+        specifier: ^3.0.3
+        version: 3.1.11
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
+  platforms/emover/client:
     dependencies:
       '@radix-ui/react-dialog':
         specifier: ^1.1.14
@@ -2336,147 +2488,7 @@ importers:
         specifier: ^5
         version: 5.8.2
 
-  platforms/emover-api:
-    dependencies:
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      jose:
-        specifier: ^5.2.0
-        version: 5.10.0
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      pg:
-        specifier: ^8.11.3
-        version: 8.16.3
-      reflect-metadata:
-        specifier: ^0.2.1
-        version: 0.2.2
-      typeorm:
-        specifier: ^0.3.24
-        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.5
-        version: 9.0.10
-      '@types/node':
-        specifier: ^20.11.24
-        version: 20.19.26
-      '@types/pg':
-        specifier: ^8.11.2
-        version: 8.16.0
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      nodemon:
-        specifier: ^3.0.3
-        version: 3.1.11
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.8.2
-
-  platforms/esigner:
-    dependencies:
-      '@sveltejs/adapter-node':
-        specifier: ^5.2.12
-        version: 5.4.0(@sveltejs/kit@2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      svelte-qrcode:
-        specifier: ^1.0.1
-        version: 1.0.1
-      svelte-qrcode-action:
-        specifier: ^1.0.2
-        version: 1.0.2(svelte@5.45.10)
-      tailwind-merge:
-        specifier: ^3.0.2
-        version: 3.4.0
-    devDependencies:
-      '@eslint/compat':
-        specifier: ^1.2.5
-        version: 1.4.1(eslint@9.39.1(jiti@2.6.1))
-      '@eslint/js':
-        specifier: ^9.18.0
-        version: 9.39.1
-      '@sveltejs/adapter-static':
-        specifier: ^3.0.8
-        version: 3.0.10(@sveltejs/kit@2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))
-      '@sveltejs/kit':
-        specifier: ^2.16.0
-        version: 2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
-      '@sveltejs/vite-plugin-svelte':
-        specifier: ^5.0.0
-        version: 5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
-      '@tailwindcss/vite':
-        specifier: ^4.0.0
-        version: 4.1.17(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      eslint:
-        specifier: ^9.18.0
-        version: 9.39.1(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: ^10.0.1
-        version: 10.1.8(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-svelte:
-        specifier: ^3.0.0
-        version: 3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.45.10)(ts-node@10.9.2(@types/node@24.10.3)(typescript@5.8.2))
-      globals:
-        specifier: ^16.0.0
-        version: 16.5.0
-      prettier:
-        specifier: ^3.4.2
-        version: 3.7.4
-      prettier-plugin-svelte:
-        specifier: ^3.3.3
-        version: 3.4.0(prettier@3.7.4)(svelte@5.45.10)
-      prettier-plugin-tailwindcss:
-        specifier: ^0.7.0
-        version: 0.7.2(prettier-plugin-svelte@3.4.0(prettier@3.7.4)(svelte@5.45.10))(prettier@3.7.4)
-      svelte:
-        specifier: ^5.0.0
-        version: 5.45.10
-      svelte-check:
-        specifier: ^4.0.0
-        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.10)(typescript@5.8.2)
-      tailwindcss:
-        specifier: ^4.0.0
-        version: 4.1.17
-      typescript:
-        specifier: ^5.0.0
-        version: 5.8.2
-      typescript-eslint:
-        specifier: ^8.20.0
-        version: 8.49.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
-      vite:
-        specifier: ^6.2.6
-        version: 6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
-
-  platforms/esigner-api:
+  platforms/esigner/api:
     dependencies:
       axios:
         specifier: ^1.6.7
@@ -2510,7 +2522,7 @@ importers:
         version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
+        version: link:../../../infrastructure/signature-validator
       typeorm:
         specifier: ^0.3.24
         version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -2519,7 +2531,7 @@ importers:
         version: 9.0.1
       web3-adapter:
         specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/cors':
         specifier: ^2.8.17
@@ -2561,98 +2573,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/evoting-api:
-    dependencies:
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      blindvote:
-        specifier: link:../../infrastructure/blindvote
-        version: link:../../infrastructure/blindvote
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      eventsource-polyfill:
-        specifier: ^0.9.6
-        version: 0.9.6
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      graphql-request:
-        specifier: ^6.1.0
-        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      next:
-        specifier: 15.5.9
-        version: 15.5.9(@opentelemetry/api@1.9.0)(babel-plugin-macros@3.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.96.0)
-      node-cron:
-        specifier: ^3.0.3
-        version: 3.0.3
-      pg:
-        specifier: ^8.11.3
-        version: 8.16.3
-      reflect-metadata:
-        specifier: ^0.2.1
-        version: 0.2.2
-      signature-validator:
-        specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
-      typeorm:
-        specifier: ^0.3.24
-        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      web3-adapter:
-        specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
-    devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.5
-        version: 9.0.10
-      '@types/node':
-        specifier: ^20.11.24
-        version: 20.19.26
-      '@types/node-cron':
-        specifier: ^3.0.11
-        version: 3.0.11
-      '@types/pg':
-        specifier: ^8.11.2
-        version: 8.16.0
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.0.1
-        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser':
-        specifier: ^7.0.1
-        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
-      eslint:
-        specifier: ^8.56.0
-        version: 8.57.1
-      nodemon:
-        specifier: ^3.0.3
-        version: 3.1.11
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.8.2
-
-  platforms/file-manager:
+  platforms/esigner/client:
     dependencies:
       '@sveltejs/adapter-node':
         specifier: ^5.2.12
@@ -2731,7 +2652,7 @@ importers:
         specifier: ^6.2.6
         version: 6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  platforms/file-manager-api:
+  platforms/file-manager/api:
     dependencies:
       archiver:
         specifier: ^7.0.1
@@ -2768,7 +2689,7 @@ importers:
         version: 0.2.2
       signature-validator:
         specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
+        version: link:../../../infrastructure/signature-validator
       typeorm:
         specifier: ^0.3.24
         version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
@@ -2777,7 +2698,7 @@ importers:
         version: 9.0.1
       web3-adapter:
         specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
+        version: link:../../../infrastructure/web3-adapter
     devDependencies:
       '@types/archiver':
         specifier: ^6.0.3
@@ -2822,7 +2743,162 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/group-charter-manager:
+  platforms/file-manager/client:
+    dependencies:
+      '@sveltejs/adapter-node':
+        specifier: ^5.2.12
+        version: 5.4.0(@sveltejs/kit@2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      svelte-qrcode:
+        specifier: ^1.0.1
+        version: 1.0.1
+      svelte-qrcode-action:
+        specifier: ^1.0.2
+        version: 1.0.2(svelte@5.45.10)
+      tailwind-merge:
+        specifier: ^3.0.2
+        version: 3.4.0
+    devDependencies:
+      '@eslint/compat':
+        specifier: ^1.2.5
+        version: 1.4.1(eslint@9.39.1(jiti@2.6.1))
+      '@eslint/js':
+        specifier: ^9.18.0
+        version: 9.39.1
+      '@sveltejs/adapter-static':
+        specifier: ^3.0.8
+        version: 3.0.10(@sveltejs/kit@2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))
+      '@sveltejs/kit':
+        specifier: ^2.16.0
+        version: 2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)))(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.0
+        version: 5.1.1(svelte@5.45.10)(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+      '@tailwindcss/vite':
+        specifier: ^4.0.0
+        version: 4.1.17(vite@6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1))
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      eslint:
+        specifier: ^9.18.0
+        version: 9.39.1(jiti@2.6.1)
+      eslint-config-prettier:
+        specifier: ^10.0.1
+        version: 10.1.8(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-svelte:
+        specifier: ^3.0.0
+        version: 3.13.1(eslint@9.39.1(jiti@2.6.1))(svelte@5.45.10)(ts-node@10.9.2(@types/node@24.10.3)(typescript@5.8.2))
+      globals:
+        specifier: ^16.0.0
+        version: 16.5.0
+      prettier:
+        specifier: ^3.4.2
+        version: 3.7.4
+      prettier-plugin-svelte:
+        specifier: ^3.3.3
+        version: 3.4.0(prettier@3.7.4)(svelte@5.45.10)
+      prettier-plugin-tailwindcss:
+        specifier: ^0.7.0
+        version: 0.7.2(prettier-plugin-svelte@3.4.0(prettier@3.7.4)(svelte@5.45.10))(prettier@3.7.4)
+      svelte:
+        specifier: ^5.0.0
+        version: 5.45.10
+      svelte-check:
+        specifier: ^4.0.0
+        version: 4.3.4(picomatch@4.0.3)(svelte@5.45.10)(typescript@5.8.2)
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.1.17
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.2
+      typescript-eslint:
+        specifier: ^8.20.0
+        version: 8.49.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
+      vite:
+        specifier: ^6.2.6
+        version: 6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
+
+  platforms/group-charter-manager/api:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      reflect-metadata:
+        specifier: ^0.2.1
+        version: 0.2.2
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../../infrastructure/signature-validator
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      web3-adapter:
+        specifier: workspace:*
+        version: link:../../../infrastructure/web3-adapter
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jsonwebtoken':
+        specifier: ^9.0.5
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.19.26
+      '@types/pg':
+        specifier: ^8.11.2
+        version: 8.16.0
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.1
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.1
+        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      nodemon:
+        specifier: ^3.0.3
+        version: 3.1.11
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
+  platforms/group-charter-manager/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.9.1
@@ -2954,8 +3030,8 @@ importers:
         specifier: ^7.2.0
         version: 7.2.2
       zod:
-        specifier: ^3.24.2
-        version: 3.25.76
+        specifier: 3.24.2
+        version: 3.24.2
       zustand:
         specifier: ^5.0.2
         version: 5.0.9(@types/react@18.3.27)(react@18.3.1)(use-sync-external-store@1.6.0(react@18.3.1))
@@ -2994,83 +3070,7 @@ importers:
         specifier: ^5
         version: 5.8.2
 
-  platforms/group-charter-manager-api:
-    dependencies:
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      graphql-request:
-        specifier: ^6.1.0
-        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      pg:
-        specifier: ^8.11.3
-        version: 8.16.3
-      reflect-metadata:
-        specifier: ^0.2.1
-        version: 0.2.2
-      signature-validator:
-        specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
-      typeorm:
-        specifier: ^0.3.24
-        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      web3-adapter:
-        specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
-    devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.5
-        version: 9.0.10
-      '@types/node':
-        specifier: ^20.11.24
-        version: 20.19.26
-      '@types/pg':
-        specifier: ^8.11.2
-        version: 8.16.0
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.0.1
-        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser':
-        specifier: ^7.0.1
-        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
-      eslint:
-        specifier: ^8.56.0
-        version: 8.57.1
-      nodemon:
-        specifier: ^3.0.3
-        version: 3.1.11
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.8.2
-
-  platforms/marketplace:
+  platforms/marketplace/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -3236,10 +3236,10 @@ importers:
         version: 3.8.1(react@18.3.1)
       zod:
         specifier: ^3.24.2
-        version: 3.25.76
+        version: 3.24.2
       zod-validation-error:
         specifier: ^3.4.0
-        version: 3.5.4(zod@3.25.76)
+        version: 3.5.4(zod@3.24.2)
     devDependencies:
       '@replit/vite-plugin-cartographer':
         specifier: ^0.4.0
@@ -3270,7 +3270,7 @@ importers:
         version: 4.7.0(vite@5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0))
       autoprefixer:
         specifier: ^10.4.20
-        version: 10.4.22(postcss@8.5.6)
+        version: 10.4.23(postcss@8.5.6)
       esbuild:
         specifier: ^0.27.0
         version: 0.27.1
@@ -3290,7 +3290,86 @@ importers:
         specifier: ^5.4.19
         version: 5.4.21(@types/node@20.19.26)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)
 
-  platforms/pictique:
+  platforms/pictique/api:
+    dependencies:
+      axios:
+        specifier: ^1.6.7
+        version: 1.13.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      eventsource-polyfill:
+        specifier: ^0.9.6
+        version: 0.9.6
+      express:
+        specifier: ^4.18.2
+        version: 4.22.1
+      graphql-request:
+        specifier: ^6.1.0
+        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      reflect-metadata:
+        specifier: ^0.2.1
+        version: 0.2.2
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../../infrastructure/signature-validator
+      typeorm:
+        specifier: ^0.3.24
+        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      web3-adapter:
+        specifier: workspace:*
+        version: link:../../../infrastructure/web3-adapter
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.19
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.25
+      '@types/jsonwebtoken':
+        specifier: ^9.0.5
+        version: 9.0.10
+      '@types/node':
+        specifier: ^20.11.24
+        version: 20.19.26
+      '@types/pg':
+        specifier: ^8.11.2
+        version: 8.16.0
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^7.0.1
+        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
+      '@typescript-eslint/parser':
+        specifier: ^7.0.1
+        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.1
+      nodemon:
+        specifier: ^3.0.3
+        version: 3.1.11
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
+      typescript:
+        specifier: ^5.3.3
+        version: 5.8.2
+
+  platforms/pictique/client:
     dependencies:
       '-':
         specifier: ^0.0.1
@@ -3414,86 +3493,7 @@ importers:
         specifier: ^6.2.6
         version: 6.4.1(@types/node@24.10.3)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.96.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.1)
 
-  platforms/pictique-api:
-    dependencies:
-      axios:
-        specifier: ^1.6.7
-        version: 1.13.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      eventsource-polyfill:
-        specifier: ^0.9.6
-        version: 0.9.6
-      express:
-        specifier: ^4.18.2
-        version: 4.22.1
-      graphql-request:
-        specifier: ^6.1.0
-        version: 6.1.0(encoding@0.1.13)(graphql@16.12.0)
-      jsonwebtoken:
-        specifier: ^9.0.2
-        version: 9.0.3
-      pg:
-        specifier: ^8.11.3
-        version: 8.16.3
-      reflect-metadata:
-        specifier: ^0.2.1
-        version: 0.2.2
-      signature-validator:
-        specifier: workspace:*
-        version: link:../../infrastructure/signature-validator
-      typeorm:
-        specifier: ^0.3.24
-        version: 0.3.28(babel-plugin-macros@3.1.0)(ioredis@5.8.2)(pg@8.16.3)(sqlite3@5.1.7)(ts-node@10.9.2(@types/node@20.19.26)(typescript@5.8.2))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      web3-adapter:
-        specifier: workspace:*
-        version: link:../../infrastructure/web3-adapter
-    devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.19
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
-      '@types/jsonwebtoken':
-        specifier: ^9.0.5
-        version: 9.0.10
-      '@types/node':
-        specifier: ^20.11.24
-        version: 20.19.26
-      '@types/pg':
-        specifier: ^8.11.2
-        version: 8.16.0
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.0.1
-        version: 7.18.0(@typescript-eslint/parser@7.18.0(eslint@8.57.1)(typescript@5.8.2))(eslint@8.57.1)(typescript@5.8.2)
-      '@typescript-eslint/parser':
-        specifier: ^7.0.1
-        version: 7.18.0(eslint@8.57.1)(typescript@5.8.2)
-      eslint:
-        specifier: ^8.56.0
-        version: 8.57.1
-      nodemon:
-        specifier: ^3.0.3
-        version: 3.1.11
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.19.26)(typescript@5.8.2)
-      typescript:
-        specifier: ^5.3.3
-        version: 5.8.2
-
-  platforms/registry:
+  platforms/registry/api:
     dependencies:
       '@fastify/cors':
         specifier: ^8.4.0
@@ -14564,10 +14564,6 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  jsonwebtoken@9.0.2:
-    resolution: {integrity: sha512-PRp66vJ865SSqOlgqS8hujT5U4AOgMfhrwYIuIhfKaoSCZcirrmASQr8CX7cUg+RMih+hgznrjp99o+W4pJLHQ==}
-    engines: {node: '>=12', npm: '>=6'}
-
   jsonwebtoken@9.0.3:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
     engines: {node: '>=12', npm: '>=6'}
@@ -14583,18 +14579,12 @@ packages:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
 
-  jwa@1.4.2:
-    resolution: {integrity: sha512-eeH5JO+21J78qMvTIDdBXidBd6nG2kZjg5Ohz/1fpa28Z4CcsWUzJ1ZZyFq/3z3N17aZy+ZuBoHljASbL1WfOw==}
-
   jwa@2.0.1:
     resolution: {integrity: sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==}
 
   jwks-rsa@3.2.0:
     resolution: {integrity: sha512-PwchfHcQK/5PSydeKCs1ylNym0w/SSv8a62DgHJ//7x2ZclCoinlsjAfDxAAbpoTPybOum/Jgy+vkvMmKz89Ww==}
     engines: {node: '>=14'}
-
-  jws@3.2.2:
-    resolution: {integrity: sha512-YHlZCB6lMTllWDtSPHz/ZXTsi8S00usEV6v1tjq8tOUZzw7DpSDWVXjXDre6ed1w/pd495ODpHZYSdkRTsa0HA==}
 
   jws@4.0.0:
     resolution: {integrity: sha512-KDncfTmOZoOMTFG4mBlG0qUIOlc03fmzH+ru6RgYVZhPkyiy/92Owlt/8UEN+a4TXR1FQetfIpJE8ApdvdVxTg==}
@@ -16779,9 +16769,6 @@ packages:
   prosemirror-state@1.4.4:
     resolution: {integrity: sha512-6jiYHH2CIGbCfnxdHbXZ12gySFY/fz/ulZE333G6bPqIZ4F+TXo9ifiR86nAHpWnfoNjOb3o5ESi7J8Uz1jXHw==}
 
-  prosemirror-tables@1.8.1:
-    resolution: {integrity: sha512-DAgDoUYHCcc6tOGpLVPSU1k84kCUWTWnfWX3UDy2Delv4ryH0KqTD6RBI6k4yi9j9I8gl3j8MkPpRD/vWPZbug==}
-
   prosemirror-tables@1.8.3:
     resolution: {integrity: sha512-wbqCR/RlRPRe41a4LFtmhKElzBEfBTdtAYWNIGHM6X2e24NN/MTNUKyXjjphfAfdQce37Kh/5yf765mLPYDe7Q==}
 
@@ -16794,9 +16781,6 @@ packages:
 
   prosemirror-transform@1.10.5:
     resolution: {integrity: sha512-RPDQCxIDhIBb1o36xxwsaeAvivO8VLJcgBtzmOwQ64bMtsVFh5SSuJ6dWSxO1UsHTiTXPCgQm3PDJt7p6IOLbw==}
-
-  prosemirror-view@1.41.3:
-    resolution: {integrity: sha512-SqMiYMUQNNBP9kfPhLO8WXEk/fon47vc52FQsUiJzTBuyjKgEcoAwMyF04eQ4WZ2ArMn7+ReypYL60aKngbACQ==}
 
   prosemirror-view@1.41.4:
     resolution: {integrity: sha512-WkKgnyjNncri03Gjaz3IFWvCAE94XoiEgvtr0/r2Xw7R8/IjK3sKLSiDoCHWcsXSAinVaKlGRZDvMCsF1kbzjA==}
@@ -18229,7 +18213,7 @@ packages:
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
     engines: {node: '>=18'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   teeny-request@9.0.0:
     resolution: {integrity: sha512-resvxdc6Mgb7YEThw6G6bExlXKkv6+YbuzGg9xuXxSgxJF7Ozs+o8Y9+2R3sArdWdW8nOokoQb1yrpFB0pQK2g==}
@@ -19368,6 +19352,7 @@ packages:
   whatwg-encoding@2.0.0:
     resolution: {integrity: sha512-p41ogyeMUrw3jWclHWTQg1k05DSVXPLcVxRTYsXUk+ZooOCZLcoYgPZ/HL/D/N+uQPOtcp1me1WhBEaX02mhWg==}
     engines: {node: '>=12'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -19592,6 +19577,9 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.24.4
+
+  zod@3.24.2:
+    resolution: {integrity: sha512-lY7CDW43ECgW9u1TcT3IoXHflywfVqDYze4waEz812jR/bZ8FHDsl7pFQoSZTz5N+2NqRXs8GBwnAwo3ZNxqhQ==}
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
@@ -20124,7 +20112,7 @@ snapshots:
   '@babel/plugin-syntax-typescript@7.27.1(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/helper-plugin-utils': 7.27.1
+      '@babel/helper-plugin-utils': 7.28.6
 
   '@babel/plugin-syntax-typescript@7.28.6(@babel/core@7.28.5)':
     dependencies:
@@ -20423,12 +20411,12 @@ snapshots:
   '@babel/plugin-transform-react-jsx-self@7.27.1(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/helper-plugin-utils': 7.27.1
+      '@babel/helper-plugin-utils': 7.28.6
 
   '@babel/plugin-transform-react-jsx-source@7.27.1(@babel/core@7.28.5)':
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/helper-plugin-utils': 7.27.1
+      '@babel/helper-plugin-utils': 7.28.6
 
   '@babel/plugin-transform-react-jsx@7.28.6(@babel/core@7.28.5)':
     dependencies:
@@ -25715,9 +25703,9 @@ snapshots:
 
   '@replit/vite-plugin-cartographer@0.4.4':
     dependencies:
-      '@babel/parser': 7.28.5
-      '@babel/traverse': 7.28.5
-      '@babel/types': 7.28.5
+      '@babel/parser': 7.28.6
+      '@babel/traverse': 7.28.6
+      '@babel/types': 7.28.6
       magic-string: 0.30.21
       modern-screenshot: 4.6.7
     transitivePeerDependencies:
@@ -26845,7 +26833,7 @@ snapshots:
 
   '@testing-library/dom@8.20.1':
     dependencies:
-      '@babel/code-frame': 7.27.1
+      '@babel/code-frame': 7.28.6
       '@babel/runtime': 7.28.4
       '@types/aria-query': 5.0.4
       aria-query: 5.1.3
@@ -27041,10 +27029,10 @@ snapshots:
       prosemirror-schema-basic: 1.2.4
       prosemirror-schema-list: 1.5.1
       prosemirror-state: 1.4.4
-      prosemirror-tables: 1.8.1
-      prosemirror-trailing-node: 3.0.0(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.3)
+      prosemirror-tables: 1.8.3
+      prosemirror-trailing-node: 3.0.0(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4)
       prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   '@tiptap/react@2.27.1(@tiptap/core@2.27.1(@tiptap/pm@2.27.1))(@tiptap/pm@2.27.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
@@ -27091,7 +27079,7 @@ snapshots:
       prosemirror-keymap: 1.2.3
       prosemirror-model: 1.25.4
       prosemirror-state: 1.4.4
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   '@toast-ui/react-editor@3.2.3(react@18.3.1)':
     dependencies:
@@ -28373,7 +28361,7 @@ snapshots:
 
   '@vue/compiler-core@3.5.25':
     dependencies:
-      '@babel/parser': 7.28.5
+      '@babel/parser': 7.28.6
       '@vue/shared': 3.5.25
       entities: 4.5.0
       estree-walker: 2.0.2
@@ -28386,7 +28374,7 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.25':
     dependencies:
-      '@babel/parser': 7.28.5
+      '@babel/parser': 7.28.6
       '@vue/compiler-core': 3.5.25
       '@vue/compiler-dom': 3.5.25
       '@vue/compiler-ssr': 3.5.25
@@ -29024,8 +29012,8 @@ snapshots:
 
   babel-plugin-jest-hoist@28.1.3:
     dependencies:
-      '@babel/template': 7.27.2
-      '@babel/types': 7.28.5
+      '@babel/template': 7.28.6
+      '@babel/types': 7.28.6
       '@types/babel__core': 7.20.5
       '@types/babel__traverse': 7.28.0
 
@@ -29427,7 +29415,7 @@ snapshots:
 
   caniuse-api@3.0.0:
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       caniuse-lite: 1.0.30001765
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
@@ -30060,8 +30048,8 @@ snapshots:
 
   cssnano-preset-advanced@6.1.2(postcss@8.5.6):
     dependencies:
-      autoprefixer: 10.4.22(postcss@8.5.6)
-      browserslist: 4.28.0
+      autoprefixer: 10.4.23(postcss@8.5.6)
+      browserslist: 4.28.1
       cssnano-preset-default: 6.1.2(postcss@8.5.6)
       postcss: 8.5.6
       postcss-discard-unused: 6.0.5(postcss@8.5.6)
@@ -30071,7 +30059,7 @@ snapshots:
 
   cssnano-preset-default@6.1.2(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       css-declaration-sorter: 7.3.1(postcss@8.5.6)
       cssnano-utils: 4.0.2(postcss@8.5.6)
       postcss: 8.5.6
@@ -30700,10 +30688,10 @@ snapshots:
       pg: 8.16.3
       sqlite3: 5.1.7
 
-  drizzle-zod@0.7.1(drizzle-orm@0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.25.76):
+  drizzle-zod@0.7.1(drizzle-orm@0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7))(zod@3.24.2):
     dependencies:
       drizzle-orm: 0.45.1(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(kysely@0.27.6)(pg@8.16.3)(sqlite3@5.1.7)
-      zod: 3.25.76
+      zod: 3.24.2
 
   dunder-proto@1.0.1:
     dependencies:
@@ -31129,8 +31117,8 @@ snapshots:
       '@typescript-eslint/parser': 5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.1(jiti@2.6.1))
       eslint-plugin-react-hooks: 5.2.0(eslint@9.39.1(jiti@2.6.1))
@@ -31193,21 +31181,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)):
-    dependencies:
-      '@nolyfill/is-core-module': 1.0.39
-      debug: 4.4.3(supports-color@5.5.0)
-      eslint: 9.39.1(jiti@2.6.1)
-      get-tsconfig: 4.13.0
-      is-bun-module: 2.0.0
-      stable-hash: 0.0.5
-      tinyglobby: 0.2.15
-      unrs-resolver: 1.11.1
-    optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-    transitivePeerDependencies:
-      - supports-color
-
   eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@8.57.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
@@ -31256,17 +31229,6 @@ snapshots:
       '@typescript-eslint/parser': 5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-    transitivePeerDependencies:
-      - supports-color
-
-  eslint-module-utils@2.12.1(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1)):
-    dependencies:
-      debug: 3.2.7
-    optionalDependencies:
-      '@typescript-eslint/parser': 5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
-      eslint: 9.39.1(jiti@2.6.1)
-      eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.1(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
@@ -31300,35 +31262,6 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)):
-    dependencies:
-      '@rtsao/scc': 1.1.0
-      array-includes: 3.1.9
-      array.prototype.findlastindex: 1.2.6
-      array.prototype.flat: 1.3.3
-      array.prototype.flatmap: 1.3.3
-      debug: 3.2.7
-      doctrine: 2.1.0
-      eslint: 9.39.1(jiti@2.6.1)
-      eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
-      hasown: 2.0.2
-      is-core-module: 2.16.1
-      is-glob: 4.0.3
-      minimatch: 3.1.2
-      object.fromentries: 2.0.8
-      object.groupby: 1.0.3
-      object.values: 1.2.1
-      semver: 6.3.1
-      string.prototype.trimend: 1.0.9
-      tsconfig-paths: 3.15.0
-    optionalDependencies:
-      '@typescript-eslint/parser': 5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2)
-    transitivePeerDependencies:
-      - eslint-import-resolver-typescript
-      - eslint-import-resolver-webpack
-      - supports-color
-
   eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
@@ -31340,7 +31273,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.1(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.1(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-module-utils: 2.12.1(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint-import-resolver-node@0.3.9)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@5.62.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.8.2))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1)))(eslint@9.39.1(jiti@2.6.1))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -32133,7 +32066,7 @@ snapshots:
       farmhash-modern: 1.1.0
       fast-deep-equal: 3.1.3
       google-auth-library: 9.15.1(encoding@0.1.13)
-      jsonwebtoken: 9.0.2
+      jsonwebtoken: 9.0.3
       jwks-rsa: 3.2.0
       node-forge: 1.3.1
       uuid: 11.1.0
@@ -33363,7 +33296,7 @@ snapshots:
   istanbul-lib-instrument@6.0.3:
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/parser': 7.28.5
+      '@babel/parser': 7.28.6
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2
       semver: 7.7.3
@@ -33701,7 +33634,7 @@ snapshots:
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
       '@types/jsdom': 16.2.15
-      '@types/node': 18.19.130
+      '@types/node': 20.19.26
       jest-mock: 28.1.3
       jest-util: 28.1.3
       jsdom: 19.0.0(bufferutil@4.0.9)
@@ -33791,7 +33724,7 @@ snapshots:
 
   jest-message-util@28.1.3:
     dependencies:
-      '@babel/code-frame': 7.27.1
+      '@babel/code-frame': 7.28.6
       '@jest/types': 28.1.3
       '@types/stack-utils': 2.0.3
       chalk: 4.1.2
@@ -33983,10 +33916,10 @@ snapshots:
   jest-snapshot@28.1.3:
     dependencies:
       '@babel/core': 7.28.5
-      '@babel/generator': 7.28.5
-      '@babel/plugin-syntax-typescript': 7.27.1(@babel/core@7.28.5)
-      '@babel/traverse': 7.28.5
-      '@babel/types': 7.28.5
+      '@babel/generator': 7.28.6
+      '@babel/plugin-syntax-typescript': 7.28.6(@babel/core@7.28.5)
+      '@babel/traverse': 7.28.6
+      '@babel/types': 7.28.6
       '@jest/expect-utils': 28.1.3
       '@jest/transform': 28.1.3
       '@jest/types': 28.1.3
@@ -34014,7 +33947,7 @@ snapshots:
       '@babel/generator': 7.28.5
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.5)
       '@babel/plugin-syntax-typescript': 7.27.1(@babel/core@7.28.5)
-      '@babel/types': 7.28.5
+      '@babel/types': 7.28.6
       '@jest/expect-utils': 29.7.0
       '@jest/transform': 29.7.0
       '@jest/types': 29.6.3
@@ -34269,19 +34202,6 @@ snapshots:
       '@jsep-plugin/regex': 1.0.4(jsep@1.4.0)
       jsep: 1.4.0
 
-  jsonwebtoken@9.0.2:
-    dependencies:
-      jws: 3.2.2
-      lodash.includes: 4.3.0
-      lodash.isboolean: 3.0.3
-      lodash.isinteger: 4.0.4
-      lodash.isnumber: 3.0.3
-      lodash.isplainobject: 4.0.6
-      lodash.isstring: 4.0.1
-      lodash.once: 4.1.1
-      ms: 2.1.3
-      semver: 7.7.3
-
   jsonwebtoken@9.0.3:
     dependencies:
       jws: 4.0.1
@@ -34311,12 +34231,6 @@ snapshots:
       object.assign: 4.1.7
       object.values: 1.2.1
 
-  jwa@1.4.2:
-    dependencies:
-      buffer-equal-constant-time: 1.0.1
-      ecdsa-sig-formatter: 1.0.11
-      safe-buffer: 5.2.1
-
   jwa@2.0.1:
     dependencies:
       buffer-equal-constant-time: 1.0.1
@@ -34333,11 +34247,6 @@ snapshots:
       lru-memoizer: 2.3.0
     transitivePeerDependencies:
       - supports-color
-
-  jws@3.2.2:
-    dependencies:
-      jwa: 1.4.2
-      safe-buffer: 5.2.1
 
   jws@4.0.0:
     dependencies:
@@ -35575,7 +35484,7 @@ snapshots:
     dependencies:
       '@next/env': 15.5.9
       '@swc/helpers': 0.5.15
-      caniuse-lite: 1.0.30001756
+      caniuse-lite: 1.0.30001765
       postcss: 8.4.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -35600,7 +35509,7 @@ snapshots:
     dependencies:
       '@next/env': 15.5.9
       '@swc/helpers': 0.5.15
-      caniuse-lite: 1.0.30001756
+      caniuse-lite: 1.0.30001765
       postcss: 8.4.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -36255,7 +36164,7 @@ snapshots:
 
   postcss-colormin@6.1.0(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       caniuse-api: 3.0.0
       colord: 2.9.3
       postcss: 8.5.6
@@ -36263,7 +36172,7 @@ snapshots:
 
   postcss-convert-values@6.1.0(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
 
@@ -36433,7 +36342,7 @@ snapshots:
 
   postcss-merge-rules@6.1.1(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       caniuse-api: 3.0.0
       cssnano-utils: 4.0.2(postcss@8.5.6)
       postcss: 8.5.6
@@ -36453,7 +36362,7 @@ snapshots:
 
   postcss-minify-params@6.1.0(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       cssnano-utils: 4.0.2(postcss@8.5.6)
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
@@ -36527,7 +36436,7 @@ snapshots:
 
   postcss-normalize-unicode@6.1.0(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
 
@@ -36652,7 +36561,7 @@ snapshots:
 
   postcss-reduce-initial@6.1.0(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       caniuse-api: 3.0.0
       postcss: 8.5.6
 
@@ -36898,20 +36807,20 @@ snapshots:
     dependencies:
       prosemirror-state: 1.4.4
       prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   prosemirror-gapcursor@1.4.0:
     dependencies:
       prosemirror-keymap: 1.2.3
       prosemirror-model: 1.25.4
       prosemirror-state: 1.4.4
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   prosemirror-history@1.5.0:
     dependencies:
       prosemirror-state: 1.4.4
       prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
       rope-sequence: 1.3.4
 
   prosemirror-inputrules@1.5.1:
@@ -36960,15 +36869,7 @@ snapshots:
     dependencies:
       prosemirror-model: 1.25.4
       prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.3
-
-  prosemirror-tables@1.8.1:
-    dependencies:
-      prosemirror-keymap: 1.2.3
-      prosemirror-model: 1.25.4
-      prosemirror-state: 1.4.4
-      prosemirror-transform: 1.10.5
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   prosemirror-tables@1.8.3:
     dependencies:
@@ -36978,23 +36879,17 @@ snapshots:
       prosemirror-transform: 1.10.5
       prosemirror-view: 1.41.4
 
-  prosemirror-trailing-node@3.0.0(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.3):
+  prosemirror-trailing-node@3.0.0(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.4):
     dependencies:
       '@remirror/core-constants': 3.0.0
       escape-string-regexp: 4.0.0
       prosemirror-model: 1.25.4
       prosemirror-state: 1.4.4
-      prosemirror-view: 1.41.3
+      prosemirror-view: 1.41.4
 
   prosemirror-transform@1.10.5:
     dependencies:
       prosemirror-model: 1.25.4
-
-  prosemirror-view@1.41.3:
-    dependencies:
-      prosemirror-model: 1.25.4
-      prosemirror-state: 1.4.4
-      prosemirror-transform: 1.10.5
 
   prosemirror-view@1.41.4:
     dependencies:
@@ -38638,7 +38533,7 @@ snapshots:
 
   stylehacks@6.1.1(postcss@8.5.6):
     dependencies:
-      browserslist: 4.28.0
+      browserslist: 4.28.1
       postcss: 8.5.6
       postcss-selector-parser: 6.1.2
 
@@ -40633,11 +40528,14 @@ snapshots:
       compress-commons: 6.0.2
       readable-stream: 4.7.0
 
-  zod-validation-error@3.5.4(zod@3.25.76):
+  zod-validation-error@3.5.4(zod@3.24.2):
     dependencies:
-      zod: 3.25.76
+      zod: 3.24.2
 
-  zod@3.25.76: {}
+  zod@3.24.2: {}
+
+  zod@3.25.76:
+    optional: true
 
   zod@4.3.5: {}
 
