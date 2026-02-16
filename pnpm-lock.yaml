@@ -1280,7 +1280,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/dreamSync/api:
+  platforms/dreamsync/api:
     dependencies:
       axios:
         specifier: ^1.6.7
@@ -1371,7 +1371,7 @@ importers:
         specifier: ^5.3.3
         version: 5.8.2
 
-  platforms/dreamSync/client:
+  platforms/dreamsync/client:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
