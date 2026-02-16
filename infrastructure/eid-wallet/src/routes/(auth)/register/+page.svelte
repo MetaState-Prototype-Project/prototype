@@ -60,6 +60,18 @@ const handleConfirmRepeat = async () => {
     try {
         isError = false;
         await globalState?.securityController.setOnboardingPin(pin, repeatPin);
+
+        // Create passphrase hash binding document (stub — anchors hash in eVault)
+        const vaultInfo = await globalState.vaultController.vault;
+        await globalState.vaultController.createBindingDocument(
+            "PASSPHRASE_HASH",
+            {
+                ename: vaultInfo?.ename,
+                source: "onboarding-pin-setup",
+            },
+            "self-signed",
+        );
+
         currentStep = "PIN_DONE";
     } catch (error) {
         console.error("Failed to update PIN:", error);
