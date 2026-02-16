@@ -9,8 +9,8 @@
  * with a real API call.
  */
 
-const EVAULT_CORE_URL = process.env.EVAULT_CORE_URL || 'http://localhost:3001';
-const EVAULT_DATA_URL = process.env.EVAULT_DATA_URL || 'http://localhost:4000';
+const EVAULT_CORE_URL = process.env.EVAULT_CORE_URL || "http://localhost:3001";
+const EVAULT_DATA_URL = process.env.EVAULT_DATA_URL || "http://localhost:4000";
 
 /**
  * Fetch the user's KYC verification status from evault-core.
@@ -69,7 +69,7 @@ async function fetchKeyLocation(eName) {
     // });
     // const data = await res.json();
     // return data?.data?.metaEnvelopes?.[0]?.envelopes?.[0]?.value?.location ?? 'SW';
-    return 'SW';
+    return "SW";
 }
 
 /**
@@ -97,12 +97,13 @@ async function fetchThirdDegreeConnections(eName) {
  * @returns {Promise<{ isVerified: boolean, accountAgeDays: number, keyLocation: string, thirdDegreeConnections: number }>}
  */
 async function fetchUserTrustData(eName) {
-    const [isVerified, accountAgeDays, keyLocation, thirdDegreeConnections] = await Promise.all([
-        fetchVerificationStatus(eName),
-        fetchAccountAgeDays(eName),
-        fetchKeyLocation(eName),
-        fetchThirdDegreeConnections(eName),
-    ]);
+    const [isVerified, accountAgeDays, keyLocation, thirdDegreeConnections] =
+        await Promise.all([
+            fetchVerificationStatus(eName),
+            fetchAccountAgeDays(eName),
+            fetchKeyLocation(eName),
+            fetchThirdDegreeConnections(eName),
+        ]);
 
     return { isVerified, accountAgeDays, keyLocation, thirdDegreeConnections };
 }

@@ -49,15 +49,18 @@ function getConnectionScore(count) {
 function calculateTrustScore({
     isVerified = false,
     accountAgeDays = 0,
-    keyLocation = 'SW',
+    keyLocation = "SW",
     thirdDegreeConnections = 0,
 }) {
     const verification = isVerified ? 4 : 0;
     const accountAge = accountAgeDays > 180 ? 1 : 0;
-    const key = keyLocation === 'TPM' ? 1 : 0;
+    const key = keyLocation === "TPM" ? 1 : 0;
     const socialConnections = getConnectionScore(thirdDegreeConnections);
 
-    const score = Math.min(verification + accountAge + key + socialConnections, 10);
+    const score = Math.min(
+        verification + accountAge + key + socialConnections,
+        10,
+    );
 
     return {
         score,
