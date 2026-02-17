@@ -42,12 +42,19 @@ pnpm install
 pnpm dev:core
 ```
 
-Or run the script directly:
+Or run one step at a time:
 
 ```bash
-chmod +x scripts/start-dev.sh
-./scripts/start-dev.sh
+pnpm dev:core:docker
+pnpm dev:core:wait
+pnpm dev:core:migrate
+pnpm dev:core:apps
 ```
+
+- `dev:core:docker`: starts Postgres and Neo4j in Docker
+- `dev:core:wait`: waits for ports `5432` and `7687`
+- `dev:core:migrate`: runs registry + evault-core migrations
+- `dev:core:apps`: starts registry, evault-core, and dev-sandbox together
 
 This will:
 

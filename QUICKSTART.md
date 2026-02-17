@@ -38,7 +38,14 @@ pnpm install
 pnpm dev:core
 ```
 
-Or run the script directly: `chmod +x scripts/start-dev.sh && ./scripts/start-dev.sh`
+Or run steps individually:
+
+```bash
+pnpm dev:core:docker
+pnpm dev:core:wait
+pnpm dev:core:migrate
+pnpm dev:core:apps
+```
 
 This will:
 
