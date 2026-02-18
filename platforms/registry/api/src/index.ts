@@ -26,7 +26,7 @@ fs.watchFile(path.resolve(__dirname, "../motd.json"), (_curr, _prev) => {
     motd = loadMotdJSON();
 });
 
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const server = fastify({ logger: true });
 

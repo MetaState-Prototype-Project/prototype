@@ -18,7 +18,7 @@ import { CronManagerService } from "./services/CronManagerService";
 config({ path: path.resolve(__dirname, "../../../.env") });
 
 const app = express();
-const port = process.env.PORT || 4000;
+const port = process.env.EVOTING_API_PORT || process.env.PORT || 4001;
 
 // Initialize database connection and adapter
 AppDataSource.initialize()
