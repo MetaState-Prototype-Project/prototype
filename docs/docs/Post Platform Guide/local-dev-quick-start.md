@@ -22,7 +22,7 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 REGISTRY_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/registry
 
-# Registry: ES256 key for signing entropy tokens (required; generate once — see below)
+# Registry: ES256 key for signing entropy tokens (required; generate with: pnpm generate-entropy-jwk)
 REGISTRY_ENTROPY_KEY_JWK='<paste generated JWK here>'
 
 # Neo4j (used by evault-core)
