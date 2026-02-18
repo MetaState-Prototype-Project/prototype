@@ -18,6 +18,9 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 REGISTRY_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/registry
 
+# Registry: ES256 key for signing entropy tokens (required; generate once — see below)
+REGISTRY_ENTROPY_KEY_JWK='<paste generated JWK here>'
+
 # Neo4j (used by evault-core)
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your-password
@@ -28,6 +31,16 @@ PUBLIC_PROVISIONER_URL=http://localhost:3001
 REGISTRY_SHARED_SECRET=dev-secret-change-me
 PUBLIC_EVAULT_SERVER_URI=http://localhost:4000
 ```
+
+### Generating `REGISTRY_ENTROPY_KEY_JWK`
+
+The Registry signs entropy tokens (used by the eID Wallet and provisioning) with an ES256 key. You must set `REGISTRY_ENTROPY_KEY_JWK` to a JSON Web Key (private key). From the repo root, generate a JWK (output to stdout) and add it to `.env`:
+
+```bash
+pnpm generate-entropy-jwk
+```
+
+Put the output in `.env` as `REGISTRY_ENTROPY_KEY_JWK='<paste>'`. Keep the key private; use the same value across local dev if you need tokens to verify elsewhere.
 
 ## One-command start
 
