@@ -331,7 +331,11 @@
             if (text) {
                 w3dsInput = text.trim();
                 actionError = null;
-                addLog("info", "Decoded QR", text.slice(0, 50) + (text.length > 50 ? "…" : ""));
+                addLog(
+                    "info",
+                    "Decoded QR",
+                    text.slice(0, 50) + (text.length > 50 ? "…" : ""),
+                );
             } else {
                 qrDecodeError = "No QR code found in image.";
             }
@@ -354,8 +358,8 @@
     }
 
     function handlePaste(e: ClipboardEvent) {
-        const item = Array.from(e.clipboardData?.items ?? []).find(
-            (it) => it.type.startsWith("image/"),
+        const item = Array.from(e.clipboardData?.items ?? []).find((it) =>
+            it.type.startsWith("image/"),
         );
         const file = item?.getAsFile();
         if (file) {
@@ -428,21 +432,31 @@
             } else {
                 const sessionId = url.searchParams.get("session") ?? "";
                 const redirectUri = url.searchParams.get("redirect_uri") ?? "";
+                const dataParam = url.searchParams.get("data") ?? "";
                 if (!sessionId || !redirectUri) {
                     actionError = "w3ds://sign needs session and redirect_uri.";
                     return;
+                }
+                // Decode base64 data if present, otherwise fallback to sessionId
+                let messageToSign = sessionId;
+                if (dataParam) {
+                    try {
+                        messageToSign = atob(dataParam);
+                    } catch {
+                        messageToSign = dataParam;
+                    }
                 }
                 const signature = await signPayload({
                     cryptoAdapter: adapter,
                     keyId: selectedIdentity.keyId,
                     context: "onboarding",
-                    payload: sessionId,
+                    payload: messageToSign,
                 });
                 const body = {
                     sessionId,
                     signature,
                     w3id: selectedIdentity.w3id,
-                    message: sessionId,
+                    message: messageToSign,
                 };
                 const res = await fetch(redirectUri, {
                     method: "POST",
@@ -578,7 +592,8 @@
                     <p>
                         Paste a <code>w3ds://auth</code> or
                         <code>w3ds://sign</code> URI (or HTTP URL with session/redirect_uri).
-                        You can also upload or paste an image of a QR code to decode the request.
+                        You can also upload or paste an image of a QR code to decode
+                        the request.
                     </p>
                     <div class="w3ds-qr-actions">
                         <input
