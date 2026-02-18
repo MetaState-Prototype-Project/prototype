@@ -8,6 +8,8 @@ config({ path: path.resolve(__dirname, "../../../../.env") });
 import { AppDataSource } from "../src/database/data-source";
 import { User } from "../src/database/entities/User";
 import { Group } from "../src/database/entities/Group";
+import { Poll } from "../src/database/entities/Poll";
+import { Vote, VoteDataByMode } from "../src/database/entities/Vote";
 
 interface SeedUser {
     ename: string;
@@ -142,6 +144,132 @@ Internal governance body for confidential organizational matters.
     },
 ];
 
+interface SeedPoll {
+    title: string;
+    mode: "normal" | "point" | "rank";
+    visibility: "public" | "private";
+    votingWeight: "1p1v" | "ereputation";
+    options: string[];
+    deadlineDaysFromNow: number; // negative = already ended
+    groupIndex: number; // index into seedGroups
+    creatorIndex: number; // index into seedUsers
+    hasVotes: boolean; // whether to generate sample votes
+}
+
+const seedPolls: SeedPoll[] = [
+    // ===== PUBLIC POLLS =====
+    // Public Normal Vote (Active)
+    {
+        title: "What programming language should we adopt for the new project?",
+        mode: "normal",
+        visibility: "public",
+        votingWeight: "1p1v",
+        options: ["TypeScript", "Python", "Rust", "Go"],
+        deadlineDaysFromNow: 7,
+        groupIndex: 0, // Tech Community
+        creatorIndex: 0, // alice
+        hasVotes: true,
+    },
+    // Public Normal Vote (Ended)
+    {
+        title: "Should we switch to a new CI/CD platform?",
+        mode: "normal",
+        visibility: "public",
+        votingWeight: "1p1v",
+        options: ["Yes", "No", "Need more research"],
+        deadlineDaysFromNow: -3, // ended 3 days ago
+        groupIndex: 0,
+        creatorIndex: 1, // bob
+        hasVotes: true,
+    },
+    // Public Point-Based Vote (Active)
+    {
+        title: "How should we allocate the Q2 tech budget?",
+        mode: "point",
+        visibility: "public",
+        votingWeight: "1p1v",
+        options: ["Server Infrastructure", "Developer Tools", "Training", "Security Audits", "Open Source Contributions"],
+        deadlineDaysFromNow: 14,
+        groupIndex: 0,
+        creatorIndex: 0,
+        hasVotes: true,
+    },
+    // Public Rank-Based Vote (Active)
+    {
+        title: "Rank your preferred conference topics",
+        mode: "rank",
+        visibility: "public",
+        votingWeight: "1p1v",
+        options: ["AI/ML Applications", "Cloud Architecture", "DevOps Best Practices", "Security Fundamentals", "Frontend Frameworks"],
+        deadlineDaysFromNow: 10,
+        groupIndex: 0,
+        creatorIndex: 2, // charlie
+        hasVotes: true,
+    },
+    // Public Rank-Based Vote (Ended)
+    {
+        title: "Which team building activity do you prefer?",
+        mode: "rank",
+        visibility: "public",
+        votingWeight: "1p1v",
+        options: ["Escape Room", "Cooking Class", "Outdoor Adventure", "Game Night"],
+        deadlineDaysFromNow: -5,
+        groupIndex: 1, // Local Council
+        creatorIndex: 1,
+        hasVotes: true,
+    },
+
+    // ===== PRIVATE BLIND POLLS =====
+    // Private Normal Vote (Cryptographically protected - Active)
+    {
+        title: "[Blind] Confidential: Vote on leadership candidate",
+        mode: "normal",
+        visibility: "private",
+        votingWeight: "1p1v",
+        options: ["Candidate A", "Candidate B", "Abstain"],
+        deadlineDaysFromNow: 5,
+        groupIndex: 2, // Private Board
+        creatorIndex: 3, // diana
+        hasVotes: false, // blind voting requires special flow
+    },
+    // Private Point-Based Vote (UI-hidden only - Active)
+    {
+        title: "[Limited Privacy] Budget priority allocation",
+        mode: "point",
+        visibility: "private",
+        votingWeight: "1p1v",
+        options: ["R&D Investment", "Marketing Expansion", "Employee Benefits", "Debt Reduction"],
+        deadlineDaysFromNow: 7,
+        groupIndex: 2,
+        creatorIndex: 3,
+        hasVotes: true,
+    },
+    // Private Rank-Based Vote (UI-hidden only - Active)  
+    {
+        title: "[Limited Privacy] Strategic initiative priority",
+        mode: "rank",
+        visibility: "private",
+        votingWeight: "1p1v",
+        options: ["Product Launch", "Market Expansion", "Cost Optimization", "Team Growth"],
+        deadlineDaysFromNow: 10,
+        groupIndex: 2,
+        creatorIndex: 3,
+        hasVotes: true,
+    },
+    // Private Point-Based Vote (UI-hidden only - Ended)
+    {
+        title: "[Limited Privacy] Q1 Initiative Scoring (Completed)",
+        mode: "point",
+        visibility: "private",
+        votingWeight: "1p1v",
+        options: ["Customer Success", "Product Quality", "Innovation", "Operational Efficiency"],
+        deadlineDaysFromNow: -2,
+        groupIndex: 2,
+        creatorIndex: 3,
+        hasVotes: true,
+    },
+];
+
 async function seed() {
     console.log("🌱 Starting database seed...\n");
 
@@ -234,6 +362,130 @@ async function seed() {
             console.log(`  ✅ Created group "${groupData.name}" with ${members.length} members and charter`);
         }
 
+        // Create polls and votes
+        console.log("\nCreating polls and votes...");
+
+        const pollRepo = AppDataSource.getRepository(Poll);
+        const voteRepo = AppDataSource.getRepository(Vote);
+        const allGroups = await groupRepo.find({ relations: ["members", "participants"] });
+        let pollsCreated = 0;
+        let votesCreated = 0;
+
+        for (const pollData of seedPolls) {
+            // Check if poll already exists
+            const existingPoll = await pollRepo.findOne({
+                where: { title: pollData.title },
+            });
+
+            if (existingPoll) {
+                console.log(`  ⏭️  Poll "${pollData.title.slice(0, 40)}..." already exists, skipping`);
+                continue;
+            }
+
+            const group = allGroups[pollData.groupIndex];
+            if (!group) {
+                console.log(`  ❌ Group not found for poll "${pollData.title.slice(0, 40)}..."`);
+                continue;
+            }
+
+            const creator = createdUsers[pollData.creatorIndex];
+            const deadline = new Date();
+            deadline.setDate(deadline.getDate() + pollData.deadlineDaysFromNow);
+
+            const poll = pollRepo.create({
+                title: pollData.title,
+                mode: pollData.mode,
+                visibility: pollData.visibility,
+                votingWeight: pollData.votingWeight,
+                options: pollData.options,
+                deadline: deadline,
+                deadlineMessageSent: pollData.deadlineDaysFromNow < 0,
+                creatorId: creator.id,
+                groupId: group.id,
+            });
+
+            const savedPoll = await pollRepo.save(poll);
+            pollsCreated++;
+            console.log(`  ✅ Created poll "${pollData.title.slice(0, 50)}..." (${pollData.mode}/${pollData.visibility})`);
+
+            // Create votes if requested (skip for private normal/blind polls - those need wallet)
+            if (pollData.hasVotes) {
+                const eligibleVoters = group.members.filter((_, idx) => idx < 4); // Use up to 4 voters
+                
+                for (let voterIdx = 0; voterIdx < eligibleVoters.length; voterIdx++) {
+                    const voter = eligibleVoters[voterIdx];
+                    let voteData: VoteDataByMode;
+
+                    if (pollData.mode === "normal") {
+                        // Each voter picks a different option (cycling through)
+                        const optionIndex = voterIdx % pollData.options.length;
+                        voteData = {
+                            mode: "normal",
+                            data: [optionIndex.toString()]
+                        };
+                    } else if (pollData.mode === "point") {
+                        // Each voter distributes 100 points differently
+                        const pointDistribution: Record<string, number> = {};
+                        const totalPoints = 100;
+                        const numOptions = pollData.options.length;
+                        
+                        // Create a varied distribution based on voter index
+                        for (let optIdx = 0; optIdx < numOptions; optIdx++) {
+                            // Vary distribution based on voter: first voter prefers first option, etc.
+                            const preference = (optIdx + voterIdx) % numOptions;
+                            const basePoints = Math.floor(totalPoints / numOptions);
+                            const bonus = preference === 0 ? (totalPoints % numOptions) + 10 : (preference === 1 ? 5 : 0);
+                            const points = Math.max(0, Math.min(100, basePoints + bonus - (preference * 3)));
+                            pointDistribution[optIdx.toString()] = points;
+                        }
+                        
+                        // Normalize to ensure exactly 100 points
+                        const currentTotal = Object.values(pointDistribution).reduce((a, b) => a + b, 0);
+                        if (currentTotal !== 100) {
+                            pointDistribution["0"] += (100 - currentTotal);
+                        }
+                        
+                        voteData = {
+                            mode: "point",
+                            data: pointDistribution as any
+                        };
+                    } else { // rank
+                        // Each voter ranks options (top 3)
+                        const rankings: { option: string; points: number }[] = [];
+                        const maxRanks = Math.min(3, pollData.options.length);
+                        
+                        for (let rank = 1; rank <= maxRanks; rank++) {
+                            // Rotate preferences based on voter index
+                            const optionIndex = (rank - 1 + voterIdx) % pollData.options.length;
+                            rankings.push({
+                                option: optionIndex.toString(),
+                                points: rank
+                            });
+                        }
+                        
+                        voteData = {
+                            mode: "rank",
+                            data: rankings
+                        };
+                    }
+
+                    const vote = voteRepo.create({
+                        pollId: savedPoll.id,
+                        userId: voter.id,
+                        voterId: voter.id,
+                        data: voteData,
+                    });
+
+                    await voteRepo.save(vote);
+                    votesCreated++;
+                }
+                
+                console.log(`    └─ Created ${eligibleVoters.length} votes`);
+            }
+        }
+
+        console.log(`\n📊 Polls created: ${pollsCreated}, Votes created: ${votesCreated}\n`);
+
         // Optionally add a custom user to all groups
         const customEname = process.argv[2];
         if (customEname) {
@@ -258,11 +510,11 @@ async function seed() {
                 console.log(`  ✅ Found existing user: ${customUser.name} (${customUser.id})`);
             }
 
-            const allGroups = await groupRepo.find({
+            const groupsToUpdate = await groupRepo.find({
                 relations: ["members", "participants"],
             });
 
-            for (const group of allGroups) {
+            for (const group of groupsToUpdate) {
                 const isAlreadyMember = group.members.some((m) => m.id === customUser!.id);
                 
                 if (isAlreadyMember) {
@@ -282,10 +534,16 @@ async function seed() {
         console.log("Summary:");
         console.log(`  - ${seedUsers.length} users`);
         console.log(`  - ${seedGroups.length} groups (with charters)`);
+        console.log(`  - ${seedPolls.length} polls (various modes: normal, point, rank)`);
+        console.log(`  - Includes public and private polls with sample votes`);
         if (customEname) {
             console.log(`  - Custom user ${customEname} added to all groups`);
         }
-        console.log("\nYou can now start the evoting app and use these accounts.");
+        console.log("\nPoll types created:");
+        console.log("  - Public normal/point/rank polls (active and ended)");
+        console.log("  - Private blind poll (normal mode - crypto protected)");
+        console.log("  - Private PBV/RBV polls (UI-hidden only - with warning)");
+        console.log("\nYou can now start the evoting app and test voting.");
     } catch (error) {
         console.error("❌ Seed failed:", error);
         process.exit(1);
