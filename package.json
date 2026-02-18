@@ -1,59 +1,61 @@
 {
-    "name": "prototype",
-    "private": true,
-    "scripts": {
-        "build": "turbo run build",
-        "dev": "turbo run dev",
-        "lint": "turbo run lint",
-        "check-lint": "turbo run check-lint",
-        "format": "turbo run format",
-        "check-format": "turbo run check-format",
-        "check": "turbo run check",
-        "check-types": "turbo run check-types",
-        "dev:core": "pnpm dev:core:docker && pnpm dev:core:wait && pnpm dev:core:migrate && pnpm dev:core:apps",
-        "dev:core:docker": "pnpm docker:core",
-        "dev:core:wait": "pnpm exec wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:7687",
-        "dev:core:migrate": "pnpm --filter registry migration:run && pnpm --filter evault-core build && cross-env REGISTRY_DATABASE_URL= pnpm --filter evault-core migration:run",
-        "dev:core:apps": "pnpm exec concurrently -n registry,evault,sandbox \"pnpm --filter registry dev\" \"pnpm --filter evault-core dev\" \"pnpm --filter dev-sandbox dev\"",
-        "docker:core": "docker compose -f docker-compose.databases.yml up -d",
-        "docker:core:down": "docker compose -f docker-compose.databases.yml down"
-    },
-    "devDependencies": {
-        "@biomejs/biome": "^1.9.4",
-        "@types/react": "18.3.27",
-        "@types/react-dom": "18.3.7",
-        "concurrently": "^9.1.0",
-        "cross-env": "^7.0.3",
-        "react": "18.3.1",
-        "react-dom": "18.3.1",
-        "turbo": "^2.4.4",
-        "typescript": "5.8.2",
-        "wait-on": "^8.0.3"
-    },
-    "packageManager": "pnpm@10.25.0",
-    "engines": {
-        "node": ">=18"
-    },
-    "pnpm": {
-        "onlyBuiltDependencies": [
-            "@biomejs/biome",
-            "@parcel/watcher",
-            "@rollup/rollup-linux-x64-gnu",
-            "cpu-features",
-            "es5-ext",
-            "esbuild",
-            "msw",
-            "protobufjs",
-            "rollup",
-            "sqlite3",
-            "ssh2",
-            "svelte-preprocess"
-        ],
-        "overrides": {
-            "react": "18.3.1",
-            "react-dom": "18.3.1",
-            "@types/react": "18.3.27",
-            "@types/react-dom": "18.3.7"
-        }
+  "name": "prototype",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-lint": "turbo run check-lint",
+    "format": "turbo run format",
+    "check-format": "turbo run check-format",
+    "check": "turbo run check",
+    "check-types": "turbo run check-types",
+    "dev:core": "pnpm dev:core:docker && pnpm dev:core:wait && pnpm dev:core:migrate && pnpm dev:core:apps",
+    "dev:core:docker": "pnpm docker:core",
+    "dev:core:wait": "pnpm exec wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:7687",
+    "dev:core:migrate": "pnpm --filter registry migration:run && pnpm --filter evault-core build && cross-env REGISTRY_DATABASE_URL= pnpm --filter evault-core migration:run",
+    "dev:core:apps": "pnpm exec concurrently -n registry,evault,sandbox \"pnpm --filter registry dev\" \"pnpm --filter evault-core dev\" \"pnpm --filter dev-sandbox dev\"",
+    "docker:core": "docker compose -f docker-compose.databases.yml up -d",
+    "docker:core:down": "docker compose -f docker-compose.databases.yml down",
+    "generate-entropy-jwk": "node scripts/generate-registry-entropy-jwk.cjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/react": "18.3.27",
+    "@types/react-dom": "18.3.7",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "turbo": "^2.4.4",
+    "typescript": "5.8.2",
+    "wait-on": "^8.0.3",
+    "jose": "^5.2.2"
+  },
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "@parcel/watcher",
+      "@rollup/rollup-linux-x64-gnu",
+      "cpu-features",
+      "es5-ext",
+      "esbuild",
+      "msw",
+      "protobufjs",
+      "rollup",
+      "sqlite3",
+      "ssh2",
+      "svelte-preprocess"
+    ],
+    "overrides": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1",
+      "@types/react": "18.3.27",
+      "@types/react-dom": "18.3.7"
     }
+  }
 }
