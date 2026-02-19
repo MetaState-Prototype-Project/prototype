@@ -199,7 +199,35 @@ export class VoteService {
     }
 
     const votes = await this.getVotesByPoll(pollId);
-    
+
+    // Build voterDetails for public polls (sorted newest-first)
+    const voterDetails = poll.visibility === "public"
+      ? votes
+          .slice() // don't mutate
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map(vote => {
+            const user = vote.user;
+            const base = {
+              id: vote.id,
+              firstName: user?.name?.split(' ')[0] || undefined,
+              lastName: user?.name?.split(' ').slice(1).join(' ') || undefined,
+              email: user?.email || undefined,
+              profileImageUrl: user?.avatarUrl || undefined,
+              createdAt: vote.createdAt,
+            };
+
+            if (vote.data.mode === "normal" && Array.isArray(vote.data.data)) {
+              return { ...base, optionId: vote.data.data[0] || "0", mode: "normal" as const };
+            } else if (vote.data.mode === "point" && typeof vote.data.data === "object") {
+              return { ...base, optionId: "0", mode: "point" as const, pointData: vote.data.data };
+            } else if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
+              const rankData = vote.data.data[0]?.points || {};
+              return { ...base, optionId: "0", mode: "rank" as const, rankData };
+            }
+            return { ...base, optionId: "0", mode: vote.data.mode as string };
+          })
+      : undefined;
+
     // Get group member count for voting turnout calculation
     let totalEligibleVoters = 0;
     if (poll.groupId) {
@@ -293,7 +321,8 @@ export class VoteService {
         mode: isWeighted ? "ereputation" : "normal",
         results: finalResults,
         ...(totalEligiblePoints !== undefined && { totalEligiblePoints }),
-        ...(pointsVoted !== undefined && { pointsVoted })
+        ...(pointsVoted !== undefined && { pointsVoted }),
+        ...(voterDetails && { voterDetails })
       };
     } else if (poll.mode === "point") {
       // STEP 1: Calculate point-based results normally (without eReputation weighting)
@@ -370,7 +399,8 @@ export class VoteService {
           mode: "ereputation",
           results: finalResults,
           ...(totalEligiblePoints !== undefined && { totalEligiblePoints }),
-          ...(pointsVoted !== undefined && { pointsVoted })
+          ...(pointsVoted !== undefined && { pointsVoted }),
+          ...(voterDetails && { voterDetails })
         };
       } else {
         // No weighting - use normal points
@@ -405,7 +435,8 @@ export class VoteService {
           mode: "point",
           results: finalResults,
           totalEligiblePoints,
-          pointsVoted
+          pointsVoted,
+          ...(voterDetails && { voterDetails })
         };
       }
     } else if (poll.mode === "rank") {
@@ -481,7 +512,8 @@ export class VoteService {
         mode: "rank",
         results,
         // Keep the detailed IRV info for advanced users who need it
-        irvDetails: irvResult
+        irvDetails: irvResult,
+        ...(voterDetails && { voterDetails })
       };
     }
 
