@@ -16,7 +16,7 @@ import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { CronManagerService } from "./services/CronManagerService";
 
-config({ path: path.resolve(__dirname, "../../../.env") });
+config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const app = express();
 const port = process.env.EVOTING_API_PORT || process.env.PORT || 4001;
@@ -26,7 +26,7 @@ AppDataSource.initialize()
     .then(async () => {
         console.log("Database connection established");
         console.log("Web3 adapter initialized");
-        
+
         // Initialize controllers after database is ready
         try {
             signingController = new SigningController();
@@ -112,20 +112,20 @@ app.get("/api/signing/sessions/:sessionId", (req, res) => {
 app.get("/api/signing/test", (req, res) => {
     try {
         if (!signingController) {
-            return res.status(503).json({ 
-                error: "Signing service not ready", 
-                message: "Service is still initializing" 
+            return res.status(503).json({
+                error: "Signing service not ready",
+                message: "Service is still initializing"
             });
         }
         const testResult = signingController.testConnection();
-        res.json({ 
-            message: "Signing service is working", 
+        res.json({
+            message: "Signing service is working",
             timestamp: new Date().toISOString(),
             testResult
         });
     } catch (error) {
-        res.status(500).json({ 
-            error: "Signing service test failed", 
+        res.status(500).json({
+            error: "Signing service test failed",
             message: error instanceof Error ? error.message : String(error)
         });
     }
@@ -133,7 +133,7 @@ app.get("/api/signing/test", (req, res) => {
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
-    res.json({ 
+    res.json({
         status: "ok",
         timestamp: new Date().toISOString(),
         services: {
