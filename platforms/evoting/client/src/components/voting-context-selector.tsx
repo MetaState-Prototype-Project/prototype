@@ -61,25 +61,6 @@ export function VotingContextSelector({
   }, [pollId, userId, refreshTrigger]);
 
   useEffect(() => {
-    // If self vote is already cast, ensure context never stays on "self".
-    // This also handles the "" state used by Select before a delegation is chosen.
-    if (
-      hasVotedForSelf &&
-      activeDelegations.length > 0 &&
-      (selectedContext === "self" || selectedContext === "")
-    ) {
-      const firstDelegation = activeDelegations[0];
-      onContextChange({
-        type: "delegated",
-        delegatorId: firstDelegation.delegatorId,
-        delegatorName: firstDelegation.delegator?.name || firstDelegation.delegator?.ename || "Unknown",
-        delegationId: firstDelegation.id,
-      });
-      setSelectedContext(firstDelegation.id);
-    }
-  }, [hasVotedForSelf, activeDelegations, selectedContext, onContextChange]);
-
-  useEffect(() => {
     if (selectedContext === "self" || selectedContext === "") {
       return;
     }
@@ -224,12 +205,10 @@ export function VotingContextSelector({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="self" disabled={hasVotedForSelf}>
+          <SelectItem value="self">
             <div className="flex items-center gap-2">
-              <User className={`h-4 w-4 ${hasVotedForSelf ? "text-gray-300" : "text-gray-500"}`} />
-              <span className={hasVotedForSelf ? "text-gray-400" : ""}>
-                {hasVotedForSelf ? "Myself (already voted)" : "Vote for myself"}
-              </span>
+              <User className="h-4 w-4 text-gray-500" />
+              <span>{hasVotedForSelf ? "Myself (already voted)" : "Vote for myself"}</span>
             </div>
           </SelectItem>
           {activeDelegations.map((delegation) => {
@@ -281,7 +260,7 @@ export function VotingContextSelector({
       {hasVotedForSelf && (
         <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
           <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-          You have already voted for yourself. Select a delegator above to cast their vote.
+          You have already voted for yourself. You can still switch context to review votes.
         </p>
       )}
       {activeDelegations.length === 0 && (
