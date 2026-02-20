@@ -655,10 +655,15 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     const totalPoints = Object.values(voteData.data as Record<string, number>).reduce((sum, points) => sum + (points || 0), 0);
                                                                     return `distributed ${totalPoints} points across options`;
                                                                 } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                    const rankData = voteData.data;
-                                                                    const sortedRanks = [...rankData].sort((a, b) => a.points - b.points);
-                                                                    const topChoice = selectedPoll.options[parseInt(sortedRanks[0]?.option || "0")];
-                                                                    return `ranked options (${topChoice} as 1st choice)`;
+                                                                    const rankPoints = voteData.data[0]?.points;
+                                                                    if (rankPoints && typeof rankPoints === "object") {
+                                                                        const sortedRanks = Object.entries(rankPoints)
+                                                                            .sort(([, a], [, b]) => (a as number) - (b as number));
+                                                                        const topChoiceIndex = sortedRanks[0]?.[0];
+                                                                        const topChoice = topChoiceIndex ? selectedPoll.options[parseInt(topChoiceIndex)] : "Unknown";
+                                                                        return `ranked options (${topChoice} as 1st choice)`;
+                                                                    }
+                                                                    return "ranked options";
                                                                 }
                                                                 return "Unknown option";
                                                             })()
@@ -693,8 +698,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = (voteData.data as Record<string, number>)[index.toString()];
                                                         return points > 0;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data;
-                                                        return rankData.some((item: any) => item.option === index.toString());
+                                                        const rankPoints = voteData.data[0]?.points;
+                                                        return rankPoints && rankPoints[index.toString()];
                                                     }
                                                     return false;
                                                 })();
@@ -710,10 +715,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = (voteData.data as Record<string, number>)[index.toString()];
                                                         return points > 0 ? `← You gave ${points} points` : null;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data;
-                                                        const rankItem = rankData.find((item: any) => item.option === index.toString());
-                                                        const optionRank = rankItem?.points;
-                                                        return optionRank ? `← You ranked this ${optionRank}${optionRank === 1 ? 'st' : optionRank === 2 ? 'nd' : optionRank === 3 ? 'rd' : 'th'}` : null;
+                                                        const rankPoints = voteData.data[0]?.points;
+                                                        const rank = rankPoints?.[index.toString()];
+                                                        return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                     }
                                                     return null;
                                                 })();
