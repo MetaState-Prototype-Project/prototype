@@ -2019,19 +2019,28 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 .filter(([, pts]) => (pts as number) > 0)
                                                                 .sort(([, a], [, b]) => (b as number) - (a as number))
                                                                 .slice(0, 3)
-                                                                .map(([idx, pts]) => (
-                                                                    <div key={idx} className="flex items-center gap-1.5">
-                                                                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                                            <div
-                                                                                className="h-full bg-blue-500 rounded-full"
-                                                                                style={{ width: `${pts}%` }}
-                                                                            />
+                                                                .map(([idx, pts]) => {
+                                                                    const points = Number(pts);
+                                                                    const optionName = selectedPoll.options[parseInt(idx)] || `Option ${parseInt(idx) + 1}`;
+                                                                    return (
+                                                                        <div key={idx} className="space-y-1">
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <span className="text-[10px] text-gray-600 truncate" title={optionName}>
+                                                                                    {optionName}
+                                                                                </span>
+                                                                                <span className="text-[10px] text-gray-500 shrink-0">
+                                                                                    {points} points
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    className="h-full bg-blue-500 rounded-full"
+                                                                                    style={{ width: `${points}%` }}
+                                                                                />
+                                                                            </div>
                                                                         </div>
-                                                                        <span className="text-[10px] text-gray-500 w-14 text-right truncate" title={selectedPoll.options[parseInt(idx)]}>
-                                                                            {pts}pts
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
+                                                                    );
+                                                                })}
                                                             {Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length > 3 && (
                                                                 <span className="text-[10px] text-gray-400">
                                                                     +{Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length - 3} more
@@ -2178,7 +2187,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                         />
                                                                     </div>
                                                                     <span className="text-xs text-gray-500 w-8 text-right">
-                                                                        {pts}
+                                                                        {pts} pts
                                                                     </span>
                                                                 </div>
                                                             ))}
