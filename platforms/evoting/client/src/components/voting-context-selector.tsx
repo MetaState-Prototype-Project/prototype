@@ -35,6 +35,7 @@ export interface VotingContext {
   delegatorId?: string;
   delegatorName?: string;
   delegationId?: string;
+  delegationStatus?: Delegation["status"];
 }
 
 export function VotingContextSelector({
@@ -84,7 +85,7 @@ export function VotingContextSelector({
     }
 
     const selectedDelegation = delegations.find((d) => d.id === selectedContext);
-    if (!selectedDelegation || selectedDelegation.status !== "active") {
+    if (!selectedDelegation) {
       if (activeDelegations.length > 0) {
         const nextActiveDelegation = activeDelegations[0];
         setSelectedContext(nextActiveDelegation.id);
@@ -93,6 +94,7 @@ export function VotingContextSelector({
           delegatorId: nextActiveDelegation.delegatorId,
           delegatorName: nextActiveDelegation.delegator?.name || nextActiveDelegation.delegator?.ename || "Unknown",
           delegationId: nextActiveDelegation.id,
+          delegationStatus: nextActiveDelegation.status,
         });
       } else {
         setSelectedContext("self");
@@ -132,7 +134,7 @@ export function VotingContextSelector({
     if (value === "self") {
       onContextChange({ type: "self" });
     } else {
-      const delegation = delegations.find((d) => d.id === value && d.status === "active");
+      const delegation = delegations.find((d) => d.id === value);
       if (delegation) {
         onContextChange({
           type: "delegated",
@@ -140,6 +142,7 @@ export function VotingContextSelector({
           delegatorName:
             delegation.delegator?.name || delegation.delegator?.ename || "Unknown",
           delegationId: delegation.id,
+          delegationStatus: delegation.status,
         });
       }
     }
@@ -254,7 +257,7 @@ export function VotingContextSelector({
               delegation.delegator?.ename ||
               "Unknown";
             return (
-              <SelectItem key={delegation.id} value={delegation.id} disabled>
+              <SelectItem key={delegation.id} value={delegation.id}>
                 <div className="flex items-center gap-2">
                   <Avatar className="h-5 w-5">
                     <AvatarImage src={delegation.delegator?.avatarUrl} />

@@ -212,6 +212,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     }, [selectedPoll?.deadline, pollExists]);
 
     const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
+    const [delegatedVoteStatus, setDelegatedVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
     const [resultsData, setResultsData] = useState<PollResults | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -247,6 +248,29 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             setHasVoted(voteStatus.hasVoted);
         }
     }, [voteStatus]);
+
+    useEffect(() => {
+        const fetchDelegatedVoteStatus = async () => {
+            if (!pollId || votingContext.type !== "delegated" || !votingContext.delegatorId) {
+                setDelegatedVoteStatus(null);
+                return;
+            }
+
+            try {
+                const delegatedStatus = await pollApi.getUserVote(pollId, votingContext.delegatorId);
+                setDelegatedVoteStatus(delegatedStatus);
+            } catch (error) {
+                console.error("Failed to fetch delegated vote status:", error);
+                setDelegatedVoteStatus(null);
+            }
+        };
+
+        fetchDelegatedVoteStatus();
+    }, [pollId, votingContext, delegationRefreshKey]);
+
+    const isDelegatedContextVoted =
+        votingContext.type === "delegated" &&
+        (votingContext.delegationStatus === "used" || delegatedVoteStatus?.hasVoted === true);
 
 
 
@@ -287,6 +311,15 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             toast({
                 title: "Already Voted for Yourself",
                 description: "Switch to a delegated voter in 'Voting as' to cast votes on their behalf.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (isDelegatedContextVoted) {
+            toast({
+                title: "Delegated Vote Already Submitted",
+                description: `A vote was already submitted for ${votingContext.delegatorName}. Switch context to continue.`,
                 variant: "destructive",
             });
             return;
@@ -422,6 +455,19 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             refreshTrigger={delegationRefreshKey}
                             hasVotedForSelf={hasVoted}
                         />
+                    )}
+
+                    {isDelegatedContextVoted && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-sm text-blue-800 font-medium">
+                                Vote already submitted for {votingContext.delegatorName}.
+                            </p>
+                            {delegatedVoteStatus?.vote?.data && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                    You can still switch contexts to review this delegated vote or select another delegator.
+                                </p>
+                            )}
+                        </div>
                     )}
 
                     {/* Show results if poll has ended, regardless of user's vote status */}
@@ -764,7 +810,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </>
                             )}
                         </div>
-                    ) : voteStatus?.hasVoted === true && activeDelegationCount === 0 ? (
+                    ) : voteStatus?.hasVoted === true && activeDelegationCount === 0 && votingContext.type === "self" ? (
                         // Show voting interface for active polls where user has already voted
                         <>
                             {/* Show that user has voted with detailed vote information for public polls */}
@@ -1028,7 +1074,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
-                                    {hasVoted && activeDelegationCount === 0 ? (
+                                    {hasVoted && activeDelegationCount === 0 && votingContext.type === "self" ? (
                                         // User has already voted on private PBV/RBV and has no delegations
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                             <div className="flex items-center">
@@ -1241,7 +1287,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
                                                         isSubmitting ||
                                                         !isVotingAllowed ||
-                                                        (votingContext.type === "self" && hasVoted)
+                                                        (votingContext.type === "self" && hasVoted) ||
+                                                        isDelegatedContextVoted
                                                     }
                                                     className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                                 >
@@ -1252,6 +1299,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     )}
                                                     {!isVotingAllowed 
                                                         ? "Voting Ended" 
+                                                        : isDelegatedContextVoted
+                                                            ? `Already Voted for ${votingContext.delegatorName}`
                                                         : votingContext.type === "delegated"
                                                             ? `Submit Vote for ${votingContext.delegatorName}`
                                                             : "Submit Vote"}
@@ -1280,7 +1329,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                     {/* For public polls, show different interface based on voting status */}
                                     {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
-                                    {hasVoted && activeDelegationCount === 0 ? (
+                                    {hasVoted && activeDelegationCount === 0 && votingContext.type === "self" ? (
                                         <div className="space-y-6">
                                             {/* Show that user has voted with detailed vote information */}
                                             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -1695,7 +1744,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (selectedPoll.mode === "point" && totalPoints !== 100) ||
                                                         (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
                                                         isSubmitting ||
-                                                        !isVotingAllowed
+                                                        !isVotingAllowed ||
+                                                        isDelegatedContextVoted
                                                     }
                                                     className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                                 >
@@ -1706,6 +1756,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     )}
                                                     {!isVotingAllowed
                                                         ? "Voting Ended"
+                                                        : isDelegatedContextVoted
+                                                            ? `Already Voted for ${votingContext.delegatorName}`
                                                         : votingContext.type === "delegated"
                                                             ? `Submit Vote for ${votingContext.delegatorName}`
                                                             : "Submit Vote"}
@@ -1759,6 +1811,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         // Try immediately, then retry if needed
                                         await fetchWithRetry();
+                                        setDelegationRefreshKey(k => k + 1);
 
                                         // Clear current selections after successful signing
                                         setSelectedOption(null);
