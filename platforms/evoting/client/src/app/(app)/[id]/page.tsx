@@ -310,7 +310,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const selectedContextVoteStatus =
         votingContext.type === "delegated" ? delegatedVoteStatus : voteStatus;
     const selectedContextHasVoted = selectedContextVoteStatus?.hasVoted === true;
-    const isSelfDelegatedAway = myDelegation?.status === "active";
+    const isSelfDelegatedAway = myDelegation?.status === "active" || myDelegation?.status === "pending";
     const isCurrentContextDisabled = !isVotingAllowed || (votingContext.type === "self" && isSelfDelegatedAway);
 
     if (isLoading) {
