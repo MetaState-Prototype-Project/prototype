@@ -7,18 +7,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { pollApi } from "@/lib/pollApi";
+import { pollApi, type SigningDelegationContext } from "@/lib/pollApi";
 import { useAuth } from "@/lib/auth-context";
 import { isMobileDevice, getDeepLinkUrl } from "@/lib/utils/mobile-detection";
 
 interface SigningInterfaceProps {
   pollId: string | number;
   voteData: any;
+  delegationContext?: SigningDelegationContext;
   onSigningComplete: (voteId: string) => void;
   onCancel: () => void;
 }
 
-export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel }: SigningInterfaceProps) {
+export function SigningInterface({
+  pollId,
+  voteData,
+  delegationContext,
+  onSigningComplete,
+  onCancel,
+}: SigningInterfaceProps) {
   const { SVG } = useQRCode();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
@@ -36,7 +43,12 @@ export function SigningInterface({ pollId, voteData, onSigningComplete, onCancel
 
     try {
       setStatus("connecting");
-      const session = await pollApi.createSigningSession(pollId.toString(), voteData, user.id);
+      const session = await pollApi.createSigningSession(
+        pollId.toString(),
+        voteData,
+        user.id,
+        delegationContext
+      );
       setSessionId(session.sessionId);
       setQrData(session.qrData);
       setStatus("pending");

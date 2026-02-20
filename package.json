@@ -17,7 +17,8 @@
     "dev:core:apps": "pnpm exec concurrently -n registry,evault,sandbox \"pnpm --filter registry dev\" \"pnpm --filter evault-core dev\" \"pnpm --filter dev-sandbox dev\"",
     "docker:core": "docker compose -f docker-compose.databases.yml up -d",
     "docker:core:down": "docker compose -f docker-compose.databases.yml down",
-    "generate-entropy-jwk": "node scripts/generate-registry-entropy-jwk.cjs"
+    "generate-entropy-jwk": "node scripts/generate-registry-entropy-jwk.cjs",
+    "env:regen": "./scripts/update-env-ip.sh -a"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -5,7 +5,9 @@ import { Poll } from "../database/entities/Poll";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { VoteReputationResult, MemberReputation } from "../database/entities/VoteReputationResult";
+import { Delegation } from "../database/entities/Delegation";
 import { VotingSystem, VoteData } from 'blindvote';
+import { MessageService } from "./MessageService";
 
 export class VoteService {
   private voteRepository: Repository<Vote>;
@@ -13,6 +15,8 @@ export class VoteService {
   private userRepository: Repository<User>;
   private groupRepository: Repository<Group>;
   private voteReputationResultRepository: Repository<VoteReputationResult>;
+  private delegationRepository: Repository<Delegation>;
+  private messageService: MessageService;
   
   // Store VotingSystem instances per poll
   private votingSystems = new Map<string, VotingSystem>();
@@ -23,6 +27,8 @@ export class VoteService {
     this.userRepository = AppDataSource.getRepository(User);
     this.groupRepository = AppDataSource.getRepository(Group);
     this.voteReputationResultRepository = AppDataSource.getRepository(VoteReputationResult);
+    this.delegationRepository = AppDataSource.getRepository(Delegation);
+    this.messageService = new MessageService();
   }
 
   /**
@@ -136,13 +142,9 @@ export class VoteService {
         typedData = { mode: "point", data: pointsData };
       }
     } else {
-      // Frontend sends { 0: 1, 1: 2 }, convert to [{ option: "0", points: 1 }, { option: "1", points: 2 }]
+      // Frontend sends { 0: 1, 1: 2 }, store as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
       const ranksData = voteData as any;
-      const convertedData = Object.entries(ranksData).map(([index, rank]) => ({
-        option: index,
-        points: rank as number
-      }));
-      typedData = { mode: "rank", data: convertedData };
+      typedData = { mode: "rank", data: [{ option: "ranks", points: ranksData }] };
     }
 
     // Get the user to get their ename for voterId
@@ -161,10 +163,104 @@ export class VoteService {
     return await this.voteRepository.save(vote);
   }
 
+  async castDelegatedVote(
+    pollId: string,
+    delegateId: string,
+    delegatorId: string,
+    voteData: VoteData,
+    mode: "normal" | "point" | "rank" = "normal"
+  ): Promise<Vote> {
+    const poll = await this.pollRepository.findOne({
+      where: { id: pollId }
+    });
+
+    if (!poll) {
+      throw new Error('Poll not found');
+    }
+
+    const delegation = await this.delegationRepository.findOne({
+      where: {
+        pollId,
+        delegatorId,
+        delegateId,
+        status: "active"
+      }
+    });
+
+    if (!delegation) {
+      throw new Error('No active delegation found for this delegator');
+    }
+
+    const existingVote = await this.voteRepository.findOne({
+      where: { pollId, userId: delegatorId }
+    });
+
+    if (existingVote) {
+      throw new Error('Vote has already been cast for this delegator');
+    }
+
+    let typedData: VoteDataByMode;
+    if (mode === "normal") {
+      const optionId = (voteData as any).optionId;
+      const optionArray = optionId !== undefined ? [optionId.toString()] : [];
+      typedData = { mode: "normal", data: optionArray };
+    } else if (mode === "point") {
+      const pointsData = voteData as any;
+      if (pointsData.points && typeof pointsData.points === 'object') {
+        typedData = { mode: "point", data: pointsData.points };
+      } else {
+        typedData = { mode: "point", data: pointsData };
+      }
+    } else {
+      // Store rank votes as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
+      const ranksData = voteData as any;
+      typedData = { mode: "rank", data: [{ option: "ranks", points: ranksData }] };
+    }
+
+    const [delegator, delegate] = await Promise.all([
+      this.userRepository.findOne({ where: { id: delegatorId } }),
+      this.userRepository.findOne({ where: { id: delegateId } })
+    ]);
+
+    if (!delegator) {
+      throw new Error('Delegator not found');
+    }
+
+    if (!delegate) {
+      throw new Error('Delegate not found');
+    }
+
+    const vote = this.voteRepository.create({
+      pollId,
+      userId: delegatorId,
+      castById: delegateId,
+      voterId: delegator.ename,
+      data: typedData
+    });
+
+    const savedVote = await this.voteRepository.save(vote);
+
+    delegation.status = "used";
+    await this.delegationRepository.save(delegation);
+
+    if (poll.groupId) {
+      const delegatorName = delegator.name || delegator.ename || "Unknown";
+      const delegateName = delegate.name || delegate.ename || "Unknown";
+      
+      await this.messageService.createSystemMessage({
+        text: `eVoting Platform: Delegated Vote Cast\n\n${delegatorName} voted on "${poll.title}" (vote cast by ${delegateName} via delegation)`,
+        groupId: poll.groupId,
+        voteId: pollId,
+      });
+    }
+
+    return savedVote;
+  }
+
   async getVotesByPoll(pollId: string): Promise<Vote[]> {
     return await this.voteRepository.find({
       where: { pollId },
-      relations: ['user']
+      relations: ['user', 'castBy']
     });
   }
 
@@ -207,6 +303,7 @@ export class VoteService {
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .map(vote => {
             const user = vote.user;
+            const castBy = vote.castBy;
             const base = {
               id: vote.id,
               firstName: user?.name?.split(' ')[0] || undefined,
@@ -214,6 +311,8 @@ export class VoteService {
               email: user?.email || undefined,
               profileImageUrl: user?.avatarUrl || undefined,
               createdAt: vote.createdAt,
+              castById: vote.castById || null,
+              castByName: castBy ? (castBy.name || castBy.ename) : null,
             };
 
             if (vote.data.mode === "normal" && Array.isArray(vote.data.data)) {
@@ -221,7 +320,9 @@ export class VoteService {
             } else if (vote.data.mode === "point" && typeof vote.data.data === "object") {
               return { ...base, optionId: "0", mode: "point" as const, pointData: vote.data.data };
             } else if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
-              const rankData = vote.data.data[0]?.points || {};
+              // Rank votes stored as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
+              const rankItem = vote.data.data.find((item: any) => item.option === "ranks" && item.points);
+              const rankData = rankItem?.points || {};
               return { ...base, optionId: "0", mode: "rank" as const, rankData };
             }
             return { ...base, optionId: "0", mode: vote.data.mode as string };

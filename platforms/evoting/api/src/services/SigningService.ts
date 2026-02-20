@@ -7,11 +7,17 @@ export interface SigningSession {
     pollId: string;
     userId: string;
     voteData: any;
+    delegationContext?: SigningDelegationContext;
     qrData: string;
     status: "pending" | "signed" | "expired" | "completed" | "security_violation";
     expiresAt: Date;
     createdAt: Date;
     updatedAt: Date;
+}
+
+export interface SigningDelegationContext {
+    delegatorId: string;
+    delegatorName?: string;
 }
 
 export interface SignedPayload {
@@ -63,7 +69,12 @@ export class SigningService {
         return true;
     }
 
-    async createSession(pollId: string, voteData: any, userId: string): Promise<SigningSession> {
+    async createSession(
+        pollId: string,
+        voteData: any,
+        userId: string,
+        delegationContext?: SigningDelegationContext
+    ): Promise<SigningSession> {
         const sessionId = randomUUID();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
         
@@ -72,6 +83,7 @@ export class SigningService {
             pollId,
             voteData,
             userId,
+            delegationContext,
             timestamp: Date.now()
         });
         
@@ -87,6 +99,7 @@ export class SigningService {
             pollId,
             userId,
             voteData,
+            delegationContext,
             qrData,
             status: "pending",
             expiresAt,
@@ -198,8 +211,22 @@ export class SigningService {
             try {
                 parsedMessage = JSON.parse(message);
             } catch (error) {
-                console.error("❌ Failed to parse message as JSON:", message);
-                return { success: false, error: "Invalid message format" };
+                // Fallback for older wallet behavior: message may be a plain session id
+                // instead of a JSON payload. In that case, trust session-bound fields.
+                const trimmedMessage = typeof message === "string" ? message.trim() : "";
+                if (trimmedMessage === session.id) {
+                    console.warn("⚠️ Non-JSON message payload received, using session-bound fallback");
+                    parsedMessage = {
+                        pollId: session.pollId,
+                        userId: session.userId,
+                        voteData: session.voteData,
+                        delegationContext: session.delegationContext || null,
+                        sessionId: session.id,
+                    };
+                } else {
+                    console.error("❌ Failed to parse message as JSON:", message);
+                    return { success: false, error: "Invalid message format" };
+                }
             }
             
             console.log("🔍 Message verification:", {
@@ -211,24 +238,37 @@ export class SigningService {
             const pollIdMatches = parsedMessage.pollId === session.pollId;
             const userIdMatches = parsedMessage.userId === session.userId;
             const voteDataMatches = JSON.stringify(parsedMessage.voteData) === JSON.stringify(session.voteData);
+
+            // Compare delegation context using stable IDs only.
+            // Human-readable names can be re-encoded differently by wallet clients.
+            const expectedDelegatorId = session.delegationContext?.delegatorId || null;
+            const receivedDelegatorId = parsedMessage.delegationContext?.delegatorId || null;
+            const delegationContextMatches = expectedDelegatorId === receivedDelegatorId;
             
             console.log("🔍 Field comparison:", {
                 pollIdMatches,
                 userIdMatches,
                 voteDataMatches,
+                delegationContextMatches,
                 expected: {
                     pollId: session.pollId,
                     userId: session.userId,
-                    voteData: session.voteData
+                    voteData: session.voteData,
+                    delegationContext: {
+                        delegatorId: expectedDelegatorId,
+                    },
                 },
                 received: {
                     pollId: parsedMessage.pollId,
                     userId: parsedMessage.userId,
-                    voteData: parsedMessage.voteData
+                    voteData: parsedMessage.voteData,
+                    delegationContext: {
+                        delegatorId: receivedDelegatorId,
+                    },
                 }
             });
             
-            if (!pollIdMatches || !userIdMatches || !voteDataMatches) {
+            if (!pollIdMatches || !userIdMatches || !voteDataMatches || !delegationContextMatches) {
                 console.error("❌ Message verification failed!");
                 return { success: false, error: "Message verification failed" };
             }
@@ -249,7 +289,11 @@ export class SigningService {
             
             let voteResult;
             
-            if (poll.visibility === "private") {
+            const isBlindSimpleVote = poll.visibility === "private" && poll.mode === "normal";
+            if (isBlindSimpleVote) {
+                if (session.delegationContext?.delegatorId) {
+                    return { success: false, error: "Delegated voting is not allowed for private simple polls" };
+                }
                 console.log("🔒 Submitting blind vote...");
                 // Blind voting - submit using blind vote method
                 voteResult = await this.getVoteService().submitBlindVote(
@@ -269,13 +313,23 @@ export class SigningService {
                            session.voteData.points ? "point" : "rank";
                 
                 console.log("Vote mode:", mode, "voteData:", session.voteData);
-                
-                voteResult = await this.getVoteService().createVote(
-                    session.pollId,
-                    session.userId,
-                    session.voteData,
-                    mode
-                );
+
+                if (session.delegationContext?.delegatorId) {
+                    voteResult = await this.getVoteService().castDelegatedVote(
+                        session.pollId,
+                        session.userId,
+                        session.delegationContext.delegatorId,
+                        session.voteData,
+                        mode
+                    );
+                } else {
+                    voteResult = await this.getVoteService().createVote(
+                        session.pollId,
+                        session.userId,
+                        session.voteData,
+                        mode
+                    );
+                }
                 console.log("✅ Regular vote submitted:", voteResult);
             }
             

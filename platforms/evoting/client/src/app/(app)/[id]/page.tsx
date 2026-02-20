@@ -20,11 +20,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption } from "@/lib/pollApi";
+import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption, type SigningDelegationContext, type Delegation } from "@/lib/pollApi";
 import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
 import { SigningInterface } from "@/components/signing-interface";
+import { DelegationPanel } from "@/components/delegation-panel";
+import { DelegatedVotingInterface } from "@/components/delegated-voting-interface";
+import { VotingContextSelector, type VotingContext } from "@/components/voting-context-selector";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -46,7 +49,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     // Add state variables for different voting modes
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
+    
+    // Voting context state for delegated voting
+    const [votingContext, setVotingContext] = useState<VotingContext>({ type: "self" });
+    const [delegationRefreshKey, setDelegationRefreshKey] = useState(0);
+    const [activeDelegationCount, setActiveDelegationCount] = useState(0);
+    const [pendingDelegationCount, setPendingDelegationCount] = useState(0);
+    const [myDelegation, setMyDelegation] = useState<Delegation | null>(null);
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
+    const [signingVoteData, setSigningVoteData] = useState<any | null>(null);
+    const [signingDelegationContext, setSigningDelegationContext] = useState<SigningDelegationContext | undefined>(undefined);
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
     // Calculate total points for point voting
@@ -85,7 +97,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch blind vote results
     const fetchBlindVoteResults = async () => {
-        if (!pollId || selectedPoll?.visibility !== "private") return;
+        if (!pollId || selectedPoll?.visibility !== "private" || selectedPoll?.mode !== "normal") return;
 
         try {
             setIsLoadingBlindResults(true);
@@ -122,14 +134,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch blind vote results when poll loads (for private polls)
     useEffect(() => {
-        if (selectedPoll && selectedPoll.visibility === "private") {
+        if (selectedPoll && selectedPoll.visibility === "private" && selectedPoll.mode === "normal") {
             fetchBlindVoteResults();
         }
     }, [selectedPoll]);
 
     // Fetch blind vote results when poll expires (for private polls)
     useEffect(() => {
-        if (selectedPoll && selectedPoll.visibility === "private" && timeRemaining === "Voting has ended") {
+        if (selectedPoll && selectedPoll.visibility === "private" && selectedPoll.mode === "normal" && timeRemaining === "Voting has ended") {
             fetchBlindVoteResults();
         }
     }, [timeRemaining, selectedPoll]);
@@ -201,6 +213,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     }, [selectedPoll?.deadline, pollExists]);
 
     const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
+    const [delegatedVoteStatus, setDelegatedVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
     const [resultsData, setResultsData] = useState<PollResults | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -237,7 +250,68 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         }
     }, [voteStatus]);
 
+    useEffect(() => {
+        const fetchDelegatedVoteStatus = async () => {
+            if (!pollId || votingContext.type !== "delegated" || !votingContext.delegatorId) {
+                setDelegatedVoteStatus(null);
+                return;
+            }
 
+            try {
+                const delegatedStatus = await pollApi.getUserVote(pollId, votingContext.delegatorId);
+                setDelegatedVoteStatus(delegatedStatus);
+            } catch (error) {
+                console.error("Failed to fetch delegated vote status:", error);
+                setDelegatedVoteStatus(null);
+            }
+        };
+
+        fetchDelegatedVoteStatus();
+    }, [pollId, votingContext, delegationRefreshKey]);
+
+    useEffect(() => {
+        const fetchPendingDelegations = async () => {
+            if (!pollId || !user?.id || !selectedPoll?.groupId) {
+                setPendingDelegationCount(0);
+                return;
+            }
+
+            try {
+                const pending = await pollApi.getPendingDelegationsForPoll(pollId);
+                setPendingDelegationCount(pending.length);
+            } catch (error) {
+                console.error("Failed to fetch pending delegations:", error);
+                setPendingDelegationCount(0);
+            }
+        };
+
+        fetchPendingDelegations();
+    }, [pollId, user?.id, selectedPoll?.groupId, delegationRefreshKey]);
+
+    useEffect(() => {
+        const fetchMyDelegation = async () => {
+            if (!pollId || !user?.id || !selectedPoll?.groupId) {
+                setMyDelegation(null);
+                return;
+            }
+
+            try {
+                const delegation = await pollApi.getMyDelegation(pollId);
+                setMyDelegation(delegation);
+            } catch (error) {
+                console.error("Failed to fetch my delegation:", error);
+                setMyDelegation(null);
+            }
+        };
+
+        fetchMyDelegation();
+    }, [pollId, user?.id, selectedPoll?.groupId, delegationRefreshKey]);
+
+    const selectedContextVoteStatus =
+        votingContext.type === "delegated" ? delegatedVoteStatus : voteStatus;
+    const selectedContextHasVoted = selectedContextVoteStatus?.hasVoted === true;
+    const isSelfDelegatedAway = myDelegation?.status === "active" || myDelegation?.status === "pending";
+    const isCurrentContextDisabled = !isVotingAllowed || (votingContext.type === "self" && isSelfDelegatedAway);
 
     if (isLoading) {
         return (
@@ -272,6 +346,24 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
 
+        if (votingContext.type === "self" && isSelfDelegatedAway) {
+            toast({
+                title: "Vote Delegated",
+                description: "Your vote is delegated to another member. Switch context to vote for delegations received by you.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (votingContext.type === "self" && hasVoted) {
+            toast({
+                title: "Already Voted for Yourself",
+                description: "Switch to a delegated voter in 'Voting as' to cast votes on their behalf.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         // Validate based on voting mode
         let isValid = false;
         if (selectedPoll.mode === "normal") {
@@ -297,7 +389,22 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             return;
         }
 
-        // Show signing interface instead of submitting directly
+        const voteData = selectedPoll.mode === "normal"
+            ? { optionId: selectedOption }
+            : selectedPoll.mode === "rank"
+                ? rankVotes
+                : { points: pointVotes };
+
+        setSigningVoteData(voteData);
+        setSigningDelegationContext(
+            votingContext.type === "delegated" && votingContext.delegatorId
+                ? {
+                    delegatorId: votingContext.delegatorId,
+                    delegatorName: votingContext.delegatorName,
+                }
+                : undefined
+        );
+        setIsSubmitting(true);
         setShowSigningInterface(true);
     };
 
@@ -371,12 +478,46 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         )}
                     </div>
 
+                    {/* Keep selector mounted in a stable top slot for all group polls */}
+                    {selectedPoll.groupId && isVotingAllowed && (
+                        <VotingContextSelector
+                            pollId={selectedPoll.id}
+                            userId={user?.id || ""}
+                            currentUserName={user?.name || user?.ename || "You"}
+                            currentUserAvatar={user?.avatarUrl}
+                            onContextChange={setVotingContext}
+                            onDelegationStateChange={(state) => {
+                                setActiveDelegationCount(state.activeCount);
+                            }}
+                            disabled={!isVotingAllowed}
+                            refreshTrigger={delegationRefreshKey}
+                            hasVotedForSelf={hasVoted}
+                        />
+                    )}
+
+                    {isVotingAllowed &&
+                        selectedPoll.groupId &&
+                        !(selectedPoll.visibility === "private" && selectedPoll.mode === "normal") && (
+                            <div className="mb-6">
+                                <DelegationPanel
+                                    poll={selectedPoll}
+                                    userId={user?.id || ""}
+                                    hasVoted={hasVoted}
+                                    onDelegationChange={() => {
+                                        fetchPoll();
+                                        fetchVoteData();
+                                        setDelegationRefreshKey(k => k + 1);
+                                    }}
+                                />
+                            </div>
+                        )}
+
                     {/* Show results if poll has ended, regardless of user's vote status */}
                     {!isVotingAllowed ? (
                         <div className="space-y-6">
 
-                            {/* For private polls that have ended, show final results */}
-                            {selectedPoll.visibility === "private" ? (
+                            {/* For cryptographically blind polls (private + normal), use blind tally results */}
+                            {selectedPoll.visibility === "private" && selectedPoll.mode === "normal" ? (
                                 <div className="space-y-6">
                                     {/* Final Results for Private Polls */}
                                     <div>
@@ -457,8 +598,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
                                 </div>
-                            ) : (selectedPoll.visibility as string) !== "private" ? (
-                                /* For public polls that have ended, show final results */
+                            ) : (
+                                /* For all non-blind polls (public + private point/rank), show normal results */
                                 <div className="space-y-6">
                                     {/* Final Results for Public Polls */}
                                     <div>
@@ -581,127 +722,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    {/* For active polls, show user's vote choice */}
-                                    {(selectedPoll.visibility as string) !== "private" && (
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                            <div className="flex items-center">
-                                                <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-green-900">
-                                                        You voted:{" "}
-                                                        {
-                                                            (() => {
-                                                                const voteData = voteStatus?.vote?.data;
-                                                                if (!voteData) return "Unknown option";
-
-                                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                                    const optionIndex = parseInt(voteData.data[0] || "0");
-                                                                    return selectedPoll.options[optionIndex] || "Unknown option";
-                                                                } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                                    // Point voting stores data as { "0": 50, "1": 50 } format
-                                                                    const totalPoints = Object.values(voteData.data as Record<string, number>).reduce((sum, points) => sum + (points || 0), 0);
-                                                                    return `distributed ${totalPoints} points across options`;
-                                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                    const rankData = voteData.data;
-                                                                    const sortedRanks = [...rankData].sort((a, b) => a.points - b.points);
-                                                                    const topChoice = selectedPoll.options[parseInt(sortedRanks[0]?.option || "0")];
-                                                                    return `ranked options (${topChoice} as 1st choice)`;
-                                                                }
-                                                                return "Unknown option";
-                                                            })()
-                                                        }
-                                                    </p>
-                                                    <p className="text-sm text-green-700">
-                                                        {isVotingAllowed
-                                                            ? "Your vote has been submitted. Results will be shown when the poll ends."
-                                                            : "Here are the final results for this poll."
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Show voting options with user's choice highlighted (grayed out, no results) */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                            Voting Options:
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {selectedPoll.options.map((option, index) => {
-                                                const isUserChoice = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
-                                                    if (!voteData) return false;
-
-                                                    if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                        return voteData.data.includes(index.toString());
-                                                    } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                        // Point voting stores data as { "0": 50, "1": 50 } format
-                                                        const points = (voteData.data as Record<string, number>)[index.toString()];
-                                                        return points > 0;
-                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data;
-                                                        return rankData.some((item: any) => item.option === index.toString());
-                                                    }
-                                                    return false;
-                                                })();
-
-                                                const userChoiceDetails = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
-                                                    if (!voteData) return null;
-
-                                                    if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                        return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
-                                                    } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                        // Point voting stores data as { "0": 50, "1": 50 } format
-                                                        const points = (voteData.data as Record<string, number>)[index.toString()];
-                                                        return points > 0 ? `← You gave ${points} points` : null;
-                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data;
-                                                        const rankItem = rankData.find((item: any) => item.option === index.toString());
-                                                        const optionRank = rankItem?.points;
-                                                        return optionRank ? `← You ranked this ${optionRank}${optionRank === 1 ? 'st' : optionRank === 2 ? 'nd' : optionRank === 3 ? 'rd' : 'th'}` : null;
-                                                    }
-                                                    return null;
-                                                })();
-
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className={`flex items-center space-x-3 p-3 border rounded-lg ${isUserChoice
-                                                            ? 'bg-green-50 border-green-200'
-                                                            : 'bg-gray-50 border-gray-200 opacity-60'
-                                                            }`}
-                                                    >
-                                                        <div className="flex-1">
-                                                            <Label className={`text-base ${isUserChoice ? 'text-green-900 font-medium' : 'text-gray-500'
-                                                                }`}>
-                                                                {option}
-                                                            </Label>
-                                                            {userChoiceDetails && (
-                                                                <div className="mt-1 text-sm text-green-600">
-                                                                    <span className="font-medium">{userChoiceDetails}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </>
                             )}
                         </div>
-                    ) : voteStatus?.hasVoted === true ? (
+                    ) : selectedContextHasVoted ? (
                         // Show voting interface for active polls where user has already voted
                         <>
                             {/* Show that user has voted with detailed vote information for public polls */}
                             {selectedPoll.visibility === "public" ? (
                                 <div className="space-y-6">
                                     {/* Show that user has voted with detailed vote information */}
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 hidden">
                                         <div className="flex items-center mb-3">
                                             <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                             <div>
@@ -714,7 +744,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         {/* Display vote details based on mode */}
                                         {(() => {
-                                            const voteData = voteStatus?.vote?.data;
+                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                             if (!voteData) return null;
 
                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -761,9 +791,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 );
                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                 // Rank vote - show ranking
-                                                const rankData = voteData.data[0]?.points;
+                                                const rawRankData = voteData.data[0]?.points;
+                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                    ? rawRankData.ranks 
+                                                    : rawRankData;
                                                 if (rankData && typeof rankData === "object") {
                                                     const sortedRanks = Object.entries(rankData)
+                                                        .filter(([, rank]) => typeof rank === 'number')
                                                         .sort(([, a], [, b]) => (a as number) - (b as number))
                                                         .map(([optionIndex, rank]) => ({
                                                             option: selectedPoll.options[parseInt(optionIndex)],
@@ -799,7 +834,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <div className="space-y-3">
                                             {selectedPoll.options.map((option, index) => {
                                                 const isUserChoice = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return false;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -807,14 +842,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                                         return voteData.data[index] > 0;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data[0]?.points;
-                                                        return rankData && rankData[index];
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
+                                                        return rankData && typeof rankData[index] === 'number';
                                                     }
                                                     return false;
                                                 })();
 
                                                 const userChoiceDetails = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return null;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -823,9 +862,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = voteData.data[index];
                                                         return points > 0 ? `← You gave ${points} points` : null;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data[0]?.points;
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
                                                         const rank = rankData?.[index];
-                                                        return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                        return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                     }
                                                     return null;
                                                 })();
@@ -929,9 +972,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
-                                    {hasVoted ? (
-                                        // User has already voted on private PBV/RBV
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                    {selectedContextHasVoted ? (
+                                        // User has already voted on private PBV/RBV and has no delegations
+                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 hidden">
                                             <div className="flex items-center">
                                                 <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                                 <div>
@@ -943,33 +986,48 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             </div>
                                         </div>
                                     ) : (
-                                        // Show voting interface for private PBV/RBV
+                                        // Show voting interface for private PBV/RBV (or if user has pending delegations)
                                         <>
+                                            {/* Show that user has voted when they still have delegations */}
+                                            {hasVoted && activeDelegationCount > 0 && (
+                                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                    <CheckCircle className="text-green-500 h-4 w-4 shrink-0" />
+                                                    <p className="text-sm text-green-700">
+                                                        Your vote has been submitted. You can still vote on behalf of users who delegated their vote to you.
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             {selectedPoll.mode === "point" && (
                                                 <div>
                                                     <div className="flex items-center justify-between mb-4">
                                                         <h3 className="text-lg font-semibold text-gray-900">
-                                                            Distribute your points
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute points for ${votingContext.delegatorName}`
+                                                                : "Distribute your points"}
                                                         </h3>
                                                         <Button
                                                             onClick={() => setPointVotes({})}
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Points
                                                         </Button>
                                                     </div>
                                                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <p className="text-sm text-blue-800">
-                                                            You have 100 points to distribute. Assign points to each option based on your preference.
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute 100 points on behalf of ${votingContext.delegatorName}.`
+                                                                : "You have 100 points to distribute. Assign points to each option based on your preference."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {selectedPoll.options.map((option, index) => (
                                                             <div
                                                                 key={index}
-                                                                className="flex items-center space-x-4 p-4 border rounded-lg"
+                                                                className={`flex items-center space-x-4 p-4 border rounded-lg ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                             >
                                                                 <div className="flex-1">
                                                                     <Label className="text-base font-medium">
@@ -997,7 +1055,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                             target.value = value.toString();
                                                                         }}
                                                                         className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <span className="text-sm text-gray-500">points</span>
                                                                 </div>
@@ -1024,10 +1082,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             {(() => {
                                                                 const currentRank = Object.keys(rankVotes).length + 1;
                                                                 const maxRanks = Math.min(selectedPoll.options.length, 3);
+                                                                const forText = votingContext.type === "delegated" ? ` for ${votingContext.delegatorName}` : "";
                                                                 if (currentRank > maxRanks) {
-                                                                    return "Ranking Complete";
+                                                                    return `Ranking Complete${forText}`;
                                                                 }
-                                                                return `Rank ${currentRank} of ${maxRanks}`;
+                                                                return `Rank ${currentRank} of ${maxRanks}${forText}`;
                                                             })()}
                                                         </h3>
                                                         <Button
@@ -1035,13 +1094,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Rankings
                                                         </Button>
                                                     </div>
                                                     <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                                         <p className="text-sm text-green-800">
-                                                            Rank your top 3 choices from most preferred (1) to least preferred (3).
+                                                            {votingContext.type === "delegated"
+                                                                ? `Rank the top 3 choices for ${votingContext.delegatorName} from most preferred (1) to least preferred (3).`
+                                                                : "Rank your top 3 choices from most preferred (1) to least preferred (3)."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1054,7 +1116,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             return (
                                                                 <div
                                                                     key={index}
-                                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}`}
+                                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'} ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                                 >
                                                                     <div className="flex-1">
                                                                         <Label className="text-base font-medium">
@@ -1091,7 +1153,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                                         }));
                                                                                     }
                                                                                 }}
-                                                                                disabled={usedRanks.length >= maxRanks || !isVotingAllowed}
+                                                                                disabled={usedRanks.length >= maxRanks || isCurrentContextDisabled}
                                                                                 variant="outline"
                                                                                 size="sm"
                                                                             >
@@ -1116,36 +1178,50 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 </div>
                                             )}
 
+                                            {votingContext.type === "self" && isSelfDelegatedAway && (
+                                                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                                    Your vote has been delegated. Voting options are read-only.
+                                                </div>
+                                            )}
+
                                             {/* Submit button for private PBV/RBV */}
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    onClick={handleVoteSubmit}
-                                                    disabled={
-                                                        (selectedPoll.mode === "point" && totalPoints !== 100) ||
-                                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                                        isSubmitting ||
-                                                        !isVotingAllowed
-                                                    }
-                                                    className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                                                >
-                                                    {isSubmitting ? (
-                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                                    ) : (
-                                                        <VoteIcon className="w-4 h-4 mr-2" />
-                                                    )}
-                                                    {!isVotingAllowed ? "Voting Ended" : "Submit Vote"}
-                                                </Button>
-                                            </div>
+                                            {!(votingContext.type === "self" && isSelfDelegatedAway) && (
+                                                <div className="flex justify-center">
+                                                    <Button
+                                                        onClick={handleVoteSubmit}
+                                                        disabled={
+                                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                                            isSubmitting ||
+                                                            isCurrentContextDisabled ||
+                                                            (votingContext.type === "self" && hasVoted)
+                                                        }
+                                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                                        ) : (
+                                                            <VoteIcon className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        {!isVotingAllowed
+                                                            ? "Voting Ended"
+                                                            : votingContext.type === "delegated"
+                                                                ? `Submit Vote for ${votingContext.delegatorName}`
+                                                                : "Submit Vote"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </>
                             ) : (
                                 <>
                                     {/* For public polls, show different interface based on voting status */}
-                                    {hasVoted ? (
+                                    {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
+                                    {selectedContextHasVoted ? (
                                         <div className="space-y-6">
                                             {/* Show that user has voted with detailed vote information */}
-                                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 hidden">
                                                 <div className="flex items-center mb-3">
                                                     <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                                     <div>
@@ -1158,7 +1234,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                                 {/* Display vote details based on mode */}
                                                 {(() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return null;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1205,9 +1281,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         );
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                         // Rank vote - show ranking
-                                                        const rankData = voteData.data[0]?.points;
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
                                                         if (rankData && typeof rankData === "object") {
                                                             const sortedRanks = Object.entries(rankData)
+                                                                .filter(([, rank]) => typeof rank === 'number')
                                                                 .sort(([, a], [, b]) => (a as number) - (b as number))
                                                                 .map(([optionIndex, rank]) => ({
                                                                     option: selectedPoll.options[parseInt(optionIndex)],
@@ -1243,7 +1324,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 <div className="space-y-3">
                                                     {selectedPoll.options.map((option, index) => {
                                                         const isUserChoice = (() => {
-                                                            const voteData = voteStatus?.vote?.data;
+                                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                                             if (!voteData) return false;
 
                                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1251,14 +1332,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                                                 return voteData.data[index] > 0;
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                const rankData = voteData.data[0]?.points;
-                                                                return rankData && rankData[index];
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                                    ? rawRankData.ranks 
+                                                                    : rawRankData;
+                                                                return rankData && typeof rankData[index] === 'number';
                                                             }
                                                             return false;
                                                         })();
 
                                                         const userChoiceDetails = (() => {
-                                                            const voteData = voteStatus?.vote?.data;
+                                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                                             if (!voteData) return null;
 
                                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1267,9 +1352,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 const points = voteData.data[index];
                                                                 return points > 0 ? `← You gave ${points} points` : null;
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                const rankData = voteData.data[0]?.points;
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                                    ? rawRankData.ranks 
+                                                                    : rawRankData;
                                                                 const rank = rankData?.[index];
-                                                                return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                                return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                             }
                                                             return null;
                                                         })();
@@ -1301,18 +1390,30 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     ) : (
                                         <>
+                                            {/* Show that user has voted when they still have delegations */}
+                                            {hasVoted && activeDelegationCount > 0 && (
+                                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                    <CheckCircle className="text-green-500 h-4 w-4 shrink-0" />
+                                                    <p className="text-sm text-green-700">
+                                                        Your vote has been submitted. You can still vote on behalf of users who delegated their vote to you.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            
                                             {/* Regular Voting Interface based on poll mode */}
                                             {selectedPoll.mode === "normal" && (
                                                 <div>
                                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                                        Select your choice:
+                                                        {votingContext.type === "delegated" 
+                                                            ? `Select choice for ${votingContext.delegatorName}:`
+                                                            : "Select your choice:"}
                                                     </h3>
                                                     <RadioGroup
                                                         value={selectedOption?.toString()}
                                                         onValueChange={(value) =>
                                                             setSelectedOption(Number.parseInt(value))
                                                         }
-                                                        disabled={!isVotingAllowed}
+                                                        disabled={isCurrentContextDisabled}
                                                     >
                                                         <div className="space-y-3">
                                                             {selectedPoll.options.map((option, index) => (
@@ -1323,11 +1424,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     <RadioGroupItem
                                                                         value={index.toString()}
                                                                         id={index.toString()}
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <Label
                                                                         htmlFor={index.toString()}
-                                                                        className={`text-base flex-1 py-2 ${isVotingAllowed
+                                                                        className={`text-base flex-1 py-2 ${!isCurrentContextDisabled
                                                                             ? "cursor-pointer"
                                                                             : "cursor-not-allowed opacity-50"
                                                                             }`}
@@ -1345,27 +1446,32 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 <div>
                                                     <div className="flex items-center justify-between mb-4">
                                                         <h3 className="text-lg font-semibold text-gray-900">
-                                                            Distribute your points
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute points for ${votingContext.delegatorName}`
+                                                                : "Distribute your points"}
                                                         </h3>
                                                         <Button
                                                             onClick={() => setPointVotes({})}
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Points
                                                         </Button>
                                                     </div>
                                                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <p className="text-sm text-blue-800">
-                                                            You have 100 points to distribute. Assign points to each option based on your preference.
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute 100 points on behalf of ${votingContext.delegatorName}.`
+                                                                : "You have 100 points to distribute. Assign points to each option based on your preference."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {selectedPoll.options.map((option, index) => (
                                                             <div
                                                                 key={index}
-                                                                className="flex items-center space-x-4 p-4 border rounded-lg"
+                                                                className={`flex items-center space-x-4 p-4 border rounded-lg ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                             >
                                                                 <div className="flex-1">
                                                                     <Label className="text-base font-medium">
@@ -1395,7 +1501,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                             target.value = value.toString();
                                                                         }}
                                                                         className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <span className="text-sm text-gray-500">points</span>
                                                                 </div>
@@ -1436,13 +1542,16 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Rankings
                                                         </Button>
                                                     </div>
                                                     <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                                         <p className="text-sm text-green-800">
-                                                            Rank your top 3 choices from most preferred (1) to least preferred (3).
+                                                            {votingContext.type === "delegated"
+                                                                ? `Rank top 3 choices on behalf of ${votingContext.delegatorName}.`
+                                                                : "Rank your top 3 choices from most preferred (1) to least preferred (3)."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1456,7 +1565,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <div
                                                                     key={index}
                                                                     className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
-                                                                        }`}
+                                                                        } ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                                 >
                                                                     <div className="flex-1">
                                                                         <Label className="text-base font-medium">
@@ -1480,7 +1589,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                                 }
                                                                             }}
                                                                             className="px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                            disabled={!isVotingAllowed}
+                                                                            disabled={isCurrentContextDisabled}
                                                                         >
                                                                             <option value="">No rank</option>
                                                                             {[1, 2, 3].map(rankNum => {
@@ -1517,29 +1626,39 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 </div>
                                             )}
 
+                                            {votingContext.type === "self" && isSelfDelegatedAway && (
+                                                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                                    Your vote has been delegated. Voting options are read-only.
+                                                </div>
+                                            )}
+
                                             {/* Submit button for regular voting */}
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    onClick={handleVoteSubmit}
-                                                    disabled={
-                                                        (selectedPoll.mode === "normal" && selectedOption === null) ||
-                                                        (selectedPoll.mode === "point" && totalPoints !== 100) ||
-                                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                                        isSubmitting ||
-                                                        !isVotingAllowed
-                                                    }
-                                                    className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                                                >
-                                                    {isSubmitting ? (
-                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                                    ) : (
-                                                        <VoteIcon className="w-4 h-4 mr-2" />
-                                                    )}
-                                                    {!isVotingAllowed
-                                                        ? "Voting Ended"
-                                                        : "Submit Vote"}
-                                                </Button>
-                                            </div>
+                                            {!(votingContext.type === "self" && isSelfDelegatedAway) && (
+                                                <div className="flex justify-center">
+                                                    <Button
+                                                        onClick={handleVoteSubmit}
+                                                        disabled={
+                                                            (selectedPoll.mode === "normal" && selectedOption === null) ||
+                                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                                            isSubmitting ||
+                                                            isCurrentContextDisabled
+                                                        }
+                                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                                        ) : (
+                                                            <VoteIcon className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        {!isVotingAllowed
+                                                            ? "Voting Ended"
+                                                            : votingContext.type === "delegated"
+                                                                ? `Submit Vote for ${votingContext.delegatorName}`
+                                                                : "Submit Vote"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </>
@@ -1548,24 +1667,24 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     )}
 
                     {/* Signing Interface Modal */}
-                    {showSigningInterface && (
+                    {showSigningInterface && signingVoteData && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-md w-full">
                                 <SigningInterface
                                     pollId={pollId!}
-                                    voteData={
-                                        selectedPoll?.mode === "normal"
-                                            ? { optionId: selectedOption }
-                                            : selectedPoll?.mode === "rank"
-                                                ? { ranks: rankVotes }
-                                                : { points: pointVotes }
-                                    }
+                                    voteData={signingVoteData}
+                                    delegationContext={signingDelegationContext}
                                     onSigningComplete={async (voteId) => {
                                         setShowSigningInterface(false);
+                                        setIsSubmitting(false);
+                                        setSigningVoteData(null);
+                                        setSigningDelegationContext(undefined);
 
                                         toast({
                                             title: "Success!",
-                                            description: "Your vote has been signed and submitted.",
+                                            description: signingDelegationContext?.delegatorName
+                                                ? `Your vote has been signed and submitted for ${signingDelegationContext.delegatorName}.`
+                                                : "Your vote has been signed and submitted.",
                                         });
 
                                         // Immediately try to fetch vote data, then retry after a short delay if needed
@@ -1588,9 +1707,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         // Try immediately, then retry if needed
                                         await fetchWithRetry();
+                                        setDelegationRefreshKey(k => k + 1);
+
+                                        // Clear current selections after successful signing
+                                        setSelectedOption(null);
+                                        setPointVotes({});
+                                        setRankVotes({});
                                     }}
                                     onCancel={() => {
                                         setShowSigningInterface(false);
+                                        setIsSubmitting(false);
+                                        setSigningVoteData(null);
+                                        setSigningDelegationContext(undefined);
                                     }}
                                 />
                             </div>
@@ -1756,13 +1884,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-gray-900 truncate">
-                                                            {voter.firstName &&
-                                                                voter.lastName
-                                                                ? `${voter.firstName} ${voter.lastName}`
-                                                                : voter.firstName || voter.email ||
-                                                                "Anonymous"}
-                                                        </span>
+                                                        <div className="flex items-center gap-1 min-w-0">
+                                                            <span className="text-sm font-medium text-gray-900 truncate">
+                                                                {voter.firstName &&
+                                                                    voter.lastName
+                                                                    ? `${voter.firstName} ${voter.lastName}`
+                                                                    : voter.firstName || voter.email ||
+                                                                    "Anonymous"}
+                                                            </span>
+                                                            {voter.castById && voter.castByName && voter.castById !== voter.id && (
+                                                                <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
+                                                                    (via {voter.castByName})
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {voter.createdAt && (
                                                             <span className="text-xs text-gray-400 ml-1.5 shrink-0">
                                                                 {(() => {
@@ -1778,27 +1913,72 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="text-xs text-gray-500">
-                                                        {voter.mode === "point" && voter.pointData ? (
-                                                            <>
-                                                                {Object.entries(voter.pointData)
-                                                                    .filter(([, pts]) => (pts as number) > 0)
-                                                                    .map(([idx, pts]) => `${selectedPoll.options[parseInt(idx)] || `#${idx}`}: ${pts}pts`)
-                                                                    .join(", ")}
-                                                            </>
-                                                        ) : voter.mode === "rank" && voter.rankData ? (
-                                                            <>
-                                                                {Object.entries(voter.rankData)
+                                                    {voter.mode === "point" && voter.pointData ? (
+                                                        <div className="mt-1.5 space-y-1">
+                                                            {Object.entries(voter.pointData)
+                                                                .filter(([, pts]) => (pts as number) > 0)
+                                                                .sort(([, a], [, b]) => (b as number) - (a as number))
+                                                                .slice(0, 3)
+                                                                .map(([idx, pts]) => {
+                                                                    const points = Number(pts);
+                                                                    const optionName = selectedPoll.options[parseInt(idx)] || `Option ${parseInt(idx) + 1}`;
+                                                                    return (
+                                                                        <div key={idx} className="space-y-1">
+                                                                            <div className="flex items-center justify-between gap-2">
+                                                                                <span className="text-[10px] text-gray-600 truncate" title={optionName}>
+                                                                                    {optionName}
+                                                                                </span>
+                                                                                <span className="text-[10px] text-gray-500 shrink-0">
+                                                                                    {points} points
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    className="h-full bg-blue-500 rounded-full"
+                                                                                    style={{ width: `${points}%` }}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            {Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length > 3 && (
+                                                                <span className="text-[10px] text-gray-400">
+                                                                    +{Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : voter.mode === "rank" && voter.rankData ? (
+                                                        <div className="mt-1.5 flex flex-wrap gap-1">
+                                                            {(() => {
+                                                                // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
+                                                                const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
+                                                                    ? voter.rankData.ranks 
+                                                                    : voter.rankData;
+                                                                return Object.entries(actualRankData)
+                                                                    .filter(([, rank]) => typeof rank === 'number')
                                                                     .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                                    .map(([idx, rank]) => `#${rank} ${selectedPoll.options[parseInt(idx)] || `Option ${idx}`}`)
-                                                                    .join(", ")}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
-                                                            </>
-                                                        )}
-                                                    </span>
+                                                                    .map(([idx, rank]) => (
+                                                                        <span
+                                                                            key={idx}
+                                                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                                                rank === 1
+                                                                                    ? "bg-yellow-100 text-yellow-800"
+                                                                                    : rank === 2
+                                                                                    ? "bg-gray-100 text-gray-700"
+                                                                                    : "bg-orange-50 text-orange-700"
+                                                                            }`}
+                                                                            title={selectedPoll.options[parseInt(idx)]}
+                                                                        >
+                                                                            #{rank} {(selectedPoll.options[parseInt(idx)] || "").slice(0, 8)}{(selectedPoll.options[parseInt(idx)] || "").length > 8 ? "..." : ""}
+                                                                        </span>
+                                                                    ));
+                                                            })()}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500">
+                                                            Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         )
@@ -1860,13 +2040,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                                        {voter.firstName &&
-                                                            voter.lastName
-                                                            ? `${voter.firstName} ${voter.lastName}`
-                                                            : voter.firstName || voter.email ||
-                                                            "Anonymous"}
-                                                    </span>
+                                                    <div className="flex items-center gap-1 min-w-0">
+                                                        <span className="text-sm font-medium text-gray-900 truncate">
+                                                            {voter.firstName &&
+                                                                voter.lastName
+                                                                ? `${voter.firstName} ${voter.lastName}`
+                                                                : voter.firstName || voter.email ||
+                                                                "Anonymous"}
+                                                        </span>
+                                                        {voter.castById && voter.castByName && voter.castById !== voter.id && (
+                                                            <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
+                                                                (via {voter.castByName})
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {voter.createdAt && (
                                                         <span className="text-xs text-gray-400 ml-2 shrink-0">
                                                             {(() => {
@@ -1882,27 +2069,65 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-xs text-gray-500">
-                                                    {voter.mode === "point" && voter.pointData ? (
-                                                        <>
-                                                            {Object.entries(voter.pointData)
-                                                                .filter(([, pts]) => (pts as number) > 0)
-                                                                .map(([idx, pts]) => `${selectedPoll.options[parseInt(idx)] || `#${idx}`}: ${pts}pts`)
-                                                                .join(", ")}
-                                                        </>
-                                                    ) : voter.mode === "rank" && voter.rankData ? (
-                                                        <>
-                                                            {Object.entries(voter.rankData)
+                                                {voter.mode === "point" && voter.pointData ? (
+                                                    <div className="mt-1.5 space-y-1.5">
+                                                        {Object.entries(voter.pointData)
+                                                            .filter(([, pts]) => (pts as number) > 0)
+                                                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                                                            .slice(0, 4)
+                                                            .map(([idx, pts]) => (
+                                                                <div key={idx} className="flex items-center gap-2">
+                                                                    <span className="text-xs text-gray-600 w-20 truncate" title={selectedPoll.options[parseInt(idx)]}>
+                                                                        {selectedPoll.options[parseInt(idx)] || `#${idx}`}
+                                                                    </span>
+                                                                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-blue-500 rounded-full"
+                                                                            style={{ width: `${pts}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-xs text-gray-500 w-8 text-right">
+                                                                        {pts} pts
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        {Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length > 4 && (
+                                                            <span className="text-xs text-gray-400">
+                                                                +{Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length - 4} more options
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : voter.mode === "rank" && voter.rankData ? (
+                                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                        {(() => {
+                                                            // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
+                                                            const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
+                                                                ? voter.rankData.ranks 
+                                                                : voter.rankData;
+                                                            return Object.entries(actualRankData)
+                                                                .filter(([, rank]) => typeof rank === 'number')
                                                                 .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                                .map(([idx, rank]) => `#${rank} ${selectedPoll.options[parseInt(idx)] || `Option ${idx}`}`)
-                                                                .join(", ")}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
-                                                        </>
-                                                    )}
-                                                </span>
+                                                                .map(([idx, rank]) => (
+                                                                    <span
+                                                                        key={idx}
+                                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                            rank === 1
+                                                                                ? "bg-yellow-100 text-yellow-800"
+                                                                                : rank === 2
+                                                                                ? "bg-gray-100 text-gray-700"
+                                                                                : "bg-orange-50 text-orange-700"
+                                                                        }`}
+                                                                    >
+                                                                        #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
+                                                                    </span>
+                                                                ));
+                                                        })()}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-500">
+                                                        Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     )

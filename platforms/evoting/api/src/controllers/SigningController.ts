@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { SigningService } from "../services/SigningService";
+import type { SigningDelegationContext } from "../services/SigningService";
 
 export class SigningController {
     private signingService: SigningService | null = null;
@@ -37,7 +38,12 @@ export class SigningController {
     // Create a new signing session for a vote
     async createSigningSession(req: Request, res: Response) {
         try {
-            const { pollId, voteData, userId } = req.body;
+            const { pollId, voteData, userId, delegationContext } = req.body as {
+                pollId?: string;
+                voteData?: any;
+                userId?: string;
+                delegationContext?: SigningDelegationContext;
+            };
             
             if (!pollId || !voteData || !userId) {
                 return res.status(400).json({
@@ -45,7 +51,12 @@ export class SigningController {
                 });
             }
 
-            const session = await this.ensureService().createSession(pollId, voteData, userId);
+            const session = await this.ensureService().createSession(
+                pollId,
+                voteData,
+                userId,
+                delegationContext
+            );
             
             res.status(201).json({
                 sessionId: session.id,
