@@ -96,7 +96,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch blind vote results
     const fetchBlindVoteResults = async () => {
-        if (!pollId || selectedPoll?.visibility !== "private") return;
+        if (!pollId || selectedPoll?.visibility !== "private" || selectedPoll?.mode !== "normal") return;
 
         try {
             setIsLoadingBlindResults(true);
@@ -133,14 +133,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Fetch blind vote results when poll loads (for private polls)
     useEffect(() => {
-        if (selectedPoll && selectedPoll.visibility === "private") {
+        if (selectedPoll && selectedPoll.visibility === "private" && selectedPoll.mode === "normal") {
             fetchBlindVoteResults();
         }
     }, [selectedPoll]);
 
     // Fetch blind vote results when poll expires (for private polls)
     useEffect(() => {
-        if (selectedPoll && selectedPoll.visibility === "private" && timeRemaining === "Voting has ended") {
+        if (selectedPoll && selectedPoll.visibility === "private" && selectedPoll.mode === "normal" && timeRemaining === "Voting has ended") {
             fetchBlindVoteResults();
         }
     }, [timeRemaining, selectedPoll]);
@@ -448,7 +448,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     </div>
 
                     {/* Keep selector mounted in a stable top slot for all group polls */}
-                    {selectedPoll.groupId && (
+                    {selectedPoll.groupId && isVotingAllowed && (
                         <VotingContextSelector
                             pollId={selectedPoll.id}
                             userId={user?.id || ""}
@@ -476,8 +476,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     {!isVotingAllowed ? (
                         <div className="space-y-6">
 
-                            {/* For private polls that have ended, show final results */}
-                            {selectedPoll.visibility === "private" ? (
+                            {/* For cryptographically blind polls (private + normal), use blind tally results */}
+                            {selectedPoll.visibility === "private" && selectedPoll.mode === "normal" ? (
                                 <div className="space-y-6">
                                     {/* Final Results for Private Polls */}
                                     <div>
@@ -558,8 +558,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
                                 </div>
-                            ) : (selectedPoll.visibility as string) !== "private" ? (
-                                /* For public polls that have ended, show final results */
+                            ) : (
+                                /* For all non-blind polls (public + private point/rank), show normal results */
                                 <div className="space-y-6">
                                     {/* Final Results for Public Polls */}
                                     <div>
@@ -682,134 +682,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    {/* For active polls, show user's vote choice */}
-                                    {(selectedPoll.visibility as string) !== "private" && (
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                            <div className="flex items-center">
-                                                <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-green-900">
-                                                        You voted:{" "}
-                                                        {
-                                                            (() => {
-                                                                const voteData = selectedContextVoteStatus?.vote?.data;
-                                                                if (!voteData) return "Unknown option";
-
-                                                                if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                                    const optionIndex = parseInt(voteData.data[0] || "0");
-                                                                    return selectedPoll.options[optionIndex] || "Unknown option";
-                                                                } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                                    // Point voting stores data as { "0": 50, "1": 50 } format
-                                                                    const totalPoints = Object.values(voteData.data as Record<string, number>).reduce((sum, points) => sum + (points || 0), 0);
-                                                                    return `distributed ${totalPoints} points across options`;
-                                                                } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                    const rawRankPoints = voteData.data[0]?.points;
-                                                                    // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                                    const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
-                                                                        ? rawRankPoints.ranks 
-                                                                        : rawRankPoints;
-                                                                    if (rankPoints && typeof rankPoints === "object") {
-                                                                        const sortedRanks = Object.entries(rankPoints)
-                                                                            .filter(([, rank]) => typeof rank === 'number')
-                                                                            .sort(([, a], [, b]) => (a as number) - (b as number));
-                                                                        const topChoiceIndex = sortedRanks[0]?.[0];
-                                                                        const topChoice = topChoiceIndex ? selectedPoll.options[parseInt(topChoiceIndex)] : "Unknown";
-                                                                        return `ranked options (${topChoice} as 1st choice)`;
-                                                                    }
-                                                                    return "ranked options";
-                                                                }
-                                                                return "Unknown option";
-                                                            })()
-                                                        }
-                                                    </p>
-                                                    <p className="text-sm text-green-700">
-                                                        {isVotingAllowed
-                                                            ? "Your vote has been submitted. Results will be shown when the poll ends."
-                                                            : "Here are the final results for this poll."
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Show voting options with user's choice highlighted (grayed out, no results) */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                            Voting Options:
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {selectedPoll.options.map((option, index) => {
-                                                const isUserChoice = (() => {
-                                                    const voteData = selectedContextVoteStatus?.vote?.data;
-                                                    if (!voteData) return false;
-
-                                                    if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                        return voteData.data.includes(index.toString());
-                                                    } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                        // Point voting stores data as { "0": 50, "1": 50 } format
-                                                        const points = (voteData.data as Record<string, number>)[index.toString()];
-                                                        return points > 0;
-                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rawRankPoints = voteData.data[0]?.points;
-                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                        const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
-                                                            ? rawRankPoints.ranks 
-                                                            : rawRankPoints;
-                                                        return rankPoints && typeof rankPoints[index.toString()] === 'number';
-                                                    }
-                                                    return false;
-                                                })();
-
-                                                const userChoiceDetails = (() => {
-                                                    const voteData = selectedContextVoteStatus?.vote?.data;
-                                                    if (!voteData) return null;
-
-                                                    if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
-                                                        return voteData.data.includes(index.toString()) ? "← You voted for this option" : null;
-                                                    } else if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
-                                                        // Point voting stores data as { "0": 50, "1": 50 } format
-                                                        const points = (voteData.data as Record<string, number>)[index.toString()];
-                                                        return points > 0 ? `← You gave ${points} points` : null;
-                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rawRankPoints = voteData.data[0]?.points;
-                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                        const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
-                                                            ? rawRankPoints.ranks 
-                                                            : rawRankPoints;
-                                                        const rank = rankPoints?.[index.toString()];
-                                                        return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
-                                                    }
-                                                    return null;
-                                                })();
-
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className={`flex items-center space-x-3 p-3 border rounded-lg ${isUserChoice
-                                                            ? 'bg-green-50 border-green-200'
-                                                            : 'bg-gray-50 border-gray-200 opacity-60'
-                                                            }`}
-                                                    >
-                                                        <div className="flex-1">
-                                                            <Label className={`text-base ${isUserChoice ? 'text-green-900 font-medium' : 'text-gray-500'
-                                                                }`}>
-                                                                {option}
-                                                            </Label>
-                                                            {userChoiceDetails && (
-                                                                <div className="mt-1 text-sm text-green-600">
-                                                                    <span className="font-medium">{userChoiceDetails}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </>
                             )}
                         </div>
                     ) : selectedContextHasVoted ? (
