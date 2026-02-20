@@ -211,8 +211,22 @@ export class SigningService {
             try {
                 parsedMessage = JSON.parse(message);
             } catch (error) {
-                console.error("❌ Failed to parse message as JSON:", message);
-                return { success: false, error: "Invalid message format" };
+                // Fallback for older wallet behavior: message may be a plain session id
+                // instead of a JSON payload. In that case, trust session-bound fields.
+                const trimmedMessage = typeof message === "string" ? message.trim() : "";
+                if (trimmedMessage === session.id) {
+                    console.warn("⚠️ Non-JSON message payload received, using session-bound fallback");
+                    parsedMessage = {
+                        pollId: session.pollId,
+                        userId: session.userId,
+                        voteData: session.voteData,
+                        delegationContext: session.delegationContext || null,
+                        sessionId: session.id,
+                    };
+                } else {
+                    console.error("❌ Failed to parse message as JSON:", message);
+                    return { success: false, error: "Invalid message format" };
+                }
             }
             
             console.log("🔍 Message verification:", {
