@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption, type SigningDelegationContext } from "@/lib/pollApi";
+import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption, type SigningDelegationContext, type Delegation } from "@/lib/pollApi";
 import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
@@ -55,6 +55,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const [delegationRefreshKey, setDelegationRefreshKey] = useState(0);
     const [activeDelegationCount, setActiveDelegationCount] = useState(0);
     const [pendingDelegationCount, setPendingDelegationCount] = useState(0);
+    const [myDelegation, setMyDelegation] = useState<Delegation | null>(null);
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [signingVoteData, setSigningVoteData] = useState<any | null>(null);
     const [signingDelegationContext, setSigningDelegationContext] = useState<SigningDelegationContext | undefined>(undefined);
@@ -287,9 +288,30 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         fetchPendingDelegations();
     }, [pollId, user?.id, selectedPoll?.groupId, delegationRefreshKey]);
 
+    useEffect(() => {
+        const fetchMyDelegation = async () => {
+            if (!pollId || !user?.id || !selectedPoll?.groupId) {
+                setMyDelegation(null);
+                return;
+            }
+
+            try {
+                const delegation = await pollApi.getMyDelegation(pollId);
+                setMyDelegation(delegation);
+            } catch (error) {
+                console.error("Failed to fetch my delegation:", error);
+                setMyDelegation(null);
+            }
+        };
+
+        fetchMyDelegation();
+    }, [pollId, user?.id, selectedPoll?.groupId, delegationRefreshKey]);
+
     const selectedContextVoteStatus =
         votingContext.type === "delegated" ? delegatedVoteStatus : voteStatus;
     const selectedContextHasVoted = selectedContextVoteStatus?.hasVoted === true;
+    const isSelfDelegatedAway = myDelegation?.status === "active";
+    const isCurrentContextDisabled = !isVotingAllowed || (votingContext.type === "self" && isSelfDelegatedAway);
 
     if (isLoading) {
         return (
@@ -323,6 +345,15 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
+
+        if (votingContext.type === "self" && isSelfDelegatedAway) {
+            toast({
+                title: "Vote Delegated",
+                description: "Your vote is delegated to another member. Switch context to vote for delegations received by you.",
+                variant: "destructive",
+            });
+            return;
+        }
 
         if (votingContext.type === "self" && hasVoted) {
             toast({
@@ -464,13 +495,22 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         />
                     )}
 
-                    {isVotingAllowed && pendingDelegationCount > 0 && (
-                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-sm text-yellow-800">
-                                You have {pendingDelegationCount} pending delegation request{pendingDelegationCount > 1 ? "s" : ""}.
-                            </p>
-                        </div>
-                    )}
+                    {isVotingAllowed &&
+                        selectedPoll.groupId &&
+                        !(selectedPoll.visibility === "private" && selectedPoll.mode === "normal") && (
+                            <div className="mb-6">
+                                <DelegationPanel
+                                    poll={selectedPoll}
+                                    userId={user?.id || ""}
+                                    hasVoted={hasVoted}
+                                    onDelegationChange={() => {
+                                        fetchPoll();
+                                        fetchVoteData();
+                                        setDelegationRefreshKey(k => k + 1);
+                                    }}
+                                />
+                            </div>
+                        )}
 
                     {/* Show results if poll has ended, regardless of user's vote status */}
                     {!isVotingAllowed ? (
@@ -915,22 +955,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             ) : selectedPoll.visibility === "private" && (selectedPoll.mode === "point" || selectedPoll.mode === "rank") ? (
                                 // For private PBV/RBV polls, show standard voting UI with privacy warning (NOT cryptographically protected)
                                 <>
-                                    {/* Delegation Panel - for private point/rank polls (not cryptographically protected) */}
-                                    {selectedPoll.groupId && (
-                                        <div className="mb-6">
-                                            <DelegationPanel
-                                                poll={selectedPoll}
-                                                userId={user?.id || ""}
-                                                hasVoted={hasVoted}
-                                                onDelegationChange={() => {
-                                                    fetchPoll();
-                                                    fetchVoteData();
-                                                    setDelegationRefreshKey(k => k + 1);
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-
                                     {/* Privacy limitation warning for private PBV/RBV */}
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                         <div className="flex items-start">
@@ -987,6 +1011,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Points
                                                         </Button>
@@ -1002,7 +1027,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         {selectedPoll.options.map((option, index) => (
                                                             <div
                                                                 key={index}
-                                                                className="flex items-center space-x-4 p-4 border rounded-lg"
+                                                                className={`flex items-center space-x-4 p-4 border rounded-lg ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                             >
                                                                 <div className="flex-1">
                                                                     <Label className="text-base font-medium">
@@ -1030,7 +1055,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                             target.value = value.toString();
                                                                         }}
                                                                         className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <span className="text-sm text-gray-500">points</span>
                                                                 </div>
@@ -1069,6 +1094,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Rankings
                                                         </Button>
@@ -1090,7 +1116,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             return (
                                                                 <div
                                                                     key={index}
-                                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}`}
+                                                                    className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'} ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                                 >
                                                                     <div className="flex-1">
                                                                         <Label className="text-base font-medium">
@@ -1127,7 +1153,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                                         }));
                                                                                     }
                                                                                 }}
-                                                                                disabled={usedRanks.length >= maxRanks || !isVotingAllowed}
+                                                                                disabled={usedRanks.length >= maxRanks || isCurrentContextDisabled}
                                                                                 variant="outline"
                                                                                 size="sm"
                                                                             >
@@ -1152,52 +1178,44 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 </div>
                                             )}
 
+                                            {votingContext.type === "self" && isSelfDelegatedAway && (
+                                                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                                    Your vote has been delegated. Voting options are read-only.
+                                                </div>
+                                            )}
+
                                             {/* Submit button for private PBV/RBV */}
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    onClick={handleVoteSubmit}
-                                                    disabled={
-                                                        (selectedPoll.mode === "point" && totalPoints !== 100) ||
-                                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                                        isSubmitting ||
-                                                        !isVotingAllowed ||
-                                                        (votingContext.type === "self" && hasVoted)
-                                                    }
-                                                    className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                                                >
-                                                    {isSubmitting ? (
-                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                                    ) : (
-                                                        <VoteIcon className="w-4 h-4 mr-2" />
-                                                    )}
-                                                    {!isVotingAllowed 
-                                                        ? "Voting Ended" 
-                                                        : votingContext.type === "delegated"
-                                                            ? `Submit Vote for ${votingContext.delegatorName}`
-                                                            : "Submit Vote"}
-                                                </Button>
-                                            </div>
+                                            {!(votingContext.type === "self" && isSelfDelegatedAway) && (
+                                                <div className="flex justify-center">
+                                                    <Button
+                                                        onClick={handleVoteSubmit}
+                                                        disabled={
+                                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                                            isSubmitting ||
+                                                            isCurrentContextDisabled ||
+                                                            (votingContext.type === "self" && hasVoted)
+                                                        }
+                                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                                        ) : (
+                                                            <VoteIcon className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        {!isVotingAllowed
+                                                            ? "Voting Ended"
+                                                            : votingContext.type === "delegated"
+                                                                ? `Submit Vote for ${votingContext.delegatorName}`
+                                                                : "Submit Vote"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </>
                             ) : (
                                 <>
-                                    {/* Delegation Panel - only for public polls and non-blind voting */}
-                                    {selectedPoll.visibility === "public" && selectedPoll.groupId && (
-                                        <div className="mb-6">
-                                            <DelegationPanel
-                                                poll={selectedPoll}
-                                                userId={user?.id || ""}
-                                                hasVoted={hasVoted}
-                                                onDelegationChange={() => {
-                                                    fetchPoll();
-                                                    fetchVoteData();
-                                                    setDelegationRefreshKey(k => k + 1);
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-
                                     {/* For public polls, show different interface based on voting status */}
                                     {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
                                     {selectedContextHasVoted ? (
@@ -1395,7 +1413,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         onValueChange={(value) =>
                                                             setSelectedOption(Number.parseInt(value))
                                                         }
-                                                        disabled={!isVotingAllowed}
+                                                        disabled={isCurrentContextDisabled}
                                                     >
                                                         <div className="space-y-3">
                                                             {selectedPoll.options.map((option, index) => (
@@ -1406,11 +1424,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     <RadioGroupItem
                                                                         value={index.toString()}
                                                                         id={index.toString()}
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <Label
                                                                         htmlFor={index.toString()}
-                                                                        className={`text-base flex-1 py-2 ${isVotingAllowed
+                                                                        className={`text-base flex-1 py-2 ${!isCurrentContextDisabled
                                                                             ? "cursor-pointer"
                                                                             : "cursor-not-allowed opacity-50"
                                                                             }`}
@@ -1437,6 +1455,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Points
                                                         </Button>
@@ -1452,7 +1471,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         {selectedPoll.options.map((option, index) => (
                                                             <div
                                                                 key={index}
-                                                                className="flex items-center space-x-4 p-4 border rounded-lg"
+                                                                className={`flex items-center space-x-4 p-4 border rounded-lg ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                             >
                                                                 <div className="flex-1">
                                                                     <Label className="text-base font-medium">
@@ -1482,7 +1501,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                             target.value = value.toString();
                                                                         }}
                                                                         className="w-20 px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                        disabled={!isVotingAllowed}
+                                                                        disabled={isCurrentContextDisabled}
                                                                     />
                                                                     <span className="text-sm text-gray-500">points</span>
                                                                 </div>
@@ -1523,6 +1542,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             variant="outline"
                                                             size="sm"
                                                             className="text-red-600 border-red-300 hover:bg-red-50"
+                                                            disabled={isCurrentContextDisabled}
                                                         >
                                                             Reset Rankings
                                                         </Button>
@@ -1545,7 +1565,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 <div
                                                                     key={index}
                                                                     className={`flex items-center space-x-4 p-4 border rounded-lg ${isRanked ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
-                                                                        }`}
+                                                                        } ${votingContext.type === "self" && isSelfDelegatedAway ? "opacity-60" : ""}`}
                                                                 >
                                                                     <div className="flex-1">
                                                                         <Label className="text-base font-medium">
@@ -1569,7 +1589,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                                 }
                                                                             }}
                                                                             className="px-3 py-2 border border-gray-300 rounded-md text-center"
-                                                                            disabled={!isVotingAllowed}
+                                                                            disabled={isCurrentContextDisabled}
                                                                         >
                                                                             <option value="">No rank</option>
                                                                             {[1, 2, 3].map(rankNum => {
@@ -1606,31 +1626,39 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 </div>
                                             )}
 
+                                            {votingContext.type === "self" && isSelfDelegatedAway && (
+                                                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                                                    Your vote has been delegated. Voting options are read-only.
+                                                </div>
+                                            )}
+
                                             {/* Submit button for regular voting */}
-                                            <div className="flex justify-center">
-                                                <Button
-                                                    onClick={handleVoteSubmit}
-                                                    disabled={
-                                                        (selectedPoll.mode === "normal" && selectedOption === null) ||
-                                                        (selectedPoll.mode === "point" && totalPoints !== 100) ||
-                                                        (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
-                                                        isSubmitting ||
-                                                        !isVotingAllowed
-                                                    }
-                                                    className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
-                                                >
-                                                    {isSubmitting ? (
-                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                                                    ) : (
-                                                        <VoteIcon className="w-4 h-4 mr-2" />
-                                                    )}
-                                                    {!isVotingAllowed
-                                                        ? "Voting Ended"
-                                                        : votingContext.type === "delegated"
-                                                            ? `Submit Vote for ${votingContext.delegatorName}`
-                                                            : "Submit Vote"}
-                                                </Button>
-                                            </div>
+                                            {!(votingContext.type === "self" && isSelfDelegatedAway) && (
+                                                <div className="flex justify-center">
+                                                    <Button
+                                                        onClick={handleVoteSubmit}
+                                                        disabled={
+                                                            (selectedPoll.mode === "normal" && selectedOption === null) ||
+                                                            (selectedPoll.mode === "point" && totalPoints !== 100) ||
+                                                            (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
+                                                            isSubmitting ||
+                                                            isCurrentContextDisabled
+                                                        }
+                                                        className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                                        ) : (
+                                                            <VoteIcon className="w-4 h-4 mr-2" />
+                                                        )}
+                                                        {!isVotingAllowed
+                                                            ? "Voting Ended"
+                                                            : votingContext.type === "delegated"
+                                                                ? `Submit Vote for ${votingContext.delegatorName}`
+                                                                : "Submit Vote"}
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </>
