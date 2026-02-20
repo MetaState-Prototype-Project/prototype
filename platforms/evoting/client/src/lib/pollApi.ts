@@ -109,6 +109,10 @@ export interface VoterDetail {
   email?: string;
   optionId: string;
   profileImageUrl?: string;
+  createdAt?: string;
+  mode?: "normal" | "point" | "rank" | string;
+  pointData?: Record<string, number>;
+  rankData?: Record<string, number>;
 }
 
 export interface PollResults {

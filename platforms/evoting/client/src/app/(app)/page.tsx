@@ -101,12 +101,12 @@ export default function Home() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8">
-            <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="max-w-7xl mx-auto space-y-8 px-4">
+            <div className="text-center px-4">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
                     Welcome to eVoting
                 </h1>
-                <p className="text-xl text-gray-600 mb-8">
+                <p className="text-lg md:text-xl text-gray-600 mb-8">
                     Create votes, gather responses, and view results in
                     real-time
                 </p>
@@ -115,15 +115,42 @@ export default function Home() {
             {/* All Polls Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <Vote className="mr-2 h-5 w-5" />
-                            All Polls
-                        </div>
-                        <div className="flex items-center space-x-2">
+                    <CardTitle>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                                <Vote className="mr-2 h-5 w-5" />
+                                All Polls
+                            </div>
                             <Button
                                 asChild
-                                className="text-white border transition-colors"
+                                size="sm"
+                                className="text-white border transition-colors md:hidden"
+                                style={{ backgroundColor: 'var(--crimson)' }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--crimson-50)';
+                                    e.currentTarget.style.color = 'var(--crimson)';
+                                    e.currentTarget.style.borderColor = 'var(--crimson)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--crimson)';
+                                    e.currentTarget.style.color = 'white';
+                                }}
+                            >
+                                <Link href="/create">
+                                    <Plus className="w-4 h-4" />
+                                </Link>
+                            </Button>
+                        </div>
+                        <div className="flex flex-col md:flex-row md:items-center gap-2">
+                            <Input
+                                placeholder="Search poll titles..."
+                                value={searchTerm}
+                                onChange={handleSearch}
+                                className="flex-1 md:max-w-xs"
+                            />
+                            <Button
+                                asChild
+                                className="hidden md:flex text-white border transition-colors"
                                 style={{ backgroundColor: 'var(--crimson)' }}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = 'var(--crimson-50)';
@@ -139,16 +166,10 @@ export default function Home() {
                                     + Create New Poll
                                 </Link>
                             </Button>
-                            <Input
-                                placeholder="Search poll titles..."
-                                value={searchTerm}
-                                onChange={handleSearch}
-                                className="w-64"
-                            />
                         </div>
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                     {isLoading ? (
                         <div className="flex justify-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--crimson)' }} />
@@ -159,45 +180,100 @@ export default function Home() {
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto">
+                            {/* Mobile Card View */}
+                            <div className="md:hidden space-y-3">
+                                {pollsData.polls.map((poll) => {
+                                    const isActive = isPollActive(poll);
+                                    return (
+                                        <Link
+                                            key={poll.id}
+                                            href={`/${poll.id}`}
+                                            className="block p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all"
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="font-medium text-gray-900 flex-1 pr-2">
+                                                    {poll.title}
+                                                </h3>
+                                                <Badge variant={isActive ? "success" : "warning"} className="shrink-0">
+                                                    {isActive ? "Active" : "Ended"}
+                                                </Badge>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {poll.mode === "normal" ? "Single Choice" :
+                                                        poll.mode === "rank" ? "Ranked" :
+                                                            poll.mode === "point" ? "Points" : "Unknown"}
+                                                </Badge>
+                                                <Badge variant={poll.visibility === "public" ? "default" : "secondary"}>
+                                                    {poll.visibility === "public" ? (
+                                                        <><Eye className="w-3 h-3 mr-1" />Public</>
+                                                    ) : (
+                                                        <><UserX className="w-3 h-3 mr-1" />Private</>
+                                                    )}
+                                                </Badge>
+                                                <Badge variant={poll.votingWeight === "ereputation" ? "default" : "secondary"} className="text-xs">
+                                                    {poll.votingWeight === "ereputation" ? (
+                                                        <><ChartLine className="w-3 h-3 mr-1" />eRep</>
+                                                    ) : (
+                                                        <><CircleUser className="w-3 h-3 mr-1" />1P1V</>
+                                                    )}
+                                                </Badge>
+                                                {poll.group && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {poll.group.name}
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            <div className="text-xs text-gray-500">
+                                                {poll.deadline ? `Deadline: ${new Date(poll.deadline).toLocaleDateString()}` : "No deadline"}
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b border-gray-200">
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("title")}
                                             >
                                                 Title {getSortIcon("title")}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("mode")}
                                             >
                                                 Mode {getSortIcon("mode")}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("visibility")}
                                             >
                                                 Visibility {getSortIcon("visibility")}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                             >
                                                 Voting Weight
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                             >
                                                 Group
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("status")}
                                             >
                                                 Status {getSortIcon("status")}
                                             </th>
-                                            <th 
+                                            <th
                                                 className="text-left py-3 px-4 font-medium text-gray-700 cursor-pointer hover:bg-gray-50"
                                                 onClick={() => handleSort("deadline")}
                                             >
@@ -211,7 +287,7 @@ export default function Home() {
                                             return (
                                                 <tr key={poll.id} className="border-b border-gray-100 hover:bg-gray-50">
                                                     <td className="py-3 px-4">
-                                                        <Link 
+                                                        <Link
                                                             href={`/${poll.id}`}
                                                             className="font-medium text-gray-900 transition-colors cursor-pointer hover:text-[var(--crimson)]"
                                                         >
@@ -220,9 +296,9 @@ export default function Home() {
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <Badge variant="secondary" className="text-xs">
-                                                            {poll.mode === "normal" ? "Single Choice" : 
-                                                             poll.mode === "rank" ? "Ranked" : 
-                                                             poll.mode === "point" ? "Points" : "Unknown"}
+                                                            {poll.mode === "normal" ? "Single Choice" :
+                                                                poll.mode === "rank" ? "Ranked" :
+                                                                    poll.mode === "point" ? "Points" : "Unknown"}
                                                         </Badge>
                                                     </td>
                                                     <td className="py-3 px-4">
@@ -269,8 +345,8 @@ export default function Home() {
 
                             {/* Pagination Controls */}
                             {pollsData && pollsData.totalPages > 1 && (
-                                <div className="flex items-center justify-between mt-6">
-                                    <div className="text-sm text-gray-700">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+                                    <div className="text-sm text-gray-700 text-center md:text-left">
                                         Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, pollsData.total)} of {pollsData.total} results
                                     </div>
                                     <div className="flex items-center space-x-2">
@@ -280,8 +356,8 @@ export default function Home() {
                                             onClick={() => handlePageChange(currentPage - 1)}
                                             disabled={currentPage === 1}
                                         >
-                                            <ChevronLeft className="w-4 h-4 mr-1" />
-                                            Previous
+                                            <ChevronLeft className="w-4 h-4 md:mr-1" />
+                                            <span className="hidden md:inline">Previous</span>
                                         </Button>
                                         <span className="text-sm text-gray-700">
                                             Page {currentPage} of {pollsData.totalPages}
@@ -292,8 +368,8 @@ export default function Home() {
                                             onClick={() => handlePageChange(currentPage + 1)}
                                             disabled={currentPage === pollsData.totalPages}
                                         >
-                                            Next
-                                            <ChevronRight className="w-4 h-4 ml-1" />
+                                            <span className="hidden md:inline">Next</span>
+                                            <ChevronRight className="w-4 h-4 md:ml-1" />
                                         </Button>
                                     </div>
                                 </div>

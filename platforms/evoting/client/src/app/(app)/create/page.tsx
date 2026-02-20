@@ -83,10 +83,10 @@ export default function CreatePoll() {
         return [...groups].sort((a, b) => {
             const aChartered = a.charter && a.charter.trim() !== "";
             const bChartered = b.charter && b.charter.trim() !== "";
-            
+
             if (aChartered && !bChartered) return -1;
             if (!aChartered && bChartered) return 1;
-            
+
             // If both have same charter status, sort by name (with null safety)
             const aName = a.name || "";
             const bName = b.name || "";
@@ -123,12 +123,8 @@ export default function CreatePoll() {
     const watchedVisibility = watch("visibility");
     const watchedVotingWeight = watch("votingWeight");
 
-    // Force simple voting when private visibility is selected
-    React.useEffect(() => {
-        if (watchedVisibility === "private" && watchedMode !== "normal") {
-            setValue("mode", "normal");
-        }
-    }, [watchedVisibility, watchedMode, setValue]);
+    // Note: Private visibility is now allowed with PBV/RBV modes
+    // Users will see a warning that these modes are not cryptographically protected
 
     // Prevent eReputation weighted + Rank Based Voting combination
     React.useEffect(() => {
@@ -176,7 +172,7 @@ export default function CreatePoll() {
             });
             return;
         }
-        
+
         const newOptions = [...options];
         newOptions[index] = value;
         setOptions(newOptions);
@@ -224,22 +220,22 @@ export default function CreatePoll() {
                 options: data.options.filter(option => option.trim() !== ""),
                 deadline: utcDeadline
             });
-            
+
             toast({
                 title: "Success!",
                 description: "Poll created successfully",
             });
-            
+
             router.push("/");
         } catch (error: any) {
             console.error("Failed to create poll:", error);
-            
+
             // Show specific error message from backend if available
             let errorMessage = "Failed to create poll. Please try again.";
             if (error?.response?.data?.error) {
                 errorMessage = error.response.data.error;
             }
-            
+
             toast({
                 title: "Error",
                 description: errorMessage,
@@ -305,7 +301,7 @@ export default function CreatePoll() {
                                 (() => {
                                     const charteredGroups = groups.filter(group => group.charter && group.charter.trim() !== "");
                                     const nonCharteredGroups = groups.filter(group => !group.charter || group.charter.trim() === "");
-                                    
+
                                     return (
                                         <>
                                             {/* Chartered Groups */}
@@ -315,8 +311,8 @@ export default function CreatePoll() {
                                                         Chartered Groups
                                                     </div>
                                                     {charteredGroups.map((group) => (
-                                                        <SelectItem 
-                                                            key={group.id} 
+                                                        <SelectItem
+                                                            key={group.id}
                                                             value={group.id}
                                                         >
                                                             <div className="flex items-center justify-between w-full">
@@ -329,7 +325,7 @@ export default function CreatePoll() {
                                                     ))}
                                                 </>
                                             )}
-                                            
+
                                             {/* Non-Chartered Groups */}
                                             {nonCharteredGroups.length > 0 && (
                                                 <>
@@ -337,8 +333,8 @@ export default function CreatePoll() {
                                                         Non-Chartered Groups
                                                     </div>
                                                     {nonCharteredGroups.map((group) => (
-                                                        <SelectItem 
-                                                            key={group.id} 
+                                                        <SelectItem
+                                                            key={group.id}
                                                             value={group.id}
                                                             disabled
                                                             className="opacity-60 cursor-not-allowed"
@@ -381,7 +377,7 @@ export default function CreatePoll() {
                         required
                     />
                     <p className="mt-1 text-sm text-gray-500">
-                        Set a deadline for when voting will end. 
+                        Set a deadline for when voting will end.
                     </p>
                     {errors.deadline && (
                         <p className="mt-1 text-sm text-red-600">
@@ -396,11 +392,10 @@ export default function CreatePoll() {
                         Vote Visibility
                     </Label>
                     <div className="mt-2 space-y-3">
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedVisibility === "public" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedVisibility === "public"
+                                ? "border-(--crimson) bg-(--crimson) text-white"
                                 : "border-gray-300 hover:border-gray-400"
-                        }`}>
+                            }`}>
                             <input
                                 type="radio"
                                 value="public"
@@ -416,11 +411,10 @@ export default function CreatePoll() {
                             </div>
                         </Label>
 
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedVisibility === "private" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedVisibility === "private"
+                                ? "border-(--crimson) bg-(--crimson) text-white"
                                 : "border-gray-300 hover:border-gray-400"
-                        }`}>
+                            }`}>
                             <input
                                 type="radio"
                                 value="private"
@@ -449,11 +443,10 @@ export default function CreatePoll() {
                         Vote Type
                     </Label>
                     <div className="mt-2 space-y-3">
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedMode === "normal" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedMode === "normal"
+                                ? "border-(--crimson) bg-(--crimson) text-white"
                                 : "border-gray-300 hover:border-gray-400"
-                        }`}>
+                            }`}>
                             <input
                                 type="radio"
                                 value="normal"
@@ -469,19 +462,15 @@ export default function CreatePoll() {
                             </div>
                         </Label>
 
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedMode === "point" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
-                                : watchedVisibility === "private"
-                                ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
-                                : "border-gray-300 hover:border-gray-400"
-                        }`}>
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedMode === "point"
+                            ? "border-(--crimson) bg-(--crimson) text-white"
+                            : "border-gray-300 hover:border-gray-400"
+                            }`}>
                             <input
                                 type="radio"
                                 value="point"
                                 {...register("mode")}
                                 className="sr-only"
-                                disabled={watchedVisibility === "private"}
                             />
                             <div className="flex items-center">
                                 <ChartLine className="w-6 h-6 mr-3" />
@@ -492,27 +481,26 @@ export default function CreatePoll() {
                             </div>
                         </Label>
 
-                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                            watchedMode === "rank" 
-                                ? "border-(--crimson) bg-(--crimson) text-white" 
-                                : watchedVisibility === "private" || watchedVotingWeight === "ereputation"
+                        <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedMode === "rank"
+                            ? "border-(--crimson) bg-(--crimson) text-white"
+                            : watchedVotingWeight === "ereputation"
                                 ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
                                 : "border-gray-300 hover:border-gray-400"
-                        }`}>
+                            }`}>
                             <input
                                 type="radio"
                                 value="rank"
                                 {...register("mode")}
                                 className="sr-only"
-                                disabled={watchedVisibility === "private" || watchedVotingWeight === "ereputation"}
+                                disabled={watchedVotingWeight === "ereputation"}
                             />
                             <div className="flex items-center">
                                 <ListOrdered className="w-6 h-6 mr-3" />
                                 <div>
                                     <div className="font-semibold">RBV</div>
                                     <div className="text-sm opacity-90">
-                                        {watchedVotingWeight === "ereputation" 
-                                            ? "Not available with eReputation weighted" 
+                                        {watchedVotingWeight === "ereputation"
+                                            ? "Not available with eReputation weighted"
                                             : "Voters can rank order the choices"}
                                     </div>
                                 </div>
@@ -523,6 +511,24 @@ export default function CreatePoll() {
                         <p className="mt-1 text-sm text-red-600">
                             {errors.mode.message}
                         </p>
+                    )}
+                    {/* Warning for private PBV/RBV polls */}
+                    {watchedVisibility === "private" && (watchedMode === "point" || watchedMode === "rank") && (
+                        <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-start">
+                                <svg className="w-5 h-5 text-amber-600 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-amber-800">Limited Privacy Notice</h4>
+                                    <p className="text-sm text-amber-700 mt-1">
+                                        {watchedMode === "point" ? "Point-based" : "Rank-based"} blind voting hides voter information in the UI only.
+                                        Unlike simple blind voting, it is <strong>not cryptographically protected</strong> — a server administrator
+                                        could potentially see who voted for what. For maximum privacy, use Simple voting mode.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
 
@@ -537,11 +543,10 @@ export default function CreatePoll() {
                         className="mt-2"
                     >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                                watchedVotingWeight === "1p1v" 
-                                    ? "border-(--crimson) bg-(--crimson) text-white" 
+                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedVotingWeight === "1p1v"
+                                    ? "border-(--crimson) bg-(--crimson) text-white"
                                     : "border-gray-300 hover:border-gray-400"
-                            }`}>
+                                }`}>
                                 <input
                                     type="radio"
                                     value="1p1v"
@@ -560,13 +565,12 @@ export default function CreatePoll() {
                                     </div>
                                 </div>
                             </Label>
-                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                                watchedVotingWeight === "ereputation" 
-                                    ? "border-(--crimson) bg-(--crimson) text-white" 
+                            <Label className={`flex items-center cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${watchedVotingWeight === "ereputation"
+                                    ? "border-(--crimson) bg-(--crimson) text-white"
                                     : watchedMode === "rank" || watchedVisibility === "private"
-                                    ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
-                                    : "border-gray-300 hover:border-gray-400"
-                            }`}>
+                                        ? "border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed"
+                                        : "border-gray-300 hover:border-gray-400"
+                                }`}>
                                 <input
                                     type="radio"
                                     value="ereputation"
@@ -581,11 +585,11 @@ export default function CreatePoll() {
                                             eReputation Weighted
                                         </div>
                                         <div className="text-sm opacity-90">
-                                            {watchedMode === "rank" 
-                                                ? "Not available with Rank Based Voting" 
+                                            {watchedMode === "rank"
+                                                ? "Not available with Rank Based Voting"
                                                 : watchedVisibility === "private"
-                                                ? "Not available with Blind Voting"
-                                                : "Votes weighted by eReputation"}
+                                                    ? "Not available with Blind Voting"
+                                                    : "Votes weighted by eReputation"}
                                         </div>
                                     </div>
                                 </div>
