@@ -25,6 +25,8 @@ import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
 import { SigningInterface } from "@/components/signing-interface";
+import { DelegationPanel } from "@/components/delegation-panel";
+import { DelegatedVotingInterface } from "@/components/delegated-voting-interface";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -912,6 +914,35 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             ) : selectedPoll.visibility === "private" && (selectedPoll.mode === "point" || selectedPoll.mode === "rank") ? (
                                 // For private PBV/RBV polls, show standard voting UI with privacy warning (NOT cryptographically protected)
                                 <>
+                                    {/* Delegation Panel - for private point/rank polls (not cryptographically protected) */}
+                                    {selectedPoll.groupId && (
+                                        <div className="mb-6">
+                                            <DelegationPanel
+                                                poll={selectedPoll}
+                                                userId={user?.id || ""}
+                                                hasVoted={hasVoted}
+                                                onDelegationChange={() => {
+                                                    fetchPoll();
+                                                    fetchVoteData();
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Delegated Voting Interface */}
+                                    {selectedPoll.groupId && !hasVoted && (
+                                        <div className="mb-6">
+                                            <DelegatedVotingInterface
+                                                poll={selectedPoll}
+                                                userId={user?.id || ""}
+                                                onVoteSubmitted={() => {
+                                                    fetchPoll();
+                                                    fetchVoteData();
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
                                     {/* Privacy limitation warning for private PBV/RBV */}
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                         <div className="flex items-start">
@@ -1141,6 +1172,35 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </>
                             ) : (
                                 <>
+                                    {/* Delegation Panel - only for public polls and non-blind voting */}
+                                    {selectedPoll.visibility === "public" && selectedPoll.groupId && (
+                                        <div className="mb-6">
+                                            <DelegationPanel
+                                                poll={selectedPoll}
+                                                userId={user?.id || ""}
+                                                hasVoted={hasVoted}
+                                                onDelegationChange={() => {
+                                                    fetchPoll();
+                                                    fetchVoteData();
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Delegated Voting Interface - show if user has delegations */}
+                                    {selectedPoll.visibility === "public" && selectedPoll.groupId && !hasVoted && (
+                                        <div className="mb-6">
+                                            <DelegatedVotingInterface
+                                                poll={selectedPoll}
+                                                userId={user?.id || ""}
+                                                onVoteSubmitted={() => {
+                                                    fetchPoll();
+                                                    fetchVoteData();
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
                                     {/* For public polls, show different interface based on voting status */}
                                     {hasVoted ? (
                                         <div className="space-y-6">
@@ -1756,13 +1816,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium text-gray-900 truncate">
-                                                            {voter.firstName &&
-                                                                voter.lastName
-                                                                ? `${voter.firstName} ${voter.lastName}`
-                                                                : voter.firstName || voter.email ||
-                                                                "Anonymous"}
-                                                        </span>
+                                                        <div className="flex items-center gap-1 min-w-0">
+                                                            <span className="text-sm font-medium text-gray-900 truncate">
+                                                                {voter.firstName &&
+                                                                    voter.lastName
+                                                                    ? `${voter.firstName} ${voter.lastName}`
+                                                                    : voter.firstName || voter.email ||
+                                                                    "Anonymous"}
+                                                            </span>
+                                                            {voter.castByName && (
+                                                                <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
+                                                                    (via {voter.castByName})
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {voter.createdAt && (
                                                             <span className="text-xs text-gray-400 ml-1.5 shrink-0">
                                                                 {(() => {
@@ -1860,13 +1927,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                                        {voter.firstName &&
-                                                            voter.lastName
-                                                            ? `${voter.firstName} ${voter.lastName}`
-                                                            : voter.firstName || voter.email ||
-                                                            "Anonymous"}
-                                                    </span>
+                                                    <div className="flex items-center gap-1 min-w-0">
+                                                        <span className="text-sm font-medium text-gray-900 truncate">
+                                                            {voter.firstName &&
+                                                                voter.lastName
+                                                                ? `${voter.firstName} ${voter.lastName}`
+                                                                : voter.firstName || voter.email ||
+                                                                "Anonymous"}
+                                                        </span>
+                                                        {voter.castByName && (
+                                                            <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
+                                                                (via {voter.castByName})
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {voter.createdAt && (
                                                         <span className="text-xs text-gray-400 ml-2 shrink-0">
                                                             {(() => {

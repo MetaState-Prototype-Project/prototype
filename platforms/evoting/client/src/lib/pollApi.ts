@@ -113,6 +113,8 @@ export interface VoterDetail {
   mode?: "normal" | "point" | "rank" | string;
   pointData?: Record<string, number>;
   rankData?: Record<string, number>;
+  castById?: string | null;
+  castByName?: string | null;
 }
 
 export interface PollResults {
@@ -156,6 +158,36 @@ export interface PollsResponse {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export type DelegationStatus = "pending" | "active" | "rejected" | "revoked" | "used";
+
+export interface Delegation {
+  id: string;
+  pollId: string;
+  delegatorId: string;
+  delegateId: string;
+  status: DelegationStatus;
+  poll?: Poll;
+  delegator?: {
+    id: string;
+    ename: string;
+    name?: string;
+    avatarUrl?: string;
+  };
+  delegate?: {
+    id: string;
+    ename: string;
+    name?: string;
+    avatarUrl?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DelegationEligibility {
+  canDelegate: boolean;
+  reason?: string;
 }
 
 export const pollApi = {
@@ -254,5 +286,71 @@ export const pollApi = {
       userId,
     });
     return response.data;
-  }
+  },
+
+  // Delegation methods
+
+  // Check if a poll can have delegation
+  canPollHaveDelegation: async (pollId: string): Promise<DelegationEligibility> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/can-delegate`);
+    return response.data;
+  },
+
+  // Request delegation (as delegator)
+  requestDelegation: async (pollId: string, delegateId: string): Promise<Delegation> => {
+    const response = await apiClient.post(`/api/polls/${pollId}/delegate`, { delegateId });
+    return response.data;
+  },
+
+  // Revoke delegation (as delegator)
+  revokeDelegation: async (pollId: string): Promise<Delegation> => {
+    const response = await apiClient.delete(`/api/polls/${pollId}/delegate`);
+    return response.data;
+  },
+
+  // Get my delegation status for a poll (as delegator)
+  getMyDelegation: async (pollId: string): Promise<Delegation | null> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/my-delegation`);
+    return response.data;
+  },
+
+  // Accept delegation (as delegate)
+  acceptDelegation: async (delegationId: string): Promise<Delegation> => {
+    const response = await apiClient.post(`/api/delegations/${delegationId}/accept`);
+    return response.data;
+  },
+
+  // Reject delegation (as delegate)
+  rejectDelegation: async (delegationId: string): Promise<Delegation> => {
+    const response = await apiClient.post(`/api/delegations/${delegationId}/reject`);
+    return response.data;
+  },
+
+  // Get active delegations received for a poll (as delegate)
+  getReceivedDelegations: async (pollId: string): Promise<Delegation[]> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/delegations`);
+    return response.data;
+  },
+
+  // Get pending delegation requests for a poll (as delegate)
+  getPendingDelegationsForPoll: async (pollId: string): Promise<Delegation[]> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/delegations/pending`);
+    return response.data;
+  },
+
+  // Get all pending delegation requests across all polls (as delegate)
+  getAllPendingDelegations: async (): Promise<Delegation[]> => {
+    const response = await apiClient.get("/api/delegations/pending");
+    return response.data;
+  },
+
+  // Cast delegated vote (as delegate)
+  castDelegatedVote: async (pollId: string, delegatorId: string, voteData: any, mode?: "normal" | "point" | "rank"): Promise<Vote> => {
+    const response = await apiClient.post(`/api/polls/${pollId}/delegated-vote`, {
+      delegatorId,
+      voteData,
+      mode,
+    });
+    return response.data;
+  },
 }; 

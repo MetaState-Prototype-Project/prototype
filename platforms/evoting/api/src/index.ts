@@ -11,6 +11,7 @@ import { VoteController } from "./controllers/VoteController";
 import { WebhookController } from "./controllers/WebhookController";
 import { SigningController } from "./controllers/SigningController";
 import { GroupController } from "./controllers/GroupController";
+import { DelegationController } from "./controllers/DelegationController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { CronManagerService } from "./services/CronManagerService";
@@ -72,6 +73,7 @@ const pollController = new PollController();
 const voteController = new VoteController();
 const webhookController = new WebhookController();
 const groupController = new GroupController();
+const delegationController = new DelegationController();
 let signingController: SigningController | null = null;
 
 // Public routes (no auth required)
@@ -226,6 +228,18 @@ app.post("/api/votes/:pollId/blind", voteController.submitBlindVote.bind(voteCon
 app.post("/api/votes/:pollId/register", voteController.registerBlindVoteVoter.bind(voteController)); // Register voter
 app.post("/api/votes/:pollId/generate", voteController.generateVoteData.bind(voteController)); // Generate vote data for eID wallet
 app.get("/api/votes/:pollId/tally", voteController.tallyBlindVotes.bind(voteController)); // Tally blind votes
+
+// Delegation routes
+app.get("/api/delegations/pending", authGuard, delegationController.getAllPendingDelegations.bind(delegationController)); // Get all pending delegations for current user
+app.post("/api/delegations/:id/accept", authGuard, delegationController.acceptDelegation.bind(delegationController)); // Accept delegation
+app.post("/api/delegations/:id/reject", authGuard, delegationController.rejectDelegation.bind(delegationController)); // Reject delegation
+app.post("/api/polls/:pollId/delegate", authGuard, delegationController.createDelegation.bind(delegationController)); // Create delegation request
+app.delete("/api/polls/:pollId/delegate", authGuard, delegationController.revokeDelegation.bind(delegationController)); // Revoke delegation
+app.get("/api/polls/:pollId/delegations", authGuard, delegationController.getActiveDelegations.bind(delegationController)); // Get active delegations received
+app.get("/api/polls/:pollId/delegations/pending", authGuard, delegationController.getPendingDelegations.bind(delegationController)); // Get pending delegations received
+app.get("/api/polls/:pollId/my-delegation", authGuard, delegationController.getMyDelegation.bind(delegationController)); // Get my delegation status
+app.post("/api/polls/:pollId/delegated-vote", authGuard, delegationController.castDelegatedVote.bind(delegationController)); // Cast delegated vote
+app.get("/api/polls/:pollId/can-delegate", authGuard, delegationController.canPollHaveDelegation.bind(delegationController)); // Check if poll can have delegation
 
 // Generic poll route (must come last to avoid conflicts with specific routes)
 app.get("/api/polls/:id", pollController.getPollById);
