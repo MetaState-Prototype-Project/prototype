@@ -475,8 +475,8 @@ export default function CreatePoll() {
                             <div className="flex items-center">
                                 <ChartLine className="w-6 h-6 mr-3" />
                                 <div>
-                                    <div className="font-semibold">PBV</div>
-                                    <div className="text-sm opacity-90">Each voter gets 100 points</div>
+                                    <div className="font-semibold">Points Based</div>
+                                    <div className="text-sm opacity-90">Each voter gets 100 points to distribute</div>
                                 </div>
                             </div>
                         </Label>
@@ -497,11 +497,11 @@ export default function CreatePoll() {
                             <div className="flex items-center">
                                 <ListOrdered className="w-6 h-6 mr-3" />
                                 <div>
-                                    <div className="font-semibold">RBV</div>
+                                    <div className="font-semibold">Ranked Choice</div>
                                     <div className="text-sm opacity-90">
                                         {watchedVotingWeight === "ereputation"
                                             ? "Not available with eReputation weighted"
-                                            : "Voters can rank order the choices"}
+                                            : "Voters rank their top choices in order"}
                                     </div>
                                 </div>
                             </div>
@@ -522,7 +522,7 @@ export default function CreatePoll() {
                                 <div>
                                     <h4 className="text-sm font-semibold text-amber-800">Limited Privacy Notice</h4>
                                     <p className="text-sm text-amber-700 mt-1">
-                                        {watchedMode === "point" ? "Point-based" : "Rank-based"} blind voting hides voter information in the UI only.
+                                        {watchedMode === "point" ? "Points Based" : "Ranked Choice"} blind voting hides voter information in the UI only.
                                         Unlike simple blind voting, it is <strong>not cryptographically protected</strong> — a server administrator
                                         could potentially see who voted for what. For maximum privacy, use Simple voting mode.
                                     </p>
@@ -586,7 +586,7 @@ export default function CreatePoll() {
                                         </div>
                                         <div className="text-sm opacity-90">
                                             {watchedMode === "rank"
-                                                ? "Not available with Rank Based Voting"
+                                                ? "Not available with Ranked Choice"
                                                 : watchedVisibility === "private"
                                                     ? "Not available with Blind Voting"
                                                     : "Votes weighted by eReputation"}
