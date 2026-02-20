@@ -115,6 +115,20 @@ export class DelegationService {
             );
         }
 
+        const incomingDelegation = await this.delegationRepository.findOne({
+            where: {
+                pollId,
+                delegateId: delegatorId,
+                status: In(["pending", "active"]),
+            },
+        });
+
+        if (incomingDelegation) {
+            throw new Error(
+                "You cannot delegate your vote while you have incoming delegations"
+            );
+        }
+
         const delegation = this.delegationRepository.create({
             pollId,
             delegatorId,

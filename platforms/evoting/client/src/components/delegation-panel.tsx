@@ -212,11 +212,11 @@ export function DelegationPanel({ poll, userId, hasVoted, onDelegationChange }: 
             </div>
           ) : hasVoted ? (
             <p className="text-sm text-gray-500">You have already voted on this poll.</p>
-          ) : receivedDelegations.length > 0 ? (
+          ) : receivedDelegations.length > 0 || pendingRequests.length > 0 ? (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-700">
-                You have received {receivedDelegations.length} delegation{receivedDelegations.length !== 1 ? "s" : ""}. 
-                Use the "Voting as" selector above to vote on behalf of others.
+                You have incoming delegation requests/votes.
+                You cannot delegate your own vote while acting as a delegate.
               </p>
             </div>
           ) : (

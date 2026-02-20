@@ -268,9 +268,68 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         fetchDelegatedVoteStatus();
     }, [pollId, votingContext, delegationRefreshKey]);
 
-    const isDelegatedContextVoted =
-        votingContext.type === "delegated" &&
-        (votingContext.delegationStatus === "used" || delegatedVoteStatus?.hasVoted === true);
+    const selectedContextVoteStatus =
+        votingContext.type === "delegated" ? delegatedVoteStatus : voteStatus;
+    const selectedContextHasVoted = selectedContextVoteStatus?.hasVoted === true;
+
+    const renderSubmittedVoteDetails = (voteData: any) => {
+        if (!voteData || !selectedPoll) return null;
+
+        if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
+            const selectedOptions = (voteData.data as string[])
+                .map((index) => selectedPoll.options[parseInt(index)])
+                .filter(Boolean);
+            return (
+                <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium text-blue-900">Selected option(s):</p>
+                    {selectedOptions.map((option, i) => (
+                        <p key={i} className="text-xs text-blue-800">- {option}</p>
+                    ))}
+                </div>
+            );
+        }
+
+        if (voteData.mode === "point" && typeof voteData.data === "object" && !Array.isArray(voteData.data)) {
+            const entries = Object.entries(voteData.data as Record<string, number>)
+                .filter(([, pts]) => (pts as number) > 0)
+                .sort(([, a], [, b]) => (b as number) - (a as number));
+            return (
+                <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium text-blue-900">Point distribution:</p>
+                    {entries.map(([index, points]) => (
+                        <p key={index} className="text-xs text-blue-800">
+                            - {selectedPoll.options[parseInt(index)]}: {points} pts
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+
+        if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+            const rawRankData = voteData.data[0]?.points;
+            const rankData = rawRankData?.ranks && typeof rawRankData.ranks === "object"
+                ? rawRankData.ranks
+                : rawRankData;
+            const sortedRanks = rankData && typeof rankData === "object"
+                ? Object.entries(rankData)
+                    .filter(([, rank]) => typeof rank === "number")
+                    .sort(([, a], [, b]) => (a as number) - (b as number))
+                : [];
+
+            return (
+                <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium text-blue-900">Ranking:</p>
+                    {sortedRanks.map(([index, rank]) => (
+                        <p key={index} className="text-xs text-blue-800">
+                            - #{Number(rank)} {selectedPoll.options[parseInt(index)]}
+                        </p>
+                    ))}
+                </div>
+            );
+        }
+
+        return null;
+    };
 
 
 
@@ -311,15 +370,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             toast({
                 title: "Already Voted for Yourself",
                 description: "Switch to a delegated voter in 'Voting as' to cast votes on their behalf.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        if (isDelegatedContextVoted) {
-            toast({
-                title: "Delegated Vote Already Submitted",
-                description: `A vote was already submitted for ${votingContext.delegatorName}. Switch context to continue.`,
                 variant: "destructive",
             });
             return;
@@ -457,16 +507,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         />
                     )}
 
-                    {isDelegatedContextVoted && (
+                    {votingContext.type === "delegated" && selectedContextHasVoted && (
                         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                             <p className="text-sm text-blue-800 font-medium">
-                                Vote already submitted for {votingContext.delegatorName}.
+                                Vote details for {votingContext.delegatorName} (cast by you).
                             </p>
-                            {delegatedVoteStatus?.vote?.data && (
-                                <p className="text-xs text-blue-700 mt-1">
-                                    You can still switch contexts to review this delegated vote or select another delegator.
-                                </p>
-                            )}
+                            {renderSubmittedVoteDetails(selectedContextVoteStatus?.vote?.data)}
                         </div>
                     )}
 
@@ -692,7 +738,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         You voted:{" "}
                                                         {
                                                             (() => {
-                                                                const voteData = voteStatus?.vote?.data;
+                                                                const voteData = selectedContextVoteStatus?.vote?.data;
                                                                 if (!voteData) return "Unknown option";
 
                                                                 if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -741,7 +787,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <div className="space-y-3">
                                             {selectedPoll.options.map((option, index) => {
                                                 const isUserChoice = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return false;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -762,7 +808,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 })();
 
                                                 const userChoiceDetails = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return null;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -810,7 +856,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </>
                             )}
                         </div>
-                    ) : voteStatus?.hasVoted === true && activeDelegationCount === 0 && votingContext.type === "self" ? (
+                    ) : selectedContextHasVoted ? (
                         // Show voting interface for active polls where user has already voted
                         <>
                             {/* Show that user has voted with detailed vote information for public polls */}
@@ -821,7 +867,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <div className="flex items-center mb-3">
                                             <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                             <div>
-                                                <h3 className="text-lg font-semibold text-green-900">Your Vote Details</h3>
+                                                <h3 className="text-lg font-semibold text-green-900">
+                                                    {votingContext.type === "delegated"
+                                                        ? `Vote Details for ${votingContext.delegatorName}`
+                                                        : "Your Vote Details"}
+                                                </h3>
                                                 <p className="text-sm text-green-700">
                                                     Your vote has been submitted. Results will be shown when the poll ends.
                                                 </p>
@@ -830,7 +880,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         {/* Display vote details based on mode */}
                                         {(() => {
-                                            const voteData = voteStatus?.vote?.data;
+                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                             if (!voteData) return null;
 
                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -920,7 +970,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         <div className="space-y-3">
                                             {selectedPoll.options.map((option, index) => {
                                                 const isUserChoice = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return false;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -939,7 +989,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 })();
 
                                                 const userChoiceDetails = (() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return null;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1074,7 +1124,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
-                                    {hasVoted && activeDelegationCount === 0 && votingContext.type === "self" ? (
+                                    {selectedContextHasVoted ? (
                                         // User has already voted on private PBV/RBV and has no delegations
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                             <div className="flex items-center">
@@ -1287,8 +1337,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
                                                         isSubmitting ||
                                                         !isVotingAllowed ||
-                                                        (votingContext.type === "self" && hasVoted) ||
-                                                        isDelegatedContextVoted
+                                                        (votingContext.type === "self" && hasVoted)
                                                     }
                                                     className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                                 >
@@ -1299,8 +1348,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     )}
                                                     {!isVotingAllowed 
                                                         ? "Voting Ended" 
-                                                        : isDelegatedContextVoted
-                                                            ? `Already Voted for ${votingContext.delegatorName}`
                                                         : votingContext.type === "delegated"
                                                             ? `Submit Vote for ${votingContext.delegatorName}`
                                                             : "Submit Vote"}
@@ -1329,14 +1376,18 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                     {/* For public polls, show different interface based on voting status */}
                                     {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
-                                    {hasVoted && activeDelegationCount === 0 && votingContext.type === "self" ? (
+                                    {selectedContextHasVoted ? (
                                         <div className="space-y-6">
                                             {/* Show that user has voted with detailed vote information */}
                                             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                                 <div className="flex items-center mb-3">
                                                     <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
                                                     <div>
-                                                        <h3 className="text-lg font-semibold text-green-900">Your Vote Details</h3>
+                                                        <h3 className="text-lg font-semibold text-green-900">
+                                                            {votingContext.type === "delegated"
+                                                                ? `Vote Details for ${votingContext.delegatorName}`
+                                                                : "Your Vote Details"}
+                                                        </h3>
                                                         <p className="text-sm text-green-700">
                                                             Your vote has been submitted. Results will be shown when the poll ends.
                                                         </p>
@@ -1345,7 +1396,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                                 {/* Display vote details based on mode */}
                                                 {(() => {
-                                                    const voteData = voteStatus?.vote?.data;
+                                                    const voteData = selectedContextVoteStatus?.vote?.data;
                                                     if (!voteData) return null;
 
                                                     if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1435,7 +1486,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 <div className="space-y-3">
                                                     {selectedPoll.options.map((option, index) => {
                                                         const isUserChoice = (() => {
-                                                            const voteData = voteStatus?.vote?.data;
+                                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                                             if (!voteData) return false;
 
                                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1454,7 +1505,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         })();
 
                                                         const userChoiceDetails = (() => {
-                                                            const voteData = voteStatus?.vote?.data;
+                                                            const voteData = selectedContextVoteStatus?.vote?.data;
                                                             if (!voteData) return null;
 
                                                             if (voteData.mode === "normal" && Array.isArray(voteData.data)) {
@@ -1744,8 +1795,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (selectedPoll.mode === "point" && totalPoints !== 100) ||
                                                         (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
                                                         isSubmitting ||
-                                                        !isVotingAllowed ||
-                                                        isDelegatedContextVoted
+                                                        !isVotingAllowed
                                                     }
                                                     className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                                 >
@@ -1756,8 +1806,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     )}
                                                     {!isVotingAllowed
                                                         ? "Voting Ended"
-                                                        : isDelegatedContextVoted
-                                                            ? `Already Voted for ${votingContext.delegatorName}`
                                                         : votingContext.type === "delegated"
                                                             ? `Submit Vote for ${votingContext.delegatorName}`
                                                             : "Submit Vote"}
