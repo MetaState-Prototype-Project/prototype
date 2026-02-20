@@ -52,6 +52,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     
     // Voting context state for delegated voting
     const [votingContext, setVotingContext] = useState<VotingContext>({ type: "self" });
+    const [delegationRefreshKey, setDelegationRefreshKey] = useState(0);
+    const [activeDelegationCount, setActiveDelegationCount] = useState(0);
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
@@ -971,6 +973,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 onDelegationChange={() => {
                                                     fetchPoll();
                                                     fetchVoteData();
+                                                    setDelegationRefreshKey(k => k + 1);
                                                 }}
                                             />
                                         </div>
@@ -996,8 +999,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
-                                    {hasVoted ? (
-                                        // User has already voted on private PBV/RBV
+                                    {hasVoted && activeDelegationCount === 0 ? (
+                                        // User has already voted on private PBV/RBV and has no delegations
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                             <div className="flex items-center">
                                                 <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
@@ -1010,7 +1013,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             </div>
                                         </div>
                                     ) : (
-                                        // Show voting interface for private PBV/RBV
+                                        // Show voting interface for private PBV/RBV (or if user has pending delegations)
                                         <>
                                             {selectedPoll.mode === "point" && (
                                                 <div>
@@ -1218,6 +1221,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 onDelegationChange={() => {
                                                     fetchPoll();
                                                     fetchVoteData();
+                                                    setDelegationRefreshKey(k => k + 1);
                                                 }}
                                             />
                                         </div>
@@ -1227,7 +1231,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     {/* Delegated voting is now handled via VotingContextSelector */}
 
                                     {/* For public polls, show different interface based on voting status */}
-                                    {hasVoted ? (
+                                    {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
+                                    {hasVoted && activeDelegationCount === 0 ? (
                                         <div className="space-y-6">
                                             {/* Show that user has voted with detailed vote information */}
                                             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -1394,8 +1399,21 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     currentUserName={user?.name || user?.ename || "You"}
                                                     currentUserAvatar={user?.avatarUrl}
                                                     onContextChange={setVotingContext}
+                                                    onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
                                                     disabled={!isVotingAllowed}
+                                                    refreshTrigger={delegationRefreshKey}
+                                                    hasVotedForSelf={hasVoted}
                                                 />
+                                            )}
+
+                                            {/* Show that user has voted when they still have delegations */}
+                                            {hasVoted && activeDelegationCount > 0 && (
+                                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                    <CheckCircle className="text-green-500 h-4 w-4 shrink-0" />
+                                                    <p className="text-sm text-green-700">
+                                                        Your vote has been submitted. You can still vote on behalf of users who delegated their vote to you.
+                                                    </p>
+                                                </div>
                                             )}
                                             
                                             {/* Regular Voting Interface based on poll mode */}

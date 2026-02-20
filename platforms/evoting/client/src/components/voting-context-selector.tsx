@@ -19,7 +19,10 @@ interface VotingContextSelectorProps {
   currentUserName: string;
   currentUserAvatar?: string;
   onContextChange: (context: VotingContext) => void;
+  onDelegationsLoaded?: (delegations: Delegation[]) => void;
   disabled?: boolean;
+  refreshTrigger?: number;
+  hasVotedForSelf?: boolean;
 }
 
 export interface VotingContext {
@@ -35,21 +38,41 @@ export function VotingContextSelector({
   currentUserName,
   currentUserAvatar,
   onContextChange,
+  onDelegationsLoaded,
   disabled = false,
+  refreshTrigger = 0,
+  hasVotedForSelf = false,
 }: VotingContextSelectorProps) {
   const [activeDelegations, setActiveDelegations] = useState<Delegation[]>([]);
-  const [selectedContext, setSelectedContext] = useState<string>("self");
+  const [selectedContext, setSelectedContext] = useState<string>(hasVotedForSelf ? "" : "self");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchDelegations();
-  }, [pollId, userId]);
+  }, [pollId, userId, refreshTrigger]);
+
+  useEffect(() => {
+    if (hasVotedForSelf && selectedContext === "self") {
+      setSelectedContext("");
+      if (activeDelegations.length > 0) {
+        const firstDelegation = activeDelegations[0];
+        onContextChange({
+          type: "delegated",
+          delegatorId: firstDelegation.delegatorId,
+          delegatorName: firstDelegation.delegator?.name || firstDelegation.delegator?.ename || "Unknown",
+          delegationId: firstDelegation.id,
+        });
+        setSelectedContext(firstDelegation.id);
+      }
+    }
+  }, [hasVotedForSelf, activeDelegations]);
 
   const fetchDelegations = async () => {
     try {
       setIsLoading(true);
       const delegations = await pollApi.getReceivedDelegations(pollId);
       setActiveDelegations(delegations);
+      onDelegationsLoaded?.(delegations);
     } catch (error) {
       console.error("Failed to fetch delegations:", error);
     } finally {
@@ -141,10 +164,12 @@ export function VotingContextSelector({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="self">
+          <SelectItem value="self" disabled={hasVotedForSelf}>
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <span>Vote for myself</span>
+              <User className={`h-4 w-4 ${hasVotedForSelf ? "text-gray-300" : "text-gray-500"}`} />
+              <span className={hasVotedForSelf ? "text-gray-400" : ""}>
+                {hasVotedForSelf ? "Myself (already voted)" : "Vote for myself"}
+              </span>
             </div>
           </SelectItem>
           {activeDelegations.map((delegation) => {
@@ -172,6 +197,12 @@ export function VotingContextSelector({
       {selectedContext !== "self" && (
         <p className="mt-2 text-xs text-blue-700">
           You are voting on behalf of someone who delegated their vote to you.
+        </p>
+      )}
+      {hasVotedForSelf && (
+        <p className="mt-2 text-xs text-green-700 flex items-center gap-1">
+          <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+          You have already voted for yourself. Select a delegator above to cast their vote.
         </p>
       )}
     </div>
