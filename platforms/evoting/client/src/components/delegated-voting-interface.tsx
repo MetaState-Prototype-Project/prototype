@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Vote, Users, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { Vote, Users, ChevronDown, ChevronUp, CheckCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { pollApi, type Poll, type Delegation } from "@/lib/pollApi";
 
@@ -24,6 +25,8 @@ interface DelegatedVote {
   delegatorName: string;
   delegatorAvatar?: string;
   selectedOption: number | null;
+  pointVotes: Record<number, number>;
+  rankVotes: Record<number, number>;
   isSubmitted: boolean;
 }
 
@@ -52,6 +55,8 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
           delegatorName: d.delegator?.name || d.delegator?.ename || "Unknown",
           delegatorAvatar: d.delegator?.avatarUrl,
           selectedOption: null,
+          pointVotes: {},
+          rankVotes: {},
           isSubmitted: d.status === "used",
         }))
       );
@@ -74,7 +79,7 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
     });
   };
 
-  const updateVoteSelection = (delegationId: string, optionIndex: number) => {
+  const updateNormalVoteSelection = (delegationId: string, optionIndex: number) => {
     setDelegatedVotes((prev) =>
       prev.map((v) =>
         v.delegationId === delegationId ? { ...v, selectedOption: optionIndex } : v
@@ -82,16 +87,103 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
     );
   };
 
+  const updatePointVote = (delegationId: string, optionIndex: number, points: number) => {
+    setDelegatedVotes((prev) =>
+      prev.map((v) =>
+        v.delegationId === delegationId
+          ? { ...v, pointVotes: { ...v.pointVotes, [optionIndex]: points } }
+          : v
+      )
+    );
+  };
+
+  const updateRankVote = (delegationId: string, optionIndex: number, rank: number) => {
+    setDelegatedVotes((prev) =>
+      prev.map((v) => {
+        if (v.delegationId !== delegationId) return v;
+        const newRanks = { ...v.rankVotes };
+        Object.keys(newRanks).forEach((key) => {
+          if (newRanks[parseInt(key)] === rank) {
+            delete newRanks[parseInt(key)];
+          }
+        });
+        if (rank > 0) {
+          newRanks[optionIndex] = rank;
+        } else {
+          delete newRanks[optionIndex];
+        }
+        return { ...v, rankVotes: newRanks };
+      })
+    );
+  };
+
+  const resetPointVotes = (delegationId: string) => {
+    setDelegatedVotes((prev) =>
+      prev.map((v) =>
+        v.delegationId === delegationId ? { ...v, pointVotes: {} } : v
+      )
+    );
+  };
+
+  const resetRankVotes = (delegationId: string) => {
+    setDelegatedVotes((prev) =>
+      prev.map((v) =>
+        v.delegationId === delegationId ? { ...v, rankVotes: {} } : v
+      )
+    );
+  };
+
+  const getTotalPoints = (pointVotes: Record<number, number>) => {
+    return Object.values(pointVotes).reduce((sum, pts) => sum + pts, 0);
+  };
+
+  const isVoteReady = (delegatedVote: DelegatedVote): boolean => {
+    if (poll.mode === "normal") {
+      return delegatedVote.selectedOption !== null;
+    } else if (poll.mode === "point") {
+      return getTotalPoints(delegatedVote.pointVotes) === 100;
+    } else if (poll.mode === "rank") {
+      const minRanks = Math.min(poll.options.length, 3);
+      return Object.keys(delegatedVote.rankVotes).length >= minRanks;
+    }
+    return false;
+  };
+
+  const getVoteStatusText = (delegatedVote: DelegatedVote): string => {
+    if (poll.mode === "normal") {
+      return delegatedVote.selectedOption !== null
+        ? `Selected: ${poll.options[delegatedVote.selectedOption]}`
+        : "No selection yet";
+    } else if (poll.mode === "point") {
+      const total = getTotalPoints(delegatedVote.pointVotes);
+      return total > 0 ? `${total}/100 points distributed` : "No points distributed yet";
+    } else if (poll.mode === "rank") {
+      const rankedCount = Object.keys(delegatedVote.rankVotes).length;
+      const minRanks = Math.min(poll.options.length, 3);
+      return rankedCount > 0 ? `${rankedCount}/${minRanks} options ranked` : "No options ranked yet";
+    }
+    return "";
+  };
+
   const submitDelegatedVote = async (delegatedVote: DelegatedVote) => {
-    if (delegatedVote.selectedOption === null) return;
+    if (!isVoteReady(delegatedVote)) return;
 
     try {
       setSubmittingFor(delegatedVote.delegationId);
       
+      let voteData: any;
+      if (poll.mode === "normal") {
+        voteData = { optionId: delegatedVote.selectedOption };
+      } else if (poll.mode === "point") {
+        voteData = { points: delegatedVote.pointVotes };
+      } else if (poll.mode === "rank") {
+        voteData = delegatedVote.rankVotes;
+      }
+
       await pollApi.castDelegatedVote(
         poll.id,
         delegatedVote.delegatorId,
-        { optionId: delegatedVote.selectedOption },
+        voteData,
         poll.mode
       );
 
@@ -138,15 +230,142 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
     return null;
   }
 
+  const renderVotingInterface = (delegatedVote: DelegatedVote) => {
+    if (poll.mode === "normal") {
+      return (
+        <RadioGroup
+          value={delegatedVote.selectedOption?.toString()}
+          onValueChange={(value) =>
+            updateNormalVoteSelection(delegatedVote.delegationId, parseInt(value))
+          }
+          className="space-y-2"
+        >
+          {poll.options.map((option, index) => (
+            <div key={index} className="flex items-center space-x-2">
+              <RadioGroupItem
+                value={index.toString()}
+                id={`${delegatedVote.delegationId}-option-${index}`}
+              />
+              <Label
+                htmlFor={`${delegatedVote.delegationId}-option-${index}`}
+                className="flex-1 p-2 text-sm cursor-pointer hover:bg-gray-50 rounded"
+              >
+                {option}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+      );
+    } else if (poll.mode === "point") {
+      const totalPoints = getTotalPoints(delegatedVote.pointVotes);
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <span className={totalPoints === 100 ? "text-green-600 font-medium" : "text-gray-600"}>
+                {totalPoints}/100 points
+              </span>
+              {totalPoints !== 100 && (
+                <span className="text-gray-400 ml-2">
+                  ({100 - totalPoints} remaining)
+                </span>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => resetPointVotes(delegatedVote.delegationId)}
+              className="text-xs h-7"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset
+            </Button>
+          </div>
+          {poll.options.map((option, index) => {
+            const currentPoints = delegatedVote.pointVotes[index] || 0;
+            const maxAvailable = 100 - totalPoints + currentPoints;
+            return (
+              <div key={index} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">{option}</Label>
+                  <span className="text-sm font-medium w-12 text-right">{currentPoints}</span>
+                </div>
+                <Slider
+                  value={[currentPoints]}
+                  onValueChange={([value]) => updatePointVote(delegatedVote.delegationId, index, value)}
+                  max={maxAvailable}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+            );
+          })}
+        </div>
+      );
+    } else if (poll.mode === "rank") {
+      const minRanks = Math.min(poll.options.length, 3);
+      const rankedCount = Object.keys(delegatedVote.rankVotes).length;
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Rank at least {minRanks} options ({rankedCount}/{minRanks} done)
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => resetRankVotes(delegatedVote.delegationId)}
+              className="text-xs h-7"
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset
+            </Button>
+          </div>
+          {poll.options.map((option, index) => {
+            const currentRank = delegatedVote.rankVotes[index];
+            const usedRanks = Object.values(delegatedVote.rankVotes);
+            return (
+              <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
+                <span className="text-sm">{option}</span>
+                <select
+                  value={currentRank || ""}
+                  onChange={(e) => {
+                    const rank = parseInt(e.target.value) || 0;
+                    updateRankVote(delegatedVote.delegationId, index, rank);
+                  }}
+                  className="px-2 py-1 border rounded text-sm min-w-[80px]"
+                >
+                  <option value="">No rank</option>
+                  {[1, 2, 3].map((rank) => {
+                    const isUsed = usedRanks.includes(rank) && currentRank !== rank;
+                    return (
+                      <option key={rank} value={rank} disabled={isUsed}>
+                        {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"}
+                        {isUsed ? " (used)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <Card className="border-blue-200 bg-blue-50/50">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium flex items-center gap-2">
           <Users className="h-5 w-5 text-blue-600" />
           Delegated Votes
-          <Badge variant="secondary" className="ml-2">
-            {activeDelegations.length} pending
-          </Badge>
+          {activeDelegations.length > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              {activeDelegations.length} to cast
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           Vote on behalf of users who delegated their vote to you
@@ -170,15 +389,13 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
                     <div className="text-left">
                       <p className="text-sm font-medium">{delegatedVote.delegatorName}</p>
                       <p className="text-xs text-gray-500">
-                        {delegatedVote.selectedOption !== null
-                          ? `Selected: ${poll.options[delegatedVote.selectedOption]}`
-                          : "No selection yet"}
+                        {getVoteStatusText(delegatedVote)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {delegatedVote.selectedOption !== null && (
-                      <Badge variant="outline" className="text-xs">Ready</Badge>
+                    {isVoteReady(delegatedVote) && (
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Ready</Badge>
                     )}
                     {expandedDelegations.has(delegatedVote.delegationId) ? (
                       <ChevronUp className="h-4 w-4 text-gray-400" />
@@ -191,34 +408,13 @@ export function DelegatedVotingInterface({ poll, userId, onVoteSubmitted }: Dele
               <CollapsibleContent>
                 <div className="px-3 pb-3 pt-1 border-t">
                   <p className="text-xs text-gray-500 mb-3">
-                    Voting for {delegatedVote.delegatorName}
+                    Voting for {delegatedVote.delegatorName} ({poll.mode === "normal" ? "Simple" : poll.mode === "point" ? "Points" : "Ranked"} voting)
                   </p>
-                  <RadioGroup
-                    value={delegatedVote.selectedOption?.toString()}
-                    onValueChange={(value) =>
-                      updateVoteSelection(delegatedVote.delegationId, parseInt(value))
-                    }
-                    className="space-y-2"
-                  >
-                    {poll.options.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <RadioGroupItem
-                          value={index.toString()}
-                          id={`${delegatedVote.delegationId}-option-${index}`}
-                        />
-                        <Label
-                          htmlFor={`${delegatedVote.delegationId}-option-${index}`}
-                          className="flex-1 p-2 text-sm cursor-pointer hover:bg-gray-50 rounded"
-                        >
-                          {option}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                  {renderVotingInterface(delegatedVote)}
                   <Button
                     onClick={() => submitDelegatedVote(delegatedVote)}
-                    disabled={delegatedVote.selectedOption === null || submittingFor === delegatedVote.delegationId}
-                    className="w-full mt-3"
+                    disabled={!isVoteReady(delegatedVote) || submittingFor === delegatedVote.delegationId}
+                    className="w-full mt-4"
                     size="sm"
                   >
                     {submittingFor === delegatedVote.delegationId ? (

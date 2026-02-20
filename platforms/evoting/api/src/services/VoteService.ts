@@ -142,13 +142,9 @@ export class VoteService {
         typedData = { mode: "point", data: pointsData };
       }
     } else {
-      // Frontend sends { 0: 1, 1: 2 }, convert to [{ option: "0", points: 1 }, { option: "1", points: 2 }]
+      // Frontend sends { 0: 1, 1: 2 }, store as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
       const ranksData = voteData as any;
-      const convertedData = Object.entries(ranksData).map(([index, rank]) => ({
-        option: index,
-        points: rank as number
-      }));
-      typedData = { mode: "rank", data: convertedData };
+      typedData = { mode: "rank", data: [{ option: "ranks", points: ranksData }] };
     }
 
     // Get the user to get their ename for voterId
@@ -216,12 +212,9 @@ export class VoteService {
         typedData = { mode: "point", data: pointsData };
       }
     } else {
+      // Store rank votes as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
       const ranksData = voteData as any;
-      const convertedData = Object.entries(ranksData).map(([index, rank]) => ({
-        option: index,
-        points: rank as number
-      }));
-      typedData = { mode: "rank", data: convertedData };
+      typedData = { mode: "rank", data: [{ option: "ranks", points: ranksData }] };
     }
 
     const [delegator, delegate] = await Promise.all([
@@ -327,7 +320,9 @@ export class VoteService {
             } else if (vote.data.mode === "point" && typeof vote.data.data === "object") {
               return { ...base, optionId: "0", mode: "point" as const, pointData: vote.data.data };
             } else if (vote.data.mode === "rank" && Array.isArray(vote.data.data)) {
-              const rankData = vote.data.data[0]?.points || {};
+              // Rank votes stored as [{ option: "ranks", points: { "0": 1, "1": 2 } }]
+              const rankItem = vote.data.data.find((item: any) => item.option === "ranks" && item.points);
+              const rankData = rankItem?.points || {};
               return { ...base, optionId: "0", mode: "rank" as const, rankData };
             }
             return { ...base, optionId: "0", mode: vote.data.mode as string };

@@ -27,6 +27,7 @@ import BlindVotingInterface from "@/components/blind-voting-interface";
 import { SigningInterface } from "@/components/signing-interface";
 import { DelegationPanel } from "@/components/delegation-panel";
 import { DelegatedVotingInterface } from "@/components/delegated-voting-interface";
+import { VotingContextSelector, type VotingContext } from "@/components/voting-context-selector";
 
 export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -48,6 +49,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     // Add state variables for different voting modes
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
+    
+    // Voting context state for delegated voting
+    const [votingContext, setVotingContext] = useState<VotingContext>({ type: "self" });
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
@@ -299,7 +303,50 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             return;
         }
 
-        // Show signing interface instead of submitting directly
+        // Handle delegated votes directly (no signing interface)
+        if (votingContext.type === "delegated" && votingContext.delegatorId) {
+            setIsSubmitting(true);
+            try {
+                const voteData = selectedPoll.mode === "normal"
+                    ? { optionId: selectedOption }
+                    : selectedPoll.mode === "rank"
+                        ? rankVotes
+                        : { points: pointVotes };
+
+                await pollApi.castDelegatedVote(
+                    pollId,
+                    votingContext.delegatorId,
+                    voteData,
+                    selectedPoll.mode
+                );
+
+                toast({
+                    title: "Delegated Vote Submitted",
+                    description: `Vote cast successfully on behalf of ${votingContext.delegatorName}`,
+                });
+
+                // Reset voting state
+                setSelectedOption(null);
+                setPointVotes({});
+                setRankVotes({});
+                setVotingContext({ type: "self" });
+
+                // Refresh data
+                await fetchPoll();
+                await fetchVoteData();
+            } catch (error: any) {
+                toast({
+                    title: "Error",
+                    description: error.message || "Failed to submit delegated vote",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
+        // Show signing interface for own votes
         setShowSigningInterface(true);
     };
 
@@ -929,19 +976,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     )}
 
-                                    {/* Delegated Voting Interface */}
-                                    {selectedPoll.groupId && !hasVoted && (
-                                        <div className="mb-6">
-                                            <DelegatedVotingInterface
-                                                poll={selectedPoll}
-                                                userId={user?.id || ""}
-                                                onVoteSubmitted={() => {
-                                                    fetchPoll();
-                                                    fetchVoteData();
-                                                }}
-                                            />
-                                        </div>
-                                    )}
+                                    {/* Delegated Voting Interface - always show for group polls (component handles empty state) */}
+                                    {/* Delegated voting is now handled via VotingContextSelector in the voting interface */}
 
                                     {/* Privacy limitation warning for private PBV/RBV */}
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1187,19 +1223,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     )}
 
-                                    {/* Delegated Voting Interface - show if user has delegations */}
-                                    {selectedPoll.visibility === "public" && selectedPoll.groupId && !hasVoted && (
-                                        <div className="mb-6">
-                                            <DelegatedVotingInterface
-                                                poll={selectedPoll}
-                                                userId={user?.id || ""}
-                                                onVoteSubmitted={() => {
-                                                    fetchPoll();
-                                                    fetchVoteData();
-                                                }}
-                                            />
-                                        </div>
-                                    )}
+                                    {/* Delegated Voting Interface - always show for group polls (component handles empty state) */}
+                                    {/* Delegated voting is now handled via VotingContextSelector */}
 
                                     {/* For public polls, show different interface based on voting status */}
                                     {hasVoted ? (
@@ -1361,11 +1386,25 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     ) : (
                                         <>
+                                            {/* Voting Context Selector for group polls */}
+                                            {selectedPoll.groupId && (
+                                                <VotingContextSelector
+                                                    pollId={selectedPoll.id}
+                                                    userId={user?.id || ""}
+                                                    currentUserName={user?.name || user?.ename || "You"}
+                                                    currentUserAvatar={user?.avatarUrl}
+                                                    onContextChange={setVotingContext}
+                                                    disabled={!isVotingAllowed}
+                                                />
+                                            )}
+                                            
                                             {/* Regular Voting Interface based on poll mode */}
                                             {selectedPoll.mode === "normal" && (
                                                 <div>
                                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                                        Select your choice:
+                                                        {votingContext.type === "delegated" 
+                                                            ? `Select choice for ${votingContext.delegatorName}:`
+                                                            : "Select your choice:"}
                                                     </h3>
                                                     <RadioGroup
                                                         value={selectedOption?.toString()}
@@ -1405,7 +1444,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 <div>
                                                     <div className="flex items-center justify-between mb-4">
                                                         <h3 className="text-lg font-semibold text-gray-900">
-                                                            Distribute your points
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute points for ${votingContext.delegatorName}`
+                                                                : "Distribute your points"}
                                                         </h3>
                                                         <Button
                                                             onClick={() => setPointVotes({})}
@@ -1418,7 +1459,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <p className="text-sm text-blue-800">
-                                                            You have 100 points to distribute. Assign points to each option based on your preference.
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute 100 points on behalf of ${votingContext.delegatorName}.`
+                                                                : "You have 100 points to distribute. Assign points to each option based on your preference."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1502,7 +1545,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                     <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                                         <p className="text-sm text-green-800">
-                                                            Rank your top 3 choices from most preferred (1) to least preferred (3).
+                                                            {votingContext.type === "delegated"
+                                                                ? `Rank top 3 choices on behalf of ${votingContext.delegatorName}.`
+                                                                : "Rank your top 3 choices from most preferred (1) to least preferred (3)."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1597,7 +1642,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     )}
                                                     {!isVotingAllowed
                                                         ? "Voting Ended"
-                                                        : "Submit Vote"}
+                                                        : votingContext.type === "delegated"
+                                                            ? `Submit Vote for ${votingContext.delegatorName}`
+                                                            : "Submit Vote"}
                                                 </Button>
                                             </div>
                                         </>
@@ -1845,27 +1892,56 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="text-xs text-gray-500">
-                                                        {voter.mode === "point" && voter.pointData ? (
-                                                            <>
-                                                                {Object.entries(voter.pointData)
-                                                                    .filter(([, pts]) => (pts as number) > 0)
-                                                                    .map(([idx, pts]) => `${selectedPoll.options[parseInt(idx)] || `#${idx}`}: ${pts}pts`)
-                                                                    .join(", ")}
-                                                            </>
-                                                        ) : voter.mode === "rank" && voter.rankData ? (
-                                                            <>
-                                                                {Object.entries(voter.rankData)
-                                                                    .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                                    .map(([idx, rank]) => `#${rank} ${selectedPoll.options[parseInt(idx)] || `Option ${idx}`}`)
-                                                                    .join(", ")}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
-                                                            </>
-                                                        )}
-                                                    </span>
+                                                    {voter.mode === "point" && voter.pointData ? (
+                                                        <div className="mt-1.5 space-y-1">
+                                                            {Object.entries(voter.pointData)
+                                                                .filter(([, pts]) => (pts as number) > 0)
+                                                                .sort(([, a], [, b]) => (b as number) - (a as number))
+                                                                .slice(0, 3)
+                                                                .map(([idx, pts]) => (
+                                                                    <div key={idx} className="flex items-center gap-1.5">
+                                                                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                                            <div
+                                                                                className="h-full bg-blue-500 rounded-full"
+                                                                                style={{ width: `${pts}%` }}
+                                                                            />
+                                                                        </div>
+                                                                        <span className="text-[10px] text-gray-500 w-14 text-right truncate" title={selectedPoll.options[parseInt(idx)]}>
+                                                                            {pts}pts
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            {Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length > 3 && (
+                                                                <span className="text-[10px] text-gray-400">
+                                                                    +{Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : voter.mode === "rank" && voter.rankData ? (
+                                                        <div className="mt-1.5 flex flex-wrap gap-1">
+                                                            {Object.entries(voter.rankData)
+                                                                .sort(([, a], [, b]) => (a as number) - (b as number))
+                                                                .map(([idx, rank]) => (
+                                                                    <span
+                                                                        key={idx}
+                                                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                                            rank === 1
+                                                                                ? "bg-yellow-100 text-yellow-800"
+                                                                                : rank === 2
+                                                                                ? "bg-gray-100 text-gray-700"
+                                                                                : "bg-orange-50 text-orange-700"
+                                                                        }`}
+                                                                        title={selectedPoll.options[parseInt(idx)]}
+                                                                    >
+                                                                        #{rank} {(selectedPoll.options[parseInt(idx)] || "").slice(0, 8)}{(selectedPoll.options[parseInt(idx)] || "").length > 8 ? "..." : ""}
+                                                                    </span>
+                                                                ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500">
+                                                            Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         )
@@ -1956,27 +2032,58 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         </span>
                                                     )}
                                                 </div>
-                                                <span className="text-xs text-gray-500">
-                                                    {voter.mode === "point" && voter.pointData ? (
-                                                        <>
-                                                            {Object.entries(voter.pointData)
-                                                                .filter(([, pts]) => (pts as number) > 0)
-                                                                .map(([idx, pts]) => `${selectedPoll.options[parseInt(idx)] || `#${idx}`}: ${pts}pts`)
-                                                                .join(", ")}
-                                                        </>
-                                                    ) : voter.mode === "rank" && voter.rankData ? (
-                                                        <>
-                                                            {Object.entries(voter.rankData)
-                                                                .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                                .map(([idx, rank]) => `#${rank} ${selectedPoll.options[parseInt(idx)] || `Option ${idx}`}`)
-                                                                .join(", ")}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
-                                                        </>
-                                                    )}
-                                                </span>
+                                                {voter.mode === "point" && voter.pointData ? (
+                                                    <div className="mt-1.5 space-y-1.5">
+                                                        {Object.entries(voter.pointData)
+                                                            .filter(([, pts]) => (pts as number) > 0)
+                                                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                                                            .slice(0, 4)
+                                                            .map(([idx, pts]) => (
+                                                                <div key={idx} className="flex items-center gap-2">
+                                                                    <span className="text-xs text-gray-600 w-20 truncate" title={selectedPoll.options[parseInt(idx)]}>
+                                                                        {selectedPoll.options[parseInt(idx)] || `#${idx}`}
+                                                                    </span>
+                                                                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-blue-500 rounded-full"
+                                                                            style={{ width: `${pts}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-xs text-gray-500 w-8 text-right">
+                                                                        {pts}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        {Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length > 4 && (
+                                                            <span className="text-xs text-gray-400">
+                                                                +{Object.entries(voter.pointData).filter(([, pts]) => (pts as number) > 0).length - 4} more options
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : voter.mode === "rank" && voter.rankData ? (
+                                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                        {Object.entries(voter.rankData)
+                                                            .sort(([, a], [, b]) => (a as number) - (b as number))
+                                                            .map(([idx, rank]) => (
+                                                                <span
+                                                                    key={idx}
+                                                                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                        rank === 1
+                                                                            ? "bg-yellow-100 text-yellow-800"
+                                                                            : rank === 2
+                                                                            ? "bg-gray-100 text-gray-700"
+                                                                            : "bg-orange-50 text-orange-700"
+                                                                    }`}
+                                                                >
+                                                                    #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
+                                                                </span>
+                                                            ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-gray-500">
+                                                        Voted: {selectedPoll.options[parseInt(voter.optionId)] || "Unknown"}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     )

@@ -206,6 +206,13 @@ export function DelegationPanel({ poll, userId, hasVoted, onDelegationChange }: 
             </div>
           ) : hasVoted ? (
             <p className="text-sm text-gray-500">You have already voted on this poll.</p>
+          ) : receivedDelegations.length > 0 ? (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                You have received {receivedDelegations.length} delegation{receivedDelegations.length !== 1 ? "s" : ""}. 
+                Use the "Voting as" selector above to vote on behalf of others.
+              </p>
+            </div>
           ) : (
             <Button variant="outline" onClick={() => setShowDelegatePicker(true)}>
               <UserPlus className="h-4 w-4 mr-2" />
