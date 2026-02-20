@@ -907,7 +907,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     onVoteSubmitted={onVoteSubmitted}
                                 />
                             ) : selectedPoll.visibility === "private" && (selectedPoll.mode === "point" || selectedPoll.mode === "rank") ? (
-                                // For private PBV/RBV polls that user has voted on, show vote details with privacy info
+                                // For private PBV/RBV polls that user has voted on, show read-only vote values
                                 <div className="space-y-6">
                                     {/* Privacy limitation warning for private PBV/RBV */}
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -925,17 +925,92 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
-                                    {/* Vote submitted confirmation */}
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                        <div className="flex items-center">
-                                            <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                            <div>
-                                                <h3 className="text-lg font-semibold text-green-900">Vote Submitted</h3>
-                                                <p className="text-sm text-green-700">
-                                                    Your vote has been submitted. Your identity is hidden in results. Results will be shown when the poll ends.
-                                                </p>
-                                            </div>
-                                        </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                            Voting Options:
+                                        </h3>
+                                        {(() => {
+                                            const rawVote = selectedContextVoteStatus?.vote;
+                                            const fallbackVoteData = selectedPoll.mode === "point"
+                                                ? (rawVote?.points ? { mode: "point", data: rawVote.points } : null)
+                                                : selectedPoll.mode === "rank" && rawVote?.ranks
+                                                    ? {
+                                                        mode: "rank",
+                                                        data: [{
+                                                            option: "ranks",
+                                                            points: Object.entries(rawVote.ranks as Record<string, string | number>).reduce((acc, [key, value]) => {
+                                                                const keyNum = Number(key);
+                                                                const valNum = Number(value);
+                                                                if (!Number.isNaN(keyNum) && keyNum >= 1 && keyNum <= selectedPoll.options.length && !Number.isNaN(valNum)) {
+                                                                    acc[valNum] = keyNum;
+                                                                } else if (!Number.isNaN(keyNum) && !Number.isNaN(valNum)) {
+                                                                    acc[keyNum] = valNum;
+                                                                }
+                                                                return acc;
+                                                            }, {} as Record<number, number>)
+                                                        }]
+                                                    }
+                                                    : null;
+                                            const voteData = rawVote?.data ?? fallbackVoteData;
+                                            if (!voteData) return null;
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    {selectedPoll.options.map((option, index) => {
+                                                        const isUserChoice = (() => {
+                                                            if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                                return Number((voteData.data as Record<string, number>)[index]) > 0;
+                                                            } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === "object"
+                                                                    ? rawRankData.ranks
+                                                                    : rawRankData;
+                                                                return rankData && typeof rankData[index] === "number";
+                                                            }
+                                                            return false;
+                                                        })();
+
+                                                        const userChoiceDetails = (() => {
+                                                            if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                                const points = Number((voteData.data as Record<string, number>)[index] || 0);
+                                                                return points > 0 ? `← You gave ${points} points` : null;
+                                                            } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === "object"
+                                                                    ? rawRankData.ranks
+                                                                    : rawRankData;
+                                                                const rank = rankData?.[index];
+                                                                return typeof rank === "number"
+                                                                    ? `← You ranked this ${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}`
+                                                                    : null;
+                                                            }
+                                                            return null;
+                                                        })();
+
+                                                        return (
+                                                            <div
+                                                                key={index}
+                                                                className={`flex items-center space-x-3 p-3 border rounded-lg ${isUserChoice
+                                                                    ? "bg-green-50 border-green-200"
+                                                                    : "bg-gray-50 border-gray-200 opacity-60"
+                                                                    }`}
+                                                            >
+                                                                <div className="flex-1">
+                                                                    <Label className={`text-base ${isUserChoice ? "text-green-900 font-medium" : "text-gray-500"}`}>
+                                                                        {option}
+                                                                    </Label>
+                                                                    {userChoiceDetails && (
+                                                                        <div className="mt-1 text-sm text-green-600">
+                                                                            <span className="font-medium">{userChoiceDetails}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             ) : null}
@@ -973,16 +1048,94 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     </div>
 
                                     {selectedContextHasVoted ? (
-                                        // User has already voted on private PBV/RBV and has no delegations
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 hidden">
-                                            <div className="flex items-center">
-                                                <CheckCircle className="text-green-500 h-5 w-5 mr-2" />
-                                                <div>
-                                                    <h3 className="text-lg font-semibold text-green-900">Vote Submitted</h3>
-                                                    <p className="text-sm text-green-700">
-                                                        Your vote has been submitted. Your identity is hidden in results. Results will be shown when the poll ends.
-                                                    </p>
-                                                </div>
+                                        // User has already voted on private PBV/RBV - show read-only selections
+                                        <div className="space-y-4">
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                                    Voting Options:
+                                                </h3>
+                                                {(() => {
+                                                    const rawVote = selectedContextVoteStatus?.vote;
+                                                    const fallbackVoteData = selectedPoll.mode === "point"
+                                                        ? (rawVote?.points ? { mode: "point", data: rawVote.points } : null)
+                                                        : selectedPoll.mode === "rank" && rawVote?.ranks
+                                                            ? {
+                                                                mode: "rank",
+                                                                data: [{
+                                                                    option: "ranks",
+                                                                    points: Object.entries(rawVote.ranks as Record<string, string | number>).reduce((acc, [key, value]) => {
+                                                                        const keyNum = Number(key);
+                                                                        const valNum = Number(value);
+                                                                        if (!Number.isNaN(keyNum) && keyNum >= 1 && keyNum <= selectedPoll.options.length && !Number.isNaN(valNum)) {
+                                                                            acc[valNum] = keyNum;
+                                                                        } else if (!Number.isNaN(keyNum) && !Number.isNaN(valNum)) {
+                                                                            acc[keyNum] = valNum;
+                                                                        }
+                                                                        return acc;
+                                                                    }, {} as Record<number, number>)
+                                                                }]
+                                                            }
+                                                            : null;
+                                                    const voteData = rawVote?.data ?? fallbackVoteData;
+                                                    if (!voteData) return null;
+
+                                                    return (
+                                                        <div className="space-y-3">
+                                                            {selectedPoll.options.map((option, index) => {
+                                                                const isUserChoice = (() => {
+                                                                    if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                                        return Number((voteData.data as Record<string, number>)[index]) > 0;
+                                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                                        const rawRankData = voteData.data[0]?.points;
+                                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === "object"
+                                                                            ? rawRankData.ranks
+                                                                            : rawRankData;
+                                                                        return rankData && typeof rankData[index] === "number";
+                                                                    }
+                                                                    return false;
+                                                                })();
+
+                                                                const userChoiceDetails = (() => {
+                                                                    if (voteData.mode === "point" && typeof voteData.data === "object") {
+                                                                        const points = Number((voteData.data as Record<string, number>)[index] || 0);
+                                                                        return points > 0 ? `← You gave ${points} points` : null;
+                                                                    } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
+                                                                        const rawRankData = voteData.data[0]?.points;
+                                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === "object"
+                                                                            ? rawRankData.ranks
+                                                                            : rawRankData;
+                                                                        const rank = rankData?.[index];
+                                                                        return typeof rank === "number"
+                                                                            ? `← You ranked this ${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}`
+                                                                            : null;
+                                                                    }
+                                                                    return null;
+                                                                })();
+
+                                                                return (
+                                                                    <div
+                                                                        key={index}
+                                                                        className={`flex items-center space-x-3 p-3 border rounded-lg ${isUserChoice
+                                                                            ? "bg-green-50 border-green-200"
+                                                                            : "bg-gray-50 border-gray-200 opacity-60"
+                                                                            }`}
+                                                                    >
+                                                                        <div className="flex-1">
+                                                                            <Label className={`text-base ${isUserChoice ? "text-green-900 font-medium" : "text-gray-500"}`}>
+                                                                                {option}
+                                                                            </Label>
+                                                                            {userChoiceDetails && (
+                                                                                <div className="mt-1 text-sm text-green-600">
+                                                                                    <span className="font-medium">{userChoiceDetails}</span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     ) : (
