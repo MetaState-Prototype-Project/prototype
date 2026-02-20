@@ -105,15 +105,21 @@ export class DelegationController {
         try {
             const { pollId } = req.params;
             const delegateId = (req as any).user?.id;
+            const includeUsed = req.query.includeUsed === "true" || req.query.includeUsed === "1";
 
             if (!delegateId) {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const delegations = await this.delegationService.getActiveDelegationsForDelegate(
-                pollId,
-                delegateId
-            );
+            const delegations = includeUsed
+                ? await this.delegationService.getActiveAndUsedDelegationsForDelegate(
+                    pollId,
+                    delegateId
+                )
+                : await this.delegationService.getActiveDelegationsForDelegate(
+                    pollId,
+                    delegateId
+                );
 
             res.json(delegations);
         } catch (error: any) {

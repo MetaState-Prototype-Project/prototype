@@ -298,6 +298,13 @@ export class DelegationService {
         return this.getDelegationsForDelegate(pollId, delegateId, "active");
     }
 
+    async getActiveAndUsedDelegationsForDelegate(
+        pollId: string,
+        delegateId: string
+    ): Promise<Delegation[]> {
+        return this.getDelegationsForDelegate(pollId, delegateId, ["active", "used"]);
+    }
+
     async getPendingDelegationsForDelegate(
         pollId: string,
         delegateId: string

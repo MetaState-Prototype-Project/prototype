@@ -170,6 +170,12 @@ export function DelegationPanel({ poll, userId, hasVoted, onDelegationChange }: 
     }
   };
 
+  // When user is purely acting as delegate (accepted delegations, no pending requests),
+  // keep UI focused on the top "Voting as" switcher and hide extra cards below it.
+  if (receivedDelegations.length > 0 && pendingRequests.length === 0 && !myDelegation) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
       {/* My Delegation Status */}

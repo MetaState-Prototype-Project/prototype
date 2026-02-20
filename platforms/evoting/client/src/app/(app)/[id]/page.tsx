@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
-import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption } from "@/lib/pollApi";
+import { pollApi, type Poll, type PollResults, type BlindVoteResults, type VoteData, type PointVoteData, type VoterDetail, type PollResultOption, type SigningDelegationContext } from "@/lib/pollApi";
 import Link from "next/link";
 
 import BlindVotingInterface from "@/components/blind-voting-interface";
@@ -54,7 +54,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const [votingContext, setVotingContext] = useState<VotingContext>({ type: "self" });
     const [delegationRefreshKey, setDelegationRefreshKey] = useState(0);
     const [activeDelegationCount, setActiveDelegationCount] = useState(0);
+    const [hasDelegationHistory, setHasDelegationHistory] = useState(false);
     const [rankVotes, setRankVotes] = useState<{ [key: number]: number }>({});
+    const [signingVoteData, setSigningVoteData] = useState<any | null>(null);
+    const [signingDelegationContext, setSigningDelegationContext] = useState<SigningDelegationContext | undefined>(undefined);
     const [timeRemaining, setTimeRemaining] = useState<string>("");
 
     // Calculate total points for point voting
@@ -280,6 +283,15 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
 
+        if (votingContext.type === "self" && hasVoted) {
+            toast({
+                title: "Already Voted for Yourself",
+                description: "Switch to a delegated voter in 'Voting as' to cast votes on their behalf.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         // Validate based on voting mode
         let isValid = false;
         if (selectedPoll.mode === "normal") {
@@ -305,50 +317,22 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
             return;
         }
 
-        // Handle delegated votes directly (no signing interface)
-        if (votingContext.type === "delegated" && votingContext.delegatorId) {
-            setIsSubmitting(true);
-            try {
-                const voteData = selectedPoll.mode === "normal"
-                    ? { optionId: selectedOption }
-                    : selectedPoll.mode === "rank"
-                        ? rankVotes
-                        : { points: pointVotes };
+        const voteData = selectedPoll.mode === "normal"
+            ? { optionId: selectedOption }
+            : selectedPoll.mode === "rank"
+                ? rankVotes
+                : { points: pointVotes };
 
-                await pollApi.castDelegatedVote(
-                    pollId,
-                    votingContext.delegatorId,
-                    voteData,
-                    selectedPoll.mode
-                );
-
-                toast({
-                    title: "Delegated Vote Submitted",
-                    description: `Vote cast successfully on behalf of ${votingContext.delegatorName}`,
-                });
-
-                // Reset voting state
-                setSelectedOption(null);
-                setPointVotes({});
-                setRankVotes({});
-                setVotingContext({ type: "self" });
-
-                // Refresh data
-                await fetchPoll();
-                await fetchVoteData();
-            } catch (error: any) {
-                toast({
-                    title: "Error",
-                    description: error.message || "Failed to submit delegated vote",
-                    variant: "destructive",
-                });
-            } finally {
-                setIsSubmitting(false);
-            }
-            return;
-        }
-
-        // Show signing interface for own votes
+        setSigningVoteData(voteData);
+        setSigningDelegationContext(
+            votingContext.type === "delegated" && votingContext.delegatorId
+                ? {
+                    delegatorId: votingContext.delegatorId,
+                    delegatorName: votingContext.delegatorName,
+                }
+                : undefined
+        );
+        setIsSubmitting(true);
         setShowSigningInterface(true);
     };
 
@@ -421,6 +405,24 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                         )}
                     </div>
+
+                    {/* Keep selector mounted in a stable top slot for all group polls */}
+                    {selectedPoll.groupId && (
+                        <VotingContextSelector
+                            pollId={selectedPoll.id}
+                            userId={user?.id || ""}
+                            currentUserName={user?.name || user?.ename || "You"}
+                            currentUserAvatar={user?.avatarUrl}
+                            onContextChange={setVotingContext}
+                            onDelegationStateChange={(state) => {
+                                setActiveDelegationCount(state.activeCount);
+                                setHasDelegationHistory(state.hasHistory);
+                            }}
+                            disabled={!isVotingAllowed}
+                            refreshTrigger={delegationRefreshKey}
+                            hasVotedForSelf={hasVoted}
+                        />
+                    )}
 
                     {/* Show results if poll has ended, regardless of user's vote status */}
                     {!isVotingAllowed ? (
@@ -655,9 +657,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     const totalPoints = Object.values(voteData.data as Record<string, number>).reduce((sum, points) => sum + (points || 0), 0);
                                                                     return `distributed ${totalPoints} points across options`;
                                                                 } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                    const rankPoints = voteData.data[0]?.points;
+                                                                    const rawRankPoints = voteData.data[0]?.points;
+                                                                    // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                                    const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
+                                                                        ? rawRankPoints.ranks 
+                                                                        : rawRankPoints;
                                                                     if (rankPoints && typeof rankPoints === "object") {
                                                                         const sortedRanks = Object.entries(rankPoints)
+                                                                            .filter(([, rank]) => typeof rank === 'number')
                                                                             .sort(([, a], [, b]) => (a as number) - (b as number));
                                                                         const topChoiceIndex = sortedRanks[0]?.[0];
                                                                         const topChoice = topChoiceIndex ? selectedPoll.options[parseInt(topChoiceIndex)] : "Unknown";
@@ -698,8 +705,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = (voteData.data as Record<string, number>)[index.toString()];
                                                         return points > 0;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankPoints = voteData.data[0]?.points;
-                                                        return rankPoints && rankPoints[index.toString()];
+                                                        const rawRankPoints = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
+                                                            ? rawRankPoints.ranks 
+                                                            : rawRankPoints;
+                                                        return rankPoints && typeof rankPoints[index.toString()] === 'number';
                                                     }
                                                     return false;
                                                 })();
@@ -715,9 +726,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = (voteData.data as Record<string, number>)[index.toString()];
                                                         return points > 0 ? `← You gave ${points} points` : null;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankPoints = voteData.data[0]?.points;
+                                                        const rawRankPoints = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankPoints = rawRankPoints?.ranks && typeof rawRankPoints.ranks === 'object' 
+                                                            ? rawRankPoints.ranks 
+                                                            : rawRankPoints;
                                                         const rank = rankPoints?.[index.toString()];
-                                                        return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                        return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                     }
                                                     return null;
                                                 })();
@@ -749,7 +764,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </>
                             )}
                         </div>
-                    ) : voteStatus?.hasVoted === true ? (
+                    ) : voteStatus?.hasVoted === true && activeDelegationCount === 0 ? (
                         // Show voting interface for active polls where user has already voted
                         <>
                             {/* Show that user has voted with detailed vote information for public polls */}
@@ -816,9 +831,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 );
                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                 // Rank vote - show ranking
-                                                const rankData = voteData.data[0]?.points;
+                                                const rawRankData = voteData.data[0]?.points;
+                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                    ? rawRankData.ranks 
+                                                    : rawRankData;
                                                 if (rankData && typeof rankData === "object") {
                                                     const sortedRanks = Object.entries(rankData)
+                                                        .filter(([, rank]) => typeof rank === 'number')
                                                         .sort(([, a], [, b]) => (a as number) - (b as number))
                                                         .map(([optionIndex, rank]) => ({
                                                             option: selectedPoll.options[parseInt(optionIndex)],
@@ -862,8 +882,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                                         return voteData.data[index] > 0;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data[0]?.points;
-                                                        return rankData && rankData[index];
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
+                                                        return rankData && typeof rankData[index] === 'number';
                                                     }
                                                     return false;
                                                 })();
@@ -878,9 +902,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         const points = voteData.data[index];
                                                         return points > 0 ? `← You gave ${points} points` : null;
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                        const rankData = voteData.data[0]?.points;
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
                                                         const rank = rankData?.[index];
-                                                        return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                        return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                     }
                                                     return null;
                                                 })();
@@ -999,21 +1027,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Voting Context Selector for group polls - ALWAYS render to load delegations */}
-                                    {selectedPoll.groupId && (
-                                        <VotingContextSelector
-                                            pollId={selectedPoll.id}
-                                            userId={user?.id || ""}
-                                            currentUserName={user?.name || user?.ename || "You"}
-                                            currentUserAvatar={user?.avatarUrl}
-                                            onContextChange={setVotingContext}
-                                            onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
-                                            disabled={!isVotingAllowed}
-                                            refreshTrigger={delegationRefreshKey}
-                                            hasVotedForSelf={hasVoted}
-                                        />
-                                    )}
 
                                     {hasVoted && activeDelegationCount === 0 ? (
                                         // User has already voted on private PBV/RBV and has no delegations
@@ -1265,21 +1278,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     )}
 
-                                    {/* Voting Context Selector for group polls - ALWAYS render to load delegations */}
-                                    {selectedPoll.groupId && (
-                                        <VotingContextSelector
-                                            pollId={selectedPoll.id}
-                                            userId={user?.id || ""}
-                                            currentUserName={user?.name || user?.ename || "You"}
-                                            currentUserAvatar={user?.avatarUrl}
-                                            onContextChange={setVotingContext}
-                                            onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
-                                            disabled={!isVotingAllowed}
-                                            refreshTrigger={delegationRefreshKey}
-                                            hasVotedForSelf={hasVoted}
-                                        />
-                                    )}
-
                                     {/* For public polls, show different interface based on voting status */}
                                     {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
                                     {hasVoted && activeDelegationCount === 0 ? (
@@ -1345,9 +1343,14 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         );
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                         // Rank vote - show ranking
-                                                        const rankData = voteData.data[0]?.points;
+                                                        const rawRankData = voteData.data[0]?.points;
+                                                        // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                            ? rawRankData.ranks 
+                                                            : rawRankData;
                                                         if (rankData && typeof rankData === "object") {
                                                             const sortedRanks = Object.entries(rankData)
+                                                                .filter(([, rank]) => typeof rank === 'number')
                                                                 .sort(([, a], [, b]) => (a as number) - (b as number))
                                                                 .map(([optionIndex, rank]) => ({
                                                                     option: selectedPoll.options[parseInt(optionIndex)],
@@ -1391,8 +1394,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             } else if (voteData.mode === "point" && typeof voteData.data === "object") {
                                                                 return voteData.data[index] > 0;
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                const rankData = voteData.data[0]?.points;
-                                                                return rankData && rankData[index];
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                                    ? rawRankData.ranks 
+                                                                    : rawRankData;
+                                                                return rankData && typeof rankData[index] === 'number';
                                                             }
                                                             return false;
                                                         })();
@@ -1407,9 +1414,13 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 const points = voteData.data[index];
                                                                 return points > 0 ? `← You gave ${points} points` : null;
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
-                                                                const rankData = voteData.data[0]?.points;
+                                                                const rawRankData = voteData.data[0]?.points;
+                                                                // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
+                                                                    ? rawRankData.ranks 
+                                                                    : rawRankData;
                                                                 const rank = rankData?.[index];
-                                                                return rank ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                                return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                             }
                                                             return null;
                                                         })();
@@ -1708,24 +1719,24 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                     )}
 
                     {/* Signing Interface Modal */}
-                    {showSigningInterface && (
+                    {showSigningInterface && signingVoteData && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-md w-full">
                                 <SigningInterface
                                     pollId={pollId!}
-                                    voteData={
-                                        selectedPoll?.mode === "normal"
-                                            ? { optionId: selectedOption }
-                                            : selectedPoll?.mode === "rank"
-                                                ? { ranks: rankVotes }
-                                                : { points: pointVotes }
-                                    }
+                                    voteData={signingVoteData}
+                                    delegationContext={signingDelegationContext}
                                     onSigningComplete={async (voteId) => {
                                         setShowSigningInterface(false);
+                                        setIsSubmitting(false);
+                                        setSigningVoteData(null);
+                                        setSigningDelegationContext(undefined);
 
                                         toast({
                                             title: "Success!",
-                                            description: "Your vote has been signed and submitted.",
+                                            description: signingDelegationContext?.delegatorName
+                                                ? `Your vote has been signed and submitted for ${signingDelegationContext.delegatorName}.`
+                                                : "Your vote has been signed and submitted.",
                                         });
 
                                         // Immediately try to fetch vote data, then retry after a short delay if needed
@@ -1748,9 +1759,17 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
                                         // Try immediately, then retry if needed
                                         await fetchWithRetry();
+
+                                        // Clear current selections after successful signing
+                                        setSelectedOption(null);
+                                        setPointVotes({});
+                                        setRankVotes({});
                                     }}
                                     onCancel={() => {
                                         setShowSigningInterface(false);
+                                        setIsSubmitting(false);
+                                        setSigningVoteData(null);
+                                        setSigningDelegationContext(undefined);
                                     }}
                                 />
                             </div>
@@ -1924,7 +1943,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     : voter.firstName || voter.email ||
                                                                     "Anonymous"}
                                                             </span>
-                                                            {voter.castByName && (
+                                                            {voter.castById && voter.castByName && voter.castById !== voter.id && (
                                                                 <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
                                                                     (via {voter.castByName})
                                                                 </span>
@@ -1972,23 +1991,30 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         </div>
                                                     ) : voter.mode === "rank" && voter.rankData ? (
                                                         <div className="mt-1.5 flex flex-wrap gap-1">
-                                                            {Object.entries(voter.rankData)
-                                                                .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                                .map(([idx, rank]) => (
-                                                                    <span
-                                                                        key={idx}
-                                                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                                                            rank === 1
-                                                                                ? "bg-yellow-100 text-yellow-800"
-                                                                                : rank === 2
-                                                                                ? "bg-gray-100 text-gray-700"
-                                                                                : "bg-orange-50 text-orange-700"
-                                                                        }`}
-                                                                        title={selectedPoll.options[parseInt(idx)]}
-                                                                    >
-                                                                        #{rank} {(selectedPoll.options[parseInt(idx)] || "").slice(0, 8)}{(selectedPoll.options[parseInt(idx)] || "").length > 8 ? "..." : ""}
-                                                                    </span>
-                                                                ))}
+                                                            {(() => {
+                                                                // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
+                                                                const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
+                                                                    ? voter.rankData.ranks 
+                                                                    : voter.rankData;
+                                                                return Object.entries(actualRankData)
+                                                                    .filter(([, rank]) => typeof rank === 'number')
+                                                                    .sort(([, a], [, b]) => (a as number) - (b as number))
+                                                                    .map(([idx, rank]) => (
+                                                                        <span
+                                                                            key={idx}
+                                                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                                                                rank === 1
+                                                                                    ? "bg-yellow-100 text-yellow-800"
+                                                                                    : rank === 2
+                                                                                    ? "bg-gray-100 text-gray-700"
+                                                                                    : "bg-orange-50 text-orange-700"
+                                                                            }`}
+                                                                            title={selectedPoll.options[parseInt(idx)]}
+                                                                        >
+                                                                            #{rank} {(selectedPoll.options[parseInt(idx)] || "").slice(0, 8)}{(selectedPoll.options[parseInt(idx)] || "").length > 8 ? "..." : ""}
+                                                                        </span>
+                                                                    ));
+                                                            })()}
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-gray-500">
@@ -2064,7 +2090,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 : voter.firstName || voter.email ||
                                                                 "Anonymous"}
                                                         </span>
-                                                        {voter.castByName && (
+                                                        {voter.castById && voter.castByName && voter.castById !== voter.id && (
                                                             <span className="text-xs text-blue-600 shrink-0" title={`Vote cast by ${voter.castByName} via delegation`}>
                                                                 (via {voter.castByName})
                                                             </span>
@@ -2115,22 +2141,29 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                 ) : voter.mode === "rank" && voter.rankData ? (
                                                     <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                                        {Object.entries(voter.rankData)
-                                                            .sort(([, a], [, b]) => (a as number) - (b as number))
-                                                            .map(([idx, rank]) => (
-                                                                <span
-                                                                    key={idx}
-                                                                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                                        rank === 1
-                                                                            ? "bg-yellow-100 text-yellow-800"
-                                                                            : rank === 2
-                                                                            ? "bg-gray-100 text-gray-700"
-                                                                            : "bg-orange-50 text-orange-700"
-                                                                    }`}
-                                                                >
-                                                                    #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
-                                                                </span>
-                                                            ))}
+                                                        {(() => {
+                                                            // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
+                                                            const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
+                                                                ? voter.rankData.ranks 
+                                                                : voter.rankData;
+                                                            return Object.entries(actualRankData)
+                                                                .filter(([, rank]) => typeof rank === 'number')
+                                                                .sort(([, a], [, b]) => (a as number) - (b as number))
+                                                                .map(([idx, rank]) => (
+                                                                    <span
+                                                                        key={idx}
+                                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                            rank === 1
+                                                                                ? "bg-yellow-100 text-yellow-800"
+                                                                                : rank === 2
+                                                                                ? "bg-gray-100 text-gray-700"
+                                                                                : "bg-orange-50 text-orange-700"
+                                                                        }`}
+                                                                    >
+                                                                        #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
+                                                                    </span>
+                                                                ));
+                                                        })()}
                                                     </div>
                                                 ) : (
                                                     <span className="text-xs text-gray-500">

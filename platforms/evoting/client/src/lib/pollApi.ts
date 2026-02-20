@@ -152,6 +152,11 @@ export interface SigningSession {
   expiresAt: string;
 }
 
+export interface SigningDelegationContext {
+  delegatorId: string;
+  delegatorName?: string;
+}
+
 export interface PollsResponse {
   polls: Poll[];
   total: number;
@@ -279,11 +284,17 @@ export const pollApi = {
   },
 
   // Create signing session
-  createSigningSession: async (pollId: string, voteData: any, userId: string): Promise<SigningSession> => {
+  createSigningSession: async (
+    pollId: string,
+    voteData: any,
+    userId: string,
+    delegationContext?: SigningDelegationContext
+  ): Promise<SigningSession> => {
     const response = await apiClient.post("/api/signing/sessions", {
       pollId,
       voteData,
       userId,
+      delegationContext,
     });
     return response.data;
   },
@@ -327,8 +338,9 @@ export const pollApi = {
   },
 
   // Get active delegations received for a poll (as delegate)
-  getReceivedDelegations: async (pollId: string): Promise<Delegation[]> => {
-    const response = await apiClient.get(`/api/polls/${pollId}/delegations`);
+  // includeUsed=true keeps already-cast delegations visible for history/context switching.
+  getReceivedDelegations: async (pollId: string, includeUsed: boolean = false): Promise<Delegation[]> => {
+    const response = await apiClient.get(`/api/polls/${pollId}/delegations${includeUsed ? "?includeUsed=true" : ""}`);
     return response.data;
   },
 
