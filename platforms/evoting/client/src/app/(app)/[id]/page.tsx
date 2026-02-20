@@ -979,9 +979,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     )}
 
-                                    {/* Delegated Voting Interface - always show for group polls (component handles empty state) */}
-                                    {/* Delegated voting is now handled via VotingContextSelector in the voting interface */}
-
                                     {/* Privacy limitation warning for private PBV/RBV */}
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                         <div className="flex items-start">
@@ -999,6 +996,21 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     </div>
 
+                                    {/* Voting Context Selector for group polls - ALWAYS render to load delegations */}
+                                    {selectedPoll.groupId && (
+                                        <VotingContextSelector
+                                            pollId={selectedPoll.id}
+                                            userId={user?.id || ""}
+                                            currentUserName={user?.name || user?.ename || "You"}
+                                            currentUserAvatar={user?.avatarUrl}
+                                            onContextChange={setVotingContext}
+                                            onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
+                                            disabled={!isVotingAllowed}
+                                            refreshTrigger={delegationRefreshKey}
+                                            hasVotedForSelf={hasVoted}
+                                        />
+                                    )}
+
                                     {hasVoted && activeDelegationCount === 0 ? (
                                         // User has already voted on private PBV/RBV and has no delegations
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -1015,11 +1027,23 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                     ) : (
                                         // Show voting interface for private PBV/RBV (or if user has pending delegations)
                                         <>
+                                            {/* Show that user has voted when they still have delegations */}
+                                            {hasVoted && activeDelegationCount > 0 && (
+                                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                                                    <CheckCircle className="text-green-500 h-4 w-4 shrink-0" />
+                                                    <p className="text-sm text-green-700">
+                                                        Your vote has been submitted. You can still vote on behalf of users who delegated their vote to you.
+                                                    </p>
+                                                </div>
+                                            )}
+
                                             {selectedPoll.mode === "point" && (
                                                 <div>
                                                     <div className="flex items-center justify-between mb-4">
                                                         <h3 className="text-lg font-semibold text-gray-900">
-                                                            Distribute your points
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute points for ${votingContext.delegatorName}`
+                                                                : "Distribute your points"}
                                                         </h3>
                                                         <Button
                                                             onClick={() => setPointVotes({})}
@@ -1032,7 +1056,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <p className="text-sm text-blue-800">
-                                                            You have 100 points to distribute. Assign points to each option based on your preference.
+                                                            {votingContext.type === "delegated"
+                                                                ? `Distribute 100 points on behalf of ${votingContext.delegatorName}.`
+                                                                : "You have 100 points to distribute. Assign points to each option based on your preference."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1094,10 +1120,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             {(() => {
                                                                 const currentRank = Object.keys(rankVotes).length + 1;
                                                                 const maxRanks = Math.min(selectedPoll.options.length, 3);
+                                                                const forText = votingContext.type === "delegated" ? ` for ${votingContext.delegatorName}` : "";
                                                                 if (currentRank > maxRanks) {
-                                                                    return "Ranking Complete";
+                                                                    return `Ranking Complete${forText}`;
                                                                 }
-                                                                return `Rank ${currentRank} of ${maxRanks}`;
+                                                                return `Rank ${currentRank} of ${maxRanks}${forText}`;
                                                             })()}
                                                         </h3>
                                                         <Button
@@ -1111,7 +1138,9 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </div>
                                                     <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                                                         <p className="text-sm text-green-800">
-                                                            Rank your top 3 choices from most preferred (1) to least preferred (3).
+                                                            {votingContext.type === "delegated"
+                                                                ? `Rank the top 3 choices for ${votingContext.delegatorName} from most preferred (1) to least preferred (3).`
+                                                                : "Rank your top 3 choices from most preferred (1) to least preferred (3)."}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-4">
@@ -1194,7 +1223,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         (selectedPoll.mode === "point" && totalPoints !== 100) ||
                                                         (selectedPoll.mode === "rank" && Object.keys(rankVotes).length < Math.min(selectedPoll.options.length, 3)) ||
                                                         isSubmitting ||
-                                                        !isVotingAllowed
+                                                        !isVotingAllowed ||
+                                                        (votingContext.type === "self" && hasVoted)
                                                     }
                                                     className="bg-(--crimson) hover:bg-(--crimson-50) hover:text-(--crimson) hover:border-(--crimson) border text-white px-8"
                                                 >
@@ -1203,7 +1233,11 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     ) : (
                                                         <VoteIcon className="w-4 h-4 mr-2" />
                                                     )}
-                                                    {!isVotingAllowed ? "Voting Ended" : "Submit Vote"}
+                                                    {!isVotingAllowed 
+                                                        ? "Voting Ended" 
+                                                        : votingContext.type === "delegated"
+                                                            ? `Submit Vote for ${votingContext.delegatorName}`
+                                                            : "Submit Vote"}
                                                 </Button>
                                             </div>
                                         </>
@@ -1227,8 +1261,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     )}
 
-                                    {/* Delegated Voting Interface - always show for group polls (component handles empty state) */}
-                                    {/* Delegated voting is now handled via VotingContextSelector */}
+                                    {/* Voting Context Selector for group polls - ALWAYS render to load delegations */}
+                                    {selectedPoll.groupId && (
+                                        <VotingContextSelector
+                                            pollId={selectedPoll.id}
+                                            userId={user?.id || ""}
+                                            currentUserName={user?.name || user?.ename || "You"}
+                                            currentUserAvatar={user?.avatarUrl}
+                                            onContextChange={setVotingContext}
+                                            onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
+                                            disabled={!isVotingAllowed}
+                                            refreshTrigger={delegationRefreshKey}
+                                            hasVotedForSelf={hasVoted}
+                                        />
+                                    )}
 
                                     {/* For public polls, show different interface based on voting status */}
                                     {/* Show voting UI if user hasn't voted OR if they have pending delegations */}
@@ -1391,21 +1437,6 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Voting Context Selector for group polls */}
-                                            {selectedPoll.groupId && (
-                                                <VotingContextSelector
-                                                    pollId={selectedPoll.id}
-                                                    userId={user?.id || ""}
-                                                    currentUserName={user?.name || user?.ename || "You"}
-                                                    currentUserAvatar={user?.avatarUrl}
-                                                    onContextChange={setVotingContext}
-                                                    onDelegationsLoaded={(d) => setActiveDelegationCount(d.length)}
-                                                    disabled={!isVotingAllowed}
-                                                    refreshTrigger={delegationRefreshKey}
-                                                    hasVotedForSelf={hasVoted}
-                                                />
-                                            )}
-
                                             {/* Show that user has voted when they still have delegations */}
                                             {hasVoted && activeDelegationCount > 0 && (
                                                 <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
