@@ -15,13 +15,14 @@ export class CurrencyController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const { name, description, groupId, allowNegative, maxNegativeBalance } = req.body;
+            const { name, description, groupId, allowNegative, maxNegativeBalance, allowNegativeGroupOnly } = req.body;
 
             if (!name || !groupId) {
                 return res.status(400).json({ error: "Name and groupId are required" });
             }
 
             const allowNegativeFlag = Boolean(allowNegative);
+            const allowNegativeGroupOnlyFlag = Boolean(allowNegativeGroupOnly);
             let normalizedMaxNegative: number | null = null;
 
             if (maxNegativeBalance !== undefined && maxNegativeBalance !== null && maxNegativeBalance !== "") {
@@ -48,7 +49,8 @@ export class CurrencyController {
                 req.user.id,
                 allowNegativeFlag,
                 normalizedMaxNegative,
-                description
+                description,
+                allowNegativeGroupOnlyFlag
             );
 
             res.status(201).json({
@@ -58,6 +60,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -81,6 +84,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -108,6 +112,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -130,6 +135,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,

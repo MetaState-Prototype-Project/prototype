@@ -234,5 +234,18 @@ export class GroupService {
         if (!group) return false;
         return group.admins.some(admin => admin.id === userId);
     }
+
+    async isUserInGroup(groupId: string, userId: string): Promise<boolean> {
+        const group = await this.groupRepository.findOne({
+            where: { id: groupId },
+            relations: ["members", "participants", "admins"]
+        });
+        if (!group) return false;
+        
+        // Check if user is a member, participant, or admin
+        return group.members.some(m => m.id === userId) ||
+               group.participants.some(p => p.id === userId) ||
+               group.admins.some(a => a.id === userId);
+    }
 }
 

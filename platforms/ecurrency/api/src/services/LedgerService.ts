@@ -5,15 +5,18 @@ import { Currency } from "../database/entities/Currency";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { TransactionNotificationService } from "./TransactionNotificationService";
+import { GroupService } from "./GroupService";
 import crypto from "crypto";
 
 export class LedgerService {
     ledgerRepository: Repository<Ledger>;
     currencyRepository: Repository<Currency>;
+    groupService: GroupService;
 
     constructor() {
         this.ledgerRepository = AppDataSource.getRepository(Ledger);
         this.currencyRepository = AppDataSource.getRepository(Currency);
+        this.groupService = new GroupService();
     }
 
     private computeHash(payload: any): string {
@@ -133,14 +136,40 @@ export class LedgerService {
         const currentBalance = await this.getAccountBalance(currencyId, fromAccountId, fromAccountType);
 
         // Validate debit bounds
-        if (!currency.allowNegative && currentBalance < amount) {
-            throw new Error("Insufficient balance. This currency does not allow negative balances.");
-        }
+        // First check if overdraft is restricted to group members only
+        if (currency.allowNegativeGroupOnly && fromAccountType === AccountType.USER) {
+            // Check if the user is a member of the currency's group
+            const isMember = await this.groupService.isUserInGroup(currency.groupId, fromAccountId);
+            
+            if (!isMember) {
+                // User is not a group member, so they cannot go negative
+                if (currentBalance < amount) {
+                    throw new Error("Insufficient balance. Only group members can have negative balances for this currency.");
+                }
+            } else {
+                // User is a group member, apply normal negative balance rules
+                if (!currency.allowNegative && currentBalance < amount) {
+                    throw new Error("Insufficient balance. This currency does not allow negative balances.");
+                }
 
-        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
-            const newBalance = currentBalance - amount;
-            if (newBalance < Number(currency.maxNegativeBalance)) {
-                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+                if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+                    const newBalance = currentBalance - amount;
+                    if (newBalance < Number(currency.maxNegativeBalance)) {
+                        throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+                    }
+                }
+            }
+        } else {
+            // Normal validation for non-restricted overdraft
+            if (!currency.allowNegative && currentBalance < amount) {
+                throw new Error("Insufficient balance. This currency does not allow negative balances.");
+            }
+
+            if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+                const newBalance = currentBalance - amount;
+                if (newBalance < Number(currency.maxNegativeBalance)) {
+                    throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+                }
             }
         }
 
