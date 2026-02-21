@@ -47,6 +47,10 @@ export class CurrencyService {
             }
         }
 
+        if (allowNegativeGroupOnly && !allowNegative) {
+            throw new Error("Cannot restrict overdraft to group members when negative balances are disabled");
+        }
+
         const currency = this.currencyRepository.create({
             name,
             description,

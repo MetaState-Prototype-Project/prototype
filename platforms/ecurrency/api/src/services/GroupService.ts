@@ -242,8 +242,9 @@ export class GroupService {
         });
         if (!group) return false;
         
-        // Check if user is a member, participant, or admin
-        return group.members.some(m => m.id === userId) ||
+        // Check if user is the owner, a member, participant, or admin
+        return group.owner === userId ||
+               group.members.some(m => m.id === userId) ||
                group.participants.some(p => p.id === userId) ||
                group.admins.some(a => a.id === userId);
     }
