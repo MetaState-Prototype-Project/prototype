@@ -51,6 +51,7 @@ export class LedgerController {
                         name: b.currency.name,
                         ename: b.currency.ename,
                         allowNegative: b.currency.allowNegative,
+                        allowNegativeGroupOnly: b.currency.allowNegativeGroupOnly,
                     },
                     balance: b.balance,
                 })));

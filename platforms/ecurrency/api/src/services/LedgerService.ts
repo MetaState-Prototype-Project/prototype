@@ -5,15 +5,18 @@ import { Currency } from "../database/entities/Currency";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
 import { TransactionNotificationService } from "./TransactionNotificationService";
+import { GroupService } from "./GroupService";
 import crypto from "crypto";
 
 export class LedgerService {
     ledgerRepository: Repository<Ledger>;
     currencyRepository: Repository<Currency>;
+    groupService: GroupService;
 
     constructor() {
         this.ledgerRepository = AppDataSource.getRepository(Ledger);
         this.currencyRepository = AppDataSource.getRepository(Currency);
+        this.groupService = new GroupService();
     }
 
     private computeHash(payload: any): string {
@@ -26,6 +29,23 @@ export class LedgerService {
             order: { createdAt: "DESC", id: "DESC" },
         });
         return prev?.hash ?? null;
+    }
+
+    /**
+     * Validates whether a debit of `amount` from `currentBalance` is allowed
+     * given the currency's negative-balance settings.
+     */
+    private validateNegativeAllowance(currency: Currency, currentBalance: number, amount: number): void {
+        if (!currency.allowNegative && currentBalance < amount) {
+            throw new Error("Insufficient balance. This currency does not allow negative balances.");
+        }
+
+        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
+            const newBalance = currentBalance - amount;
+            if (newBalance < Number(currency.maxNegativeBalance)) {
+                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+            }
+        }
     }
 
     async getAccountBalance(currencyId: string, accountId: string, accountType: AccountType): Promise<number> {
@@ -132,16 +152,23 @@ export class LedgerService {
 
         const currentBalance = await this.getAccountBalance(currencyId, fromAccountId, fromAccountType);
 
-        // Validate debit bounds
-        if (!currency.allowNegative && currentBalance < amount) {
-            throw new Error("Insufficient balance. This currency does not allow negative balances.");
-        }
+        // Validate debit bounds.
+        // When allowNegativeGroupOnly is true, only group members may overdraft;
+        // non-members are limited to their current balance. Note: the invariant
+        // allowNegativeGroupOnly ⇒ allowNegative is enforced at creation time
+        // in CurrencyService.createCurrency.
+        if (currency.allowNegativeGroupOnly && fromAccountType === AccountType.USER) {
+            const isMember = await this.groupService.isUserInGroup(currency.groupId, fromAccountId);
 
-        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
-            const newBalance = currentBalance - amount;
-            if (newBalance < Number(currency.maxNegativeBalance)) {
-                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
+            if (!isMember) {
+                if (currentBalance < amount) {
+                    throw new Error("Insufficient balance. Only group members can have negative balances for this currency.");
+                }
+            } else {
+                this.validateNegativeAllowance(currency, currentBalance, amount);
             }
+        } else {
+            this.validateNegativeAllowance(currency, currentBalance, amount);
         }
 
         // Create debit entry (from sender's account)
