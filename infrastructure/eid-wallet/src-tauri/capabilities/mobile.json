@@ -14,7 +14,7 @@
     "barcode-scanner:allow-open-app-settings",
     "deep-link:default",
     "crypto-hw:default",
-    "notification:default",
+    "notifications:default",
     "process:default",
     "opener:allow-default-urls"
   ],

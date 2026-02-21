@@ -4,7 +4,8 @@ import {
     isPermissionGranted,
     requestPermission,
     sendNotification,
-} from "@tauri-apps/plugin-notification";
+    registerForPushNotifications,
+} from "@choochmeque/tauri-plugin-notifications-api";
 
 export interface DeviceRegistration {
     eName: string;
@@ -341,17 +342,27 @@ class NotificationService {
     }
 
     /**
-     * Get FCM token for push notifications (mobile only)
+     * Get push notification token (FCM on Android, APNs on iOS)
      */
     private async getFCMToken(): Promise<string | undefined> {
         try {
-            // This would need to be implemented with Firebase SDK
-            // For now, return undefined as we're focusing on local notifications
-            return undefined;
+            return await registerForPushNotifications();
         } catch (error) {
-            console.error("Failed to get FCM token:", error);
+            console.error("Failed to get push notification token:", error);
             return undefined;
         }
+    }
+
+    /**
+     * Request permissions and get push notification token (FCM on Android, APNs on iOS).
+     * Returns undefined on desktop or if permission is denied.
+     */
+    async getPushToken(): Promise<string | undefined> {
+        const hasPermission = await this.requestPermissions();
+        if (!hasPermission) return undefined;
+        const platform = await this.getPlatform();
+        if (platform !== "android" && platform !== "ios") return undefined;
+        return this.getFCMToken();
     }
     /**
      * Get eName from vault (helper method)
