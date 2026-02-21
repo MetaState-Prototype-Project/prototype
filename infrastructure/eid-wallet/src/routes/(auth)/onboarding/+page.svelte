@@ -6,6 +6,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import NotificationService from "$lib/services/NotificationService";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import * as falso from "@ngneat/falso";
@@ -16,6 +17,9 @@ import { provision } from "wallet-sdk";
 
 let isPaneOpen = $state(false);
 let preVerified = $state(false);
+let pushToken = $state<string | undefined>(undefined);
+let pushTokenError = $state<string | undefined>(undefined);
+let pushTokenLoading = $state(true);
 let loading = $state(false);
 let verificationId = $state("");
 let demoName = $state("");
@@ -125,6 +129,16 @@ onMount(async () => {
 
     // Don't initialize key manager here - wait until user chooses their path
 
+    // Fetch push notification token for display (Android/iOS)
+    try {
+        pushToken = await NotificationService.getInstance().getPushToken();
+        if (!pushToken) pushTokenError = "No token (desktop or permission denied)";
+    } catch (e) {
+        pushTokenError = e instanceof Error ? e.message : "Failed to get push token";
+    } finally {
+        pushTokenLoading = false;
+    }
+
     handleContinue = async () => {
         // Require both verification code and name
         if (
@@ -209,6 +223,16 @@ onMount(async () => {
 <main
     class="h-full pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
 >
+    <section class="mb-4 p-2 rounded bg-gray-100 text-xs">
+        <p class="font-medium text-gray-600 mb-1">Push token (FCM/APNs):</p>
+        {#if pushTokenLoading}
+            <span class="text-gray-500">Loading...</span>
+        {:else if pushToken}
+            <code class="block break-all text-gray-800">{pushToken}</code>
+        {:else}
+            <span class="text-amber-600">{pushTokenError ?? "—"}</span>
+        {/if}
+    </section>
     <article class="flex justify-center mb-4">
         <img
             class="w-[88vw] h-[39svh]"
