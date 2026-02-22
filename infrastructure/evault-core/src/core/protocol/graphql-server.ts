@@ -813,21 +813,91 @@ export class GraphQLServer {
                             };
                         }
 
+                        const VALID_BINDING_DOCUMENT_TYPES = [
+                            "id_document",
+                            "photograph",
+                            "social_connection",
+                            "self",
+                        ] as const;
+                        type ValidType =
+                            (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
+                        if (
+                            !VALID_BINDING_DOCUMENT_TYPES.includes(
+                                input.type as ValidType,
+                            )
+                        ) {
+                            return {
+                                bindingDocument: null,
+                                metaEnvelopeId: null,
+                                errors: [
+                                    {
+                                        message: `Invalid binding document type: "${input.type}". Must be one of: ${VALID_BINDING_DOCUMENT_TYPES.join(", ")}`,
+                                        code: "INVALID_TYPE",
+                                    },
+                                ],
+                            };
+                        }
+
                         try {
                             const result =
                                 await this.bindingDocumentService.createBindingDocument(
                                     {
                                         subject: input.subject,
-                                        type: input.type as any,
+                                        type: input.type as ValidType,
                                         data: input.data,
                                         ownerSignature: input.ownerSignature,
                                     },
                                     context.eName,
                                 );
 
+                            const metaEnvelopeId = result.id;
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id: metaEnvelopeId,
+                                ontology:
+                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                payload: result.bindingDocument as unknown as Record<string, unknown>,
+                            });
+
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId,
+                                    envelopeHash,
+                                    operation: "create",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology:
+                                        "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (createBindingDocument) failed:",
+                                        err,
+                                    ),
+                                );
+
+                            const requestingPlatform =
+                                context.tokenPayload?.platform || null;
+                            const webhookPayload = {
+                                id: metaEnvelopeId,
+                                w3id: context.eName,
+                                evaultPublicKey: this.evaultPublicKey,
+                                data: result.bindingDocument,
+                                schemaId:
+                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                            };
+                            setTimeout(() => {
+                                this.deliverWebhooks(
+                                    requestingPlatform,
+                                    webhookPayload,
+                                );
+                            }, 3_000);
+
                             return {
                                 bindingDocument: result.bindingDocument,
-                                metaEnvelopeId: result.id,
+                                metaEnvelopeId,
                                 errors: [],
                             };
                         } catch (error) {
@@ -890,6 +960,50 @@ export class GraphQLServer {
                                     },
                                     context.eName,
                                 );
+
+                            const platform =
+                                context.tokenPayload?.platform ?? null;
+                            const envelopeHash = computeEnvelopeHash({
+                                id: input.bindingDocumentId,
+                                ontology:
+                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                payload: result as unknown as Record<string, unknown>,
+                            });
+
+                            this.db
+                                .appendEnvelopeOperationLog({
+                                    eName: context.eName,
+                                    metaEnvelopeId: input.bindingDocumentId,
+                                    envelopeHash,
+                                    operation: "update",
+                                    platform,
+                                    timestamp: new Date().toISOString(),
+                                    ontology:
+                                        "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                })
+                                .catch((err) =>
+                                    console.error(
+                                        "appendEnvelopeOperationLog (createBindingDocumentSignature) failed:",
+                                        err,
+                                    ),
+                                );
+
+                            const requestingPlatform =
+                                context.tokenPayload?.platform || null;
+                            const webhookPayload = {
+                                id: input.bindingDocumentId,
+                                w3id: context.eName,
+                                evaultPublicKey: this.evaultPublicKey,
+                                data: result,
+                                schemaId:
+                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                            };
+                            setTimeout(() => {
+                                this.deliverWebhooks(
+                                    requestingPlatform,
+                                    webhookPayload,
+                                );
+                            }, 3_000);
 
                             return {
                                 bindingDocument: result,

@@ -21,10 +21,12 @@ export interface BindingDocumentPhotographData {
 }
 
 export interface BindingDocumentSocialConnectionData {
+    kind: "social_connection";
     name: string;
 }
 
 export interface BindingDocumentSelfData {
+    kind: "self";
     name: string;
 }
 

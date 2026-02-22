@@ -15,21 +15,7 @@
         },
         "data": {
             "type": "object",
-            "description": "Format dependent payload for the binding document",
-            "oneOf": [
-                {
-                    "$ref": "#/definitions/IdDocumentData"
-                },
-                {
-                    "$ref": "#/definitions/PhotographData"
-                },
-                {
-                    "$ref": "#/definitions/SocialConnectionData"
-                },
-                {
-                    "$ref": "#/definitions/SelfData"
-                }
-            ]
+            "description": "Format dependent payload for the binding document"
         },
         "signatures": {
             "type": "array",
@@ -39,6 +25,44 @@
             }
         }
     },
+    "allOf": [
+        {
+            "if": {
+                "properties": { "type": { "const": "id_document" } },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": { "data": { "$ref": "#/definitions/IdDocumentData" } }
+            }
+        },
+        {
+            "if": {
+                "properties": { "type": { "const": "photograph" } },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": { "data": { "$ref": "#/definitions/PhotographData" } }
+            }
+        },
+        {
+            "if": {
+                "properties": { "type": { "const": "social_connection" } },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": { "data": { "$ref": "#/definitions/SocialConnectionData" } }
+            }
+        },
+        {
+            "if": {
+                "properties": { "type": { "const": "self" } },
+                "required": ["type"]
+            },
+            "then": {
+                "properties": { "data": { "$ref": "#/definitions/SelfData" } }
+            }
+        }
+    ],
     "definitions": {
         "IdDocumentData": {
             "type": "object",
@@ -73,23 +97,33 @@
         "SocialConnectionData": {
             "type": "object",
             "properties": {
+                "kind": {
+                    "type": "string",
+                    "const": "social_connection",
+                    "description": "Discriminant for social connection data"
+                },
                 "name": {
                     "type": "string",
                     "description": "Name of the social connection"
                 }
             },
-            "required": ["name"],
+            "required": ["kind", "name"],
             "additionalProperties": false
         },
         "SelfData": {
             "type": "object",
             "properties": {
+                "kind": {
+                    "type": "string",
+                    "const": "self",
+                    "description": "Discriminant for self data"
+                },
                 "name": {
                     "type": "string",
                     "description": "Self-declared name"
                 }
             },
-            "required": ["name"],
+            "required": ["kind", "name"],
             "additionalProperties": false
         },
         "Signature": {

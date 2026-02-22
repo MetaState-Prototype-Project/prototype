@@ -5,7 +5,10 @@ import {
 import neo4j, { type Driver } from "neo4j-driver";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DbService } from "../core/db/db.service";
+import { computeEnvelopeHash } from "../core/db/envelope-hash";
 import { BindingDocumentService } from "./BindingDocumentService";
+
+const BINDING_DOCUMENT_ONTOLOGY = "b1d0a8c3-4e5f-6789-0abc-def012345678";
 
 describe("BindingDocumentService (integration)", () => {
     let container: StartedNeo4jContainer;
@@ -97,6 +100,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "test-user-123",
                     type: "social_connection",
                     data: {
+                        kind: "social_connection",
                         name: "Alice Smith",
                     },
                     ownerSignature: {
@@ -110,6 +114,7 @@ describe("BindingDocumentService (integration)", () => {
 
             expect(result.bindingDocument.type).toBe("social_connection");
             expect(result.bindingDocument.data).toEqual({
+                kind: "social_connection",
                 name: "Alice Smith",
             });
         });
@@ -120,6 +125,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "test-user-123",
                     type: "self",
                     data: {
+                        kind: "self",
                         name: "Bob Jones",
                     },
                     ownerSignature: {
@@ -133,6 +139,7 @@ describe("BindingDocumentService (integration)", () => {
 
             expect(result.bindingDocument.type).toBe("self");
             expect(result.bindingDocument.data).toEqual({
+                kind: "self",
                 name: "Bob Jones",
             });
         });
@@ -143,6 +150,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "test-user-456",
                     type: "self",
                     data: {
+                        kind: "self",
                         name: "Test User",
                     },
                     ownerSignature: {
@@ -163,6 +171,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "@already-prefixed",
                     type: "self",
                     data: {
+                        kind: "self",
                         name: "Prefixed User",
                     },
                     ownerSignature: {
@@ -176,6 +185,51 @@ describe("BindingDocumentService (integration)", () => {
 
             expect(result.bindingDocument.subject).toBe("@already-prefixed");
         });
+
+        it("should have an audit log entry after creating a binding document", async () => {
+            const result = await bindingDocumentService.createBindingDocument(
+                {
+                    subject: "test-user-audit",
+                    type: "id_document",
+                    data: {
+                        vendor: "audit-vendor",
+                        reference: "audit-ref",
+                        name: "Audit User",
+                    },
+                    ownerSignature: {
+                        signer: TEST_ENAME,
+                        signature: "sig-audit",
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            const envelopeHash = computeEnvelopeHash({
+                id: result.id,
+                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                payload: result.bindingDocument as unknown as Record<string, unknown>,
+            });
+            await dbService.appendEnvelopeOperationLog({
+                eName: TEST_ENAME,
+                metaEnvelopeId: result.id,
+                envelopeHash,
+                operation: "create",
+                platform: null,
+                timestamp: new Date().toISOString(),
+                ontology: BINDING_DOCUMENT_ONTOLOGY,
+            });
+
+            const logs = await dbService.getEnvelopeOperationLogs(TEST_ENAME, {
+                limit: 10,
+            });
+            expect(logs.logs.length).toBeGreaterThan(0);
+            const entry = logs.logs.find(
+                (l) => l.metaEnvelopeId === result.id,
+            );
+            expect(entry).toBeDefined();
+            expect(entry?.operation).toBe("create");
+        });
     });
 
     describe("getBindingDocument", () => {
@@ -185,6 +239,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "test-user-123",
                     type: "self",
                     data: {
+                        kind: "self",
                         name: "Retrieve Test",
                     },
                     ownerSignature: {
@@ -242,6 +297,7 @@ describe("BindingDocumentService (integration)", () => {
                     subject: "test-user-123",
                     type: "self",
                     data: {
+                        kind: "self",
                         name: "Signature Test",
                     },
                     ownerSignature: {
@@ -289,6 +345,66 @@ describe("BindingDocumentService (integration)", () => {
                 ),
             ).rejects.toThrow("Binding document not found");
         });
+
+        it("should have an audit log entry after adding a counterparty signature", async () => {
+            // For social_connection, the counterparty signer must equal the document's subject
+            const counterpartyEName = "@test-user-countersign-audit";
+            const created = await bindingDocumentService.createBindingDocument(
+                {
+                    subject: counterpartyEName,
+                    type: "social_connection",
+                    data: {
+                        kind: "social_connection",
+                        name: "CounterSign Audit",
+                    },
+                    ownerSignature: {
+                        signer: TEST_ENAME,
+                        signature: "sig-owner-countersign",
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            const updated =
+                await bindingDocumentService.addCounterpartySignature(
+                    {
+                        metaEnvelopeId: created.id,
+                        signature: {
+                            signer: counterpartyEName,
+                            signature: "sig-counter-audit",
+                            timestamp: new Date().toISOString(),
+                        },
+                    },
+                    TEST_ENAME,
+                );
+
+            const envelopeHash = computeEnvelopeHash({
+                id: created.id,
+                ontology: BINDING_DOCUMENT_ONTOLOGY,
+                payload: updated as unknown as Record<string, unknown>,
+            });
+            await dbService.appendEnvelopeOperationLog({
+                eName: TEST_ENAME,
+                metaEnvelopeId: created.id,
+                envelopeHash,
+                operation: "update",
+                platform: null,
+                timestamp: new Date().toISOString(),
+                ontology: BINDING_DOCUMENT_ONTOLOGY,
+            });
+
+            const logs = await dbService.getEnvelopeOperationLogs(TEST_ENAME, {
+                limit: 20,
+            });
+            expect(logs.logs.length).toBeGreaterThan(0);
+            const entry = logs.logs.find(
+                (l) =>
+                    l.metaEnvelopeId === created.id && l.operation === "update",
+            );
+            expect(entry).toBeDefined();
+            expect(entry?.operation).toBe("update");
+        });
     });
 
     describe("findBindingDocuments", () => {
@@ -297,7 +413,7 @@ describe("BindingDocumentService (integration)", () => {
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: { name: "Find Test 1" },
+                    data: { kind: "self", name: "Find Test 1" },
                     ownerSignature: {
                         signer: TEST_ENAME,
                         signature: "sig1",
@@ -338,7 +454,7 @@ describe("BindingDocumentService (integration)", () => {
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: { name: "Type Filter Test" },
+                    data: { kind: "self", name: "Type Filter Test" },
                     ownerSignature: {
                         signer: TEST_ENAME,
                         signature: "sig-type-filter",
@@ -353,6 +469,7 @@ describe("BindingDocumentService (integration)", () => {
                 { type: "id_document" },
             );
 
+            expect(result.edges.length).toBeGreaterThan(0);
             for (const edge of result.edges) {
                 expect(edge.node.parsed?.type).toBe("id_document");
             }

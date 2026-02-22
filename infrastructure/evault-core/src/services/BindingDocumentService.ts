@@ -4,11 +4,74 @@ import type { MetaEnvelopeConnection } from "../core/db/types";
 import type {
     BindingDocument,
     BindingDocumentData,
+    BindingDocumentIdDocumentData,
+    BindingDocumentPhotographData,
+    BindingDocumentSelfData,
     BindingDocumentSignature,
+    BindingDocumentSocialConnectionData,
     BindingDocumentType,
 } from "../core/types/binding-document";
 
 const BINDING_DOCUMENT_ONTOLOGY = "b1d0a8c3-4e5f-6789-0abc-def012345678";
+
+export class ValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "ValidationError";
+    }
+}
+
+function validateBindingDocumentData(
+    type: BindingDocumentType,
+    data: unknown,
+): BindingDocumentData {
+    if (typeof data !== "object" || data === null) {
+        throw new ValidationError("Binding document data must be an object");
+    }
+    const d = data as Record<string, unknown>;
+    switch (type) {
+        case "id_document": {
+            if (
+                typeof d.vendor !== "string" ||
+                typeof d.reference !== "string" ||
+                typeof d.name !== "string"
+            ) {
+                throw new ValidationError(
+                    'id_document data must have string fields: vendor, reference, name',
+                );
+            }
+            return { vendor: d.vendor, reference: d.reference, name: d.name } as BindingDocumentIdDocumentData;
+        }
+        case "photograph": {
+            if (typeof d.photoBlob !== "string") {
+                throw new ValidationError(
+                    'photograph data must have string field: photoBlob',
+                );
+            }
+            return { photoBlob: d.photoBlob } as BindingDocumentPhotographData;
+        }
+        case "social_connection": {
+            if (typeof d.name !== "string") {
+                throw new ValidationError(
+                    'social_connection data must have string field: name',
+                );
+            }
+            return { kind: "social_connection", name: d.name } as BindingDocumentSocialConnectionData;
+        }
+        case "self": {
+            if (typeof d.name !== "string") {
+                throw new ValidationError(
+                    'self data must have string field: name',
+                );
+            }
+            return { kind: "self", name: d.name } as BindingDocumentSelfData;
+        }
+        default: {
+            const _exhaustive: never = type;
+            throw new ValidationError(`Unknown binding document type: ${_exhaustive}`);
+        }
+    }
+}
 
 export interface CreateBindingDocumentInput {
     subject: string;
@@ -35,10 +98,12 @@ export class BindingDocumentService {
     ): Promise<{ id: string; bindingDocument: BindingDocument }> {
         const normalizedSubject = this.normalizeSubject(input.subject);
 
+        const validatedData = validateBindingDocumentData(input.type, input.data);
+
         const bindingDocument: BindingDocument = {
             subject: normalizedSubject,
             type: input.type,
-            data: input.data,
+            data: validatedData,
             signatures: [input.ownerSignature],
         };
 
@@ -76,6 +141,25 @@ export class BindingDocumentService {
         }
 
         const bindingDocument = metaEnvelope.parsed as BindingDocument;
+
+        // For social_connection documents the counterparty must be the subject
+        if (bindingDocument.type === "social_connection") {
+            if (input.signature.signer !== bindingDocument.subject) {
+                throw new Error(
+                    `Signer "${input.signature.signer}" is not the expected counterparty "${bindingDocument.subject}"`,
+                );
+            }
+        }
+
+        // Prevent duplicate signatures from the same signer
+        const alreadySigned = bindingDocument.signatures.some(
+            (sig) => sig.signer === input.signature.signer,
+        );
+        if (alreadySigned) {
+            throw new Error(
+                `Signer "${input.signature.signer}" has already signed this binding document`,
+            );
+        }
 
         const updatedBindingDocument: BindingDocument = {
             ...bindingDocument,
@@ -132,6 +216,16 @@ export class BindingDocumentService {
             await this.db.findMetaEnvelopesPaginated<BindingDocument>(eName, {
                 filter: {
                     ontologyId: BINDING_DOCUMENT_ONTOLOGY,
+                    ...(type
+                        ? {
+                              search: {
+                                  term: type,
+                                  fields: ["type"],
+                                  mode: "EXACT",
+                                  caseSensitive: true,
+                              },
+                          }
+                        : {}),
                 },
                 first,
                 after,
@@ -139,18 +233,6 @@ export class BindingDocumentService {
                 before,
             });
 
-        if (!type) {
-            return result as MetaEnvelopeConnection<BindingDocument>;
-        }
-
-        const filteredEdges = result.edges.filter((edge) => {
-            return edge.node.parsed?.type === type;
-        });
-
-        return {
-            ...result,
-            edges: filteredEdges,
-            totalCount: filteredEdges.length,
-        };
+        return result as MetaEnvelopeConnection<BindingDocument>;
     }
 }
