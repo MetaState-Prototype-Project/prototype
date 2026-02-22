@@ -244,7 +244,9 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
             )}
             {fromCurrencyData && fromCurrencyData.allowNegative && (
               <p className="text-sm text-muted-foreground mt-1">
-                Negative balances are allowed for this currency
+                {fromCurrencyData.allowNegativeGroupOnly
+                  ? "Negative balances allowed for group members"
+                  : "Negative balances are allowed for this currency"}
               </p>
             )}
           </div>
@@ -350,15 +352,6 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
-            </div>
-          )}
-
-          {/* Mutation Error */}
-          {transferMutation.isError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {transferMutation.error instanceof Error
-                ? transferMutation.error.message
-                : "An error occurred while processing the transfer"}
             </div>
           )}
 
