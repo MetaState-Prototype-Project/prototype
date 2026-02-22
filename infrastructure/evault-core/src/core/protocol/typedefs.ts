@@ -138,6 +138,42 @@ export const typeDefs = /* GraphQL */ `
     }
 
     # ============================================================================
+    # Binding Document Types
+    # ============================================================================
+
+    enum BindingDocumentType {
+        id_document
+        photograph
+        social_connection
+        self
+    }
+
+    type BindingDocumentSignature {
+        signer: String!
+        signature: String!
+        timestamp: String!
+    }
+
+    type BindingDocument {
+        id: String!
+        subject: String!
+        type: BindingDocumentType!
+        data: JSON!
+        signatures: [BindingDocumentSignature!]!
+    }
+
+    type CreateBindingDocumentPayload {
+        bindingDocument: BindingDocument
+        metaEnvelopeId: String
+        errors: [UserError!]
+    }
+
+    type CreateBindingDocumentSignaturePayload {
+        bindingDocument: BindingDocument
+        errors: [UserError!]
+    }
+
+    # ============================================================================
     # Queries
     # ============================================================================
 
@@ -145,6 +181,23 @@ export const typeDefs = /* GraphQL */ `
         # --- NEW IDIOMATIC API ---
         "Retrieve a single MetaEnvelope by its ID"
         metaEnvelope(id: ID!): MetaEnvelope
+
+        "Retrieve a single BindingDocument by its ID"
+        bindingDocument(id: ID!): BindingDocument
+
+        "Retrieve BindingDocuments with pagination and optional filtering by type"
+        bindingDocuments(
+            "Filter by binding document type"
+            type: BindingDocumentType
+            "Number of items to return"
+            first: Int
+            "Cursor to start after"
+            after: String
+            "Number of items to return (backward pagination)"
+            last: Int
+            "Cursor to start before"
+            before: String
+        ): MetaEnvelopeConnection!
 
         "Retrieve MetaEnvelopes with pagination and optional filtering"
         metaEnvelopes(
@@ -187,6 +240,36 @@ export const typeDefs = /* GraphQL */ `
     }
 
     # ============================================================================
+    # Binding Document Inputs
+    # ============================================================================
+
+    input BindingDocumentSignatureInput {
+        signer: String!
+        signature: String!
+        timestamp: String!
+    }
+
+    "Input for creating a binding document"
+    input CreateBindingDocumentInput {
+        "The subject's eName (will be normalized to @ prefix if not provided)"
+        subject: String!
+        "The type of binding document"
+        type: BindingDocumentType!
+        "The data payload - must match the type"
+        data: JSON!
+        "The owner's signature"
+        ownerSignature: BindingDocumentSignatureInput!
+    }
+
+    "Input for adding a signature to an existing binding document"
+    input CreateBindingDocumentSignatureInput {
+        "The ID of the binding document to add the signature to"
+        bindingDocumentId: String!
+        "The signature to add"
+        signature: BindingDocumentSignatureInput!
+    }
+
+    # ============================================================================
     # Mutations
     # ============================================================================
 
@@ -208,6 +291,13 @@ export const typeDefs = /* GraphQL */ `
             "Skip webhook delivery (only allowed for migration platforms)"
             skipWebhooks: Boolean = false
         ): BulkCreateMetaEnvelopesPayload!
+
+        # --- Binding Document Mutations ---
+        "Create a new binding document"
+        createBindingDocument(input: CreateBindingDocumentInput!): CreateBindingDocumentPayload!
+
+        "Add a signature to an existing binding document"
+        createBindingDocumentSignature(input: CreateBindingDocumentSignatureInput!): CreateBindingDocumentSignaturePayload!
 
         # --- LEGACY API (preserved for backward compatibility) ---
         storeMetaEnvelope(input: MetaEnvelopeInput!): StoreMetaEnvelopeResult!

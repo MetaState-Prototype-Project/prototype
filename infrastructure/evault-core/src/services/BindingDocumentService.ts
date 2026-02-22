@@ -1,5 +1,7 @@
 import { W3IDBuilder } from "w3id";
 import type { DbService } from "../core/db/db.service";
+import type { FindMetaEnvelopesPaginatedOptions } from "../core/db/types";
+import type { MetaEnvelopeConnection } from "../core/db/types";
 import type {
     BindingDocument,
     BindingDocumentData,
@@ -115,5 +117,43 @@ export class BindingDocumentService {
         }
 
         return metaEnvelope.parsed as BindingDocument;
+    }
+
+    async findBindingDocuments(
+        eName: string,
+        options: {
+            type?: BindingDocumentType;
+            first?: number;
+            after?: string;
+            last?: number;
+            before?: string;
+        } = {},
+    ): Promise<MetaEnvelopeConnection<BindingDocument>> {
+        const { type, first, after, last, before } = options;
+
+        const result =
+            await this.db.findMetaEnvelopesPaginated<BindingDocument>(eName, {
+                filter: {
+                    ontologyId: BINDING_DOCUMENT_ONTOLOGY,
+                },
+                first,
+                after,
+                last,
+                before,
+            });
+
+        if (!type) {
+            return result as MetaEnvelopeConnection<BindingDocument>;
+        }
+
+        const filteredEdges = result.edges.filter((edge) => {
+            return edge.node.parsed?.type === type;
+        });
+
+        return {
+            ...result,
+            edges: filteredEdges,
+            totalCount: filteredEdges.length,
+        };
     }
 }
