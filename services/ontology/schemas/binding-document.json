@@ -4,11 +4,6 @@
     "title": "Binding Document",
     "type": "object",
     "properties": {
-        "id": {
-            "type": "string",
-            "format": "uuid",
-            "description": "The unique identifier for this binding document"
-        },
         "subject": {
             "type": "string",
             "description": "eName of the subject (pre-fixed with @)"
@@ -118,6 +113,6 @@
             "additionalProperties": false
         }
     },
-    "required": ["id", "subject", "type", "data", "signatures"],
+    "required": ["subject", "type", "data", "signatures"],
     "additionalProperties": false
 }

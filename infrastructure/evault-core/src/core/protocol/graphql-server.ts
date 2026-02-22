@@ -1,8 +1,7 @@
-import { type Server, createServer } from "http";
+import { Server } from "http";
 import axios from "axios";
 import type { GraphQLSchema } from "graphql";
-import { renderVoyagerPage } from "graphql-voyager/middleware";
-import { YogaInitialContext, createSchema, createYoga } from "graphql-yoga";
+import { createSchema, createYoga } from "graphql-yoga";
 import { getJWTHeader } from "w3id";
 import { BindingDocumentService } from "../../services/BindingDocumentService";
 import type { DbService } from "../db/db.service";
@@ -671,7 +670,7 @@ export class GraphQLServer {
                         const isEmoverMigration =
                             skipWebhooks &&
                             context.tokenPayload?.platform ===
-                                process.env.EMOVER_API_URL;
+                            process.env.EMOVER_API_URL;
 
                         // Only allow webhook skipping for authorized migration platforms
                         const shouldSkipWebhooks = isEmoverMigration;

@@ -1,4 +1,3 @@
-import { W3IDBuilder } from "w3id";
 import type { DbService } from "../core/db/db.service";
 import type { FindMetaEnvelopesPaginatedOptions } from "../core/db/types";
 import type { MetaEnvelopeConnection } from "../core/db/types";
@@ -34,11 +33,9 @@ export class BindingDocumentService {
         input: CreateBindingDocumentInput,
         eName: string,
     ): Promise<{ id: string; bindingDocument: BindingDocument }> {
-        const w3id = await new W3IDBuilder().build();
         const normalizedSubject = this.normalizeSubject(input.subject);
 
         const bindingDocument: BindingDocument = {
-            id: w3id.id,
             subject: normalizedSubject,
             type: input.type,
             data: input.data,

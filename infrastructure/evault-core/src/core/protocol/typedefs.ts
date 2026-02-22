@@ -155,7 +155,6 @@ export const typeDefs = /* GraphQL */ `
     }
 
     type BindingDocument {
-        id: String!
         subject: String!
         type: BindingDocumentType!
         data: JSON!

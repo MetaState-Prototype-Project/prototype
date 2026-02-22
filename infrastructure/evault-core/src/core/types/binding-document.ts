@@ -35,7 +35,6 @@ export type BindingDocumentData =
     | BindingDocumentSelfData;
 
 export interface BindingDocument {
-    id: string;
     subject: string;
     type: BindingDocumentType;
     data: BindingDocumentData;
