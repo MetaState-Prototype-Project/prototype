@@ -96,6 +96,16 @@ This flat graph structure allows:
 - More complex queries when reconstructing full objects
 - Potential performance impact with deeply nested structures
 
+### Binding Documents
+
+A **Binding Document** is a special type of MetaEnvelope that ties a user to their [eName](/docs/W3DS%20Basics/eName). It establishes identity verification or claims through cryptographic signatures. See [Binding Documents](/docs/W3DS%20Basics/Binding-Documents) for full details.
+
+Key characteristics:
+- **Stored as MetaEnvelope**: Binding documents use the same MetaEnvelope structure, with ontology ID `b1d0a8c3-4e5f-6789-0abc-def012345678`
+- **ID is MetaEnvelope ID**: The binding document is identified by its MetaEnvelope ID (no separate ID field)
+- **Always signed**: Owner signature is required; counterparty signatures can be added
+- **Types**: `id_document`, `photograph`, `social_connection`, `self`
+
 ## GraphQL API
 
 eVault exposes a GraphQL API at `/graphql` for all data operations. All operations require the `X-ENAME` header to identify the eVault owner.
@@ -336,6 +346,155 @@ The `skipWebhooks` parameter only suppresses webhooks when:
 2. The requesting platform is authorized for migrations (e.g., Emover)
 
 For regular platform requests, webhooks are always delivered regardless of this parameter.
+
+### Binding Document Operations
+
+eVault provides dedicated GraphQL operations for managing [Binding Documents](/docs/W3DS%20Basics/Binding-Documents) — MetaEnvelopes that tie users to their eNames.
+
+#### bindingDocument Query
+
+Retrieve a single binding document by its MetaEnvelope ID.
+
+**Query**:
+```graphql
+query {
+  bindingDocument(id: "meta-envelope-id") {
+    subject
+    type
+    data
+    signatures {
+      signer
+      signature
+      timestamp
+    }
+  }
+}
+```
+
+#### bindingDocuments Query
+
+Retrieve binding documents with cursor-based pagination and optional filtering by type.
+
+**Query**:
+```graphql
+query {
+  bindingDocuments(
+    type: id_document
+    first: 10
+    after: "cursor-string"
+  ) {
+    edges {
+      cursor
+      node {
+        subject
+        type
+        data
+        signatures {
+          signer
+          signature
+          timestamp
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+```
+
+**Filter Options**:
+- `type`: Filter by binding document type (`id_document`, `photograph`, `social_connection`, `self`)
+
+**Pagination**:
+- `first` / `after`: Forward pagination
+- `last` / `before`: Backward pagination
+
+#### createBindingDocument Mutation
+
+Create a new binding document. This stores a MetaEnvelope with ontology `b1d0a8c3-4e5f-6789-0abc-def012345678`.
+
+**Mutation**:
+```graphql
+mutation {
+  createBindingDocument(input: {
+    subject: "@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a"
+    type: id_document
+    data: {
+      vendor: "onfido"
+      reference: "ref-12345"
+      name: "John Doe"
+    }
+    ownerSignature: {
+      signer: "@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a"
+      signature: "sig_abc123..."
+      timestamp: "2025-01-24T10:00:00Z"
+    }
+  }) {
+    metaEnvelopeId
+    bindingDocument {
+      subject
+      type
+      data
+      signatures {
+        signer
+        signature
+        timestamp
+      }
+    }
+    errors {
+      message
+      code
+    }
+  }
+}
+```
+
+**Input fields**:
+- `subject`: The eName being bound (will be normalized to include `@` prefix)
+- `type`: One of `id_document`, `photograph`, `social_connection`, `self`
+- `data`: Type-specific payload (see [Binding Documents](/docs/W3DS%20Basics/Binding-Documents))
+- `ownerSignature`: Required signature from the subject
+
+#### createBindingDocumentSignature Mutation
+
+Add a signature to an existing binding document. Used for counterparty verification.
+
+**Mutation**:
+```graphql
+mutation {
+  createBindingDocumentSignature(input: {
+    bindingDocumentId: "meta-envelope-id"
+    signature: {
+      signer: "@counterparty-uuid"
+      signature: "sig_counterparty_xyz..."
+      timestamp: "2025-01-24T11:00:00Z"
+    }
+  }) {
+    bindingDocument {
+      subject
+      type
+      signatures {
+        signer
+        signature
+        timestamp
+      }
+    }
+    errors {
+      message
+      code
+    }
+  }
+}
+```
+
+**Input fields**:
+- `bindingDocumentId`: The MetaEnvelope ID of the binding document
+- `signature`: The signature to add (signer, signature, timestamp)
 
 ### Legacy API
 
