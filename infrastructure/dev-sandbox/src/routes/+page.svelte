@@ -14,20 +14,30 @@ import {
     syncPublicKeyToEvaultWithOptions,
 } from "wallet-sdk";
 
-// Ontology explorer: runtime server URL config
+// Config storage keys
 const ONTOLOGY_URL_STORAGE_KEY = "dev-sandbox-ontology-url";
-let ontologyUrl: string = $state(env.PUBLIC_ONTOLOGY_URL ?? "https://ontology.w3ds.metastate.foundation");
+const REGISTRY_URL_STORAGE_KEY = "dev-sandbox-registry-url";
+const PROVISIONER_URL_STORAGE_KEY = "dev-sandbox-provisioner-url";
+
+const DEFAULT_ONTOLOGY_URL = env.PUBLIC_ONTOLOGY_URL ?? "https://ontology.w3ds.metastate.foundation";
+const DEFAULT_REGISTRY_URL = env.PUBLIC_REGISTRY_URL ?? "https://registry.w3ds.metastate.foundation";
+const DEFAULT_PROVISIONER_URL = env.PUBLIC_PROVISIONER_URL ?? "https://provisioner.w3ds.metastate.foundation";
+
+let ontologyUrl: string = $state(DEFAULT_ONTOLOGY_URL);
+let registryUrl: string = $state(DEFAULT_REGISTRY_URL);
+let provisionerUrl: string = $state(DEFAULT_PROVISIONER_URL);
+
+const config = $derived({
+    registryUrl,
+    provisionerUrl,
+    platformName: env.PUBLIC_DEV_SANDBOX_PLATFORM_NAME ?? "dev-sandbox",
+});
+
 let ontologies: { id: string; title: string }[] = $state([]);
 let selectedOntologyId: string | null = $state(null);
 let inspectorEName: string = $state("");
 let schemasLoading = $state(false);
 let schemasError: string | null = $state(null);
-
-const config = {
-    registryUrl: env.PUBLIC_REGISTRY_URL ?? "http://localhost:3001",
-    provisionerUrl: env.PUBLIC_PROVISIONER_URL ?? "http://localhost:4321",
-    platformName: env.PUBLIC_DEV_SANDBOX_PLATFORM_NAME ?? "dev-sandbox",
-};
 
 /** Demo verification code accepted by evault-core when DEMO_CODE_W3DS is set. */
 const DEMO_VERIFICATION_ID = "d66b7138-538a-465f-a6ce-f6985854c3f4";
@@ -161,7 +171,7 @@ async function ensurePlatformToken(identity: Identity): Promise<string> {
     return token;
 }
 
-// Init on client: load identities and restore ontology URL
+// Init on client: load identities and restore config URLs
 onMount(async () => {
     const list = loadIdentities();
     identities = list;
@@ -169,28 +179,28 @@ onMount(async () => {
         await adapter.hydrateFromStorage(list.map((i) => i.keyId));
     }
     if (browser) {
-        const saved = localStorage.getItem(ONTOLOGY_URL_STORAGE_KEY);
-        if (saved) {
-            ontologyUrl = saved;
-            await loadOntologies();
-        }
+        const savedOntology = localStorage.getItem(ONTOLOGY_URL_STORAGE_KEY);
+        if (savedOntology) ontologyUrl = savedOntology;
+        const savedRegistry = localStorage.getItem(REGISTRY_URL_STORAGE_KEY);
+        if (savedRegistry) registryUrl = savedRegistry;
+        const savedProvisioner = localStorage.getItem(PROVISIONER_URL_STORAGE_KEY);
+        if (savedProvisioner) provisionerUrl = savedProvisioner;
     }
     hydrated = true;
 });
 
-// persist ontology URL explicitly when changed via input
-function saveOntologyUrl(): void {
+function saveConfigUrls(): void {
     localStorage.setItem(ONTOLOGY_URL_STORAGE_KEY, ontologyUrl);
+    localStorage.setItem(REGISTRY_URL_STORAGE_KEY, registryUrl);
+    localStorage.setItem(PROVISIONER_URL_STORAGE_KEY, provisionerUrl);
 }
-// Debounce schema reload when ontologyUrl changes
-let urlDebounce: ReturnType<typeof setTimeout>;
-$effect(() => {
-    if (browser && hydrated && ontologyUrl) {
-        saveOntologyUrl();
-        clearTimeout(urlDebounce);
-        urlDebounce = setTimeout(() => loadOntologies(), 500);
-    }
-});
+
+function resetConfigUrls(): void {
+    ontologyUrl = DEFAULT_ONTOLOGY_URL;
+    registryUrl = DEFAULT_REGISTRY_URL;
+    provisionerUrl = DEFAULT_PROVISIONER_URL;
+    saveConfigUrls();
+}
 async function loadOntologies(): Promise<void> {
     if (!ontologyUrl) {
         schemasError = "Enter a valid ontology URL";
@@ -719,6 +729,13 @@ async function doSign() {
                 >
                     eVault Inspector
                 </button>
+                <button
+                    class:active={currentTab === "config"}
+                    type="button"
+                    onclick={() => (currentTab = "config")}
+                >
+                    Sandbox Config
+                </button>
             </nav>
 
             <div class="view view-sandbox" class:hidden={currentTab !== 'sandbox'}>
@@ -885,18 +902,6 @@ async function doSign() {
                             placeholder="Enter any eName"
                         />
                     </div>
-                    <div class="field">
-                        <label for="ontologyUrl"
-                            ><strong>Ontology server URL:</strong></label
-                        >
-                        <input
-                            id="ontologyUrl"
-                            type="text"
-                            bind:value={ontologyUrl}
-                            onchange={saveOntologyUrl}
-                            placeholder="https://..."
-                        />
-                    </div>
                     <div class="field" style="margin-top: 10px;">
                         <label for="ontologySelect"
                             ><strong>Select ontology:</strong></label
@@ -999,6 +1004,49 @@ async function doSign() {
                     </div>
                 {/if}
             {/if}
+            </div>
+
+            <div class="view view-config" class:hidden={currentTab !== 'config'}>
+                <section class="card">
+                    <h2>Sandbox Config</h2>
+                    <p class="config-hint">Custom URLs are saved to localStorage and take precedence over environment defaults.</p>
+                    <div class="field">
+                        <label for="configRegistry"><strong>Registry URL:</strong></label>
+                        <input
+                            id="configRegistry"
+                            type="text"
+                            bind:value={registryUrl}
+                            placeholder={DEFAULT_REGISTRY_URL}
+                        />
+                    </div>
+                    <div class="field">
+                        <label for="configProvisioner"><strong>Provisioner URL:</strong></label>
+                        <input
+                            id="configProvisioner"
+                            type="text"
+                            bind:value={provisionerUrl}
+                            placeholder={DEFAULT_PROVISIONER_URL}
+                        />
+                    </div>
+                    <div class="field">
+                        <label for="configOntology"><strong>Ontology URL:</strong></label>
+                        <input
+                            id="configOntology"
+                            type="text"
+                            bind:value={ontologyUrl}
+                            placeholder={DEFAULT_ONTOLOGY_URL}
+                        />
+                    </div>
+                    <div class="config-actions">
+                        <button onclick={saveConfigUrls}>Save</button>
+                        <button class="btn-secondary" onclick={resetConfigUrls}>Reset to defaults</button>
+                    </div>
+                    <div class="config-current">
+                        <p><span class="config-label">Registry:</span> <code>{registryUrl}</code></p>
+                        <p><span class="config-label">Provisioner:</span> <code>{provisionerUrl}</code></p>
+                        <p><span class="config-label">Ontology:</span> <code>{ontologyUrl}</code></p>
+                    </div>
+                </section>
             </div>
         </main>
 
@@ -1569,5 +1617,35 @@ async function doSign() {
         gap: 1rem;
         margin-top: 0.5rem;
         padding: 0.5rem 0;
+    }
+
+    .config-hint {
+        font-size: 0.82rem;
+        color: var(--muted, #64748b);
+        margin: 0 0 1rem;
+    }
+
+    .config-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+    }
+
+    .config-current {
+        margin-top: 1.25rem;
+        padding: 0.75rem 1rem;
+        background: var(--bg-page, #f0f2f5);
+        border-radius: 8px;
+        border: 1px solid var(--border, #e2e8f0);
+    }
+    .config-current p {
+        margin: 0.3rem 0;
+        font-size: 0.82rem;
+        word-break: break-all;
+    }
+    .config-label {
+        font-weight: 600;
+        color: var(--muted, #64748b);
+        margin-right: 0.35rem;
     }
 </style>
