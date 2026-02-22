@@ -1,0 +1,123 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "b1d0a8c3-4e5f-6789-0abc-def012345678",
+    "title": "Binding Document",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The unique identifier for this binding document"
+        },
+        "subject": {
+            "type": "string",
+            "description": "eName of the subject (pre-fixed with @)"
+        },
+        "type": {
+            "type": "string",
+            "enum": ["id_document", "photograph", "social_connection", "self"],
+            "description": "The type of binding document"
+        },
+        "data": {
+            "type": "object",
+            "description": "Format dependent payload for the binding document",
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/IdDocumentData"
+                },
+                {
+                    "$ref": "#/definitions/PhotographData"
+                },
+                {
+                    "$ref": "#/definitions/SocialConnectionData"
+                },
+                {
+                    "$ref": "#/definitions/SelfData"
+                }
+            ]
+        },
+        "signatures": {
+            "type": "array",
+            "description": "Array of signatures from the user and counterparties",
+            "items": {
+                "$ref": "#/definitions/Signature"
+            }
+        }
+    },
+    "definitions": {
+        "IdDocumentData": {
+            "type": "object",
+            "properties": {
+                "vendor": {
+                    "type": "string",
+                    "description": "Vendor name for the ID document verification"
+                },
+                "reference": {
+                    "type": "string",
+                    "description": "Reference ID from the vendor"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name verified against the ID document"
+                }
+            },
+            "required": ["vendor", "reference", "name"],
+            "additionalProperties": false
+        },
+        "PhotographData": {
+            "type": "object",
+            "properties": {
+                "photoBlob": {
+                    "type": "string",
+                    "description": "Base64 encoded photo blob"
+                }
+            },
+            "required": ["photoBlob"],
+            "additionalProperties": false
+        },
+        "SocialConnectionData": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the social connection"
+                }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+        },
+        "SelfData": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Self-declared name"
+                }
+            },
+            "required": ["name"],
+            "additionalProperties": false
+        },
+        "Signature": {
+            "type": "object",
+            "properties": {
+                "signer": {
+                    "type": "string",
+                    "description": "eName or keyID of who signed it"
+                },
+                "signature": {
+                    "type": "string",
+                    "description": "Cryptographic signature"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the signature was created"
+                }
+            },
+            "required": ["signer", "signature", "timestamp"],
+            "additionalProperties": false
+        }
+    },
+    "required": ["id", "subject", "type", "data", "signatures"],
+    "additionalProperties": false
+}
