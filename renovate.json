@@ -10,10 +10,18 @@
     },
     "packageRules": [
         {
-            "matchUpdateTypes": [
-                "major"
+            "enabled": false,
+            "groupName": "everything",
+            "matchManagers": [
+                "npm"
             ],
-            "enabled": false
+            "matchPackagePatterns": [
+                "*"
+            ],
+            "separateMajorMinor": false
         }
-    ]
+    ],
+    "vulnerabilityAlerts": {
+        "enabled": true
+    }
 }
