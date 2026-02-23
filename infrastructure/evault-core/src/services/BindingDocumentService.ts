@@ -1,5 +1,6 @@
 import type { DbService } from "../core/db/db.service";
 import type { FindMetaEnvelopesPaginatedOptions, MetaEnvelopeConnection } from "../core/db/types";
+import { computeBindingDocumentHash } from "../core/utils/binding-document-hash";
 import type {
     BindingDocument,
     BindingDocumentData,
@@ -99,6 +100,18 @@ export class BindingDocumentService {
 
         const validatedData = validateBindingDocumentData(input.type, input.data);
 
+        // The signature must be the MD5 hash of the canonical document (sans signatures)
+        const expectedHash = computeBindingDocumentHash({
+            subject: normalizedSubject,
+            type: input.type,
+            data: validatedData,
+        });
+        if (input.ownerSignature.signature !== expectedHash) {
+            throw new ValidationError(
+                `Invalid owner signature: expected MD5 hash of canonical binding document`,
+            );
+        }
+
         const bindingDocument: BindingDocument = {
             subject: normalizedSubject,
             type: input.type,
@@ -140,6 +153,18 @@ export class BindingDocumentService {
         }
 
         const bindingDocument = metaEnvelope.parsed as BindingDocument;
+
+        // Verify the counterparty signature is the MD5 hash of the canonical document
+        const expectedHash = computeBindingDocumentHash({
+            subject: bindingDocument.subject,
+            type: bindingDocument.type,
+            data: bindingDocument.data,
+        });
+        if (input.signature.signature !== expectedHash) {
+            throw new ValidationError(
+                `Invalid counterparty signature: expected MD5 hash of canonical binding document`,
+            );
+        }
 
         // For social_connection documents the counterparty must be the subject
         if (bindingDocument.type === "social_connection") {

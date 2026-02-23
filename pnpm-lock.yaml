@@ -267,6 +267,9 @@ importers:
       '@auvo/tauri-plugin-crypto-hw-api':
         specifier: ^0.1.0
         version: 0.1.0
+      '@didit-protocol/sdk-web':
+        specifier: ^0.1.6
+        version: 0.1.6
       '@hugeicons/core-free-icons':
         specifier: ^1.0.13
         version: 1.2.1
@@ -4897,6 +4900,10 @@ packages:
 
   '@date-fns/tz@1.4.1':
     resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
+
+  '@didit-protocol/sdk-web@0.1.6':
+    resolution: {integrity: sha512-bRY//02/Dgumt9dPTNa993h1o6scBx7Im1IzTpo4DgWaNreiKy9/ZhDSoXk53OvCnkaUA4ISUBJw5xhriM5AxQ==}
+    engines: {node: '>=16.0.0'}
 
   '@discoveryjs/json-ext@0.5.7':
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
@@ -20963,6 +20970,8 @@ snapshots:
       postcss: 8.5.6
 
   '@date-fns/tz@1.4.1': {}
+
+  '@didit-protocol/sdk-web@0.1.6': {}
 
   '@discoveryjs/json-ext@0.5.7': {}
 

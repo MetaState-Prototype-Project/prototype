@@ -14,6 +14,15 @@ export class Verification {
     @Column({ type: "varchar", nullable: true })
     veriffId!: string;
 
+    @Column({ type: "varchar", nullable: true })
+    diditSessionId!: string;
+
+    @Column({ type: "varchar", nullable: true })
+    verificationUrl!: string;
+
+    @Column({ type: "varchar", nullable: true })
+    sessionToken!: string;
+
     @Column({ type: "boolean", nullable: true })
     approved!: boolean;
 

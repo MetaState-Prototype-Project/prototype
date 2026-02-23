@@ -2,6 +2,7 @@ import axios, { type AxiosError } from "axios";
 import * as jose from "jose";
 import { validate as uuidValidate } from "uuid";
 import { W3IDBuilder } from "w3id";
+import { signAsProvisioner } from "../core/utils/provisioner-signer";
 import type { VerificationService } from "./VerificationService";
 
 export interface ProvisionRequest {
@@ -20,7 +21,71 @@ export interface ProvisionResponse {
 }
 
 export class ProvisioningService {
-    constructor(private verificationService: VerificationService) { }
+    constructor(private verificationService: VerificationService) {}
+
+    private async getPlatformToken(): Promise<string> {
+        const registryUrl = process.env.PUBLIC_REGISTRY_URL;
+        const platformName = process.env.PLATFORM_NAME ?? "provisioner";
+        if (!registryUrl) throw new Error("PUBLIC_REGISTRY_URL is not set");
+        const res = await axios.post(
+            new URL("/platforms/certification", registryUrl).toString(),
+            { platform: platformName },
+            { headers: { "Content-Type": "application/json" } },
+        );
+        return res.data.token as string;
+    }
+
+    private async createBindingDocumentForUser(
+        w3id: string,
+        diditSessionId: string,
+        fullName: string,
+    ): Promise<void> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) {
+            console.error("[BINDING_DOC] PUBLIC_EVAULT_SERVER_URI not set, skipping");
+            return;
+        }
+
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const data = { vendor: "didit", reference: diditSessionId, name: fullName };
+        const ownerSignature = signAsProvisioner({
+            subject,
+            type: "id_document",
+            data: data as any,
+        });
+
+        const token = await this.getPlatformToken();
+
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+        const response = await axios.post(
+            gqlUrl,
+            {
+                query: `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                    createBindingDocument(input: $input) {
+                        metaEnvelopeId
+                        errors { message code }
+                    }
+                }`,
+                variables: {
+                    input: { subject, type: "id_document", data, ownerSignature },
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+
+        const errors = response.data?.data?.createBindingDocument?.errors;
+        if (errors?.length) {
+            console.error("[BINDING_DOC] GraphQL errors:", errors);
+        } else {
+            console.log(`[BINDING_DOC] Created id_document binding doc for ${subject}`);
+        }
+    }
 
     /**
      * Provisions a new eVault logically (no infrastructure creation)
@@ -179,6 +244,26 @@ export class ProvisioningService {
                     },
                 },
             );
+
+            // After provisioning, create the provisioner-signed id_document binding document
+            // if a verified Didit session exists with person data
+            if (verificationId !== demoCode) {
+                const verificationRecord = await this.verificationService.findById(verificationId);
+                if (verificationRecord?.approved && verificationRecord.data) {
+                    const personData = verificationRecord.data.person as Record<string, any> | undefined;
+                    const docData = verificationRecord.data.document as Record<string, any> | undefined;
+                    const firstName = personData?.first_name ?? personData?.firstName?.value ?? "";
+                    const lastName = personData?.last_name ?? personData?.lastName?.value ?? "";
+                    const fullName = `${firstName} ${lastName}`.trim();
+                    const diditSessionId = verificationRecord.diditSessionId ?? "";
+
+                    if (fullName && diditSessionId) {
+                        this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
+                            (err) => console.error("[BINDING_DOC] Post-provision error:", err),
+                        );
+                    }
+                }
+            }
 
             return {
                 success: true,
