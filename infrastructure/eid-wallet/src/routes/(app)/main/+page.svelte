@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { PUBLIC_EID_WALLET_TOKEN, PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { PUBLIC_EID_WALLET_TOKEN, PUBLIC_PROVISIONER_URL, PUBLIC_PROVISIONER_SHARED_SECRET } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import { capitalize } from "$lib/utils";
 import type { GlobalState } from "$lib/global";
@@ -23,6 +23,8 @@ let greeting: string | undefined = $state(undefined);
 let ename: string | undefined = $state(undefined);
 let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
+let skipProfileSetupGate = $state(false);
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 let hasOnlySelfDocs = $state(false);
 let missingProvisionerDocs = $state(false);
@@ -166,6 +168,8 @@ async function startKycUpgrade() {
 
         const { data } = await axios.post(
             new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            {},
+            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
         );
 
         if (!data.verificationUrl) {
@@ -219,6 +223,7 @@ const handleDiditComplete = async (result: any) => {
                 `/verification/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
+            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
         );
 
         diditDecision = decision;
@@ -264,6 +269,7 @@ async function handleUpgrade() {
         const { data } = await axios.post(
             new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
             { diditSessionId: sessionId, w3id },
+            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
         );
         if (!data.success) {
             if (data.duplicate) {
@@ -327,6 +333,13 @@ async function handleUpgrade() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 onMount(() => {
+    const shouldSkipProfileSetupGate =
+        localStorage.getItem(RECOVERY_SKIP_PROFILE_SETUP_KEY) === "true";
+    if (shouldSkipProfileSetupGate) {
+        skipProfileSetupGate = true;
+        localStorage.removeItem(RECOVERY_SKIP_PROFILE_SETUP_KEY);
+    }
+
     // Load initial data
     (async () => {
         const userInfo = await globalState.userController.user;
@@ -366,7 +379,7 @@ onDestroy(() => {
 });
 </script>
 
-{#if profileCreationStatus === "loading"}
+{#if profileCreationStatus === "loading" && !skipProfileSetupGate}
     <div class="flex flex-col items-center justify-center min-h-screen gap-6">
         <Shadow size={40} color="rgb(142, 82, 255);" />
         <h3 class="text-xl font-semibold">Setting up your eVault profile</h3>

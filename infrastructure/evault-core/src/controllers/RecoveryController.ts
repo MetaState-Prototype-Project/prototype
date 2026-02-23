@@ -60,12 +60,14 @@ export class RecoveryController {
          *
          * 1. Fetches the recovery session decision from Didit.
          * 2. Requires liveness_checks[0].status === "Approved".
-         * 3. Iterates liveness_checks[0].matches, filtered to approved,
+         * 3. Runs a full Didit /v3/face-search/ using liveness reference_image.
+         * 4. Iterates face_search matches, filtered to approved,
          *    non-blocklisted entries with similarity >= FACE_SIMILARITY_THRESHOLD.
-         * 4. For each candidate, looks up the Verification record by vendor_data.
-         * 5. On a hit, fetches the *matched* session's full decision to extract
+         * 5. For each candidate, looks up the Verification record by vendor_data
+         *    (fallback: diditSessionId === matched session_id).
+         * 6. On a hit, fetches the *matched* session's full decision to extract
          *    id_verifications[0] (the original provisioning session had an ID doc scan).
-         * 6. Returns { success, w3id, uri, idVerif } or { success: false, reason }.
+         * 7. Returns { success, w3id, uri, idVerif } or { success: false, reason }.
          */
         app.post("/recovery/face-search", async (req: Request, res: Response) => {
             const { diditSessionId } = req.body as { diditSessionId?: string };
@@ -95,19 +97,76 @@ export class RecoveryController {
                     return res.json({ success: false, reason: "liveness_failed" });
                 }
 
+                const referenceImageUrl: string = liveness?.reference_image ?? "";
+                if (!referenceImageUrl) {
+                    console.warn("[RECOVERY] Missing liveness reference_image for face search");
+                    return res.json({ success: false, reason: "no_match" });
+                }
+
+                const imageResponse = await diditClient.get(referenceImageUrl, {
+                    headers: { "x-api-key": apiKey },
+                    responseType: "arraybuffer",
+                });
+                const contentType =
+                    (imageResponse.headers["content-type"] as string | undefined) ??
+                    "image/jpeg";
+                const extension =
+                    contentType.includes("png")
+                        ? "png"
+                        : contentType.includes("webp")
+                            ? "webp"
+                            : contentType.includes("tiff")
+                                ? "tiff"
+                                : "jpg";
+
+                const faceSearchForm = new FormData();
+                faceSearchForm.append(
+                    "user_image",
+                    Buffer.from(imageResponse.data as ArrayBuffer),
+                    {
+                        filename: `recovery-reference.${extension}`,
+                        contentType,
+                    },
+                );
+                faceSearchForm.append("search_type", "most_similar");
+                faceSearchForm.append("rotate_image", "false");
+                faceSearchForm.append("save_api_request", "true");
+                faceSearchForm.append("vendor_data", diditSessionId);
+
+                const { data: faceSearch } = await diditClient.post(
+                    "/v3/face-search/",
+                    faceSearchForm,
+                    {
+                        headers: {
+                            "x-api-key": apiKey,
+                            ...faceSearchForm.getHeaders(),
+                        },
+                    },
+                );
+
                 // Filter to quality candidates only
-                const candidates: any[] = (liveness.matches ?? []).filter(
+                const candidates: any[] = ((faceSearch?.face_search?.matches ?? []) as any[])
+                    .filter(
                     (m: any) =>
                         m.status?.toLowerCase() === "approved" &&
                         !m.is_blocklisted &&
                         (m.similarity_percentage ?? 0) >= FACE_SIMILARITY_THRESHOLD,
-                );
+                    )
+                    .sort(
+                        (a: any, b: any) =>
+                            (b.similarity_percentage ?? 0) - (a.similarity_percentage ?? 0),
+                    );
 
                 for (const match of candidates) {
                     const vendorData: string = match.vendor_data ?? "";
-                    if (!vendorData) continue;
-
-                    const record = await this.verificationService.findOne({ id: vendorData });
+                    let record = vendorData
+                        ? await this.verificationService.findOne({ id: vendorData })
+                        : null;
+                    if (!record?.linkedEName && match.session_id) {
+                        record = await this.verificationService.findOne({
+                            diditSessionId: match.session_id,
+                        });
+                    }
                     if (!record?.linkedEName) continue;
 
                     // Fetch the original provisioning session to get the ID document data
@@ -123,7 +182,7 @@ export class RecoveryController {
                     }
 
                     console.log(
-                        `[RECOVERY] eVault found: eName=${record.linkedEName} similarity=${match.similarity_percentage}%`,
+                        `[RECOVERY] eVault found via face-search: eName=${record.linkedEName} similarity=${match.similarity_percentage}%`,
                     );
 
                     return res.json({

@@ -7,6 +7,21 @@ const diditClient = Axios.create({
     baseURL: "https://verification.didit.me",
 });
 
+function requireSharedSecret(req: Request, res: Response): boolean {
+    const secret = process.env.PROVISIONER_SHARED_SECRET;
+    if (!secret) {
+        console.warn("[AUTH] PROVISIONER_SHARED_SECRET not set — rejecting request");
+        res.status(500).json({ error: "Server misconfiguration: shared secret not set" });
+        return false;
+    }
+    const provided = req.headers["x-shared-secret"];
+    if (!provided || provided !== secret) {
+        res.status(401).json({ error: "Unauthorized: invalid or missing shared secret" });
+        return false;
+    }
+    return true;
+}
+
 export class VerificationController {
     constructor(
         private readonly verificationService: VerificationService,
@@ -16,6 +31,7 @@ export class VerificationController {
     registerRoutes(app: any) {
         // Get verification session
         app.get("/verification/:id", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
             const { id } = req.params;
             const session = await this.verificationService.findById(id);
             if (!session) {
@@ -26,6 +42,7 @@ export class VerificationController {
 
         // Create new Didit verification session
         app.post("/verification", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
             console.log("Creating new Didit verification session");
             const { referenceId } = req.body;
 
@@ -82,6 +99,7 @@ export class VerificationController {
 
         // Upgrade existing eVault: create binding docs + update UserProfile after KYC
         app.post("/verification/upgrade", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
             const { diditSessionId, w3id } = req.body;
             if (!diditSessionId || !w3id) {
                 return res.status(400).json({ error: "diditSessionId and w3id are required" });
@@ -103,6 +121,7 @@ export class VerificationController {
 
         // Proxy: fetch full decision from Didit API by sessionId
         app.get("/verification/decision/:sessionId", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
             const { sessionId } = req.params;
             const apiKey = process.env.DIDIT_API_KEY;
             if (!apiKey) {

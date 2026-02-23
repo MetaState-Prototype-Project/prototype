@@ -10,10 +10,12 @@ import { getContext, onMount } from "svelte";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
 let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 const handleFinish = async () => {
     const recovery = get(pendingRecovery);
     if (recovery) {
+        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
         globalState.vaultController.vault = { uri: recovery.uri, ename: recovery.ename };
         pendingRecovery.set(null);
     }

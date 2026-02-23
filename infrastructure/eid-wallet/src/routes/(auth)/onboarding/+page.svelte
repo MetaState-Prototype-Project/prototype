@@ -3,6 +3,7 @@
     import {
         PUBLIC_EID_WALLET_TOKEN,
         PUBLIC_PROVISIONER_URL,
+        PUBLIC_PROVISIONER_SHARED_SECRET,
         PUBLIC_REGISTRY_URL,
     } from "$env/static/public";
     import { Hero } from "$lib/fragments";
@@ -112,6 +113,8 @@
 
             const { data } = await axios.post(
                 new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+                {},
+                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
             );
             console.log("[Didit] session response:", data);
 
@@ -175,6 +178,7 @@
                     `/verification/decision/${result.session.sessionId}`,
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
+                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
             );
             console.log("[Didit] decision:", decision);
 
@@ -419,6 +423,7 @@
             const { data } = await axios.post(
                 new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
                 { diditSessionId: sessionId, w3id },
+                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
             );
             if (!data.success) {
                 throw new Error(data.message ?? "Upgrade failed");
