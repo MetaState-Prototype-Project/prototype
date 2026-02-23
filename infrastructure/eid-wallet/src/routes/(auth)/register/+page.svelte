@@ -7,8 +7,8 @@ import { ButtonAction, InputPin } from "$lib/ui";
 import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { checkStatus } from "@tauri-apps/plugin-biometric";
-import { get } from "svelte/store";
 import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
 type Step = "CREATE" | "REPEAT" | "PIN_DONE" | "BIOMETRICS" | "ALL_SET";
 let currentStep = $state<Step>("CREATE");
@@ -83,8 +83,8 @@ const finishOnboarding = async () => {
     const recovery = get(pendingRecovery);
     if (recovery) {
         globalState.userController.isFake = false;
-        globalState.userController.user = recovery.user as any;
-        globalState.userController.document = recovery.document as any;
+        globalState.userController.user = recovery.user;
+        globalState.userController.document = recovery.document;
         // vault is NOT set here — deferred to e-passport handleFinish
         // pendingRecovery is cleared there too
     }

@@ -7,6 +7,13 @@ import { capitalize } from "$lib/utils";
 import axios from "axios";
 import { onMount } from "svelte";
 
+interface DiditCompleteResult {
+    type?: string;
+    session?: {
+        sessionId?: string;
+    };
+}
+
 type RecoveryStep =
     | "starting"
     | "didit-verification"
@@ -59,7 +66,7 @@ async function startRecovery() {
                 embeddedContainerId: "recovery-didit-container",
             },
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[RECOVERY] start-recovery error:", err);
         errorMessage =
             err instanceof Error
@@ -70,7 +77,7 @@ async function startRecovery() {
     }
 }
 
-async function handleDiditComplete(result: any) {
+async function handleDiditComplete(result: DiditCompleteResult) {
     console.log("[RECOVERY] Didit onComplete:", result);
 
     if (result.type === "cancelled") {
@@ -112,7 +119,7 @@ async function handleDiditComplete(result: any) {
         recoveredUri = data.uri ?? null;
         recoveredIdVerif = data.idVerif ?? null;
         step = "found";
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[RECOVERY] face-search error:", err);
         errorMessage =
             "Something went wrong during the search. Please try again.";

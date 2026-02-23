@@ -2,8 +2,8 @@
 import { goto } from "$app/navigation";
 import {
     PUBLIC_EID_WALLET_TOKEN,
-    PUBLIC_PROVISIONER_URL,
     PUBLIC_PROVISIONER_SHARED_SECRET,
+    PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
@@ -11,10 +11,10 @@ import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
-import { Md5 } from "ts-md5";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
+import { Md5 } from "ts-md5";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
 
@@ -45,6 +45,41 @@ type Step =
     | "anonymous-form"
     | "loading";
 
+interface DiditWarning {
+    short_description?: string;
+}
+
+interface DiditIdVerification {
+    warnings?: DiditWarning[];
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
+    document_type?: string;
+    document_number?: string;
+    issuing_state_name?: string;
+    issuing_state?: string;
+    expiration_date?: string;
+    date_of_issue?: string;
+}
+
+interface DiditDecision {
+    status?: string;
+    reviews?: Array<{ comment?: string }>;
+    id_verifications?: DiditIdVerification[];
+    session_id?: string;
+    session?: {
+        sessionId?: string;
+    };
+}
+
+interface DiditCompleteResult {
+    type?: string;
+    session?: {
+        sessionId?: string;
+    };
+}
+
 let step = $state<Step>("home");
 let error = $state<string | null>(null);
 let loading = $state(false);
@@ -59,7 +94,7 @@ let diditLocalId = $state<string | null>(null);
 let diditSessionId = $state<string | null>(null);
 let diditActualSessionId = $state<string | null>(null); // real Didit sessionId from onComplete
 let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
-let diditDecision = $state<any>(null);
+let diditDecision = $state<DiditDecision | null>(null);
 let diditRejectionReason = $state<string | null>(null);
 
 // Upgrade mode — set when ?upgrade=1 is present (existing eVault KYC upgrade)
@@ -159,7 +194,7 @@ const handleKycNext = async () => {
     }
 };
 
-const handleDiditComplete = async (result: any) => {
+const handleDiditComplete = async (result: DiditCompleteResult) => {
     console.log("[Didit] onComplete:", result);
 
     if (result.type === "cancelled") {
@@ -177,7 +212,7 @@ const handleDiditComplete = async (result: any) => {
     step = "loading";
 
     try {
-        const { data: decision } = await axios.get(
+        const { data: decision } = await axios.get<DiditDecision>(
             new URL(
                 `/verification/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,

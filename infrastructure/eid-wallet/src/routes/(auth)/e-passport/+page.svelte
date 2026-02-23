@@ -5,8 +5,8 @@ import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import type { GlobalState } from "$lib/global";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
-import { get } from "svelte/store";
 import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
 let globalState: GlobalState = getContext<() => GlobalState>("globalState")();

@@ -5,8 +5,8 @@ import type { GlobalState } from "$lib/global";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import axios from "axios";
-import { get } from "svelte/store";
 import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
 let globalState = getContext<() => GlobalState>("globalState")();
 let ename = $state();

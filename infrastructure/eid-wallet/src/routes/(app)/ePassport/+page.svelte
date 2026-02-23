@@ -1,13 +1,13 @@
 <script lang="ts">
 import {
     PUBLIC_EID_WALLET_TOKEN,
-    PUBLIC_PROVISIONER_URL,
     PUBLIC_PROVISIONER_SHARED_SECRET,
+    PUBLIC_PROVISIONER_URL,
 } from "$env/static/public";
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { capitalize } from "$lib/utils";
 import { ButtonAction } from "$lib/ui";
+import { capitalize } from "$lib/utils";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
@@ -33,10 +33,51 @@ type KycStep =
     | "upgrading"
     | "duplicate";
 
+interface DiditWarning {
+    short_description?: string;
+}
+
+interface DiditIdVerification {
+    warnings?: DiditWarning[];
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
+    document_type?: string;
+    document_number?: string;
+    issuing_state_name?: string;
+    issuing_state?: string;
+    expiration_date?: string;
+    date_of_issue?: string;
+}
+
+interface DiditDecision {
+    status?: string;
+    reviews?: Array<{ comment?: string }>;
+    id_verifications?: DiditIdVerification[];
+    session_id?: string;
+    session?: {
+        sessionId?: string;
+    };
+}
+
+interface DiditCompleteResult {
+    type?: string;
+    session?: {
+        sessionId?: string;
+    };
+}
+
+interface UpgradeErrorBody {
+    duplicate?: boolean;
+    existingW3id?: string | null;
+    message?: string;
+}
+
 let kycStep = $state<KycStep>("idle");
 let kycError = $state<string | null>(null);
 let diditActualSessionId = $state<string | null>(null);
-let diditDecision = $state<any>(null);
+let diditDecision = $state<DiditDecision | null>(null);
 let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
 let diditRejectionReason = $state<string | null>(null);
 let duplicateEName = $state<string | null>(null);
@@ -166,7 +207,7 @@ async function startKycUpgrade() {
     }
 }
 
-const handleDiditComplete = async (result: any) => {
+const handleDiditComplete = async (result: DiditCompleteResult) => {
     if (result.type === "cancelled") {
         resetKyc();
         return;
@@ -182,7 +223,7 @@ const handleDiditComplete = async (result: any) => {
     kycStep = "starting";
 
     try {
-        const { data: decision } = await axios.get(
+        const { data: decision } = await axios.get<DiditDecision>(
             new URL(
                 `/verification/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
@@ -314,9 +355,11 @@ async function handleUpgrade() {
         hasOnlySelfDocs = false;
         missingProvisionerDocs = false;
         await loadBindingDocuments();
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("[KYC] Upgrade failed:", err);
-        const body = err?.response?.data;
+        const body: UpgradeErrorBody | undefined = axios.isAxiosError(err)
+            ? (err.response?.data as UpgradeErrorBody | undefined)
+            : undefined;
         if (body?.duplicate) {
             duplicateEName = body.existingW3id ?? null;
             kycStep = "duplicate";
