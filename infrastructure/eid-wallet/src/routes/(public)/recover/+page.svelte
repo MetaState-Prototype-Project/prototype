@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { PUBLIC_PROVISIONER_URL, PUBLIC_REGISTRY_URL } from "$env/static/public";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
@@ -19,6 +19,8 @@ type RecoveryStep =
     | "didit-verification"
     | "searching"
     | "found"
+    | "passphrase-gate"
+    | "notary-required"
     | "error";
 
 let step = $state<RecoveryStep>("starting");
@@ -30,9 +32,22 @@ let recoveredUri = $state<string | null>(null);
 let recoveredIdVerif = $state<Record<string, string> | null>(null);
 let storing = $state(false);
 
+// Passphrase gate state
+let passphraseInput = $state("");
+let passphraseError = $state<string | null>(null);
+let passphraseLoading = $state(false);
+let checkingPassphrase = $state(false);
+
 onMount(() => {
     startRecovery();
 });
+
+async function resolveEvaultBase(w3id: string): Promise<string> {
+    const res = await axios.get(
+        new URL(`resolve?w3id=${encodeURIComponent(w3id)}`, PUBLIC_REGISTRY_URL).toString(),
+    );
+    return res.data.uri as string;
+}
 
 async function startRecovery() {
     step = "starting";
@@ -40,6 +55,8 @@ async function startRecovery() {
     recoveredW3id = null;
     recoveredUri = null;
     recoveredIdVerif = null;
+    passphraseInput = "";
+    passphraseError = null;
 
     try {
         const { data } = await axios.post(
@@ -125,6 +142,64 @@ async function handleDiditComplete(result: DiditCompleteResult) {
             "Something went wrong during the search. Please try again.";
         errorReason = "generic";
         step = "error";
+    }
+}
+
+async function checkPassphraseRequired() {
+    if (!recoveredW3id || !recoveredUri) return;
+    checkingPassphrase = true;
+    passphraseError = null;
+
+    try {
+        const evaultBase = await resolveEvaultBase(recoveredW3id);
+        const res = await axios.get(
+            new URL("/passphrase/status", evaultBase).toString(),
+            { headers: { "X-ENAME": recoveredW3id } },
+        );
+
+        if (res.data?.hasPassphrase) {
+            step = "passphrase-gate";
+        } else {
+            // No passphrase was ever set — recovery must go through a W3DS Notary
+            step = "notary-required";
+        }
+    } catch (err: unknown) {
+        console.error("[RECOVERY] passphrase status check error:", err);
+        // If we can't reach the eVault, conservatively block recovery
+        step = "notary-required";
+    } finally {
+        checkingPassphrase = false;
+    }
+}
+
+async function verifyAndRecover() {
+    if (!recoveredW3id || !recoveredUri || !passphraseInput) return;
+    passphraseLoading = true;
+    passphraseError = null;
+
+    try {
+        const evaultBase = await resolveEvaultBase(recoveredW3id);
+        const res = await axios.post(
+            new URL("/passphrase/compare", evaultBase).toString(),
+            { eName: recoveredW3id, passphrase: passphraseInput },
+        );
+
+        if (res.data?.match) {
+            await recoverVault();
+        } else {
+            passphraseError =
+                "Incorrect passphrase. Please try again.";
+        }
+    } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response?.status === 429) {
+            const retryAfter = err.response.data?.retryAfterSeconds ?? "a while";
+            passphraseError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
+        } else {
+            passphraseError = "Failed to verify passphrase. Please try again.";
+        }
+        console.error("[RECOVERY] passphrase compare error:", err);
+    } finally {
+        passphraseLoading = false;
     }
 }
 
@@ -243,7 +318,7 @@ async function recoverVault() {
             <h3 class="text-lg font-bold">eVault Found</h3>
         </div>
         <p class="text-black-700 text-sm">
-            We confirmed your identity. Here's your previous eVault — tap Recover to restore it.
+            We confirmed your identity. Here's your previous eVault — tap Continue to verify your recovery passphrase.
             You'll be asked to set a new PIN to protect it.
         </p>
         <div class="rounded-2xl bg-gray-50 border border-gray-200 p-4 flex flex-col gap-1">
@@ -251,8 +326,13 @@ async function recoverVault() {
             <p class="font-mono text-sm font-semibold text-black-900 break-all">{recoveredW3id}</p>
         </div>
         <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction class="w-full" blockingClick callback={recoverVault}>
-                {storing ? "Restoring…" : "Recover this eVault"}
+            <ButtonAction
+                class="w-full"
+                blockingClick
+                callback={checkPassphraseRequired}
+                disabled={checkingPassphrase}
+            >
+                {checkingPassphrase ? "Checking…" : "Continue →"}
             </ButtonAction>
             <ButtonAction
                 variant="soft"
@@ -260,6 +340,87 @@ async function recoverVault() {
                 callback={() => goto("/onboarding")}
             >
                 That's not me — cancel
+            </ButtonAction>
+        </div>
+    </div>
+{/if}
+
+<!-- ── Passphrase gate bottom sheet ─────────────────────────────────────────── -->
+{#if step === "passphrase-gate"}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div
+        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
+        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+    >
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-lg font-bold">
+                🔑
+            </div>
+            <h3 class="text-lg font-bold">Enter Recovery Passphrase</h3>
+        </div>
+        <p class="text-black-700 text-sm">
+            A recovery passphrase is required to restore this eVault. Please enter the passphrase you set in Settings.
+        </p>
+        <div class="flex flex-col gap-1">
+            <label for="recovery-passphrase" class="text-sm font-medium text-black-700">
+                Recovery Passphrase
+            </label>
+            <input
+                id="recovery-passphrase"
+                type="password"
+                bind:value={passphraseInput}
+                autocomplete="current-password"
+                placeholder="Enter your recovery passphrase"
+                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition"
+                onkeydown={(e) => { if (e.key === "Enter" && passphraseInput) verifyAndRecover(); }}
+            />
+            {#if passphraseError}
+                <p class="text-xs text-red-500 mt-1">{passphraseError}</p>
+            {/if}
+        </div>
+        <div class="flex flex-col gap-3 pt-2">
+            <ButtonAction
+                class="w-full"
+                blockingClick
+                callback={verifyAndRecover}
+                disabled={passphraseLoading || !passphraseInput}
+            >
+                {passphraseLoading ? "Verifying…" : "Verify & Recover"}
+            </ButtonAction>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={() => goto("/onboarding")}
+            >
+                Cancel
+            </ButtonAction>
+        </div>
+    </div>
+{/if}
+
+<!-- ── Notary required bottom sheet ─────────────────────────────────────────── -->
+{#if step === "notary-required"}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div
+        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
+        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+    >
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">
+                !
+            </div>
+            <h3 class="text-lg font-bold">Notary Required</h3>
+        </div>
+        <p class="text-black-700 text-sm leading-relaxed">
+            This eVault was not protected with a recovery passphrase, so it cannot be restored automatically.
+        </p>
+        <p class="text-black-700 text-sm leading-relaxed">
+            To recover your eVault, you must visit a <strong>Registered W3DS Notary</strong> in person.
+            They can verify your identity and authorise access to your eVault.
+        </p>
+        <div class="flex flex-col gap-3 pt-2">
+            <ButtonAction variant="soft" class="w-full" callback={() => goto("/onboarding")}>
+                Back to Onboarding
             </ButtonAction>
         </div>
     </div>

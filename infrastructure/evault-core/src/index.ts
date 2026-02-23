@@ -39,7 +39,7 @@ expressApp.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     }),
 );
@@ -170,7 +170,7 @@ const initializeEVault = async (
     await fastifyServer.register(fastifyCors, {
         origin: true, // Allow all origins
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     });
 
