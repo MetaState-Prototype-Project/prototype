@@ -51,6 +51,7 @@
     // KYC panel sub-state
     let checkingHardware = $state(false);
     let showHardwareError = $state(false);
+    let showAlreadyHaveAnonymousDrawer = $state(false);
 
     // Didit verification state
     let diditLocalId = $state<string | null>(null);
@@ -513,21 +514,39 @@
             </p>
         </section>
 
-        <!-- ── Screen: already have (TBI) ────────────────────────────────────── -->
+        <!-- ── Screen: already have ────────────────────────────────────────── -->
     {:else if step === "already-have"}
-        <section
-            class="grow flex flex-col justify-center items-center gap-4 text-center px-2"
-        >
-            <h4 class="text-xl font-bold">Already have an eVault?</h4>
-            <p class="text-black-700">
-                Restoring an existing eVault will be supported in a future
-                update.<br /><br />
-                <strong>TO BE IMPLEMENTED</strong>
-            </p>
+        <section class="grow flex flex-col justify-center gap-6">
+            <div>
+                <h4 class="text-xl font-bold mb-1">Already have an eVault?</h4>
+                <p class="text-black-700 text-sm">
+                    Were you identity-verified when you set up your eVault?
+                </p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button
+                    onclick={() => goto("/recover")}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">Yes, I verified my ID</p>
+                    <p class="text-sm text-black-500">
+                        We'll use your verified identity to find and confirm your previous eVault.
+                    </p>
+                </button>
+                <button
+                    onclick={() => (showAlreadyHaveAnonymousDrawer = true)}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">No, I was anonymous</p>
+                    <p class="text-sm text-black-500">
+                        Anonymous eVaults cannot be recovered — there's no identity to verify against.
+                    </p>
+                </button>
+            </div>
         </section>
         <ButtonAction
             variant="soft"
-            class="w-full"
+            class="w-full mt-4"
             callback={() => {
                 step = "home";
             }}
@@ -897,5 +916,31 @@
                 </ButtonAction>
             </div>
         {/if}
+    </div>
+{/if}
+
+<!-- ── Already-have anonymous — not possible sheet ───────────────────────── -->
+{#if showAlreadyHaveAnonymousDrawer}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div
+        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
+        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+    >
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">!</div>
+            <h3 class="text-lg font-bold">Recovery not available</h3>
+        </div>
+        <p class="text-black-700 text-sm leading-relaxed">
+            Anonymous eVaults are not recoverable. Since no identity document was linked,
+            there's no way to confirm who you are. You'll need to create a new eVault instead.
+        </p>
+        <div class="flex flex-col gap-3 pt-2">
+            <ButtonAction class="w-full" callback={() => { showAlreadyHaveAnonymousDrawer = false; step = "new-evault"; }}>
+                Create a new eVault
+            </ButtonAction>
+            <ButtonAction variant="soft" class="w-full" callback={() => { showAlreadyHaveAnonymousDrawer = false; }}>
+                Back
+            </ButtonAction>
+        </div>
     </div>
 {/if}
