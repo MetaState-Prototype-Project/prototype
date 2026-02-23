@@ -186,7 +186,9 @@ describe("BindingDocumentService (integration)", () => {
             expect(result.bindingDocument.subject).toBe("@already-prefixed");
         });
 
-        it("should have an audit log entry after creating a binding document", async () => {
+        it("should persist envelope operation logs via dbService after creating a binding document", async () => {
+            // This test verifies the DB logging infrastructure only; audit emission
+            // by createBindingDocument itself is out of scope here.
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-audit",
@@ -327,6 +329,53 @@ describe("BindingDocumentService (integration)", () => {
             expect(updated.signatures[1].signer).toBe("@counterparty-456");
             expect(updated.signatures[1].signature).toBe(
                 "counterparty-sig-xyz",
+            );
+        });
+
+        it("should reject when the same signer attempts to sign twice", async () => {
+            const created = await bindingDocumentService.createBindingDocument(
+                {
+                    subject: "@counterparty",
+                    type: "social_connection",
+                    data: {
+                        kind: "social_connection",
+                        name: "Duplicate Signer Test",
+                    },
+                    ownerSignature: {
+                        signer: TEST_ENAME,
+                        signature: "owner-sig-dup",
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            await bindingDocumentService.addCounterpartySignature(
+                {
+                    metaEnvelopeId: created.id,
+                    signature: {
+                        signer: "@counterparty",
+                        signature: "counterparty-sig-first",
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+                TEST_ENAME,
+            );
+
+            await expect(
+                bindingDocumentService.addCounterpartySignature(
+                    {
+                        metaEnvelopeId: created.id,
+                        signature: {
+                            signer: "@counterparty",
+                            signature: "counterparty-sig-second",
+                            timestamp: new Date().toISOString(),
+                        },
+                    },
+                    TEST_ENAME,
+                ),
+            ).rejects.toThrow(
+                `Signer "@counterparty" has already signed this binding document`,
             );
         });
 

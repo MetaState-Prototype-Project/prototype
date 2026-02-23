@@ -196,20 +196,20 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
               
               <div>
                 <label className="block text-sm font-medium mb-1">Max negative balance (absolute value)</label>
-              <input
-                type="number"
-                min={0}
-                max={MAX_NEGATIVE_LIMIT}
-                step={0.01}
-                value={maxNegativeInput}
-                onChange={(e) => setMaxNegativeInput(e.target.value)}
-                placeholder="Leave blank for no cap"
-                className="w-full px-3 py-2 border rounded-md"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Limit how far any account can go below zero (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
-              </p>
-            </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_NEGATIVE_LIMIT}
+                  step={0.01}
+                  value={maxNegativeInput}
+                  onChange={(e) => setMaxNegativeInput(e.target.value)}
+                  placeholder="Leave blank for no cap"
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Limit how far any account can go below zero (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
+                </p>
+              </div>
             </>
           )}
 

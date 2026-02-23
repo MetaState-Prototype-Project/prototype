@@ -241,16 +241,7 @@ export class LedgerService {
         const currentBalance = await this.getAccountBalance(currencyId, groupId, AccountType.GROUP);
 
         // Enforce bounds
-        if (!currency.allowNegative && currentBalance < amount) {
-            throw new Error("Insufficient balance. Negative balances are not allowed.");
-        }
-
-        if (currency.allowNegative && currency.maxNegativeBalance !== null && currency.maxNegativeBalance !== undefined) {
-            const newBalance = currentBalance - amount;
-            if (newBalance < Number(currency.maxNegativeBalance)) {
-                throw new Error(`Insufficient balance. This currency allows negative balances down to ${currency.maxNegativeBalance}.`);
-            }
-        }
+        this.validateNegativeAllowance(currency, currentBalance, amount);
 
         const burnDescription = description || `Burned ${amount} ${currency.name}`;
 

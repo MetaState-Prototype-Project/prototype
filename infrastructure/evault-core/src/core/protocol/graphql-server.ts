@@ -3,7 +3,7 @@ import axios from "axios";
 import type { GraphQLSchema } from "graphql";
 import { createSchema, createYoga } from "graphql-yoga";
 import { getJWTHeader } from "w3id";
-import { BindingDocumentService } from "../../services/BindingDocumentService";
+import { BindingDocumentService, BINDING_DOCUMENT_ONTOLOGY } from "../../services/BindingDocumentService";
 import type { DbService } from "../db/db.service";
 import {
     computeEnvelopeHash,
@@ -206,10 +206,28 @@ export class GraphQLServer {
                         if (!context.eName) {
                             throw new Error("X-ENAME header is required");
                         }
+                        const VALID_BINDING_DOCUMENT_TYPES = [
+                            "id_document",
+                            "photograph",
+                            "social_connection",
+                            "self",
+                        ] as const;
+                        type ValidType =
+                            (typeof VALID_BINDING_DOCUMENT_TYPES)[number];
+                        if (
+                            args.type !== undefined &&
+                            !VALID_BINDING_DOCUMENT_TYPES.includes(
+                                args.type as ValidType,
+                            )
+                        ) {
+                            throw new Error(
+                                `Invalid binding document type: "${args.type}". Must be one of: ${VALID_BINDING_DOCUMENT_TYPES.join(", ")}`,
+                            );
+                        }
                         return this.bindingDocumentService.findBindingDocuments(
                             context.eName,
                             {
-                                type: args.type as any,
+                                type: args.type as ValidType | undefined,
                                 first: args.first,
                                 after: args.after,
                                 last: args.last,
@@ -856,7 +874,7 @@ export class GraphQLServer {
                             const envelopeHash = computeEnvelopeHash({
                                 id: metaEnvelopeId,
                                 ontology:
-                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                    BINDING_DOCUMENT_ONTOLOGY,
                                 payload: result.bindingDocument as unknown as Record<string, unknown>,
                             });
 
@@ -869,7 +887,7 @@ export class GraphQLServer {
                                     platform,
                                     timestamp: new Date().toISOString(),
                                     ontology:
-                                        "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                        BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -886,7 +904,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: result.bindingDocument,
                                 schemaId:
-                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                    BINDING_DOCUMENT_ONTOLOGY,
                             };
                             setTimeout(() => {
                                 this.deliverWebhooks(
@@ -966,7 +984,7 @@ export class GraphQLServer {
                             const envelopeHash = computeEnvelopeHash({
                                 id: input.bindingDocumentId,
                                 ontology:
-                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                    BINDING_DOCUMENT_ONTOLOGY,
                                 payload: result as unknown as Record<string, unknown>,
                             });
 
@@ -979,7 +997,7 @@ export class GraphQLServer {
                                     platform,
                                     timestamp: new Date().toISOString(),
                                     ontology:
-                                        "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                        BINDING_DOCUMENT_ONTOLOGY,
                                 })
                                 .catch((err) =>
                                     console.error(
@@ -996,7 +1014,7 @@ export class GraphQLServer {
                                 evaultPublicKey: this.evaultPublicKey,
                                 data: result,
                                 schemaId:
-                                    "b1d0a8c3-4e5f-6789-0abc-def012345678",
+                                    BINDING_DOCUMENT_ONTOLOGY,
                             };
                             setTimeout(() => {
                                 this.deliverWebhooks(

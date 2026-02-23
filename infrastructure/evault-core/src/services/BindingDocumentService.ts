@@ -1,6 +1,5 @@
 import type { DbService } from "../core/db/db.service";
-import type { FindMetaEnvelopesPaginatedOptions } from "../core/db/types";
-import type { MetaEnvelopeConnection } from "../core/db/types";
+import type { FindMetaEnvelopesPaginatedOptions, MetaEnvelopeConnection } from "../core/db/types";
 import type {
     BindingDocument,
     BindingDocumentData,
@@ -12,7 +11,7 @@ import type {
     BindingDocumentType,
 } from "../core/types/binding-document";
 
-const BINDING_DOCUMENT_ONTOLOGY = "b1d0a8c3-4e5f-6789-0abc-def012345678";
+export const BINDING_DOCUMENT_ONTOLOGY = "b1d0a8c3-4e5f-6789-0abc-def012345678";
 
 export class ValidationError extends Error {
     constructor(message: string) {
