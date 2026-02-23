@@ -26,11 +26,23 @@ import {
     stopMockRegistryServer,
 } from "../test-utils/mock-registry-server";
 import { FastifyInstance } from "fastify";
+import { AddressInfo } from "node:net";
 // Mock generateEntropy for testing - we'll create tokens manually
 // import { generateEntropy } from "../../../platforms/registry/src/jwt";
 
 // Mock axios
-vi.mock("axios");
+vi.mock("axios", () => {
+    const mockAxios = {
+        get: vi.fn(),
+        post: vi.fn(),
+        create: vi.fn(),
+    } as any;
+    mockAxios.create.mockReturnValue(mockAxios);
+    return {
+        default: mockAxios,
+        ...mockAxios,
+    };
+});
 const mockedAxios = axios as any;
 
 // Mock jose at module level
@@ -79,11 +91,13 @@ describe("ProvisioningService", () => {
         verificationService = new VerificationService(verificationRepository);
 
         // Start mock registry server
-        mockRegistryServer = await createMockRegistryServer(4322);
-        registryUrl = "http://localhost:4322";
+        mockRegistryServer = await createMockRegistryServer(0);
+        const address = mockRegistryServer.server.address() as AddressInfo;
+        registryUrl = `http://localhost:${address.port}`;
         process.env.PUBLIC_REGISTRY_URL = registryUrl;
         process.env.REGISTRY_SHARED_SECRET = "test-secret";
         process.env.PUBLIC_EVAULT_SERVER_URI = "http://localhost:3000";
+        process.env.DIDIT_API_KEY = "test-didit-api-key";
 
         provisioningService = new ProvisioningService(verificationService);
     });
@@ -94,6 +108,7 @@ describe("ProvisioningService", () => {
         delete process.env.PUBLIC_REGISTRY_URL;
         delete process.env.REGISTRY_SHARED_SECRET;
         delete process.env.PUBLIC_EVAULT_SERVER_URI;
+        delete process.env.DIDIT_API_KEY;
     });
 
     beforeEach(async () => {
@@ -169,6 +184,7 @@ describe("ProvisioningService", () => {
                 linkedEName: undefined,
                 approved: true,
                 consumed: false,
+                diditSessionId: "11111111-1111-4111-8111-111111111111",
             });
 
             const request = await createValidRequest();
@@ -178,6 +194,33 @@ describe("ProvisioningService", () => {
             mockedAxios.post.mockResolvedValueOnce({
                 status: 201,
                 data: { success: true },
+            });
+            mockedAxios.get.mockImplementation(async (url: string) => {
+                if (url.includes("/.well-known/jwks.json")) {
+                    return {
+                        data: {
+                            keys: [
+                                {
+                                    kty: "EC",
+                                    crv: "P-256",
+                                    x: "test-x",
+                                    y: "test-y",
+                                    kid: "entropy-key-1",
+                                    alg: "ES256",
+                                },
+                            ],
+                        },
+                    };
+                }
+                if (url.includes("/decision/")) {
+                    return {
+                        data: {
+                            status: "Approved",
+                            id_verifications: [],
+                        },
+                    };
+                }
+                throw new Error(`Unexpected URL: ${url}`);
             });
 
             const result = await provisioningService.provisionEVault(request);

@@ -312,7 +312,7 @@ describe("BindingDocumentService (integration)", () => {
             expect(updated.signatures[0].signer).toBe(TEST_ENAME);
             expect(updated.signatures[1].signer).toBe("@counterparty-456");
             expect(updated.signatures[1].signature).toBe(
-                "counterparty-sig-xyz",
+                docHash,
             );
         });
 
