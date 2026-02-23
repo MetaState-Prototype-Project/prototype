@@ -14,6 +14,8 @@ export interface ProvisionResult {
     success: boolean;
     w3id: string;
     uri: string;
+    duplicate?: boolean;
+    existingW3id?: string;
 }
 
 /**
@@ -59,6 +61,17 @@ export async function provision(
             publicKey,
         }),
     });
+
+    if (provisionRes.status === 409) {
+        const data = (await provisionRes.json()) as { existingW3id?: string };
+        return {
+            success: false,
+            duplicate: true,
+            existingW3id: data.existingW3id,
+            w3id: data.existingW3id ?? "",
+            uri: "",
+        };
+    }
 
     if (!provisionRes.ok) {
         const text = await provisionRes.text();

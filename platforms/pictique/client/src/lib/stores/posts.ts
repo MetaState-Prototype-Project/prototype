@@ -72,16 +72,18 @@ export const createPost = async (text: string, images: string[]) => {
 	try {
 		isLoading.set(true);
 		error.set(null);
-		
+
 		const payload = {
 			text,
 			images: images.map((img) => img)
 		};
-		
+
 		// Log payload size for debugging
 		const payloadSize = new Blob([JSON.stringify(payload)]).size;
-		console.log(`Payload size: ${(payloadSize / 1024).toFixed(2)} KB (${images.length} images)`);
-		
+		console.log(
+			`Payload size: ${(payloadSize / 1024).toFixed(2)} KB (${images.length} images)`
+		);
+
 		const response = await apiClient.post('/api/posts', payload);
 		resetFeed();
 		await fetchFeed(1, 10, false);

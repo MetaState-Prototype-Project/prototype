@@ -20,6 +20,7 @@
     "license": "MIT",
     "dependencies": {
         "@auvo/tauri-plugin-crypto-hw-api": "^0.1.0",
+        "@didit-protocol/sdk-web": "^0.1.6",
         "@hugeicons/core-free-icons": "^1.0.13",
         "@hugeicons/svelte": "^1.0.2",
         "@iconify/svelte": "^5.0.1",
@@ -46,6 +47,7 @@
         "svelte-loading-spinners": "^0.3.6",
         "svelte-qrcode": "^1.0.1",
         "tailwind-merge": "^3.0.2",
+        "ts-md5": "^2.0.1",
         "uuid": "^11.1.0",
         "wallet-sdk": "workspace:*"
     },
@@ -66,7 +68,7 @@
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/typography": "^0.5.16",
         "@tailwindcss/vite": "^4.0.14",
-        "@tauri-apps/cli": "^2.9.4",
+        "@tauri-apps/cli": "^2.10.0",
         "@types/node": "^22.13.10",
         "@vitest/browser": "^3.0.9",
         "@vitest/coverage-v8": "^3.0.9",

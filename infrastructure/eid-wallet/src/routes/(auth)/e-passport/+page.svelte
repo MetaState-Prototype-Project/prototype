@@ -3,15 +3,25 @@ import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
 let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
 const handleFinish = async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        globalState.vaultController.vault = {
+            uri: recovery.uri,
+            ename: recovery.ename,
+        };
+        pendingRecovery.set(null);
+    }
     await goto("/main");
 };
 
@@ -22,10 +32,13 @@ onMount(async () => {
 });
 </script>
 
-<main class="h-full p-4 flex flex-col justify-between">
+<main
+    class="h-full px-4 pb-4 flex flex-col justify-between"
+    style="padding-top: max(16px, env(safe-area-inset-top));"
+>
     <section>
         <Hero
-            title="Here’s your ePassport"
+            title="Here's your ePassport"
             class="mb-2"
             titleClasses="text-2xl"
         >
@@ -40,24 +53,8 @@ onMount(async () => {
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
     </section>
-    <section class="mt-[2svh] mb-[3svh]">
-        <Hero title="Here’s your eVault" class="mb-2" titleClasses="text-2xl">
-            {#snippet subtitle()}
-                The eVault is your secure cloud storage for your personal data.
-                W3DS platforms access it directly, keeping you in control.
-            {/snippet}
-        </Hero>
-
-        <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
-    </section>
-    <div class="flex items-center gap-3">
-        <ButtonAction
-            variant="soft"
-            class="flex-1"
-            callback={() => goto("/register")}>Back</ButtonAction
-        >
-        <ButtonAction class="flex-1" callback={handleFinish}
-            >Finish</ButtonAction
-        >
+    <div class="flex flex-col gap-3">
+        <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
+        <ButtonAction variant="soft" class="w-full" callback={() => goto("/register")}>Back</ButtonAction>
     </div>
 </main>

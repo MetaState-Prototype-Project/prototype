@@ -1,5 +1,11 @@
+import axios from "axios";
+import nacl from "tweetnacl";
 import type { DbService } from "../core/db/db.service";
 import type { FindMetaEnvelopesPaginatedOptions, MetaEnvelopeConnection } from "../core/db/types";
+import {
+    computeBindingDocumentHash,
+    getCanonicalBindingDocumentBytes,
+} from "../core/utils/binding-document-hash";
 import type {
     BindingDocument,
     BindingDocumentData,
@@ -91,6 +97,64 @@ export class BindingDocumentService {
         return subject.startsWith("@") ? subject : `@${subject}`;
     }
 
+    private base64urlToUint8Array(base64url: string): Uint8Array {
+        const padded = base64url
+            .replace(/-/g, "+")
+            .replace(/_/g, "/")
+            .padEnd(Math.ceil(base64url.length / 4) * 4, "=");
+        return Uint8Array.from(Buffer.from(padded, "base64"));
+    }
+
+    private parseProvisionerSigner(signer: string): { jwksUrl: string; kid: string } | null {
+        try {
+            const url = new URL(signer);
+            if (!url.pathname.endsWith("/.well-known/jwks.json")) return null;
+            const kid = url.hash.replace(/^#/, "");
+            if (!kid) return null;
+            return {
+                jwksUrl: `${url.origin}${url.pathname}`,
+                kid,
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    private async verifyProvisionerSignature(
+        signer: string,
+        signature: string,
+        doc: {
+            subject: string;
+            type: BindingDocumentType;
+            data: BindingDocumentData;
+        },
+    ): Promise<boolean> {
+        const signerInfo = this.parseProvisionerSigner(signer);
+        if (!signerInfo) return false;
+        try {
+            const { data: jwks } = await axios.get(signerInfo.jwksUrl, {
+                timeout: 5000,
+            });
+            const key = (jwks?.keys ?? []).find(
+                (k: { kid?: string; kty?: string; crv?: string; x?: string }) =>
+                    k.kid === signerInfo.kid,
+            );
+            if (!key || key.kty !== "OKP" || key.crv !== "Ed25519" || !key.x) {
+                return false;
+            }
+            const publicKey = this.base64urlToUint8Array(key.x);
+            const signatureBytes = this.base64urlToUint8Array(signature);
+            const canonicalBytes = getCanonicalBindingDocumentBytes(doc);
+            return nacl.sign.detached.verify(
+                canonicalBytes,
+                signatureBytes,
+                publicKey,
+            );
+        } catch {
+            return false;
+        }
+    }
+
     async createBindingDocument(
         input: CreateBindingDocumentInput,
         eName: string,
@@ -98,6 +162,23 @@ export class BindingDocumentService {
         const normalizedSubject = this.normalizeSubject(input.subject);
 
         const validatedData = validateBindingDocumentData(input.type, input.data);
+
+        const docToVerify = {
+            subject: normalizedSubject,
+            type: input.type,
+            data: validatedData,
+        };
+        const expectedHash = computeBindingDocumentHash(docToVerify);
+        const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
+        const hasValidProvisionerSignature =
+            await this.verifyProvisionerSignature(
+                input.ownerSignature.signer,
+                input.ownerSignature.signature,
+                docToVerify,
+            );
+        if (!hasLegacyHashSignature && !hasValidProvisionerSignature) {
+            throw new ValidationError("Invalid owner signature");
+        }
 
         const bindingDocument: BindingDocument = {
             subject: normalizedSubject,
@@ -140,6 +221,18 @@ export class BindingDocumentService {
         }
 
         const bindingDocument = metaEnvelope.parsed as BindingDocument;
+
+        // Counterparty signatures still use deterministic hash form.
+        const expectedHash = computeBindingDocumentHash({
+            subject: bindingDocument.subject,
+            type: bindingDocument.type,
+            data: bindingDocument.data,
+        });
+        if (input.signature.signature !== expectedHash) {
+            throw new ValidationError(
+                `Invalid counterparty signature: expected SHA-256 hash of canonical binding document`,
+            );
+        }
 
         // For social_connection documents the counterparty must be the subject
         if (bindingDocument.type === "social_connection") {

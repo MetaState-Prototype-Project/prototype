@@ -1,6 +1,8 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { FastifyInstance } from "fastify";
+import type { AddressInfo } from "node:net";
+import { createServer } from "node:net";
 import { Driver } from "neo4j-driver";
 import { setupTestNeo4j, teardownTestNeo4j } from "./neo4j-setup";
 import { setupTestDatabase, teardownTestDatabase } from "./postgres-setup";
@@ -39,6 +41,21 @@ export interface ProvisionedEVault {
     uri: string;
 }
 
+async function getAvailablePort(): Promise<number> {
+    return await new Promise((resolve, reject) => {
+        const server = createServer();
+        server.listen(0, "127.0.0.1", () => {
+            const address = server.address() as AddressInfo;
+            const port = address.port;
+            server.close((error) => {
+                if (error) reject(error);
+                else resolve(port);
+            });
+        });
+        server.on("error", reject);
+    });
+}
+
 /**
  * Sets up a complete E2E test environment with:
  * - Neo4j testcontainer
@@ -48,17 +65,21 @@ export interface ProvisionedEVault {
  * - evault-core Express server (Provisioning API)
  */
 export async function setupE2ETestServer(
-    expressPort: number = 3001,
-    fastifyPort: number = 4000,
-    registryPort: number = 4322
+    expressPort?: number,
+    fastifyPort?: number,
+    registryPort?: number,
 ): Promise<E2ETestServer> {
+    const resolvedExpressPort = expressPort ?? (await getAvailablePort());
+    const resolvedFastifyPort = fastifyPort ?? (await getAvailablePort());
+    const resolvedRegistryPort = registryPort ?? (await getAvailablePort());
+
     // Setup testcontainers
     const { container: neo4jContainer, driver: neo4jDriver } = await setupTestNeo4j();
     const { container: postgresContainer, dataSource: postgresDataSource } = await setupTestDatabase();
 
     // Setup mock registry server
-    const registryServer = await createMockRegistryServer(registryPort);
-    const registryUrl = `http://localhost:${registryPort}`;
+    const registryServer = await createMockRegistryServer(resolvedRegistryPort);
+    const registryUrl = `http://localhost:${resolvedRegistryPort}`;
 
     // Set environment variables for evault-core
     const neo4jUri = `bolt://localhost:${neo4jContainer.getMappedPort(7687)}`;
@@ -68,12 +89,12 @@ export async function setupE2ETestServer(
     process.env.PUBLIC_REGISTRY_URL = registryUrl;
     process.env.REGISTRY_URL = registryUrl; // Also set REGISTRY_URL for vault-access-guard
     process.env.REGISTRY_SHARED_SECRET = "test-secret";
-    process.env.PUBLIC_EVAULT_SERVER_URI = `http://localhost:${fastifyPort}`;
-    process.env.EVAULT_BASE_URI = `http://localhost:${fastifyPort}`;
+    process.env.PUBLIC_EVAULT_SERVER_URI = `http://localhost:${resolvedFastifyPort}`;
+    process.env.EVAULT_BASE_URI = `http://localhost:${resolvedFastifyPort}`;
     process.env.EVAULT_HOST = "localhost";
-    process.env.PORT = String(fastifyPort);
-    process.env.FASTIFY_PORT = String(fastifyPort);
-    process.env.EXPRESS_PORT = String(expressPort);
+    process.env.PORT = String(resolvedFastifyPort);
+    process.env.FASTIFY_PORT = String(resolvedFastifyPort);
+    process.env.EXPRESS_PORT = String(resolvedExpressPort);
     process.env.DEMO_CODE_W3DS = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 
     // Initialize PostgreSQL DataSource (used by provisioning service)
@@ -151,13 +172,13 @@ export async function setupE2ETestServer(
     });
 
     // Start Fastify server
-    await fastifyServer.listen({ port: fastifyPort, host: "0.0.0.0" });
+    await fastifyServer.listen({ port: resolvedFastifyPort, host: "0.0.0.0" });
 
     return {
         fastifyServer,
-        expressPort,
-        fastifyPort,
-        registryPort,
+        expressPort: resolvedExpressPort,
+        fastifyPort: resolvedFastifyPort,
+        registryPort: resolvedRegistryPort,
         neo4jDriver: driver,
         postgresDataSource,
         registryServer,

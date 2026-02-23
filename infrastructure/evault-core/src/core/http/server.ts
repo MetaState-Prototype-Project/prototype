@@ -9,6 +9,7 @@ import type {
 } from "../../services/ProvisioningService";
 import { DbService } from "../db/db.service";
 import { connectWithRetry } from "../db/retry-neo4j";
+import { getProvisionerJwk } from "../utils/provisioner-signer";
 import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
 
 interface WatcherSignatureRequest {
@@ -53,6 +54,33 @@ export async function registerHttpRoutes(
     await server.register(swaggerUi, {
         routePrefix: "/docs",
     });
+
+    // Provisioner JWKs endpoint — exposes the provisioner's ed25519 public key
+    server.get(
+        "/.well-known/jwks.json",
+        {
+            schema: {
+                tags: ["identity"],
+                description: "JWK Set containing the provisioner's public signing key",
+                response: {
+                    200: {
+                        type: "object",
+                        properties: {
+                            keys: { type: "array", items: { type: "object" } },
+                        },
+                    },
+                },
+            },
+        },
+        async (_request, _reply) => {
+            try {
+                const jwk = getProvisionerJwk();
+                return { keys: [jwk] };
+            } catch {
+                return { keys: [] };
+            }
+        },
+    );
 
     // Whois endpoint - returns both W3ID identifier and public key
     server.get(

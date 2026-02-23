@@ -133,6 +133,20 @@ function setDebug(info: DebugInfo): void {
     lastDebug = info;
 }
 
+async function getPlatformToken(): Promise<string> {
+    const res = await fetch(
+        new URL("/platforms/certification", config.registryUrl).toString(),
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ platform: config.platformName }),
+        },
+    );
+    if (!res.ok) throw new Error(`Platform token failed: ${res.status}`);
+    const data = (await res.json()) as { token: string };
+    return data.token;
+}
+
 async function ensurePlatformToken(identity: Identity): Promise<string> {
     const now = Date.now();
     if (
@@ -257,8 +271,7 @@ function escapeHtml(str: string): string {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;")
-        .replace(/\//g, "&#47;");
+        .replace(/'/g, "&#39;");
 }
 
 function highlightJson(json: string): string {
@@ -284,12 +297,35 @@ function highlightJson(json: string): string {
 }
 
 async function loadMetaEnvelopes(): Promise<void> {
-    if (!selectedOntologyId || !selectedIdentity) return;
+    if (!selectedOntologyId) return;
+
+    const ename = inspectorEName.trim() || selectedIdentity?.w3id;
+    if (!ename) {
+        pageError = "Enter an eName or provision an identity first.";
+        return;
+    }
+
     pageLoading = true;
     pageError = null;
     try {
-        const token = await ensurePlatformToken(selectedIdentity);
-        const gqlUrl = `${selectedIdentity.uri.replace(/\/+$/, "")}/graphql`;
+        // Always get a platform token — metaEnvelopes requires Bearer auth
+        const token = await getPlatformToken();
+
+        // Resolve eVault URI
+        let gqlUrl: string;
+        const lookupEName = inspectorEName.trim();
+        if (!lookupEName && selectedIdentity) {
+            gqlUrl = `${selectedIdentity.uri.replace(/\/+$/, "")}/graphql`;
+        } else {
+            const resolveRes = await fetch(
+                new URL(`resolve?w3id=${encodeURIComponent(ename)}`, registryUrl).toString(),
+            );
+            if (!resolveRes.ok) throw new Error(`Registry resolve failed: ${resolveRes.status}`);
+            const resolveData = await resolveRes.json();
+            if (!resolveData.uri) throw new Error("Registry returned no URI for that eName.");
+            gqlUrl = `${resolveData.uri.replace(/\/+$/, "")}/graphql`;
+        }
+
         const useBefore = beforeCursor !== null;
         const query = useBefore
             ? "query ($ontologyId: ID!, $last: Int, $before: String) {\n  metaEnvelopes(filter: {ontologyId: $ontologyId}, last: $last, before: $before) {\n    edges { cursor node { id ontology parsed } }\n    pageInfo { hasNextPage hasPreviousPage startCursor endCursor }\n    totalCount\n  }\n}"
@@ -297,21 +333,23 @@ async function loadMetaEnvelopes(): Promise<void> {
         const variables = useBefore
             ? { ontologyId: selectedOntologyId, last: pageSize, before: beforeCursor }
             : { ontologyId: selectedOntologyId, first: pageSize, after: afterCursor };
+
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "X-ENAME": ename,
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch(gqlUrl, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-ENAME": inspectorEName || selectedIdentity.w3id,
-                Authorization: `Bearer ${token}`,
-            },
+            headers,
             body: JSON.stringify({ query, variables }),
         });
         const json = await res.json();
+        if (json.errors?.length) throw new Error(json.errors[0].message);
         const data = json.data.metaEnvelopes;
         envelopes = data.edges.map(
-            (e: {
-                node: { id: string; ontology: string; parsed: unknown };
-            }) => e.node,
+            (e: { node: { id: string; ontology: string; parsed: unknown } }) => e.node,
         );
         pageInfo = data.pageInfo;
         totalCount = data.totalCount;
@@ -930,7 +968,7 @@ async function doSign() {
                         <button class="btn-secondary" disabled={schemasLoading} onclick={loadOntologies}>
                             {schemasLoading ? "Loading schemas…" : "Refresh schemas"}
                         </button>
-                        <button disabled={pageLoading || !selectedOntologyId} onclick={loadEnvelopes}>
+                        <button disabled={pageLoading || !selectedOntologyId || (!inspectorEName.trim() && !selectedIdentity)} onclick={loadEnvelopes}>
                             {pageLoading ? "Loading…" : "Load MetaEnvelopes"}
                         </button>
                     </div>

@@ -7,6 +7,7 @@ import { AppDataSource } from "./config/database";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
+import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
@@ -216,6 +217,16 @@ const initializeEVault = async (
     );
 };
 
+// Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
+expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
+    try {
+        const { getProvisionerJwk } = require("./core/utils/provisioner-signer");
+        res.json({ keys: [getProvisionerJwk()] });
+    } catch {
+        res.json({ keys: [] });
+    }
+});
+
 // Health check endpoint
 expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -231,9 +242,6 @@ const start = async () => {
         verificationService = new VerificationService(
             AppDataSource.getRepository(Verification),
         );
-        verificationController = new VerificationController(
-            verificationService,
-        );
         notificationController = new NotificationController();
 
         // Initialize provisioning service (uses shared AppDataSource)
@@ -242,10 +250,19 @@ const start = async () => {
             provisioningService,
         );
 
-        // Register verification, notification, and provisioning routes
+        // VerificationController must be created AFTER provisioningService so the
+        // upgrade route has a valid provisioningService reference.
+        verificationController = new VerificationController(
+            verificationService,
+            provisioningService,
+        );
+        const recoveryController = new RecoveryController(verificationService);
+
+        // Register verification, notification, provisioning, and recovery routes
         verificationController.registerRoutes(expressApp);
         notificationController.registerRoutes(expressApp);
         provisioningController.registerRoutes(expressApp);
+        recoveryController.registerRoutes(expressApp);
 
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);

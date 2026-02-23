@@ -6,6 +6,7 @@ import neo4j, { type Driver } from "neo4j-driver";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DbService } from "../core/db/db.service";
 import { computeEnvelopeHash } from "../core/db/envelope-hash";
+import { computeBindingDocumentHash } from "../core/utils/binding-document-hash";
 import { BindingDocumentService } from "./BindingDocumentService";
 
 const BINDING_DOCUMENT_ONTOLOGY = "b1d0a8c3-4e5f-6789-0abc-def012345678";
@@ -38,18 +39,15 @@ describe("BindingDocumentService (integration)", () => {
 
     describe("createBindingDocument", () => {
         it("should create a binding document with id_document type", async () => {
+            const data = { vendor: "onfido", reference: "ref-12345", name: "John Doe" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "id_document",
-                    data: {
-                        vendor: "onfido",
-                        reference: "ref-12345",
-                        name: "John Doe",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-abc123",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "id_document", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -72,16 +70,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should create a binding document with photograph type", async () => {
+            const data = { photoBlob: "base64encodedimage==" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "photograph",
-                    data: {
-                        photoBlob: "base64encodedimage==",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-photo-123",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "photograph", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -95,17 +92,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should create a binding document with social_connection type", async () => {
+            const data = { kind: "social_connection" as const, name: "Alice Smith" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "social_connection",
-                    data: {
-                        kind: "social_connection",
-                        name: "Alice Smith",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-social-123",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "social_connection", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -120,17 +115,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should create a binding document with self type", async () => {
+            const data = { kind: "self" as const, name: "Bob Jones" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: {
-                        kind: "self",
-                        name: "Bob Jones",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-self-123",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "self", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -145,17 +138,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should normalize subject to include @ prefix", async () => {
+            const data = { kind: "self" as const, name: "Test User" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-456",
                     type: "self",
-                    data: {
-                        kind: "self",
-                        name: "Test User",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-normalize",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-456", type: "self", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -166,17 +157,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should keep subject as-is if @ prefix already present", async () => {
+            const data = { kind: "self" as const, name: "Prefixed User" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "@already-prefixed",
                     type: "self",
-                    data: {
-                        kind: "self",
-                        name: "Prefixed User",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-prefixed",
+                        signature: computeBindingDocumentHash({ subject: "@already-prefixed", type: "self", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -189,18 +178,15 @@ describe("BindingDocumentService (integration)", () => {
         it("should persist envelope operation logs via dbService after creating a binding document", async () => {
             // This test verifies the DB logging infrastructure only; audit emission
             // by createBindingDocument itself is out of scope here.
+            const data = { vendor: "audit-vendor", reference: "audit-ref", name: "Audit User" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-audit",
                     type: "id_document",
-                    data: {
-                        vendor: "audit-vendor",
-                        reference: "audit-ref",
-                        name: "Audit User",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-audit",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-audit", type: "id_document", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -236,17 +222,15 @@ describe("BindingDocumentService (integration)", () => {
 
     describe("getBindingDocument", () => {
         it("should retrieve a binding document by ID", async () => {
+            const data = { kind: "self" as const, name: "Retrieve Test" };
             const created = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: {
-                        kind: "self",
-                        name: "Retrieve Test",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-retrieve",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "self", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -294,17 +278,17 @@ describe("BindingDocumentService (integration)", () => {
 
     describe("addCounterpartySignature", () => {
         it("should add a counterparty signature to existing binding document", async () => {
+            const data = { kind: "self" as const, name: "Signature Test" };
+            const subject = "@test-user-123";
+            const docHash = computeBindingDocumentHash({ subject, type: "self", data });
             const created = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: {
-                        kind: "self",
-                        name: "Signature Test",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "owner-sig",
+                        signature: docHash,
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -317,7 +301,7 @@ describe("BindingDocumentService (integration)", () => {
                         metaEnvelopeId: created.id,
                         signature: {
                             signer: "@counterparty-456",
-                            signature: "counterparty-sig-xyz",
+                            signature: docHash,
                             timestamp: new Date().toISOString(),
                         },
                     },
@@ -328,22 +312,22 @@ describe("BindingDocumentService (integration)", () => {
             expect(updated.signatures[0].signer).toBe(TEST_ENAME);
             expect(updated.signatures[1].signer).toBe("@counterparty-456");
             expect(updated.signatures[1].signature).toBe(
-                "counterparty-sig-xyz",
+                docHash,
             );
         });
 
         it("should reject when the same signer attempts to sign twice", async () => {
+            const data = { kind: "social_connection" as const, name: "Duplicate Signer Test" };
+            const subject = "@counterparty";
+            const docHash = computeBindingDocumentHash({ subject, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
                 {
-                    subject: "@counterparty",
+                    subject,
                     type: "social_connection",
-                    data: {
-                        kind: "social_connection",
-                        name: "Duplicate Signer Test",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "owner-sig-dup",
+                        signature: docHash,
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -355,7 +339,7 @@ describe("BindingDocumentService (integration)", () => {
                     metaEnvelopeId: created.id,
                     signature: {
                         signer: "@counterparty",
-                        signature: "counterparty-sig-first",
+                        signature: docHash,
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -368,7 +352,7 @@ describe("BindingDocumentService (integration)", () => {
                         metaEnvelopeId: created.id,
                         signature: {
                             signer: "@counterparty",
-                            signature: "counterparty-sig-second",
+                            signature: docHash,
                             timestamp: new Date().toISOString(),
                         },
                     },
@@ -398,17 +382,16 @@ describe("BindingDocumentService (integration)", () => {
         it("should have an audit log entry after adding a counterparty signature", async () => {
             // For social_connection, the counterparty signer must equal the document's subject
             const counterpartyEName = "@test-user-countersign-audit";
+            const data = { kind: "social_connection" as const, name: "CounterSign Audit" };
+            const docHash = computeBindingDocumentHash({ subject: counterpartyEName, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
                 {
                     subject: counterpartyEName,
                     type: "social_connection",
-                    data: {
-                        kind: "social_connection",
-                        name: "CounterSign Audit",
-                    },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-owner-countersign",
+                        signature: docHash,
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -421,7 +404,7 @@ describe("BindingDocumentService (integration)", () => {
                         metaEnvelopeId: created.id,
                         signature: {
                             signer: counterpartyEName,
-                            signature: "sig-counter-audit",
+                            signature: docHash,
                             timestamp: new Date().toISOString(),
                         },
                     },
@@ -458,32 +441,30 @@ describe("BindingDocumentService (integration)", () => {
 
     describe("findBindingDocuments", () => {
         it("should find all binding documents for an eName", async () => {
+            const data1 = { kind: "self" as const, name: "Find Test 1" };
             await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: { kind: "self", name: "Find Test 1" },
+                    data: data1,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig1",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "self", data: data1 }),
                         timestamp: new Date().toISOString(),
                     },
                 },
                 TEST_ENAME,
             );
 
+            const data2 = { vendor: "test", reference: "ref", name: "Find Test 2" };
             await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "id_document",
-                    data: {
-                        vendor: "test",
-                        reference: "ref",
-                        name: "Find Test 2",
-                    },
+                    data: data2,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig2",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "id_document", data: data2 }),
                         timestamp: new Date().toISOString(),
                     },
                 },
@@ -499,14 +480,15 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should filter binding documents by type", async () => {
+            const data = { kind: "self" as const, name: "Type Filter Test" };
             await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
                     type: "self",
-                    data: { kind: "self", name: "Type Filter Test" },
+                    data,
                     ownerSignature: {
                         signer: TEST_ENAME,
-                        signature: "sig-type-filter",
+                        signature: computeBindingDocumentHash({ subject: "@test-user-123", type: "self", data }),
                         timestamp: new Date().toISOString(),
                     },
                 },
