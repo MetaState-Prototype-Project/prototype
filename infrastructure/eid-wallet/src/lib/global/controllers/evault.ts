@@ -640,7 +640,7 @@ export class VaultController {
             "Content-Type": "application/json",
             "X-ENAME": vault.ename,
         };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+        if (token) headers.Authorization = `Bearer ${token}`;
 
         const response = await axios.post(
             new URL("/passphrase/set", base).toString(),
@@ -666,7 +666,7 @@ export class VaultController {
             const base = await this.resolveBaseUrl(vault.ename);
             const token = PUBLIC_EID_WALLET_TOKEN || null;
             const headers: Record<string, string> = { "X-ENAME": vault.ename };
-            if (token) headers["Authorization"] = `Bearer ${token}`;
+            if (token) headers.Authorization = `Bearer ${token}`;
 
             const response = await axios.get(
                 new URL("/passphrase/status", base).toString(),

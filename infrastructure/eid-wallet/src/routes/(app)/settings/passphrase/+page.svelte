@@ -63,7 +63,7 @@ async function handleSave() {
 
     isLoading = true;
     try {
-        await globalState!.vaultController.setRecoveryPassphrase(
+        await globalState?.vaultController.setRecoveryPassphrase(
             passphrase,
             confirmPassphrase,
         );

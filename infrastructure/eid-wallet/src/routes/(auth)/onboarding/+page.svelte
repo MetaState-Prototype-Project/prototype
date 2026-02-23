@@ -6,9 +6,9 @@ import {
     PUBLIC_PROVISIONER_URL,
     PUBLIC_REGISTRY_URL,
 } from "$env/static/public";
-import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
