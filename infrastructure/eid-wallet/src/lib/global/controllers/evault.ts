@@ -600,6 +600,81 @@ export class VaultController {
         return this.#endpoint;
     }
 
+    /**
+     * Resolve the Fastify (non-GraphQL) base URL for this vault.
+     * The GraphQL endpoint lives at `<base>/graphql`; other HTTP routes sit at `<base>`.
+     */
+    private async resolveBaseUrl(w3id: string): Promise<string> {
+        const graphqlUrl = await this.resolveEndpoint(w3id);
+        return graphqlUrl.replace(/\/graphql$/, "");
+    }
+
+    /**
+     * Store the recovery passphrase for this vault on the eVault server.
+     * Only a PBKDF2 hash is persisted on the server; the plain text is never sent
+     * across the wire in any readable form — it is sent over HTTPS and immediately
+     * hashed server-side with a random salt.
+     *
+     * @throws if the passphrase does not meet strength requirements (validated server-side)
+     * @throws if no vault is found
+     */
+    async setRecoveryPassphrase(passphrase: string, confirmPassphrase: string): Promise<void> {
+        if (passphrase !== confirmPassphrase) {
+            throw new Error("Passphrases do not match");
+        }
+
+        const vault = await this.vault;
+        if (!vault?.ename) {
+            throw new Error("No vault available");
+        }
+
+        const base = await this.resolveBaseUrl(vault.ename);
+
+        // Retrieve a valid auth token by re-using the token used for other vault ops
+        const token = PUBLIC_EID_WALLET_TOKEN || null;
+
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "X-ENAME": vault.ename,
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await axios.post(
+            new URL("/passphrase/set", base).toString(),
+            { passphrase },
+            { headers },
+        );
+
+        if (!response.data?.success) {
+            throw new Error(
+                response.data?.error ?? "Failed to store recovery passphrase",
+            );
+        }
+    }
+
+    /**
+     * Check whether a recovery passphrase has been set on the eVault.
+     */
+    async hasRecoveryPassphrase(): Promise<boolean> {
+        const vault = await this.vault;
+        if (!vault?.ename) return false;
+
+        try {
+            const base = await this.resolveBaseUrl(vault.ename);
+            const token = PUBLIC_EID_WALLET_TOKEN || null;
+            const headers: Record<string, string> = { "X-ENAME": vault.ename };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
+            const response = await axios.get(
+                new URL("/passphrase/status", base).toString(),
+                { headers },
+            );
+            return response.data?.hasPassphrase === true;
+        } catch {
+            return false;
+        }
+    }
+
     async clear() {
         await this.#store.delete("vault");
     }
