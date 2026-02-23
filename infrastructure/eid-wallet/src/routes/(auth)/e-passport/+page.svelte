@@ -3,13 +3,20 @@ import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
+import { get } from "svelte/store";
 import { getContext, onMount } from "svelte";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
 let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
 
 const handleFinish = async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        globalState.vaultController.vault = { uri: recovery.uri, ename: recovery.ename };
+        pendingRecovery.set(null);
+    }
     await goto("/main");
 };
 
@@ -41,14 +48,8 @@ onMount(async () => {
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
     </section>
-    <div class="flex items-center gap-3">
-        <ButtonAction
-            variant="soft"
-            class="flex-1"
-            callback={() => goto("/register")}>Back</ButtonAction
-        >
-        <ButtonAction class="flex-1" callback={handleFinish}
-            >Finish</ButtonAction
-        >
+    <div class="flex flex-col gap-3">
+        <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
+        <ButtonAction variant="soft" class="w-full" callback={() => goto("/register")}>Back</ButtonAction>
     </div>
 </main>

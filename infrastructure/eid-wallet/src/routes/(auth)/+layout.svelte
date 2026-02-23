@@ -22,22 +22,25 @@ onMount(async () => {
 
         // Check if user is already authenticated
         const vault = await globalState.vaultController.vault;
-        if (vault) {
+        const isLoginPage = page.url.pathname === "/login";
+        console.log("[AUTH GUARD] path:", page.url.pathname, "| vault:", !!vault);
+        if (vault && !isLoginPage) {
             vaultExists = true;
-            console.log("User already authenticated, redirecting to main");
+            console.log("[AUTH GUARD] vault exists + not login → /main");
             // Use replaceState to prevent infinite back loops
             await goto("/main", { replaceState: true });
             return;
         }
 
-        if (globalState.isOnboardingComplete) {
+        const onboardingComplete = await globalState.isOnboardingComplete;
+        console.log("[AUTH GUARD] onboardingComplete:", onboardingComplete);
+        if (onboardingComplete) {
             const pinHash = await globalState.securityController.pinHash;
             const isAlreadyAtLogin = page.url.pathname === "/login";
+            console.log("[AUTH GUARD] pinHash:", !!pinHash, "| isAlreadyAtLogin:", isAlreadyAtLogin);
 
             if (pinHash && !isAlreadyAtLogin) {
-                console.log(
-                    "Onboarding already complete, redirecting to login",
-                );
+                console.log("[AUTH GUARD] onboarding complete + pinHash + not at login → /login");
                 await goto("/login", { replaceState: true });
                 return;
             }

@@ -2,8 +2,10 @@
 import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import axios from "axios";
+import { get } from "svelte/store";
 import { getContext, onMount } from "svelte";
 
 let globalState = getContext<() => GlobalState>("globalState")();
@@ -14,6 +16,11 @@ const handleNext = async () => {
 };
 
 onMount(async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        ename = recovery.ename;
+        return;
+    }
     const vault = await globalState.vaultController.vault;
     ename = vault?.ename;
 });

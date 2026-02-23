@@ -5,6 +5,8 @@ import type { VerificationService } from "../services/VerificationService";
 
 const diditClient = Axios.create({ baseURL: "https://verification.didit.me" });
 
+const FACE_SIMILARITY_THRESHOLD = 75;
+
 export class RecoveryController {
     constructor(private readonly verificationService: VerificationService) {}
 
@@ -12,7 +14,7 @@ export class RecoveryController {
         /**
          * POST /recovery/start-session
          *
-         * Creates a Didit session using DIDIT_RECOVER_WORKFLOW_ID.
+         * Creates a Didit session using DIDIT_RECOVER_WORKFLOW_ID (liveness only).
          * Returns { verificationUrl, sessionToken, id }.
          */
         app.post("/recovery/start-session", async (req: Request, res: Response) => {
@@ -56,15 +58,14 @@ export class RecoveryController {
          * POST /recovery/face-search
          * JSON: { diditSessionId: string }
          *
-         * 1. Fetches the full decision from Didit.
-         * 2. Checks liveness_checks[0].status is Approved.
-         * 3. PRIMARY: iterates liveness_checks[0].matches (already sorted by similarity
-         *    from Didit) — each match.vendor_data is our Verification.id — looks up
-         *    linkedEName in the DB.
-         * 4. FALLBACK: if no liveness matches, downloads portrait_image from
-         *    id_verifications[0] and runs POST /v3/face-search/ explicitly.
-         * 5. Returns { success, w3id, similarity, portraitDataUri } or
-         *    { success: false, reason }.
+         * 1. Fetches the recovery session decision from Didit.
+         * 2. Requires liveness_checks[0].status === "Approved".
+         * 3. Iterates liveness_checks[0].matches, filtered to approved,
+         *    non-blocklisted entries with similarity >= FACE_SIMILARITY_THRESHOLD.
+         * 4. For each candidate, looks up the Verification record by vendor_data.
+         * 5. On a hit, fetches the *matched* session's full decision to extract
+         *    id_verifications[0] (the original provisioning session had an ID doc scan).
+         * 6. Returns { success, w3id, uri, idVerif } or { success: false, reason }.
          */
         app.post("/recovery/face-search", async (req: Request, res: Response) => {
             const { diditSessionId } = req.body as { diditSessionId?: string };
@@ -77,98 +78,76 @@ export class RecoveryController {
                 return res.status(500).json({ error: "DIDIT_API_KEY not configured" });
             }
 
+            const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+            if (!evaultUrl) {
+                return res.status(500).json({ error: "PUBLIC_EVAULT_SERVER_URI not configured" });
+            }
+
             try {
                 const { data: decision } = await diditClient.get(
                     `/v3/session/${diditSessionId}/decision/`,
                     { headers: { "x-api-key": apiKey } },
                 );
 
-                // Liveness must be approved
                 const liveness = decision?.liveness_checks?.[0];
                 if (!liveness || liveness.status?.toLowerCase() !== "approved") {
                     console.warn("[RECOVERY] Liveness not approved:", liveness?.status);
                     return res.json({ success: false, reason: "liveness_failed" });
                 }
 
-                // Get portrait for face-match step later
-                const idVerif = decision?.id_verifications?.[0];
-                const portraitUrl: string = idVerif?.portrait_image ?? liveness.reference_image ?? "";
-
-                let portraitBuffer: Buffer | null = null;
-                let portraitMime = "image/jpeg";
-                if (portraitUrl) {
-                    try {
-                        const portraitRes = await Axios.get(portraitUrl, { responseType: "arraybuffer" });
-                        portraitBuffer = Buffer.from(portraitRes.data);
-                        portraitMime = (portraitRes.headers["content-type"] as string) || "image/jpeg";
-                    } catch {
-                        console.warn("[RECOVERY] Could not download portrait:", portraitUrl);
-                    }
-                }
-
-                const portraitDataUri = portraitBuffer
-                    ? `data:${portraitMime};base64,${portraitBuffer.toString("base64")}`
-                    : null;
-
-                // PRIMARY: use liveness matches array (pre-sorted by Didit)
-                const livenessMatches: any[] = (liveness.matches ?? []).filter(
-                    (m: any) => m.status?.toLowerCase() === "approved" && !m.is_blocklisted,
+                // Filter to quality candidates only
+                const candidates: any[] = (liveness.matches ?? []).filter(
+                    (m: any) =>
+                        m.status?.toLowerCase() === "approved" &&
+                        !m.is_blocklisted &&
+                        (m.similarity_percentage ?? 0) >= FACE_SIMILARITY_THRESHOLD,
                 );
 
-                for (const match of livenessMatches) {
+                for (const match of candidates) {
                     const vendorData: string = match.vendor_data ?? "";
                     if (!vendorData) continue;
 
                     const record = await this.verificationService.findOne({ id: vendorData });
-                    if (record?.linkedEName) {
-                        console.log(
-                            `[RECOVERY] Found via liveness matches: eName=${record.linkedEName} similarity=${match.similarity_percentage}%`,
+                    if (!record?.linkedEName) continue;
+
+                    // Fetch the original provisioning session to get the ID document data
+                    let idVerif: any = null;
+                    try {
+                        const { data: matchedDecision } = await diditClient.get(
+                            `/v3/session/${match.session_id}/decision/`,
+                            { headers: { "x-api-key": apiKey } },
                         );
-                        return res.json({
-                            success: true,
-                            w3id: record.linkedEName,
-                            similarity: match.similarity_percentage ?? null,
-                            portraitDataUri,
-                        });
+                        idVerif = matchedDecision?.id_verifications?.[0] ?? null;
+                    } catch (err: any) {
+                        console.warn("[RECOVERY] Could not fetch matched session decision:", err?.message);
                     }
-                }
 
-                // FALLBACK: run explicit face-search if liveness matches were empty
-                if (portraitBuffer) {
-                    const fd = new FormData();
-                    fd.append("user_image", portraitBuffer, { filename: "portrait.jpg", contentType: portraitMime });
-                    fd.append("search_type", "most_similar");
-                    fd.append("save_api_request", "true");
-
-                    const faceSearchRes = await diditClient.post("/v3/face-search/", fd, {
-                        headers: { "x-api-key": apiKey, ...fd.getHeaders() },
-                    });
-
-                    const searchMatches: any[] = faceSearchRes.data?.face_search?.matches ?? [];
-                    const sorted = [...searchMatches].sort(
-                        (a, b) => (b.similarity_percentage ?? 0) - (a.similarity_percentage ?? 0),
+                    console.log(
+                        `[RECOVERY] eVault found: eName=${record.linkedEName} similarity=${match.similarity_percentage}%`,
                     );
 
-                    for (const match of sorted) {
-                        const vendorData: string = match.vendor_data ?? "";
-                        if (!vendorData) continue;
-
-                        const record = await this.verificationService.findOne({ id: vendorData });
-                        if (record?.linkedEName) {
-                            console.log(
-                                `[RECOVERY] Found via face-search fallback: eName=${record.linkedEName} similarity=${match.similarity_percentage}%`,
-                            );
-                            return res.json({
-                                success: true,
-                                w3id: record.linkedEName,
-                                similarity: match.similarity_percentage ?? null,
-                                portraitDataUri,
-                            });
-                        }
-                    }
+                    return res.json({
+                        success: true,
+                        w3id: record.linkedEName,
+                        uri: evaultUrl,
+                        idVerif: idVerif
+                            ? {
+                                  full_name: idVerif.full_name,
+                                  first_name: idVerif.first_name,
+                                  last_name: idVerif.last_name,
+                                  date_of_birth: idVerif.date_of_birth,
+                                  document_type: idVerif.document_type,
+                                  document_number: idVerif.document_number,
+                                  issuing_state_name: idVerif.issuing_state_name,
+                                  issuing_state: idVerif.issuing_state,
+                                  expiration_date: idVerif.expiration_date,
+                                  date_of_issue: idVerif.date_of_issue,
+                              }
+                            : null,
+                    });
                 }
 
-                console.warn("[RECOVERY] No matching eVault found");
+                console.warn("[RECOVERY] No matching eVault found above threshold");
                 return res.json({ success: false, reason: "no_match" });
             } catch (err: any) {
                 console.error("[RECOVERY] face-search error:", err?.response?.data ?? err?.message);
@@ -180,8 +159,8 @@ export class RecoveryController {
          * POST /recovery/face-match
          * JSON: { w3id: string, userImageBase64: string }
          *
-         * Fetches the photograph binding document from the user's eVault,
-         * runs Didit face-match, returns { success, score, w3id, uri }.
+         * Kept for potential future use. Not called by the current recovery flow.
+         * Fetches the photograph binding document and runs Didit face-match.
          */
         app.post("/recovery/face-match", async (req: Request, res: Response) => {
             const { w3id, userImageBase64 } = req.body as {
@@ -224,13 +203,7 @@ export class RecoveryController {
 
                 const gqlRes = await Axios.post(
                     gqlUrl,
-                    {
-                        query: `query {
-                            bindingDocuments(first: 50) {
-                                edges { node { parsed } }
-                            }
-                        }`,
-                    },
+                    { query: `query { bindingDocuments(first: 50) { edges { node { parsed } } } }` },
                     {
                         headers: {
                             "Content-Type": "application/json",
