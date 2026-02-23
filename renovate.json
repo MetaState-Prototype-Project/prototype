@@ -15,10 +15,10 @@
             "matchManagers": [
                 "npm"
             ],
-            "matchPackagePatterns": [
+            "separateMajorMinor": false,
+            "matchPackageNames": [
                 "*"
-            ],
-            "separateMajorMinor": false
+            ]
         }
     ],
     "vulnerabilityAlerts": {
