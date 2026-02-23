@@ -20,7 +20,7 @@
         "@fastify/jwt": "^7.2.3",
         "axios": "^1.6.7",
         "dotenv": "^16.4.5",
-        "fastify": "^4.26.1",
+        "fastify": "^5.0.0",
         "jose": "^5.2.2",
         "pg": "^8.11.3",
         "reflect-metadata": "^0.2.1",
