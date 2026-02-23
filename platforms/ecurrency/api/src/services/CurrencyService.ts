@@ -21,11 +21,20 @@ export class CurrencyService {
         name: string,
         groupId: string,
         createdBy: string,
-        allowNegative: boolean = false,
-        maxNegativeBalance: number | null = null,
-        description?: string,
-        allowNegativeGroupOnly: boolean = false
+        options?: {
+            allowNegative?: boolean;
+            maxNegativeBalance?: number | null;
+            description?: string;
+            allowNegativeGroupOnly?: boolean;
+        }
     ): Promise<Currency> {
+        const {
+            allowNegative = false,
+            maxNegativeBalance = null,
+            description,
+            allowNegativeGroupOnly = false,
+        } = options ?? {};
+
         // Verify user is group admin
         const isAdmin = await this.groupService.isGroupAdmin(groupId, createdBy);
         if (!isAdmin) {

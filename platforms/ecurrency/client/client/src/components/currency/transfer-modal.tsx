@@ -81,6 +81,25 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
   const fromCurrencyData = currencies?.find((c: any) => c.id === fromCurrency);
   const fromBalance = balances?.find((b: any) => b.currency.id === fromCurrency);
 
+  const { data: userGroups } = useQuery({
+    queryKey: ["userGroups"],
+    queryFn: async () => {
+      const response = await apiClient.get("/api/groups");
+      return response.data as { id: string }[];
+    },
+    enabled: !!user,
+  });
+
+  const isGroupMember = !!(
+    fromCurrencyData?.groupId &&
+    userGroups?.some((g) => g.id === fromCurrencyData.groupId)
+  );
+
+  // When allowNegativeGroupOnly, only group members can send below zero
+  const negativeAllowed =
+    fromCurrencyData?.allowNegative &&
+    (!fromCurrencyData?.allowNegativeGroupOnly || isGroupMember);
+
   const transferMutation = useMutation({
     mutationFn: async (data: {
       currencyId: string;
@@ -159,11 +178,15 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
               return;
             }
 
-            // Only check balance if negative balances are not allowed
-            if (fromCurrencyData && !fromCurrencyData.allowNegative && fromBalance) {
+            // Only skip the balance floor when negative balances are allowed for this user
+            if (fromCurrencyData && !negativeAllowed && fromBalance) {
               const currentBalance = Number(fromBalance.balance);
               if (currentBalance < transferAmount) {
-                setError("Insufficient balance. This currency does not allow negative balances.");
+                if (fromCurrencyData.allowNegativeGroupOnly && !isGroupMember) {
+                  setError("Insufficient balance. Negative balances are restricted to group members only.");
+                } else {
+                  setError("Insufficient balance. This currency does not allow negative balances.");
+                }
                 return;
               }
             }
@@ -237,15 +260,19 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
                 {fromCurrencyData?.name || ""}
               </div>
             </div>
-            {fromBalance && amount && fromCurrencyData && !fromCurrencyData.allowNegative && parseFloat(amount.replace(/,/g, '')) > Number(fromBalance.balance) && (
+            {fromBalance && amount && fromCurrencyData && !negativeAllowed && parseFloat(amount.replace(/,/g, '')) > Number(fromBalance.balance) && (
               <p className="text-sm text-destructive mt-1">
-                Insufficient balance. Available: {Number(fromBalance.balance).toLocaleString()}
+                {fromCurrencyData.allowNegativeGroupOnly && !isGroupMember
+                  ? "Insufficient balance. Negative balances are restricted to group members only."
+                  : `Insufficient balance. Available: ${Number(fromBalance.balance).toLocaleString()}`}
               </p>
             )}
             {fromCurrencyData && fromCurrencyData.allowNegative && (
               <p className="text-sm text-muted-foreground mt-1">
                 {fromCurrencyData.allowNegativeGroupOnly
-                  ? "Negative balances allowed for group members"
+                  ? isGroupMember
+                    ? "Negative balances allowed (you are a group member)"
+                    : "Negative balances restricted to group members — you must maintain a positive balance"
                   : "Negative balances are allowed for this currency"}
               </p>
             )}
@@ -371,7 +398,7 @@ export default function TransferModal({ open, onOpenChange, fromCurrencyId, acco
                 !toAccountId ||
                 !amount ||
                 parseFloat(amount.replace(/,/g, '')) <= 0 ||
-                (fromBalance && fromCurrencyData && !fromCurrencyData.allowNegative && parseFloat(amount.replace(/,/g, '')) > Number(fromBalance.balance))
+                (fromBalance && fromCurrencyData && !negativeAllowed && parseFloat(amount.replace(/,/g, '')) > Number(fromBalance.balance))
               }
               className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
             >

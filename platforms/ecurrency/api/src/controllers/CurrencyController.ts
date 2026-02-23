@@ -47,10 +47,12 @@ export class CurrencyController {
                 name,
                 groupId,
                 req.user.id,
-                allowNegativeFlag,
-                normalizedMaxNegative,
-                description,
-                allowNegativeGroupOnlyFlag
+                {
+                    allowNegative: allowNegativeFlag,
+                    maxNegativeBalance: normalizedMaxNegative,
+                    description,
+                    allowNegativeGroupOnly: allowNegativeGroupOnlyFlag,
+                }
             );
 
             res.status(201).json({
@@ -70,6 +72,15 @@ export class CurrencyController {
             console.error("Error creating currency:", error);
             if (error.message.includes("Only group admins")) {
                 return res.status(403).json({ error: error.message });
+            }
+            if (
+                error.message.includes("Cannot restrict overdraft") ||
+                error.message.includes("allowNegativeGroupOnly") ||
+                error.message.includes("Cannot set max negative") ||
+                error.message.includes("Max negative balance") ||
+                error.message.includes("negative balances are disabled")
+            ) {
+                return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: "Internal server error" });
         }
@@ -213,6 +224,7 @@ export class CurrencyController {
                 ename: updated.ename,
                 groupId: updated.groupId,
                 allowNegative: updated.allowNegative,
+                allowNegativeGroupOnly: updated.allowNegativeGroupOnly,
                 maxNegativeBalance: updated.maxNegativeBalance,
                 createdBy: updated.createdBy,
                 createdAt: updated.createdAt,

@@ -251,11 +251,21 @@ function toggleExpand(id: string) {
     expandedIds = next;
 }
 
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+        .replace(/\//g, "&#47;");
+}
+
 function highlightJson(json: string): string {
-    return json.replace(
-        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    return escapeHtml(json).replace(
+        /(&quot;(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\&])*&quot;(\s*:)?|true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
         (match) => {
-            if (/^"/.test(match)) {
+            if (/^&quot;/.test(match)) {
                 if (/:$/.test(match)) {
                     const key = match.slice(0, -1);
                     return `<span class="json-key">${key}</span>:`;
@@ -930,8 +940,10 @@ async function doSign() {
                     <span class="envelope-count">
                         {#if pageLoading}
                             Loading…
-                        {:else}
+                        {:else if envelopes.length > 0}
                             {pageOffset + 1}–{pageOffset + envelopes.length} of {totalCount}
+                        {:else}
+                            0 of {totalCount}
                         {/if}
                     </span>
                     <div class="pagination-controls">

@@ -12,16 +12,16 @@ In W3DS, every user, group, eVault, and many objects are identified by a **W3ID*
 
 ### Key Concepts
 
-- **W3ID**: The primary identifier for entities in the ecosystem; UUID-based (see [RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122)).
-- **eName**: A **universally resolvable** W3ID. Resolving an eName via the Registry yields the eVault (or controller) URL for that identity.
-- **Global vs local**: Global IDs (e.g. `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`) are the primary persistent identity. Local IDs (e.g. `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`) refer to an object *within* an eVault: the part after the slash is the object UUID in the context of the eVault identified by the part before the slash.
+- **W3ID**: The primary identifier for entities in the ecosystem; UUID-based (see [RFC 4122](https://datatracker.ietf.org/doc/html/rfc4122)). Global W3IDs (eNames) start with `@`, local IDs are plain UUIDs.
+- **eName**: A **universally resolvable** W3ID that is registered in the Registry. Resolving an eName via the Registry yields the eVault (or controller) URL for that identity. Format: `@<UUID>`.
+- **Global vs local**: Global IDs / eNames (e.g. `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`) are the primary persistent identity. Local IDs (e.g. `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`) refer to an object *within* an eVault.
 
 ## W3ID Format
 
 The W3ID URI format is:
 
-- **Global**: `@<UUID in HEX>` (case insensitive). The number and positioning of dashes follow RFC 4122. Example: `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
-- **Local**: `@<eVault-UUID>/<object-UUID>` — the object `object-UUID` at the eVault (or owner) `eVault-UUID`. Example: `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a/f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
+- **Global (eName)**: `@<UUID in HEX>` (case insensitive). The number and positioning of dashes follow RFC 4122. Example: `@e4d909c2-5d2f-4a7d-9473-b34b6c0f1a5a`
+- **Local**: `<object-UUID>` — a UUID referring to an object within an eVault. Example: `f2a6743e-8d5b-43bc-a9f0-1c7a3b9e90d7`
 
 The UUID namespace has range 2^122, which is far larger than the expected number of identities (e.g. 10^22), so collision risk is negligible.
 
