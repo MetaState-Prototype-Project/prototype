@@ -401,7 +401,7 @@ importers:
         specifier: ^4.0.14
         version: 4.1.18(vite@6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       '@tauri-apps/cli':
-        specifier: ^2.9.4
+        specifier: ^2.10.0
         version: 2.10.0
       '@types/node':
         specifier: ^22.13.10
