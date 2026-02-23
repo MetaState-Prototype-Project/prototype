@@ -25,6 +25,7 @@ let profileCreationStatus: "idle" | "loading" | "success" | "failed" =
     $state("idle");
 
 let hasOnlySelfDocs = $state(false);
+let missingProvisionerDocs = $state(false);
 let bindingDocsLoaded = $state(false);
 
 // ── Inline KYC upgrade state ──────────────────────────────────────────────────
@@ -118,9 +119,18 @@ async function loadBindingDocuments(): Promise<void> {
         const edges: { node: { parsed: { type: string } | null } }[] =
             json?.data?.bindingDocuments?.edges ?? [];
 
+        const isFake = await globalState.userController.isFake;
+        const types = edges.map((e) => e.node.parsed?.type ?? "");
+
         hasOnlySelfDocs =
-            edges.length === 0 ||
-            edges.every((e) => e.node.parsed?.type === "self");
+            !!isFake &&
+            (edges.length === 0 || types.every((t) => t === "self"));
+
+        // Verified identity locally (isFake=false) but provisioner binding docs missing
+        missingProvisionerDocs =
+            !isFake &&
+            !types.includes("id_document") &&
+            !types.includes("photograph");
     } catch (err) {
         console.warn("[main] Failed to load binding documents:", err);
     } finally {
@@ -297,6 +307,8 @@ async function handleUpgrade() {
         resetKyc();
         // Refresh binding docs so ribbon disappears
         bindingDocsLoaded = false;
+        hasOnlySelfDocs = false;
+        missingProvisionerDocs = false;
         await loadBindingDocuments();
     } catch (err: any) {
         console.error("[KYC] Upgrade failed:", err);
@@ -444,13 +456,18 @@ onDestroy(() => {
                         userData={userData as Record<string, string>}
                     />
                 </div>
-                {#if bindingDocsLoaded && hasOnlySelfDocs}
+                {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
                     <button
                         onclick={(e) => { e.stopPropagation(); goto("/ePassport"); }}
-                        class="relative z-0 w-full -mt-3 -translate-y-[10px] rounded-b-2xl bg-amber-400 px-4 pt-[30px] pb-3 flex items-center justify-center gap-2 text-amber-900 text-sm font-medium shadow-md active:bg-amber-500 transition-colors"
+                        class="relative z-0 w-full -mt-3 -translate-y-[10px] rounded-b-2xl px-4 pt-[30px] pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
+                            {missingProvisionerDocs
+                                ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
+                                : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
                     >
-                        <span>⚠</span>
-                        Tap to verify your identity and increase trust level
+                        <span>{missingProvisionerDocs ? '↑' : '⚠'}</span>
+                        {missingProvisionerDocs
+                            ? 'New — upgrade your eVault with verified identity docs'
+                            : 'Tap to verify your identity and increase trust level'}
                     </button>
                 {/if}
             </div>

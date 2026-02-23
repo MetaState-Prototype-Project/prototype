@@ -13,6 +13,7 @@ const globalState = getContext<() => GlobalState>("globalState")();
 let userData = $state<Record<string, string | boolean | undefined> | undefined>(undefined);
 let docData = $state<Record<string, unknown>>({});
 let hasOnlySelfDocs = $state(false);
+let missingProvisionerDocs = $state(false);
 let bindingDocsLoaded = $state(false);
 
 // ── Inline KYC upgrade state ──────────────────────────────────────────────────
@@ -72,13 +73,17 @@ async function loadBindingDocuments(): Promise<void> {
         const edges: { node: { parsed: { type: string } | null } }[] =
             json?.data?.bindingDocuments?.edges ?? [];
 
-        if (edges.length === 0) {
-            hasOnlySelfDocs = true;
-        } else {
-            hasOnlySelfDocs = edges.every(
-                (e) => e.node.parsed?.type === "self",
-            );
-        }
+        const isFake = await globalState.userController.isFake;
+        const types = edges.map((e) => e.node.parsed?.type ?? "");
+
+        hasOnlySelfDocs =
+            !!isFake &&
+            (edges.length === 0 || types.every((t) => t === "self"));
+
+        missingProvisionerDocs =
+            !isFake &&
+            !types.includes("id_document") &&
+            !types.includes("photograph");
     } catch (err) {
         console.warn("[ePassport] Failed to load binding documents:", err);
     } finally {
@@ -259,6 +264,8 @@ async function handleUpgrade() {
         resetKyc();
         // Refresh binding docs so amber box disappears
         bindingDocsLoaded = false;
+        hasOnlySelfDocs = false;
+        missingProvisionerDocs = false;
         await loadBindingDocuments();
     } catch (err: any) {
         console.error("[KYC] Upgrade failed:", err);
@@ -303,17 +310,29 @@ onMount(async () => {
         </div>
     {/if}
 
-    {#if bindingDocsLoaded && hasOnlySelfDocs}
+    {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
         <div class="mt-6 px-1">
-            <div class="mb-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                <p class="text-sm text-amber-800 leading-relaxed">
-                    Your eVault only contains a self-declared binding document.
-                    Verify your identity to increase your trust level.
-                </p>
-            </div>
-            <ButtonAction class="w-full" callback={startKycUpgrade}>
-                Enhance Trust Level
-            </ButtonAction>
+            {#if missingProvisionerDocs}
+                <div class="mb-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <p class="text-sm font-medium text-emerald-800 mb-1">Upgrade available</p>
+                    <p class="text-sm text-emerald-700 leading-relaxed">
+                        Your identity is verified locally but your eVault is missing the binding documents to prove it. Add them now to unlock the full trust level.
+                    </p>
+                </div>
+                <ButtonAction class="w-full" callback={startKycUpgrade}>
+                    Add Binding Documents
+                </ButtonAction>
+            {:else}
+                <div class="mb-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p class="text-sm text-amber-800 leading-relaxed">
+                        Your eVault only contains a self-declared binding document.
+                        Verify your identity to increase your trust level.
+                    </p>
+                </div>
+                <ButtonAction class="w-full" callback={startKycUpgrade}>
+                    Enhance Trust Level
+                </ButtonAction>
+            {/if}
         </div>
     {/if}
 </div>
