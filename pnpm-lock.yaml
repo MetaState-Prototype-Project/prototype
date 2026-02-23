@@ -267,6 +267,9 @@ importers:
       '@auvo/tauri-plugin-crypto-hw-api':
         specifier: ^0.1.0
         version: 0.1.0
+      '@choochmeque/tauri-plugin-notifications-api':
+        specifier: ^0.4.3
+        version: 0.4.3
       '@hugeicons/core-free-icons':
         specifier: ^1.0.13
         version: 1.2.1
@@ -294,9 +297,6 @@ importers:
       '@tauri-apps/plugin-deep-link':
         specifier: ^2.4.5
         version: 2.4.7
-      '@tauri-apps/plugin-notification':
-        specifier: ^2.3.3
-        version: 2.3.3
       '@tauri-apps/plugin-opener':
         specifier: ^2.5.2
         version: 2.5.3
@@ -4471,6 +4471,9 @@ packages:
 
   '@chevrotain/utils@11.0.3':
     resolution: {integrity: sha512-YslZMgtJUyuMbZ+aKvfF3x1f5liK4mWNxghFRv7jqRR9C3R3fAOGTTKvxXDa2Y1s9zSbcpuO0cAxDYsc9SrXoQ==}
+
+  '@choochmeque/tauri-plugin-notifications-api@0.4.3':
+    resolution: {integrity: sha512-nq8dL7z9ZFC+G9cWmy/FTkjURIYDwvg7PklaIQQLwwOZmPEfBfLyvJsHNE+xTXRZYWdP79nkVchxjwxja35fUw==}
 
   '@chromatic-com/storybook@3.2.7':
     resolution: {integrity: sha512-fCGhk4cd3VA8RNg55MZL5CScdHqljsQcL9g6Ss7YuobHpSo9yytEWNdgMd5QxAHSPBlLGFHjnSmliM3G/BeBqw==}
@@ -9188,9 +9191,6 @@ packages:
 
   '@tauri-apps/plugin-deep-link@2.4.7':
     resolution: {integrity: sha512-K0FQlLM6BoV7Ws2xfkh+Tnwi5VZVdkI4Vw/3AGLSf0Xvu2y86AMBzd9w/SpzKhw9ai2B6ES8di/OoGDCExkOzg==}
-
-  '@tauri-apps/plugin-notification@2.3.3':
-    resolution: {integrity: sha512-Zw+ZH18RJb41G4NrfHgIuofJiymusqN+q8fGUIIV7vyCH+5sSn5coqRv/MWB9qETsUs97vmU045q7OyseCV3Qg==}
 
   '@tauri-apps/plugin-opener@2.5.3':
     resolution: {integrity: sha512-CCcUltXMOfUEArbf3db3kCE7Ggy1ExBEBl51Ko2ODJ6GDYHRp1nSNlQm5uNCFY5k7/ufaK5Ib3Du/Zir19IYQQ==}
@@ -20562,6 +20562,10 @@ snapshots:
 
   '@chevrotain/utils@11.0.3': {}
 
+  '@choochmeque/tauri-plugin-notifications-api@0.4.3':
+    dependencies:
+      '@tauri-apps/api': 2.10.1
+
   '@chromatic-com/storybook@3.2.7(react@18.3.1)(storybook@8.6.15(bufferutil@4.1.0)(prettier@3.8.1))':
     dependencies:
       chromatic: 11.29.0
@@ -26730,10 +26734,6 @@ snapshots:
       '@tauri-apps/api': 2.10.1
 
   '@tauri-apps/plugin-deep-link@2.4.7':
-    dependencies:
-      '@tauri-apps/api': 2.10.1
-
-  '@tauri-apps/plugin-notification@2.3.3':
     dependencies:
       '@tauri-apps/api': 2.10.1
 
