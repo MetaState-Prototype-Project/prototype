@@ -204,6 +204,15 @@ export class KeyService {
         return KeyManagerFactory.isHardwareAvailable();
     }
 
+    /**
+     * Probe whether the device supports hardware-backed keys.
+     * Bypasses the isFake / pre-verification gate — safe to call at any time,
+     * including for anonymous users and during onboarding hardware checks.
+     */
+    async probeHardware(): Promise<boolean> {
+        return KeyManagerFactory.isHardwareAvailable();
+    }
+
     #getCacheKey(keyId: string, context: KeyServiceContext): string {
         return `${context}:${keyId}`;
     }

@@ -4,8 +4,6 @@ import { Hero } from "$lib/fragments";
 import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
 import type { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { getContext, onMount } from "svelte";
 
 let userData = $state<Record<string, string | boolean | undefined>>();
@@ -22,10 +20,13 @@ onMount(async () => {
 });
 </script>
 
-<main class="h-full p-4 flex flex-col justify-between">
+<main
+    class="h-full px-4 pb-4 flex flex-col justify-between"
+    style="padding-top: max(16px, env(safe-area-inset-top));"
+>
     <section>
         <Hero
-            title="Here’s your ePassport"
+            title="Here's your ePassport"
             class="mb-2"
             titleClasses="text-2xl"
         >
@@ -39,16 +40,6 @@ onMount(async () => {
             {/snippet}
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
-    </section>
-    <section class="mt-[2svh] mb-[3svh]">
-        <Hero title="Here’s your eVault" class="mb-2" titleClasses="text-2xl">
-            {#snippet subtitle()}
-                The eVault is your secure cloud storage for your personal data.
-                W3DS platforms access it directly, keeping you in control.
-            {/snippet}
-        </Hero>
-
-        <IdentityCard variant="eVault" usedStorage={0.1} totalStorage={10} />
     </section>
     <div class="flex items-center gap-3">
         <ButtonAction

@@ -216,6 +216,16 @@ const initializeEVault = async (
     );
 };
 
+// Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
+expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
+    try {
+        const { getProvisionerJwk } = require("./core/utils/provisioner-signer");
+        res.json({ keys: [getProvisionerJwk()] });
+    } catch {
+        res.json({ keys: [] });
+    }
+});
+
 // Health check endpoint
 expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -231,14 +241,18 @@ const start = async () => {
         verificationService = new VerificationService(
             AppDataSource.getRepository(Verification),
         );
-        verificationController = new VerificationController(
-            verificationService,
-        );
         notificationController = new NotificationController();
 
         // Initialize provisioning service (uses shared AppDataSource)
         provisioningService = new ProvisioningService(verificationService);
         provisioningController = new ProvisioningController(
+            provisioningService,
+        );
+
+        // VerificationController must be created AFTER provisioningService so the
+        // upgrade route has a valid provisioningService reference.
+        verificationController = new VerificationController(
+            verificationService,
             provisioningService,
         );
 

@@ -1,13 +1,17 @@
 import { Request, Response } from "express";
 import { default as Axios } from "axios";
 import { VerificationService } from "../services/VerificationService";
+import type { ProvisioningService } from "../services/ProvisioningService";
 
 const diditClient = Axios.create({
     baseURL: "https://verification.didit.me",
 });
 
 export class VerificationController {
-    constructor(private readonly verificationService: VerificationService) {}
+    constructor(
+        private readonly verificationService: VerificationService,
+        private readonly provisioningService?: ProvisioningService,
+    ) {}
 
     registerRoutes(app: any) {
         // Get verification session
@@ -74,6 +78,27 @@ export class VerificationController {
                 sessionToken,
                 verificationUrl,
             });
+        });
+
+        // Upgrade existing eVault: create binding docs + update UserProfile after KYC
+        app.post("/verification/upgrade", async (req: Request, res: Response) => {
+            const { diditSessionId, w3id } = req.body;
+            if (!diditSessionId || !w3id) {
+                return res.status(400).json({ error: "diditSessionId and w3id are required" });
+            }
+            if (!this.provisioningService) {
+                return res.status(500).json({ error: "Provisioning service not available" });
+            }
+            try {
+                const result = await this.provisioningService.upgradeExistingEVault(diditSessionId, w3id);
+                if (!result.success) {
+                    return res.status(400).json(result);
+                }
+                return res.json(result);
+            } catch (err: any) {
+                console.error("[UPGRADE]", err?.message);
+                return res.status(500).json({ error: "Upgrade failed" });
+            }
         });
 
         // Proxy: fetch full decision from Didit API by sessionId

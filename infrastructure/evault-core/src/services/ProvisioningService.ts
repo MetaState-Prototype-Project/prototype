@@ -146,6 +146,205 @@ export class ProvisioningService {
         }
     }
 
+    private async updateUserProfileInEvault(w3id: string, displayName: string): Promise<void> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) {
+            console.error("[PROFILE] PUBLIC_EVAULT_SERVER_URI not set, skipping profile update");
+            return;
+        }
+
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const token = await this.getPlatformToken();
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+        const USER_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
+
+        // Find the existing UserProfile envelope
+        const queryRes = await axios.post(
+            gqlUrl,
+            {
+                query: `query {
+                    metaEnvelopes(filter: { ontologyId: "${USER_PROFILE_ONTOLOGY}" }, first: 1) {
+                        edges { node { id ontology parsed } }
+                    }
+                }`,
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+
+        const edges = queryRes.data?.data?.metaEnvelopes?.edges ?? [];
+        if (edges.length === 0) {
+            console.warn(`[PROFILE] No UserProfile envelope found for ${subject}, skipping update`);
+            return;
+        }
+
+        const existing = edges[0].node;
+        const updatedPayload = {
+            ...(existing.parsed ?? {}),
+            displayName,
+            isVerified: true,
+            updatedAt: new Date().toISOString(),
+        };
+
+        const updateRes = await axios.post(
+            gqlUrl,
+            {
+                query: `mutation UpdateMetaEnvelope($id: ID!, $input: MetaEnvelopeInput!) {
+                    updateMetaEnvelope(id: $id, input: $input) {
+                        metaEnvelope { id }
+                        errors { message code }
+                    }
+                }`,
+                variables: {
+                    id: existing.id,
+                    input: {
+                        ontology: USER_PROFILE_ONTOLOGY,
+                        payload: updatedPayload,
+                        acl: ["*"],
+                    },
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+
+        const errors = updateRes.data?.data?.updateMetaEnvelope?.errors;
+        if (errors?.length) {
+            console.error("[PROFILE] updateMetaEnvelope errors:", errors);
+        } else {
+            console.log(`[PROFILE] Updated UserProfile for ${subject} — displayName: ${displayName}, isVerified: true`);
+        }
+    }
+
+    /**
+     * Upgrades an existing eVault by creating binding documents and updating the UserProfile.
+     * Called when an already-provisioned user completes identity verification.
+     */
+    async upgradeExistingEVault(diditSessionId: string, w3id: string): Promise<{ success: boolean; message?: string; duplicate?: boolean; existingW3id?: string }> {
+        const apiKey = process.env.DIDIT_API_KEY;
+        if (!apiKey) return { success: false, message: "DIDIT_API_KEY is not configured" };
+
+        let decision: any;
+        try {
+            const { data } = await diditAxios.get(
+                `/v3/session/${diditSessionId}/decision/`,
+                { headers: { "x-api-key": apiKey } },
+            );
+            decision = data;
+        } catch (err: any) {
+            console.error("[UPGRADE] Failed to fetch Didit decision:", err?.response?.data ?? err?.message);
+            return { success: false, message: "Failed to fetch verification decision" };
+        }
+
+        const status: string = decision?.status ?? "";
+        if (status.toLowerCase() !== "approved") {
+            return { success: false, message: "verification not approved" };
+        }
+
+        const idVerif = decision.id_verifications?.[0];
+        const firstName = idVerif?.first_name ?? "";
+        const lastName = idVerif?.last_name ?? "";
+        const fullName = (idVerif?.full_name ?? `${firstName} ${lastName}`).trim();
+        const documentNumber: string = idVerif?.document_number ?? "";
+
+        // --- Duplicate check: Scenario A — Didit matches array ---
+        const matches: any[] = idVerif?.matches ?? [];
+        for (const match of matches) {
+            if (match.status?.toLowerCase() !== "approved") continue;
+            const matchVendorData: string = match.vendor_data ?? "";
+            if (!matchVendorData) continue;
+            const matchVerif = await this.verificationService.findOne({ id: matchVendorData });
+            // Only flag as duplicate if the linked eVault is a different eName
+            if (matchVerif?.linkedEName && matchVerif.linkedEName !== w3id) {
+                console.warn(`[UPGRADE] Duplicate detected via Didit match: existing=${matchVerif.linkedEName}`);
+                return {
+                    success: false,
+                    duplicate: true,
+                    existingW3id: matchVerif.linkedEName,
+                    message: "duplicate identity",
+                };
+            }
+        }
+
+        // --- Duplicate check: Scenario B — legacy document number ---
+        if (documentNumber) {
+            const [docMatches] = await this.verificationService.findManyAndCount(
+                { documentId: documentNumber },
+            );
+            const existing = docMatches.find((v) => !!v.linkedEName && v.linkedEName !== w3id);
+            if (existing) {
+                console.warn(`[UPGRADE] Duplicate detected via documentId: existing=${existing.linkedEName}`);
+                return {
+                    success: false,
+                    duplicate: true,
+                    existingW3id: existing.linkedEName,
+                    message: "duplicate identity",
+                };
+            }
+        }
+
+        // Persist the upgrade into the Verification table so future duplicate checks work.
+        // Find the record by diditSessionId (created when the session was started).
+        const verificationRecord = await this.verificationService.findOne({ diditSessionId });
+        if (verificationRecord) {
+            await this.verificationService.findByIdAndUpdate(verificationRecord.id, {
+                approved: true,
+                consumed: true,
+                linkedEName: w3id,
+                data: { decision },
+                ...(documentNumber ? { documentId: documentNumber } : {}),
+            });
+            console.log(`[UPGRADE] Persisted linkedEName=${w3id} for verification ${verificationRecord.id}`);
+        } else {
+            // No matching record — create one so future Didit match lookups work.
+            // vendor_data on the Didit session already points to the original verification.id,
+            // but if a new session was created for the upgrade we need a record here too.
+            console.warn(`[UPGRADE] No Verification record found for diditSessionId=${diditSessionId}, creating one`);
+            await this.verificationService.create({
+                diditSessionId,
+                approved: true,
+                consumed: true,
+                linkedEName: w3id,
+                data: { decision },
+                ...(documentNumber ? { documentId: documentNumber } : {}),
+            });
+        }
+
+        // Create id_document binding doc
+        if (fullName) {
+            this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
+                (err) => console.error("[UPGRADE] id_document binding doc error:", err),
+            );
+        }
+
+        // Create photograph binding doc from ID document portrait
+        const selfieUrl: string = idVerif?.portrait_image ?? "";
+        if (selfieUrl) {
+            this.createPhotographBindingDocument(w3id, selfieUrl).catch(
+                (err) => console.error("[UPGRADE] photograph binding doc error:", err),
+            );
+        }
+
+        // Update UserProfile with verified name
+        if (fullName) {
+            this.updateUserProfileInEvault(w3id, fullName).catch(
+                (err) => console.error("[UPGRADE] profile update error:", err),
+            );
+        }
+
+        return { success: true };
+    }
+
     /**
      * Provisions a new eVault logically (no infrastructure creation)
      * @param request - Provision request containing registryEntropy, namespace, verificationId, and publicKey
@@ -306,28 +505,14 @@ export class ProvisioningService {
                     }
                 }
 
-                // Persist approval and document number for future duplicate checks
+                // Persist approval, document number, linked eName, and consumed flag in one update
                 await this.verificationService.findByIdAndUpdate(verificationId, {
                     approved: true,
+                    consumed: true,
+                    linkedEName: w3id,
                     data: { decision },
                     ...(documentNumber ? { documentId: documentNumber } : {}),
                 });
-            }
-
-            // Update verification with linked eName (only if not demo code)
-            if (verificationId !== demoCode) {
-                try {
-                    await this.verificationService.findByIdAndUpdate(
-                        verificationId,
-                        {
-                            linkedEName: w3id,
-                            consumed: true,
-                        },
-                    );
-                } catch (updateError) {
-                    // If update fails, it means verification doesn't exist (should have been caught above, but handle gracefully)
-                    throw new Error("verification doesn't exist");
-                }
             }
 
             // Generate evault ID (doesn't need entropy, generates random)
@@ -380,10 +565,10 @@ export class ProvisioningService {
                     );
                 }
 
-                const selfieUrl: string = decision.liveness_checks?.[0]?.reference_image ?? "";
-                if (selfieUrl) {
-                    this.createPhotographBindingDocument(w3id, selfieUrl).catch(
-                        (err) => console.error("[BINDING_DOC] Selfie error:", err),
+                const portraitUrl: string = decision.id_verifications?.[0]?.portrait_image ?? "";
+                if (portraitUrl) {
+                    this.createPhotographBindingDocument(w3id, portraitUrl).catch(
+                        (err) => console.error("[BINDING_DOC] Portrait error:", err),
                     );
                 }
             }

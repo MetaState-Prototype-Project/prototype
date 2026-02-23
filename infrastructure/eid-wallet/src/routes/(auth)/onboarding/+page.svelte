@@ -55,11 +55,15 @@
     // Didit verification state
     let diditLocalId = $state<string | null>(null);
     let diditSessionId = $state<string | null>(null);
+    let diditActualSessionId = $state<string | null>(null); // real Didit sessionId from onComplete
     let diditResult = $state<"approved" | "declined" | "in_review" | null>(
         null,
     );
     let diditDecision = $state<any>(null);
     let diditRejectionReason = $state<string | null>(null);
+
+    // Upgrade mode — set when ?upgrade=1 is present (existing eVault KYC upgrade)
+    let upgradeMode = $state(false);
 
     // Anonymous form inputs
     let anonName = $state("");
@@ -87,25 +91,13 @@
 
         try {
             globalState.userController.isFake = false;
-            const testKeyId = `hardware-test-${Date.now()}`;
-            try {
-                const { manager } = await globalState.keyService.ensureKey(
-                    testKeyId,
-                    "onboarding",
-                );
-                if (manager.getType() !== "hardware") {
-                    throw new Error(
-                        "Got software fallback instead of hardware",
-                    );
-                }
-                checkingHardware = false;
-            } catch (keyError) {
-                console.error("Hardware key test failed:", keyError);
-                showHardwareError = true;
-                checkingHardware = false;
+            const hardwareAvailable = await globalState.keyService.probeHardware();
+            if (!hardwareAvailable) {
+                throw new Error("Hardware-backed keys not available on this device");
             }
+            checkingHardware = false;
         } catch (err) {
-            console.error("Error checking hardware:", err);
+            console.error("Hardware key test failed:", err);
             showHardwareError = true;
             checkingHardware = false;
         }
@@ -173,6 +165,7 @@
             return;
         }
 
+        diditActualSessionId = result.session.sessionId;
         step = "loading";
 
         try {
@@ -405,8 +398,49 @@
         }
     };
 
+    const handleUpgrade = async () => {
+        if (!diditDecision) return;
+        const vault = await globalState.vaultController.vault;
+        const w3id = vault?.ename;
+        if (!w3id) {
+            error = "No active eVault found for upgrade.";
+            return;
+        }
+
+        const sessionId = diditActualSessionId ?? diditDecision.session_id ?? diditDecision.session?.sessionId;
+        if (!sessionId) {
+            error = "Missing session ID from verification result.";
+            return;
+        }
+
+        step = "loading";
+        try {
+            const { data } = await axios.post(
+                new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+                { diditSessionId: sessionId, w3id },
+            );
+            if (!data.success) {
+                throw new Error(data.message ?? "Upgrade failed");
+            }
+            goto("/ePassport");
+        } catch (err) {
+            console.error("[Upgrade] failed:", err);
+            error = err instanceof Error ? err.message : "Upgrade failed. Please try again.";
+            step = "verif-result";
+            setTimeout(() => { error = null; }, 6000);
+        }
+    };
+
     onMount(() => {
         globalState = getContext<() => GlobalState>("globalState")();
+        // Detect upgrade mode from query param
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("upgrade") === "1") {
+            upgradeMode = true;
+            step = "kyc-panel";
+            // Trigger hardware check immediately
+            handleIdentityPath();
+        }
     });
 </script>
 
@@ -734,8 +768,12 @@
                             variant="soft"
                             class="w-full"
                             callback={() => {
-                                step = "new-evault";
-                                error = null;
+                                if (upgradeMode) {
+                                    goto("/ePassport");
+                                } else {
+                                    step = "new-evault";
+                                    error = null;
+                                }
                             }}
                         >
                             Back
@@ -757,7 +795,11 @@
             <button
                 class="text-sm text-black-500 underline"
                 onclick={() => {
-                    step = "kyc-panel";
+                    if (upgradeMode) {
+                        goto("/ePassport");
+                    } else {
+                        step = "kyc-panel";
+                    }
                 }}
             >
                 Cancel
@@ -792,11 +834,12 @@
                 <h3 class="text-lg font-bold">Identity Verified</h3>
             </div>
             <p class="text-black-700 text-sm">
-                Your identity has been successfully verified. You can now create
-                your eVault.
+                {upgradeMode
+                    ? "Your identity has been verified. Your eVault trust level will now be upgraded."
+                    : "Your identity has been successfully verified. You can now create your eVault."}
             </p>
             <div class="flex flex-col gap-3 pt-2">
-                <ButtonAction class="w-full" callback={handleProvision}>
+                <ButtonAction class="w-full" callback={upgradeMode ? handleUpgrade : handleProvision}>
                     Continue
                 </ButtonAction>
             </div>
@@ -818,10 +861,11 @@
                     variant="soft"
                     class="w-full"
                     callback={() => {
-                        step = "home";
+                        if (upgradeMode) goto("/ePassport");
+                        else step = "home";
                     }}
                 >
-                    Back to Start
+                    {upgradeMode ? "Back to ePassport" : "Back to Start"}
                 </ButtonAction>
             </div>
         {:else}
@@ -845,7 +889,8 @@
                     variant="soft"
                     class="w-full"
                     callback={() => {
-                        step = "home";
+                        if (upgradeMode) goto("/ePassport");
+                        else step = "home";
                     }}
                 >
                     Back
