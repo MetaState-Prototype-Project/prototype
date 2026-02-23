@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { default as Axios } from "axios";
+import { validate as uuidValidate } from "uuid";
 import { VerificationService } from "../services/VerificationService";
 import type { ProvisioningService } from "../services/ProvisioningService";
 
@@ -123,13 +124,18 @@ export class VerificationController {
         app.get("/verification/decision/:sessionId", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { sessionId } = req.params;
+            if (!uuidValidate(sessionId)) {
+                return res.status(400).json({
+                    error: "sessionId must be a valid UUID",
+                });
+            }
             const apiKey = process.env.DIDIT_API_KEY;
             if (!apiKey) {
                 return res.status(500).json({ error: "DIDIT_API_KEY not configured" });
             }
             try {
                 const { data } = await diditClient.get(
-                    `/v3/session/${sessionId}/decision/`,
+                    `/v3/session/${encodeURIComponent(sessionId)}/decision/`,
                     { headers: { "x-api-key": apiKey } },
                 );
                 return res.json(data);

@@ -180,8 +180,8 @@
         }
 
         if (!result.session?.sessionId) {
-            kycError = "Verification did not return a session ID.";
             resetKyc();
+            kycError = "Verification did not return a session ID.";
             return;
         }
 
@@ -219,9 +219,9 @@
             kycStep = "result";
         } catch (err) {
             console.error("[KYC] Failed to fetch decision:", err);
+            resetKyc();
             kycError =
                 "Failed to retrieve verification result. Please try again.";
-            resetKyc();
             setTimeout(() => {
                 kycError = null;
             }, 6000);

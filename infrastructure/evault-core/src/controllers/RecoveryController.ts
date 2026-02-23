@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { default as Axios } from "axios";
 import FormData from "form-data";
+import { validate as uuidValidate } from "uuid";
 import type { VerificationService } from "../services/VerificationService";
 
 const diditClient = Axios.create({ baseURL: "https://verification.didit.me" });
@@ -74,6 +75,11 @@ export class RecoveryController {
             if (!diditSessionId) {
                 return res.status(400).json({ error: "diditSessionId is required" });
             }
+            if (!uuidValidate(diditSessionId)) {
+                return res.status(400).json({
+                    error: "diditSessionId must be a valid UUID",
+                });
+            }
 
             const apiKey = process.env.DIDIT_API_KEY;
             if (!apiKey) {
@@ -87,7 +93,7 @@ export class RecoveryController {
 
             try {
                 const { data: decision } = await diditClient.get(
-                    `/v3/session/${diditSessionId}/decision/`,
+                    `/v3/session/${encodeURIComponent(diditSessionId)}/decision/`,
                     { headers: { "x-api-key": apiKey } },
                 );
 
