@@ -79,26 +79,48 @@
 								// Fetch evaults if we have IDs
 								if (evaultsData) {
 									const evaultIds = JSON.parse(evaultsData);
-									if (Array.isArray(evaultIds) && evaultIds.length > 0 && typeof evaultIds[0] === 'string') {
-										const { EVaultService } = await import('$lib/services/evaultService');
+									if (
+										Array.isArray(evaultIds) &&
+										evaultIds.length > 0 &&
+										typeof evaultIds[0] === 'string'
+									) {
+										const { EVaultService } =
+											await import('$lib/services/evaultService');
 										const allEVaults = await EVaultService.getEVaults();
 										const evaultObjects = evaultIds
-											.map((id: string) => allEVaults.find((e: any) => (e.evault || e.ename || e.id) === id))
+											.map((id: string) =>
+												allEVaults.find(
+													(e: any) => (e.evault || e.ename || e.id) === id
+												)
+											)
 											.filter(Boolean);
-										sessionStorage.setItem('selectedEVaultsData', JSON.stringify(evaultObjects));
+										sessionStorage.setItem(
+											'selectedEVaultsData',
+											JSON.stringify(evaultObjects)
+										);
 									}
 								}
 
 								// Fetch platforms if we have URLs
 								if (platformsData) {
 									const platformUrls = JSON.parse(platformsData);
-									if (Array.isArray(platformUrls) && platformUrls.length > 0 && typeof platformUrls[0] === 'string') {
-										const { registryService } = await import('$lib/services/registry');
+									if (
+										Array.isArray(platformUrls) &&
+										platformUrls.length > 0 &&
+										typeof platformUrls[0] === 'string'
+									) {
+										const { registryService } =
+											await import('$lib/services/registry');
 										const allPlatforms = await registryService.getPlatforms();
 										const platformObjects = platformUrls
-											.map((url: string) => allPlatforms.find((p: any) => p.url === url))
+											.map((url: string) =>
+												allPlatforms.find((p: any) => p.url === url)
+											)
 											.filter(Boolean);
-										sessionStorage.setItem('selectedPlatformsData', JSON.stringify(platformObjects));
+										sessionStorage.setItem(
+											'selectedPlatformsData',
+											JSON.stringify(platformObjects)
+										);
 									}
 								}
 							} catch (error) {
@@ -107,8 +129,7 @@
 
 							// Navigate to monitoring
 							goto('/monitoring');
-						}}
-						>Start Monitoring</ButtonAction
+						}}>Start Monitoring</ButtonAction
 					>
 				</div>
 			{:else}

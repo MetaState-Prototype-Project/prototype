@@ -31,10 +31,25 @@ onMount(async () => {
     const user = await globalState.userController.user;
     const pinHash = await globalState.securityController.pinHash;
     const vault = await globalState.vaultController.vault;
-    console.log("[ROOT] routing check — onboardingComplete:", onboardingComplete, "| user:", !!user, "| pinHash:", !!pinHash, "| vault:", !!vault);
+    console.log(
+        "[ROOT] routing check — onboardingComplete:",
+        onboardingComplete,
+        "| user:",
+        !!user,
+        "| pinHash:",
+        !!pinHash,
+        "| vault:",
+        !!vault,
+    );
 
     if (!onboardingComplete || !user) {
-        console.log("[ROOT] → /onboarding (onboardingComplete:", onboardingComplete, ", user:", !!user, ")");
+        console.log(
+            "[ROOT] → /onboarding (onboardingComplete:",
+            onboardingComplete,
+            ", user:",
+            !!user,
+            ")",
+        );
         await goto("/onboarding");
         return;
     }

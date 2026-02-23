@@ -36,7 +36,10 @@ async function startRecovery() {
 
     try {
         const { data } = await axios.post(
-            new URL("/recovery/start-session", PUBLIC_PROVISIONER_URL).toString(),
+            new URL(
+                "/recovery/start-session",
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
         );
 
         if (!data.verificationUrl) {
@@ -58,7 +61,10 @@ async function startRecovery() {
         });
     } catch (err: any) {
         console.error("[RECOVERY] start-recovery error:", err);
-        errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        errorMessage =
+            err instanceof Error
+                ? err.message
+                : "Something went wrong. Please try again.";
         errorReason = "generic";
         step = "error";
     }
@@ -73,7 +79,8 @@ async function handleDiditComplete(result: any) {
     }
 
     if (!result.session?.sessionId) {
-        errorMessage = "The verification session did not return a session ID. Please try again.";
+        errorMessage =
+            "The verification session did not return a session ID. Please try again.";
         errorReason = "generic";
         step = "error";
         return;
@@ -89,7 +96,8 @@ async function handleDiditComplete(result: any) {
 
         if (!data.success) {
             if (data.reason === "liveness_failed") {
-                errorMessage = "We couldn't confirm you were a live person. Please try again in good lighting.";
+                errorMessage =
+                    "We couldn't confirm you were a live person. Please try again in good lighting.";
                 errorReason = "liveness_failed";
             } else {
                 errorMessage =
@@ -106,7 +114,8 @@ async function handleDiditComplete(result: any) {
         step = "found";
     } catch (err: any) {
         console.error("[RECOVERY] face-search error:", err);
-        errorMessage = "Something went wrong during the search. Please try again.";
+        errorMessage =
+            "Something went wrong during the search. Please try again.";
         errorReason = "generic";
         step = "error";
     }
@@ -118,7 +127,10 @@ async function recoverVault() {
     try {
         const iv = recoveredIdVerif;
 
-        const fullName = iv?.full_name ?? [iv?.first_name, iv?.last_name].filter(Boolean).join(" ") ?? "";
+        const fullName =
+            iv?.full_name ??
+            [iv?.first_name, iv?.last_name].filter(Boolean).join(" ") ??
+            "";
         const dob = iv?.date_of_birth ?? "";
         const docType = iv?.document_type ?? "";
         const docNumber = iv?.document_number ?? "";
@@ -129,12 +141,15 @@ async function recoverVault() {
         const user: Record<string, string> = {
             name: capitalize(fullName),
             "Date of Birth": dob ? new Date(dob).toDateString() : "",
-            "ID submitted": [docType, country].filter(Boolean).join(" - ") || "Verified",
+            "ID submitted":
+                [docType, country].filter(Boolean).join(" - ") || "Verified",
             "Document Number": docNumber,
         };
         const document: Record<string, string> = {
             "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
-            "Valid Until": expiryDate ? new Date(expiryDate).toDateString() : "",
+            "Valid Until": expiryDate
+                ? new Date(expiryDate).toDateString()
+                : "",
             "Verified On": new Date().toDateString(),
         };
 

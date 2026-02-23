@@ -1,453 +1,483 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import {
-        PUBLIC_EID_WALLET_TOKEN,
-        PUBLIC_PROVISIONER_URL,
-        PUBLIC_PROVISIONER_SHARED_SECRET,
-        PUBLIC_REGISTRY_URL,
-    } from "$env/static/public";
-    import { Hero } from "$lib/fragments";
-    import { GlobalState } from "$lib/global";
-    import { ButtonAction } from "$lib/ui";
-    import { capitalize } from "$lib/utils";
-    import axios from "axios";
-    import { Md5 } from "ts-md5";
-    import { GraphQLClient } from "graphql-request";
-    import { getContext, onMount } from "svelte";
-    import { Shadow } from "svelte-loading-spinners";
-    import { v4 as uuidv4 } from "uuid";
-    import { provision } from "wallet-sdk";
+import { goto } from "$app/navigation";
+import {
+    PUBLIC_EID_WALLET_TOKEN,
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_PROVISIONER_SHARED_SECRET,
+    PUBLIC_REGISTRY_URL,
+} from "$env/static/public";
+import { Hero } from "$lib/fragments";
+import { GlobalState } from "$lib/global";
+import { ButtonAction } from "$lib/ui";
+import { capitalize } from "$lib/utils";
+import axios from "axios";
+import { Md5 } from "ts-md5";
+import { GraphQLClient } from "graphql-request";
+import { getContext, onMount } from "svelte";
+import { Shadow } from "svelte-loading-spinners";
+import { v4 as uuidv4 } from "uuid";
+import { provision } from "wallet-sdk";
 
-    function computeBindingDocumentHash(doc: {
-        subject: string;
-        type: string;
-        data: Record<string, unknown>;
-    }): string {
-        return Md5.hashStr(
-            JSON.stringify({
-                subject: doc.subject,
-                type: doc.type,
-                data: doc.data,
-            }),
-        );
-    }
-
-    const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
-    const KEY_ID = "default";
-
-    type Step =
-        | "home"
-        | "new-evault"
-        | "already-have"
-        | "kyc-panel"
-        | "didit-verification"
-        | "verif-result"
-        | "anonymous-form"
-        | "loading";
-
-    let step = $state<Step>("home");
-    let error = $state<string | null>(null);
-    let loading = $state(false);
-
-    // KYC panel sub-state
-    let checkingHardware = $state(false);
-    let showHardwareError = $state(false);
-    let showAlreadyHaveAnonymousDrawer = $state(false);
-
-    // Didit verification state
-    let diditLocalId = $state<string | null>(null);
-    let diditSessionId = $state<string | null>(null);
-    let diditActualSessionId = $state<string | null>(null); // real Didit sessionId from onComplete
-    let diditResult = $state<"approved" | "declined" | "in_review" | null>(
-        null,
+function computeBindingDocumentHash(doc: {
+    subject: string;
+    type: string;
+    data: Record<string, unknown>;
+}): string {
+    return Md5.hashStr(
+        JSON.stringify({
+            subject: doc.subject,
+            type: doc.type,
+            data: doc.data,
+        }),
     );
-    let diditDecision = $state<any>(null);
-    let diditRejectionReason = $state<string | null>(null);
+}
 
-    // Upgrade mode — set when ?upgrade=1 is present (existing eVault KYC upgrade)
-    let upgradeMode = $state(false);
+const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
+const KEY_ID = "default";
 
-    // Anonymous form inputs
-    let anonName = $state("");
-    let anonDob = $state("");
+type Step =
+    | "home"
+    | "new-evault"
+    | "already-have"
+    | "kyc-panel"
+    | "didit-verification"
+    | "verif-result"
+    | "anonymous-form"
+    | "loading";
 
-    let globalState: GlobalState;
+let step = $state<Step>("home");
+let error = $state<string | null>(null);
+let loading = $state(false);
 
-    function generatePassportNumber() {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const randomLetters = () =>
-            letters.charAt(Math.floor(Math.random() * letters.length)) +
-            letters.charAt(Math.floor(Math.random() * letters.length));
-        const randomDigits = () =>
-            String(Math.floor(1000000 + Math.random() * 9000000));
-        return randomLetters() + randomDigits();
+// KYC panel sub-state
+let checkingHardware = $state(false);
+let showHardwareError = $state(false);
+let showAlreadyHaveAnonymousDrawer = $state(false);
+
+// Didit verification state
+let diditLocalId = $state<string | null>(null);
+let diditSessionId = $state<string | null>(null);
+let diditActualSessionId = $state<string | null>(null); // real Didit sessionId from onComplete
+let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
+let diditDecision = $state<any>(null);
+let diditRejectionReason = $state<string | null>(null);
+
+// Upgrade mode — set when ?upgrade=1 is present (existing eVault KYC upgrade)
+let upgradeMode = $state(false);
+
+// Anonymous form inputs
+let anonName = $state("");
+let anonDob = $state("");
+
+const globalState = getContext<() => GlobalState>("globalState")();
+
+function generatePassportNumber() {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const randomLetters = () =>
+        letters.charAt(Math.floor(Math.random() * letters.length)) +
+        letters.charAt(Math.floor(Math.random() * letters.length));
+    const randomDigits = () =>
+        String(Math.floor(1000000 + Math.random() * 9000000));
+    return randomLetters() + randomDigits();
+}
+
+// ── Identity / KYC path ───────────────────────────────────────────────────────
+
+const handleIdentityPath = async () => {
+    step = "kyc-panel";
+    checkingHardware = true;
+    showHardwareError = false;
+    error = null;
+
+    try {
+        globalState.userController.isFake = false;
+        const hardwareAvailable = await globalState.keyService.probeHardware();
+        if (!hardwareAvailable) {
+            throw new Error(
+                "Hardware-backed keys not available on this device",
+            );
+        }
+        checkingHardware = false;
+    } catch (err) {
+        console.error("Hardware key test failed:", err);
+        showHardwareError = true;
+        checkingHardware = false;
+    }
+};
+
+const handleKycNext = async () => {
+    loading = true;
+    error = null;
+    try {
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+
+        const { data } = await axios.post(
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            {},
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
+        );
+        console.log("[Didit] session response:", data);
+
+        if (!data.verificationUrl) {
+            throw new Error(
+                `Backend did not return a verificationUrl. Response: ${JSON.stringify(data)}`,
+            );
+        }
+
+        diditLocalId = data.id;
+        diditSessionId = data.sessionToken; // store token; actual Didit sessionId comes from onComplete
+        loading = false;
+        step = "didit-verification";
+
+        // Wait a tick for the container to mount
+        await new Promise((r) => setTimeout(r, 50));
+
+        const { DiditSdk } = await import("@didit-protocol/sdk-web");
+        const sdk = DiditSdk.shared;
+        sdk.onComplete = handleDiditComplete;
+        await sdk.startVerification({
+            url: data.verificationUrl,
+            configuration: {
+                embedded: true,
+                embeddedContainerId: "didit-container",
+            },
+        });
+    } catch (err) {
+        console.error("Failed to start KYC:", err);
+        error =
+            err instanceof Error
+                ? err.message
+                : "Failed to start verification. Please try again.";
+        loading = false;
+        setTimeout(() => {
+            error = null;
+        }, 6000);
+    }
+};
+
+const handleDiditComplete = async (result: any) => {
+    console.log("[Didit] onComplete:", result);
+
+    if (result.type === "cancelled") {
+        step = "kyc-panel";
+        return;
     }
 
-    // ── Identity / KYC path ───────────────────────────────────────────────────────
-
-    const handleIdentityPath = async () => {
+    if (!result.session?.sessionId) {
+        error = "Verification did not return a session ID.";
         step = "kyc-panel";
-        checkingHardware = true;
-        showHardwareError = false;
-        error = null;
+        return;
+    }
 
-        try {
-            globalState.userController.isFake = false;
-            const hardwareAvailable = await globalState.keyService.probeHardware();
-            if (!hardwareAvailable) {
-                throw new Error("Hardware-backed keys not available on this device");
-            }
-            checkingHardware = false;
-        } catch (err) {
-            console.error("Hardware key test failed:", err);
-            showHardwareError = true;
-            checkingHardware = false;
-        }
-    };
+    diditActualSessionId = result.session.sessionId;
+    step = "loading";
 
-    const handleKycNext = async () => {
-        loading = true;
-        error = null;
-        try {
-            await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
-
-            const { data } = await axios.post(
-                new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
-                {},
-                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
-            );
-            console.log("[Didit] session response:", data);
-
-            if (!data.verificationUrl) {
-                throw new Error(
-                    `Backend did not return a verificationUrl. Response: ${JSON.stringify(data)}`,
-                );
-            }
-
-            diditLocalId = data.id;
-            diditSessionId = data.sessionToken; // store token; actual Didit sessionId comes from onComplete
-            loading = false;
-            step = "didit-verification";
-
-            // Wait a tick for the container to mount
-            await new Promise((r) => setTimeout(r, 50));
-
-            const { DiditSdk } = await import("@didit-protocol/sdk-web");
-            const sdk = DiditSdk.shared;
-            sdk.onComplete = handleDiditComplete;
-            await sdk.startVerification({
-                url: data.verificationUrl,
-                configuration: {
-                    embedded: true,
-                    embeddedContainerId: "didit-container",
-                },
-            });
-        } catch (err) {
-            console.error("Failed to start KYC:", err);
-            error =
-                err instanceof Error
-                    ? err.message
-                    : "Failed to start verification. Please try again.";
-            loading = false;
-            setTimeout(() => {
-                error = null;
-            }, 6000);
-        }
-    };
-
-    const handleDiditComplete = async (result: any) => {
-        console.log("[Didit] onComplete:", result);
-
-        if (result.type === "cancelled") {
-            step = "kyc-panel";
-            return;
-        }
-
-        if (!result.session?.sessionId) {
-            error = "Verification did not return a session ID.";
-            step = "kyc-panel";
-            return;
-        }
-
-        diditActualSessionId = result.session.sessionId;
-        step = "loading";
-
-        try {
-            const { data: decision } = await axios.get(
-                new URL(
-                    `/verification/decision/${result.session.sessionId}`,
-                    PUBLIC_PROVISIONER_URL,
-                ).toString(),
-                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
-            );
-            console.log("[Didit] decision:", decision);
-
-            diditDecision = decision;
-            const rawStatus: string = decision.status ?? "";
-            diditResult = rawStatus.toLowerCase().replace(" ", "_") as
-                | "approved"
-                | "declined"
-                | "in_review";
-
-            if (diditResult !== "approved") {
-                diditRejectionReason =
-                    decision.reviews?.[0]?.comment ??
-                    decision.id_verifications?.[0]?.warnings?.[0]
-                        ?.short_description ??
-                    "Verification could not be completed.";
-            }
-
-            step = "verif-result";
-        } catch (err) {
-            console.error("Failed to fetch Didit decision:", err);
-            error = "Failed to retrieve verification result. Please try again.";
-            step = "kyc-panel";
-            setTimeout(() => {
-                error = null;
-            }, 6000);
-        }
-    };
-
-    const handleProvision = async () => {
-        if (!diditDecision || !diditLocalId) return;
-
-        const idVerif = diditDecision.id_verifications?.[0];
-        const fullName =
-            idVerif?.full_name ??
-            `${idVerif?.first_name ?? ""} ${idVerif?.last_name ?? ""}`.trim();
-        const dob = idVerif?.date_of_birth ?? "";
-        const docType = idVerif?.document_type ?? "";
-        const docNumber = idVerif?.document_number ?? "";
-        const country =
-            idVerif?.issuing_state_name ?? idVerif?.issuing_state ?? "";
-        const expiryDate = idVerif?.expiration_date ?? "";
-        const issueDate = idVerif?.date_of_issue ?? "";
-
-        globalState.userController.user = {
-            name: capitalize(fullName),
-            "Date of Birth": dob ? new Date(dob).toDateString() : "",
-            "ID submitted":
-                [docType, country].filter(Boolean).join(" - ") || "Verified",
-            "Document Number": docNumber,
-        };
-        globalState.userController.document = {
-            "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
-            "Valid Until": expiryDate
-                ? new Date(expiryDate).toDateString()
-                : "",
-            "Verified On": new Date().toDateString(),
-        };
-        globalState.userController.isFake = false;
-
-        step = "loading";
-
-        try {
-            const result = await provision(globalState.walletSdkAdapter, {
-                registryUrl: PUBLIC_REGISTRY_URL,
-                provisionerUrl: PUBLIC_PROVISIONER_URL,
-                namespace: uuidv4(),
-                verificationId: diditLocalId,
-                keyId: KEY_ID,
-                context: "onboarding",
-                isPreVerification: false,
-            });
-
-            if (result.duplicate) {
-                error = "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.";
-                step = "verif-result";
-                return;
-            }
-
-            if (!result.success) {
-                throw new Error("Provisioning failed");
-            }
-
-            globalState.vaultController.vault = {
-                uri: result.uri!,
-                ename: result.w3id!,
-            };
-            goto("/register");
-        } catch (err) {
-            console.error("Provisioning failed:", err);
-            error =
-                err instanceof Error
-                    ? err.message
-                    : "Something went wrong. Please try again.";
-            step = "verif-result";
-            setTimeout(() => {
-                error = null;
-            }, 6000);
-        }
-    };
-
-    // ── Anonymous path ────────────────────────────────────────────────────────────
-
-    const handleAnonymousSubmit = async () => {
-        if (!anonName.trim()) {
-            error = "Please enter your name.";
-            setTimeout(() => {
-                error = null;
-            }, 4000);
-            return;
-        }
-
-        step = "loading";
-        error = null;
-
-        try {
-            globalState.userController.isFake = true;
-            await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
-
-            const provisionResult = await provision(
-                globalState.walletSdkAdapter,
-                {
-                    registryUrl: PUBLIC_REGISTRY_URL,
-                    provisionerUrl: PUBLIC_PROVISIONER_URL,
-                    namespace: uuidv4(),
-                    verificationId: ANONYMOUS_VERIFICATION_CODE,
-                    keyId: KEY_ID,
-                    context: "onboarding",
-                    isPreVerification: true,
-                },
-            );
-
-            const ename = provisionResult.w3id;
-            const uri = provisionResult.uri;
-
-            // Resolve eVault GraphQL endpoint from registry
-            const resolveResp = await axios.get(
-                new URL(
-                    `resolve?w3id=${ename}`,
-                    PUBLIC_REGISTRY_URL,
-                ).toString(),
-            );
-            const evaultUri = resolveResp.data.uri as string;
-            const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
-
-            const timestamp = new Date().toISOString();
-            const subject = ename.startsWith("@") ? ename : `@${ename}`;
-            const bindingData = { kind: "self", name: anonName.trim() };
-            const signature = computeBindingDocumentHash({
-                subject,
-                type: "self",
-                data: bindingData,
-            });
-
-            const gqlClient = new GraphQLClient(graphqlEndpoint, {
+    try {
+        const { data: decision } = await axios.get(
+            new URL(
+                `/verification/decision/${result.session.sessionId}`,
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
+            {
                 headers: {
-                    "X-ENAME": ename,
-                    ...(PUBLIC_EID_WALLET_TOKEN
-                        ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
-                        : {}),
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
                 },
-            });
+            },
+        );
+        console.log("[Didit] decision:", decision);
 
-            const bdResult = await gqlClient.request<{
-                createBindingDocument: {
-                    metaEnvelopeId: string | null;
-                    errors: { message: string; code: string }[] | null;
-                };
-            }>(
-                `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+        diditDecision = decision;
+        const rawStatus: string = decision.status ?? "";
+        diditResult = rawStatus.toLowerCase().replace(" ", "_") as
+            | "approved"
+            | "declined"
+            | "in_review";
+
+        if (diditResult !== "approved") {
+            diditRejectionReason =
+                decision.reviews?.[0]?.comment ??
+                decision.id_verifications?.[0]?.warnings?.[0]
+                    ?.short_description ??
+                "Verification could not be completed.";
+        }
+
+        step = "verif-result";
+    } catch (err) {
+        console.error("Failed to fetch Didit decision:", err);
+        error = "Failed to retrieve verification result. Please try again.";
+        step = "kyc-panel";
+        setTimeout(() => {
+            error = null;
+        }, 6000);
+    }
+};
+
+const handleProvision = async () => {
+    if (!diditDecision || !diditLocalId) return;
+
+    const idVerif = diditDecision.id_verifications?.[0];
+    const fullName =
+        idVerif?.full_name ??
+        `${idVerif?.first_name ?? ""} ${idVerif?.last_name ?? ""}`.trim();
+    const dob = idVerif?.date_of_birth ?? "";
+    const docType = idVerif?.document_type ?? "";
+    const docNumber = idVerif?.document_number ?? "";
+    const country = idVerif?.issuing_state_name ?? idVerif?.issuing_state ?? "";
+    const expiryDate = idVerif?.expiration_date ?? "";
+    const issueDate = idVerif?.date_of_issue ?? "";
+
+    globalState.userController.user = {
+        name: capitalize(fullName),
+        "Date of Birth": dob ? new Date(dob).toDateString() : "",
+        "ID submitted":
+            [docType, country].filter(Boolean).join(" - ") || "Verified",
+        "Document Number": docNumber,
+    };
+    globalState.userController.document = {
+        "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
+        "Valid Until": expiryDate ? new Date(expiryDate).toDateString() : "",
+        "Verified On": new Date().toDateString(),
+    };
+    globalState.userController.isFake = false;
+
+    step = "loading";
+
+    try {
+        const result = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: diditLocalId,
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: false,
+        });
+
+        if (result.duplicate) {
+            error =
+                "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.";
+            step = "verif-result";
+            return;
+        }
+
+        if (!result.success) {
+            throw new Error("Provisioning failed");
+        }
+        if (!result.uri || !result.w3id) {
+            throw new Error(
+                "Provisioning succeeded but did not return uri/w3id",
+            );
+        }
+
+        globalState.vaultController.vault = {
+            uri: result.uri,
+            ename: result.w3id,
+        };
+        goto("/register");
+    } catch (err) {
+        console.error("Provisioning failed:", err);
+        error =
+            err instanceof Error
+                ? err.message
+                : "Something went wrong. Please try again.";
+        step = "verif-result";
+        setTimeout(() => {
+            error = null;
+        }, 6000);
+    }
+};
+
+// ── Anonymous path ────────────────────────────────────────────────────────────
+
+const handleAnonymousSubmit = async () => {
+    if (!anonName.trim()) {
+        error = "Please enter your name.";
+        setTimeout(() => {
+            error = null;
+        }, 4000);
+        return;
+    }
+
+    step = "loading";
+    error = null;
+
+    try {
+        globalState.userController.isFake = true;
+        await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+
+        const provisionResult = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: ANONYMOUS_VERIFICATION_CODE,
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: true,
+        });
+
+        if (provisionResult.duplicate) {
+            throw new Error(
+                "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.",
+            );
+        }
+        if (!provisionResult.success) {
+            throw new Error("Anonymous provisioning failed");
+        }
+        if (!provisionResult.w3id || !provisionResult.uri) {
+            console.error(
+                "[Onboarding] Missing w3id/uri from anonymous provision result:",
+                provisionResult,
+            );
+            error = "Provisioning response is incomplete. Please try again.";
+            step = "anonymous-form";
+            return;
+        }
+
+        const ename = provisionResult.w3id;
+        const uri = provisionResult.uri;
+
+        // Resolve eVault GraphQL endpoint from registry
+        const resolveResp = await axios.get(
+            new URL(`resolve?w3id=${ename}`, PUBLIC_REGISTRY_URL).toString(),
+        );
+        const evaultUri = resolveResp.data.uri as string;
+        const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
+
+        const timestamp = new Date().toISOString();
+        const subject = ename.startsWith("@") ? ename : `@${ename}`;
+        const bindingData = { kind: "self", name: anonName.trim() };
+        const signature = computeBindingDocumentHash({
+            subject,
+            type: "self",
+            data: bindingData,
+        });
+
+        const gqlClient = new GraphQLClient(graphqlEndpoint, {
+            headers: {
+                "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
+            },
+        });
+
+        const bdResult = await gqlClient.request<{
+            createBindingDocument: {
+                metaEnvelopeId: string | null;
+                errors: { message: string; code: string }[] | null;
+            };
+        }>(
+            `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
                 createBindingDocument(input: $input) {
                     metaEnvelopeId
                     errors { message code }
                 }
             }`,
-                {
-                    input: {
-                        subject,
-                        type: "self",
-                        data: bindingData,
-                        ownerSignature: {
-                            signer: subject,
-                            signature,
-                            timestamp,
-                        },
+            {
+                input: {
+                    subject,
+                    type: "self",
+                    data: bindingData,
+                    ownerSignature: {
+                        signer: subject,
+                        signature,
+                        timestamp,
                     },
                 },
-            );
+            },
+        );
 
-            const bdErrors = bdResult.createBindingDocument.errors;
-            if (bdErrors?.length) {
-                throw new Error(
-                    `Binding document error: ${bdErrors[0].message}`,
-                );
-            }
-
-            const tenYearsLater = new Date();
-            tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
-            globalState.userController.user = {
-                name: anonName.trim(),
-                "Date of Birth": anonDob
-                    ? new Date(anonDob).toDateString()
-                    : new Date().toDateString(),
-                "ID submitted": "Anonymous — Self Declaration",
-                "Passport Number": generatePassportNumber(),
-            };
-            globalState.userController.document = {
-                "Valid From": new Date().toDateString(),
-                "Valid Until": tenYearsLater.toDateString(),
-                "Verified On": new Date().toDateString(),
-            };
-
-            globalState.vaultController.vault = { uri, ename };
-            goto("/register");
-        } catch (err) {
-            console.error("Anonymous provisioning failed:", err);
-            error = "Something went wrong. Please try again.";
-            step = "anonymous-form";
-            setTimeout(() => {
-                error = null;
-            }, 6000);
-        }
-    };
-
-    const handleUpgrade = async () => {
-        if (!diditDecision) return;
-        const vault = await globalState.vaultController.vault;
-        const w3id = vault?.ename;
-        if (!w3id) {
-            error = "No active eVault found for upgrade.";
-            return;
+        const bdErrors = bdResult.createBindingDocument.errors;
+        if (bdErrors?.length) {
+            throw new Error(`Binding document error: ${bdErrors[0].message}`);
         }
 
-        const sessionId = diditActualSessionId ?? diditDecision.session_id ?? diditDecision.session?.sessionId;
-        if (!sessionId) {
-            error = "Missing session ID from verification result.";
-            return;
-        }
+        const tenYearsLater = new Date();
+        tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
+        globalState.userController.user = {
+            name: anonName.trim(),
+            "Date of Birth": anonDob ? new Date(anonDob).toDateString() : "",
+            "ID submitted": "Anonymous — Self Declaration",
+            "Passport Number": generatePassportNumber(),
+        };
+        globalState.userController.document = {
+            "Valid From": new Date().toDateString(),
+            "Valid Until": tenYearsLater.toDateString(),
+            "Verified On": new Date().toDateString(),
+        };
 
-        step = "loading";
-        try {
-            const { data } = await axios.post(
-                new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
-                { diditSessionId: sessionId, w3id },
-                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
-            );
-            if (!data.success) {
-                throw new Error(data.message ?? "Upgrade failed");
-            }
-            goto("/ePassport");
-        } catch (err) {
-            console.error("[Upgrade] failed:", err);
-            error = err instanceof Error ? err.message : "Upgrade failed. Please try again.";
-            step = "verif-result";
-            setTimeout(() => { error = null; }, 6000);
-        }
-    };
+        globalState.vaultController.vault = { uri, ename };
+        goto("/register");
+    } catch (err) {
+        console.error("Anonymous provisioning failed:", err);
+        error = "Something went wrong. Please try again.";
+        step = "anonymous-form";
+        setTimeout(() => {
+            error = null;
+        }, 6000);
+    }
+};
 
-    onMount(() => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        // Detect upgrade mode from query param
-        const url = new URL(window.location.href);
-        if (url.searchParams.get("upgrade") === "1") {
-            upgradeMode = true;
-            step = "kyc-panel";
-            // Trigger hardware check immediately
-            handleIdentityPath();
+const handleUpgrade = async () => {
+    if (!diditDecision) return;
+    const vault = await globalState.vaultController.vault;
+    const w3id = vault?.ename;
+    if (!w3id) {
+        error = "No active eVault found for upgrade.";
+        return;
+    }
+
+    const sessionId =
+        diditActualSessionId ??
+        diditDecision.session_id ??
+        diditDecision.session?.sessionId;
+    if (!sessionId) {
+        error = "Missing session ID from verification result.";
+        return;
+    }
+
+    step = "loading";
+    try {
+        const { data } = await axios.post(
+            new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            { diditSessionId: sessionId, w3id },
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
+        );
+        if (!data.success) {
+            throw new Error(data.message ?? "Upgrade failed");
         }
-    });
+        goto("/ePassport");
+    } catch (err) {
+        console.error("[Upgrade] failed:", err);
+        error =
+            err instanceof Error
+                ? err.message
+                : "Upgrade failed. Please try again.";
+        step = "verif-result";
+        setTimeout(() => {
+            error = null;
+        }, 6000);
+    }
+};
+
+onMount(() => {
+    // Detect upgrade mode from query param
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("upgrade") === "1") {
+        upgradeMode = true;
+        step = "kyc-panel";
+        // Trigger hardware check immediately
+        handleIdentityPath();
+    }
+});
 </script>
 
 <main

@@ -1,6 +1,10 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { PUBLIC_EID_WALLET_TOKEN, PUBLIC_PROVISIONER_URL, PUBLIC_PROVISIONER_SHARED_SECRET } from "$env/static/public";
+import {
+    PUBLIC_EID_WALLET_TOKEN,
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_PROVISIONER_SHARED_SECRET,
+} from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import { capitalize } from "$lib/utils";
 import type { GlobalState } from "$lib/global";
@@ -95,7 +99,9 @@ async function loadBindingDocuments(): Promise<void> {
         return;
     }
 
-    const enameHeader = vault.ename.startsWith("@") ? vault.ename : `@${vault.ename}`;
+    const enameHeader = vault.ename.startsWith("@")
+        ? vault.ename
+        : `@${vault.ename}`;
     const gqlUrl = new URL("/graphql", vault.uri).toString();
 
     try {
@@ -169,7 +175,11 @@ async function startKycUpgrade() {
         const { data } = await axios.post(
             new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
             {},
-            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
         );
 
         if (!data.verificationUrl) {
@@ -194,9 +204,14 @@ async function startKycUpgrade() {
         });
     } catch (err) {
         console.error("[KYC] Failed to start:", err);
-        kycError = err instanceof Error ? err.message : "Failed to start verification. Please try again.";
+        kycError =
+            err instanceof Error
+                ? err.message
+                : "Failed to start verification. Please try again.";
         kycStep = "idle";
-        setTimeout(() => { kycError = null; }, 6000);
+        setTimeout(() => {
+            kycError = null;
+        }, 6000);
     }
 }
 
@@ -223,7 +238,11 @@ const handleDiditComplete = async (result: any) => {
                 `/verification/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
-            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
         );
 
         diditDecision = decision;
@@ -236,7 +255,8 @@ const handleDiditComplete = async (result: any) => {
         if (diditResult !== "approved") {
             diditRejectionReason =
                 decision.reviews?.[0]?.comment ??
-                decision.id_verifications?.[0]?.warnings?.[0]?.short_description ??
+                decision.id_verifications?.[0]?.warnings?.[0]
+                    ?.short_description ??
                 "Verification could not be completed.";
         }
 
@@ -245,7 +265,9 @@ const handleDiditComplete = async (result: any) => {
         console.error("[KYC] Failed to fetch decision:", err);
         kycError = "Failed to retrieve verification result. Please try again.";
         resetKyc();
-        setTimeout(() => { kycError = null; }, 6000);
+        setTimeout(() => {
+            kycError = null;
+        }, 6000);
     }
 };
 
@@ -258,7 +280,10 @@ async function handleUpgrade() {
         return;
     }
 
-    const sessionId = diditActualSessionId ?? diditDecision.session_id ?? diditDecision.session?.sessionId;
+    const sessionId =
+        diditActualSessionId ??
+        diditDecision.session_id ??
+        diditDecision.session?.sessionId;
     if (!sessionId) {
         kycError = "Missing session ID from verification result.";
         return;
@@ -269,7 +294,11 @@ async function handleUpgrade() {
         const { data } = await axios.post(
             new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
             { diditSessionId: sessionId, w3id },
-            { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
         );
         if (!data.success) {
             if (data.duplicate) {
@@ -284,23 +313,33 @@ async function handleUpgrade() {
         // Update local ePassport data from the verified Didit decision
         const idVerif = diditDecision?.id_verifications?.[0];
         if (idVerif) {
-            const fullName = (idVerif.full_name ?? `${idVerif.first_name ?? ""} ${idVerif.last_name ?? ""}`).trim();
+            const fullName = (
+                idVerif.full_name ??
+                `${idVerif.first_name ?? ""} ${idVerif.last_name ?? ""}`
+            ).trim();
             const dob: string = idVerif.date_of_birth ?? "";
             const docType: string = idVerif.document_type ?? "";
             const docNumber: string = idVerif.document_number ?? "";
-            const country: string = idVerif.issuing_state_name ?? idVerif.issuing_state ?? "";
+            const country: string =
+                idVerif.issuing_state_name ?? idVerif.issuing_state ?? "";
             const expiryDate: string = idVerif.expiration_date ?? "";
             const issueDate: string = idVerif.date_of_issue ?? "";
 
             globalState.userController.user = {
                 name: capitalize(fullName),
                 "Date of Birth": dob ? new Date(dob).toDateString() : "",
-                "ID submitted": [docType, country].filter(Boolean).join(" - ") || "Verified",
+                "ID submitted":
+                    [docType, country].filter(Boolean).join(" - ") ||
+                    "Verified",
                 "Document Number": docNumber,
             };
             globalState.userController.document = {
-                "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
-                "Valid Until": expiryDate ? new Date(expiryDate).toDateString() : "",
+                "Valid From": issueDate
+                    ? new Date(issueDate).toDateString()
+                    : "",
+                "Valid Until": expiryDate
+                    ? new Date(expiryDate).toDateString()
+                    : "",
                 "Verified On": new Date().toDateString(),
             };
             globalState.userController.isFake = false;
@@ -323,9 +362,15 @@ async function handleUpgrade() {
             duplicateEName = body.existingW3id ?? null;
             kycStep = "duplicate";
         } else {
-            kycError = body?.message ?? (err instanceof Error ? err.message : "Upgrade failed. Please try again.");
+            kycError =
+                body?.message ??
+                (err instanceof Error
+                    ? err.message
+                    : "Upgrade failed. Please try again.");
             kycStep = "result";
-            setTimeout(() => { kycError = null; }, 6000);
+            setTimeout(() => {
+                kycError = null;
+            }, 6000);
         }
     }
 }

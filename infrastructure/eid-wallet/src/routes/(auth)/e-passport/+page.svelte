@@ -16,7 +16,10 @@ const handleFinish = async () => {
     const recovery = get(pendingRecovery);
     if (recovery) {
         localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
-        globalState.vaultController.vault = { uri: recovery.uri, ename: recovery.ename };
+        globalState.vaultController.vault = {
+            uri: recovery.uri,
+            ename: recovery.ename,
+        };
         pendingRecovery.set(null);
     }
     await goto("/main");

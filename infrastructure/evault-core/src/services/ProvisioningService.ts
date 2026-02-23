@@ -27,6 +27,45 @@ export interface ProvisionResponse {
 export class ProvisioningService {
     constructor(private verificationService: VerificationService) {}
 
+    private async checkForDuplicateIdentity(
+        idVerif: any,
+        documentNumber?: string,
+        selfW3id?: string,
+    ): Promise<{ duplicate: boolean; existingW3id?: string }> {
+        const matches: any[] = idVerif?.matches ?? [];
+        for (const match of matches) {
+            if (match.status?.toLowerCase() !== "approved") continue;
+            const matchVendorData: string = match.vendor_data ?? "";
+            if (!matchVendorData) continue;
+            const matchVerif = await this.verificationService.findOne({
+                id: matchVendorData,
+            });
+            const linkedEName = matchVerif?.linkedEName;
+            if (
+                linkedEName &&
+                (!selfW3id || linkedEName !== selfW3id)
+            ) {
+                return { duplicate: true, existingW3id: linkedEName };
+            }
+        }
+
+        if (documentNumber) {
+            const [docMatches] = await this.verificationService.findManyAndCount(
+                { documentId: documentNumber },
+            );
+            const existing = docMatches.find(
+                (v) =>
+                    !!v.linkedEName &&
+                    (!selfW3id || v.linkedEName !== selfW3id),
+            );
+            if (existing?.linkedEName) {
+                return { duplicate: true, existingW3id: existing.linkedEName };
+            }
+        }
+
+        return { duplicate: false };
+    }
+
     private async getPlatformToken(): Promise<string> {
         const registryUrl = process.env.PUBLIC_REGISTRY_URL;
         const platformName = process.env.PLATFORM_NAME ?? "provisioner";
@@ -162,11 +201,14 @@ export class ProvisioningService {
         const queryRes = await axios.post(
             gqlUrl,
             {
-                query: `query {
-                    metaEnvelopes(filter: { ontologyId: "${USER_PROFILE_ONTOLOGY}" }, first: 1) {
+                query: `query FindUserProfile($ontologyId: String!) {
+                    metaEnvelopes(filter: { ontologyId: $ontologyId }, first: 1) {
                         edges { node { id ontology parsed } }
                     }
                 }`,
+                variables: {
+                    ontologyId: USER_PROFILE_ONTOLOGY,
+                },
             },
             {
                 headers: {
@@ -257,40 +299,21 @@ export class ProvisioningService {
         const fullName = (idVerif?.full_name ?? `${firstName} ${lastName}`).trim();
         const documentNumber: string = idVerif?.document_number ?? "";
 
-        // --- Duplicate check: Scenario A — Didit matches array ---
-        const matches: any[] = idVerif?.matches ?? [];
-        for (const match of matches) {
-            if (match.status?.toLowerCase() !== "approved") continue;
-            const matchVendorData: string = match.vendor_data ?? "";
-            if (!matchVendorData) continue;
-            const matchVerif = await this.verificationService.findOne({ id: matchVendorData });
-            // Only flag as duplicate if the linked eVault is a different eName
-            if (matchVerif?.linkedEName && matchVerif.linkedEName !== w3id) {
-                console.warn(`[UPGRADE] Duplicate detected via Didit match: existing=${matchVerif.linkedEName}`);
-                return {
-                    success: false,
-                    duplicate: true,
-                    existingW3id: matchVerif.linkedEName,
-                    message: "duplicate identity",
-                };
-            }
-        }
-
-        // --- Duplicate check: Scenario B — legacy document number ---
-        if (documentNumber) {
-            const [docMatches] = await this.verificationService.findManyAndCount(
-                { documentId: documentNumber },
+        const duplicateCheck = await this.checkForDuplicateIdentity(
+            idVerif,
+            documentNumber,
+            w3id,
+        );
+        if (duplicateCheck.duplicate) {
+            console.warn(
+                `[UPGRADE] Duplicate detected: existing=${duplicateCheck.existingW3id}`,
             );
-            const existing = docMatches.find((v) => !!v.linkedEName && v.linkedEName !== w3id);
-            if (existing) {
-                console.warn(`[UPGRADE] Duplicate detected via documentId: existing=${existing.linkedEName}`);
-                return {
-                    success: false,
-                    duplicate: true,
-                    existingW3id: existing.linkedEName,
-                    message: "duplicate identity",
-                };
-            }
+            return {
+                success: false,
+                duplicate: true,
+                existingW3id: duplicateCheck.existingW3id,
+                message: "duplicate identity",
+            };
         }
 
         // Persist the upgrade into the Verification table so future duplicate checks work.
@@ -320,26 +343,35 @@ export class ProvisioningService {
             });
         }
 
-        // Create id_document binding doc
-        if (fullName) {
-            this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
-                (err) => console.error("[UPGRADE] id_document binding doc error:", err),
-            );
-        }
+        try {
+            // Create id_document binding doc
+            if (fullName) {
+                await this.createBindingDocumentForUser(
+                    w3id,
+                    diditSessionId,
+                    fullName,
+                );
+            }
 
-        // Create photograph binding doc from ID document portrait
-        const selfieUrl: string = idVerif?.portrait_image ?? "";
-        if (selfieUrl) {
-            this.createPhotographBindingDocument(w3id, selfieUrl).catch(
-                (err) => console.error("[UPGRADE] photograph binding doc error:", err),
-            );
-        }
+            // Create photograph binding doc from ID document portrait
+            const selfieUrl: string = idVerif?.portrait_image ?? "";
+            if (selfieUrl) {
+                await this.createPhotographBindingDocument(w3id, selfieUrl);
+            }
 
-        // Update UserProfile with verified name
-        if (fullName) {
-            this.updateUserProfileInEvault(w3id, fullName).catch(
-                (err) => console.error("[UPGRADE] profile update error:", err),
+            // Update UserProfile with verified name
+            if (fullName) {
+                await this.updateUserProfileInEvault(w3id, fullName);
+            }
+        } catch (err: any) {
+            console.error(
+                "[UPGRADE] Side-effect operations failed:",
+                err?.response?.data ?? err?.message ?? err,
             );
+            return {
+                success: false,
+                message: "Failed to finalize upgrade artifacts",
+            };
         }
 
         return { success: true };
@@ -470,39 +502,19 @@ export class ProvisioningService {
                     throw new Error("verification not approved");
                 }
 
-                // --- Scenario A: Didit session matches (same document used before) ---
                 const idVerif = decision.id_verifications?.[0];
                 const documentNumber: string = idVerif?.document_number ?? "";
-                const matches: any[] = idVerif?.matches ?? [];
-                for (const match of matches) {
-                    if (match.status?.toLowerCase() !== "approved") continue;
-                    const matchVendorData: string = match.vendor_data ?? "";
-                    if (!matchVendorData) continue;
-                    const matchVerif = await this.verificationService.findOne({ id: matchVendorData });
-                    if (matchVerif?.linkedEName) {
-                        return {
-                            success: false,
-                            duplicate: true,
-                            existingW3id: matchVerif.linkedEName,
-                            message: "duplicate identity",
-                        };
-                    }
-                }
-
-                // --- Scenario B: Legacy document number match (pre-Didit / Veriff eVaults) ---
-                if (documentNumber) {
-                    const [docMatches] = await this.verificationService.findManyAndCount(
-                        { documentId: documentNumber },
-                    );
-                    const existing = docMatches.find((v) => !!v.linkedEName);
-                    if (existing) {
-                        return {
-                            success: false,
-                            duplicate: true,
-                            existingW3id: existing.linkedEName,
-                            message: "duplicate identity",
-                        };
-                    }
+                const duplicateCheck = await this.checkForDuplicateIdentity(
+                    idVerif,
+                    documentNumber,
+                );
+                if (duplicateCheck.duplicate) {
+                    return {
+                        success: false,
+                        duplicate: true,
+                        existingW3id: duplicateCheck.existingW3id,
+                        message: "duplicate identity",
+                    };
                 }
 
                 // Persist approval, document number, linked eName, and consumed flag in one update
@@ -559,17 +571,32 @@ export class ProvisioningService {
                 const verificationRecord = await this.verificationService.findById(verificationId);
                 const diditSessionId = verificationRecord?.diditSessionId ?? "";
 
-                if (fullName && diditSessionId) {
-                    this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
-                        (err) => console.error("[BINDING_DOC] Post-provision error:", err),
-                    );
-                }
+                try {
+                    if (fullName && diditSessionId) {
+                        await this.createBindingDocumentForUser(
+                            w3id,
+                            diditSessionId,
+                            fullName,
+                        );
+                        await this.updateUserProfileInEvault(w3id, fullName);
+                    }
 
-                const portraitUrl: string = decision.id_verifications?.[0]?.portrait_image ?? "";
-                if (portraitUrl) {
-                    this.createPhotographBindingDocument(w3id, portraitUrl).catch(
-                        (err) => console.error("[BINDING_DOC] Portrait error:", err),
+                    const portraitUrl: string =
+                        decision.id_verifications?.[0]?.portrait_image ?? "";
+                    if (portraitUrl) {
+                        await this.createPhotographBindingDocument(
+                            w3id,
+                            portraitUrl,
+                        );
+                    }
+                } catch (sideEffectError: any) {
+                    console.error(
+                        "[BINDING_DOC] Post-provision side effects failed:",
+                        sideEffectError?.response?.data ??
+                            sideEffectError?.message ??
+                            sideEffectError,
                     );
+                    throw new Error("Failed to finalize provisioning artifacts");
                 }
             }
 

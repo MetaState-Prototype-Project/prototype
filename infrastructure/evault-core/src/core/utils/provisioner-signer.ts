@@ -1,5 +1,5 @@
 import nacl from "tweetnacl";
-import { computeBindingDocumentHash } from "./binding-document-hash";
+import { getCanonicalBindingDocumentBytes } from "./binding-document-hash";
 import type { BindingDocumentData, BindingDocumentType } from "../types/binding-document";
 
 function hexToUint8Array(hex: string): Uint8Array {
@@ -56,7 +56,7 @@ export function getProvisionerSignerUrl(): string {
 
 /**
  * Computes the provisioner signature for a binding document.
- * The signature field is the MD5 hash of the canonical doc.
+ * The signature field is an Ed25519 detached signature over canonical bytes (base64url).
  * The signer field is a full resolvable URL pointing to the provisioner's JWK.
  */
 export function signAsProvisioner(doc: {
@@ -64,9 +64,12 @@ export function signAsProvisioner(doc: {
     type: BindingDocumentType;
     data: BindingDocumentData;
 }): { signer: string; signature: string; timestamp: string } {
+    const keyPair = getProvisionerKeyPair();
+    const canonicalBytes = getCanonicalBindingDocumentBytes(doc);
+    const signatureBytes = nacl.sign.detached(canonicalBytes, keyPair.secretKey);
     return {
         signer: getProvisionerSignerUrl(),
-        signature: computeBindingDocumentHash(doc),
+        signature: uint8ArrayToBase64url(signatureBytes),
         timestamp: new Date().toISOString(),
     };
 }

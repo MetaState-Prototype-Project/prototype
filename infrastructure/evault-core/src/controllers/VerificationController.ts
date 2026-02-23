@@ -62,19 +62,31 @@ export class VerificationController {
                 return res.status(500).json({ error: "Didit API key or workflow ID not configured" });
             }
 
-            const { data: diditSession } = await diditClient.post(
-                "/v3/session/",
-                {
-                    workflow_id: workflowId,
-                    vendor_data: verification.id,
-                },
-                {
-                    headers: {
-                        "x-api-key": apiKey,
-                        "Content-Type": "application/json",
+            let diditSession: any;
+            try {
+                const response = await diditClient.post(
+                    "/v3/session/",
+                    {
+                        workflow_id: workflowId,
+                        vendor_data: verification.id,
                     },
-                },
-            );
+                    {
+                        headers: {
+                            "x-api-key": apiKey,
+                            "Content-Type": "application/json",
+                        },
+                    },
+                );
+                diditSession = response.data;
+            } catch (err: any) {
+                console.error(
+                    "[DIDIT SESSION CREATE]",
+                    err?.response?.data ?? err?.message,
+                );
+                return res
+                    .status(502)
+                    .json({ error: "Failed to create Didit session" });
+            }
 
             console.log("[Didit] Session response:", JSON.stringify(diditSession));
 

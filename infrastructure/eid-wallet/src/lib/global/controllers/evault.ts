@@ -401,7 +401,8 @@ export class VaultController {
             try {
                 const now = new Date().toISOString();
                 const client = await this.ensureClient(w3id, ename);
-                const existingProfile = await this.findExistingUserProfile(client);
+                const existingProfile =
+                    await this.findExistingUserProfile(client);
                 const payload = this.buildUserProfilePayload(
                     ename,
                     displayName,
@@ -413,17 +414,18 @@ export class VaultController {
                     console.log(
                         `Attempting to update existing UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
                     );
-                    const response = await client.request<UpdateMetaEnvelopeResponse>(
-                        UPDATE_META_ENVELOPE,
-                        {
-                            id: existingProfile.id,
-                            input: {
-                                ontology: USER_PROFILE_ONTOLOGY,
-                                payload,
-                                acl: ["*"],
+                    const response =
+                        await client.request<UpdateMetaEnvelopeResponse>(
+                            UPDATE_META_ENVELOPE,
+                            {
+                                id: existingProfile.id,
+                                input: {
+                                    ontology: USER_PROFILE_ONTOLOGY,
+                                    payload,
+                                    acl: ["*"],
+                                },
                             },
-                        },
-                    );
+                        );
                     this.throwIfGraphQLErrors(
                         response.updateMetaEnvelope.errors,
                         "update",
@@ -439,23 +441,25 @@ export class VaultController {
                 console.log(
                     `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
                 );
-                const response = await client.request<CreateMetaEnvelopeResponse>(
-                    CREATE_META_ENVELOPE,
-                    {
-                        input: {
-                            ontology: USER_PROFILE_ONTOLOGY,
-                            payload,
-                            acl: ["*"],
+                const response =
+                    await client.request<CreateMetaEnvelopeResponse>(
+                        CREATE_META_ENVELOPE,
+                        {
+                            input: {
+                                ontology: USER_PROFILE_ONTOLOGY,
+                                payload,
+                                acl: ["*"],
+                            },
                         },
-                    },
-                );
+                    );
                 this.throwIfGraphQLErrors(
                     response.createMetaEnvelope.errors,
                     "create",
                 );
                 console.log(
                     "UserProfile created successfully in eVault:",
-                    response.createMetaEnvelope.metaEnvelope?.id ?? "unknown-id",
+                    response.createMetaEnvelope.metaEnvelope?.id ??
+                        "unknown-id",
                 );
                 return;
             } catch (error) {
