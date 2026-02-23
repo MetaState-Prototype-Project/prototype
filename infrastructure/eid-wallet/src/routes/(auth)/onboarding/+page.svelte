@@ -561,10 +561,14 @@ const handleEnamePassphraseRecovery = async () => {
     try {
         // 1. Resolve eName → eVault base URI
         const resolveRes = await axios.get(
-            new URL(`resolve?w3id=${encodeURIComponent(ename)}`, PUBLIC_REGISTRY_URL).toString(),
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
         );
         const evaultBase: string = resolveRes.data.uri;
-        if (!evaultBase) throw new Error("Could not resolve eName to an eVault.");
+        if (!evaultBase)
+            throw new Error("Could not resolve eName to an eVault.");
 
         // 2. Compare passphrase (IP rate-limited endpoint on the eVault)
         let cmpRes: { data: { match: boolean; hasPassphrase: boolean } };
@@ -575,7 +579,8 @@ const handleEnamePassphraseRecovery = async () => {
             );
         } catch (err: unknown) {
             if (axios.isAxiosError(err) && err.response?.status === 429) {
-                const retryAfter = err.response.data?.retryAfterSeconds ?? "a while";
+                const retryAfter =
+                    err.response.data?.retryAfterSeconds ?? "a while";
                 enameError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
             } else {
                 enameError = "Failed to verify passphrase. Please try again.";
@@ -605,11 +610,14 @@ const handleEnamePassphraseRecovery = async () => {
                     : {}),
             },
         });
-        const bdRes = await gqlClient.request<BindingDocsResult>(BINDING_DOCS_QUERY);
-        const parsedDocs = bdRes.bindingDocuments.edges.map((e) => e.node.parsed);
+        const bdRes =
+            await gqlClient.request<BindingDocsResult>(BINDING_DOCS_QUERY);
+        const parsedDocs = bdRes.bindingDocuments.edges.map(
+            (e) => e.node.parsed,
+        );
 
         const selfDoc = parsedDocs.find((n) => n.type === "self");
-        const idDoc   = parsedDocs.find((n) => n.type === "id_document");
+        const idDoc = parsedDocs.find((n) => n.type === "id_document");
 
         // 4a. ID-verified path: re-fetch the original Didit decision via provisioner
         if (idDoc?.data?.reference) {
@@ -618,7 +626,11 @@ const handleEnamePassphraseRecovery = async () => {
                     `/verification/decision/${idDoc.data.reference}`,
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
-                { headers: { "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET } },
+                {
+                    headers: {
+                        "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                    },
+                },
             );
 
             const iv = decision?.id_verifications?.[0];
@@ -627,24 +639,29 @@ const handleEnamePassphraseRecovery = async () => {
                 [iv?.first_name, iv?.last_name].filter(Boolean).join(" ") ??
                 idDoc.data.name ??
                 "";
-            const dob        = iv?.date_of_birth ?? "";
-            const docType    = iv?.document_type ?? "";
-            const docNumber  = iv?.document_number ?? "";
-            const country    = iv?.issuing_state_name ?? iv?.issuing_state ?? "";
+            const dob = iv?.date_of_birth ?? "";
+            const docType = iv?.document_type ?? "";
+            const docNumber = iv?.document_number ?? "";
+            const country = iv?.issuing_state_name ?? iv?.issuing_state ?? "";
             const expiryDate = iv?.expiration_date ?? "";
-            const issueDate  = iv?.date_of_issue ?? "";
+            const issueDate = iv?.date_of_issue ?? "";
 
             // Exact same shape as recoverVault() in /recover/+page.svelte
             const user: Record<string, string> = {
                 name: capitalize(fullName),
                 "Date of Birth": dob ? new Date(dob).toDateString() : "",
                 "ID submitted":
-                    [docType, country].filter(Boolean).join(" - ") || "Verified",
+                    [docType, country].filter(Boolean).join(" - ") ||
+                    "Verified",
                 "Document Number": docNumber,
             };
             const document: Record<string, string> = {
-                "Valid From":  issueDate  ? new Date(issueDate).toDateString()  : "",
-                "Valid Until": expiryDate ? new Date(expiryDate).toDateString() : "",
+                "Valid From": issueDate
+                    ? new Date(issueDate).toDateString()
+                    : "",
+                "Valid Until": expiryDate
+                    ? new Date(expiryDate).toDateString()
+                    : "",
                 "Verified On": new Date().toDateString(),
             };
 
@@ -662,7 +679,7 @@ const handleEnamePassphraseRecovery = async () => {
             "Document Number": "",
         };
         const document: Record<string, string> = {
-            "Valid From":  "",
+            "Valid From": "",
             "Valid Until": "",
             "Verified On": new Date().toDateString(),
         };
@@ -672,7 +689,9 @@ const handleEnamePassphraseRecovery = async () => {
     } catch (err: unknown) {
         console.error("[RECOVERY/ename-passphrase] error:", err);
         enameError =
-            err instanceof Error ? err.message : "Something went wrong. Please try again.";
+            err instanceof Error
+                ? err.message
+                : "Something went wrong. Please try again.";
         step = "ename-passphrase";
     } finally {
         enameLoading = false;

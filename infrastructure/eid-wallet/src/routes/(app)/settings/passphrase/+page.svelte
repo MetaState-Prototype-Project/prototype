@@ -21,7 +21,10 @@ const REQUIREMENTS = [
     { label: "Uppercase letter (A–Z)", test: (p: string) => /[A-Z]/.test(p) },
     { label: "Lowercase letter (a–z)", test: (p: string) => /[a-z]/.test(p) },
     { label: "Number (0–9)", test: (p: string) => /[0-9]/.test(p) },
-    { label: "Special character (!@#$…)", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+    {
+        label: "Special character (!@#$…)",
+        test: (p: string) => /[^A-Za-z0-9]/.test(p),
+    },
 ];
 
 $effect(() => {
@@ -32,7 +35,8 @@ onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
     if (!globalState) throw new Error("Global state is not defined");
     try {
-        hasExistingPassphrase = await globalState.vaultController.hasRecoveryPassphrase();
+        hasExistingPassphrase =
+            await globalState.vaultController.hasRecoveryPassphrase();
     } catch {
         // non-critical
     }
@@ -59,7 +63,10 @@ async function handleSave() {
 
     isLoading = true;
     try {
-        await globalState!.vaultController.setRecoveryPassphrase(passphrase, confirmPassphrase);
+        await globalState!.vaultController.setRecoveryPassphrase(
+            passphrase,
+            confirmPassphrase,
+        );
         passphrase = "";
         confirmPassphrase = "";
         hasExistingPassphrase = true;
@@ -80,8 +87,12 @@ async function handleClose() {
     await goto("/settings");
 }
 
-const allMet = $derived(passphrase.length > 0 && REQUIREMENTS.every((r) => r.test(passphrase)));
-const mismatch = $derived(confirmPassphrase.length > 0 && confirmPassphrase !== passphrase);
+const allMet = $derived(
+    passphrase.length > 0 && REQUIREMENTS.every((r) => r.test(passphrase)),
+);
+const mismatch = $derived(
+    confirmPassphrase.length > 0 && confirmPassphrase !== passphrase,
+);
 </script>
 
 <main

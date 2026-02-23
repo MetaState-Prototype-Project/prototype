@@ -1,6 +1,9 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { PUBLIC_PROVISIONER_URL, PUBLIC_REGISTRY_URL } from "$env/static/public";
+import {
+    PUBLIC_PROVISIONER_URL,
+    PUBLIC_REGISTRY_URL,
+} from "$env/static/public";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
@@ -44,7 +47,10 @@ onMount(() => {
 
 async function resolveEvaultBase(w3id: string): Promise<string> {
     const res = await axios.get(
-        new URL(`resolve?w3id=${encodeURIComponent(w3id)}`, PUBLIC_REGISTRY_URL).toString(),
+        new URL(
+            `resolve?w3id=${encodeURIComponent(w3id)}`,
+            PUBLIC_REGISTRY_URL,
+        ).toString(),
     );
     return res.data.uri as string;
 }
@@ -187,12 +193,12 @@ async function verifyAndRecover() {
         if (res.data?.match) {
             await recoverVault();
         } else {
-            passphraseError =
-                "Incorrect passphrase. Please try again.";
+            passphraseError = "Incorrect passphrase. Please try again.";
         }
     } catch (err: unknown) {
         if (axios.isAxiosError(err) && err.response?.status === 429) {
-            const retryAfter = err.response.data?.retryAfterSeconds ?? "a while";
+            const retryAfter =
+                err.response.data?.retryAfterSeconds ?? "a while";
             passphraseError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
         } else {
             passphraseError = "Failed to verify passphrase. Please try again.";

@@ -618,7 +618,10 @@ export class VaultController {
      * @throws if the passphrase does not meet strength requirements (validated server-side)
      * @throws if no vault is found
      */
-    async setRecoveryPassphrase(passphrase: string, confirmPassphrase: string): Promise<void> {
+    async setRecoveryPassphrase(
+        passphrase: string,
+        confirmPassphrase: string,
+    ): Promise<void> {
         if (passphrase !== confirmPassphrase) {
             throw new Error("Passphrases do not match");
         }
