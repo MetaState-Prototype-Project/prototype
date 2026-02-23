@@ -102,7 +102,7 @@ onMount(async () => {
             </div>
             <ButtonAction
                 class="w-full"
-                callback={() => goto("/verify")}
+                callback={() => goto("/onboarding")}
             >
                 Enhance Trust Level
             </ButtonAction>

@@ -1,5 +1,7 @@
 import axios, { type AxiosError } from "axios";
 import * as jose from "jose";
+
+const diditAxios = axios.create({ baseURL: "https://verification.didit.me" });
 import { validate as uuidValidate } from "uuid";
 import { W3IDBuilder } from "w3id";
 import { signAsProvisioner } from "../core/utils/provisioner-signer";
@@ -174,24 +176,49 @@ export class ProvisioningService {
 
             // Validate verification if not demo code
             const demoCode = process.env.DEMO_CODE_W3DS || "d66b7138-538a-465f-a6ce-f6985854c3f4";
+            let decision: any = null;
             if (verificationId !== demoCode) {
                 let verification;
                 try {
-                    verification =
-                        await this.verificationService.findById(verificationId);
+                    verification = await this.verificationService.findById(verificationId);
                 } catch (dbError) {
-                    // If database query fails (e.g., invalid UUID format), treat as verification not found
                     throw new Error("verification doesn't exist");
                 }
                 if (!verification) {
                     throw new Error("verification doesn't exist");
                 }
-                if (!verification.approved) {
-                    throw new Error("verification not approved");
-                }
                 if (verification.consumed) {
                     throw new Error("already been used");
                 }
+                if (!verification.diditSessionId) {
+                    throw new Error("verification not approved");
+                }
+
+                // Pull live decision from Didit API
+                const apiKey = process.env.DIDIT_API_KEY;
+                if (!apiKey) throw new Error("DIDIT_API_KEY is not configured");
+
+                try {
+                    const { data: diditDecision } = await diditAxios.get(
+                        `/v3/session/${verification.diditSessionId}/decision/`,
+                        { headers: { "x-api-key": apiKey } },
+                    );
+                    decision = diditDecision;
+                } catch (err: any) {
+                    console.error("[PROVISIONING] Failed to fetch Didit decision:", err?.response?.data ?? err?.message);
+                    throw new Error("verification not approved");
+                }
+
+                const diditStatus: string = decision?.status ?? "";
+                if (diditStatus.toLowerCase() !== "approved") {
+                    throw new Error("verification not approved");
+                }
+
+                // Persist approval so consumed check works on retry
+                await this.verificationService.findByIdAndUpdate(verificationId, {
+                    approved: true,
+                    data: { decision },
+                });
             }
 
             // Update verification with linked eName (only if not demo code)
@@ -246,22 +273,18 @@ export class ProvisioningService {
             );
 
             // After provisioning, create the provisioner-signed id_document binding document
-            // if a verified Didit session exists with person data
-            if (verificationId !== demoCode) {
+            if (verificationId !== demoCode && decision) {
+                const idVerif = decision.id_verifications?.[0];
+                const firstName = idVerif?.first_name ?? "";
+                const lastName = idVerif?.last_name ?? "";
+                const fullName = (idVerif?.full_name ?? `${firstName} ${lastName}`).trim();
                 const verificationRecord = await this.verificationService.findById(verificationId);
-                if (verificationRecord?.approved && verificationRecord.data) {
-                    const personData = verificationRecord.data.person as Record<string, any> | undefined;
-                    const docData = verificationRecord.data.document as Record<string, any> | undefined;
-                    const firstName = personData?.first_name ?? personData?.firstName?.value ?? "";
-                    const lastName = personData?.last_name ?? personData?.lastName?.value ?? "";
-                    const fullName = `${firstName} ${lastName}`.trim();
-                    const diditSessionId = verificationRecord.diditSessionId ?? "";
+                const diditSessionId = verificationRecord?.diditSessionId ?? "";
 
-                    if (fullName && diditSessionId) {
-                        this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
-                            (err) => console.error("[BINDING_DOC] Post-provision error:", err),
-                        );
-                    }
+                if (fullName && diditSessionId) {
+                    this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
+                        (err) => console.error("[BINDING_DOC] Post-provision error:", err),
+                    );
                 }
             }
 

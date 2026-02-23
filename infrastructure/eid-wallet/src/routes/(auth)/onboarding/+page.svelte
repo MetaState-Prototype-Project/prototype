@@ -8,6 +8,7 @@ import {
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
+import { capitalize } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount } from "svelte";
@@ -75,17 +76,18 @@ function computeBindingDocumentHash(doc: {
     return md5(JSON.stringify({ subject: doc.subject, type: doc.type, data: doc.data }));
 }
 
-// Demo code accepted by the provisioner without a real verification record
 const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 const KEY_ID = "default";
 
 type Step =
-    | "home"           // Screen 1: Make a new eVault / Already have an eVault
-    | "new-evault"     // Screen 2: Linked to identity / Anonymously
-    | "already-have"   // TBI placeholder
-    | "kyc-panel"      // Full-screen overlay: hardware check → /verify
-    | "anonymous-form" // Name + DOB inputs for anonymous path
-    | "loading";       // Spinner while provisioning + binding doc creation
+    | "home"
+    | "new-evault"
+    | "already-have"
+    | "kyc-panel"
+    | "didit-verification"
+    | "verif-result"
+    | "anonymous-form"
+    | "loading";
 
 let step = $state<Step>("home");
 let error = $state<string | null>(null);
@@ -94,6 +96,13 @@ let loading = $state(false);
 // KYC panel sub-state
 let checkingHardware = $state(false);
 let showHardwareError = $state(false);
+
+// Didit verification state
+let diditLocalId = $state<string | null>(null);
+let diditSessionId = $state<string | null>(null);
+let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
+let diditDecision = $state<any>(null);
+let diditRejectionReason = $state<string | null>(null);
 
 // Anonymous form inputs
 let anonName = $state("");
@@ -123,10 +132,7 @@ const handleIdentityPath = async () => {
         globalState.userController.isFake = false;
         const testKeyId = `hardware-test-${Date.now()}`;
         try {
-            const { manager } = await globalState.keyService.ensureKey(
-                testKeyId,
-                "onboarding",
-            );
+            const { manager } = await globalState.keyService.ensureKey(testKeyId, "onboarding");
             if (manager.getType() !== "hardware") {
                 throw new Error("Got software fallback instead of hardware");
             }
@@ -144,16 +150,137 @@ const handleIdentityPath = async () => {
 };
 
 const handleKycNext = async () => {
+    loading = true;
+    error = null;
     try {
-        loading = true;
         await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
+
+        const { data } = await axios.post(
+            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+        );
+        console.log("[Didit] session response:", data);
+
+        if (!data.verificationUrl) {
+            throw new Error(`Backend did not return a verificationUrl. Response: ${JSON.stringify(data)}`);
+        }
+
+        diditLocalId = data.id;
+        diditSessionId = data.sessionToken; // store token; actual Didit sessionId comes from onComplete
         loading = false;
-        goto("/verify");
+        step = "didit-verification";
+
+        // Wait a tick for the container to mount
+        await new Promise((r) => setTimeout(r, 50));
+
+        const { DiditSdk } = await import("@didit-protocol/sdk-web");
+        const sdk = DiditSdk.shared;
+        sdk.onComplete = handleDiditComplete;
+        await sdk.startVerification({
+            url: data.verificationUrl,
+            configuration: {
+                embedded: true,
+                embeddedContainerId: "didit-container",
+            },
+        });
     } catch (err) {
-        console.error("Failed to initialize keys for onboarding:", err);
-        error = "Failed to initialize security keys. Please try again.";
+        console.error("Failed to start KYC:", err);
+        error = err instanceof Error ? err.message : "Failed to start verification. Please try again.";
         loading = false;
-        setTimeout(() => { error = null; }, 5000);
+        setTimeout(() => { error = null; }, 6000);
+    }
+};
+
+const handleDiditComplete = async (result: any) => {
+    console.log("[Didit] onComplete:", result);
+
+    if (result.type === "cancelled") {
+        step = "kyc-panel";
+        return;
+    }
+
+    if (!result.session?.sessionId) {
+        error = "Verification did not return a session ID.";
+        step = "kyc-panel";
+        return;
+    }
+
+    step = "loading";
+
+    try {
+        const { data: decision } = await axios.get(
+            new URL(`/verification/decision/${result.session.sessionId}`, PUBLIC_PROVISIONER_URL).toString(),
+        );
+        console.log("[Didit] decision:", decision);
+
+        diditDecision = decision;
+        const rawStatus: string = decision.status ?? "";
+        diditResult = rawStatus.toLowerCase().replace(" ", "_") as "approved" | "declined" | "in_review";
+
+        if (diditResult !== "approved") {
+            diditRejectionReason =
+                decision.reviews?.[0]?.comment ??
+                decision.id_verifications?.[0]?.warnings?.[0]?.short_description ??
+                "Verification could not be completed.";
+        }
+
+        step = "verif-result";
+    } catch (err) {
+        console.error("Failed to fetch Didit decision:", err);
+        error = "Failed to retrieve verification result. Please try again.";
+        step = "kyc-panel";
+        setTimeout(() => { error = null; }, 6000);
+    }
+};
+
+const handleProvision = async () => {
+    if (!diditDecision || !diditLocalId) return;
+
+    const idVerif = diditDecision.id_verifications?.[0];
+    const fullName = idVerif?.full_name ?? `${idVerif?.first_name ?? ""} ${idVerif?.last_name ?? ""}`.trim();
+    const dob = idVerif?.date_of_birth ?? "";
+    const docType = idVerif?.document_type ?? "";
+    const docNumber = idVerif?.document_number ?? "";
+    const country = idVerif?.issuing_state_name ?? idVerif?.issuing_state ?? "";
+    const expiryDate = idVerif?.expiration_date ?? "";
+    const issueDate = idVerif?.date_of_issue ?? "";
+
+    globalState.userController.user = {
+        name: capitalize(fullName),
+        "Date of Birth": dob ? new Date(dob).toDateString() : "",
+        "ID submitted": [docType, country].filter(Boolean).join(" - ") || "Verified",
+        "Document Number": docNumber,
+    };
+    globalState.userController.document = {
+        "Valid From": issueDate ? new Date(issueDate).toDateString() : "",
+        "Valid Until": expiryDate ? new Date(expiryDate).toDateString() : "",
+        "Verified On": new Date().toDateString(),
+    };
+    globalState.userController.isFake = false;
+
+    step = "loading";
+
+    try {
+        const result = await provision(globalState.walletSdkAdapter, {
+            registryUrl: PUBLIC_REGISTRY_URL,
+            provisionerUrl: PUBLIC_PROVISIONER_URL,
+            namespace: uuidv4(),
+            verificationId: diditLocalId,
+            keyId: KEY_ID,
+            context: "onboarding",
+            isPreVerification: false,
+        });
+
+        if (!result.success) {
+            throw new Error("Provisioning failed");
+        }
+
+        globalState.vaultController.vault = { uri: result.uri!, ename: result.w3id! };
+        setTimeout(() => { goto("/register"); }, 10_000);
+    } catch (err) {
+        console.error("Provisioning failed:", err);
+        error = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        step = "verif-result";
+        setTimeout(() => { error = null; }, 6000);
     }
 };
 
@@ -193,14 +320,11 @@ const handleAnonymousSubmit = async () => {
         const evaultUri = resolveResp.data.uri as string;
         const graphqlEndpoint = new URL("/graphql", evaultUri).toString();
 
-        // Compute the MD5 hash of the canonical binding document (subject + type + data, no signatures)
-        // This hash IS the signature field stored in the binding document
         const timestamp = new Date().toISOString();
         const subject = ename.startsWith("@") ? ename : `@${ename}`;
         const bindingData = { kind: "self", name: anonName.trim() };
         const signature = computeBindingDocumentHash({ subject, type: "self", data: bindingData });
 
-        // Create the self-signed binding document in eVault
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {
                 "X-ENAME": ename,
@@ -237,7 +361,6 @@ const handleAnonymousSubmit = async () => {
             throw new Error(`Binding document error: ${bdErrors[0].message}`);
         }
 
-        // Store user data locally — DOB is local-only, not in the binding doc
         const tenYearsLater = new Date();
         tenYearsLater.setFullYear(tenYearsLater.getFullYear() + 10);
         globalState.userController.user = {
@@ -255,7 +378,6 @@ const handleAnonymousSubmit = async () => {
         };
 
         globalState.vaultController.vault = { uri, ename };
-
         setTimeout(() => { goto("/register"); }, 10_000);
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
@@ -317,17 +439,10 @@ onMount(() => {
                 >
             </p>
             <div class="flex flex-col gap-3 mt-3">
-                <ButtonAction
-                    class="w-full"
-                    callback={() => { step = "new-evault"; }}
-                >
+                <ButtonAction class="w-full" callback={() => { step = "new-evault"; }}>
                     Make a new eVault
                 </ButtonAction>
-                <ButtonAction
-                    variant="soft"
-                    class="w-full"
-                    callback={() => { step = "already-have"; }}
-                >
+                <ButtonAction variant="soft" class="w-full" callback={() => { step = "already-have"; }}>
                     Already have an eVault
                 </ButtonAction>
             </div>
@@ -474,11 +589,7 @@ onMount(() => {
     <div class="fixed inset-0 z-50 bg-white overflow-y-auto">
         <div class="min-h-full flex flex-col p-6">
             <article class="grow flex flex-col items-start w-full">
-                <img
-                    src="/images/GetStarted.svg"
-                    alt="get-started"
-                    class="w-full mb-4"
-                />
+                <img src="/images/GetStarted.svg" alt="get-started" class="w-full mb-4" />
 
                 {#if error}
                     <div class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white mb-4">
@@ -489,7 +600,7 @@ onMount(() => {
                 {#if loading}
                     <div class="w-full py-20 flex flex-col items-center justify-center gap-6">
                         <Shadow size={40} color="rgb(142, 82, 255)" />
-                        <h4 class="text-center">Generating your eName</h4>
+                        <h4 class="text-center">Starting verification…</h4>
                     </div>
                 {:else if checkingHardware}
                     <div class="w-full py-20 flex flex-col items-center justify-center gap-6">
@@ -497,9 +608,7 @@ onMount(() => {
                         <h4 class="text-center">Checking device capabilities...</h4>
                     </div>
                 {:else if showHardwareError}
-                    <h4 class="mt-2 mb-2 text-red-600 text-left">
-                        Hardware Security Not Available
-                    </h4>
+                    <h4 class="mt-2 mb-2 text-red-600 text-left">Hardware Security Not Available</h4>
                     <p class="text-black-700 mb-4">
                         Your phone doesn't support hardware crypto keys, which
                         is a requirement for verified IDs.
@@ -508,9 +617,7 @@ onMount(() => {
                         Please use the anonymous option to create an eVault instead.
                     </p>
                 {:else}
-                    <h4 class="mt-2 mb-4 text-left">
-                        Your Digital Self begins with the Real You
-                    </h4>
+                    <h4 class="mt-2 mb-4 text-left">Your Digital Self begins with the Real You</h4>
                     <p class="text-black-700 leading-relaxed">
                         In the Web 3.0 Data Space, identity is linked to
                         reality. We begin by verifying your real-world passport,
@@ -533,10 +640,7 @@ onMount(() => {
                                 Go Anonymous
                             </ButtonAction>
                         {:else}
-                            <ButtonAction
-                                class="w-full"
-                                callback={handleKycNext}
-                            >
+                            <ButtonAction class="w-full" callback={handleKycNext}>
                                 Next
                             </ButtonAction>
                         {/if}
@@ -551,5 +655,83 @@ onMount(() => {
                 {/if}
             </div>
         </div>
+    </div>
+{/if}
+
+<!-- ── Didit embedded verification ─────────────────────────────────────────── -->
+{#if step === "didit-verification"}
+    <div
+        class="fixed inset-0 z-50 bg-white flex flex-col"
+        style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom));"
+    >
+        <div class="flex-none flex justify-end px-4 pt-2">
+            <button
+                class="text-sm text-black-500 underline"
+                onclick={() => { step = "kyc-panel"; }}
+            >
+                Cancel
+            </button>
+        </div>
+        <div id="didit-container" class="flex-1 w-full"></div>
+    </div>
+{/if}
+
+<!-- ── Verification result bottom sheet ────────────────────────────────────── -->
+{#if step === "verif-result"}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
+         style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));">
+
+        {#if error}
+            <div class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm">
+                {error}
+            </div>
+        {/if}
+
+        {#if diditResult === "approved"}
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold">✓</div>
+                <h3 class="text-lg font-bold">Identity Verified</h3>
+            </div>
+            <p class="text-black-700 text-sm">
+                Your identity has been successfully verified. You can now create your eVault.
+            </p>
+            <div class="flex flex-col gap-3 pt-2">
+                <ButtonAction class="w-full" callback={handleProvision}>
+                    Continue
+                </ButtonAction>
+            </div>
+
+        {:else if diditResult === "in_review"}
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">⏳</div>
+                <h3 class="text-lg font-bold">Under Review</h3>
+            </div>
+            <p class="text-black-700 text-sm">
+                Your verification is being manually reviewed. You'll be notified when it's complete.
+            </p>
+            <div class="flex flex-col gap-3 pt-2">
+                <ButtonAction variant="soft" class="w-full" callback={() => { step = "home"; }}>
+                    Back to Start
+                </ButtonAction>
+            </div>
+
+        {:else}
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold">✗</div>
+                <h3 class="text-lg font-bold">Verification Failed</h3>
+            </div>
+            <p class="text-black-700 text-sm">
+                {diditRejectionReason ?? "Your verification could not be completed."}
+            </p>
+            <div class="flex flex-col gap-3 pt-2">
+                <ButtonAction class="w-full" callback={handleKycNext}>
+                    Try Again
+                </ButtonAction>
+                <ButtonAction variant="soft" class="w-full" callback={() => { step = "home"; }}>
+                    Back
+                </ButtonAction>
+            </div>
+        {/if}
     </div>
 {/if}

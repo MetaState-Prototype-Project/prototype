@@ -12,9 +12,6 @@ export class Verification {
     id!: string;
 
     @Column({ type: "varchar", nullable: true })
-    veriffId!: string;
-
-    @Column({ type: "varchar", nullable: true })
     diditSessionId!: string;
 
     @Column({ type: "varchar", nullable: true })
