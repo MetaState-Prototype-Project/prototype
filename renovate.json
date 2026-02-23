@@ -1,27 +1,26 @@
 {
-    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": [
-        "config:recommended",
-        ":dependencyDashboard"
-    ],
-    "lockFileMaintenance": {
-        "enabled": true,
-        "rebaseWhen": "behind-base-branch"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+
+  "lockFileMaintenance": {
+    "enabled": true,
+    "rebaseWhen": "behind-base-branch"
+  },
+
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+
+  "packageRules": [
+    {
+      "description": "Never open major update PRs",
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     },
-    "packageRules": [
-        {
-            "enabled": false,
-            "groupName": "everything",
-            "matchManagers": [
-                "npm"
-            ],
-            "matchPackagePatterns": [
-                "*"
-            ],
-            "separateMajorMinor": false
-        }
-    ],
-    "vulnerabilityAlerts": {
-        "enabled": true
+    {
+      "description": "Allow only minor/patch updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "enabled": true
     }
+  ]
 }
