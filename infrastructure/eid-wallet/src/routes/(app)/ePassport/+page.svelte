@@ -8,8 +8,8 @@ import { getContext, onMount } from "svelte";
 
 const globalState = getContext<() => GlobalState>("globalState")();
 
-let userData: Record<string, string | boolean | undefined>;
-let docData: Record<string, unknown> = {};
+let userData = $state<Record<string, string | boolean | undefined> | undefined>(undefined);
+let docData = $state<Record<string, unknown>>({});
 let hasOnlySelfDocs = $state(false);
 let bindingDocsLoaded = $state(false);
 

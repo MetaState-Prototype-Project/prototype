@@ -20,6 +20,8 @@ export interface ProvisionResponse {
     w3id?: string;
     message?: string;
     error?: string | unknown;
+    duplicate?: boolean;
+    existingW3id?: string;
 }
 
 export class ProvisioningService {
@@ -35,6 +37,61 @@ export class ProvisioningService {
             { headers: { "Content-Type": "application/json" } },
         );
         return res.data.token as string;
+    }
+
+    private async createPhotographBindingDocument(
+        w3id: string,
+        portraitImageUrl: string,
+    ): Promise<void> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) {
+            console.error("[BINDING_DOC] PUBLIC_EVAULT_SERVER_URI not set, skipping photograph binding document");
+            return;
+        }
+
+        const imageResponse = await axios.get(portraitImageUrl, { responseType: "arraybuffer" });
+        const contentType = (imageResponse.headers["content-type"] as string | undefined) ?? "image/jpeg";
+        const base64 = Buffer.from(imageResponse.data as ArrayBuffer).toString("base64");
+        const photoBlob = `data:${contentType};base64,${base64}`;
+
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const data = { photoBlob };
+        const ownerSignature = signAsProvisioner({
+            subject,
+            type: "photograph",
+            data: data as any,
+        });
+
+        const token = await this.getPlatformToken();
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+        const response = await axios.post(
+            gqlUrl,
+            {
+                query: `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                    createBindingDocument(input: $input) {
+                        metaEnvelopeId
+                        errors { message code }
+                    }
+                }`,
+                variables: {
+                    input: { subject, type: "photograph", data, ownerSignature },
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+
+        const errors = response.data?.data?.createBindingDocument?.errors;
+        if (errors?.length) {
+            console.error("[BINDING_DOC] Photograph GraphQL errors:", errors);
+        } else {
+            console.log(`[BINDING_DOC] Created photograph binding doc for ${subject}`);
+        }
     }
 
     private async createBindingDocumentForUser(
@@ -214,10 +271,46 @@ export class ProvisioningService {
                     throw new Error("verification not approved");
                 }
 
-                // Persist approval so consumed check works on retry
+                // --- Scenario A: Didit session matches (same document used before) ---
+                const idVerif = decision.id_verifications?.[0];
+                const documentNumber: string = idVerif?.document_number ?? "";
+                const matches: any[] = idVerif?.matches ?? [];
+                for (const match of matches) {
+                    if (match.status?.toLowerCase() !== "approved") continue;
+                    const matchVendorData: string = match.vendor_data ?? "";
+                    if (!matchVendorData) continue;
+                    const matchVerif = await this.verificationService.findOne({ id: matchVendorData });
+                    if (matchVerif?.linkedEName) {
+                        return {
+                            success: false,
+                            duplicate: true,
+                            existingW3id: matchVerif.linkedEName,
+                            message: "duplicate identity",
+                        };
+                    }
+                }
+
+                // --- Scenario B: Legacy document number match (pre-Didit / Veriff eVaults) ---
+                if (documentNumber) {
+                    const [docMatches] = await this.verificationService.findManyAndCount(
+                        { documentId: documentNumber },
+                    );
+                    const existing = docMatches.find((v) => !!v.linkedEName);
+                    if (existing) {
+                        return {
+                            success: false,
+                            duplicate: true,
+                            existingW3id: existing.linkedEName,
+                            message: "duplicate identity",
+                        };
+                    }
+                }
+
+                // Persist approval and document number for future duplicate checks
                 await this.verificationService.findByIdAndUpdate(verificationId, {
                     approved: true,
                     data: { decision },
+                    ...(documentNumber ? { documentId: documentNumber } : {}),
                 });
             }
 
@@ -272,7 +365,7 @@ export class ProvisioningService {
                 },
             );
 
-            // After provisioning, create the provisioner-signed id_document binding document
+            // After provisioning, create provisioner-signed binding documents from Didit data
             if (verificationId !== demoCode && decision) {
                 const idVerif = decision.id_verifications?.[0];
                 const firstName = idVerif?.first_name ?? "";
@@ -284,6 +377,13 @@ export class ProvisioningService {
                 if (fullName && diditSessionId) {
                     this.createBindingDocumentForUser(w3id, diditSessionId, fullName).catch(
                         (err) => console.error("[BINDING_DOC] Post-provision error:", err),
+                    );
+                }
+
+                const selfieUrl: string = decision.liveness_checks?.[0]?.reference_image ?? "";
+                if (selfieUrl) {
+                    this.createPhotographBindingDocument(w3id, selfieUrl).catch(
+                        (err) => console.error("[BINDING_DOC] Selfie error:", err),
                     );
                 }
             }

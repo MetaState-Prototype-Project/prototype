@@ -101,7 +101,8 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
+    class="h-full px-[5vw] pb-[8svh] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top));"
 >
     <section>
         {#if currentStep === "CREATE"}

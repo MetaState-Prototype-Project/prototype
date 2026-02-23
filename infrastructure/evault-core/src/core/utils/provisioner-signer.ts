@@ -36,6 +36,7 @@ export function getProvisionerJwk(): object {
     return {
         kty: "OKP",
         crv: "Ed25519",
+        alg: "EdDSA",
         use: "sig",
         kid: getProvisionerKid(),
         x: uint8ArrayToBase64url(kp.publicKey),
@@ -43,9 +44,20 @@ export function getProvisionerJwk(): object {
 }
 
 /**
+ * Returns the full resolvable signer URL for the provisioner key.
+ * Format: {PROVISIONER_URL}/.well-known/jwks.json#{kid}
+ */
+export function getProvisionerSignerUrl(): string {
+    const provisionerUrl = process.env.PUBLIC_PROVISIONER_URL ?? process.env.PROVISIONER_URL;
+    if (!provisionerUrl) throw new Error("PUBLIC_PROVISIONER_URL or PROVISIONER_URL must be set");
+    const kid = getProvisionerKid();
+    return `${provisionerUrl.replace(/\/$/, "")}/.well-known/jwks.json#${kid}`;
+}
+
+/**
  * Computes the provisioner signature for a binding document.
- * Per convention the signature field IS the MD5 hash of the canonical doc.
- * The signer field is the provisioner kid (not an eName).
+ * The signature field is the MD5 hash of the canonical doc.
+ * The signer field is a full resolvable URL pointing to the provisioner's JWK.
  */
 export function signAsProvisioner(doc: {
     subject: string;
@@ -53,7 +65,7 @@ export function signAsProvisioner(doc: {
     data: BindingDocumentData;
 }): { signer: string; signature: string; timestamp: string } {
     return {
-        signer: getProvisionerKid(),
+        signer: getProvisionerSignerUrl(),
         signature: computeBindingDocumentHash(doc),
         timestamp: new Date().toISOString(),
     };

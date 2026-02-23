@@ -47,6 +47,7 @@
         "svelte-loading-spinners": "^0.3.6",
         "svelte-qrcode": "^1.0.1",
         "tailwind-merge": "^3.0.2",
+        "ts-md5": "^2.0.1",
         "uuid": "^11.1.0",
         "wallet-sdk": "workspace:*"
     },

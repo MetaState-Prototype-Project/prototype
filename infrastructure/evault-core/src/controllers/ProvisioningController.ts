@@ -15,7 +15,8 @@ export class ProvisioningController {
                     const result = await this.provisioningService.provisionEVault(req.body);
                     
                     if (!result.success) {
-                        return res.status(500).json(result);
+                        const status = result.duplicate ? 409 : 500;
+                        return res.status(status).json(result);
                     }
                     
                     res.json(result);

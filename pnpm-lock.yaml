@@ -348,6 +348,9 @@ importers:
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.4.1
+      ts-md5:
+        specifier: ^2.0.1
+        version: 2.0.1
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -18185,6 +18188,10 @@ packages:
         optional: true
       jest-util:
         optional: true
+
+  ts-md5@2.0.1:
+    resolution: {integrity: sha512-yF35FCoEOFBzOclSkMNEUbFQZuv89KEQ+5Xz03HrMSGUGB1+r+El+JiGOFwsP4p9RFNzwlrydYoTLvPOuICl9w==}
+    engines: {node: '>=18'}
 
   ts-node-dev@2.0.0:
     resolution: {integrity: sha512-ywMrhCfH6M75yftYvrvNarLEY+SUXtUvU8/0Z6llrHQVBx12GiFk5sStF8UdfE/yfzk9IAq7O5EEbTQsxlBI8w==}
@@ -38473,6 +38480,8 @@ snapshots:
       '@jest/types': 29.6.3
       babel-jest: 29.7.0(@babel/core@7.29.0)
       jest-util: 29.7.0
+
+  ts-md5@2.0.1: {}
 
   ts-node-dev@2.0.0(@types/node@20.19.26)(typescript@5.8.2):
     dependencies:

@@ -57,7 +57,8 @@ onMount(() => {
 </script>
 
 <main
-    class="h-[85vh] pt-[4svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
+    class="h-[85vh] px-[5vw] pb-[8svh] flex flex-col justify-between"
+    style="padding-top: max(4svh, env(safe-area-inset-top));"
 >
     <section>
         <div>
