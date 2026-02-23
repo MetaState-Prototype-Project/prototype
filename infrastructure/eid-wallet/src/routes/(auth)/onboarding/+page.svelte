@@ -132,9 +132,11 @@ onMount(async () => {
     // Fetch push notification token for display (Android/iOS)
     try {
         pushToken = await NotificationService.getInstance().getPushToken();
-        if (!pushToken) pushTokenError = "No token (desktop or permission denied)";
+        if (!pushToken)
+            pushTokenError = "No token (desktop or permission denied)";
     } catch (e) {
-        pushTokenError = e instanceof Error ? e.message : "Failed to get push token";
+        pushTokenError =
+            e instanceof Error ? e.message : "Failed to get push token";
     } finally {
         pushTokenLoading = false;
     }
