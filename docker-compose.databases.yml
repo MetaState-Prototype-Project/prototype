@@ -22,7 +22,7 @@ services:
 
   neo4j:
     # 4.4 defaults to unencrypted Bolt; 5.x often requires TLS and env var naming is brittle
-    image: neo4j:4.4
+    image: neo4j:5.1
     container_name: metastate-neo4j
     ports:
       - "7474:7474"
