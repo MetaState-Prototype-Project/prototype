@@ -35,6 +35,7 @@
 		const degree = new Map<string, number>();
 
 		for (const ref of references) {
+			if (!ref.author) continue; // skip orphaned references
 			// Author node (always a user)
 			const authorKey = `user:${ref.author.id}`;
 			if (!nodeMap.has(authorKey)) {
