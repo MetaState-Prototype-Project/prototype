@@ -90,11 +90,11 @@ export class ReferenceController {
                     targetType: ref.targetType,
                     targetId: ref.targetId,
                     targetName: ref.targetName,
-                    author: {
+                    author: ref.author ?{
                         id: ref.author.id,
                         ename: ref.author.ename,
                         name: ref.author.name
-                    },
+                    } : null,
                     createdAt: ref.createdAt
                 }))
             });

@@ -8,7 +8,7 @@
 import "reflect-metadata";
 import path from "node:path";
 import { config } from "dotenv";
-import { DataSource } from "typeorm";
+import { DataSource, In } from "typeorm";
 import { User } from "./entities/User";
 import { Reference } from "./entities/Reference";
 import { Vote } from "./entities/Vote";
@@ -40,7 +40,7 @@ const dbConfig = parseDbUrl(process.env.EREPUTATION_DATABASE_URL || "postgresql:
 const SeedDataSource = new DataSource({
     type: "postgres",
     ...dbConfig,
-    synchronize: true, // create tables if missing
+    synchronize: false,
     entities: [User, Reference, Vote, Poll, Wishlist, VoteReputationResult, ReferenceSignature, Group, Calculation, Message],
     logging: false,
 });
@@ -146,11 +146,12 @@ async function seed() {
         savedUsers.push(existing);
     }
 
-    // 2. Clear old seed references (optional, idempotent re-runs)
-    const existingRefCount = await refRepo.count();
+    // 2. Clear old seed references (scoped to seed users only — preserves real user data)
+    const seedUserIds = savedUsers.map((u) => u.id);
+    const existingRefCount = await refRepo.count({ where: { authorId: In(seedUserIds) } });
     if (existingRefCount > 0) {
-        console.log(`\nClearing ${existingRefCount} existing references...`);
-        await refRepo.clear();
+        console.log(`\nClearing ${existingRefCount} existing seed references...`);
+        await refRepo.delete({ authorId: In(seedUserIds) });
     }
 
     // 3. Generate references

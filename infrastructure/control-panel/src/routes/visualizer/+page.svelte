@@ -61,7 +61,7 @@
 
 			// Edge
 			const typeLabel = ref.referenceType || 'general';
-			const scoreLabel = ref.numericScore ? ` (${ref.numericScore}/5)` : '';
+			const scoreLabel = ref.numericScore != null ? ` (${ref.numericScore}/5)` : '';
 			edges.push({
 				from: authorKey,
 				to: targetKey,
@@ -174,6 +174,9 @@
 				selectedNode = null;
 			}
 		});
+		return () => {
+			network.destroy();
+		};
 	});
 </script>
 
@@ -230,144 +233,149 @@
 		>
 			{#if selectedNode}
 				{#key selectedNode.id}
-				<!-- Panel header -->
-				<div class="flex items-center justify-between gap-2">
-					<h3 class="m-0 text-base font-bold wrap-break-word">{selectedNode.label}</h3>
-					<button
-						class="shrink-0 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-sm leading-none hover:bg-gray-100"
-						onclick={() => (selectedNode = null)}
-					>
-						✕
-					</button>
-				</div>
+					<!-- Panel header -->
+					<div class="flex items-center justify-between gap-2">
+						<h3 class="m-0 text-base font-bold wrap-break-word">
+							{selectedNode.label}
+						</h3>
+						<button
+							class="shrink-0 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-sm leading-none hover:bg-gray-100"
+							onclick={() => (selectedNode = null)}
+						>
+							✕
+						</button>
+					</div>
 
-				<!-- Outgoing -->
-				{#if selectedNode.outgoing.length > 0}
-					<details open>
-						<summary class="accordion-header">
-							Outgoing
-							<span
-								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600"
-							>
-								{selectedNode.outgoing.length}
-							</span>
-						</summary>
-						<div class="flex flex-col gap-1 pt-1 pl-1">
-							{#each selectedNode.outgoing as item}
-								<details
-									name="outgoing-{selectedNode.id}"
-									class="overflow-hidden rounded-md border border-gray-100"
+					<!-- Outgoing -->
+					{#if selectedNode.outgoing.length > 0}
+						<details open>
+							<summary class="accordion-header">
+								Outgoing
+								<span
+									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600"
 								>
-									<summary class="ref-summary">
-										<span class="shrink-0 font-bold text-violet-600">→</span>
-										<span
-											class="min-w-0 flex-1 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
-										>
-											{item.targetLabel}
-										</span>
-										<span
-											class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"
-										>
-											{item.ref.referenceType}
-										</span>
-									</summary>
-									<div class="flex flex-col gap-1.5 bg-white px-3 py-2">
-										{#if item.ref.numericScore}
+									{selectedNode.outgoing.length}
+								</span>
+							</summary>
+							<div class="flex flex-col gap-1 pt-1 pl-1">
+								{#each selectedNode.outgoing as item}
+									<details
+										name="outgoing-{selectedNode.id}"
+										class="overflow-hidden rounded-md border border-gray-100"
+									>
+										<summary class="ref-summary">
+											<span class="shrink-0 font-bold text-violet-600">→</span
+											>
+											<span
+												class="min-w-0 flex-1 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
+											>
+												{item.targetLabel}
+											</span>
+											<span
+												class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"
+											>
+												{item.ref.referenceType}
+											</span>
+										</summary>
+										<div class="flex flex-col gap-1.5 bg-white px-3 py-2">
+											{#if item.ref.numericScore}
+												<div
+													class="flex justify-between border-b border-gray-100 pb-1 text-xs"
+												>
+													<span class="font-semibold text-gray-500"
+														>Score</span
+													>
+													<span>{item.ref.numericScore} / 5</span>
+												</div>
+											{/if}
 											<div
 												class="flex justify-between border-b border-gray-100 pb-1 text-xs"
 											>
-												<span class="font-semibold text-gray-500"
-													>Score</span
+												<span class="font-semibold text-gray-500">Date</span
 												>
-												<span>{item.ref.numericScore} / 5</span>
+												<span
+													>{new Date(
+														item.ref.createdAt
+													).toLocaleDateString()}</span
+												>
 											</div>
-										{/if}
-										<div
-											class="flex justify-between border-b border-gray-100 pb-1 text-xs"
-										>
-											<span class="font-semibold text-gray-500">Date</span>
-											<span
-												>{new Date(
-													item.ref.createdAt
-												).toLocaleDateString()}</span
-											>
+											<p class="m-0 text-xs leading-snug text-gray-700">
+												{item.ref.content}
+											</p>
 										</div>
-										<p class="m-0 text-xs leading-snug text-gray-700">
-											{item.ref.content}
-										</p>
-									</div>
-								</details>
-							{/each}
-						</div>
-					</details>
-				{/if}
+									</details>
+								{/each}
+							</div>
+						</details>
+					{/if}
 
-				<!-- Incoming -->
-				{#if selectedNode.incoming.length > 0}
-					<details open>
-						<summary class="accordion-header">
-							Incoming
-							<span
-								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600"
-							>
-								{selectedNode.incoming.length}
-							</span>
-						</summary>
-						<div class="flex flex-col gap-1 pt-1 pl-1">
-							{#each selectedNode.incoming as item}
-								<details
-									name="incoming-{selectedNode.id}"
-									class="overflow-hidden rounded-md border border-gray-100"
+					<!-- Incoming -->
+					{#if selectedNode.incoming.length > 0}
+						<details open>
+							<summary class="accordion-header">
+								Incoming
+								<span
+									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600"
 								>
-									<summary class="ref-summary">
-										<span class="shrink-0 font-bold text-sky-700">←</span>
-										<span
-											class="min-w-0 flex-1 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
-										>
-											{item.authorLabel}
-										</span>
-										<span
-											class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"
-										>
-											{item.ref.referenceType}
-										</span>
-									</summary>
-									<div class="flex flex-col gap-1.5 bg-white px-3 py-2">
-										{#if item.ref.numericScore}
+									{selectedNode.incoming.length}
+								</span>
+							</summary>
+							<div class="flex flex-col gap-1 pt-1 pl-1">
+								{#each selectedNode.incoming as item}
+									<details
+										name="incoming-{selectedNode.id}"
+										class="overflow-hidden rounded-md border border-gray-100"
+									>
+										<summary class="ref-summary">
+											<span class="shrink-0 font-bold text-sky-700">←</span>
+											<span
+												class="min-w-0 flex-1 overflow-hidden font-semibold text-ellipsis whitespace-nowrap"
+											>
+												{item.authorLabel}
+											</span>
+											<span
+												class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500"
+											>
+												{item.ref.referenceType}
+											</span>
+										</summary>
+										<div class="flex flex-col gap-1.5 bg-white px-3 py-2">
+											{#if item.ref.numericScore}
+												<div
+													class="flex justify-between border-b border-gray-100 pb-1 text-xs"
+												>
+													<span class="font-semibold text-gray-500"
+														>Score</span
+													>
+													<span>{item.ref.numericScore} / 5</span>
+												</div>
+											{/if}
 											<div
 												class="flex justify-between border-b border-gray-100 pb-1 text-xs"
 											>
-												<span class="font-semibold text-gray-500"
-													>Score</span
+												<span class="font-semibold text-gray-500">Date</span
 												>
-												<span>{item.ref.numericScore} / 5</span>
+												<span
+													>{new Date(
+														item.ref.createdAt
+													).toLocaleDateString()}</span
+												>
 											</div>
-										{/if}
-										<div
-											class="flex justify-between border-b border-gray-100 pb-1 text-xs"
-										>
-											<span class="font-semibold text-gray-500">Date</span>
-											<span
-												>{new Date(
-													item.ref.createdAt
-												).toLocaleDateString()}</span
-											>
+											<p class="m-0 text-xs leading-snug text-gray-700">
+												{item.ref.content}
+											</p>
 										</div>
-										<p class="m-0 text-xs leading-snug text-gray-700">
-											{item.ref.content}
-										</p>
-									</div>
-								</details>
-							{/each}
-						</div>
-					</details>
-				{/if}
+									</details>
+								{/each}
+							</div>
+						</details>
+					{/if}
 
-				{#if selectedNode.outgoing.length === 0 && selectedNode.incoming.length === 0}
-					<p class="py-4 text-center text-sm text-gray-400">
-						No references for this node.
-					</p>
-				{/if}
+					{#if selectedNode.outgoing.length === 0 && selectedNode.incoming.length === 0}
+						<p class="py-4 text-center text-sm text-gray-400">
+							No references for this node.
+						</p>
+					{/if}
 				{/key}
 			{:else}
 				<p class="py-4 text-center text-sm text-gray-400">
