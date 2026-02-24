@@ -73,6 +73,37 @@ export class ReferenceController {
         }
     };
 
+    /**
+     * Get ALL signed references in the system (admin/visualizer endpoint).
+     */
+    getAllReferences = async (_req: Request, res: Response) => {
+        try {
+            const references = await this.referenceService.getAllReferences();
+
+            res.json({
+                references: references.map(ref => ({
+                    id: ref.id,
+                    content: ref.content,
+                    numericScore: ref.numericScore,
+                    referenceType: ref.referenceType,
+                    status: ref.status,
+                    targetType: ref.targetType,
+                    targetId: ref.targetId,
+                    targetName: ref.targetName,
+                    author: {
+                        id: ref.author.id,
+                        ename: ref.author.ename,
+                        name: ref.author.name
+                    },
+                    createdAt: ref.createdAt
+                }))
+            });
+        } catch (error) {
+            console.error("Error getting all references:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     getReferencesForTarget = async (req: Request, res: Response) => {
         try {
             const { targetType, targetId } = req.params;
