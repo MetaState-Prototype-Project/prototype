@@ -22,6 +22,7 @@ import { renderVoyagerPage } from "graphql-voyager/middleware";
 import neo4j, { type Driver } from "neo4j-driver";
 // Import evault-core functionality
 import { DbService } from "./core/db/db.service";
+import { ProtectedZoneService } from "./core/db/protected-zone.service";
 import { connectWithRetry } from "./core/db/retry-neo4j";
 import { registerHttpRoutes } from "./core/http/server";
 import { GraphQLServer } from "./core/protocol/graphql-server";
@@ -38,7 +39,7 @@ expressApp.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     }),
 );
@@ -142,6 +143,7 @@ const initializeEVault = async (
     }
 
     const dbService = new DbService(driver);
+    const protectedZoneService = new ProtectedZoneService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
     const w3id = process.env.W3ID || null;
@@ -168,7 +170,7 @@ const initializeEVault = async (
     await fastifyServer.register(fastifyCors, {
         origin: true, // Allow all origins
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     });
 
@@ -178,6 +180,7 @@ const initializeEVault = async (
         evaultInstance,
         provisioningServiceInstance,
         dbService,
+        protectedZoneService,
     );
 
     // Setup GraphQL

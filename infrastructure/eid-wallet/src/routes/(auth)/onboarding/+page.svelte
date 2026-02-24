@@ -8,6 +8,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize } from "$lib/utils";
 import axios from "axios";
@@ -43,7 +44,10 @@ type Step =
     | "didit-verification"
     | "verif-result"
     | "anonymous-form"
-    | "loading";
+    | "loading"
+    | "ename-recovery"
+    | "ename-passphrase-check"
+    | "ename-passphrase";
 
 interface DiditWarning {
     short_description?: string;
@@ -87,7 +91,14 @@ let loading = $state(false);
 // KYC panel sub-state
 let checkingHardware = $state(false);
 let showHardwareError = $state(false);
-let showAlreadyHaveAnonymousDrawer = $state(false);
+
+// eName + passphrase recovery state
+let enameInput = $state("");
+let enamePassphraseInput = $state("");
+let enameError = $state<string | null>(null);
+let enameLoading = $state(false);
+let showEnameDeadEndDrawer = $state(false);
+let showNotaryDrawer = $state(false);
 
 // Didit verification state
 let diditLocalId = $state<string | null>(null);
@@ -503,6 +514,190 @@ const handleUpgrade = async () => {
     }
 };
 
+// ── eName + passphrase recovery ───────────────────────────────────────────────
+
+// bindingDocuments returns MetaEnvelopeConnection; the BindingDocument shape
+// lives inside the `parsed` JSON field as { subject, type, data, signatures }.
+interface BindingDocParsed {
+    type: string;
+    data: Record<string, string>;
+    subject: string;
+}
+
+interface BindingDocsResult {
+    bindingDocuments: {
+        edges: Array<{ node: { parsed: BindingDocParsed } }>;
+    };
+}
+
+const BINDING_DOCS_QUERY = `
+    query {
+        bindingDocuments(first: 20) {
+            edges {
+                node {
+                    parsed
+                }
+            }
+        }
+    }
+`;
+
+const handleEnamePassphraseRecovery = async () => {
+    enameError = null;
+
+    const ename = enameInput.trim();
+    if (!ename) {
+        enameError = "Please enter your eName.";
+        return;
+    }
+    if (!enamePassphraseInput) {
+        enameError = "Please enter your recovery passphrase.";
+        return;
+    }
+
+    enameLoading = true;
+    step = "loading";
+
+    try {
+        // 1. Resolve eName → eVault base URI
+        const resolveRes = await axios.get(
+            new URL(
+                `resolve?w3id=${encodeURIComponent(ename)}`,
+                PUBLIC_REGISTRY_URL,
+            ).toString(),
+        );
+        const evaultBase: string = resolveRes.data.uri;
+        if (!evaultBase)
+            throw new Error("Could not resolve eName to an eVault.");
+
+        // 2. Compare passphrase (IP rate-limited endpoint on the eVault)
+        let cmpRes: { data: { match: boolean; hasPassphrase: boolean } };
+        try {
+            cmpRes = await axios.post(
+                new URL("/passphrase/compare", evaultBase).toString(),
+                { eName: ename, passphrase: enamePassphraseInput },
+            );
+        } catch (err: unknown) {
+            if (axios.isAxiosError(err) && err.response?.status === 429) {
+                const retryAfter =
+                    err.response.data?.retryAfterSeconds ?? "a while";
+                enameError = `Too many attempts. Please wait ${retryAfter} seconds before trying again.`;
+            } else {
+                enameError = "Failed to verify passphrase. Please try again.";
+            }
+            step = "ename-passphrase";
+            return;
+        }
+
+        if (!cmpRes.data.hasPassphrase) {
+            step = "ename-passphrase";
+            showNotaryDrawer = true;
+            return;
+        }
+        if (!cmpRes.data.match) {
+            enameError = "Incorrect passphrase. Please try again.";
+            step = "ename-passphrase";
+            return;
+        }
+
+        // 3. Fetch binding documents from eVault GraphQL
+        const gqlEndpoint = new URL("/graphql", evaultBase).toString();
+        const gqlClient = new GraphQLClient(gqlEndpoint, {
+            headers: {
+                "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
+            },
+        });
+        const bdRes =
+            await gqlClient.request<BindingDocsResult>(BINDING_DOCS_QUERY);
+        const parsedDocs = bdRes.bindingDocuments.edges.map(
+            (e) => e.node.parsed,
+        );
+
+        const selfDoc = parsedDocs.find((n) => n.type === "self");
+        const idDoc = parsedDocs.find((n) => n.type === "id_document");
+
+        // 4a. ID-verified path: re-fetch the original Didit decision via provisioner
+        if (idDoc?.data?.reference) {
+            const { data: decision } = await axios.get(
+                new URL(
+                    `/verification/decision/${idDoc.data.reference}`,
+                    PUBLIC_PROVISIONER_URL,
+                ).toString(),
+                {
+                    headers: {
+                        "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                    },
+                },
+            );
+
+            const iv = decision?.id_verifications?.[0];
+            const fullName =
+                iv?.full_name ??
+                [iv?.first_name, iv?.last_name].filter(Boolean).join(" ") ??
+                idDoc.data.name ??
+                "";
+            const dob = iv?.date_of_birth ?? "";
+            const docType = iv?.document_type ?? "";
+            const docNumber = iv?.document_number ?? "";
+            const country = iv?.issuing_state_name ?? iv?.issuing_state ?? "";
+            const expiryDate = iv?.expiration_date ?? "";
+            const issueDate = iv?.date_of_issue ?? "";
+
+            // Exact same shape as recoverVault() in /recover/+page.svelte
+            const user: Record<string, string> = {
+                name: capitalize(fullName),
+                "Date of Birth": dob ? new Date(dob).toDateString() : "",
+                "ID submitted":
+                    [docType, country].filter(Boolean).join(" - ") ||
+                    "Verified",
+                "Document Number": docNumber,
+            };
+            const document: Record<string, string> = {
+                "Valid From": issueDate
+                    ? new Date(issueDate).toDateString()
+                    : "",
+                "Valid Until": expiryDate
+                    ? new Date(expiryDate).toDateString()
+                    : "",
+                "Verified On": new Date().toDateString(),
+            };
+
+            pendingRecovery.set({ uri: evaultBase, ename, user, document });
+            goto("/register");
+            return;
+        }
+
+        // 4b. Self-declaration-only path (anonymous eVault)
+        const name = selfDoc?.data?.name ?? ename;
+        const user: Record<string, string> = {
+            name: capitalize(name),
+            "Date of Birth": "",
+            "ID submitted": "Anonymous — Self Declaration",
+            "Document Number": "",
+        };
+        const document: Record<string, string> = {
+            "Valid From": "",
+            "Valid Until": "",
+            "Verified On": new Date().toDateString(),
+        };
+
+        pendingRecovery.set({ uri: evaultBase, ename, user, document });
+        goto("/register");
+    } catch (err: unknown) {
+        console.error("[RECOVERY/ename-passphrase] error:", err);
+        enameError =
+            err instanceof Error
+                ? err.message
+                : "Something went wrong. Please try again.";
+        step = "ename-passphrase";
+    } finally {
+        enameLoading = false;
+    }
+};
+
 onMount(() => {
     // Detect upgrade mode from query param
     const url = new URL(window.location.href);
@@ -604,12 +799,12 @@ onMount(() => {
                     </p>
                 </button>
                 <button
-                    onclick={() => (showAlreadyHaveAnonymousDrawer = true)}
+                    onclick={() => { step = "ename-recovery"; enameError = null; }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">No, I was anonymous</p>
+                    <p class="font-semibold text-base mb-1">No, I didn't verify my ID</p>
                     <p class="text-sm text-black-500">
-                        Anonymous eVaults cannot be recovered — there's no identity to verify against.
+                        Recover using your eName and recovery passphrase, or get help from a W3DS Notary.
                     </p>
                 </button>
             </div>
@@ -617,9 +812,7 @@ onMount(() => {
         <ButtonAction
             variant="soft"
             class="w-full mt-4"
-            callback={() => {
-                step = "home";
-            }}
+            callback={() => { step = "home"; }}
         >
             Back
         </ButtonAction>
@@ -750,6 +943,146 @@ onMount(() => {
                     step = "new-evault";
                     error = null;
                 }}
+            >
+                Back
+            </ButtonAction>
+        </div>
+
+        <!-- ── Screen: eName recovery — do you remember your eName? ─────────── -->
+    {:else if step === "ename-recovery"}
+        <section class="grow flex flex-col justify-center gap-6">
+            <div>
+                <h4 class="text-xl font-bold mb-1">Recover with eName</h4>
+                <p class="text-black-700 text-sm">
+                    Do you remember your eName?
+                </p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button
+                    onclick={() => { step = "ename-passphrase-check"; enameError = null; }}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">Yes, I remember my eName</p>
+                    <p class="text-sm text-black-500">
+                        Continue to verify with your recovery passphrase.
+                    </p>
+                </button>
+                <button
+                    onclick={() => { showEnameDeadEndDrawer = true; }}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">No, I don't remember my eName</p>
+                    <p class="text-sm text-black-500">
+                        Without your eName or ID verification, recovery is not possible.
+                    </p>
+                </button>
+            </div>
+        </section>
+        <ButtonAction
+            variant="soft"
+            class="w-full mt-4"
+            callback={() => { step = "already-have"; }}
+        >
+            Back
+        </ButtonAction>
+
+        <!-- ── Screen: passphrase check — do you remember your passphrase? ──── -->
+    {:else if step === "ename-passphrase-check"}
+        <section class="grow flex flex-col justify-center gap-6">
+            <div>
+                <h4 class="text-xl font-bold mb-1">Recovery Passphrase</h4>
+                <p class="text-black-700 text-sm">
+                    Do you remember your recovery passphrase?
+                </p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button
+                    onclick={() => { step = "ename-passphrase"; enameError = null; }}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">Yes, I remember my passphrase</p>
+                    <p class="text-sm text-black-500">
+                        Enter your eName and passphrase to restore your eVault.
+                    </p>
+                </button>
+                <button
+                    onclick={() => { showNotaryDrawer = true; }}
+                    class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
+                >
+                    <p class="font-semibold text-base mb-1">I don't remember my passphrase</p>
+                    <p class="text-sm text-black-500">
+                        You can visit a Registered W3DS Notary who can verify your identity
+                        and help recover your eVault using trusted witnesses or other proofs of ownership.
+                    </p>
+                </button>
+            </div>
+        </section>
+        <ButtonAction
+            variant="soft"
+            class="w-full mt-4"
+            callback={() => { step = "ename-recovery"; }}
+        >
+            Back
+        </ButtonAction>
+
+        <!-- ── Screen: eName + passphrase form ───────────────────────────────── -->
+    {:else if step === "ename-passphrase"}
+        <section class="grow flex flex-col justify-start gap-4 pt-2">
+            <div>
+                <h4 class="text-xl font-bold mb-1">Enter your eName &amp; Passphrase</h4>
+                <p class="text-black-700 text-sm">
+                    Your recovery passphrase was set in the eVault Settings. Both your eName and passphrase must match.
+                </p>
+            </div>
+
+            {#if enameError}
+                <div class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm">
+                    {enameError}
+                </div>
+            {/if}
+
+            <div class="flex flex-col gap-1">
+                <label class="text-black-700 font-medium text-sm" for="enameInput">
+                    Your eName <span class="text-danger">*</span>
+                </label>
+                <input
+                    id="enameInput"
+                    type="text"
+                    bind:value={enameInput}
+                    autocomplete="username"
+                    class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
+                    placeholder="e.g. @4f2a9c1b-…"
+                />
+            </div>
+
+            <div class="flex flex-col gap-1">
+                <label class="text-black-700 font-medium text-sm" for="enamePassphraseInput">
+                    Recovery Passphrase <span class="text-danger">*</span>
+                </label>
+                <input
+                    id="enamePassphraseInput"
+                    type="password"
+                    bind:value={enamePassphraseInput}
+                    autocomplete="current-password"
+                    class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
+                    placeholder="Enter your recovery passphrase"
+                />
+            </div>
+        </section>
+
+        <div class="flex flex-col gap-3 pt-4 pb-12">
+            <ButtonAction
+                variant={enameInput.trim() && enamePassphraseInput ? "solid" : "soft"}
+                disabled={!enameInput.trim() || !enamePassphraseInput}
+                class="w-full"
+                callback={handleEnamePassphraseRecovery}
+            >
+                Recover eVault
+            </ButtonAction>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={() => { step = "ename-passphrase-check"; enameError = null; }}
             >
                 Back
             </ButtonAction>
@@ -989,8 +1322,37 @@ onMount(() => {
     </div>
 {/if}
 
-<!-- ── Already-have anonymous — not possible sheet ───────────────────────── -->
-{#if showAlreadyHaveAnonymousDrawer}
+<!-- ── eName dead-end — no eName remembered ──────────────────────────────── -->
+{#if showEnameDeadEndDrawer}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div
+        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
+        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+    >
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold">✗</div>
+            <h3 class="text-lg font-bold">Recovery Not Possible</h3>
+        </div>
+        <p class="text-black-700 text-sm leading-relaxed">
+            Without your eName and without ID verification, there is no way to recover your eVault.
+            Your eName is your unique identifier — it cannot be looked up without a verified identity.
+        </p>
+        <p class="text-black-700 text-sm leading-relaxed">
+            You will need to create a new eVault instead.
+        </p>
+        <div class="flex flex-col gap-3 pt-2">
+            <ButtonAction class="w-full" callback={() => { showEnameDeadEndDrawer = false; step = "new-evault"; }}>
+                Create a new eVault
+            </ButtonAction>
+            <ButtonAction variant="soft" class="w-full" callback={() => { showEnameDeadEndDrawer = false; }}>
+                Back
+            </ButtonAction>
+        </div>
+    </div>
+{/if}
+
+<!-- ── Notary required — forgot passphrase or no passphrase set ──────────── -->
+{#if showNotaryDrawer}
     <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
     <div
         class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4"
@@ -998,17 +1360,18 @@ onMount(() => {
     >
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">!</div>
-            <h3 class="text-lg font-bold">Recovery not available</h3>
+            <h3 class="text-lg font-bold">Visit a W3DS Notary</h3>
         </div>
         <p class="text-black-700 text-sm leading-relaxed">
-            Anonymous eVaults are not recoverable. Since no identity document was linked,
-            there's no way to confirm who you are. You'll need to create a new eVault instead.
+            Without your recovery passphrase, your eVault cannot be restored automatically.
+        </p>
+        <p class="text-black-700 text-sm leading-relaxed">
+            You can visit a <strong>Registered W3DS Notary</strong> in person. They can verify your identity
+            using trusted witnesses, government-issued documents, or other proofs of ownership and
+            authorise recovery of your eVault on your behalf.
         </p>
         <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction class="w-full" callback={() => { showAlreadyHaveAnonymousDrawer = false; step = "new-evault"; }}>
-                Create a new eVault
-            </ButtonAction>
-            <ButtonAction variant="soft" class="w-full" callback={() => { showAlreadyHaveAnonymousDrawer = false; }}>
+            <ButtonAction variant="soft" class="w-full" callback={() => { showNotaryDrawer = false; }}>
                 Back
             </ButtonAction>
         </div>
