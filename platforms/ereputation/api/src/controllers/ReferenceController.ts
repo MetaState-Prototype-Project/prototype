@@ -74,9 +74,15 @@ export class ReferenceController {
     };
 
     /**
-     * Get ALL signed references in the system (admin/visualizer endpoint).
+     * Get ALL signed references in the system (internal visualizer endpoint).
+     * Requires X-Visualizer-Key header matching VISUALIZER_API_KEY env var.
      */
-    getAllReferences = async (_req: Request, res: Response) => {
+    getAllReferences = async (req: Request, res: Response) => {
+        const apiKey = process.env.VISUALIZER_API_KEY;
+        if (apiKey && req.headers['x-visualizer-key'] !== apiKey) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         try {
             const references = await this.referenceService.getAllReferences();
 
