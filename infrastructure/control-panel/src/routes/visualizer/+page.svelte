@@ -229,6 +229,7 @@
 			out:slide={{ axis: 'x', duration: 150 }}
 		>
 			{#if selectedNode}
+				{#key selectedNode.id}
 				<!-- Panel header -->
 				<div class="flex items-center justify-between gap-2">
 					<h3 class="m-0 text-base font-bold wrap-break-word">{selectedNode.label}</h3>
@@ -367,6 +368,7 @@
 						No references for this node.
 					</p>
 				{/if}
+				{/key}
 			{:else}
 				<p class="py-4 text-center text-sm text-gray-400">
 					Click a node to see details about its references.
