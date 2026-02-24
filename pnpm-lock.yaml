@@ -526,6 +526,9 @@ importers:
       reflect-metadata:
         specifier: ^0.2.1
         version: 0.2.2
+      signature-validator:
+        specifier: workspace:*
+        version: link:../signature-validator
       tweetnacl:
         specifier: ^1.0.3
         version: 1.0.3
@@ -1958,6 +1961,49 @@ importers:
       typescript:
         specifier: ^5
         version: 5.8.2
+
+  platforms/enotary:
+    dependencies:
+      axios:
+        specifier: ^1.12.2
+        version: 1.13.5
+      graphql-request:
+        specifier: ^7.3.1
+        version: 7.4.0(graphql@16.12.0)
+      signature-validator:
+        specifier: workspace:*
+        version: link:../../infrastructure/signature-validator
+      svelte-qrcode:
+        specifier: ^1.0.1
+        version: 1.0.1
+    devDependencies:
+      '@sveltejs/adapter-node':
+        specifier: ^5.2.12
+        version: 5.5.3(@sveltejs/kit@2.52.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.51.5)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.51.5)(typescript@5.8.2)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))
+      '@sveltejs/kit':
+        specifier: ^2.16.0
+        version: 2.52.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.51.5)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.51.5)(typescript@5.8.2)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.0
+        version: 5.1.1(svelte@5.51.5)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      '@tailwindcss/vite':
+        specifier: ^4.0.0
+        version: 4.1.18(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      svelte:
+        specifier: ^5.0.0
+        version: 5.51.5
+      svelte-check:
+        specifier: ^4.0.0
+        version: 4.4.0(picomatch@4.0.3)(svelte@5.51.5)(typescript@5.8.2)
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.1.18
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.2
+      vite:
+        specifier: ^6.2.6
+        version: 6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.30.2)(sass@1.97.3)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   platforms/ereputation/api:
     dependencies:
@@ -13259,6 +13305,11 @@ packages:
 
   graphql-request@6.1.0:
     resolution: {integrity: sha512-p+XPfS4q7aIpKVcgmnZKhMNqhltk20hfXtkaIkTfjjmiKMJ5xrt5c743cL03y/K7y1rg3WrIC49xGiEQ4mxdNw==}
+    peerDependencies:
+      graphql: 14 - 16
+
+  graphql-request@7.4.0:
+    resolution: {integrity: sha512-xfr+zFb/QYbs4l4ty0dltqiXIp07U6sl+tOKAb0t50/EnQek6CVVBLjETXi+FghElytvgaAWtIOt3EV7zLzIAQ==}
     peerDependencies:
       graphql: 14 - 16
 
@@ -30516,7 +30567,7 @@ snapshots:
   esast-util-from-js@2.0.1:
     dependencies:
       '@types/estree-jsx': 1.0.5
-      acorn: 8.15.0
+      acorn: 8.16.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
 
@@ -32106,6 +32157,11 @@ snapshots:
       graphql: 16.12.0
     transitivePeerDependencies:
       - encoding
+
+  graphql-request@7.4.0(graphql@16.12.0):
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.12.0)
+      graphql: 16.12.0
 
   graphql-type-json@0.3.2(graphql@16.12.0):
     dependencies:
@@ -34636,8 +34692,8 @@ snapshots:
 
   micromark-extension-mdxjs@3.0.0:
     dependencies:
-      acorn: 8.15.0
-      acorn-jsx: 5.3.2(acorn@8.15.0)
+      acorn: 8.16.0
+      acorn-jsx: 5.3.2(acorn@8.16.0)
       micromark-extension-mdx-expression: 3.0.1
       micromark-extension-mdx-jsx: 3.0.2
       micromark-extension-mdx-md: 2.0.0
@@ -38330,7 +38386,7 @@ snapshots:
   terser@5.46.0:
     dependencies:
       '@jridgewell/source-map': 0.3.11
-      acorn: 8.15.0
+      acorn: 8.16.0
       commander: 2.20.3
       source-map-support: 0.5.21
 

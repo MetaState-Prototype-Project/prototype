@@ -14,7 +14,7 @@ import type { UserController } from "./user";
 const USER_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 const FIND_USER_PROFILE = `
-  query FindUserProfile($ontologyId: String!) {
+  query FindUserProfile($ontologyId: ID!) {
     metaEnvelopes(filter: { ontologyId: $ontologyId }, first: 1) {
       edges {
         node {
@@ -339,6 +339,9 @@ export class VaultController {
         this.#client = new GraphQLClient(this.#endpoint, {
             headers: {
                 "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
             },
         });
         return this.#client;

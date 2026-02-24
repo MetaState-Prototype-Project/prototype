@@ -1,4 +1,5 @@
 packages:
+    - platforms/*
     - apps/*
     - packages/*
     - platforms/*/*

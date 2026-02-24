@@ -1,10 +1,12 @@
 import axios from "axios";
 import nacl from "tweetnacl";
+import { verifySignature } from "signature-validator";
 import type { DbService } from "../core/db/db.service";
 import type { FindMetaEnvelopesPaginatedOptions, MetaEnvelopeConnection } from "../core/db/types";
 import {
     computeBindingDocumentHash,
     getCanonicalBindingDocumentBytes,
+    getCanonicalBindingDocumentString,
 } from "../core/utils/binding-document-hash";
 import type {
     BindingDocument,
@@ -91,7 +93,31 @@ export interface AddCounterpartySignatureInput {
 }
 
 export class BindingDocumentService {
-    constructor(private db: DbService) {}
+    private registryUrl: string;
+
+    constructor(private db: DbService, registryUrl?: string) {
+        this.registryUrl = registryUrl || process.env.PUBLIC_REGISTRY_URL || "";
+    }
+
+    private async verifyUserSignature(
+        signer: string,
+        signature: string,
+        doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
+    ): Promise<boolean> {
+        if (!this.registryUrl) return false;
+        try {
+            const payload = getCanonicalBindingDocumentString(doc);
+            const result = await verifySignature({
+                eName: signer,
+                signature,
+                payload,
+                registryBaseUrl: this.registryUrl,
+            });
+            return result.valid;
+        } catch {
+            return false;
+        }
+    }
 
     private normalizeSubject(subject: string): string {
         return subject.startsWith("@") ? subject : `@${subject}`;
@@ -170,13 +196,16 @@ export class BindingDocumentService {
         };
         const expectedHash = computeBindingDocumentHash(docToVerify);
         const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
-        const hasValidProvisionerSignature =
-            await this.verifyProvisionerSignature(
+        const isProvisionerSigner = /^https?:\/\//.test(input.ownerSignature.signer);
+        const hasValidUserSignature =
+            !hasLegacyHashSignature &&
+            !isProvisionerSigner &&
+            (await this.verifyUserSignature(
                 input.ownerSignature.signer,
                 input.ownerSignature.signature,
                 docToVerify,
-            );
-        if (!hasLegacyHashSignature && !hasValidProvisionerSignature) {
+            ));
+        if (!hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature) {
             throw new ValidationError("Invalid owner signature");
         }
 
@@ -222,15 +251,23 @@ export class BindingDocumentService {
 
         const bindingDocument = metaEnvelope.parsed as BindingDocument;
 
-        // Counterparty signatures still use deterministic hash form.
-        const expectedHash = computeBindingDocumentHash({
+        const docForHash = {
             subject: bindingDocument.subject,
             type: bindingDocument.type,
             data: bindingDocument.data,
-        });
-        if (input.signature.signature !== expectedHash) {
+        };
+        const expectedHash = computeBindingDocumentHash(docForHash);
+        const hasLegacyHashSig = input.signature.signature === expectedHash;
+        const hasValidUserSig =
+            !hasLegacyHashSig &&
+            (await this.verifyUserSignature(
+                input.signature.signer,
+                input.signature.signature,
+                docForHash,
+            ));
+        if (!hasLegacyHashSig && !hasValidUserSig) {
             throw new ValidationError(
-                `Invalid counterparty signature: expected SHA-256 hash of canonical binding document`,
+                `Invalid counterparty signature: expected SHA-256 hash or valid ECDSA signature`,
             );
         }
 

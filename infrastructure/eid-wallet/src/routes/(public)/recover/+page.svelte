@@ -166,12 +166,12 @@ async function checkPassphraseRequired() {
         if (res.data?.hasPassphrase) {
             step = "passphrase-gate";
         } else {
-            // No passphrase was ever set — recovery must go through a W3DS Notary
-            step = "notary-required";
+            // No passphrase set: proceed directly after successful face verification.
+            await recoverVault();
         }
     } catch (err: unknown) {
         console.error("[RECOVERY] passphrase status check error:", err);
-        // If we can't reach the eVault, conservatively block recovery
+        // If we cannot verify passphrase policy, fall back to manual recovery.
         step = "notary-required";
     } finally {
         checkingPassphrase = false;
@@ -324,8 +324,9 @@ async function recoverVault() {
             <h3 class="text-lg font-bold">eVault Found</h3>
         </div>
         <p class="text-black-700 text-sm">
-            We confirmed your identity. Here's your previous eVault — tap Continue to verify your recovery passphrase.
-            You'll be asked to set a new PIN to protect it.
+            We confirmed your identity. Here's your previous eVault — tap Continue
+            to restore access. If a recovery passphrase exists, we'll ask you to
+            verify it before continuing.
         </p>
         <div class="rounded-2xl bg-gray-50 border border-gray-200 p-4 flex flex-col gap-1">
             <p class="text-xs text-black-500 font-medium uppercase tracking-wide">Your eName</p>
@@ -415,10 +416,11 @@ async function recoverVault() {
             <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">
                 !
             </div>
-            <h3 class="text-lg font-bold">Notary Required</h3>
+            <h3 class="text-lg font-bold">Manual Recovery Required</h3>
         </div>
         <p class="text-black-700 text-sm leading-relaxed">
-            This eVault was not protected with a recovery passphrase, so it cannot be restored automatically.
+            We couldn't verify the passphrase policy for this eVault right now, so
+            automatic recovery is unavailable.
         </p>
         <p class="text-black-700 text-sm leading-relaxed">
             To recover your eVault, you must visit a <strong>Registered W3DS Notary</strong> in person.
