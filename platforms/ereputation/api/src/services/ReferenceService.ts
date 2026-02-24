@@ -82,6 +82,14 @@ export class ReferenceService {
         return { references, total };
     }
 
+    async getAllReferences(): Promise<Reference[]> {
+        return await this.referenceRepository.find({
+            where: { status: "signed" },
+            relations: ["author"],
+            order: { createdAt: "DESC" }
+        });
+    }
+
     async revokeReference(referenceId: string, authorId: string): Promise<Reference | null> {
         const reference = await this.referenceRepository.findOne({
             where: { id: referenceId, authorId }

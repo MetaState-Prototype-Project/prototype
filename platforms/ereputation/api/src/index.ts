@@ -85,6 +85,9 @@ app.post("/api/webhook", webhookController.handleWebhook);
 app.get("/api/platforms", platformController.getPlatforms);
 app.get("/api/platforms/search", platformController.searchPlatforms);
 
+// Public reference routes (for visualizer / admin)
+app.get("/api/references/all", referenceController.getAllReferences);
+
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below
 
