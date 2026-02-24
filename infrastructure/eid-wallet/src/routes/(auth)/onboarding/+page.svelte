@@ -10,28 +10,13 @@ import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
-import { capitalize } from "$lib/utils";
+import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
 import axios from "axios";
 import { GraphQLClient } from "graphql-request";
 import { getContext, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
-import { Md5 } from "ts-md5";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
-
-function computeBindingDocumentHash(doc: {
-    subject: string;
-    type: string;
-    data: Record<string, unknown>;
-}): string {
-    return Md5.hashStr(
-        JSON.stringify({
-            subject: doc.subject,
-            type: doc.type,
-            data: doc.data,
-        }),
-    );
-}
 
 const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 const KEY_ID = "default";
@@ -396,11 +381,16 @@ const handleAnonymousSubmit = async () => {
         const timestamp = new Date().toISOString();
         const subject = ename.startsWith("@") ? ename : `@${ename}`;
         const bindingData = { kind: "self", name: anonName.trim() };
-        const signature = computeBindingDocumentHash({
+        const payload = getCanonicalBindingDocString({
             subject,
             type: "self",
             data: bindingData,
         });
+        const signature = await globalState.walletSdkAdapter.signPayload(
+            KEY_ID,
+            "default",
+            payload,
+        );
 
         const gqlClient = new GraphQLClient(graphqlEndpoint, {
             headers: {

@@ -41,6 +41,7 @@
         "tweetnacl": "^1.0.3",
         "typeorm": "^0.3.24",
         "uuid": "^13.0.0",
+        "signature-validator": "workspace:*",
         "w3id": "workspace:*"
     },
     "devDependencies": {

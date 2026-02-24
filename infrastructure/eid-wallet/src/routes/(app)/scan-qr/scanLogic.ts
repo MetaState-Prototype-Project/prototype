@@ -14,6 +14,13 @@ import { type Writable, get, writable } from "svelte/store";
 import { authenticate } from "wallet-sdk";
 
 import type { GlobalState } from "$lib/global";
+import {
+    addCounterpartySignature,
+    getCanonicalBindingDocString,
+    createSocialConnectionDoc,
+    fetchNameFromVault,
+    resolveVaultUri,
+} from "$lib/utils";
 
 export interface SigningData {
     type?: string;
@@ -83,6 +90,12 @@ interface ScanStores {
     authLoading: Writable<boolean>;
     isFromScan: Writable<boolean>;
     cameraPermissionDenied: Writable<boolean>;
+    socialBindingDrawerOpen: Writable<boolean>;
+    socialBindingRequesterEname: Writable<string | null>;
+    socialBindingRequesterName: Writable<string | null>;
+    socialBindingLoading: Writable<boolean>;
+    socialBindingError: Writable<string | null>;
+    socialBindingSuccess: Writable<boolean>;
 }
 
 interface ScanActions {
@@ -111,6 +124,9 @@ interface ScanActions {
     initialize: () => Promise<() => void>;
     retryPermission: () => Promise<void>;
     handleOpenSettings: () => Promise<void>;
+    handleSocialBindingRequest: (content: string) => Promise<void>;
+    handleSocialBinding: () => Promise<void>;
+    closeSocialBindingDrawer: () => void;
 }
 
 interface ScanLogic {
@@ -151,6 +167,12 @@ export function createScanLogic({
     const authLoading = writable(false);
     const isFromScan = writable(false);
     const cameraPermissionDenied = writable(false);
+    const socialBindingDrawerOpen = writable(false);
+    const socialBindingRequesterEname = writable<string | null>(null);
+    const socialBindingRequesterName = writable<string | null>(null);
+    const socialBindingLoading = writable(false);
+    const socialBindingError = writable<string | null>(null);
+    const socialBindingSuccess = writable(false);
 
     let permissionsNullable: PermissionState | null = null;
 
@@ -188,7 +210,9 @@ export function createScanLogic({
                 .then((res) => {
                     scannedData.set(res);
                     const content = res.content;
-                    if (content.startsWith("w3ds://sign")) {
+                    if (content.startsWith("w3ds://social_binding")) {
+                        void handleSocialBindingRequest(content);
+                    } else if (content.startsWith("w3ds://sign")) {
                         handleSigningRequest(content);
                     } else if (content.startsWith("w3ds://reveal")) {
                         handleRevealRequest(content);
@@ -587,6 +611,138 @@ export function createScanLogic({
         } catch (error) {
             console.error("Error parsing reveal request:", error);
         }
+    }
+
+    async function handleSocialBindingRequest(content: string) {
+        try {
+            const parseableContent = content.startsWith("w3ds://")
+                ? content.replace("w3ds://", "https://dummy.com/")
+                : content;
+            const url = new URL(parseableContent);
+            const ename = url.searchParams.get("ename");
+            if (!ename) {
+                console.error(
+                    "[SocialBinding] missing ename param in QR:",
+                    content,
+                );
+                return;
+            }
+            const normalized = ename.startsWith("@") ? ename : `@${ename}`;
+            socialBindingRequesterEname.set(normalized);
+            socialBindingRequesterName.set(null);
+            socialBindingError.set(null);
+            socialBindingSuccess.set(false);
+            socialBindingDrawerOpen.set(true);
+
+            // Fetch the requester's display name eagerly so the drawer shows it immediately.
+            try {
+                const requesterVaultUri = await resolveVaultUri(normalized);
+                const requesterGqlUrl = requesterVaultUri.endsWith("/graphql")
+                    ? requesterVaultUri
+                    : new URL("/graphql", requesterVaultUri).toString();
+                console.log(
+                    "[SocialBinding] fetching name for",
+                    normalized,
+                    "from",
+                    requesterGqlUrl,
+                );
+                const name = await fetchNameFromVault(
+                    requesterGqlUrl,
+                    normalized,
+                    normalized,
+                );
+                console.log("[SocialBinding] resolved requester name:", name);
+                socialBindingRequesterName.set(name);
+            } catch (err) {
+                console.error(
+                    "[SocialBinding] failed to fetch requester name:",
+                    err,
+                );
+            }
+        } catch (err) {
+            console.error("[SocialBinding] failed to parse QR:", err);
+        }
+    }
+
+    async function handleSocialBinding() {
+        const requesterEname = get(socialBindingRequesterEname);
+        if (!requesterEname) return;
+
+        socialBindingError.set(null);
+        socialBindingLoading.set(true);
+
+        try {
+            const vault = await globalState.vaultController.vault;
+            if (!vault?.ename) throw new Error("No active vault");
+            const signerEname = vault.ename.startsWith("@")
+                ? vault.ename
+                : `@${vault.ename}`;
+
+            // 1. Resolve requester's vault URI
+            const requesterVaultUri = await resolveVaultUri(requesterEname);
+            const requesterGqlUrl = requesterVaultUri.endsWith("/graphql")
+                ? requesterVaultUri
+                : new URL("/graphql", requesterVaultUri).toString();
+
+            // Reuse the name already fetched and shown to the user in the drawer.
+            // If it's still null (race), fetch now — X-ENAME = requester to scope to their vault.
+            const storedName = get(socialBindingRequesterName);
+            const requesterName =
+                storedName ??
+                (await fetchNameFromVault(
+                    requesterGqlUrl,
+                    requesterEname,
+                    requesterEname,
+                ));
+            socialBindingRequesterName.set(requesterName);
+
+            // Single write: signer creates the doc in the REQUESTER's vault.
+            // subject=@requester, data.name=requesterName, ownerSig=@signer.
+            // The requester polls their own vault, finds it, and counter-signs it there.
+            const doc = {
+                subject: requesterEname,
+                type: "social_connection",
+                data: {
+                    kind: "social_connection",
+                    name: requesterName,
+                } as Record<string, unknown>,
+            };
+            const payload = getCanonicalBindingDocString(doc);
+            const sig = await globalState.walletSdkAdapter.signPayload(
+                "default",
+                "default",
+                payload,
+            );
+
+            await createSocialConnectionDoc(
+                requesterGqlUrl,
+                requesterEname,
+                signerEname,
+                requesterEname,
+                requesterName,
+                sig,
+            );
+
+            socialBindingSuccess.set(true);
+        } catch (err) {
+            console.error("[SocialBinding] failed:", err);
+            socialBindingError.set(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to create social binding.",
+            );
+        } finally {
+            socialBindingLoading.set(false);
+        }
+    }
+
+    function closeSocialBindingDrawer() {
+        socialBindingDrawerOpen.set(false);
+        socialBindingRequesterEname.set(null);
+        socialBindingRequesterName.set(null);
+        socialBindingError.set(null);
+        socialBindingSuccess.set(false);
+        socialBindingLoading.set(false);
     }
 
     async function handleBlindVotingRequest(
@@ -1443,6 +1599,12 @@ export function createScanLogic({
             authLoading,
             isFromScan,
             cameraPermissionDenied,
+            socialBindingDrawerOpen,
+            socialBindingRequesterEname,
+            socialBindingRequesterName,
+            socialBindingLoading,
+            socialBindingError,
+            socialBindingSuccess,
         },
         actions: {
             startScan,
@@ -1466,6 +1628,9 @@ export function createScanLogic({
             initialize,
             retryPermission,
             handleOpenSettings,
+            handleSocialBindingRequest,
+            handleSocialBinding,
+            closeSocialBindingDrawer,
         },
     };
 }

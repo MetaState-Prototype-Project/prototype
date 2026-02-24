@@ -7,10 +7,19 @@ import {
 import { AppNav, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { ButtonAction } from "$lib/ui";
-import { capitalize } from "$lib/utils";
+import {
+    addCounterpartySignature,
+    capitalize,
+    getCanonicalBindingDocString,
+    deleteSocialBindingDoc,
+    fetchNameFromVault,
+    fetchUnsignedSocialDocs,
+    resolveVaultUri,
+} from "$lib/utils";
 import axios from "axios";
-import { getContext, onMount } from "svelte";
+import { getContext, onDestroy, onMount } from "svelte";
 import { Shadow } from "svelte-loading-spinners";
+import QrCode from "svelte-qrcode";
 
 const globalState = getContext<() => GlobalState>("globalState")();
 
@@ -379,6 +388,202 @@ async function handleUpgrade() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Social binding state ──────────────────────────────────────────────────────
+let showSocialBindingDrawer = $state(false);
+let socialBindingQr = $state<string | null>(null);
+let socialBindingPolling = $state(false);
+let socialBindingSuccess = $state(false);
+let socialBindingSignerName = $state<string | null>(null);
+let socialBindingSignerEname = $state<string | null>(null);
+let socialBindingPendingDocId = $state<string | null>(null);
+let socialBindingPendingDocParsed = $state<{
+    subject: string;
+    type: string;
+    data: Record<string, unknown>;
+} | null>(null);
+let socialBindingAwaitingConsent = $state(false);
+let socialBindingError = $state<string | null>(null);
+let socialBindingCounterSigning = $state(false);
+let socialBindingPollInterval: ReturnType<typeof setInterval> | null = null;
+
+async function openSocialBindingDrawer() {
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.ename) return;
+    const ename = vault.ename.startsWith("@") ? vault.ename : `@${vault.ename}`;
+    socialBindingQr = `w3ds://social_binding?ename=${encodeURIComponent(ename)}`;
+    socialBindingSuccess = false;
+    socialBindingError = null;
+    socialBindingSignerName = null;
+    socialBindingSignerEname = null;
+    socialBindingPendingDocId = null;
+    socialBindingPendingDocParsed = null;
+    socialBindingAwaitingConsent = false;
+    socialBindingCounterSigning = false;
+    showSocialBindingDrawer = true;
+    startSocialBindingPolling();
+}
+
+function closeSocialBindingDrawer() {
+    showSocialBindingDrawer = false;
+    stopSocialBindingPolling();
+    socialBindingQr = null;
+    socialBindingSuccess = false;
+    socialBindingError = null;
+    socialBindingAwaitingConsent = false;
+    socialBindingPendingDocId = null;
+    socialBindingPendingDocParsed = null;
+    socialBindingSignerName = null;
+    socialBindingSignerEname = null;
+}
+
+function stopSocialBindingPolling() {
+    if (socialBindingPollInterval !== null) {
+        clearInterval(socialBindingPollInterval);
+        socialBindingPollInterval = null;
+    }
+    socialBindingPolling = false;
+}
+
+async function runSocialBindingPoll() {
+    if (
+        !showSocialBindingDrawer ||
+        socialBindingSuccess ||
+        socialBindingCounterSigning ||
+        socialBindingAwaitingConsent
+    )
+        return;
+    try {
+        const vault = await globalState.vaultController.vault;
+        if (!vault?.ename || !vault?.uri) return;
+        const callerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+        const unsignedDocs = await fetchUnsignedSocialDocs(gqlUrl, callerEname);
+        if (unsignedDocs.length === 0) return;
+
+        const doc = unsignedDocs[0];
+        const parsed = doc.node.parsed;
+        if (!parsed) return;
+
+        // Stop polling and ask for consent before counter-signing.
+        // The signer's eName is whoever already signed the doc (ownerSignature).
+        stopSocialBindingPolling();
+        const signerEname = parsed.signatures[0]?.signer ?? null;
+        if (!signerEname) return;
+
+        socialBindingSignerEname = signerEname;
+        socialBindingPendingDocId = doc.node.id;
+        socialBindingPendingDocParsed = parsed;
+
+        // Look up the signer's display name from their own vault
+        try {
+            const signerVaultUri = await resolveVaultUri(signerEname);
+            socialBindingSignerName = await fetchNameFromVault(
+                signerVaultUri,
+                signerEname,
+                signerEname,
+            );
+        } catch {
+            socialBindingSignerName = signerEname;
+        }
+
+        socialBindingAwaitingConsent = true;
+    } catch (err) {
+        console.error("[Social Binding] poll error:", err);
+    }
+}
+
+async function confirmSocialBinding() {
+    if (!socialBindingSignerEname) return;
+    socialBindingAwaitingConsent = false;
+    socialBindingCounterSigning = true;
+    socialBindingError = null;
+
+    try {
+        const vault = await globalState.vaultController.vault;
+        if (!vault?.ename || !vault?.uri) return;
+        const callerEname = vault.ename.startsWith("@")
+            ? vault.ename
+            : `@${vault.ename}`;
+        const gqlUrl = new URL("/graphql", vault.uri).toString();
+
+        if (!socialBindingPendingDocId || !socialBindingPendingDocParsed)
+            return;
+
+        // Counter-sign the doc in the requester's OWN vault.
+        // The doc has subject=@requester (=callerEname) so the requester is the valid counterparty.
+        const payload = getCanonicalBindingDocString({
+            subject: socialBindingPendingDocParsed.subject,
+            type: socialBindingPendingDocParsed.type,
+            data: socialBindingPendingDocParsed.data,
+        });
+        const sig = await globalState.walletSdkAdapter.signPayload(
+            "default",
+            "default",
+            payload,
+        );
+        await addCounterpartySignature(
+            gqlUrl,
+            callerEname,
+            callerEname,
+            socialBindingPendingDocId,
+            sig,
+        );
+
+        socialBindingSuccess = true;
+    } catch (err) {
+        console.error("[Social Binding] counter-sign error:", err);
+        socialBindingError =
+            err instanceof Error ? err.message : "Something went wrong.";
+        socialBindingCounterSigning = false;
+        socialBindingAwaitingConsent = false;
+        startSocialBindingPolling();
+    }
+}
+
+async function declineSocialBinding() {
+    const docId = socialBindingPendingDocId;
+    socialBindingAwaitingConsent = false;
+    socialBindingPendingDocId = null;
+    socialBindingPendingDocParsed = null;
+    socialBindingSignerName = null;
+    socialBindingSignerEname = null;
+
+    if (docId) {
+        try {
+            const vault = await globalState.vaultController.vault;
+            if (vault?.ename && vault?.uri) {
+                const callerEname = vault.ename.startsWith("@")
+                    ? vault.ename
+                    : `@${vault.ename}`;
+                const gqlUrl = new URL("/graphql", vault.uri).toString();
+                await deleteSocialBindingDoc(gqlUrl, callerEname, docId);
+            }
+        } catch (err) {
+            console.error(
+                "[Social Binding] failed to delete declined doc:",
+                err,
+            );
+        }
+    }
+
+    startSocialBindingPolling();
+}
+
+function startSocialBindingPolling() {
+    socialBindingPolling = true;
+    socialBindingPollInterval = setInterval(() => {
+        void runSocialBindingPoll();
+    }, 3000);
+}
+
+onDestroy(() => {
+    stopSocialBindingPolling();
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 onMount(async () => {
     const userInfo = await globalState.userController.user;
     const isFake = await globalState.userController.isFake;
@@ -442,7 +647,94 @@ onMount(async () => {
             {/if}
         </div>
     {/if}
+
+    <!-- Social binding button — always visible once passport is loaded -->
+    {#if bindingDocsLoaded}
+        <div class="mt-4 px-1">
+            <ButtonAction variant="soft" class="w-full" callback={openSocialBindingDrawer}>
+                Request Social Binding
+            </ButtonAction>
+        </div>
+    {/if}
 </div>
+
+<!-- ── Social binding QR drawer ──────────────────────────────────────────────── -->
+{#if showSocialBindingDrawer}
+    <div class="fixed inset-0 z-40 bg-black/40" aria-hidden="true"></div>
+    <div
+        class="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-5"
+        style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+    >
+        {#if socialBindingSuccess}
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold">✓</div>
+                <h4>Binding Complete!</h4>
+            </div>
+            <p class="text-black-700">
+                {socialBindingSignerName ?? "Someone"} has signed your identity binding.
+                Both eVaults now hold a mutually-signed social connection document.
+            </p>
+            <ButtonAction class="w-full" callback={closeSocialBindingDrawer}>Done</ButtonAction>
+        {:else if socialBindingCounterSigning}
+            <div class="flex flex-col items-center justify-center gap-4 py-6">
+                <Shadow size={36} color="rgb(142, 82, 255)" />
+                <p class="text-black-700 text-center">Completing mutual binding…</p>
+            </div>
+        {:else if socialBindingAwaitingConsent}
+            <div>
+                <h4 class="mb-1">Social Connection Request</h4>
+                <p class="text-black-700">
+                    <strong>{socialBindingSignerName ?? socialBindingSignerEname ?? "Someone"}</strong>
+                    wants to establish a social connection with you. Accept to confirm the binding.
+                </p>
+            </div>
+            <div class="bg-gray rounded-2xl p-4 flex flex-col gap-1">
+                <p class="small text-black-500">From</p>
+                <p class="font-semibold">{socialBindingSignerName ?? socialBindingSignerEname}</p>
+                {#if socialBindingSignerEname && socialBindingSignerEname !== socialBindingSignerName}
+                    <p class="small text-black-300 break-all">{socialBindingSignerEname}</p>
+                {/if}
+            </div>
+            {#if socialBindingError}
+                <p class="text-danger">{socialBindingError}</p>
+            {/if}
+            <div class="flex flex-col gap-3">
+                <ButtonAction class="w-full" callback={confirmSocialBinding}>Accept</ButtonAction>
+                <ButtonAction variant="soft" class="w-full" callback={declineSocialBinding}>Decline</ButtonAction>
+            </div>
+        {:else}
+            <div>
+                <h4 class="mb-1">Request Social Binding</h4>
+                <p class="text-black-700">
+                    Ask someone with an eID Wallet to scan this QR code to sign your
+                    identity binding document.
+                </p>
+            </div>
+
+            {#if socialBindingQr}
+                <div class="flex justify-center py-2">
+                    <QrCode value={socialBindingQr} size={220} />
+                </div>
+                <p class="small text-black-500 text-center break-all">{socialBindingQr}</p>
+            {/if}
+
+            {#if socialBindingPolling}
+                <div class="flex items-center gap-2 justify-center">
+                    <Shadow size={16} color="rgb(142, 82, 255)" />
+                    <p class="small text-black-500">Waiting for signature…</p>
+                </div>
+            {/if}
+
+            {#if socialBindingError}
+                <p class="text-danger">{socialBindingError}</p>
+            {/if}
+
+            <ButtonAction variant="soft" class="w-full" callback={closeSocialBindingDrawer}>
+                Cancel
+            </ButtonAction>
+        {/if}
+    </div>
+{/if}
 
 <!-- ── KYC upgrade overlay ───────────────────────────────────────────────────── -->
 {#if kycStep !== "idle"}
