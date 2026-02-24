@@ -1,42 +1,43 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { Hero } from "$lib/fragments";
-import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
-import type { GlobalState } from "$lib/global";
-import { pendingRecovery } from "$lib/stores/pendingRecovery";
-import { ButtonAction } from "$lib/ui";
-import { getContext, onMount } from "svelte";
-import { get } from "svelte/store";
+    import { goto } from "$app/navigation";
+    import { Hero } from "$lib/fragments";
+    import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
+    import type { GlobalState } from "$lib/global";
+    import { pendingRecovery } from "$lib/stores/pendingRecovery";
+    import { ButtonAction } from "$lib/ui";
+    import { getContext, onMount } from "svelte";
+    import { get } from "svelte/store";
 
-let userData = $state<Record<string, string | boolean | undefined>>();
-let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
-const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
+    let userData = $state<Record<string, string | boolean | undefined>>();
+    let globalState: GlobalState =
+        getContext<() => GlobalState>("globalState")();
+    const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
-const handleFinish = async () => {
-    const recovery = get(pendingRecovery);
-    if (recovery) {
-        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
-        globalState.vaultController.vault = {
-            uri: recovery.uri,
-            ename: recovery.ename,
-        };
-        pendingRecovery.set(null);
-    }
-    await goto("/main");
-};
+    const handleFinish = async () => {
+        const recovery = get(pendingRecovery);
+        if (recovery) {
+            localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+            globalState.vaultController.vault = {
+                uri: recovery.uri,
+                ename: recovery.ename,
+            };
+            pendingRecovery.set(null);
+        }
+        await goto("/main");
+    };
 
-onMount(async () => {
-    const userInfo = await globalState.userController.user;
-    const isFake = await globalState.userController.isFake;
-    userData = { ...userInfo, isFake };
-});
+    onMount(async () => {
+        const userInfo = await globalState.userController.user;
+        const isFake = await globalState.userController.isFake;
+        userData = { ...userInfo, isFake };
+    });
 </script>
 
 <main
     class="min-h-[100svh] px-4 flex flex-col justify-between"
     style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
-    <section>
+    <section class="mt-4">
         <Hero
             title="Here's your ePassport"
             class="mb-2"
@@ -54,7 +55,13 @@ onMount(async () => {
         <IdentityCard variant="ePassport" {userData} />
     </section>
     <div class="mt-auto flex flex-col gap-3">
-        <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
-        <ButtonAction variant="soft" class="w-full" callback={() => goto("/register")}>Back</ButtonAction>
+        <ButtonAction class="w-full" callback={handleFinish}
+            >Finish</ButtonAction
+        >
+        <ButtonAction
+            variant="soft"
+            class="w-full"
+            callback={() => goto("/register")}>Back</ButtonAction
+        >
     </div>
 </main>
