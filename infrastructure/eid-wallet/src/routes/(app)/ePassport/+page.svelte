@@ -10,10 +10,10 @@ import { ButtonAction } from "$lib/ui";
 import {
     addCounterpartySignature,
     capitalize,
-    getCanonicalBindingDocString,
     deleteSocialBindingDoc,
     fetchNameFromVault,
     fetchUnsignedSocialDocs,
+    getCanonicalBindingDocString,
     resolveVaultUri,
 } from "$lib/utils";
 import axios from "axios";
@@ -498,19 +498,32 @@ async function runSocialBindingPoll() {
 async function confirmSocialBinding() {
     if (!socialBindingSignerEname) return;
     socialBindingAwaitingConsent = false;
-    socialBindingCounterSigning = true;
     socialBindingError = null;
 
+    const vault = await globalState.vaultController.vault;
+    if (!vault?.ename || !vault?.uri) {
+        socialBindingError = "No active vault found.";
+        socialBindingAwaitingConsent = false;
+        socialBindingCounterSigning = false;
+        startSocialBindingPolling();
+        return;
+    }
+
+    if (!socialBindingPendingDocId || !socialBindingPendingDocParsed) {
+        socialBindingError = "No pending social binding request found.";
+        socialBindingAwaitingConsent = false;
+        socialBindingCounterSigning = false;
+        startSocialBindingPolling();
+        return;
+    }
+
+    socialBindingCounterSigning = true;
+
     try {
-        const vault = await globalState.vaultController.vault;
-        if (!vault?.ename || !vault?.uri) return;
         const callerEname = vault.ename.startsWith("@")
             ? vault.ename
             : `@${vault.ename}`;
         const gqlUrl = new URL("/graphql", vault.uri).toString();
-
-        if (!socialBindingPendingDocId || !socialBindingPendingDocParsed)
-            return;
 
         // Counter-sign the doc in the requester's OWN vault.
         // The doc has subject=@requester (=callerEname) so the requester is the valid counterparty.
@@ -537,9 +550,10 @@ async function confirmSocialBinding() {
         console.error("[Social Binding] counter-sign error:", err);
         socialBindingError =
             err instanceof Error ? err.message : "Something went wrong.";
-        socialBindingCounterSigning = false;
         socialBindingAwaitingConsent = false;
         startSocialBindingPolling();
+    } finally {
+        socialBindingCounterSigning = false;
     }
 }
 

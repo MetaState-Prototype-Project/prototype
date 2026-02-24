@@ -1,8 +1,10 @@
 declare module "svelte-qrcode" {
-    import type { SvelteComponentTyped } from "svelte";
+    import type { Component } from "svelte";
 
-    export default class QrCode extends SvelteComponentTyped<{
+    export declare const QrCode: Component<{
         value: string;
         size?: number;
-    }> {}
+    }>;
+
+    export default QrCode;
 }

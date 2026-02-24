@@ -15,10 +15,9 @@ import { authenticate } from "wallet-sdk";
 
 import type { GlobalState } from "$lib/global";
 import {
-    addCounterpartySignature,
-    getCanonicalBindingDocString,
     createSocialConnectionDoc,
     fetchNameFromVault,
+    getCanonicalBindingDocString,
     resolveVaultUri,
 } from "$lib/utils";
 
@@ -677,6 +676,15 @@ export function createScanLogic({
             const signerEname = vault.ename.startsWith("@")
                 ? vault.ename
                 : `@${vault.ename}`;
+            const normalizedRequesterEname = requesterEname.startsWith("@")
+                ? requesterEname
+                : `@${requesterEname}`;
+            if (signerEname === normalizedRequesterEname) {
+                socialBindingError.set(
+                    "You cannot create a social binding with yourself.",
+                );
+                return;
+            }
 
             // 1. Resolve requester's vault URI
             const requesterVaultUri = await resolveVaultUri(requesterEname);

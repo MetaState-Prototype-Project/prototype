@@ -150,6 +150,7 @@ export async function fetchNameFromVault(
     gqlUrl: string,
     ownerEname: string,
     fallback: string,
+    debug = false,
 ): Promise<string> {
     try {
         const data = await vaultGqlRequest<BindingDocsResult>(
@@ -158,13 +159,15 @@ export async function fetchNameFromVault(
             BINDING_DOCS_QUERY,
         );
         const edges = data.bindingDocuments?.edges ?? [];
-        console.log(
-            `[fetchNameFromVault] X-ENAME=${ownerEname} returned ${edges.length} docs:`,
-            edges.map((e) => ({
-                type: e.node.parsed?.type,
-                name: e.node.parsed?.data?.name,
-            })),
-        );
+        if (debug) {
+            console.debug("[fetchNameFromVault] binding docs fetched", {
+                docsCount: edges.length,
+                docs: edges.map((e) => ({
+                    type: e.node.parsed?.type,
+                    hasName: typeof e.node.parsed?.data?.name === "string",
+                })),
+            });
+        }
         let selfName: string | null = null;
         for (const edge of edges) {
             const parsed = edge.node.parsed;
@@ -414,9 +417,10 @@ export async function fetchUnsignedSocialDocs(
         // so the requester IS the subject of the doc they need to counter-sign.
         if (parsed.subject !== normalized) return false;
         // Requester hasn't counter-signed yet
-        const alreadySigned = parsed.signatures.some(
-            (s) => s.signer === normalized,
-        );
+        const signatures = Array.isArray(parsed.signatures)
+            ? parsed.signatures
+            : [];
+        const alreadySigned = signatures.some((s) => s.signer === normalized);
         return !alreadySigned;
     });
 }
@@ -451,7 +455,10 @@ export async function fetchUnsignedSocialDocForSubject(
         const parsed = edge.node.parsed;
         if (!parsed || parsed.type !== "social_connection") return false;
         if (parsed.subject !== normalizedSubject) return false;
-        const alreadySigned = parsed.signatures.some(
+        const signatures = Array.isArray(parsed.signatures)
+            ? parsed.signatures
+            : [];
+        const alreadySigned = signatures.some(
             (s) => s.signer === normalizedCaller,
         );
         return !alreadySigned;
