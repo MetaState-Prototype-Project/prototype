@@ -114,16 +114,17 @@
 			},
 			physics: {
 				barnesHut: {
-					gravitationalConstant: -8000, // strong repulsion pushes nodes apart
-					centralGravity: 0.3, // pulls everything toward center
-					springLength: 250, // longer springs = more spacing
-					springConstant: 0.04, // softer springs = less jitter
-					damping: 0.09,
-					avoidOverlap: 0.5 // prevents node overlap
+					gravitationalConstant: -8000,
+					centralGravity: 0.3,
+					springLength: 250,
+					springConstant: 0.04,
+					damping: 0.5,      // high damping = stops oscillating quickly
+					avoidOverlap: 0.5
 				},
 				maxVelocity: 50,
+				minVelocity: 0.75, // stop physics once nodes are nearly still
 				solver: 'barnesHut',
-				stabilization: { iterations: 300, fit: true }
+				stabilization: { enabled: true, iterations: 300, fit: true }
 			},
 			interaction: {
 				hover: true,
@@ -134,6 +135,11 @@
 		};
 
 		const network = new Network(container, networkData, options);
+
+		// Disable physics once the initial layout is done — prevents endless spinning
+		network.on('stabilizationIterationsDone', () => {
+			network.setOptions({ physics: false });
+		});
 
 		network.on('click', (params) => {
 			if (params.edges.length > 0) {
