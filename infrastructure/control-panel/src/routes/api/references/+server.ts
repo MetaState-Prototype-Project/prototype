@@ -3,10 +3,14 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async () => {
-	const baseUrl = env.VITE_EREPUTATION_BASE_URL || 'http://localhost:8765';
+	const baseUrl = env.EREPUTATION_BASE_URL || 'http://localhost:8765';
 
 	try {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
 		const response = await fetch(`${baseUrl}/api/references/all`);
+		clearTimeout(timeout);
+		
 
 		if (!response.ok) {
 			console.error('eReputation API error:', response.status, response.statusText);
