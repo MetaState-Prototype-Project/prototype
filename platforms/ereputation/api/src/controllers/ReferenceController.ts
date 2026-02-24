@@ -79,12 +79,21 @@ export class ReferenceController {
      */
     getAllReferences = async (req: Request, res: Response) => {
         const apiKey = process.env.VISUALIZER_API_KEY;
-        if (apiKey && req.headers['x-visualizer-key'] !== apiKey) {
+        if (!apiKey) {
+            return res.status(500).json({ error: 'Server misconfiguration: VISUALIZER_API_KEY is not set' });
+        }
+        if (req.headers['x-visualizer-key'] !== apiKey) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
         try {
-            const references = await this.referenceService.getAllReferences();
+            const MAX_LIMIT = 500;
+            const rawLimit = parseInt(req.query.limit as string, 10);
+            const rawOffset = parseInt(req.query.offset as string, 10);
+            const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : MAX_LIMIT;
+            const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
+            const references = await this.referenceService.getAllReferences(limit, offset);
 
             res.json({
                 references: references.map(ref => ({
