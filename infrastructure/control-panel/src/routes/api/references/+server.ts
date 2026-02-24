@@ -7,8 +7,10 @@ export const GET: RequestHandler = async () => {
 
 	try {
 		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
-		const response = await fetch(`${baseUrl}/api/references/all`);
+		const timeout = setTimeout(() => controller.abort(), 5000);
+		const response = await fetch(`${baseUrl}/api/references/all`, {
+			headers: env.VISUALIZER_API_KEY ? { 'x-visualizer-key': env.VISUALIZER_API_KEY } : {}
+		});
 		clearTimeout(timeout);
 		
 
