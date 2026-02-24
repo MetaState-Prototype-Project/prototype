@@ -82,11 +82,13 @@ export class ReferenceService {
         return { references, total };
     }
 
-    async getAllReferences(): Promise<Reference[]> {
+    async getAllReferences(limit = 500, offset = 0): Promise<Reference[]> {
         return await this.referenceRepository.find({
             where: { status: "signed" },
             relations: ["author"],
-            order: { createdAt: "DESC" }
+            order: { createdAt: "DESC" },
+            take: limit,
+            skip: offset,
         });
     }
 
