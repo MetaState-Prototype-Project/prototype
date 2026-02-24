@@ -1,115 +1,116 @@
 <script lang="ts">
-import { goto } from "$app/navigation";
-import { SettingsNavigationBtn } from "$lib/fragments";
-import type { GlobalState } from "$lib/global";
-import { runtime } from "$lib/global/runtime.svelte";
-import { ButtonAction, Drawer } from "$lib/ui";
-import {
-    Key01Icon,
-    LanguageSquareIcon,
-    Link02Icon,
-    LockPasswordIcon,
-    PinCodeIcon,
-    Shield01Icon,
-} from "@hugeicons/core-free-icons";
-import { getContext } from "svelte";
-import { onDestroy } from "svelte";
+    import { goto } from "$app/navigation";
+    import { SettingsNavigationBtn } from "$lib/fragments";
+    import type { GlobalState } from "$lib/global";
+    import { runtime } from "$lib/global/runtime.svelte";
+    import { ButtonAction, Drawer } from "$lib/ui";
+    import {
+        Key01Icon,
+        LanguageSquareIcon,
+        Link02Icon,
+        LockPasswordIcon,
+        PinCodeIcon,
+        Shield01Icon,
+    } from "@hugeicons/core-free-icons";
+    import { getContext } from "svelte";
+    import { onDestroy } from "svelte";
 
-const getGlobalState = getContext<() => GlobalState>("globalState");
-const setGlobalState =
-    getContext<(value: GlobalState) => void>("setGlobalState");
-let globalState = getGlobalState();
+    const getGlobalState = getContext<() => GlobalState>("globalState");
+    const setGlobalState =
+        getContext<(value: GlobalState) => void>("setGlobalState");
+    let globalState = getGlobalState();
 
-let isDeleteConfirmationOpen = $state(false);
-let isFinalConfirmationOpen = $state(false);
+    let isDeleteConfirmationOpen = $state(false);
+    let isFinalConfirmationOpen = $state(false);
 
-// Hidden eVault profile retry functionality
-let tapCount = $state(0);
-let lastTapTime = $state(0);
-let isRetrying = $state(false);
-let retryMessage = $state("");
-let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    // Hidden eVault profile retry functionality
+    let tapCount = $state(0);
+    let lastTapTime = $state(0);
+    let isRetrying = $state(false);
+    let retryMessage = $state("");
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-function showDeleteConfirmation() {
-    isDeleteConfirmationOpen = true;
-}
-
-function confirmDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = true;
-}
-
-async function nukeWallet() {
-    const newGlobalState = await globalState.reset();
-    setGlobalState(newGlobalState);
-    globalState = newGlobalState;
-    goto("/onboarding");
-}
-
-async function cancelDelete() {
-    isDeleteConfirmationOpen = false;
-    isFinalConfirmationOpen = false;
-    await goto("/main");
-}
-
-// Cleanup on unmount
-onDestroy(() => {
-    if (timeoutId) clearTimeout(timeoutId);
-});
-
-async function handleVersionTap() {
-    const now = Date.now();
-
-    // Reset if more than 3s between taps
-    if (now - lastTapTime > 3000) {
-        tapCount = 0;
+    function showDeleteConfirmation() {
+        isDeleteConfirmationOpen = true;
     }
 
-    tapCount++;
-    lastTapTime = now;
-
-    // Show feedback after 5 taps
-    if (tapCount >= 5) {
-        retryMessage = `Taps: ${tapCount}/10`;
+    function confirmDelete() {
+        isDeleteConfirmationOpen = false;
+        isFinalConfirmationOpen = true;
     }
 
-    // Trigger hidden action at 10 taps
-    if (tapCount === 10) {
-        isRetrying = true;
-        retryMessage = "Retrying eVault profile setup...";
+    async function nukeWallet() {
+        const newGlobalState = await globalState.reset();
+        setGlobalState(newGlobalState);
+        globalState = newGlobalState;
+        goto("/onboarding");
+    }
 
-        try {
-            await globalState.vaultController.retryProfileCreation();
-            retryMessage = "✅ eVault profile setup completed successfully!";
+    async function cancelDelete() {
+        isDeleteConfirmationOpen = false;
+        isFinalConfirmationOpen = false;
+        await goto("/main");
+    }
 
-            // Clear previous timeout if exists
-            if (timeoutId) clearTimeout(timeoutId);
+    // Cleanup on unmount
+    onDestroy(() => {
+        if (timeoutId) clearTimeout(timeoutId);
+    });
 
-            timeoutId = setTimeout(() => {
-                tapCount = 0;
-                retryMessage = "";
-                isRetrying = false;
-            }, 3000);
-        } catch (error) {
-            console.error("Failed to retry eVault profile setup:", error);
-            retryMessage =
-                "❌ Failed to setup eVault profile. Check console for details.";
+    async function handleVersionTap() {
+        const now = Date.now();
 
-            // Clear previous timeout if exists
-            if (timeoutId) clearTimeout(timeoutId);
+        // Reset if more than 3s between taps
+        if (now - lastTapTime > 3000) {
+            tapCount = 0;
+        }
 
-            timeoutId = setTimeout(() => {
-                tapCount = 0;
-                retryMessage = "";
-                isRetrying = false;
-            }, 5000);
+        tapCount++;
+        lastTapTime = now;
+
+        // Show feedback after 5 taps
+        if (tapCount >= 5) {
+            retryMessage = `Taps: ${tapCount}/10`;
+        }
+
+        // Trigger hidden action at 10 taps
+        if (tapCount === 10) {
+            isRetrying = true;
+            retryMessage = "Retrying eVault profile setup...";
+
+            try {
+                await globalState.vaultController.retryProfileCreation();
+                retryMessage =
+                    "✅ eVault profile setup completed successfully!";
+
+                // Clear previous timeout if exists
+                if (timeoutId) clearTimeout(timeoutId);
+
+                timeoutId = setTimeout(() => {
+                    tapCount = 0;
+                    retryMessage = "";
+                    isRetrying = false;
+                }, 3000);
+            } catch (error) {
+                console.error("Failed to retry eVault profile setup:", error);
+                retryMessage =
+                    "❌ Failed to setup eVault profile. Check console for details.";
+
+                // Clear previous timeout if exists
+                if (timeoutId) clearTimeout(timeoutId);
+
+                timeoutId = setTimeout(() => {
+                    tapCount = 0;
+                    retryMessage = "";
+                    isRetrying = false;
+                }, 5000);
+            }
         }
     }
-}
 
-$effect(() => {
-    runtime.header.title = "Settings";
-});
+    $effect(() => {
+        runtime.header.title = "Settings";
+    });
 </script>
 
 <main class="h-[80svh] flex flex-col justify-between">
@@ -148,7 +149,7 @@ $effect(() => {
                 onclick={handleVersionTap}
                 disabled={isRetrying}
             >
-                Version v0.5.0.0
+                Version v0.6.0.0
             </button>
 
             {#if retryMessage}
