@@ -27,8 +27,8 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full px-[5vw] pb-[8svh] flex flex-col justify-between"
-    style="padding-top: max(5.2svh, env(safe-area-inset-top));"
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <section>
         <Hero title="Here’s your eName" class="mb-4">
@@ -39,5 +39,5 @@ onMount(async () => {
         </Hero>
         <IdentityCard variant="eName" userId={`${ename ?? "Loading..."}`} />
     </section>
-    <ButtonAction class="w-full" callback={handleNext}>Next</ButtonAction>
+    <ButtonAction class="w-full mt-auto" callback={handleNext}>Next</ButtonAction>
 </main>

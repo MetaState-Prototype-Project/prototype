@@ -111,8 +111,8 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full px-[5vw] pb-[8svh] flex flex-col justify-between"
-    style="padding-top: max(5.2svh, env(safe-area-inset-top));"
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <section>
         {#if currentStep === "CREATE"}
@@ -179,7 +179,7 @@ onMount(async () => {
         {/if}
     </section>
 
-    <footer class="w-full flex flex-col gap-3">
+    <footer class="mt-auto w-full flex flex-col gap-3">
         {#if currentStep === "BIOMETRICS"}
             <ButtonAction
                 class="w-full"

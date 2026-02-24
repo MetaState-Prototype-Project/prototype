@@ -701,7 +701,8 @@ onMount(() => {
 </script>
 
 <main
-    class="h-full pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <article class="flex justify-center mb-4">
         <img
@@ -917,7 +918,7 @@ onMount(() => {
             </div>
         </section>
 
-        <div class="flex flex-col gap-3 pt-4 pb-12">
+        <div class="mt-auto flex flex-col gap-3 pt-4">
             <ButtonAction
                 variant={anonName.trim().length === 0 ? "soft" : "solid"}
                 disabled={anonName.trim().length === 0}
@@ -1060,7 +1061,7 @@ onMount(() => {
             </div>
         </section>
 
-        <div class="flex flex-col gap-3 pt-4 pb-12">
+        <div class="mt-auto flex flex-col gap-3 pt-4">
             <ButtonAction
                 variant={enameInput.trim() && enamePassphraseInput ? "solid" : "soft"}
                 disabled={!enameInput.trim() || !enamePassphraseInput}
