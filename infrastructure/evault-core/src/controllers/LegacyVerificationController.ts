@@ -221,7 +221,8 @@ export class LegacyVerificationController {
                         person,
                         document,
                     },
-                    documentId: typeof docNumber === "string" ? docNumber : null,
+                    documentId:
+                        typeof docNumber === "string" ? docNumber : undefined,
                 });
             }
 
