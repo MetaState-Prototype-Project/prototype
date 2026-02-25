@@ -42,13 +42,14 @@ $: hasPollDetails =
     <BottomSheet
         isOpen={internalOpen}
         dismissible={false}
+        fullScreen={true}
         role="dialog"
         aria-modal="true"
         aria-labelledby="signing-title"
         class="gap-5"
     >
-        <div class="flex min-h-[70svh] w-full flex-col">
-            <div class="flex flex-1 flex-col items-start overflow-y-auto pt-2">
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {showSigningSuccess
                         ? 'bg-green-100'
@@ -222,7 +223,7 @@ $: hasPollDetails =
                 {/if}
             </div>
 
-            <div class="mt-auto flex w-full flex-col gap-3 pb-2 pt-6">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 {#if showSigningSuccess}
                     <Button.Action
                         variant="solid"
