@@ -333,7 +333,10 @@ async function handleUpgrade() {
     kycStep = "upgrading";
     try {
         const { data } = await axios.post(
-            new URL("/verification/v2/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            new URL(
+                "/verification/v2/upgrade",
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
             { diditSessionId: sessionId, w3id },
             {
                 headers: {

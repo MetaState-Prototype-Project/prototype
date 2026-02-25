@@ -1,36 +1,35 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
-    import type { GlobalState } from "$lib/global";
-    import { pendingRecovery } from "$lib/stores/pendingRecovery";
-    import { ButtonAction } from "$lib/ui";
-    import { getContext, onMount } from "svelte";
-    import { get } from "svelte/store";
+import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
+import IdentityCard from "$lib/fragments/IdentityCard/IdentityCard.svelte";
+import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
+import { ButtonAction } from "$lib/ui";
+import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
-    let userData = $state<Record<string, string | boolean | undefined>>();
-    let globalState: GlobalState =
-        getContext<() => GlobalState>("globalState")();
-    const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
+let userData = $state<Record<string, string | boolean | undefined>>();
+let globalState: GlobalState = getContext<() => GlobalState>("globalState")();
+const RECOVERY_SKIP_PROFILE_SETUP_KEY = "recoverySkipProfileSetup";
 
-    const handleFinish = async () => {
-        const recovery = get(pendingRecovery);
-        if (recovery) {
-            localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
-            globalState.vaultController.vault = {
-                uri: recovery.uri,
-                ename: recovery.ename,
-            };
-            pendingRecovery.set(null);
-        }
-        await goto("/main");
-    };
+const handleFinish = async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        globalState.vaultController.vault = {
+            uri: recovery.uri,
+            ename: recovery.ename,
+        };
+        pendingRecovery.set(null);
+    }
+    await goto("/main");
+};
 
-    onMount(async () => {
-        const userInfo = await globalState.userController.user;
-        const isFake = await globalState.userController.isFake;
-        userData = { ...userInfo, isFake };
-    });
+onMount(async () => {
+    const userInfo = await globalState.userController.user;
+    const isFake = await globalState.userController.isFake;
+    userData = { ...userInfo, isFake };
+});
 </script>
 
 <main

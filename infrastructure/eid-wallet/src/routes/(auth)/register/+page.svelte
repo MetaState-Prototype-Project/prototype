@@ -1,118 +1,113 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { pendingRecovery } from "$lib/stores/pendingRecovery";
-    import { ButtonAction, InputPin } from "$lib/ui";
-    import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
-    import { HugeiconsIcon } from "@hugeicons/svelte";
-    import { checkStatus } from "@tauri-apps/plugin-biometric";
-    import { getContext, onMount } from "svelte";
-    import { get } from "svelte/store";
+import { goto } from "$app/navigation";
+import { Hero } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
+import { ButtonAction, InputPin } from "$lib/ui";
+import { CircleLock01Icon, FaceIdIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/svelte";
+import { checkStatus } from "@tauri-apps/plugin-biometric";
+import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
-    type Step = "CREATE" | "REPEAT" | "PIN_DONE" | "BIOMETRICS" | "ALL_SET";
-    let currentStep = $state<Step>("CREATE");
+type Step = "CREATE" | "REPEAT" | "PIN_DONE" | "BIOMETRICS" | "ALL_SET";
+let currentStep = $state<Step>("CREATE");
 
-    let pin = $state("");
-    let repeatPin = $state("");
-    let isBiometricsAvailable = $state(false);
-    let isError = $state(false);
-    let btnVariant = $state<"soft" | "solid">("soft");
-    let globalState: GlobalState | undefined = $state(undefined);
+let pin = $state("");
+let repeatPin = $state("");
+let isBiometricsAvailable = $state(false);
+let isError = $state(false);
+let btnVariant = $state<"soft" | "solid">("soft");
+let globalState: GlobalState | undefined = $state(undefined);
 
-    const handleBack = () => {
-        if (currentStep === "REPEAT") {
-            currentStep = "CREATE";
-            repeatPin = "";
-        } else if (currentStep === "PIN_DONE") {
-            currentStep = "REPEAT";
-        } else if (currentStep === "ALL_SET") {
-            currentStep = "BIOMETRICS";
-        } else {
-            goto("/onboarding");
-        }
-    };
+const handleBack = () => {
+    if (currentStep === "REPEAT") {
+        currentStep = "CREATE";
+        repeatPin = "";
+    } else if (currentStep === "PIN_DONE") {
+        currentStep = "REPEAT";
+    } else if (currentStep === "ALL_SET") {
+        currentStep = "BIOMETRICS";
+    } else {
+        goto("/onboarding");
+    }
+};
 
-    const handleConfirmFirst = () => {
-        if (pin.length === 4) currentStep = "REPEAT";
-    };
+const handleConfirmFirst = () => {
+    if (pin.length === 4) currentStep = "REPEAT";
+};
 
-    const handleConfirmRepeat = async () => {
-        if (repeatPin.length !== 4) return;
+const handleConfirmRepeat = async () => {
+    if (repeatPin.length !== 4) return;
 
-        if (pin !== repeatPin) {
-            isError = true;
-            currentStep = "CREATE";
-            pin = "";
-            repeatPin = "";
-            return;
-        }
+    if (pin !== repeatPin) {
+        isError = true;
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        return;
+    }
 
-        if (!globalState) {
-            console.error(
-                "Global state not available; cannot set onboarding PIN.",
-            );
-            isError = true;
-            currentStep = "CREATE";
-            pin = "";
-            repeatPin = "";
-            return;
-        }
+    if (!globalState) {
+        console.error("Global state not available; cannot set onboarding PIN.");
+        isError = true;
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        return;
+    }
 
-        try {
-            isError = false;
-            await globalState?.securityController.setOnboardingPin(
-                pin,
-                repeatPin,
-            );
-            currentStep = "PIN_DONE";
-        } catch (error) {
-            console.error("Failed to update PIN:", error);
-            currentStep = "CREATE";
-            pin = "";
-            repeatPin = "";
-            isError = true;
-        }
-    };
+    try {
+        isError = false;
+        await globalState?.securityController.setOnboardingPin(pin, repeatPin);
+        currentStep = "PIN_DONE";
+    } catch (error) {
+        console.error("Failed to update PIN:", error);
+        currentStep = "CREATE";
+        pin = "";
+        repeatPin = "";
+        isError = true;
+    }
+};
 
-    const handleSetupBiometrics = async () => {
-        if (isBiometricsAvailable && globalState) {
-            globalState.securityController.biometricSupport = true;
-            currentStep = "ALL_SET";
-        }
-    };
+const handleSetupBiometrics = async () => {
+    if (isBiometricsAvailable && globalState) {
+        globalState.securityController.biometricSupport = true;
+        currentStep = "ALL_SET";
+    }
+};
 
-    const finishOnboarding = async () => {
-        if (!globalState) return goto("/onboarding");
+const finishOnboarding = async () => {
+    if (!globalState) return goto("/onboarding");
 
-        const recovery = get(pendingRecovery);
-        if (recovery) {
-            globalState.userController.isFake = false;
-            globalState.userController.user = recovery.user;
-            globalState.userController.document = recovery.document;
-            // vault is NOT set here — deferred to e-passport handleFinish
-            // pendingRecovery is cleared there too
-        }
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        globalState.userController.isFake = false;
+        globalState.userController.user = recovery.user;
+        globalState.userController.document = recovery.document;
+        // vault is NOT set here — deferred to e-passport handleFinish
+        // pendingRecovery is cleared there too
+    }
 
-        globalState.isOnboardingComplete = true;
-        goto("/review");
-    };
+    globalState.isOnboardingComplete = true;
+    goto("/review");
+};
 
-    $effect(() => {
-        if (currentStep === "CREATE")
-            btnVariant = pin.length === 4 ? "solid" : "soft";
-        else if (currentStep === "REPEAT")
-            btnVariant = repeatPin.length === 4 ? "solid" : "soft";
-    });
+$effect(() => {
+    if (currentStep === "CREATE")
+        btnVariant = pin.length === 4 ? "solid" : "soft";
+    else if (currentStep === "REPEAT")
+        btnVariant = repeatPin.length === 4 ? "solid" : "soft";
+});
 
-    onMount(async () => {
-        globalState = getContext<() => GlobalState>("globalState")();
-        try {
-            isBiometricsAvailable = (await checkStatus()).isAvailable;
-        } catch (e) {
-            isBiometricsAvailable = false;
-        }
-    });
+onMount(async () => {
+    globalState = getContext<() => GlobalState>("globalState")();
+    try {
+        isBiometricsAvailable = (await checkStatus()).isAvailable;
+    } catch (e) {
+        isBiometricsAvailable = false;
+    }
+});
 </script>
 
 <main

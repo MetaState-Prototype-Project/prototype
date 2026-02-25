@@ -1,29 +1,29 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
-    import { Hero, IdentityCard } from "$lib/fragments";
-    import type { GlobalState } from "$lib/global";
-    import { pendingRecovery } from "$lib/stores/pendingRecovery";
-    import { ButtonAction } from "$lib/ui";
-    import axios from "axios";
-    import { getContext, onMount } from "svelte";
-    import { get } from "svelte/store";
+import { goto } from "$app/navigation";
+import { Hero, IdentityCard } from "$lib/fragments";
+import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
+import { ButtonAction } from "$lib/ui";
+import axios from "axios";
+import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
-    let globalState = getContext<() => GlobalState>("globalState")();
-    let ename = $state();
+let globalState = getContext<() => GlobalState>("globalState")();
+let ename = $state();
 
-    const handleNext = async () => {
-        await goto("/e-passport");
-    };
+const handleNext = async () => {
+    await goto("/e-passport");
+};
 
-    onMount(async () => {
-        const recovery = get(pendingRecovery);
-        if (recovery) {
-            ename = recovery.ename;
-            return;
-        }
-        const vault = await globalState.vaultController.vault;
-        ename = vault?.ename;
-    });
+onMount(async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        ename = recovery.ename;
+        return;
+    }
+    const vault = await globalState.vaultController.vault;
+    ename = vault?.ename;
+});
 </script>
 
 <main
