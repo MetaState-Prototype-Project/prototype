@@ -3,6 +3,7 @@ import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { InputPin } from "$lib/ui";
+import * as Button from "$lib/ui/Button";
 import {
     type AuthOptions,
     authenticate,
