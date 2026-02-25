@@ -7,6 +7,7 @@ import { AppDataSource } from "./config/database";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
+import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
 import { createHmacSignature } from "./utils/hmac";
@@ -21,6 +22,7 @@ import { renderVoyagerPage } from "graphql-voyager/middleware";
 import neo4j, { type Driver } from "neo4j-driver";
 // Import evault-core functionality
 import { DbService } from "./core/db/db.service";
+import { ProtectedZoneService } from "./core/db/protected-zone.service";
 import { connectWithRetry } from "./core/db/retry-neo4j";
 import { registerHttpRoutes } from "./core/http/server";
 import { GraphQLServer } from "./core/protocol/graphql-server";
@@ -37,7 +39,7 @@ expressApp.use(
     cors({
         origin: "*",
         methods: ["GET", "POST", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     }),
 );
@@ -141,6 +143,7 @@ const initializeEVault = async (
     }
 
     const dbService = new DbService(driver);
+    const protectedZoneService = new ProtectedZoneService(driver);
     logService = new LogService(driver);
     const publicKey = process.env.EVAULT_PUBLIC_KEY || null;
     const w3id = process.env.W3ID || null;
@@ -167,7 +170,7 @@ const initializeEVault = async (
     await fastifyServer.register(fastifyCors, {
         origin: true, // Allow all origins
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-ENAME", "x-shared-secret"],
         credentials: true,
     });
 
@@ -177,6 +180,7 @@ const initializeEVault = async (
         evaultInstance,
         provisioningServiceInstance,
         dbService,
+        protectedZoneService,
     );
 
     // Setup GraphQL
@@ -216,6 +220,16 @@ const initializeEVault = async (
     );
 };
 
+// Provisioner JWKs — must be on Express (provisioner URL port) for signer URL resolution
+expressApp.get("/.well-known/jwks.json", (_req: Request, res: Response) => {
+    try {
+        const { getProvisionerJwk } = require("./core/utils/provisioner-signer");
+        res.json({ keys: [getProvisionerJwk()] });
+    } catch {
+        res.json({ keys: [] });
+    }
+});
+
 // Health check endpoint
 expressApp.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -231,9 +245,6 @@ const start = async () => {
         verificationService = new VerificationService(
             AppDataSource.getRepository(Verification),
         );
-        verificationController = new VerificationController(
-            verificationService,
-        );
         notificationController = new NotificationController();
 
         // Initialize provisioning service (uses shared AppDataSource)
@@ -242,10 +253,19 @@ const start = async () => {
             provisioningService,
         );
 
-        // Register verification, notification, and provisioning routes
+        // VerificationController must be created AFTER provisioningService so the
+        // upgrade route has a valid provisioningService reference.
+        verificationController = new VerificationController(
+            verificationService,
+            provisioningService,
+        );
+        const recoveryController = new RecoveryController(verificationService);
+
+        // Register verification, notification, provisioning, and recovery routes
         verificationController.registerRoutes(expressApp);
         notificationController.registerRoutes(expressApp);
         provisioningController.registerRoutes(expressApp);
+        recoveryController.registerRoutes(expressApp);
 
         // Start eVault Core (Fastify + GraphQL) with provisioning service first
         await initializeEVault(provisioningService);

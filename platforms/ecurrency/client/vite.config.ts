@@ -2,8 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-const envDir = path.resolve(import.meta.dirname, "../../");
-console.log("🔍 Vite envDir:", envDir);
+const envDir = path.resolve(import.meta.dirname, "../../../");
 
 export default defineConfig({
   plugins: [react()],

@@ -8,7 +8,14 @@ import type {
     ProvisioningService,
 } from "../../services/ProvisioningService";
 import { DbService } from "../db/db.service";
+import { ProtectedZoneService } from "../db/protected-zone.service";
 import { connectWithRetry } from "../db/retry-neo4j";
+import { validatePassphraseStrength } from "../utils/passphrase";
+import { getProvisionerJwk } from "../utils/provisioner-signer";
+import {
+    checkRateLimit,
+    recordAttempt,
+} from "./passphrase-rate-limiter";
 import { type TypedReply, type TypedRequest, WatcherRequest } from "./types";
 
 interface WatcherSignatureRequest {
@@ -26,6 +33,7 @@ export async function registerHttpRoutes(
     evault: any, // EVault instance to access publicKey
     provisioningService?: ProvisioningService,
     dbService?: DbService,
+    protectedZoneService?: ProtectedZoneService,
 ): Promise<void> {
     // Register Swagger
     await server.register(swagger, {
@@ -53,6 +61,33 @@ export async function registerHttpRoutes(
     await server.register(swaggerUi, {
         routePrefix: "/docs",
     });
+
+    // Provisioner JWKs endpoint — exposes the provisioner's ed25519 public key
+    server.get(
+        "/.well-known/jwks.json",
+        {
+            schema: {
+                tags: ["identity"],
+                description: "JWK Set containing the provisioner's public signing key",
+                response: {
+                    200: {
+                        type: "object",
+                        properties: {
+                            keys: { type: "array", items: { type: "object" } },
+                        },
+                    },
+                },
+            },
+        },
+        async (_request, _reply) => {
+            try {
+                const jwk = getProvisionerJwk();
+                return { keys: [jwk] };
+            } catch {
+                return { keys: [] };
+            }
+        },
+    );
 
     // Whois endpoint - returns both W3ID identifier and public key
     server.get(
@@ -666,6 +701,212 @@ export async function registerHttpRoutes(
             }
         },
     );
+
+    // =========================================================================
+    // Protected Zone — recovery passphrase endpoints
+    // These endpoints operate on the ProtectedZone graph layer which is never
+    // exposed via GraphQL and stores only a PBKDF2 hash, never the plain text.
+    // =========================================================================
+
+    if (protectedZoneService) {
+        /**
+         * POST /passphrase/set
+         * Store (or replace) the recovery passphrase for the authenticated eName.
+         * Requires Authorization: Bearer <token> and X-ENAME header.
+         */
+        server.post<{ Body: { passphrase: string } }>(
+            "/passphrase/set",
+            {
+                schema: {
+                    tags: ["identity"],
+                    description: "Set or update the recovery passphrase for an eName (hash stored; plain text discarded)",
+                    headers: {
+                        type: "object",
+                        required: ["X-ENAME", "Authorization"],
+                        properties: {
+                            "X-ENAME": { type: "string" },
+                            Authorization: { type: "string" },
+                        },
+                    },
+                    body: {
+                        type: "object",
+                        required: ["passphrase"],
+                        properties: {
+                            passphrase: { type: "string" },
+                        },
+                    },
+                    response: {
+                        200: {
+                            type: "object",
+                            properties: {
+                                success: { type: "boolean" },
+                                message: { type: "string" },
+                            },
+                        },
+                        400: { type: "object", properties: { error: { type: "string" }, details: { type: "array", items: { type: "string" } } } },
+                        401: { type: "object", properties: { error: { type: "string" } } },
+                    },
+                },
+            },
+            async (request: TypedRequest<{ passphrase: string }>, reply: TypedReply) => {
+                const eName = request.headers["x-ename"] || request.headers["X-ENAME"];
+                if (!eName || typeof eName !== "string") {
+                    return reply.status(400).send({ error: "X-ENAME header is required" });
+                }
+
+                const authHeader = request.headers.authorization || request.headers.Authorization;
+                const tokenPayload = await validateToken(
+                    typeof authHeader === "string" ? authHeader : null,
+                );
+                if (!tokenPayload) {
+                    return reply.status(401).send({ error: "Invalid or missing authentication token" });
+                }
+
+                const { passphrase } = request.body;
+                if (!passphrase) {
+                    return reply.status(400).send({ error: "passphrase is required" });
+                }
+
+                const strength = validatePassphraseStrength(passphrase);
+                if (!strength.valid) {
+                    return reply.status(400).send({ error: "Passphrase does not meet requirements", details: strength.errors });
+                }
+
+                try {
+                    await protectedZoneService.setPassphraseHash(eName, passphrase);
+                    return { success: true, message: "Recovery passphrase stored" };
+                } catch (error) {
+                    console.error("Error storing passphrase hash:", error);
+                    return reply.status(500).send({ error: "Failed to store passphrase" });
+                }
+            },
+        );
+
+        /**
+         * POST /passphrase/compare
+         * Compare a candidate passphrase against the stored hash.
+         * IP rate-limited: 5 attempts per 15-minute window with exponential backoff on failures.
+         * The stored hash is NEVER returned — only a boolean match result.
+         */
+        server.post<{ Body: { eName: string; passphrase: string } }>(
+            "/passphrase/compare",
+            {
+                schema: {
+                    tags: ["identity"],
+                    description: "Compare a recovery passphrase candidate against the stored hash (rate-limited per IP)",
+                    body: {
+                        type: "object",
+                        required: ["eName", "passphrase"],
+                        properties: {
+                            eName: { type: "string" },
+                            passphrase: { type: "string" },
+                        },
+                    },
+                    response: {
+                        200: {
+                            type: "object",
+                            properties: {
+                                match: { type: "boolean" },
+                                hasPassphrase: { type: "boolean" },
+                            },
+                        },
+                        400: { type: "object", properties: { error: { type: "string" } } },
+                        429: {
+                            type: "object",
+                            properties: {
+                                error: { type: "string" },
+                                retryAfterSeconds: { type: "number" },
+                            },
+                        },
+                    },
+                },
+            },
+            async (request: TypedRequest<{ eName: string; passphrase: string }>, reply: TypedReply) => {
+                const clientIp =
+                    (request.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+                    request.socket?.remoteAddress ??
+                    "unknown";
+
+                const rateCheck = checkRateLimit(clientIp);
+                if (!rateCheck.allowed) {
+                    return reply
+                        .status(429)
+                        .header("Retry-After", String(rateCheck.retryAfterSeconds))
+                        .send({
+                            error: rateCheck.reason === "backoff"
+                                ? "Too many failed attempts — please wait before retrying"
+                                : "Rate limit exceeded — too many attempts in this window",
+                            retryAfterSeconds: rateCheck.retryAfterSeconds,
+                        });
+                }
+
+                const { eName, passphrase } = request.body;
+                if (!eName || !passphrase) {
+                    return reply.status(400).send({ error: "eName and passphrase are required" });
+                }
+
+                try {
+                    const result = await protectedZoneService.verifyPassphrase(eName, passphrase);
+
+                    if (result === null) {
+                        // No passphrase set for this eName — not a failed attempt
+                        return { match: false, hasPassphrase: false };
+                    }
+
+                    recordAttempt(clientIp, result);
+                    return { match: result, hasPassphrase: true };
+                } catch (error) {
+                    console.error("Error comparing passphrase:", error);
+                    recordAttempt(clientIp, false);
+                    return reply.status(500).send({ error: "Failed to compare passphrase" });
+                }
+            },
+        );
+
+        /**
+         * GET /passphrase/status
+         * Returns whether a recovery passphrase has been set for the eName.
+         * Does NOT return the hash or any other sensitive data.
+         */
+        server.get(
+            "/passphrase/status",
+            {
+                schema: {
+                    tags: ["identity"],
+                    description: "Check whether a recovery passphrase has been set for an eName",
+                    headers: {
+                        type: "object",
+                        required: ["X-ENAME"],
+                        properties: {
+                            "X-ENAME": { type: "string" },
+                        },
+                    },
+                    response: {
+                        200: {
+                            type: "object",
+                            properties: {
+                                hasPassphrase: { type: "boolean" },
+                            },
+                        },
+                        400: { type: "object", properties: { error: { type: "string" } } },
+                    },
+                },
+            },
+            async (request: TypedRequest<{}>, reply: TypedReply) => {
+                const eName = request.headers["x-ename"] || request.headers["X-ENAME"];
+                if (!eName || typeof eName !== "string") {
+                    return reply.status(400).send({ error: "X-ENAME header is required" });
+                }
+                try {
+                    const hasPassphrase = await protectedZoneService.hasPassphraseHash(eName);
+                    return { hasPassphrase };
+                } catch (error) {
+                    console.error("Error checking passphrase status:", error);
+                    return reply.status(500).send({ error: "Failed to check passphrase status" });
+                }
+            },
+        );
+    }
 
     // Provision eVault endpoint
     if (provisioningService) {

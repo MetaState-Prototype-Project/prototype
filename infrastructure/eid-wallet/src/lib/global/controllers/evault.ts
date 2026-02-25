@@ -11,26 +11,92 @@ import NotificationService from "../../services/NotificationService";
 import type { KeyService } from "./key";
 import type { UserController } from "./user";
 
-const STORE_META_ENVELOPE = `
-  mutation StoreMetaEnvelope($input: MetaEnvelopeInput!) {
-    storeMetaEnvelope(input: $input) {
-      metaEnvelope {
-        id
-        ontology
-        parsed
+const USER_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
+
+const FIND_USER_PROFILE = `
+  query FindUserProfile($ontologyId: ID!) {
+    metaEnvelopes(filter: { ontologyId: $ontologyId }, first: 1) {
+      edges {
+        node {
+          id
+          ontology
+          parsed
+        }
       }
     }
   }
 `;
 
-interface MetaEnvelopeResponse {
-    storeMetaEnvelope: {
+const CREATE_META_ENVELOPE = `
+  mutation CreateMetaEnvelope($input: MetaEnvelopeInput!) {
+    createMetaEnvelope(input: $input) {
+      metaEnvelope {
+        id
+        ontology
+        parsed
+      }
+      errors {
+        message
+        code
+      }
+    }
+  }
+`;
+
+const UPDATE_META_ENVELOPE = `
+  mutation UpdateMetaEnvelope($id: ID!, $input: MetaEnvelopeInput!) {
+    updateMetaEnvelope(id: $id, input: $input) {
+      metaEnvelope {
+        id
+        ontology
+        parsed
+      }
+      errors {
+        message
+        code
+      }
+    }
+  }
+`;
+
+interface GraphQLErrorItem {
+    message: string;
+    code?: string;
+}
+
+interface ExistingUserProfileEnvelope {
+    id: string;
+    ontology: string;
+    parsed?: Partial<UserProfile>;
+}
+
+interface FindUserProfileResponse {
+    metaEnvelopes: {
+        edges: Array<{
+            node: ExistingUserProfileEnvelope;
+        }>;
+    };
+}
+
+interface CreateMetaEnvelopeResponse {
+    createMetaEnvelope: {
         metaEnvelope: {
             id: string;
             ontology: string;
-            // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-            parsed: any;
-        };
+            parsed: UserProfile;
+        } | null;
+        errors: GraphQLErrorItem[] | null;
+    };
+}
+
+interface UpdateMetaEnvelopeResponse {
+    updateMetaEnvelope: {
+        metaEnvelope: {
+            id: string;
+            ontology: string;
+            parsed: UserProfile;
+        } | null;
+        errors: GraphQLErrorItem[] | null;
     };
 }
 
@@ -158,7 +224,7 @@ export class VaultController {
             const userData = await this.#userController.user;
             const displayName = userData?.name || vault.ename;
 
-            await this.createUserProfileInEVault(
+            await this.upsertUserProfileInEVault(
                 vault.ename,
                 displayName,
                 vault.ename,
@@ -167,7 +233,7 @@ export class VaultController {
             this.profileCreationStatus = "success";
         } catch (error) {
             console.error(
-                "Failed to create UserProfile in eVault (retry):",
+                "Failed to upsert UserProfile in eVault (retry):",
                 error,
             );
             this.profileCreationStatus = "failed";
@@ -273,76 +339,145 @@ export class VaultController {
         this.#client = new GraphQLClient(this.#endpoint, {
             headers: {
                 "X-ENAME": ename,
+                ...(PUBLIC_EID_WALLET_TOKEN
+                    ? { Authorization: `Bearer ${PUBLIC_EID_WALLET_TOKEN}` }
+                    : {}),
             },
         });
         return this.#client;
     }
 
+    private buildUserProfilePayload(
+        ename: string,
+        displayName: string,
+        now: string,
+        existingProfile?: Partial<UserProfile>,
+    ): UserProfile {
+        const username = ename.replace("@", "");
+        return {
+            username: existingProfile?.username ?? username,
+            displayName,
+            bio: existingProfile?.bio ?? null,
+            avatarUrl: existingProfile?.avatarUrl ?? null,
+            bannerUrl: existingProfile?.bannerUrl ?? null,
+            ename: existingProfile?.ename ?? ename,
+            isVerified: existingProfile?.isVerified ?? false,
+            isPrivate: existingProfile?.isPrivate ?? false,
+            createdAt: existingProfile?.createdAt ?? now,
+            updatedAt: now,
+            isArchived: existingProfile?.isArchived ?? false,
+        };
+    }
+
+    private async findExistingUserProfile(
+        client: GraphQLClient,
+    ): Promise<ExistingUserProfileEnvelope | undefined> {
+        const response = await client.request<FindUserProfileResponse>(
+            FIND_USER_PROFILE,
+            {
+                ontologyId: USER_PROFILE_ONTOLOGY,
+            },
+        );
+        return response.metaEnvelopes.edges[0]?.node;
+    }
+
+    private throwIfGraphQLErrors(
+        errors: GraphQLErrorItem[] | null | undefined,
+        operation: "create" | "update",
+    ) {
+        if (!errors?.length) return;
+        const message = errors[0]?.message ?? "Unknown GraphQL error";
+        throw new Error(`[UserProfile ${operation}] ${message}`);
+    }
+
     /**
-     * Create UserProfile in eVault with retry mechanism
+     * Upsert UserProfile in eVault with retry mechanism.
+     * Lookup is performed on each attempt to avoid creating duplicates.
      */
-    private async createUserProfileInEVault(
+    private async upsertUserProfileInEVault(
         ename: string,
         displayName: string,
         w3id: string,
         maxRetries = 10,
     ): Promise<void> {
-        console.log("attempting");
-        const username = ename.replace("@", "");
-        const now = new Date().toISOString();
-
-        const userProfile: UserProfile = {
-            username,
-            displayName,
-            bio: null,
-            avatarUrl: null,
-            bannerUrl: null,
-            ename,
-            isVerified: false,
-            isPrivate: false,
-            createdAt: now,
-            updatedAt: now,
-            isArchived: false,
-        };
-
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                const now = new Date().toISOString();
                 const client = await this.ensureClient(w3id, ename);
+                const existingProfile =
+                    await this.findExistingUserProfile(client);
+                const payload = this.buildUserProfilePayload(
+                    ename,
+                    displayName,
+                    now,
+                    existingProfile?.parsed,
+                );
+
+                if (existingProfile?.id) {
+                    console.log(
+                        `Attempting to update existing UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
+                    );
+                    const response =
+                        await client.request<UpdateMetaEnvelopeResponse>(
+                            UPDATE_META_ENVELOPE,
+                            {
+                                id: existingProfile.id,
+                                input: {
+                                    ontology: USER_PROFILE_ONTOLOGY,
+                                    payload,
+                                    acl: ["*"],
+                                },
+                            },
+                        );
+                    this.throwIfGraphQLErrors(
+                        response.updateMetaEnvelope.errors,
+                        "update",
+                    );
+                    console.log(
+                        "UserProfile updated successfully in eVault:",
+                        response.updateMetaEnvelope.metaEnvelope?.id ??
+                            existingProfile.id,
+                    );
+                    return;
+                }
 
                 console.log(
                     `Attempting to create UserProfile in eVault (attempt ${attempt}/${maxRetries})`,
                 );
-
-                const response = await client.request<MetaEnvelopeResponse>(
-                    STORE_META_ENVELOPE,
-                    {
-                        input: {
-                            ontology: "550e8400-e29b-41d4-a716-446655440000",
-                            payload: userProfile,
-                            acl: ["*"],
+                const response =
+                    await client.request<CreateMetaEnvelopeResponse>(
+                        CREATE_META_ENVELOPE,
+                        {
+                            input: {
+                                ontology: USER_PROFILE_ONTOLOGY,
+                                payload,
+                                acl: ["*"],
+                            },
                         },
-                    },
+                    );
+                this.throwIfGraphQLErrors(
+                    response.createMetaEnvelope.errors,
+                    "create",
                 );
-
                 console.log(
                     "UserProfile created successfully in eVault:",
-                    response.storeMetaEnvelope.metaEnvelope.id,
+                    response.createMetaEnvelope.metaEnvelope?.id ??
+                        "unknown-id",
                 );
                 return;
             } catch (error) {
                 console.error(
-                    `Failed to create UserProfile in eVault (attempt ${attempt}/${maxRetries}):`,
+                    `Failed to upsert UserProfile in eVault (attempt ${attempt}/${maxRetries}):`,
                     error,
                 );
 
                 if (attempt === maxRetries) {
                     console.error(
-                        "Max retries reached, giving up on UserProfile creation",
+                        "Max retries reached, giving up on UserProfile upsert",
                     );
                     throw error;
                 }
 
-                // Wait before retrying (exponential backoff)
                 const delay = Math.min(1000 * 2 ** (attempt - 1), 10000);
                 console.log(`Waiting ${delay}ms before retry...`);
                 await new Promise((resolve) => setTimeout(resolve, delay));
@@ -375,7 +510,7 @@ export class VaultController {
                             if (this.profileCreationStatus === "success")
                                 return;
                             this.profileCreationStatus = "loading";
-                            await this.createUserProfileInEVault(
+                            await this.upsertUserProfileInEVault(
                                 resolvedUser?.ename as string,
                                 displayName as string,
                                 resolvedUser?.ename as string,
@@ -383,7 +518,7 @@ export class VaultController {
                             this.profileCreationStatus = "success";
                         } catch (error) {
                             console.error(
-                                "Failed to create UserProfile in eVault:",
+                                "Failed to upsert UserProfile in eVault:",
                                 error,
                             );
                             this.profileCreationStatus = "failed";
@@ -407,13 +542,13 @@ export class VaultController {
             // Set loading status
             this.profileCreationStatus = "loading";
 
-            // Get user data for display name and create UserProfile
+            // Get user data for display name and upsert UserProfile
             (async () => {
                 try {
                     const userData = await this.#userController.user;
                     const displayName = userData?.name || vault.ename;
 
-                    await this.createUserProfileInEVault(
+                    await this.upsertUserProfileInEVault(
                         vault.ename,
                         displayName,
                         vault.ename,
@@ -421,12 +556,12 @@ export class VaultController {
                     this.profileCreationStatus = "success";
                 } catch (error) {
                     console.error(
-                        "Failed to get user data or create UserProfile:",
+                        "Failed to get user data or upsert UserProfile:",
                         error,
                     );
                     // Fallback to using ename as display name
                     try {
-                        await this.createUserProfileInEVault(
+                        await this.upsertUserProfileInEVault(
                             vault.ename,
                             vault.ename,
                             vault.ename,
@@ -434,7 +569,7 @@ export class VaultController {
                         this.profileCreationStatus = "success";
                     } catch (fallbackError) {
                         console.error(
-                            "Failed to create UserProfile in eVault (fallback):",
+                            "Failed to upsert UserProfile in eVault (fallback):",
                             fallbackError,
                         );
                         this.profileCreationStatus = "failed";
@@ -466,6 +601,84 @@ export class VaultController {
 
     getendpoint() {
         return this.#endpoint;
+    }
+
+    /**
+     * Resolve the Fastify (non-GraphQL) base URL for this vault.
+     * The GraphQL endpoint lives at `<base>/graphql`; other HTTP routes sit at `<base>`.
+     */
+    private async resolveBaseUrl(w3id: string): Promise<string> {
+        const graphqlUrl = await this.resolveEndpoint(w3id);
+        return graphqlUrl.replace(/\/graphql$/, "");
+    }
+
+    /**
+     * Store the recovery passphrase for this vault on the eVault server.
+     * Only a PBKDF2 hash is persisted on the server; the plain text is never sent
+     * across the wire in any readable form — it is sent over HTTPS and immediately
+     * hashed server-side with a random salt.
+     *
+     * @throws if the passphrase does not meet strength requirements (validated server-side)
+     * @throws if no vault is found
+     */
+    async setRecoveryPassphrase(
+        passphrase: string,
+        confirmPassphrase: string,
+    ): Promise<void> {
+        if (passphrase !== confirmPassphrase) {
+            throw new Error("Passphrases do not match");
+        }
+
+        const vault = await this.vault;
+        if (!vault?.ename) {
+            throw new Error("No vault available");
+        }
+
+        const base = await this.resolveBaseUrl(vault.ename);
+
+        // Retrieve a valid auth token by re-using the token used for other vault ops
+        const token = PUBLIC_EID_WALLET_TOKEN || null;
+
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "X-ENAME": vault.ename,
+        };
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const response = await axios.post(
+            new URL("/passphrase/set", base).toString(),
+            { passphrase },
+            { headers },
+        );
+
+        if (!response.data?.success) {
+            throw new Error(
+                response.data?.error ?? "Failed to store recovery passphrase",
+            );
+        }
+    }
+
+    /**
+     * Check whether a recovery passphrase has been set on the eVault.
+     */
+    async hasRecoveryPassphrase(): Promise<boolean> {
+        const vault = await this.vault;
+        if (!vault?.ename) return false;
+
+        try {
+            const base = await this.resolveBaseUrl(vault.ename);
+            const token = PUBLIC_EID_WALLET_TOKEN || null;
+            const headers: Record<string, string> = { "X-ENAME": vault.ename };
+            if (token) headers.Authorization = `Bearer ${token}`;
+
+            const response = await axios.get(
+                new URL("/passphrase/status", base).toString(),
+                { headers },
+            );
+            return response.data?.hasPassphrase === true;
+        } catch {
+            return false;
+        }
     }
 
     async clear() {

@@ -1,4 +1,4 @@
-import { JSONSchema7 } from "json-schema";
+import type { JSONSchema7 } from "json-schema";
 
 export type SchemaType = {
     schema: JSONSchema7;
@@ -63,6 +63,13 @@ export function serializeValue(value: any): { value: any; type: string } {
         serializedValue = value.toISOString();
     } else if (type === SchemaTypes.object) {
         serializedValue = JSON.stringify(value);
+    } else if (type === SchemaTypes.array) {
+        const hasObjects = value.some(
+            (item: any) => typeof item === "object" && item !== null,
+        );
+        if (hasObjects) {
+            serializedValue = JSON.stringify(value);
+        }
     }
 
     return {
@@ -79,6 +86,18 @@ export function deserializeValue(value: any, type: string): any {
 
     if (type === "object") {
         return JSON.parse(value);
+    }
+
+    if (type === "array") {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch {
+            // Not JSON, return as-is
+        }
+        return schemaType.deserialize(value);
     }
 
     return schemaType.deserialize(value);

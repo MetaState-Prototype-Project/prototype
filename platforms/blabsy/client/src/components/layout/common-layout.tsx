@@ -66,7 +66,9 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                 open={true}
                 closeModal={handleOutsideClick}
                 className='max-w-lg mx-auto mt-24'
-                modalClassName={`bg-black backdrop-blur-md p-6 rounded-lg flex flex-col gap-2 ${isPulsing ? 'animate-pulse-scale' : ''}`}
+                modalClassName={`bg-black backdrop-blur-md p-6 rounded-lg flex flex-col gap-2 ${
+                    isPulsing ? 'animate-pulse-scale' : ''
+                }`}
             >
                 <style>{`
                     @keyframes pulse-scale {
@@ -86,25 +88,24 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                 <p className='font-bold'>⚠️ Please note:</p>
                 <p>
                     Blabsy is a <b>functional prototype</b>, intended to
-                    showcase <b>interoperability</b> and core concepts of
-                    the W3DS ecosystem.
+                    showcase <b>interoperability</b> and core concepts of the
+                    W3DS ecosystem.
                 </p>
                 <p>
-                    <b>It is not a production-grade platform</b> and may
-                    lack full reliability, performance, and security
-                    guarantees.
+                    <b>It is not a production-grade platform</b> and may lack
+                    full reliability, performance, and security guarantees.
                 </p>
                 <p>
                     We <b>strongly recommend</b> that you avoid sharing{' '}
-                    <b>sensitive or private content</b>, and kindly ask for
-                    your understanding regarding any bugs, incomplete
-                    features, or unexpected behaviours.
+                    <b>sensitive or private content</b>, and kindly ask for your
+                    understanding regarding any bugs, incomplete features, or
+                    unexpected behaviours.
                 </p>
                 <p>
-                    The app is still in development, so we kindly ask for
-                    your understanding regarding any potential issues. If
-                    you experience issues or have feedback, feel free to
-                    contact us at:
+                    The app is still in development, so we kindly ask for your
+                    understanding regarding any potential issues. If you
+                    experience issues or have feedback, feel free to contact us
+                    at:
                 </p>
                 <a
                     href='mailto:info@metastate.foundation'
@@ -115,13 +116,13 @@ export function ProtectedLayout({ children }: LayoutProps): JSX.Element {
                 <div className='relative mt-4'>
                     {showHint && (
                         <div className='mb-2 text-xs text-center text-yellow-400 bg-yellow-900/30 px-3 py-2 rounded'>
-                            💡 You must accept the disclaimer to continue. This will only appear once.
+                            💡 You must accept the disclaimer to continue. This
+                            will only appear once.
                         </div>
                     )}
                     <Button
                         type='button'
                         className='w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
-
                         onClick={() => {
                             try {
                                 localStorage.setItem(DISCLAIMER_KEY, 'true');

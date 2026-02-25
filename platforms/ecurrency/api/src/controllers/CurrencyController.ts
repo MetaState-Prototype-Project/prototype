@@ -15,13 +15,14 @@ export class CurrencyController {
                 return res.status(401).json({ error: "Authentication required" });
             }
 
-            const { name, description, groupId, allowNegative, maxNegativeBalance } = req.body;
+            const { name, description, groupId, allowNegative, maxNegativeBalance, allowNegativeGroupOnly } = req.body;
 
             if (!name || !groupId) {
                 return res.status(400).json({ error: "Name and groupId are required" });
             }
 
             const allowNegativeFlag = Boolean(allowNegative);
+            const allowNegativeGroupOnlyFlag = Boolean(allowNegativeGroupOnly);
             let normalizedMaxNegative: number | null = null;
 
             if (maxNegativeBalance !== undefined && maxNegativeBalance !== null && maxNegativeBalance !== "") {
@@ -46,9 +47,12 @@ export class CurrencyController {
                 name,
                 groupId,
                 req.user.id,
-                allowNegativeFlag,
-                normalizedMaxNegative,
-                description
+                {
+                    allowNegative: allowNegativeFlag,
+                    maxNegativeBalance: normalizedMaxNegative,
+                    description,
+                    allowNegativeGroupOnly: allowNegativeGroupOnlyFlag,
+                }
             );
 
             res.status(201).json({
@@ -58,6 +62,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -67,6 +72,15 @@ export class CurrencyController {
             console.error("Error creating currency:", error);
             if (error.message.includes("Only group admins")) {
                 return res.status(403).json({ error: error.message });
+            }
+            if (
+                error.message.includes("Cannot restrict overdraft") ||
+                error.message.includes("allowNegativeGroupOnly") ||
+                error.message.includes("Cannot set max negative") ||
+                error.message.includes("Max negative balance") ||
+                error.message.includes("negative balances are disabled")
+            ) {
+                return res.status(400).json({ error: error.message });
             }
             res.status(500).json({ error: "Internal server error" });
         }
@@ -81,6 +95,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -108,6 +123,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -130,6 +146,7 @@ export class CurrencyController {
                 ename: currency.ename,
                 groupId: currency.groupId,
                 allowNegative: currency.allowNegative,
+                allowNegativeGroupOnly: currency.allowNegativeGroupOnly,
                 maxNegativeBalance: currency.maxNegativeBalance,
                 createdBy: currency.createdBy,
                 createdAt: currency.createdAt,
@@ -207,6 +224,7 @@ export class CurrencyController {
                 ename: updated.ename,
                 groupId: updated.groupId,
                 allowNegative: updated.allowNegative,
+                allowNegativeGroupOnly: updated.allowNegativeGroupOnly,
                 maxNegativeBalance: updated.maxNegativeBalance,
                 createdBy: updated.createdBy,
                 createdAt: updated.createdAt,

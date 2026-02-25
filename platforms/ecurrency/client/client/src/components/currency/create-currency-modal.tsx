@@ -16,6 +16,7 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState("");
   const [allowNegative, setAllowNegative] = useState(false);
+  const [allowNegativeGroupOnly, setAllowNegativeGroupOnly] = useState(false);
   const [maxNegativeInput, setMaxNegativeInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -28,6 +29,7 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
       description?: string;
       groupId: string;
       allowNegative: boolean;
+      allowNegativeGroupOnly: boolean;
       maxNegativeBalance: number | null;
     }) => {
       const response = await apiClient.post("/api/currencies", data);
@@ -40,6 +42,7 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
       setDescription("");
       setGroupId("");
       setAllowNegative(false);
+      setAllowNegativeGroupOnly(false);
       setMaxNegativeInput("");
       setError(null);
       onOpenChange(false);
@@ -91,6 +94,7 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
               description,
               groupId,
               allowNegative,
+              allowNegativeGroupOnly,
               maxNegativeBalance: maxNegativeValue,
             });
           }}
@@ -142,6 +146,7 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
                 type="button"
                 onClick={() => {
                   setAllowNegative(false);
+                  setAllowNegativeGroupOnly(false);
                   setMaxNegativeInput("");
                 }}
                 className={`p-4 border-2 rounded-lg text-left transition-all ${
@@ -173,22 +178,39 @@ export default function CreateCurrencyModal({ open, onOpenChange, groups }: Crea
           </div>
 
           {allowNegative && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Max negative balance (absolute value)</label>
-              <input
-                type="number"
-                min={0}
-                max={MAX_NEGATIVE_LIMIT}
-                step={0.01}
-                value={maxNegativeInput}
-                onChange={(e) => setMaxNegativeInput(e.target.value)}
-                placeholder="Leave blank for no cap"
-                className="w-full px-3 py-2 border rounded-md"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Limit how far any account can go below zero (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
-              </p>
-            </div>
+            <>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowNegativeGroupOnly}
+                    onChange={(e) => setAllowNegativeGroupOnly(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300"
+                  />
+                  <span className="text-sm font-medium">Restrict overdraft to group members only</span>
+                </label>
+                <p className="text-xs text-muted-foreground mt-1 ml-6">
+                  When enabled, only users who are members of the currency's group can have negative balances. Non-members must maintain a positive balance.
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Max negative balance (absolute value)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={MAX_NEGATIVE_LIMIT}
+                  step={0.01}
+                  value={maxNegativeInput}
+                  onChange={(e) => setMaxNegativeInput(e.target.value)}
+                  placeholder="Leave blank for no cap"
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Limit how far any account can go below zero (max {MAX_NEGATIVE_LIMIT.toLocaleString()}).
+                </p>
+              </div>
+            </>
           )}
 
           {error && (

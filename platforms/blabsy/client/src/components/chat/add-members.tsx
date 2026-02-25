@@ -372,182 +372,186 @@ export function AddMembers({
                         />
                     </Dialog.Title>
                     <div className='flex min-h-0 flex-1 flex-col overflow-y-auto'>
-                    {newChat && selectedUsers.length > 1 && (
+                        {newChat && selectedUsers.length > 1 && (
+                            <div className='mt-4'>
+                                <input
+                                    type='text'
+                                    placeholder='Enter group name (optional)'
+                                    value={groupName}
+                                    onChange={(e) =>
+                                        setGroupName(e.target.value)
+                                    }
+                                    className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
+                                />
+                            </div>
+                        )}
+                        {!newChat && currentChat && (
+                            <div className='mb-4'>
+                                <h3 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                                    Current Members (
+                                    {currentChat.participants.length})
+                                </h3>
+                                <div className='space-y-2 max-h-32 overflow-y-auto'>
+                                    {currentChat.participants.map(
+                                        (participantId) => {
+                                            const participant =
+                                                participantData[participantId];
+                                            return (
+                                                <div
+                                                    key={participantId}
+                                                    className='flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg'
+                                                >
+                                                    <div className='relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                                        {participant?.photoURL ? (
+                                                            <Image
+                                                                src={
+                                                                    participant.photoURL
+                                                                }
+                                                                alt={
+                                                                    participant.name ||
+                                                                    participant.username ||
+                                                                    'User'
+                                                                }
+                                                                width={32}
+                                                                height={32}
+                                                                className='object-cover'
+                                                            />
+                                                        ) : (
+                                                            <UserIcon className='h-4 w-4 text-gray-500 dark:text-gray-400' />
+                                                        )}
+                                                    </div>
+                                                    <div className='flex flex-col'>
+                                                        <span className='text-sm font-medium text-gray-900 dark:text-white'>
+                                                            {participant?.name ||
+                                                                participant?.username ||
+                                                                'Unknown User'}
+                                                        </span>
+                                                        <span className='text-xs text-gray-500 dark:text-gray-400'>
+                                                            {participant?.username ||
+                                                                participantId}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         <div className='mt-4'>
                             <input
                                 type='text'
-                                placeholder='Enter group name (optional)'
-                                value={groupName}
-                                onChange={(e) => setGroupName(e.target.value)}
+                                placeholder={
+                                    newChat
+                                        ? 'Search users to add to chat...'
+                                        : 'Search users to add...'
+                                }
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
                             />
                         </div>
-                    )}
-                    {!newChat && currentChat && (
-                        <div className='mb-4'>
-                            <h3 className='text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                                Current Members (
-                                {currentChat.participants.length})
-                            </h3>
-                            <div className='space-y-2 max-h-32 overflow-y-auto'>
-                                {currentChat.participants.map(
-                                    (participantId) => {
-                                        const participant =
-                                            participantData[participantId];
-                                        return (
-                                            <div
-                                                key={participantId}
-                                                className='flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg'
-                                            >
-                                                <div className='relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                                    {participant?.photoURL ? (
-                                                        <Image
-                                                            src={
-                                                                participant.photoURL
-                                                            }
-                                                            alt={
-                                                                participant.name ||
-                                                                participant.username ||
-                                                                'User'
-                                                            }
-                                                            width={32}
-                                                            height={32}
-                                                            className='object-cover'
-                                                        />
-                                                    ) : (
-                                                        <UserIcon className='h-4 w-4 text-gray-500 dark:text-gray-400' />
-                                                    )}
-                                                </div>
-                                                <div className='flex flex-col'>
-                                                    <span className='text-sm font-medium text-gray-900 dark:text-white'>
-                                                        {participant?.name ||
-                                                            participant?.username ||
-                                                            'Unknown User'}
-                                                    </span>
-                                                    <span className='text-xs text-gray-500 dark:text-gray-400'>
-                                                        {participant?.username ||
-                                                            participantId}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    }
+                        <div className='mt-4 min-h-0 flex-1'>
+                            {isSearching && (
+                                <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                    Searching...
+                                </p>
+                            )}
+                            {!isSearching &&
+                                displayUsers.length === 0 &&
+                                searchQuery && (
+                                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                        No users found.
+                                    </p>
                                 )}
-                            </div>
-                        </div>
-                    )}
-                    <div className='mt-4'>
-                        <input
-                            type='text'
-                            placeholder={
-                                newChat
-                                    ? 'Search users to add to chat...'
-                                    : 'Search users to add...'
-                            }
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className='w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-700'
-                        />
-                    </div>
-                    <div className='mt-4 min-h-0 flex-1'>
-                        {isSearching && (
-                            <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                Searching...
-                            </p>
-                        )}
-                        {!isSearching &&
-                            displayUsers.length === 0 &&
-                            searchQuery && (
-                                <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                    No users found.
-                                </p>
-                            )}
-                        {!isSearching &&
-                            displayUsers.length === 0 &&
-                            !searchQuery && (
-                                <p className='text-sm text-gray-500 dark:text-gray-400'>
-                                    Start typing to search for users.
-                                </p>
-                            )}
-                        {displayUsers.map((userItem) => {
-                            const isSelected = selectedUsers.some(
-                                (u) => u.id === userItem.id
-                            );
-                            const isSelectedUser = selectedUsers.some(
-                                (u) => u.id === userItem.id
-                            );
-                            const isExistingMember =
-                                !newChat &&
-                                currentChat?.participants.includes(userItem.id);
+                            {!isSearching &&
+                                displayUsers.length === 0 &&
+                                !searchQuery && (
+                                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                                        Start typing to search for users.
+                                    </p>
+                                )}
+                            {displayUsers.map((userItem) => {
+                                const isSelected = selectedUsers.some(
+                                    (u) => u.id === userItem.id
+                                );
+                                const isSelectedUser = selectedUsers.some(
+                                    (u) => u.id === userItem.id
+                                );
+                                const isExistingMember =
+                                    !newChat &&
+                                    currentChat?.participants.includes(
+                                        userItem.id
+                                    );
 
-                            return (
-                                <label
-                                    key={userItem.id}
-                                    className={`flex items-center justify-between gap-3 mb-2 pr-2 cursor-pointer ${
-                                        isSelectedUser
-                                            ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2'
-                                            : ''
-                                    } ${
-                                        isExistingMember
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : ''
-                                    }`}
-                                >
-                                    <div className='flex items-center gap-3 cursor-pointer'>
-                                        <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
-                                            {userItem.photoURL ? (
-                                                <Image
-                                                    src={userItem.photoURL}
-                                                    alt={
-                                                        userItem.name ||
+                                return (
+                                    <label
+                                        key={userItem.id}
+                                        className={`flex items-center justify-between gap-3 mb-2 pr-2 cursor-pointer ${
+                                            isSelectedUser
+                                                ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2'
+                                                : ''
+                                        } ${
+                                            isExistingMember
+                                                ? 'opacity-50 cursor-not-allowed'
+                                                : ''
+                                        }`}
+                                    >
+                                        <div className='flex items-center gap-3 cursor-pointer'>
+                                            <div className='relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700'>
+                                                {userItem.photoURL ? (
+                                                    <Image
+                                                        src={userItem.photoURL}
+                                                        alt={
+                                                            userItem.name ||
+                                                            userItem.username ||
+                                                            'User'
+                                                        }
+                                                        width={40}
+                                                        height={40}
+                                                        className='object-cover'
+                                                    />
+                                                ) : (
+                                                    <UserIcon className='h-6 w-6 text-gray-500 dark:text-gray-400' />
+                                                )}
+                                            </div>
+                                            <div className='flex flex-col'>
+                                                <span className='text-gray-900 dark:text-white font-medium'>
+                                                    {userItem.name ||
                                                         userItem.username ||
-                                                        'User'
-                                                    }
-                                                    width={40}
-                                                    height={40}
-                                                    className='object-cover'
-                                                />
-                                            ) : (
-                                                <UserIcon className='h-6 w-6 text-gray-500 dark:text-gray-400' />
-                                            )}
-                                        </div>
-                                        <div className='flex flex-col'>
-                                            <span className='text-gray-900 dark:text-white font-medium'>
-                                                {userItem.name ||
-                                                    userItem.username ||
-                                                    'Unknown User'}
-                                            </span>
-                                            <span className='text-xs text-gray-500 dark:text-gray-400'>
-                                                @
-                                                {userItem.username ||
-                                                    userItem.id}
-                                            </span>
-                                            {isSelectedUser && (
-                                                <span className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
-                                                    ✓ Selected
+                                                        'Unknown User'}
                                                 </span>
-                                            )}
-                                            {isExistingMember && (
                                                 <span className='text-xs text-gray-500 dark:text-gray-400'>
-                                                    Already in group
+                                                    @
+                                                    {userItem.username ||
+                                                        userItem.id}
                                                 </span>
-                                            )}
+                                                {isSelectedUser && (
+                                                    <span className='text-xs text-blue-600 dark:text-blue-400 font-medium'>
+                                                        ✓ Selected
+                                                    </span>
+                                                )}
+                                                {isExistingMember && (
+                                                    <span className='text-xs text-gray-500 dark:text-gray-400'>
+                                                        Already in group
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <input
-                                        type='checkbox'
-                                        checked={isSelected}
-                                        onChange={() =>
-                                            !isExistingMember &&
-                                            toggleUserSelection(userItem)
-                                        }
-                                        disabled={isExistingMember}
-                                        className='form-checkbox h-4 w-4 text-main-accent disabled:opacity-50'
-                                    />
-                                </label>
-                            );
-                        })}
-                    </div>
+                                        <input
+                                            type='checkbox'
+                                            checked={isSelected}
+                                            onChange={() =>
+                                                !isExistingMember &&
+                                                toggleUserSelection(userItem)
+                                            }
+                                            disabled={isExistingMember}
+                                            className='form-checkbox h-4 w-4 text-main-accent disabled:opacity-50'
+                                        />
+                                    </label>
+                                );
+                            })}
+                        </div>
                     </div>
                     {selectedUsers.length > 0 && (
                         <div className='mt-4 shrink-0'>

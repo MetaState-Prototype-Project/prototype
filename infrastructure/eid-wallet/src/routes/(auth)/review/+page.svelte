@@ -2,9 +2,11 @@
 import { goto } from "$app/navigation";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import axios from "axios";
 import { getContext, onMount } from "svelte";
+import { get } from "svelte/store";
 
 let globalState = getContext<() => GlobalState>("globalState")();
 let ename = $state();
@@ -14,13 +16,19 @@ const handleNext = async () => {
 };
 
 onMount(async () => {
+    const recovery = get(pendingRecovery);
+    if (recovery) {
+        ename = recovery.ename;
+        return;
+    }
     const vault = await globalState.vaultController.vault;
     ename = vault?.ename;
 });
 </script>
 
 <main
-    class="h-full pt-[5.2svh] px-[5vw] pb-[8svh] flex flex-col justify-between"
+    class="h-full px-[5vw] pb-[8svh] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top));"
 >
     <section>
         <Hero title="Here’s your eName" class="mb-4">

@@ -63,6 +63,13 @@ export class Vote {
     @Column("uuid")
     userId!: string;
 
+    @ManyToOne(() => User, { nullable: true })
+    @JoinColumn({ name: "castById" })
+    castBy!: User | null;
+
+    @Column("uuid", { nullable: true })
+    castById!: string | null;
+
     // This can be user ID, session ID, or anonymous identifier
     @Column("varchar", { length: 255 })
     voterId!: string;

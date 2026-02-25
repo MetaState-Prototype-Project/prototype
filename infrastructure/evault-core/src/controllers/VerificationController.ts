@@ -1,265 +1,162 @@
 import { Request, Response } from "express";
-import { VerificationService } from "../services/VerificationService";
-import { eventEmitter } from "../utils/eventEmitter";
-import { createHmacSignature } from "../utils/hmac";
 import { default as Axios } from "axios";
+import { validate as uuidValidate } from "uuid";
+import { VerificationService } from "../services/VerificationService";
+import type { ProvisioningService } from "../services/ProvisioningService";
 
-const veriffClient = Axios.create({
-    baseURL: "https://stationapi.veriff.com",
-    withCredentials: true,
+const diditClient = Axios.create({
+    baseURL: "https://verification.didit.me",
 });
 
-veriffClient.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-    async function (error) {
-        if (!error.response) return Promise.reject(error);
-        return Promise.reject(error);
-    },
-);
+function requireSharedSecret(req: Request, res: Response): boolean {
+    const secret = process.env.PROVISIONER_SHARED_SECRET;
+    if (!secret) {
+        console.warn("[AUTH] PROVISIONER_SHARED_SECRET not set — rejecting request");
+        res.status(500).json({ error: "Server misconfiguration: shared secret not set" });
+        return false;
+    }
+    const provided = req.headers["x-shared-secret"];
+    if (!provided || provided !== secret) {
+        res.status(401).json({ error: "Unauthorized: invalid or missing shared secret" });
+        return false;
+    }
+    return true;
+}
 
 export class VerificationController {
-    constructor(private readonly verificationService: VerificationService) {}
+    constructor(
+        private readonly verificationService: VerificationService,
+        private readonly provisioningService?: ProvisioningService,
+    ) {}
 
     registerRoutes(app: any) {
-        // SSE endpoint for verification status updates
-
-        app.get(
-            "/verification/sessions/:id",
-            async (req: Request, res: Response) => {
-                const { id } = req.params;
-
-                // Set headers for SSE
-                res.writeHead(200, {
-                    "Content-Type": "text/event-stream",
-                    "Cache-Control": "no-cache",
-                    Connection: "keep-alive",
-                    "Access-Control-Allow-Origin": "*",
-                });
-
-                // Initial heartbeat to keep connection open
-                res.write(
-                    `event: connected\ndata: ${JSON.stringify({
-                        hi: "hi",
-                    })}\n\n`,
-                );
-
-                const handler = (data: any) => {
-                    console.log("hi?");
-                    res.write(`data: ${JSON.stringify(data)}\n\n`);
-                };
-
-                eventEmitter.on(id, handler);
-
-                // Handle client disconnect
-                req.on("close", () => {
-                    eventEmitter.off(id, handler);
-                    res.end();
-                });
-
-                req.on("error", (error) => {
-                    console.error("SSE Error:", error);
-                    eventEmitter.off(id, handler);
-                    res.end();
-                });
-            },
-        );
-
-        app.post(
-            "/verification/:id/media",
-            async (req: Request, res: Response) => {
-                const { img, type } = req.body;
-                const types = ["document-front", "document-back", "face"];
-                if (!types.includes(type))
-                    throw new Error(
-                        `Wrong type specified, accepted types are ${types}`,
-                    );
-                const verification = await this.verificationService.findById(
-                    req.params.id,
-                );
-                if (!verification) throw new Error("Verification not found");
-                const veriffBody = {
-                    image: {
-                        context: type,
-                        content: img,
-                    },
-                };
-
-                const signature = createHmacSignature(
-                    veriffBody,
-                    process.env.VERIFF_HMAC_KEY as string,
-                );
-                await veriffClient.post(
-                    `/v1/sessions/${verification.veriffId}/media`,
-                    veriffBody,
-                    {
-                        headers: {
-                            "X-HMAC-SIGNATURE": signature,
-                            "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
-                        },
-                    },
-                );
-                res.sendStatus(201);
-            },
-        );
-
         // Get verification session
         app.get("/verification/:id", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
             const { id } = req.params;
             const session = await this.verificationService.findById(id);
             if (!session) {
-                return res
-                    .status(404)
-                    .json({ error: "Verification session not found" });
+                return res.status(404).json({ error: "Verification session not found" });
             }
             return res.json(session);
         });
 
-        // Create new verification
+        // Create new Didit verification session
         app.post("/verification", async (req: Request, res: Response) => {
-            console.log("creating new session")
+            if (!requireSharedSecret(req, res)) return;
+            console.log("Creating new Didit verification session");
             const { referenceId } = req.body;
 
             if (referenceId) {
-                const existing = await this.verificationService.findOne({
-                    referenceId,
-                });
+                const existing = await this.verificationService.findOne({ referenceId });
                 if (existing) {
-                    return res
-                        .status(409)
-                        .json({ error: "Reference ID Already Exists" });
+                    return res.status(409).json({ error: "Reference ID Already Exists" });
                 }
             }
 
-            const verification = await this.verificationService.create({
-                referenceId,
-            });
-            const veriffBody = {
-                verification: {
-                    vendorData: verification.id,
-                },
-            };
-            const signature = createHmacSignature(
-                veriffBody,
-                process.env.VERIFF_HMAC_KEY as string,
-            );
-            const { data: veriffSession } = await veriffClient.post(
-                "/v1/sessions",
-                veriffBody,
-                {
-                    headers: {
-                        "X-HMAC-SIGNATURE": signature,
-                        "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
+            const verification = await this.verificationService.create({ referenceId });
+
+            const apiKey = process.env.DIDIT_API_KEY;
+            const workflowId = process.env.DIDIT_WORKFLOW_ID;
+            if (!apiKey || !workflowId) {
+                return res.status(500).json({ error: "Didit API key or workflow ID not configured" });
+            }
+
+            let diditSession: any;
+            try {
+                const response = await diditClient.post(
+                    "/v3/session/",
+                    {
+                        workflow_id: workflowId,
+                        vendor_data: verification.id,
                     },
-                },
-            );
-            await this.verificationService.findByIdAndUpdate(verification.id, {
-                veriffId: veriffSession.verification.id,
-            });
-
-            return res.status(201).json(verification);
-        });
-
-        app.patch("/verification/:id", async (req: Request, res: Response) => {
-            const verification = await this.verificationService.findById(
-                req.params.id,
-            );
-            const body = {
-                verification: {
-                    status: "submitted",
-                },
-            };
-            const signature = createHmacSignature(
-                body,
-                process.env.VERIFF_HMAC_KEY as string,
-            );
-            await veriffClient.patch(
-                `/v1/sessions/${verification?.veriffId}`,
-                body,
-                {
-                    headers: {
-                        "X-HMAC-SIGNATURE": signature,
-                        "X-AUTH-CLIENT": process.env.PUBLIC_VERIFF_KEY,
-                    },
-                },
-            );
-            res.sendStatus(201);
-        });
-
-        // Webhook for verification decisions
-        app.post(
-            "/verification/decisions",
-            async (req: Request, res: Response) => {
-                const body = req.body;
-                console.log(body);
-                const id = body.vendorData;
-                let w3id: string | null = null
-
-                const verification =
-                    await this.verificationService.findById(id);
-                console.log("ID", id)
-                if (!verification) {
-                    return res
-                        .status(404)
-                        .json({ error: "Verification not found" });
-                }
-
-                let status = body.data.verification.decision;
-                let reason = body.data.verification.decision;
-
-                const affirmativeStatusTypes = [
-                    "approved",
-                    "declined",
-                    "expired",
-                    "abandoned",
-                ];
-                if (
-                    affirmativeStatusTypes.includes(
-                        body.data.verification.decision,
-                    )
-                ) {
-                    let approved =
-                        body.data.verification.decision === "approved";
-                    if (process.env.DUPLICATES_POLICY !== "allow") {
-                        const [matches] =
-                            await this.verificationService.findManyAndCount({
-                                documentId:
-                                    body.data.verification.document.number
-                                        .value,
-                            });
-                        const verificationMatch = matches.find(
-                            (v) => !!v.linkedEName,
-                        );
-                        if (verificationMatch) {
-                            status = "duplicate";
-                            reason =
-                                "Document already used to create an eVault";
-                            w3id = verificationMatch.linkedEName
-                        }
-                    }
-                    console.log(body.data.verification.document);
-                    await this.verificationService.findByIdAndUpdate(id, {
-                        approved,
-                        data: {
-                            person: body.data.verification.person,
-                            document: body.data.verification.document,
+                    {
+                        headers: {
+                            "x-api-key": apiKey,
+                            "Content-Type": "application/json",
                         },
-                        documentId:
-                            body.data.verification.document.number.value,
-                    });
+                    },
+                );
+                diditSession = response.data;
+            } catch (err: any) {
+                console.error(
+                    "[DIDIT SESSION CREATE]",
+                    err?.response?.data ?? err?.message,
+                );
+                return res
+                    .status(502)
+                    .json({ error: "Failed to create Didit session" });
+            }
+
+            console.log("[Didit] Session response:", JSON.stringify(diditSession));
+
+            const sessionToken: string = diditSession.session_token;
+            const sessionId: string = diditSession.session_id ?? diditSession.id ?? verification.id;
+            const verificationUrl: string =
+                diditSession.verification_url ??
+                diditSession.url ??
+                `https://verify.didit.me/session/${sessionToken}`;
+
+            await this.verificationService.findByIdAndUpdate(verification.id, {
+                diditSessionId: sessionId,
+                verificationUrl,
+                sessionToken,
+            });
+
+            return res.status(201).json({
+                id: verification.id,
+                sessionToken,
+                verificationUrl,
+            });
+        });
+
+        // Upgrade existing eVault: create binding docs + update UserProfile after KYC
+        app.post("/verification/upgrade", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
+            const { diditSessionId, w3id } = req.body;
+            if (!diditSessionId || !w3id) {
+                return res.status(400).json({ error: "diditSessionId and w3id are required" });
+            }
+            if (!this.provisioningService) {
+                return res.status(500).json({ error: "Provisioning service not available" });
+            }
+            try {
+                const result = await this.provisioningService.upgradeExistingEVault(diditSessionId, w3id);
+                if (!result.success) {
+                    return res.status(400).json(result);
                 }
+                return res.json(result);
+            } catch (err: any) {
+                console.error("[UPGRADE]", err?.message);
+                return res.status(500).json({ error: "Upgrade failed" });
+            }
+        });
 
-                eventEmitter.emit(id, {
-                    reason,
-                    status,
-                    w3id,
-                    person: body.data.verification.person ?? null,
-                    document: body.data.verification.document,
+        // Proxy: fetch full decision from Didit API by sessionId
+        app.get("/verification/decision/:sessionId", async (req: Request, res: Response) => {
+            if (!requireSharedSecret(req, res)) return;
+            const { sessionId } = req.params;
+            if (!uuidValidate(sessionId)) {
+                return res.status(400).json({
+                    error: "sessionId must be a valid UUID",
                 });
-
-                return res.json({ success: true });
-            },
-        );
+            }
+            const apiKey = process.env.DIDIT_API_KEY;
+            if (!apiKey) {
+                return res.status(500).json({ error: "DIDIT_API_KEY not configured" });
+            }
+            try {
+                const { data } = await diditClient.get(
+                    `/v3/session/${encodeURIComponent(sessionId)}/decision/`,
+                    { headers: { "x-api-key": apiKey } },
+                );
+                return res.json(data);
+            } catch (err: any) {
+                console.error("[DIDIT DECISION]", err?.response?.data ?? err?.message);
+                return res.status(err?.response?.status ?? 500).json(
+                    err?.response?.data ?? { error: "Failed to fetch decision" },
+                );
+            }
+        });
     }
 }

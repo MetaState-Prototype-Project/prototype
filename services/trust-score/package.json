@@ -1,0 +1,23 @@
+{
+    "name": "trust-score",
+    "version": "1.0.0",
+    "description": "Algorithmic Trust Service - deterministic numeric score from 0 to 10",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "nodemon src/index.js",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.21.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.2",
+        "vitest": "^2.1.0"
+    }
+}

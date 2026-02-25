@@ -8,6 +8,7 @@ import {
     Key01Icon,
     LanguageSquareIcon,
     Link02Icon,
+    LockPasswordIcon,
     PinCodeIcon,
     Shield01Icon,
 } from "@hugeicons/core-free-icons";
@@ -123,6 +124,11 @@ $effect(() => {
             icon={PinCodeIcon}
             label="Pin"
             href="/settings/pin"
+        />
+        <SettingsNavigationBtn
+            icon={LockPasswordIcon}
+            label="Recovery Passphrase"
+            href="/settings/passphrase"
         />
         <SettingsNavigationBtn
             icon={Shield01Icon}

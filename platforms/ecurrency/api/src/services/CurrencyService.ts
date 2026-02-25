@@ -21,10 +21,20 @@ export class CurrencyService {
         name: string,
         groupId: string,
         createdBy: string,
-        allowNegative: boolean = false,
-        maxNegativeBalance: number | null = null,
-        description?: string
+        options?: {
+            allowNegative?: boolean;
+            maxNegativeBalance?: number | null;
+            description?: string;
+            allowNegativeGroupOnly?: boolean;
+        }
     ): Promise<Currency> {
+        const {
+            allowNegative = false,
+            maxNegativeBalance = null,
+            description,
+            allowNegativeGroupOnly = false,
+        } = options ?? {};
+
         // Verify user is group admin
         const isAdmin = await this.groupService.isGroupAdmin(groupId, createdBy);
         if (!isAdmin) {
@@ -46,6 +56,10 @@ export class CurrencyService {
             }
         }
 
+        if (allowNegativeGroupOnly && !allowNegative) {
+            throw new Error("Cannot restrict overdraft to group members when negative balances are disabled");
+        }
+
         const currency = this.currencyRepository.create({
             name,
             description,
@@ -54,6 +68,7 @@ export class CurrencyService {
             createdBy,
             allowNegative,
             maxNegativeBalance,
+            allowNegativeGroupOnly,
         });
 
         const savedCurrency = await this.currencyRepository.save(currency);

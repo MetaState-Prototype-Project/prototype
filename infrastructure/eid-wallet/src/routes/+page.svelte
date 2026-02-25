@@ -28,14 +28,37 @@ onMount(async () => {
         console.error("Failed to determine onboarding status:", error);
     }
 
-    if (!onboardingComplete || !(await globalState.userController.user)) {
+    const user = await globalState.userController.user;
+    const pinHash = await globalState.securityController.pinHash;
+    const vault = await globalState.vaultController.vault;
+    console.log(
+        "[ROOT] routing check — onboardingComplete:",
+        onboardingComplete,
+        "| user:",
+        !!user,
+        "| pinHash:",
+        !!pinHash,
+        "| vault:",
+        !!vault,
+    );
+
+    if (!onboardingComplete || !user) {
+        console.log(
+            "[ROOT] → /onboarding (onboardingComplete:",
+            onboardingComplete,
+            ", user:",
+            !!user,
+            ")",
+        );
         await goto("/onboarding");
         return;
     }
-    if (!(await globalState.securityController.pinHash)) {
+    if (!pinHash) {
+        console.log("[ROOT] → /register (no pinHash)");
         await goto("/register");
         return;
     }
+    console.log("[ROOT] → /login");
     await goto("/login");
 });
 </script>

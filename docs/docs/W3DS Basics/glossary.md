@@ -204,7 +204,7 @@ A standardized data model format for [credentials](#credential) that can be cryp
 
 A globally or locally unique, persistent identifier for people, [eVaults](#evault), [Groups](#group), [Post-Platforms](#post-platform-and-or-service), docs, or triples. It enables verifiable, persistent, and decentralized digital identity.
 
-The Web 3.0 Identifier format is `@:<UUID>`, e.g. `@50e8400-e29b-41d4-a716-446655440000`.
+The Web 3.0 Identifier format is `@<UUID>` for global identifiers (eNames), e.g. `@50e8400-e29b-41d4-a716-446655440000`. Local identifiers are plain UUIDs.
 
 See [W3ID](/docs/W3DS%20Basics/W3ID) for format, resolution, and usage.
 

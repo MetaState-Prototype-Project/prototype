@@ -11,6 +11,7 @@ import AuthDrawer from "./components/AuthDrawer.svelte";
 import LoggedInDrawer from "./components/LoggedInDrawer.svelte";
 import RevealDrawer from "./components/RevealDrawer.svelte";
 import SigningDrawer from "./components/SigningDrawer.svelte";
+import SocialBindingDrawer from "./components/SocialBindingDrawer.svelte";
 import { createScanLogic } from "./scanLogic";
 
 const globalState = getContext<() => GlobalState>("globalState")();
@@ -42,6 +43,12 @@ const {
     signingError,
     authLoading,
     cameraPermissionDenied,
+    socialBindingDrawerOpen,
+    socialBindingRequesterEname,
+    socialBindingRequesterName,
+    socialBindingLoading,
+    socialBindingError,
+    socialBindingSuccess,
 } = stores;
 
 const {
@@ -60,6 +67,8 @@ const {
     initialize,
     retryPermission,
     handleOpenSettings,
+    handleSocialBinding,
+    closeSocialBindingDrawer,
 } = actions;
 
 const pathProps: SVGAttributes<SVGPathElement> = {
@@ -149,6 +158,19 @@ function handleRevealDrawerOpenChange(value: boolean) {
 function handlePermissionGoBack() {
     goto("/main");
 }
+
+async function handleSocialBindingConfirm() {
+    await handleSocialBinding();
+}
+
+function handleSocialBindingDecline() {
+    closeSocialBindingDrawer();
+    goto("/main");
+}
+
+function handleSocialBindingOpenChange(value: boolean) {
+    if (!value) closeSocialBindingDrawer();
+}
 </script>
 
 <AppNav title="Scan QR Code" titleClasses="text-white" iconColor="white" />
@@ -235,6 +257,18 @@ function handlePermissionGoBack() {
     onCancel={handleRevealDrawerCancel}
     onReveal={handleRevealVote}
     onOpenChange={handleRevealDrawerOpenChange}
+/>
+
+<SocialBindingDrawer
+    isOpen={$socialBindingDrawerOpen}
+    requesterEname={$socialBindingRequesterEname}
+    requesterName={$socialBindingRequesterName}
+    loading={$socialBindingLoading}
+    error={$socialBindingError}
+    success={$socialBindingSuccess}
+    onConfirm={handleSocialBindingConfirm}
+    onDecline={handleSocialBindingDecline}
+    onOpenChange={handleSocialBindingOpenChange}
 />
 
 <style>
