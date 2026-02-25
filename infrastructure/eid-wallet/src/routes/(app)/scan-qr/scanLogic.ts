@@ -312,7 +312,7 @@ export function createScanLogic({
                 {
                     sessionId: sessionPayload,
                     keyId: "default",
-                    context: "onboarding",
+                    context: "signing",
                 },
             );
 
@@ -811,7 +811,7 @@ export function createScanLogic({
                 {
                     sessionId: currentSigningSessionId,
                     keyId: "default",
-                    context: "onboarding",
+                    context: "signing",
                 },
             );
 
@@ -943,10 +943,7 @@ export function createScanLogic({
             }
 
             // Same default key via wallet-sdk adapter (no separate signing context)
-            await globalState.walletSdkAdapter.ensureKey(
-                "default",
-                "onboarding",
-            );
+            await globalState.walletSdkAdapter.ensureKey("default", "signing");
 
             const voterPublicKey = vault.ename;
             if (!voterPublicKey) {

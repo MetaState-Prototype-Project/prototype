@@ -7,7 +7,7 @@ import {
 } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer, Toast } from "$lib/ui";
+import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import {
@@ -614,9 +614,9 @@ onDestroy(() => {
         </Button.Nav>
     </main>
 
-    <Drawer
+    <BottomSheet
         title="Scan QR Code"
-        bind:isPaneOpen={shareQRdrawerOpen}
+        bind:isOpen={shareQRdrawerOpen}
         class="flex flex-col gap-4 items-center justify-center"
     >
         <div
@@ -634,7 +634,7 @@ onDestroy(() => {
                 Share
             </Button.Action>
         </div>
-    </Drawer>
+    </BottomSheet>
 
     <Button.Nav
         href="/scan-qr"

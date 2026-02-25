@@ -50,6 +50,33 @@ export class GlobalState {
             this.#walletSdkAdapter,
         );
         this.notificationService = NotificationService.getInstance();
+
+        this.keyService.setHardwareFallbackHandler(
+            async ({ keyId, context, originalError }) => {
+                console.warn(
+                    "[GlobalState] Hardware signing fallback triggered; syncing software public key",
+                    {
+                        keyId,
+                        context,
+                        error:
+                            originalError instanceof Error
+                                ? originalError.message
+                                : String(originalError),
+                    },
+                );
+
+                try {
+                    const vault = await this.vaultController.vault;
+                    if (!vault?.ename) return;
+                    await this.vaultController.syncPublicKey(vault.ename);
+                } catch (syncError) {
+                    console.error(
+                        "[GlobalState] Failed to sync fallback public key:",
+                        syncError,
+                    );
+                }
+            },
+        );
     }
 
     /**

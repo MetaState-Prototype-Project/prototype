@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { UserGroup02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -29,13 +30,15 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
 </script>
 
 {#if internalOpen}
-    <div
-        class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
         role="dialog"
         aria-modal="true"
         aria-labelledby="social-binding-title"
+        class="gap-5"
     >
-        <div class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto">
+        <div class="flex flex-col justify-between w-full">
             <div class="flex flex-col items-start pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {success
@@ -70,7 +73,7 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                     {success ? "Binding Signed!" : "Social Identity Binding"}
                 </h4>
 
-                <p class="text-gray-700 mt-1">
+                <p class="text-black-700 text-sm mt-1">
                     {#if success}
                         You've signed the social identity binding for <strong>{displayName}</strong>.
                         They will counter-sign to complete the mutual binding.
@@ -88,12 +91,12 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                                 <tr>
                                     <td class="py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Name
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium mt-1 block"
+                                            class="text-sm text-black-700 font-medium mt-1 block"
                                         >
                                             {displayName}
                                         </div>
@@ -103,12 +106,12 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                                     <tr>
                                         <td class="py-3 px-4">
                                             <div
-                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
                                                 eID
                                             </div>
                                             <div
-                                                class="text-sm text-gray-700 font-medium break-all mt-1 block"
+                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
                                             >
                                                 {requesterEname}
                                             </div>
@@ -163,5 +166,5 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                 {/if}
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}

@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { ButtonAction, Drawer, InputPin } from "$lib/ui";
+import { BottomSheet, ButtonAction, InputPin } from "$lib/ui";
 import { CircleLock01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext, onMount } from "svelte";
@@ -82,7 +82,7 @@ onMount(() => {
     >
 </main>
 
-<Drawer bind:isPaneOpen={showDrawer}>
+<BottomSheet bind:isOpen={showDrawer}>
     <div
         class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-[2.3svh]"
     >
@@ -104,4 +104,4 @@ onMount(() => {
         Your PIN has been changed.
     </p>
     <ButtonAction class="w-full" callback={handleClose}>Close</ButtonAction>
-</Drawer>
+</BottomSheet>

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ButtonAction, Drawer } from "$lib/ui";
+import { BottomSheet, ButtonAction } from "$lib/ui";
 
 interface CameraPermissionDialogProps {
     isOpen: boolean;
@@ -21,21 +21,16 @@ let {
     dismissible = false,
 }: CameraPermissionDialogProps = $props();
 
-function handleSwipe(value: boolean | undefined) {
-    // Only allow swipe to close when dismissible is true and onOpenChange is provided
-    if (!dismissible || !onOpenChange) {
-        return;
-    }
-    if (value) {
-        isOpen = false;
-        onOpenChange(false);
-    }
+function handleOpenChange(value: boolean) {
+    if (!dismissible && !value) return;
+    isOpen = value;
+    onOpenChange?.(value);
 }
 </script>
 
-<Drawer
-    isPaneOpen={isOpen}
-    handleSwipe={dismissible && onOpenChange ? handleSwipe : undefined}
+<BottomSheet
+    {isOpen}
+    onOpenChange={handleOpenChange}
     dismissible={dismissible}
 >
     <div class="flex flex-col items-center text-center pb-4">
@@ -96,4 +91,4 @@ function handleSwipe(value: boolean | undefined) {
             {/if}
         </div>
     </div>
-</Drawer>
+</BottomSheet>

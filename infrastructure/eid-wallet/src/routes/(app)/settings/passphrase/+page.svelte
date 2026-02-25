@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { ButtonAction, Drawer } from "$lib/ui";
+import { BottomSheet, ButtonAction } from "$lib/ui";
 import { ShieldKeyIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
 import { getContext, onMount } from "svelte";
@@ -161,7 +161,7 @@ const mismatch = $derived(
     </ButtonAction>
 </main>
 
-<Drawer bind:isPaneOpen={showSuccessDrawer}>
+<BottomSheet bind:isOpen={showSuccessDrawer}>
     <div class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-[2.3svh]">
         <span class="relative z-1">
             <HugeiconsIcon icon={ShieldKeyIcon} color="var(--color-primary)" />
@@ -174,4 +174,4 @@ const mismatch = $derived(
         Your recovery passphrase has been securely stored. You will need it when recovering your eVault.
     </p>
     <ButtonAction class="w-full" callback={handleClose}>Done</ButtonAction>
-</Drawer>
+</BottomSheet>
