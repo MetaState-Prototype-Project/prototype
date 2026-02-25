@@ -15,7 +15,9 @@
         "check-lint": "npx @biomejs/biome lint ./src",
         "tauri": "tauri",
         "storybook": "svelte-kit sync && storybook dev -p 6006",
-        "build-storybook": "storybook build"
+        "build-storybook": "storybook build",
+        "build:apk": "npm run tauri android build -- --apk --target aarch64 --target armv7",
+        "build:aab": "npm run tauri android build -- --aab --target aarch64 --target armv7"
     },
     "license": "MIT",
     "dependencies": {

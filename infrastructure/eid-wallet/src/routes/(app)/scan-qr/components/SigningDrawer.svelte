@@ -111,7 +111,7 @@ $: hasPollDetails =
                         <tbody class="divide-y divide-gray-200">
                             {#if signingData?.pollId}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
@@ -128,7 +128,7 @@ $: hasPollDetails =
 
                             {#if isBlindVotingRequest && hasPollDetails}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
@@ -145,7 +145,7 @@ $: hasPollDetails =
 
                             {#if signingData?.message && !signingData?.pollId}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
@@ -159,7 +159,7 @@ $: hasPollDetails =
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >

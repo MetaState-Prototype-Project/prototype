@@ -89,7 +89,7 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                         <table class="w-full border-collapse">
                             <tbody class="divide-y divide-gray-200">
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
                                             class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
@@ -104,7 +104,7 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                                 </tr>
                                 {#if requesterEname}
                                     <tr>
-                                        <td class="py-3 px-4">
+                                        <td class="align-top py-3 px-4">
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >

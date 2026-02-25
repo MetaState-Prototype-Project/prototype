@@ -105,7 +105,7 @@ $: if (internalOpen !== lastReportedOpen) {
                             <table class="w-full border-collapse">
                                 <tbody class="divide-y divide-gray-200">
                                     <tr>
-                                        <td class="py-4 px-4">
+                                        <td class="align-top py-4 px-4">
                                             <div
                                                 class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
