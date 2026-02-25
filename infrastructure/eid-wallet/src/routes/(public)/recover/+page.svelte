@@ -171,7 +171,29 @@ async function checkPassphraseRequired() {
         }
     } catch (err: unknown) {
         console.error("[RECOVERY] passphrase status check error:", err);
-        // If we cannot verify passphrase policy, fall back to manual recovery.
+        // If passphrase policy is missing, allow recovery without passphrase.
+        if (axios.isAxiosError(err)) {
+            const status = err.response?.status;
+            const bodyError =
+                typeof err.response?.data?.error === "string"
+                    ? err.response.data.error.toLowerCase()
+                    : "";
+            const bodyMessage =
+                typeof err.response?.data?.message === "string"
+                    ? err.response.data.message.toLowerCase()
+                    : "";
+            const combined = `${bodyError} ${bodyMessage}`;
+            const missingPolicy =
+                status === 404 ||
+                combined.includes("passphrase policy") ||
+                combined.includes("policy not found");
+
+            if (missingPolicy) {
+                await recoverVault();
+                return;
+            }
+        }
+        // Other failures still go to manual recovery.
         step = "notary-required";
     } finally {
         checkingPassphrase = false;
