@@ -89,9 +89,13 @@ let showNotaryDrawer = $state(false);
 let diditLocalId = $state<string | null>(null);
 let diditSessionId = $state<string | null>(null);
 let diditActualSessionId = $state<string | null>(null); // real Didit sessionId from onComplete
-let diditResult = $state<"approved" | "declined" | "in_review" | null>(null);
+let diditResult = $state<
+    "approved" | "declined" | "in_review" | "duplicate" | null
+>(null);
 let diditDecision = $state<DiditDecision | null>(null);
 let diditRejectionReason = $state<string | null>(null);
+let duplicateExistingW3id = $state<string | null>(null);
+let duplicateDocumentNumber = $state<string | null>(null);
 
 // Upgrade mode — set when ?upgrade=1 is present (existing eVault KYC upgrade)
 let upgradeMode = $state(false);
@@ -139,6 +143,8 @@ const handleIdentityPath = async () => {
 const handleKycNext = async () => {
     loading = true;
     error = null;
+    duplicateExistingW3id = null;
+    duplicateDocumentNumber = null;
     try {
         await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
 
@@ -222,6 +228,8 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
         console.log("[Didit] decision:", decision);
 
         diditDecision = decision;
+        duplicateExistingW3id = null;
+        duplicateDocumentNumber = null;
         const rawStatus: string = decision.status ?? "";
         diditResult = rawStatus.toLowerCase().replace(" ", "_") as
             | "approved"
@@ -244,6 +252,34 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
         setTimeout(() => {
             error = null;
         }, 6000);
+    }
+};
+
+const lookupDuplicateByDocument = async () => {
+    const sessionId =
+        diditActualSessionId ??
+        diditDecision?.session_id ??
+        diditDecision?.session?.sessionId;
+    if (!sessionId) return;
+
+    try {
+        const { data } = await axios.get(
+            new URL(
+                `/verification/v2/lookup-by-document/${sessionId}`,
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
+            {
+                headers: {
+                    "x-shared-secret": PUBLIC_PROVISIONER_SHARED_SECRET,
+                },
+            },
+        );
+        if (data?.success) {
+            duplicateExistingW3id = data.existingW3id ?? null;
+            duplicateDocumentNumber = data.documentNumber ?? null;
+        }
+    } catch (lookupErr) {
+        console.warn("[Onboarding] duplicate lookup failed:", lookupErr);
     }
 };
 
@@ -289,6 +325,8 @@ const handleProvision = async () => {
         });
 
         if (result.duplicate) {
+            await lookupDuplicateByDocument();
+            diditResult = "duplicate";
             error =
                 "An eVault already exists for this identity. You cannot create a duplicate — please reclaim your existing eVault instead.";
             step = "verif-result";
@@ -1336,6 +1374,44 @@ onMount(() => {
                     }}
                 >
                     {upgradeMode ? "Back to ePassport" : "Back to Start"}
+                </ButtonAction>
+            </div>
+        {:else if diditResult === "duplicate"}
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold"
+                >
+                    !
+                </div>
+                <h3 class="text-lg font-bold">Identity Already Registered</h3>
+            </div>
+            <p class="text-black-700 text-sm">
+                This identity document is already linked to an existing eVault.
+                Please recover that eVault instead of creating a duplicate.
+            </p>
+            {#if duplicateDocumentNumber}
+                <p class="text-xs text-black-500">
+                    Document: <span class="font-mono">{duplicateDocumentNumber}</span>
+                </p>
+            {/if}
+            {#if duplicateExistingW3id}
+                <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
+                    <p class="text-xs text-black-500 mb-1">Existing eVault eName</p>
+                    <p class="font-mono text-sm break-all">{duplicateExistingW3id}</p>
+                </div>
+            {/if}
+            <div class="flex flex-col gap-3 pt-2">
+                <ButtonAction class="w-full" callback={() => goto("/recover")}>
+                    Recover existing eVault
+                </ButtonAction>
+                <ButtonAction
+                    variant="soft"
+                    class="w-full"
+                    callback={() => {
+                        step = "home";
+                    }}
+                >
+                    Back to Start
                 </ButtonAction>
             </div>
         {:else}

@@ -199,9 +199,12 @@ export class LegacyVerificationController {
             const terminalStatuses = ["approved", "declined", "expired", "abandoned"];
             if (terminalStatuses.includes(decision)) {
                 const approved = decision === "approved";
-                const docNumber = document?.number?.value;
+                const docNumber =
+                    typeof document?.number?.value === "string"
+                        ? document.number.value.trim().toUpperCase()
+                        : "";
 
-                if (process.env.DUPLICATES_POLICY !== "allow" && typeof docNumber === "string" && docNumber) {
+                if (process.env.DUPLICATES_POLICY !== "allow" && docNumber) {
                     const [matches] = await this.verificationService.findManyAndCount({
                         documentId: docNumber,
                     });
@@ -221,8 +224,7 @@ export class LegacyVerificationController {
                         person,
                         document,
                     },
-                    documentId:
-                        typeof docNumber === "string" ? docNumber : undefined,
+                    documentId: docNumber || undefined,
                 });
             }
 

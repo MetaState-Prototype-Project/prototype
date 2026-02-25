@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "svelte/elements";
 interface BottomSheetProps extends HTMLAttributes<HTMLDivElement> {
     isOpen?: boolean;
     dismissible?: boolean;
+    fullScreen?: boolean;
     children?: Snippet;
     onOpenChange?: (value: boolean) => void;
 }
@@ -13,6 +14,7 @@ interface BottomSheetProps extends HTMLAttributes<HTMLDivElement> {
 let {
     isOpen = $bindable(false),
     dismissible = true,
+    fullScreen = false,
     children = undefined,
     onOpenChange,
     ...restProps
@@ -45,10 +47,14 @@ $effect(() => {
         role="dialog"
         aria-modal="true"
         class={cn(
-            "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
+            fullScreen
+                ? "fixed inset-0 z-50 bg-white shadow-xl flex flex-col gap-4 overflow-hidden"
+                : "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-xl flex flex-col gap-4 max-h-[88svh] overflow-y-auto",
             restProps.class,
         )}
-        style={`padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom)); ${restProps.style ?? ""}`}
+        style={`${fullScreen
+            ? "padding: max(1rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
+            : "padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"} ${restProps.style ?? ""}`}
     >
         {@render children?.()}
     </div>

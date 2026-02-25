@@ -27,13 +27,14 @@ $: if (internalOpen !== lastReportedOpen) {
     <BottomSheet
         isOpen={internalOpen}
         dismissible={false}
+        fullScreen={true}
         role="dialog"
         aria-modal="true"
         aria-labelledby="loggedin-title"
         class="loggedin-drawer gap-5"
     >
-        <div class="flex min-h-[70svh] w-full flex-col">
-            <div class="flex flex-1 flex-col items-start overflow-y-auto pt-2">
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
                 >
@@ -52,10 +53,10 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 id="loggedin-title" class="text-xl font-bold">
+                <h4 id="loggedin-title" class="text-lg font-bold">
                     You're logged in!
                 </h4>
-                <p class="text-black-700 text-sm">
+                <p class="text-sm leading-relaxed text-black-700">
                     You're now connected to {platform ?? "the platform"}
                 </p>
                 <div class="flex flex-col items-start py-6 w-full">
@@ -70,7 +71,7 @@ $: if (internalOpen !== lastReportedOpen) {
                 </div>
             </div>
 
-            <div class="mt-auto flex w-full flex-col gap-3 pb-2 pt-6">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 <Button.Action
                     variant="soft"
                     class="w-full"

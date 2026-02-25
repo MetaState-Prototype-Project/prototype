@@ -98,4 +98,45 @@ describe("Session ID validation in controllers", () => {
             });
         }
     });
+
+    it("rejects invalid sessionId in /verification/v2/lookup-by-document/:sessionId", async () => {
+        const app = express();
+        app.use(express.json());
+
+        const verificationServiceStub = {
+            findById: async () => null,
+            findOne: async () => null,
+            create: async () => ({}),
+            findByIdAndUpdate: async () => null,
+            findManyAndCount: async () => [[], 0],
+        } as any;
+
+        new VerificationController(verificationServiceStub).registerRoutes(app);
+
+        const server = app.listen(0);
+        const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+        try {
+            const response = await fetch(
+                `${baseUrl}/verification/v2/lookup-by-document/not-a-uuid`,
+                {
+                    method: "GET",
+                    headers: {
+                        "x-shared-secret": "test-shared-secret",
+                    },
+                },
+            );
+            const body = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(body.error).toContain("valid UUID");
+        } finally {
+            await new Promise<void>((resolve, reject) => {
+                server.close((error) => {
+                    if (error) reject(error);
+                    else resolve();
+                });
+            });
+        }
+    });
 });

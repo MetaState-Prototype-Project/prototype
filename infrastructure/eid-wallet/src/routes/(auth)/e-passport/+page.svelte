@@ -16,10 +16,14 @@ const handleFinish = async () => {
     const recovery = get(pendingRecovery);
     if (recovery) {
         localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        // Recovery can happen on a fresh device, so make sure a key exists
+        // and is synced immediately before entering the app.
+        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
         globalState.vaultController.vault = {
             uri: recovery.uri,
             ename: recovery.ename,
         };
+        await globalState.vaultController.syncPublicKey(recovery.ename);
         pendingRecovery.set(null);
     }
     await goto("/main");

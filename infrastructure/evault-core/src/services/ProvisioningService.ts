@@ -27,6 +27,10 @@ export interface ProvisionResponse {
 export class ProvisioningService {
     constructor(private verificationService: VerificationService) {}
 
+    private normalizeDocumentNumber(value: unknown): string {
+        return typeof value === "string" ? value.trim().toUpperCase() : "";
+    }
+
     private async checkForDuplicateIdentity(
         idVerif: any,
         documentNumber?: string,
@@ -50,8 +54,10 @@ export class ProvisioningService {
         }
 
         if (documentNumber) {
+            const normalizedDocumentNumber =
+                this.normalizeDocumentNumber(documentNumber);
             const [docMatches] = await this.verificationService.findManyAndCount(
-                { documentId: documentNumber },
+                { documentId: normalizedDocumentNumber },
             );
             const existing = docMatches.find(
                 (v) =>
@@ -297,7 +303,9 @@ export class ProvisioningService {
         const firstName = idVerif?.first_name ?? "";
         const lastName = idVerif?.last_name ?? "";
         const fullName = (idVerif?.full_name ?? `${firstName} ${lastName}`).trim();
-        const documentNumber: string = idVerif?.document_number ?? "";
+        const documentNumber = this.normalizeDocumentNumber(
+            idVerif?.document_number,
+        );
 
         const duplicateCheck = await this.checkForDuplicateIdentity(
             idVerif,
@@ -503,7 +511,9 @@ export class ProvisioningService {
                 }
 
                 const idVerif = decision.id_verifications?.[0];
-                const documentNumber: string = idVerif?.document_number ?? "";
+                const documentNumber = this.normalizeDocumentNumber(
+                    idVerif?.document_number,
+                );
                 const duplicateCheck = await this.checkForDuplicateIdentity(
                     idVerif,
                     documentNumber,
