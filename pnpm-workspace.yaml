@@ -5,6 +5,7 @@ packages:
     - platforms/*/*
     - infrastructure/*
     - services/*
+    - notification-trigger
     - tests/
     - docs/
 onlyBuiltDependencies:
