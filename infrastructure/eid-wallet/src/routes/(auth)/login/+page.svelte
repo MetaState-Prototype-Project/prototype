@@ -2,8 +2,7 @@
 import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { BottomSheet, InputPin } from "$lib/ui";
-import * as Button from "$lib/ui/Button";
+import { InputPin } from "$lib/ui";
 import {
     type AuthOptions,
     authenticate,
@@ -18,7 +17,6 @@ let clearPin = $state(async () => {});
 let handlePinInput = $state((pin: string) => {});
 let globalState: GlobalState | undefined = $state(undefined);
 let hasPendingDeepLink = $state(false);
-let isDeletedVaultModalOpen = $state(false);
 
 const authOpts: AuthOptions = {
     allowDeviceCredential: false,
@@ -37,15 +35,6 @@ const authOpts: AuthOptions = {
 const getGlobalState = getContext<() => GlobalState>("globalState");
 const setGlobalState =
     getContext<(value: GlobalState) => void>("setGlobalState");
-
-async function nukeWallet() {
-    if (!globalState) return;
-    const newGlobalState = await globalState.reset();
-    setGlobalState(newGlobalState);
-    globalState = newGlobalState;
-    isDeletedVaultModalOpen = false;
-    await goto("/onboarding");
-}
 
 onMount(async () => {
     globalState = getContext<() => GlobalState>("globalState")();
@@ -96,11 +85,6 @@ onMount(async () => {
                             healthCheck.error,
                         );
 
-                        // If eVault was deleted (404), show modal
-                        if (healthCheck.deleted) {
-                            isDeletedVaultModalOpen = true;
-                            return; // Don't continue to app
-                        }
                         // For other errors, continue to app - non-blocking
                     }
 
@@ -181,11 +165,6 @@ onMount(async () => {
                             healthCheck.error,
                         );
 
-                        // If eVault was deleted (404), show modal
-                        if (healthCheck.deleted) {
-                            isDeletedVaultModalOpen = true;
-                            return; // Don't continue to app
-                        }
                         // For other errors, continue to app - non-blocking
                     }
 
@@ -307,37 +286,3 @@ onMount(async () => {
     {/if}
 </main>
 
-<!-- Deleted eVault Modal - Non-dismissible -->
-<BottomSheet bind:isOpen={isDeletedVaultModalOpen} dismissible={false}>
-    <div class="text-center">
-        <h3 class="text-lg font-bold text-danger-500 mb-1">
-            eVault Has Been Deleted
-        </h3>
-        <p class="text-black-700 text-sm mb-4">
-            Your eVault has been deleted from the registry and is no longer
-            accessible.
-        </p>
-        <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <p class="text-red-800 text-sm font-medium">
-                To continue using the app, you need to delete your local account
-                data and start fresh.
-            </p>
-        </div>
-        <ul class="text-left text-black-700 text-sm mb-6 space-y-2">
-            <li>• All your local data will be deleted</li>
-            <li>• Your ePassport will be removed</li>
-            <li>• You will need to onboard again</li>
-            <li>• This action cannot be undone</li>
-        </ul>
-        <p class="text-black-900 mb-4 font-semibold">
-            You must delete your local data to continue.
-        </p>
-        <div class="flex gap-3">
-            <Button.Action
-                class="flex-1"
-                variant="danger"
-                callback={nukeWallet}>Delete Local Data</Button.Action
-            >
-        </div>
-    </div>
-</BottomSheet>
