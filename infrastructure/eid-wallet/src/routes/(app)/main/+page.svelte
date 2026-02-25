@@ -214,7 +214,7 @@ async function startKycUpgrade() {
         await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
 
         const { data } = await axios.post(
-            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
             {},
             {
                 headers: {
@@ -276,7 +276,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     try {
         const { data: decision } = await axios.get<DiditDecision>(
             new URL(
-                `/verification/decision/${result.session.sessionId}`,
+                `/verification/v2/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
             {
@@ -333,7 +333,7 @@ async function handleUpgrade() {
     kycStep = "upgrading";
     try {
         const { data } = await axios.post(
-            new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification/v2/upgrade", PUBLIC_PROVISIONER_URL).toString(),
             { diditSessionId: sessionId, w3id },
             {
                 headers: {
