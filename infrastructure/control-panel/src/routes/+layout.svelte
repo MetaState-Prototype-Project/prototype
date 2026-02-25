@@ -12,7 +12,8 @@
 	const navLinks = [
 		{ label: 'Dashboard', href: '/' },
 		{ label: 'Monitoring', href: '/monitoring' },
-		{ label: 'Actions', href: '/actions' }
+		{ label: 'Actions', href: '/actions' },
+		{ label: 'Notifications', href: '/notifications' }
 	];
 
 	const isActive = (href: string) => (href === '/' ? pageUrl === '/' : pageUrl.startsWith(href));

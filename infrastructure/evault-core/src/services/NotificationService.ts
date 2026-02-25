@@ -124,6 +124,11 @@ export class NotificationService {
         });
     }
 
+    async getDevicesWithPushTokens(): Promise<Verification[]> {
+        const all = await this.getAllDevices();
+        return all.filter((v) => v.fcmToken && v.fcmToken.trim().length > 0);
+    }
+
     async getDeviceStats(): Promise<{ totalDevices: number; devicesByPlatform: Record<string, number> }> {
         const verifications = await this.getAllDevices();
         const devicesByPlatform: Record<string, number> = {};

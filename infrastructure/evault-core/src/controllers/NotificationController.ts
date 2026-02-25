@@ -1,33 +1,66 @@
 import { Request, Response } from "express";
 import { NotificationService } from "../services/NotificationService";
+import { DeviceTokenService } from "../services/DeviceTokenService";
 import { AppDataSource } from "../config/database";
-import { Notification } from "../entities/Notification";
+import { DeviceToken } from "../entities/DeviceToken";
 
 export class NotificationController {
     private notificationService: NotificationService;
+    private deviceTokenService: DeviceTokenService;
 
     constructor() {
         this.notificationService = new NotificationService(
             AppDataSource.getRepository("Verification"),
             AppDataSource.getRepository("Notification")
         );
+        this.deviceTokenService = new DeviceTokenService(
+            AppDataSource.getRepository(DeviceToken)
+        );
     }
 
     registerRoutes(app: any) {
-        // Register device endpoint
         app.post("/api/devices/register", this.registerDevice.bind(this));
-        
-        // Unregister device endpoint
         app.post("/api/devices/unregister", this.unregisterDevice.bind(this));
-        
-        // Send notification endpoint
         app.post("/api/notifications/send", this.sendNotification.bind(this));
-        
-        // Check for notifications endpoint
         app.post("/api/notifications/check", this.checkNotifications.bind(this));
-        
-        // Get device stats endpoint
         app.get("/api/devices/stats", this.getDeviceStats.bind(this));
+        app.get("/api/devices/list", this.listDevicesWithTokens.bind(this));
+        app.get("/api/devices/by-ename/:eName", this.getDevicesByEName.bind(this));
+    }
+
+    private async listDevicesWithTokens(req: Request, res: Response) {
+        try {
+            const devices = await this.deviceTokenService.getDevicesWithTokens();
+            res.json({ success: true, devices });
+        } catch (error) {
+            console.error("Error listing devices:", error);
+            res.status(500).json({
+                success: false,
+                error: "Failed to list devices",
+            });
+        }
+    }
+
+    private async getDevicesByEName(req: Request, res: Response) {
+        try {
+            const eName = req.params.eName;
+            if (!eName) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Missing eName",
+                });
+            }
+            const devices = await this.deviceTokenService.getDevicesByEName(
+                decodeURIComponent(eName)
+            );
+            res.json({ success: true, devices });
+        } catch (error) {
+            console.error("Error getting devices by eName:", error);
+            res.status(500).json({
+                success: false,
+                error: "Failed to get devices",
+            });
+        }
     }
 
     private async registerDevice(req: Request, res: Response) {
@@ -41,16 +74,23 @@ export class NotificationController {
                 });
             }
 
-            const registration = {
+            if (fcmToken && typeof fcmToken === "string" && fcmToken.trim()) {
+                await this.deviceTokenService.register({
+                    eName,
+                    deviceId,
+                    platform,
+                    token: fcmToken.trim(),
+                });
+            }
+
+            const verification = await this.notificationService.registerDevice({
                 eName,
                 deviceId,
                 platform,
-                fcmToken,
-                registrationTime: new Date()
-            };
+                fcmToken: fcmToken.trim(),
+                registrationTime: new Date(),
+            });
 
-            const verification = await this.notificationService.registerDevice(registration);
-            
             res.json({
                 success: true,
                 message: "Device registered successfully",
@@ -76,6 +116,7 @@ export class NotificationController {
                 });
             }
 
+            await this.deviceTokenService.unregister(eName, deviceId);
             const success = await this.notificationService.unregisterDevice(eName, deviceId);
             
             res.json({
