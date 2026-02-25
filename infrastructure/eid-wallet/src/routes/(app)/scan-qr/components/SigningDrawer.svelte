@@ -78,7 +78,7 @@ $: hasPollDetails =
 
                 <h4
                     id="signing-title"
-                    class="text-xl font-bold {showSigningSuccess
+                    class="text-lg font-bold {showSigningSuccess
                         ? 'text-green-800'
                         : ''}"
                 >
@@ -97,7 +97,7 @@ $: hasPollDetails =
                     {/if}
                 </h4>
 
-                <p class="text-black-700 text-sm mt-1">
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     {#if showSigningSuccess}
                         Your request was processed successfully.
                     {:else}

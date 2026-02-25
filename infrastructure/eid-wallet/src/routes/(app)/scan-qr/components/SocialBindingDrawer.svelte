@@ -69,12 +69,12 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
 
                 <h4
                     id="social-binding-title"
-                    class="text-xl font-bold {success ? 'text-green-800' : ''}"
+                    class="text-lg font-bold {success ? 'text-green-800' : ''}"
                 >
                     {success ? "Binding Signed!" : "Social Identity Binding"}
                 </h4>
 
-                <p class="text-black-700 text-sm mt-1">
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     {#if success}
                         You've signed the social identity binding for <strong>{displayName}</strong>.
                         They will counter-sign to complete the mutual binding.

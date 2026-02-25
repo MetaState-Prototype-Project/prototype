@@ -53,10 +53,10 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 id="loggedin-title" class="text-xl font-bold">
+                <h4 id="loggedin-title" class="text-lg font-bold">
                     You're logged in!
                 </h4>
-                <p class="text-black-700 text-sm">
+                <p class="text-sm leading-relaxed text-black-700">
                     You're now connected to {platform ?? "the platform"}
                 </p>
                 <div class="flex flex-col items-start py-6 w-full">

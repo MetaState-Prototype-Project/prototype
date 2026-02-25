@@ -64,10 +64,10 @@ $: if (internalOpen !== lastReportedOpen) {
                 </div>
 
                 {#if revealSuccess && revealedVoteData}
-                    <h4 class="text-xl font-bold text-green-800">
+                    <h4 class="text-lg font-bold text-green-800">
                         Vote Decrypted
                     </h4>
-                    <p class="text-black-700 mt-1">
+                    <p class="mt-1 text-sm leading-relaxed text-black-700">
                         Your selection has been successfully retrieved.
                     </p>
 
@@ -94,8 +94,8 @@ $: if (internalOpen !== lastReportedOpen) {
                         </div>
                     </div>
                 {:else}
-                    <h4 class="text-xl font-bold">Reveal Your Blind Vote</h4>
-                    <p class="text-black-700 mt-1">
+                    <h4 class="text-lg font-bold">Reveal Your Blind Vote</h4>
+                    <p class="mt-1 text-sm leading-relaxed text-black-700">
                         Please review the request details below.
                     </p>
 

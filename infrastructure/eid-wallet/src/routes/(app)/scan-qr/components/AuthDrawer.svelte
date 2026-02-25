@@ -55,8 +55,8 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 class="text-xl font-bold">Code scanned!</h4>
-                <p class="text-black-700 text-sm mt-1">
+                <h4 class="text-lg font-bold">Code scanned!</h4>
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     Please review the connection details below.
                 </p>
 
