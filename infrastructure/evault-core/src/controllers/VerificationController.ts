@@ -31,7 +31,7 @@ export class VerificationController {
 
     registerRoutes(app: any) {
         // Get verification session
-        app.get("/verification/:id", async (req: Request, res: Response) => {
+        app.get("/verification/v2/:id", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { id } = req.params;
             const session = await this.verificationService.findById(id);
@@ -42,7 +42,7 @@ export class VerificationController {
         });
 
         // Create new Didit verification session
-        app.post("/verification", async (req: Request, res: Response) => {
+        app.post("/verification/v2", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             console.log("Creating new Didit verification session");
             const { referenceId } = req.body;
@@ -111,7 +111,7 @@ export class VerificationController {
         });
 
         // Upgrade existing eVault: create binding docs + update UserProfile after KYC
-        app.post("/verification/upgrade", async (req: Request, res: Response) => {
+        app.post("/verification/v2/upgrade", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { diditSessionId, w3id } = req.body;
             if (!diditSessionId || !w3id) {
@@ -133,7 +133,7 @@ export class VerificationController {
         });
 
         // Proxy: fetch full decision from Didit API by sessionId
-        app.get("/verification/decision/:sessionId", async (req: Request, res: Response) => {
+        app.get("/verification/v2/decision/:sessionId", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { sessionId } = req.params;
             if (!uuidValidate(sessionId)) {

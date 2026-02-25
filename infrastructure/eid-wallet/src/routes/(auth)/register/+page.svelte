@@ -111,12 +111,12 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full px-[5vw] pb-[8svh] flex flex-col justify-between"
-    style="padding-top: max(5.2svh, env(safe-area-inset-top));"
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
-    <section>
+    <section class="mt-4">
         {#if currentStep === "CREATE"}
-            <Hero title="Create a PIN" class="mb-[14svh]">
+            <Hero title="Create a PIN" class="mb-[6svh]">
                 {#snippet subtitle()}
                     Enter your 4-digit PIN code
                 {/snippet}
@@ -126,7 +126,7 @@ onMount(async () => {
                     PINs didn't match. Try again.
                 </p>{/if}
         {:else if currentStep === "REPEAT"}
-            <Hero title="Re-enter your PIN" class="mb-[14svh]">
+            <Hero title="Re-enter your PIN" class="mb-[6svh]">
                 {#snippet subtitle()}
                     Confirm by entering PIN again
                 {/snippet}
@@ -179,7 +179,7 @@ onMount(async () => {
         {/if}
     </section>
 
-    <footer class="w-full flex flex-col gap-3">
+    <footer class="mt-auto w-full flex flex-col gap-3">
         {#if currentStep === "BIOMETRICS"}
             <ButtonAction
                 class="w-full"
@@ -188,7 +188,11 @@ onMount(async () => {
             >
                 Set up Biometrics
             </ButtonAction>
-            <ButtonAction variant="soft" class="w-full" callback={finishOnboarding}>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={finishOnboarding}
+            >
                 Skip
             </ButtonAction>
             {#if !isBiometricsAvailable}
@@ -197,21 +201,40 @@ onMount(async () => {
                 </p>
             {/if}
         {:else if currentStep === "CREATE"}
-            <ButtonAction class="w-full" variant={btnVariant} callback={handleConfirmFirst}>
+            <ButtonAction
+                class="w-full"
+                variant={btnVariant}
+                callback={handleConfirmFirst}
+            >
                 Confirm
             </ButtonAction>
         {:else if currentStep === "REPEAT"}
-            <ButtonAction class="w-full" variant={btnVariant} callback={handleConfirmRepeat}>
+            <ButtonAction
+                class="w-full"
+                variant={btnVariant}
+                callback={handleConfirmRepeat}
+            >
                 Confirm
             </ButtonAction>
-            <ButtonAction variant="soft" class="w-full" callback={handleBack}>Back</ButtonAction>
+            <ButtonAction variant="soft" class="w-full" callback={handleBack}
+                >Back</ButtonAction
+            >
         {:else if currentStep === "PIN_DONE"}
-            <ButtonAction class="w-full" callback={() => { currentStep = "BIOMETRICS"; }}>
+            <ButtonAction
+                class="w-full"
+                callback={() => {
+                    currentStep = "BIOMETRICS";
+                }}
+            >
                 Next
             </ButtonAction>
-            <ButtonAction variant="soft" class="w-full" callback={handleBack}>Back</ButtonAction>
+            <ButtonAction variant="soft" class="w-full" callback={handleBack}
+                >Back</ButtonAction
+            >
         {:else if currentStep === "ALL_SET"}
-            <ButtonAction class="w-full" callback={finishOnboarding}>Continue</ButtonAction>
+            <ButtonAction class="w-full" callback={finishOnboarding}
+                >Continue</ButtonAction
+            >
         {/if}
     </footer>
 </main>

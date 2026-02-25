@@ -143,7 +143,7 @@ const handleKycNext = async () => {
         await globalState.walletSdkAdapter.ensureKey(KEY_ID, "onboarding");
 
         const { data } = await axios.post(
-            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
             {},
             {
                 headers: {
@@ -210,7 +210,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     try {
         const { data: decision } = await axios.get<DiditDecision>(
             new URL(
-                `/verification/decision/${result.session.sessionId}`,
+                `/verification/v2/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
             {
@@ -479,7 +479,10 @@ const handleUpgrade = async () => {
     step = "loading";
     try {
         const { data } = await axios.post(
-            new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            new URL(
+                "/verification/v2/upgrade",
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
             { diditSessionId: sessionId, w3id },
             {
                 headers: {
@@ -613,7 +616,7 @@ const handleEnamePassphraseRecovery = async () => {
         if (idDoc?.data?.reference) {
             const { data: decision } = await axios.get(
                 new URL(
-                    `/verification/decision/${idDoc.data.reference}`,
+                    `/verification/v2/decision/${idDoc.data.reference}`,
                     PUBLIC_PROVISIONER_URL,
                 ).toString(),
                 {
@@ -701,7 +704,8 @@ onMount(() => {
 </script>
 
 <main
-    class="h-full pt-[4svh] px-[5vw] pb-[4.5svh] flex flex-col justify-between"
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <article class="flex justify-center mb-4">
         <img
@@ -738,7 +742,7 @@ onMount(() => {
                         step = "new-evault";
                     }}
                 >
-                    Make a new eVault
+                    Create Digital Self
                 </ButtonAction>
                 <ButtonAction
                     variant="soft"
@@ -783,18 +787,27 @@ onMount(() => {
                     onclick={() => goto("/recover")}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">Yes, I verified my ID</p>
+                    <p class="font-semibold text-base mb-1">
+                        Yes, I verified my ID
+                    </p>
                     <p class="text-sm text-black-500">
-                        We'll use your verified identity to find and confirm your previous eVault.
+                        We'll use your verified identity to find and confirm
+                        your previous eVault.
                     </p>
                 </button>
                 <button
-                    onclick={() => { step = "ename-recovery"; enameError = null; }}
+                    onclick={() => {
+                        step = "ename-recovery";
+                        enameError = null;
+                    }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">No, I didn't verify my ID</p>
+                    <p class="font-semibold text-base mb-1">
+                        No, I didn't verify my ID
+                    </p>
                     <p class="text-sm text-black-500">
-                        Recover using your eName and recovery passphrase, or get help from a W3DS Notary.
+                        Recover using your eName and recovery passphrase, or get
+                        help from a W3DS Notary.
                     </p>
                 </button>
             </div>
@@ -802,7 +815,9 @@ onMount(() => {
         <ButtonAction
             variant="soft"
             class="w-full mt-4"
-            callback={() => { step = "home"; }}
+            callback={() => {
+                step = "home";
+            }}
         >
             Back
         </ButtonAction>
@@ -917,7 +932,7 @@ onMount(() => {
             </div>
         </section>
 
-        <div class="flex flex-col gap-3 pt-4 pb-12">
+        <div class="mt-auto flex flex-col gap-3 pt-4">
             <ButtonAction
                 variant={anonName.trim().length === 0 ? "soft" : "solid"}
                 disabled={anonName.trim().length === 0}
@@ -949,21 +964,31 @@ onMount(() => {
             </div>
             <div class="flex flex-col gap-3">
                 <button
-                    onclick={() => { step = "ename-passphrase-check"; enameError = null; }}
+                    onclick={() => {
+                        step = "ename-passphrase-check";
+                        enameError = null;
+                    }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">Yes, I remember my eName</p>
+                    <p class="font-semibold text-base mb-1">
+                        Yes, I remember my eName
+                    </p>
                     <p class="text-sm text-black-500">
                         Continue to verify with your recovery passphrase.
                     </p>
                 </button>
                 <button
-                    onclick={() => { showEnameDeadEndDrawer = true; }}
+                    onclick={() => {
+                        showEnameDeadEndDrawer = true;
+                    }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">No, I don't remember my eName</p>
+                    <p class="font-semibold text-base mb-1">
+                        No, I don't remember my eName
+                    </p>
                     <p class="text-sm text-black-500">
-                        Without your eName or ID verification, recovery is not possible.
+                        Without your eName or ID verification, recovery is not
+                        possible.
                     </p>
                 </button>
             </div>
@@ -971,7 +996,9 @@ onMount(() => {
         <ButtonAction
             variant="soft"
             class="w-full mt-4"
-            callback={() => { step = "already-have"; }}
+            callback={() => {
+                step = "already-have";
+            }}
         >
             Back
         </ButtonAction>
@@ -987,22 +1014,32 @@ onMount(() => {
             </div>
             <div class="flex flex-col gap-3">
                 <button
-                    onclick={() => { step = "ename-passphrase"; enameError = null; }}
+                    onclick={() => {
+                        step = "ename-passphrase";
+                        enameError = null;
+                    }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">Yes, I remember my passphrase</p>
+                    <p class="font-semibold text-base mb-1">
+                        Yes, I remember my passphrase
+                    </p>
                     <p class="text-sm text-black-500">
                         Enter your eName and passphrase to restore your eVault.
                     </p>
                 </button>
                 <button
-                    onclick={() => { showNotaryDrawer = true; }}
+                    onclick={() => {
+                        showNotaryDrawer = true;
+                    }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">I don't remember my passphrase</p>
+                    <p class="font-semibold text-base mb-1">
+                        I don't remember my passphrase
+                    </p>
                     <p class="text-sm text-black-500">
-                        You can visit a Registered W3DS Notary who can verify your identity
-                        and help recover your eVault using trusted witnesses or other proofs of ownership.
+                        You can visit a Registered W3DS Notary who can verify
+                        your identity and help recover your eVault using trusted
+                        witnesses or other proofs of ownership.
                     </p>
                 </button>
             </div>
@@ -1010,7 +1047,9 @@ onMount(() => {
         <ButtonAction
             variant="soft"
             class="w-full mt-4"
-            callback={() => { step = "ename-recovery"; }}
+            callback={() => {
+                step = "ename-recovery";
+            }}
         >
             Back
         </ButtonAction>
@@ -1019,20 +1058,28 @@ onMount(() => {
     {:else if step === "ename-passphrase"}
         <section class="grow flex flex-col justify-start gap-4 pt-2">
             <div>
-                <h4 class="text-xl font-bold mb-1">Enter your eName &amp; Passphrase</h4>
+                <h4 class="text-xl font-bold mb-1">
+                    Enter your eName &amp; Passphrase
+                </h4>
                 <p class="text-black-700 text-sm">
-                    Your recovery passphrase was set in the eVault Settings. Both your eName and passphrase must match.
+                    Your recovery passphrase was set in the eVault Settings.
+                    Both your eName and passphrase must match.
                 </p>
             </div>
 
             {#if enameError}
-                <div class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm">
+                <div
+                    class="bg-[#ff3300] rounded-md p-2 w-full text-center text-white text-sm"
+                >
                     {enameError}
                 </div>
             {/if}
 
             <div class="flex flex-col gap-1">
-                <label class="text-black-700 font-medium text-sm" for="enameInput">
+                <label
+                    class="text-black-700 font-medium text-sm"
+                    for="enameInput"
+                >
                     Your eName <span class="text-danger">*</span>
                 </label>
                 <input
@@ -1046,7 +1093,10 @@ onMount(() => {
             </div>
 
             <div class="flex flex-col gap-1">
-                <label class="text-black-700 font-medium text-sm" for="enamePassphraseInput">
+                <label
+                    class="text-black-700 font-medium text-sm"
+                    for="enamePassphraseInput"
+                >
                     Recovery Passphrase <span class="text-danger">*</span>
                 </label>
                 <input
@@ -1060,9 +1110,11 @@ onMount(() => {
             </div>
         </section>
 
-        <div class="flex flex-col gap-3 pt-4 pb-12">
+        <div class="mt-auto flex flex-col gap-3 pt-4">
             <ButtonAction
-                variant={enameInput.trim() && enamePassphraseInput ? "solid" : "soft"}
+                variant={enameInput.trim() && enamePassphraseInput
+                    ? "solid"
+                    : "soft"}
                 disabled={!enameInput.trim() || !enamePassphraseInput}
                 class="w-full"
                 callback={handleEnamePassphraseRecovery}
@@ -1072,7 +1124,10 @@ onMount(() => {
             <ButtonAction
                 variant="soft"
                 class="w-full"
-                callback={() => { step = "ename-passphrase-check"; enameError = null; }}
+                callback={() => {
+                    step = "ename-passphrase-check";
+                    enameError = null;
+                }}
             >
                 Back
             </ButtonAction>
@@ -1251,7 +1306,10 @@ onMount(() => {
                     : "Your identity has been successfully verified. You can now create your eVault."}
             </p>
             <div class="flex flex-col gap-3 pt-2">
-                <ButtonAction class="w-full" callback={upgradeMode ? handleUpgrade : handleProvision}>
+                <ButtonAction
+                    class="w-full"
+                    callback={upgradeMode ? handleUpgrade : handleProvision}
+                >
                     Continue
                 </ButtonAction>
             </div>
@@ -1320,21 +1378,38 @@ onMount(() => {
         style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
     >
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold">✗</div>
+            <div
+                class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-lg font-bold"
+            >
+                ✗
+            </div>
             <h3 class="text-lg font-bold">Recovery Not Possible</h3>
         </div>
         <p class="text-black-700 text-sm leading-relaxed">
-            Without your eName and without ID verification, there is no way to recover your eVault.
-            Your eName is your unique identifier — it cannot be looked up without a verified identity.
+            Without your eName and without ID verification, there is no way to
+            recover your eVault. Your eName is your unique identifier — it
+            cannot be looked up without a verified identity.
         </p>
         <p class="text-black-700 text-sm leading-relaxed">
             You will need to create a new eVault instead.
         </p>
         <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction class="w-full" callback={() => { showEnameDeadEndDrawer = false; step = "new-evault"; }}>
+            <ButtonAction
+                class="w-full"
+                callback={() => {
+                    showEnameDeadEndDrawer = false;
+                    step = "new-evault";
+                }}
+            >
                 Create a new eVault
             </ButtonAction>
-            <ButtonAction variant="soft" class="w-full" callback={() => { showEnameDeadEndDrawer = false; }}>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={() => {
+                    showEnameDeadEndDrawer = false;
+                }}
+            >
                 Back
             </ButtonAction>
         </div>
@@ -1349,19 +1424,31 @@ onMount(() => {
         style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
     >
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold">!</div>
+            <div
+                class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-lg font-bold"
+            >
+                !
+            </div>
             <h3 class="text-lg font-bold">Visit a W3DS Notary</h3>
         </div>
         <p class="text-black-700 text-sm leading-relaxed">
-            Without your recovery passphrase, your eVault cannot be restored automatically.
+            Without your recovery passphrase, your eVault cannot be restored
+            automatically.
         </p>
         <p class="text-black-700 text-sm leading-relaxed">
-            You can visit a <strong>Registered W3DS Notary</strong> in person. They can verify your identity
-            using trusted witnesses, government-issued documents, or other proofs of ownership and
-            authorise recovery of your eVault on your behalf.
+            You can visit a <strong>Registered W3DS Notary</strong> in person. They
+            can verify your identity using trusted witnesses, government-issued documents,
+            or other proofs of ownership and authorise recovery of your eVault on
+            your behalf.
         </p>
         <div class="flex flex-col gap-3 pt-2">
-            <ButtonAction variant="soft" class="w-full" callback={() => { showNotaryDrawer = false; }}>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={() => {
+                    showNotaryDrawer = false;
+                }}
+            >
                 Back
             </ButtonAction>
         </div>

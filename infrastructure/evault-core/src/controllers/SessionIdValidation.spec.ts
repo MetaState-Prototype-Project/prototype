@@ -59,7 +59,7 @@ describe("Session ID validation in controllers", () => {
         }
     });
 
-    it("rejects invalid sessionId in /verification/decision/:sessionId", async () => {
+    it("rejects invalid sessionId in /verification/v2/decision/:sessionId", async () => {
         const app = express();
         app.use(express.json());
 
@@ -77,7 +77,7 @@ describe("Session ID validation in controllers", () => {
 
         try {
             const response = await fetch(
-                `${baseUrl}/verification/decision/not-a-uuid`,
+                `${baseUrl}/verification/v2/decision/not-a-uuid`,
                 {
                     method: "GET",
                     headers: {

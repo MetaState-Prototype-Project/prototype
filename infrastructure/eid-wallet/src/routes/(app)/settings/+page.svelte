@@ -3,7 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
-import { ButtonAction, Drawer } from "$lib/ui";
+import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     Key01Icon,
     LanguageSquareIcon,
@@ -148,7 +148,7 @@ $effect(() => {
                 onclick={handleVersionTap}
                 disabled={isRetrying}
             >
-                Version v0.5.0.0
+                Version v0.6.0.0
             </button>
 
             {#if retryMessage}
@@ -166,17 +166,17 @@ $effect(() => {
     </div>
 </main>
 
-<!-- First Confirmation Drawer -->
+<!-- First Confirmation Sheet -->
 {#if isDeleteConfirmationOpen}
-    <Drawer bind:isPaneOpen={isDeleteConfirmationOpen}>
+    <BottomSheet bind:isOpen={isDeleteConfirmationOpen}>
         <div class="text-center">
-            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-                ⚠️ Delete Account Warning
-            </h4>
-            <p class="text-black-700 mb-4">
+            <h3 class="text-lg font-bold text-danger-500 mb-1">
+                Delete Account
+            </h3>
+            <p class="text-black-700 text-sm mb-4">
                 Are you sure you want to delete your account? This action will:
             </p>
-            <ul class="text-left text-black-700 mb-6 space-y-2">
+            <ul class="text-left text-black-700 text-sm mb-6 space-y-2">
                 <li>• Permanently delete all your personal data</li>
                 <li>• Remove your ePassport and eVault access</li>
                 <li>• Delete your eName and all associated credentials</li>
@@ -184,46 +184,48 @@ $effect(() => {
                 <li>• This action cannot be undone</li>
             </ul>
             <div class="flex gap-3">
-                <ButtonAction class="flex-1" callback={cancelDelete}
+                <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
                     >Cancel</ButtonAction
                 >
                 <ButtonAction
-                    class="flex-1 bg-red-600 hover:bg-red-700"
+                    variant="danger"
+                    class="flex-1"
                     callback={confirmDelete}>Continue</ButtonAction
                 >
             </div>
         </div>
-    </Drawer>
+    </BottomSheet>
 {/if}
 
-<!-- Final Confirmation Drawer -->
+<!-- Final Confirmation Sheet -->
 {#if isFinalConfirmationOpen}
-    <Drawer bind:isPaneOpen={isFinalConfirmationOpen}>
+    <BottomSheet bind:isOpen={isFinalConfirmationOpen}>
         <div class="text-center">
-            <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-                🚨 Final Confirmation
-            </h4>
-            <p class="text-black-700 mb-4">
+            <h3 class="text-lg font-bold text-danger-500 mb-1">
+                Final Confirmation
+            </h3>
+            <p class="text-black-700 text-sm mb-4">
                 This is your final warning. Once you confirm:
             </p>
             <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-                <p class="text-red-800 font-medium">
+                <p class="text-red-800 text-sm font-medium">
                     All your data will be permanently deleted and you will lose
                     access to your ePassport, eVault, and eName forever.
                 </p>
             </div>
-            <p class="text-black-700 mb-6">
+            <p class="text-black-700 text-sm mb-6">
                 Are you absolutely certain you want to proceed?
             </p>
             <div class="flex gap-3">
-                <ButtonAction class="flex-1" callback={cancelDelete}
+                <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
                     >Cancel</ButtonAction
                 >
                 <ButtonAction
-                    class="flex-1 bg-red-600 hover:bg-red-700"
+                    variant="danger"
+                    class="flex-1"
                     callback={nukeWallet}>Delete</ButtonAction
                 >
             </div>
         </div>
-    </Drawer>
+    </BottomSheet>
 {/if}

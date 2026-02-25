@@ -2,7 +2,7 @@
 import { goto } from "$app/navigation";
 import { Hero } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer, InputPin } from "$lib/ui";
+import { BottomSheet, InputPin } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import {
     type AuthOptions,
@@ -238,9 +238,12 @@ onMount(async () => {
 });
 </script>
 
-<main class="h-full pt-[5.2svh] px-[5vw] flex flex-col justify-between">
-    <section>
-        <Hero title="Log in to your account" class="mb-4">
+<main
+    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
+>
+    <section class="mt-4">
+        <Hero title="Log in to your account" class="mb-[6svh]">
             {#snippet subtitle()}
                 {#if isPostAuthLoading}
                     Logging you in...
@@ -305,35 +308,36 @@ onMount(async () => {
 </main>
 
 <!-- Deleted eVault Modal - Non-dismissible -->
-<Drawer bind:isPaneOpen={isDeletedVaultModalOpen} dismissible={false}>
+<BottomSheet bind:isOpen={isDeletedVaultModalOpen} dismissible={false}>
     <div class="text-center">
-        <h4 class="mt-[2.3svh] mb-[0.5svh] text-red-600">
-            🗑️ eVault Has Been Deleted
-        </h4>
-        <p class="text-black-700 mb-4">
+        <h3 class="text-lg font-bold text-danger-500 mb-1">
+            eVault Has Been Deleted
+        </h3>
+        <p class="text-black-700 text-sm mb-4">
             Your eVault has been deleted from the registry and is no longer
             accessible.
         </p>
         <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <p class="text-red-800 font-medium">
+            <p class="text-red-800 text-sm font-medium">
                 To continue using the app, you need to delete your local account
                 data and start fresh.
             </p>
         </div>
-        <ul class="text-left text-black-700 mb-6 space-y-2">
+        <ul class="text-left text-black-700 text-sm mb-6 space-y-2">
             <li>• All your local data will be deleted</li>
             <li>• Your ePassport will be removed</li>
             <li>• You will need to onboard again</li>
             <li>• This action cannot be undone</li>
         </ul>
-        <p class="text-black-800 mb-4 font-semibold">
+        <p class="text-black-900 mb-4 font-semibold">
             You must delete your local data to continue.
         </p>
         <div class="flex gap-3">
             <Button.Action
-                class="flex-1 bg-red-600 hover:bg-red-700"
+                class="flex-1"
+                variant="danger"
                 callback={nukeWallet}>Delete Local Data</Button.Action
             >
         </div>
     </div>
-</Drawer>
+</BottomSheet>

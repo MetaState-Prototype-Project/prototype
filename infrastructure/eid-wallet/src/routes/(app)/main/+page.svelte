@@ -7,7 +7,7 @@ import {
 } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer, Toast } from "$lib/ui";
+import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import {
@@ -214,7 +214,7 @@ async function startKycUpgrade() {
         await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
 
         const { data } = await axios.post(
-            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
             {},
             {
                 headers: {
@@ -276,7 +276,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     try {
         const { data: decision } = await axios.get<DiditDecision>(
             new URL(
-                `/verification/decision/${result.session.sessionId}`,
+                `/verification/v2/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
             {
@@ -333,7 +333,10 @@ async function handleUpgrade() {
     kycStep = "upgrading";
     try {
         const { data } = await axios.post(
-            new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            new URL(
+                "/verification/v2/upgrade",
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
             { diditSessionId: sessionId, w3id },
             {
                 headers: {
@@ -614,9 +617,9 @@ onDestroy(() => {
         </Button.Nav>
     </main>
 
-    <Drawer
+    <BottomSheet
         title="Scan QR Code"
-        bind:isPaneOpen={shareQRdrawerOpen}
+        bind:isOpen={shareQRdrawerOpen}
         class="flex flex-col gap-4 items-center justify-center"
     >
         <div
@@ -634,7 +637,7 @@ onDestroy(() => {
                 Share
             </Button.Action>
         </div>
-    </Drawer>
+    </BottomSheet>
 
     <Button.Nav
         href="/scan-qr"

@@ -33,10 +33,10 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full px-4 pb-4 flex flex-col justify-between"
-    style="padding-top: max(16px, env(safe-area-inset-top));"
+    class="min-h-[100svh] px-4 flex flex-col justify-between"
+    style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
-    <section>
+    <section class="mt-4">
         <Hero
             title="Here's your ePassport"
             class="mb-2"
@@ -53,8 +53,14 @@ onMount(async () => {
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
     </section>
-    <div class="flex flex-col gap-3">
-        <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
-        <ButtonAction variant="soft" class="w-full" callback={() => goto("/register")}>Back</ButtonAction>
+    <div class="mt-auto flex flex-col gap-3">
+        <ButtonAction class="w-full" callback={handleFinish}
+            >Finish</ButtonAction
+        >
+        <ButtonAction
+            variant="soft"
+            class="w-full"
+            callback={() => goto("/register")}>Back</ButtonAction
+        >
     </div>
 </main>
