@@ -30,6 +30,7 @@ export type { SchemaId } from "./schemas.js";
 export {
     PLATFORM_CAPABILITIES,
     PLATFORM_ENV_KEYS,
+    REGISTRY_PLATFORM_KEY_ORDER,
     configurePlatformUrls,
     getPlatformUrls,
 } from "./capabilities.js";

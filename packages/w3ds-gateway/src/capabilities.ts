@@ -315,6 +315,26 @@ export const PLATFORM_ENV_KEYS: Record<string, string> = {
 };
 
 /**
+ * The order in which the Registry's `GET /platforms` endpoint returns platform URLs.
+ * The Registry returns a positional array — this constant maps each index to its
+ * platform key so both the resolver and the modal stay in sync with a single
+ * source of truth.
+ */
+export const REGISTRY_PLATFORM_KEY_ORDER: readonly string[] = [
+    "pictique",
+    "blabsy",
+    "group-charter",
+    "cerberus",
+    "evoting",
+    "dreamsync",
+    "ereputation",
+    "ecurrency",
+    "emover",
+    "esigner",
+    "file-manager",
+] as const;
+
+/**
  * Default development platform CLIENT URLs.
  * These are the frontend URLs where users actually browse.
  * Platforms call `configurePlatformUrls()` at startup to override

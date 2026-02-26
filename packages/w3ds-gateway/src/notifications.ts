@@ -126,7 +126,7 @@ export function buildGatewayLink(options: GatewayLinkOptions): string {
         `Open ${SchemaLabels[options.schemaId as SchemaId] ?? "content"}`;
 
     const attrs: string[] = [
-        `href="${uri}"`,
+        `href="${escapeAttr(uri)}"`,
         `class="w3ds-gateway-link"`,
         `data-ename="${escapeAttr(options.ename)}"`,
         `data-schema-id="${escapeAttr(options.schemaId)}"`,

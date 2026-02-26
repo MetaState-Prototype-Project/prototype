@@ -37,6 +37,7 @@
 import {
     PLATFORM_CAPABILITIES,
     getPlatformUrls,
+    REGISTRY_PLATFORM_KEY_ORDER,
 } from "./capabilities.js";
 import { SchemaLabels } from "./schemas.js";
 import { PLATFORM_ICONS, FALLBACK_ICON } from "./icons.js";
@@ -67,15 +68,9 @@ async function fetchRegistryPlatforms(
         if (!response.ok) return {};
         const urls: (string | null)[] = await response.json();
 
-        const keyOrder = [
-            "pictique", "blabsy", "group-charter", "cerberus", "evoting",
-            "dreamsync", "ereputation", "ecurrency", "emover", "esigner",
-            "file-manager",
-        ];
-
         const result: Record<string, string> = {};
-        for (let i = 0; i < keyOrder.length && i < urls.length; i++) {
-            if (urls[i]) result[keyOrder[i]] = urls[i]!;
+        for (let i = 0; i < REGISTRY_PLATFORM_KEY_ORDER.length && i < urls.length; i++) {
+            if (urls[i]) result[REGISTRY_PLATFORM_KEY_ORDER[i]] = urls[i]!;
         }
         return result;
     } catch {

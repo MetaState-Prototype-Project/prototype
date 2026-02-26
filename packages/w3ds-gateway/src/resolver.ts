@@ -9,6 +9,7 @@
 import {
     PLATFORM_CAPABILITIES,
     getPlatformUrls,
+    REGISTRY_PLATFORM_KEY_ORDER,
 } from "./capabilities.js";
 import { SchemaLabels } from "./schemas.js";
 import type { SchemaId } from "./schemas.js";
@@ -53,28 +54,11 @@ async function fetchRegistryPlatforms(
 
         const urls: (string | null)[] = await response.json();
 
-        // The Registry returns an ordered array of URLs matching this order:
-        // Pictique, Blabsy, Group Charter, Cerberus, eVoting,
-        // DreamSync, eReputation, eCurrency, eMoving, eSigner, File Manager
-        const keyOrder = [
-            "pictique",
-            "blabsy",
-            "group-charter",
-            "cerberus",
-            "evoting",
-            "dreamsync",
-            "ereputation",
-            "ecurrency",
-            "emover",
-            "esigner",
-            "file-manager",
-        ];
-
         const result: Record<string, string> = {};
-        for (let i = 0; i < keyOrder.length && i < urls.length; i++) {
+        for (let i = 0; i < REGISTRY_PLATFORM_KEY_ORDER.length && i < urls.length; i++) {
             const url = urls[i];
             if (url) {
-                result[keyOrder[i]] = url;
+                result[REGISTRY_PLATFORM_KEY_ORDER[i]] = url;
             }
         }
         return result;
