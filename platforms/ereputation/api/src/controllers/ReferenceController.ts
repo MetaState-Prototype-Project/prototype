@@ -73,6 +73,52 @@ export class ReferenceController {
         }
     };
 
+    /**
+     * Get ALL signed references in the system (internal visualizer endpoint).
+     * Requires X-Visualizer-Key header matching VISUALIZER_API_KEY env var.
+     */
+    getAllReferences = async (req: Request, res: Response) => {
+        const apiKey = process.env.VISUALIZER_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ error: 'Server misconfiguration: VISUALIZER_API_KEY is not set' });
+        }
+        if (req.headers['x-visualizer-key'] !== apiKey) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        try {
+            const MAX_LIMIT = 500;
+            const rawLimit = parseInt(req.query.limit as string, 10);
+            const rawOffset = parseInt(req.query.offset as string, 10);
+            const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : MAX_LIMIT;
+            const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
+            const references = await this.referenceService.getAllReferences(limit, offset);
+
+            res.json({
+                references: references.map(ref => ({
+                    id: ref.id,
+                    content: ref.content,
+                    numericScore: ref.numericScore,
+                    referenceType: ref.referenceType,
+                    status: ref.status,
+                    targetType: ref.targetType,
+                    targetId: ref.targetId,
+                    targetName: ref.targetName,
+                    author: ref.author ?{
+                        id: ref.author.id,
+                        ename: ref.author.ename,
+                        name: ref.author.name
+                    } : null,
+                    createdAt: ref.createdAt
+                }))
+            });
+        } catch (error) {
+            console.error("Error getting all references:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     getReferencesForTarget = async (req: Request, res: Response) => {
         try {
             const { targetType, targetId } = req.params;
