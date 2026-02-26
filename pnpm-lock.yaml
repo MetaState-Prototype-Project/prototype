@@ -157,9 +157,6 @@ importers:
       tailwind-merge:
         specifier: ^3.0.2
         version: 3.4.1
-      w3ds-gateway:
-        specifier: workspace:*
-        version: link:../../packages/w3ds-gateway
     devDependencies:
       '@eslint/compat':
         specifier: ^1.2.5
