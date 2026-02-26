@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>W3DS Gateway Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 8px; border: 1px solid #ccc; margin: 4px; }
+    h1 { margin-bottom: 8px; }
+    p { color: #666; }
+    .schemas { display: flex; flex-wrap: wrap; gap: 4px; margin: 16px 0; }
+    .schemas button { font-size: 13px; padding: 6px 12px; }
+    .schemas button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>W3DS Gateway Test</h1>
+  <!-- <p>Click a content type, then "Open Chooser" to see which apps can handle it.</p> -->
+
+  <div class="schemas" id="schema-buttons"></div>
+
+  <button onclick="document.querySelector('w3ds-gateway-chooser').open()">
+    🚀 Open Chooser
+  </button>
+
+  <w3ds-gateway-chooser
+    id="chooser"
+    ename="@test-user-uuid"
+    schema-id="550e8400-e29b-41d4-a716-446655440001"
+    entity-id="entity-123"
+  ></w3ds-gateway-chooser>
+
+  <script type="module">
+    import './packages/w3ds-gateway/dist/modal.js';
+
+    const schemas = [
+      { id: '550e8400-e29b-41d4-a716-446655440000', label: 'User Profile' },
+      { id: '550e8400-e29b-41d4-a716-446655440001', label: 'Post' },
+      { id: '550e8400-e29b-41d4-a716-446655440003', label: 'Group' },
+      { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', label: 'File' },
+      { id: 'b2c3d4e5-f6a7-8901-bcde-f12345678901', label: 'Signature' },
+      { id: '660e8400-e29b-41d4-a716-446655440100', label: 'Poll' },
+      { id: '550e8400-e29b-41d4-a716-446655440006', label: 'Ledger' },
+      { id: '770e8400-e29b-41d4-a716-446655440000', label: 'Wishlist' },
+    ];
+
+    const container = document.getElementById('schema-buttons');
+    const chooser = document.getElementById('chooser');
+    let activeBtn = null;
+
+    schemas.forEach(s => {
+      const btn = document.createElement('button');
+      btn.textContent = s.label;
+      btn.onclick = () => {
+        chooser.setAttribute('schema-id', s.id);
+        if (activeBtn) activeBtn.classList.remove('active');
+        btn.classList.add('active');
+        activeBtn = btn;
+      };
+      if (s.id === '550e8400-e29b-41d4-a716-446655440001') {
+        btn.classList.add('active');
+        activeBtn = btn;
+      }
+      container.appendChild(btn);
+    });
+  </script>
+</body>
+</html>
