@@ -8,6 +8,7 @@ import {
 } from "$env/static/public";
 import { Hero } from "$lib/fragments";
 import { GlobalState } from "$lib/global";
+import NotificationService from "$lib/services/NotificationService";
 import { pendingRecovery } from "$lib/stores/pendingRecovery";
 import { ButtonAction } from "$lib/ui";
 import { capitalize, getCanonicalBindingDocString } from "$lib/utils";
@@ -18,6 +19,9 @@ import { Shadow } from "svelte-loading-spinners";
 import { v4 as uuidv4 } from "uuid";
 import { provision } from "wallet-sdk";
 
+let pushToken = $state<string | undefined>(undefined);
+let pushTokenError = $state<string | undefined>(undefined);
+let pushTokenLoading = $state(true);
 const ANONYMOUS_VERIFICATION_CODE = "d66b7138-538a-465f-a6ce-f6985854c3f4";
 const KEY_ID = "default";
 
@@ -729,7 +733,19 @@ const handleEnamePassphraseRecovery = async () => {
     }
 };
 
-onMount(() => {
+onMount(async () => {
+    // Fetch push notification token for display (Android/iOS)
+    try {
+        pushToken = await NotificationService.getInstance().getPushToken();
+        if (!pushToken)
+            pushTokenError = "No token (desktop or permission denied)";
+    } catch (e) {
+        pushTokenError =
+            e instanceof Error ? e.message : "Failed to get push token";
+    } finally {
+        pushTokenLoading = false;
+    }
+
     // Detect upgrade mode from query param
     const url = new URL(window.location.href);
     if (url.searchParams.get("upgrade") === "1") {
@@ -745,6 +761,16 @@ onMount(() => {
     class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
     style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
+    <section class="mb-4 p-2 rounded bg-gray-100 text-xs">
+        <p class="font-medium text-gray-600 mb-1">Push token (FCM/APNs):</p>
+        {#if pushTokenLoading}
+            <span class="text-gray-500">Loading...</span>
+        {:else if pushToken}
+            <code class="block break-all text-gray-800">{pushToken}</code>
+        {:else}
+            <span class="text-amber-600">{pushTokenError ?? "—"}</span>
+        {/if}
+    </section>
     <article class="flex justify-center mb-4">
         <img
             class="w-[88vw] h-[39svh]"

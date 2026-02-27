@@ -32,7 +32,7 @@
         "@tauri-apps/plugin-barcode-scanner": "^2.4.2",
         "@tauri-apps/plugin-biometric": "^2.3.2",
         "@tauri-apps/plugin-deep-link": "^2.4.5",
-        "@tauri-apps/plugin-notification": "^2.3.3",
+        "@choochmeque/tauri-plugin-notifications-api": "^0.4.3",
         "@tauri-apps/plugin-opener": "^2.5.2",
         "@tauri-apps/plugin-store": "^2.4.1",
         "@veriff/incontext-sdk": "^2.4.0",
