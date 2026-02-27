@@ -78,7 +78,7 @@
         "cupertino-pane": "^1.4.22",
         "playwright": "^1.51.1",
         "postcss": "^8.5.3",
-        "storybook": "^8.6.7",
+        "storybook": "^9.0.0",
         "svelte": "^5.0.0",
         "svelte-check": "^4.0.0",
         "svelte-gestures": "^5.1.3",
