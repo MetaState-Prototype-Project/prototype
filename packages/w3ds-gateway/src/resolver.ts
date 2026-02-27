@@ -11,6 +11,7 @@ import {
     getPlatformUrls,
     REGISTRY_PLATFORM_KEY_ORDER,
 } from "./capabilities.js";
+import { isSafeUrl } from "./utils.js";
 import { SchemaLabels } from "./schemas.js";
 import type { SchemaId } from "./schemas.js";
 import type {
@@ -130,7 +131,7 @@ export async function resolveEName(
 
     // 3. Build resolved app entries
     const apps: ResolvedApp[] = handlers
-        .filter((handler) => platformUrls[handler.platformKey])
+        .filter((handler) => platformUrls[handler.platformKey] && isSafeUrl(platformUrls[handler.platformKey]))
         .map((handler) => {
             const baseUrl = platformUrls[handler.platformKey];
             return {
@@ -172,7 +173,7 @@ export function resolveENameSync(
     const handlers = PLATFORM_CAPABILITIES[schemaId] ?? [];
 
     const apps: ResolvedApp[] = handlers
-        .filter((handler) => urls[handler.platformKey])
+        .filter((handler) => urls[handler.platformKey] && isSafeUrl(urls[handler.platformKey]))
         .map((handler) => {
             const baseUrl = urls[handler.platformKey];
             return {

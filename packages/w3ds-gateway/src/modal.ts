@@ -41,6 +41,7 @@ import {
 } from "./capabilities.js";
 import { SchemaLabels } from "./schemas.js";
 import { PLATFORM_ICONS, FALLBACK_ICON } from "./icons.js";
+import { isSafeUrl } from "./utils.js";
 import type { ResolvedApp } from "./types.js";
 import type { SchemaId } from "./schemas.js";
 
@@ -83,16 +84,6 @@ function buildUrl(template: string, baseUrl: string, entityId: string, ename: st
         .replace("{baseUrl}", baseUrl.replace(/\/+$/, ""))
         .replace("{entityId}", encodeURIComponent(entityId))
         .replace("{ename}", encodeURIComponent(ename));
-}
-
-/** Returns true only for http: and https: URLs — rejects javascript:, data:, etc. */
-function isSafeUrl(url: string): boolean {
-    try {
-        const { protocol } = new URL(url);
-        return protocol === "http:" || protocol === "https:";
-    } catch {
-        return false;
-    }
 }
 
 async function resolve(
