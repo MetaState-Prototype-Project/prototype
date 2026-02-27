@@ -32,7 +32,23 @@
   ></w3ds-gateway-chooser>
 
   <script type="module">
+    import { configurePlatformUrls } from './packages/w3ds-gateway/dist/index.js';
     import './packages/w3ds-gateway/dist/modal.js';
+
+    // Dev-only: explicit localhost URLs (no production defaults in the package)
+    configurePlatformUrls({
+      pictique:        'http://localhost:5173',
+      blabsy:          'http://localhost:8080',
+      'file-manager':  'http://localhost:5174',
+      esigner:         'http://localhost:5175',
+      evoting:         'http://localhost:3001',
+      dreamsync:       'http://localhost:5176',
+      ecurrency:       'http://localhost:9888',
+      ereputation:     'http://localhost:5178',
+      cerberus:        'http://localhost:6666',
+      'group-charter': 'http://localhost:3000',
+      emover:          'http://localhost:3006',
+    });
 
     const schemas = [
       { id: '550e8400-e29b-41d4-a716-446655440000', label: 'User Profile' },

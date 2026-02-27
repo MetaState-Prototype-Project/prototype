@@ -335,26 +335,20 @@ export const REGISTRY_PLATFORM_KEY_ORDER: readonly string[] = [
 ] as const;
 
 /**
- * Default development platform CLIENT URLs.
- * These are the frontend URLs where users actually browse.
- * Platforms call `configurePlatformUrls()` at startup to override
- * with production URLs from their env.
+ * Default platform URLs — intentionally empty.
  *
- * Ports sourced from .env.example and platform package.json configs.
+ * Platforms must call `configurePlatformUrls()` at startup with URLs read from
+ * their env. There are no localhost fallbacks here by design: silent localhost
+ * leaks in production are harder to debug than an explicit empty result.
+ *
+ * For local development, pass the dev URLs directly:
+ * ```ts
+ * if (import.meta.env.DEV) {
+ *   configurePlatformUrls({ pictique: "http://localhost:5173", ... });
+ * }
+ * ```
  */
-const DEFAULT_PLATFORM_URLS: Record<string, string> = {
-    pictique: "http://localhost:5173",        // SvelteKit default — PUBLIC_PICTIQUE_URL
-    blabsy: "http://localhost:8080",           // next dev -p 8080 — PUBLIC_BLABSY_URL
-    "file-manager": "http://localhost:5174",   // SvelteKit — needs --port 5174 to avoid conflicts
-    esigner: "http://localhost:5175",           // SvelteKit — needs --port 5175
-    evoting: "http://localhost:3001",           // next dev — PUBLIC_EVOTING_URL
-    dreamsync: "http://localhost:5176",         // Vite React — needs --port 5176
-    ecurrency: "http://localhost:9888",         // Vite React — explicit port in vite.config.ts
-    ereputation: "http://localhost:5178",       // Vite React — needs --port 5178
-    cerberus: "http://localhost:6666",          // API-only — PUBLIC_CERBERUS_BASE_URL
-    "group-charter": "http://localhost:3000",   // next dev — default port
-    emover: "http://localhost:3006",            // next dev -p 3006
-};
+const DEFAULT_PLATFORM_URLS: Record<string, string> = {};
 
 let _platformUrls: Record<string, string> = { ...DEFAULT_PLATFORM_URLS };
 
