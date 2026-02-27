@@ -85,6 +85,16 @@ function buildUrl(template: string, baseUrl: string, entityId: string, ename: st
         .replace("{ename}", encodeURIComponent(ename));
 }
 
+/** Returns true only for http: and https: URLs — rejects javascript:, data:, etc. */
+function isSafeUrl(url: string): boolean {
+    try {
+        const { protocol } = new URL(url);
+        return protocol === "http:" || protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
 async function resolve(
     ename: string,
     schemaId: string,
@@ -371,6 +381,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
     private body!: HTMLDivElement;
     private footer!: HTMLDivElement;
     private _isOpen = false;
+    private _resolveRunId = 0;
 
     static get observedAttributes() {
         return ["ename", "schema-id", "entity-id", "registry-url", "open"];
@@ -382,7 +393,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
     }
 
     connectedCallback() {
-        this.render();
+        if (!this.backdrop) this.render();
         if (this.hasAttribute("open")) {
             this.open();
         }
@@ -416,6 +427,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
     /** Close the chooser modal */
     close() {
         this._isOpen = false;
+        this._resolveRunId++; // invalidate any in-flight resolve
         if (this.backdrop) {
             this.backdrop.classList.remove("open");
         }
@@ -446,6 +458,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
     }
 
     private render() {
+        if (this.backdrop) return;
         const style = document.createElement("style");
         style.textContent = STYLES;
 
@@ -499,6 +512,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
     }
 
     private async doResolve() {
+        const runId = ++this._resolveRunId;
         const { ename, schemaId, entityId, registryUrl } = this;
 
         if (!ename || !schemaId) {
@@ -513,6 +527,8 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
 
         try {
             const result = await resolve(ename, schemaId, entityId, registryUrl);
+
+            if (runId !== this._resolveRunId || !this._isOpen) return;
 
             // Update header subtitle
             this.headerText.innerHTML = `<h2>Open with...</h2><p>${this.escapeHtml(result.schemaLabel)}</p>`;
@@ -530,9 +546,20 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
             for (const app of result.apps) {
                 const link = document.createElement("a");
                 link.className = "gateway-app-link";
-                link.href = app.url;
-                link.target = "_blank";
-                link.rel = "noopener noreferrer";
+
+                // Only allow http/https URLs — reject javascript:, data:, etc.
+                const safeHref = isSafeUrl(app.url) ? app.url : null;
+                if (safeHref) {
+                    link.href = safeHref;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                } else {
+                    link.setAttribute("role", "button");
+                    link.setAttribute("aria-disabled", "true");
+                    link.style.opacity = "0.4";
+                    link.style.cursor = "not-allowed";
+                    link.style.pointerEvents = "none";
+                }
 
                 const colors = PLATFORM_COLORS[app.platformKey] ?? { bg: "#f9fafb", hover: "#f3f4f6", border: "#e5e7eb" };
                 link.style.backgroundColor = colors.bg;
@@ -566,6 +593,7 @@ export class W3dsGatewayChooser extends SafeHTMLElement {
             // Footer
             this.footer.innerHTML = `<span class="gateway-footer-ename">eName: <code>${this.escapeHtml(ename)}</code></span>`;
         } catch (err) {
+            if (runId !== this._resolveRunId || !this._isOpen) return;
             const msg = err instanceof Error ? err.message : "Unknown error";
             this.body.innerHTML = `<div class="gateway-error"><strong>Resolution failed</strong>${this.escapeHtml(msg)}</div>`;
             this.footer.innerHTML = "";
