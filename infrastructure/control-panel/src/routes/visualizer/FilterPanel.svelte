@@ -89,7 +89,11 @@
 							<li>
 								<button
 									class="w-full px-2 py-1.5 text-left text-xs hover:bg-blue-50"
-									onmousedown={() => setFocus(r.id, r.label)}
+									onmousedown={(e) => {
+										e.preventDefault();
+										setFocus(r.id, r.label);
+									}}
+									onclick={() => setFocus(r.id, r.label)}
 								>
 									{r.label}
 									<span class="ml-1 text-gray-400">{r.id.split(':')[0]}</span>
