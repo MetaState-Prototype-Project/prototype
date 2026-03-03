@@ -1,0 +1,39 @@
+{
+    "name": "w3ds-gateway",
+    "version": "0.1.0",
+    "description": "W3DS Gateway — resolve eNames to application URLs and present an app chooser",
+    "type": "module",
+    "scripts": {
+        "build": "tsc -p tsconfig.build.json",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "check-types": "tsc --noEmit"
+    },
+    "license": "MIT",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./modal": {
+            "import": "./dist/modal.js",
+            "types": "./dist/modal.d.ts"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "typesVersions": {
+        "*": {
+            "modal": [
+                "./dist/modal.d.ts"
+            ]
+        }
+    },
+    "devDependencies": {
+        "typescript": "~5.6.2",
+        "vitest": "^3.0.9"
+    }
+}
