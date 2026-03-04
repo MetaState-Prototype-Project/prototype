@@ -352,7 +352,7 @@ const handleProvision = async () => {
         error =
             err instanceof Error
                 ? err.message
-                : "Something went wrong. Please try again.";
+                : "We couldn’t create your eVault after identity verification. Check your connection, then tap Continue again.";
         step = "verif-result";
         setTimeout(() => {
             error = null;
@@ -488,7 +488,8 @@ const handleAnonymousSubmit = async () => {
         goto("/register");
     } catch (err) {
         console.error("Anonymous provisioning failed:", err);
-        error = "Something went wrong. Please try again.";
+        error =
+            "We couldn’t create your self-declared eVault. Check your connection, then tap Confirm & Create again.";
         step = "anonymous-form";
         setTimeout(() => {
             error = null;
@@ -722,7 +723,7 @@ const handleEnamePassphraseRecovery = async () => {
         enameError =
             err instanceof Error
                 ? err.message
-                : "Something went wrong. Please try again.";
+                : "We couldn’t verify your eName/passphrase or load your eVault data. Check your details and connection, then try again.";
         step = "ename-passphrase";
     } finally {
         enameLoading = false;
@@ -742,7 +743,7 @@ onMount(() => {
 </script>
 
 <main
-    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    class="min-h-svh px-[5vw] flex flex-col justify-between"
     style="padding-top: max(4svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <article class="flex justify-center mb-4">
@@ -759,7 +760,8 @@ onMount(() => {
             <Hero class="mb-4" titleClasses="text-[42px]/[1.1] font-medium">
                 {#snippet subtitle()}
                     Your Digital Self consists of three core elements: <br />
-                    <strong>eName</strong> – your digital identifier, a number
+                    <strong>eName</strong> – your unique, permanent digital
+                    identifier, a number
                     <br />
                     <strong>ePassport</strong> – your cryptographic keys,
                     enabling your agency and control
@@ -789,7 +791,7 @@ onMount(() => {
                         step = "already-have";
                     }}
                 >
-                    Already have an eVault
+                    Restore my Digital Self
                 </ButtonAction>
             </div>
             <p class="text-center small mt-4 text-black-500">
@@ -864,9 +866,9 @@ onMount(() => {
     {:else if step === "new-evault"}
         <section class="grow flex flex-col justify-center gap-6">
             <div>
-                <h4 class="text-xl font-bold mb-1">Create a new eVault</h4>
+                <h4 class="text-xl font-bold mb-1">Create your Digital Self</h4>
                 <p class="text-black-700 text-sm">
-                    Choose how you want to establish your digital identity.
+                    Choose how you want to prove it’s you.
                 </p>
             </div>
             <div class="flex flex-col gap-3">
@@ -875,11 +877,12 @@ onMount(() => {
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
                     <p class="font-semibold text-base mb-1">
-                        Linked to your identity
+                        Verify with an official ID
                     </p>
                     <p class="text-sm text-black-500">
-                        Verify your real-world passport. Your eVault will be
-                        cryptographically bound to your identity document.
+                        Use a real-world ID to bind your Digital Self to you.
+                        This gives the strongest proof and makes recovery
+                        easier.
                     </p>
                 </button>
                 <button
@@ -888,10 +891,12 @@ onMount(() => {
                     }}
                     class="w-full rounded-2xl border border-gray-200 bg-gray-50 p-5 text-left hover:bg-gray-100 transition-colors active:bg-gray-200"
                 >
-                    <p class="font-semibold text-base mb-1">Anonymously</p>
+                    <p class="font-semibold text-base mb-1">
+                        Self-declare for now
+                    </p>
                     <p class="text-sm text-black-500">
-                        Self-declare your name. No ID document required. A
-                        self-signed binding document will be created.
+                        Start with a self-signed claim identity – you can add
+                        verified and social binding later.
                     </p>
                 </button>
             </div>
@@ -911,11 +916,12 @@ onMount(() => {
         <section class="grow flex flex-col justify-start gap-4 pt-2">
             <div>
                 <h4 class="text-xl font-bold mb-1">
-                    Self-declare your identity
+                    Self-declare your identity for now
                 </h4>
                 <p class="text-black-700 text-sm">
-                    You are creating a self-signed binding document that
-                    certifies your name. No ID verification is required.
+                    Add your full name. Others will see it as unverified until
+                    you support this claim with an official ID or social
+                    binding.
                 </p>
             </div>
 
@@ -932,7 +938,7 @@ onMount(() => {
                     class="text-black-700 font-medium text-sm"
                     for="anonName"
                 >
-                    Your Name <span class="text-danger">*</span>
+                    Full Name <span class="text-danger">*</span>
                 </label>
                 <input
                     id="anonName"
@@ -955,17 +961,16 @@ onMount(() => {
                     class="border border-gray-200 w-full rounded-md font-medium my-1 p-3 bg-gray-50 focus:bg-white transition-colors"
                 />
                 <p class="text-xs text-black-400">
-                    Stored on your device only — not included in your binding
-                    document.
+                    Stored on your device only — not included in the signed
+                    statement.
                 </p>
             </div>
 
             <div class="rounded-xl bg-primary-50 border border-primary-100 p-4">
                 <p class="text-xs text-primary-700 leading-relaxed">
-                    By continuing, I declare that the name I have provided is my
-                    own and that I am the sole owner of this eVault. This
-                    declaration will be cryptographically signed and stored as a
-                    self-certification binding document.
+                    By continuing, I confirm this is my name and I control this
+                    Digital Self. This statement will be cryptographically
+                    signed and stored as a binding document on your eVault.
                 </p>
             </div>
         </section>
@@ -1391,13 +1396,19 @@ onMount(() => {
             </p>
             {#if duplicateDocumentNumber}
                 <p class="text-xs text-black-500">
-                    Document: <span class="font-mono">{duplicateDocumentNumber}</span>
+                    Document: <span class="font-mono"
+                        >{duplicateDocumentNumber}</span
+                    >
                 </p>
             {/if}
             {#if duplicateExistingW3id}
                 <div class="rounded-xl bg-gray-50 border border-gray-200 p-3">
-                    <p class="text-xs text-black-500 mb-1">Existing eVault eName</p>
-                    <p class="font-mono text-sm break-all">{duplicateExistingW3id}</p>
+                    <p class="text-xs text-black-500 mb-1">
+                        Existing eVault eName
+                    </p>
+                    <p class="font-mono text-sm break-all">
+                        {duplicateExistingW3id}
+                    </p>
                 </div>
             {/if}
             <div class="flex flex-col gap-3 pt-2">

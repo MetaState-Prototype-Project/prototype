@@ -111,7 +111,7 @@ onMount(async () => {
 </script>
 
 <main
-    class="min-h-[100svh] px-[5vw] flex flex-col justify-between"
+    class="min-h-svh px-[5vw] flex flex-col justify-between"
     style="padding-top: max(5.2svh, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
     <section class="mt-4">
@@ -135,7 +135,7 @@ onMount(async () => {
         {:else}
             <article class="flex flex-col items-start w-full mt-[4svh]">
                 <div
-                    class="relative bg-gray w-[72px] h-[72px] rounded-3xl flex justify-center items-center mb-6"
+                    class="relative bg-gray w-18 h-18 rounded-3xl flex justify-center items-center mb-6"
                 >
                     <span class="relative z-1">
                         <HugeiconsIcon
