@@ -678,7 +678,6 @@ onMount(async () => {
         </div>
     {/if}
 </div>
-²
 
 <!-- ── Social binding QR drawer ──────────────────────────────────────────────── -->
 {#if showSocialBindingDrawer}
