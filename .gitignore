@@ -45,6 +45,7 @@ yarn-error.log*
 *.pem
 
 
+keystore.properties
 evault-cache.json
 
 .pnpm-store

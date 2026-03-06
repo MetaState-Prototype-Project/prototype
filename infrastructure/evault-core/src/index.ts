@@ -7,6 +7,7 @@ import { AppDataSource } from "./config/database";
 import { NotificationController } from "./controllers/NotificationController";
 import { ProvisioningController } from "./controllers/ProvisioningController";
 import { VerificationController } from "./controllers/VerificationController";
+import { LegacyVerificationController } from "./controllers/LegacyVerificationController";
 import { RecoveryController } from "./controllers/RecoveryController";
 import { ProvisioningService } from "./services/ProvisioningService";
 import { VerificationService } from "./services/VerificationService";
@@ -62,6 +63,7 @@ const initializeDatabase = async () => {
 // Initialize services and controllers
 let verificationService: VerificationService;
 let verificationController: VerificationController;
+let legacyVerificationController: LegacyVerificationController;
 let notificationController: NotificationController;
 let provisioningController: ProvisioningController;
 
@@ -259,9 +261,13 @@ const start = async () => {
             verificationService,
             provisioningService,
         );
+        legacyVerificationController = new LegacyVerificationController(
+            verificationService,
+        );
         const recoveryController = new RecoveryController(verificationService);
 
         // Register verification, notification, provisioning, and recovery routes
+        legacyVerificationController.registerRoutes(expressApp);
         verificationController.registerRoutes(expressApp);
         notificationController.registerRoutes(expressApp);
         provisioningController.registerRoutes(expressApp);

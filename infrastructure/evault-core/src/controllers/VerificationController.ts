@@ -8,6 +8,10 @@ const diditClient = Axios.create({
     baseURL: "https://verification.didit.me",
 });
 
+function normalizeDocumentNumber(value: unknown): string {
+    return typeof value === "string" ? value.trim().toUpperCase() : "";
+}
+
 function requireSharedSecret(req: Request, res: Response): boolean {
     const secret = process.env.PROVISIONER_SHARED_SECRET;
     if (!secret) {
@@ -31,7 +35,7 @@ export class VerificationController {
 
     registerRoutes(app: any) {
         // Get verification session
-        app.get("/verification/:id", async (req: Request, res: Response) => {
+        app.get("/verification/v2/:id", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { id } = req.params;
             const session = await this.verificationService.findById(id);
@@ -42,7 +46,7 @@ export class VerificationController {
         });
 
         // Create new Didit verification session
-        app.post("/verification", async (req: Request, res: Response) => {
+        app.post("/verification/v2", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             console.log("Creating new Didit verification session");
             const { referenceId } = req.body;
@@ -111,7 +115,7 @@ export class VerificationController {
         });
 
         // Upgrade existing eVault: create binding docs + update UserProfile after KYC
-        app.post("/verification/upgrade", async (req: Request, res: Response) => {
+        app.post("/verification/v2/upgrade", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { diditSessionId, w3id } = req.body;
             if (!diditSessionId || !w3id) {
@@ -133,7 +137,7 @@ export class VerificationController {
         });
 
         // Proxy: fetch full decision from Didit API by sessionId
-        app.get("/verification/decision/:sessionId", async (req: Request, res: Response) => {
+        app.get("/verification/v2/decision/:sessionId", async (req: Request, res: Response) => {
             if (!requireSharedSecret(req, res)) return;
             const { sessionId } = req.params;
             if (!uuidValidate(sessionId)) {
@@ -158,5 +162,91 @@ export class VerificationController {
                 );
             }
         });
+
+        // Resolve duplicate onboarding record by document number from Didit session decision
+        app.get(
+            "/verification/v2/lookup-by-document/:sessionId",
+            async (req: Request, res: Response) => {
+                if (!requireSharedSecret(req, res)) return;
+                const { sessionId } = req.params;
+                if (!uuidValidate(sessionId)) {
+                    return res.status(400).json({
+                        error: "sessionId must be a valid UUID",
+                    });
+                }
+
+                const apiKey = process.env.DIDIT_API_KEY;
+                if (!apiKey) {
+                    return res
+                        .status(500)
+                        .json({ error: "DIDIT_API_KEY not configured" });
+                }
+
+                try {
+                    const { data: decision } = await diditClient.get(
+                        `/v3/session/${encodeURIComponent(sessionId)}/decision/`,
+                        { headers: { "x-api-key": apiKey } },
+                    );
+                    const rawDocumentNumber =
+                        decision?.id_verifications?.[0]?.document_number;
+                    const normalizedDocumentNumber =
+                        normalizeDocumentNumber(rawDocumentNumber);
+
+                    if (!normalizedDocumentNumber) {
+                        return res.json({
+                            success: false,
+                            reason: "missing_document_number",
+                        });
+                    }
+
+                    let [matches] =
+                        await this.verificationService.findManyAndCount({
+                            documentId: normalizedDocumentNumber,
+                        });
+
+                    // Backward compatibility for non-normalized historic rows.
+                    if (
+                        matches.length === 0 &&
+                        typeof rawDocumentNumber === "string" &&
+                        rawDocumentNumber !== normalizedDocumentNumber
+                    ) {
+                        [matches] =
+                            await this.verificationService.findManyAndCount({
+                                documentId: rawDocumentNumber,
+                            });
+                    }
+
+                    const existing = matches
+                        .filter((v) => !!v.linkedEName)
+                        .sort(
+                            (a, b) =>
+                                new Date(b.updatedAt).getTime() -
+                                new Date(a.updatedAt).getTime(),
+                        )[0];
+
+                    if (!existing?.linkedEName) {
+                        return res.json({ success: false, reason: "no_match" });
+                    }
+
+                    return res.json({
+                        success: true,
+                        existingW3id: existing.linkedEName,
+                        documentNumber: normalizedDocumentNumber,
+                    });
+                } catch (err: any) {
+                    console.error(
+                        "[LOOKUP BY DOCUMENT]",
+                        err?.response?.data ?? err?.message,
+                    );
+                    return res
+                        .status(err?.response?.status ?? 500)
+                        .json(
+                            err?.response?.data ?? {
+                                error: "Failed to lookup by document",
+                            },
+                        );
+                }
+            },
+        );
     }
 }

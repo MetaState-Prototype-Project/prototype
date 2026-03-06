@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -28,11 +29,14 @@ $: if (internalOpen !== lastReportedOpen) {
 </script>
 
 {#if internalOpen}
-    <div class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto">
-        <div
-            class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
-        >
-            <div class="flex flex-col items-start pt-2">
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
+        fullScreen={true}
+        class="gap-5"
+    >
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
                 >
@@ -51,8 +55,8 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 class="text-xl font-bold">Code scanned!</h4>
-                <p class="text-black-700 mt-1">
+                <h4 class="text-lg font-bold">Code scanned!</h4>
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     Please review the connection details below.
                 </p>
 
@@ -62,9 +66,9 @@ $: if (internalOpen !== lastReportedOpen) {
                     <table class="w-full border-collapse">
                         <tbody class="divide-y divide-gray-200">
                             <tr>
-                                <td class="py-4 px-4">
+                                <td class="align-top py-4 px-4">
                                     <div
-                                        class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                        class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                     >
                                         Platform Name
                                     </div>
@@ -77,9 +81,9 @@ $: if (internalOpen !== lastReportedOpen) {
                             </tr>
 
                             <tr>
-                                <td class="py-4 px-4">
+                                <td class="align-top py-4 px-4">
                                     <div
-                                        class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                        class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                     >
                                         Website URL
                                     </div>
@@ -125,7 +129,7 @@ $: if (internalOpen !== lastReportedOpen) {
                 {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 <div
                     class="flex flex-col justify-center gap-3 items-center w-full"
                 >
@@ -163,7 +167,7 @@ $: if (internalOpen !== lastReportedOpen) {
 
                 {#if isSigningRequest === false}
                     <div class="text-center mt-1">
-                        <p class="text-sm text-gray-600">
+                        <p class="text-sm text-black-500">
                             After confirmation, you may return to <strong
                                 >{platform}</strong
                             > and continue there
@@ -172,5 +176,5 @@ $: if (internalOpen !== lastReportedOpen) {
                 {/if}
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}

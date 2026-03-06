@@ -16,6 +16,12 @@ type PersistedContext = {
     lastUsed: string;
 };
 
+type HardwareFallbackEvent = {
+    keyId: string;
+    context: KeyServiceContext;
+    originalError: unknown;
+};
+
 const CONTEXTS_KEY = "keyService.contexts";
 const READY_KEY = "keyService.ready";
 
@@ -24,6 +30,9 @@ export class KeyService {
     #managerCache = new Map<string, KeyManager>();
     #contexts = new Map<string, PersistedContext>();
     #ready = false;
+    #onHardwareFallback:
+        | ((event: HardwareFallbackEvent) => Promise<void> | void)
+        | null = null;
 
     constructor(store: Store) {
         this.#store = store;
@@ -176,16 +185,70 @@ export class KeyService {
             );
         }
 
-        console.log("=".repeat(70));
-        const signature = await manager.signPayload(keyId, payload);
-        console.log(
-            `✅ [KeyService] Signature created: ${signature.substring(0, 50)}...`,
-        );
-        console.log(`Signature length: ${signature.length} chars`);
-        console.log("=".repeat(70));
+        const cacheKey = this.#getCacheKey(keyId, context);
+        try {
+            console.log("=".repeat(70));
+            const signature = await manager.signPayload(keyId, payload);
+            console.log(
+                `✅ [KeyService] Signature created: ${signature.substring(0, 50)}...`,
+            );
+            console.log(`Signature length: ${signature.length} chars`);
+            console.log("=".repeat(70));
 
-        await this.#touchContext(this.#getCacheKey(keyId, context), manager);
-        return signature;
+            await this.#touchContext(cacheKey, manager);
+            return signature;
+        } catch (signError) {
+            if (managerType !== "hardware") {
+                throw signError;
+            }
+
+            console.warn(
+                "[KeyService] Hardware signing failed; falling back to software key",
+                {
+                    keyId,
+                    context,
+                    error:
+                        signError instanceof Error
+                            ? signError.message
+                            : String(signError),
+                },
+            );
+
+            const softwareManager = await KeyManagerFactory.getKeyManager({
+                keyId,
+                useHardware: false,
+                preVerificationMode: false,
+            });
+
+            const softwareKeyExists = await softwareManager.exists(keyId);
+            if (!softwareKeyExists) {
+                await softwareManager.generate(keyId);
+            }
+
+            const fallbackSignature = await softwareManager.signPayload(
+                keyId,
+                payload,
+            );
+
+            this.#managerCache.set(cacheKey, softwareManager);
+            await this.#persistContext(
+                cacheKey,
+                softwareManager,
+                keyId,
+                context,
+            );
+            await this.#runHardwareFallbackCallback({
+                keyId,
+                context,
+                originalError: signError,
+            });
+
+            console.log(
+                `✅ [KeyService] Fallback signature created: ${fallbackSignature.substring(0, 50)}...`,
+            );
+            console.log("=".repeat(70));
+            return fallbackSignature;
+        }
     }
 
     async verifySignature(
@@ -265,5 +328,27 @@ export class KeyService {
         await this.#store.delete(CONTEXTS_KEY);
         await this.#store.delete(READY_KEY);
         this.#ready = false;
+    }
+
+    setHardwareFallbackHandler(
+        handler:
+            | ((event: HardwareFallbackEvent) => Promise<void> | void)
+            | null,
+    ): void {
+        this.#onHardwareFallback = handler;
+    }
+
+    async #runHardwareFallbackCallback(
+        event: HardwareFallbackEvent,
+    ): Promise<void> {
+        if (!this.#onHardwareFallback) return;
+        try {
+            await this.#onHardwareFallback(event);
+        } catch (callbackError) {
+            console.error(
+                "[KeyService] Hardware fallback callback failed:",
+                callbackError,
+            );
+        }
     }
 }

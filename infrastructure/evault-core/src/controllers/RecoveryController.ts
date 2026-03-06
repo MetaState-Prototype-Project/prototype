@@ -3,6 +3,7 @@ import { default as Axios } from "axios";
 import FormData from "form-data";
 import { validate as uuidValidate } from "uuid";
 import type { VerificationService } from "../services/VerificationService";
+import { signAsProvisioner } from "../core/utils/provisioner-signer";
 
 const diditClient = Axios.create({ baseURL: "https://verification.didit.me" });
 
@@ -10,6 +11,204 @@ const FACE_SIMILARITY_THRESHOLD = 75;
 
 export class RecoveryController {
     constructor(private readonly verificationService: VerificationService) {}
+
+    private normalizeDocumentNumber(value: unknown): string {
+        return typeof value === "string" ? value.trim().toUpperCase() : "";
+    }
+
+    private toIdVerifPayload(idVerif: any) {
+        if (!idVerif) return null;
+        return {
+            full_name: idVerif.full_name,
+            first_name: idVerif.first_name,
+            last_name: idVerif.last_name,
+            date_of_birth: idVerif.date_of_birth,
+            document_type: idVerif.document_type,
+            document_number: this.normalizeDocumentNumber(idVerif.document_number),
+            issuing_state_name: idVerif.issuing_state_name,
+            issuing_state: idVerif.issuing_state,
+            expiration_date: idVerif.expiration_date,
+            date_of_issue: idVerif.date_of_issue,
+        };
+    }
+
+    private async getPlatformToken(): Promise<string> {
+        const registryUrl = process.env.PUBLIC_REGISTRY_URL;
+        const platformName = process.env.PLATFORM_NAME ?? "provisioner";
+        if (!registryUrl) throw new Error("PUBLIC_REGISTRY_URL not set");
+        const tokenRes = await Axios.post(
+            new URL("/platforms/certification", registryUrl).toString(),
+            { platform: platformName },
+            { headers: { "Content-Type": "application/json" } },
+        );
+        return tokenRes.data.token as string;
+    }
+
+    private async fetchBindingDocumentTypes(
+        w3id: string,
+        token: string,
+    ): Promise<Set<string>> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) return new Set();
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+
+        const gqlRes = await Axios.post(
+            gqlUrl,
+            {
+                query: `query {
+                    bindingDocuments(first: 50) {
+                        edges { node { parsed } }
+                    }
+                }`,
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+
+        const edges: { node: { parsed: { type?: string } | null } }[] =
+            gqlRes.data?.data?.bindingDocuments?.edges ?? [];
+        const types = new Set<string>();
+        for (const edge of edges) {
+            const t = edge?.node?.parsed?.type;
+            if (typeof t === "string") types.add(t);
+        }
+        return types;
+    }
+
+    private async createIdDocumentBindingDocument(
+        w3id: string,
+        reference: string,
+        fullName: string,
+        token: string,
+    ): Promise<void> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) return;
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const data = { vendor: "didit", reference, name: fullName };
+        const ownerSignature = signAsProvisioner({
+            subject,
+            type: "id_document",
+            data: data as any,
+        });
+
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+        await Axios.post(
+            gqlUrl,
+            {
+                query: `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                    createBindingDocument(input: $input) {
+                        metaEnvelopeId
+                        errors { message code }
+                    }
+                }`,
+                variables: {
+                    input: { subject, type: "id_document", data, ownerSignature },
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+    }
+
+    private async createPhotographBindingDocument(
+        w3id: string,
+        portraitImageUrl: string,
+        token: string,
+        apiKey: string,
+    ): Promise<void> {
+        const evaultUrl = process.env.PUBLIC_EVAULT_SERVER_URI;
+        if (!evaultUrl) return;
+        const subject = w3id.startsWith("@") ? w3id : `@${w3id}`;
+        const imageResponse = await diditClient.get(portraitImageUrl, {
+            headers: { "x-api-key": apiKey },
+            responseType: "arraybuffer",
+        });
+        const contentType =
+            (imageResponse.headers["content-type"] as string | undefined) ??
+            "image/jpeg";
+        const base64 = Buffer.from(imageResponse.data as ArrayBuffer).toString(
+            "base64",
+        );
+        const photoBlob = `data:${contentType};base64,${base64}`;
+        const data = { photoBlob };
+        const ownerSignature = signAsProvisioner({
+            subject,
+            type: "photograph",
+            data: data as any,
+        });
+
+        const gqlUrl = new URL("/graphql", evaultUrl).toString();
+        await Axios.post(
+            gqlUrl,
+            {
+                query: `mutation CreateBindingDocument($input: CreateBindingDocumentInput!) {
+                    createBindingDocument(input: $input) {
+                        metaEnvelopeId
+                        errors { message code }
+                    }
+                }`,
+                variables: {
+                    input: { subject, type: "photograph", data, ownerSignature },
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-ENAME": subject,
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+        );
+    }
+
+    private async ensureRecoveryBindingDocuments(
+        w3id: string,
+        idVerif: any,
+        diditSessionId: string,
+        apiKey: string,
+    ): Promise<void> {
+        const fullName = (
+            idVerif?.full_name ??
+            `${idVerif?.first_name ?? ""} ${idVerif?.last_name ?? ""}`
+        ).trim();
+        const portraitUrl: string = idVerif?.portrait_image ?? "";
+
+        if (!fullName && !portraitUrl) return;
+
+        const token = await this.getPlatformToken();
+        const existingTypes = await this.fetchBindingDocumentTypes(w3id, token);
+
+        if (!existingTypes.has("id_document") && fullName) {
+            await this.createIdDocumentBindingDocument(
+                w3id,
+                diditSessionId,
+                fullName,
+                token,
+            );
+            console.log(`[RECOVERY] Backfilled id_document for ${w3id}`);
+        }
+
+        if (!existingTypes.has("photograph") && portraitUrl) {
+            await this.createPhotographBindingDocument(
+                w3id,
+                portraitUrl,
+                token,
+                apiKey,
+            );
+            console.log(`[RECOVERY] Backfilled photograph for ${w3id}`);
+        }
+    }
 
     registerRoutes(app: any) {
         /**
@@ -95,6 +294,10 @@ export class RecoveryController {
                 const { data: decision } = await diditClient.get(
                     `/v3/session/${encodeURIComponent(diditSessionId)}/decision/`,
                     { headers: { "x-api-key": apiKey } },
+                );
+                const recoveryIdVerif = decision?.id_verifications?.[0] ?? null;
+                const recoveryDocumentNumber = this.normalizeDocumentNumber(
+                    recoveryIdVerif?.document_number,
                 );
 
                 const liveness = decision?.liveness_checks?.[0];
@@ -195,21 +398,70 @@ export class RecoveryController {
                         success: true,
                         w3id: record.linkedEName,
                         uri: evaultUrl,
-                        idVerif: idVerif
-                            ? {
-                                  full_name: idVerif.full_name,
-                                  first_name: idVerif.first_name,
-                                  last_name: idVerif.last_name,
-                                  date_of_birth: idVerif.date_of_birth,
-                                  document_type: idVerif.document_type,
-                                  document_number: idVerif.document_number,
-                                  issuing_state_name: idVerif.issuing_state_name,
-                                  issuing_state: idVerif.issuing_state,
-                                  expiration_date: idVerif.expiration_date,
-                                  date_of_issue: idVerif.date_of_issue,
-                              }
-                            : null,
+                        idVerif: this.toIdVerifPayload(idVerif),
                     });
+                }
+
+                // Fallback for older or low-quality captures:
+                // try recovering by normalized document number.
+                if (recoveryDocumentNumber) {
+                    let [docMatches] =
+                        await this.verificationService.findManyAndCount({
+                            documentId: recoveryDocumentNumber,
+                        });
+
+                    // Backward compatibility for historical non-normalized rows
+                    if (docMatches.length === 0) {
+                        const rawDocumentNumber =
+                            typeof recoveryIdVerif?.document_number === "string"
+                                ? recoveryIdVerif.document_number
+                                : "";
+                        if (
+                            rawDocumentNumber &&
+                            rawDocumentNumber !== recoveryDocumentNumber
+                        ) {
+                            [docMatches] =
+                                await this.verificationService.findManyAndCount({
+                                    documentId: rawDocumentNumber,
+                                });
+                        }
+                    }
+
+                    const linkedMatches = docMatches
+                        .filter((v) => !!v.linkedEName)
+                        .sort(
+                            (a, b) =>
+                                new Date(b.updatedAt).getTime() -
+                                new Date(a.updatedAt).getTime(),
+                        );
+                    const fallbackRecord = linkedMatches[0];
+
+                    if (fallbackRecord?.linkedEName) {
+                        // Ensure recovery artifacts exist when dumb fallback succeeds.
+                        try {
+                            await this.ensureRecoveryBindingDocuments(
+                                fallbackRecord.linkedEName,
+                                recoveryIdVerif,
+                                diditSessionId,
+                                apiKey,
+                            );
+                        } catch (ensureErr: any) {
+                            console.warn(
+                                "[RECOVERY] Could not ensure binding docs during fallback:",
+                                ensureErr?.response?.data ?? ensureErr?.message,
+                            );
+                        }
+
+                        console.log(
+                            `[RECOVERY] eVault found via document fallback: eName=${fallbackRecord.linkedEName}`,
+                        );
+                        return res.json({
+                            success: true,
+                            w3id: fallbackRecord.linkedEName,
+                            uri: evaultUrl,
+                            idVerif: this.toIdVerifPayload(recoveryIdVerif),
+                        });
+                    }
                 }
 
                 console.warn("[RECOVERY] No matching eVault found above threshold");

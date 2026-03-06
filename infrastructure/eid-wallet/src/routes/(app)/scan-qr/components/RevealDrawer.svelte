@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -28,11 +29,14 @@ $: if (internalOpen !== lastReportedOpen) {
 </script>
 
 {#if internalOpen}
-    <div class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto">
-        <div
-            class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
-        >
-            <div class="flex flex-col items-start pt-2">
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
+        fullScreen={true}
+        class="gap-5"
+    >
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {revealSuccess
                         ? 'bg-green-100'
@@ -60,10 +64,10 @@ $: if (internalOpen !== lastReportedOpen) {
                 </div>
 
                 {#if revealSuccess && revealedVoteData}
-                    <h4 class="text-xl font-bold text-green-800">
+                    <h4 class="text-lg font-bold text-green-800">
                         Vote Decrypted
                     </h4>
-                    <p class="text-black-700 mt-1">
+                    <p class="mt-1 text-sm leading-relaxed text-black-700">
                         Your selection has been successfully retrieved.
                     </p>
 
@@ -90,8 +94,8 @@ $: if (internalOpen !== lastReportedOpen) {
                         </div>
                     </div>
                 {:else}
-                    <h4 class="text-xl font-bold">Reveal Your Blind Vote</h4>
-                    <p class="text-black-700 mt-1">
+                    <h4 class="text-lg font-bold">Reveal Your Blind Vote</h4>
+                    <p class="mt-1 text-sm leading-relaxed text-black-700">
                         Please review the request details below.
                     </p>
 
@@ -102,9 +106,9 @@ $: if (internalOpen !== lastReportedOpen) {
                             <table class="w-full border-collapse">
                                 <tbody class="divide-y divide-gray-200">
                                     <tr>
-                                        <td class="py-4 px-4">
+                                        <td class="align-top py-4 px-4">
                                             <div
-                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
                                                 Poll ID
                                             </div>
@@ -142,7 +146,7 @@ $: if (internalOpen !== lastReportedOpen) {
                 {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 {#if revealSuccess}
                     <Button.Action
                         variant="solid"
@@ -172,5 +176,5 @@ $: if (internalOpen !== lastReportedOpen) {
                 {/if}
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -38,16 +39,17 @@ $: hasPollDetails =
 </script>
 
 {#if internalOpen}
-    <div
-        class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
+        fullScreen={true}
         role="dialog"
         aria-modal="true"
         aria-labelledby="signing-title"
+        class="gap-5"
     >
-        <div
-            class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
-        >
-            <div class="flex flex-col items-start pt-2">
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {showSigningSuccess
                         ? 'bg-green-100'
@@ -76,7 +78,7 @@ $: hasPollDetails =
 
                 <h4
                     id="signing-title"
-                    class="text-xl font-bold {showSigningSuccess
+                    class="text-lg font-bold {showSigningSuccess
                         ? 'text-green-800'
                         : ''}"
                 >
@@ -95,7 +97,7 @@ $: hasPollDetails =
                     {/if}
                 </h4>
 
-                <p class="text-gray-700 mt-1">
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     {#if showSigningSuccess}
                         Your request was processed successfully.
                     {:else}
@@ -110,14 +112,14 @@ $: hasPollDetails =
                         <tbody class="divide-y divide-gray-200">
                             {#if signingData?.pollId}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Poll ID
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData.pollId}
                                         </div>
@@ -127,14 +129,14 @@ $: hasPollDetails =
 
                             {#if isBlindVotingRequest && hasPollDetails}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Poll Title
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium mt-1 block"
+                                            class="text-sm text-black-700 font-medium mt-1 block"
                                         >
                                             {signingData?.pollDetails?.title}
                                         </div>
@@ -144,28 +146,28 @@ $: hasPollDetails =
 
                             {#if signingData?.message && !signingData?.pollId}
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Message
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData.message}
                                         </div>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Session Id
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium break-all mt-1 block"
+                                            class="text-sm text-black-700 font-medium break-all mt-1 block"
                                         >
                                             {signingData?.sessionId}
                                         </div>
@@ -187,13 +189,13 @@ $: hasPollDetails =
                         {/if}
                         <fieldset class="space-y-2">
                             <legend
-                                class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-1"
+                                class="text-xs font-semibold text-black-500 uppercase mb-2 ml-1"
                             >
                                 Select Option
                             </legend>
                             {#each signingData?.pollDetails?.options || [] as option, index}
                                 <label
-                                    class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
+                                class="flex items-center p-3 bg-white rounded-xl border border-gray-100 cursor-pointer"
                                 >
                                     <input
                                         type="radio"
@@ -205,7 +207,7 @@ $: hasPollDetails =
                                             onBlindVoteOptionChange(index)}
                                         class="mr-3 h-4 w-4"
                                     />
-                                    <span class="text-sm">{option}</span>
+                                    <span class="text-sm text-black-700">{option}</span>
                                 </label>
                             {/each}
                         </fieldset>
@@ -221,7 +223,7 @@ $: hasPollDetails =
                 {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 {#if showSigningSuccess}
                     <Button.Action
                         variant="solid"
@@ -229,16 +231,16 @@ $: hasPollDetails =
                         callback={onSuccessOkay}>Okay</Button.Action
                     >
                 {:else if isBlindVotingRequest && hasPollDetails}
-                    <button
-                        onclick={onSubmitBlindVote}
-                        disabled={selectedBlindVoteOption === null ||
-                            isSubmittingBlindVote}
-                        class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold disabled:bg-gray-300 transition-colors"
+                    <Button.Action
+                        variant="solid"
+                        class="w-full"
+                        callback={onSubmitBlindVote}
+                        disabled={selectedBlindVoteOption === null || isSubmittingBlindVote}
                     >
                         {isSubmittingBlindVote
                             ? "Submitting..."
                             : "Submit Blind Vote"}
-                    </button>
+                    </Button.Action>
                 {:else}
                     <div class="flex justify-center gap-3 items-center w-full">
                         {#if signingError}
@@ -270,5 +272,5 @@ $: hasPollDetails =
                 {/if}
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}

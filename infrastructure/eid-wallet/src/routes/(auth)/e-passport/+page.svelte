@@ -16,10 +16,14 @@ const handleFinish = async () => {
     const recovery = get(pendingRecovery);
     if (recovery) {
         localStorage.setItem(RECOVERY_SKIP_PROFILE_SETUP_KEY, "true");
+        // Recovery can happen on a fresh device, so make sure a key exists
+        // and is synced immediately before entering the app.
+        await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
         globalState.vaultController.vault = {
             uri: recovery.uri,
             ename: recovery.ename,
         };
+        await globalState.vaultController.syncPublicKey(recovery.ename);
         pendingRecovery.set(null);
     }
     await goto("/main");
@@ -33,10 +37,10 @@ onMount(async () => {
 </script>
 
 <main
-    class="h-full px-4 pb-4 flex flex-col justify-between"
-    style="padding-top: max(16px, env(safe-area-inset-top));"
+    class="min-h-[100svh] px-4 flex flex-col justify-between"
+    style="padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom));"
 >
-    <section>
+    <section class="mt-4">
         <Hero
             title="Here's your ePassport"
             class="mb-2"
@@ -44,17 +48,23 @@ onMount(async () => {
         >
             {#snippet subtitle()}
                 <p>
-                    You can use it to access any platform that supports the Web
-                    3.0 Data Space – <strong>no usernames, no passwords</strong
-                    >. If you lose your phone, you can reissue your ePassport on
-                    another device, linked to the same <strong>eName</strong>.
+                    Your ePassport lets you log in to any W3DS-enabled platform
+                    – <strong>no usernames, no passwords</strong>. If you lose
+                    or change your phone, you can re-create your ePassport on a
+                    new device with the same eName.
                 </p>
             {/snippet}
         </Hero>
         <IdentityCard variant="ePassport" {userData} />
     </section>
-    <div class="flex flex-col gap-3">
-        <ButtonAction class="w-full" callback={handleFinish}>Finish</ButtonAction>
-        <ButtonAction variant="soft" class="w-full" callback={() => goto("/register")}>Back</ButtonAction>
+    <div class="mt-auto flex flex-col gap-3">
+        <ButtonAction class="w-full" callback={handleFinish}
+            >Finish</ButtonAction
+        >
+        <ButtonAction
+            variant="soft"
+            class="w-full"
+            callback={() => goto("/register")}>Back</ButtonAction
+        >
     </div>
 </main>

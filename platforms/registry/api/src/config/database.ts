@@ -5,7 +5,7 @@ import * as dotenv from "dotenv"
 import { join } from "path"
 
 // Load environment variables from root .env file
-dotenv.config({ path: join(__dirname, "../../../../.env") })
+dotenv.config({ path: join(__dirname, "../../../../../.env") })
 
 export const AppDataSource = new DataSource({
     type: "postgres",
@@ -19,9 +19,9 @@ export const AppDataSource = new DataSource({
     subscribers: [],
     ssl: process.env.DB_CA_CERT
         ? {
-              rejectUnauthorized: false,
-              ca: process.env.DB_CA_CERT,
-          }
+            rejectUnauthorized: false,
+            ca: process.env.DB_CA_CERT,
+        }
         : false,
     // Connection pool configuration to prevent exhaustion
     extra: {
@@ -31,4 +31,4 @@ export const AppDataSource = new DataSource({
         connectionTimeoutMillis: 5000,
         statement_timeout: 10000,
     },
-}) 
+})

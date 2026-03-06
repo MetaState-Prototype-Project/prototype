@@ -7,7 +7,7 @@ import {
 } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
-import { Drawer, Toast } from "$lib/ui";
+import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import {
@@ -214,7 +214,7 @@ async function startKycUpgrade() {
         await globalState.walletSdkAdapter.ensureKey("default", "onboarding");
 
         const { data } = await axios.post(
-            new URL("/verification", PUBLIC_PROVISIONER_URL).toString(),
+            new URL("/verification/v2", PUBLIC_PROVISIONER_URL).toString(),
             {},
             {
                 headers: {
@@ -276,7 +276,7 @@ const handleDiditComplete = async (result: DiditCompleteResult) => {
     try {
         const { data: decision } = await axios.get<DiditDecision>(
             new URL(
-                `/verification/decision/${result.session.sessionId}`,
+                `/verification/v2/decision/${result.session.sessionId}`,
                 PUBLIC_PROVISIONER_URL,
             ).toString(),
             {
@@ -333,7 +333,10 @@ async function handleUpgrade() {
     kycStep = "upgrading";
     try {
         const { data } = await axios.post(
-            new URL("/verification/upgrade", PUBLIC_PROVISIONER_URL).toString(),
+            new URL(
+                "/verification/v2/upgrade",
+                PUBLIC_PROVISIONER_URL,
+            ).toString(),
             { diditSessionId: sessionId, w3id },
             {
                 headers: {
@@ -549,7 +552,9 @@ onDestroy(() => {
                 onclick={() => goto("/ePassport")}
                 role="link"
                 tabindex="0"
-                onkeydown={(e) => { if (e.key === "Enter") goto("/ePassport"); }}
+                onkeydown={(e) => {
+                    if (e.key === "Enter") goto("/ePassport");
+                }}
             >
                 <div class="relative z-10">
                     <IdentityCard
@@ -559,16 +564,19 @@ onDestroy(() => {
                 </div>
                 {#if bindingDocsLoaded && (hasOnlySelfDocs || missingProvisionerDocs)}
                     <button
-                        onclick={(e) => { e.stopPropagation(); goto("/ePassport"); }}
-                        class="relative z-0 w-full -mt-3 -translate-y-[10px] rounded-b-2xl px-4 pt-[30px] pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            goto("/ePassport");
+                        }}
+                        class="relative z-0 w-full -mt-3 -translate-y-2.5 rounded-b-2xl px-4 pt-7.5 pb-3 flex items-center justify-center gap-2 text-sm font-medium shadow-md transition-colors
                             {missingProvisionerDocs
-                                ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
-                                : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
+                            ? 'bg-emerald-400 text-emerald-900 active:bg-emerald-500'
+                            : 'bg-amber-400 text-amber-900 active:bg-amber-500'}"
                     >
-                        <span>{missingProvisionerDocs ? '↑' : '⚠'}</span>
+                        <span>{missingProvisionerDocs ? "↑" : "⚠"}</span>
                         {missingProvisionerDocs
-                            ? 'New — upgrade your eVault with verified identity docs'
-                            : 'Tap to verify your identity and increase trust level'}
+                            ? "New – add binding docs for trust & recovery"
+                            : "Verify your identity – secure DigitalSelf & earn trust"}
                     </button>
                 {/if}
             </div>
@@ -597,12 +605,14 @@ onDestroy(() => {
             <span
                 class="text-sm opacity-90 relative z-10 drop-shadow-md flex gap-1 items-center"
                 >Explore
-                <img
-                    src="/images/W3DSLogoBlack.svg"
-                    alt="W3DS Logo"
-                    class="h-4"
-                />
-                Marketplace
+                <div class="flex items-center">
+                    <img
+                        src="/images/W3DSLogoBlack.svg"
+                        alt="W3DS Logo"
+                        class="h-4"
+                    />
+                    -enabled services
+                </div>
                 <span class="relative z-10">
                     <HugeiconsIcon
                         size={16}
@@ -614,9 +624,9 @@ onDestroy(() => {
         </Button.Nav>
     </main>
 
-    <Drawer
+    <BottomSheet
         title="Scan QR Code"
-        bind:isPaneOpen={shareQRdrawerOpen}
+        bind:isOpen={shareQRdrawerOpen}
         class="flex flex-col gap-4 items-center justify-center"
     >
         <div
@@ -634,7 +644,7 @@ onDestroy(() => {
                 Share
             </Button.Action>
         </div>
-    </Drawer>
+    </BottomSheet>
 
     <Button.Nav
         href="/scan-qr"
@@ -750,23 +760,40 @@ onDestroy(() => {
             style="padding: 1.5rem 1.5rem max(1.5rem, env(safe-area-inset-bottom));"
         >
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold">!</div>
+                <div
+                    class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 text-lg font-bold"
+                >
+                    !
+                </div>
                 <h3 class="text-lg font-bold">Identity Already Registered</h3>
             </div>
             <p class="text-black-700 text-sm leading-relaxed">
-                This identity document is already linked to an existing eVault. You can't create a duplicate — each person gets one verified eVault.
+                This identity document is already linked to an existing eVault.
+                You can't create a duplicate — each person gets one verified
+                eVault.
             </p>
             {#if duplicateEName}
                 <div class="rounded-xl bg-gray-50 border border-gray-200 p-4">
-                    <p class="text-xs text-black-500 mb-1">Your existing eVault eName</p>
-                    <p class="font-mono text-sm font-medium text-black-900 break-all">{duplicateEName}</p>
+                    <p class="text-xs text-black-500 mb-1">
+                        Your existing eVault eName
+                    </p>
+                    <p
+                        class="font-mono text-sm font-medium text-black-900 break-all"
+                    >
+                        {duplicateEName}
+                    </p>
                 </div>
                 <p class="text-sm text-black-500">
-                    Use the eName above to recover access to your existing eVault instead.
+                    Use the eName above to recover access to your existing
+                    eVault instead.
                 </p>
             {/if}
             <div class="flex flex-col gap-3 pt-2">
-                <Button.Action variant="soft" class="w-full" callback={resetKyc}>
+                <Button.Action
+                    variant="soft"
+                    class="w-full"
+                    callback={resetKyc}
+                >
                     Got it
                 </Button.Action>
             </div>
@@ -820,7 +847,11 @@ onDestroy(() => {
                     notified when it's complete.
                 </p>
                 <div class="flex flex-col gap-3 pt-2">
-                    <Button.Action variant="soft" class="w-full" callback={resetKyc}>
+                    <Button.Action
+                        variant="soft"
+                        class="w-full"
+                        callback={resetKyc}
+                    >
                         Close
                     </Button.Action>
                 </div>
@@ -841,7 +872,11 @@ onDestroy(() => {
                     <Button.Action class="w-full" callback={startKycUpgrade}>
                         Try Again
                     </Button.Action>
-                    <Button.Action variant="soft" class="w-full" callback={resetKyc}>
+                    <Button.Action
+                        variant="soft"
+                        class="w-full"
+                        callback={resetKyc}
+                    >
                         Cancel
                     </Button.Action>
                 </div>

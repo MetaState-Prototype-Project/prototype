@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { QrCodeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -23,16 +24,17 @@ $: if (internalOpen !== lastReportedOpen) {
 </script>
 
 {#if internalOpen}
-    <div
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
+        fullScreen={true}
         role="dialog"
         aria-modal="true"
         aria-labelledby="loggedin-title"
-        class="loggedin-drawer fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
+        class="loggedin-drawer gap-5"
     >
-        <div
-            class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto"
-        >
-            <div class="flex flex-col items-start pt-2">
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden bg-gray rounded-xl p-4 h-[72px] w-[72px]"
                 >
@@ -51,16 +53,16 @@ $: if (internalOpen !== lastReportedOpen) {
                     />
                 </div>
 
-                <h4 id="loggedin-title" class="text-xl font-bold">
+                <h4 id="loggedin-title" class="text-lg font-bold">
                     You're logged in!
                 </h4>
-                <p class="text-gray-700">
+                <p class="text-sm leading-relaxed text-black-700">
                     You're now connected to {platform ?? "the platform"}
                 </p>
                 <div class="flex flex-col items-start py-6 w-full">
                     {#if redirect && platform}
                         <div class="text-start">
-                            <p class="text-sm text-gray-600">
+                            <p class="text-sm text-black-500">
                                 You may return to <strong>{platform}</strong> and
                                 continue there
                             </p>
@@ -69,7 +71,7 @@ $: if (internalOpen !== lastReportedOpen) {
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 <Button.Action
                     variant="soft"
                     class="w-full"
@@ -79,5 +81,5 @@ $: if (internalOpen !== lastReportedOpen) {
                 </Button.Action>
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}

@@ -679,10 +679,7 @@ $effect(() => {
     <div
         class="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top)] bg-primary z-50"
     ></div>
-    <div
-        bind:this={mainWrapper}
-        class="bg-white h-screen overflow-scroll py-10"
-    >
+    <div bind:this={mainWrapper} class="bg-white min-h-screen overflow-y-auto">
         {#if children}
             {@render children()}
         {/if}

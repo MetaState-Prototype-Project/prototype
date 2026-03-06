@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BottomSheet } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { UserGroup02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/svelte";
@@ -29,14 +30,17 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
 </script>
 
 {#if internalOpen}
-    <div
-        class="fixed inset-0 z-50 bg-white p-4 overflow-y-auto"
+    <BottomSheet
+        isOpen={internalOpen}
+        dismissible={false}
+        fullScreen={true}
         role="dialog"
         aria-modal="true"
         aria-labelledby="social-binding-title"
+        class="gap-5"
     >
-        <div class="flex flex-col justify-between min-h-full w-full max-w-md mx-auto">
-            <div class="flex flex-col items-start pt-2">
+        <div class="flex h-full w-full flex-col">
+            <div class="min-h-0 flex flex-1 flex-col items-start overflow-y-auto pt-2">
                 <div
                     class="flex justify-center mb-4 relative items-center overflow-hidden {success
                         ? 'bg-green-100'
@@ -65,12 +69,12 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
 
                 <h4
                     id="social-binding-title"
-                    class="text-xl font-bold {success ? 'text-green-800' : ''}"
+                    class="text-lg font-bold {success ? 'text-green-800' : ''}"
                 >
                     {success ? "Binding Signed!" : "Social Identity Binding"}
                 </h4>
 
-                <p class="text-gray-700 mt-1">
+                <p class="mt-1 text-sm leading-relaxed text-black-700">
                     {#if success}
                         You've signed the social identity binding for <strong>{displayName}</strong>.
                         They will counter-sign to complete the mutual binding.
@@ -86,14 +90,14 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                         <table class="w-full border-collapse">
                             <tbody class="divide-y divide-gray-200">
                                 <tr>
-                                    <td class="py-3 px-4">
+                                    <td class="align-top py-3 px-4">
                                         <div
-                                            class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                         >
                                             Name
                                         </div>
                                         <div
-                                            class="text-sm text-gray-700 font-medium mt-1 block"
+                                            class="text-sm text-black-700 font-medium mt-1 block"
                                         >
                                             {displayName}
                                         </div>
@@ -101,14 +105,14 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                                 </tr>
                                 {#if requesterEname}
                                     <tr>
-                                        <td class="py-3 px-4">
+                                        <td class="align-top py-3 px-4">
                                             <div
-                                                class="text-xs font-semibold text-gray-500 uppercase tracking-wider block"
+                                                class="text-xs font-semibold text-black-500 uppercase tracking-wider block"
                                             >
                                                 eID
                                             </div>
                                             <div
-                                                class="text-sm text-gray-700 font-medium break-all mt-1 block"
+                                                class="text-sm text-black-700 font-medium break-all mt-1 block"
                                             >
                                                 {requesterEname}
                                             </div>
@@ -129,7 +133,7 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                 {/if}
             </div>
 
-            <div class="flex flex-col gap-3 pb-2 w-full pt-8">
+            <div class="shrink-0 flex w-full flex-col gap-3 pb-2 pt-6">
                 {#if success}
                     <Button.Action
                         variant="solid"
@@ -163,5 +167,5 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                 {/if}
             </div>
         </div>
-    </div>
+    </BottomSheet>
 {/if}
