@@ -48,10 +48,10 @@ onMount(async () => {
         >
             {#snippet subtitle()}
                 <p>
-                    You can use it to access any platform that supports the Web
-                    3.0 Data Space – <strong>no usernames, no passwords</strong
-                    >. If you lose your phone, you can reissue your ePassport on
-                    another device, linked to the same <strong>eName</strong>.
+                    Your ePassport lets you log in to any W3DS-enabled platform
+                    – <strong>no usernames, no passwords</strong>. If you lose
+                    or change your phone, you can re-create your ePassport on a
+                    new device with the same eName.
                 </p>
             {/snippet}
         </Hero>

@@ -668,7 +668,11 @@ onMount(async () => {
     <!-- Social binding button — always visible once passport is loaded -->
     {#if bindingDocsLoaded}
         <div class="mt-4 px-1">
-            <ButtonAction variant="soft" class="w-full" callback={openSocialBindingDrawer}>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={openSocialBindingDrawer}
+            >
                 Request Social Binding
             </ButtonAction>
         </div>
@@ -684,47 +688,72 @@ onMount(async () => {
     >
         {#if socialBindingSuccess}
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold">✓</div>
+                <div
+                    class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-lg font-bold"
+                >
+                    ✓
+                </div>
                 <h4>Binding Complete!</h4>
             </div>
             <p class="text-black-700">
                 {socialBindingSignerName ?? "Someone"} has signed your identity binding.
                 Both eVaults now hold a mutually-signed social connection document.
             </p>
-            <ButtonAction class="w-full" callback={closeSocialBindingDrawer}>Done</ButtonAction>
+            <ButtonAction class="w-full" callback={closeSocialBindingDrawer}
+                >Done</ButtonAction
+            >
         {:else if socialBindingCounterSigning}
             <div class="flex flex-col items-center justify-center gap-4 py-6">
                 <Shadow size={36} color="rgb(142, 82, 255)" />
-                <p class="text-black-700 text-center">Completing mutual binding…</p>
+                <p class="text-black-700 text-center">
+                    Completing mutual binding…
+                </p>
             </div>
         {:else if socialBindingAwaitingConsent}
             <div>
                 <h4 class="mb-1">Social Connection Request</h4>
                 <p class="text-black-700">
-                    <strong>{socialBindingSignerName ?? socialBindingSignerEname ?? "Someone"}</strong>
-                    wants to establish a social connection with you. Accept to confirm the binding.
+                    <strong
+                        >{socialBindingSignerName ??
+                            socialBindingSignerEname ??
+                            "Someone"}</strong
+                    >
+                    wants to establish a social connection with you. Accept to confirm
+                    the binding.
                 </p>
             </div>
             <div class="bg-gray rounded-2xl p-4 flex flex-col gap-1">
                 <p class="small text-black-500">From</p>
-                <p class="font-semibold">{socialBindingSignerName ?? socialBindingSignerEname}</p>
+                <p class="font-semibold">
+                    {socialBindingSignerName ?? socialBindingSignerEname}
+                </p>
                 {#if socialBindingSignerEname && socialBindingSignerEname !== socialBindingSignerName}
-                    <p class="small text-black-300 break-all">{socialBindingSignerEname}</p>
+                    <p class="small text-black-300 break-all">
+                        {socialBindingSignerEname}
+                    </p>
                 {/if}
             </div>
             {#if socialBindingError}
                 <p class="text-danger">{socialBindingError}</p>
             {/if}
             <div class="flex flex-col gap-3">
-                <ButtonAction class="w-full" callback={confirmSocialBinding}>Accept</ButtonAction>
-                <ButtonAction variant="soft" class="w-full" callback={declineSocialBinding}>Decline</ButtonAction>
+                <ButtonAction class="w-full" callback={confirmSocialBinding}
+                    >Accept</ButtonAction
+                >
+                <ButtonAction
+                    variant="soft"
+                    class="w-full"
+                    callback={declineSocialBinding}>Decline</ButtonAction
+                >
             </div>
         {:else}
             <div>
                 <h4 class="mb-1">Request Social Binding</h4>
                 <p class="text-black-700">
-                    Ask someone with an eID Wallet to scan this QR code to sign your
-                    identity binding document.
+                    Ask a trusted person with an eID Wallet to scan this QR and
+                    confirm it’s you. <br />
+                    They will sign a social binding for your Digital Self – no access
+                    to your data.
                 </p>
             </div>
 
@@ -732,7 +761,9 @@ onMount(async () => {
                 <div class="flex justify-center py-2">
                     <QrCode value={socialBindingQr} size={220} />
                 </div>
-                <p class="small text-black-500 text-center break-all">{socialBindingQr}</p>
+                <p class="small text-black-500 text-center break-all">
+                    {socialBindingQr}
+                </p>
             {/if}
 
             {#if socialBindingPolling}
@@ -746,7 +777,11 @@ onMount(async () => {
                 <p class="text-danger">{socialBindingError}</p>
             {/if}
 
-            <ButtonAction variant="soft" class="w-full" callback={closeSocialBindingDrawer}>
+            <ButtonAction
+                variant="soft"
+                class="w-full"
+                callback={closeSocialBindingDrawer}
+            >
                 Cancel
             </ButtonAction>
         {/if}
