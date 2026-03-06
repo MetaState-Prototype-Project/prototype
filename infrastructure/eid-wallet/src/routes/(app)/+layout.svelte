@@ -35,12 +35,16 @@ onMount(async () => {
         // Register device for push notifications (eName + token to provisioner)
         try {
             const notificationService = globalState.notificationService;
-            const ename = vault && "ename" in vault ? String(vault.ename) : undefined;
+            const ename =
+                vault && "ename" in vault ? String(vault.ename) : undefined;
             if (ename) {
                 await notificationService.registerDevice(ename);
             }
         } catch (error) {
-            console.error("Failed to register device for notifications:", error);
+            console.error(
+                "Failed to register device for notifications:",
+                error,
+            );
         }
 
         // Check for notifications after successful authentication

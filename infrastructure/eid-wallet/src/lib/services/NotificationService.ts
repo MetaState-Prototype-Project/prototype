@@ -1,11 +1,11 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { invoke } from "@tauri-apps/api/core";
 import {
     isPermissionGranted,
     registerForPushNotifications,
     requestPermission,
     sendNotification,
 } from "@choochmeque/tauri-plugin-notifications-api";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface DeviceRegistration {
     eName: string;
