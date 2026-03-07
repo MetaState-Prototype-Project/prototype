@@ -5,7 +5,7 @@
 	import { registryService } from '$lib/services/registry';
 	import type { Platform } from '$lib/services/registry';
 	import { Table } from '$lib/ui';
-	import { RefreshCw } from 'lucide-svelte';
+	import { RefreshCw, UserRound, Users } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { EVault } from './api/evaults/+server';
 
@@ -35,6 +35,7 @@
 		return evaults.filter(
 			(evault) =>
 				evault.name?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
+				evault.type?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
 				evault.ename?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
 				evault.evault?.toLowerCase().includes(evaultsSearchValue.toLowerCase()) ||
 				evault.id?.toLowerCase().includes(evaultsSearchValue.toLowerCase())
@@ -71,20 +72,19 @@
 	let mappedEVaultsData = $derived(() => {
 		const paginated = paginatedEVaults();
 		return paginated.map((evault) => ({
-			eVault: {
+			Name: {
 				type: 'text',
-				value: evault.evault || evault.id || 'N/A',
-				className: 'cursor-pointer text-blue-600 hover:text-blue-800 hover:underline'
+				value: evault.name || evault.ename || evault.evault || 'N/A',
+				width: 3
 			},
 			eName: {
-				type: 'text',
-				value: evault.ename || 'N/A'
-			},
-			URI: {
-				type: 'link',
-				value: evault.uri || evault.serviceUrl || 'N/A',
-				link: evault.uri || evault.serviceUrl || '#',
-				external: true
+				type: 'snippet' as const,
+				value: {
+					ename: evault.ename || 'N/A',
+					type: evault.type || 'group'
+				},
+				snippet: ENameWithType,
+				width: 7
 			}
 		}));
 	});
@@ -457,6 +457,21 @@
 		fetchPlatforms();
 	});
 </script>
+
+{#snippet ENameWithType(value: unknown)}
+	{@const item =
+		(value as { ename?: string; type?: 'user' | 'group' } | null) ?? null}
+	{@const ename = item?.ename || 'N/A'}
+	{@const type = item?.type || 'group'}
+	<div class="flex items-center gap-2 whitespace-nowrap">
+		{#if type === 'user'}
+			<UserRound class="h-5 w-5 shrink-0 text-gray-800" strokeWidth={2.25} />
+		{:else}
+			<Users class="h-5 w-5 shrink-0 text-gray-800" strokeWidth={2.25} />
+		{/if}
+		<span>{ename}</span>
+	</div>
+{/snippet}
 
 <section class="flex gap-7">
 	<!-- Left Column: eVaults -->
