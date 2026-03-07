@@ -30,6 +30,7 @@ export class EVaultService {
 		return freshData;
 	}
 
+
 	/**
 	 * Get cache status information
 	 */

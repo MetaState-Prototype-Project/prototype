@@ -278,7 +278,11 @@
 			isLoading = true;
 			error = null;
 			console.log('🔍 Fetching eVaults...');
-			const data = await EVaultService.getEVaults();
+			let data = await EVaultService.forceRefresh();
+			if (!Array.isArray(data) || data.length === 0) {
+				// Fallback to cache only if fresh load returns empty/invalid.
+				data = await EVaultService.getEVaults();
+			}
 			console.log('📦 Data received:', data);
 			console.log('📊 Data type:', typeof data);
 			console.log('📊 Is array:', Array.isArray(data));
