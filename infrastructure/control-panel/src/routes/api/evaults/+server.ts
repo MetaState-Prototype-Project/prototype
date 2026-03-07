@@ -41,16 +41,20 @@ function firstNonEmptyString(...values: unknown[]): string | null {
 async function fetchFirstParsedByOntology(
 	vault: RegistryVault,
 	ontologyId: string,
-	token: string
+	token?: string
 ): Promise<Record<string, unknown> | null> {
-	try {
+	const tryRequest = async (withAuth: boolean): Promise<Record<string, unknown> | null> => {
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'X-ENAME': vault.ename
+		};
+		if (withAuth && token) {
+			headers.Authorization = `Bearer ${token}`;
+		}
+
 		const response = await fetch(`${vault.uri}/graphql`, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-ENAME': vault.ename,
-				Authorization: `Bearer ${token}`
-			},
+			headers,
 			body: JSON.stringify({
 				query: META_ENVELOPES_QUERY,
 				variables: {
@@ -66,6 +70,9 @@ async function fetchFirstParsedByOntology(
 		}
 
 		const payload = await response.json();
+		if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+			return null;
+		}
 		const parsed = payload?.data?.metaEnvelopes?.edges?.[0]?.node?.parsed;
 
 		if (!parsed || typeof parsed !== 'object') {
@@ -73,6 +80,20 @@ async function fetchFirstParsedByOntology(
 		}
 
 		return parsed as Record<string, unknown>;
+	};
+
+	try {
+		// Try with token first (preferred), then fallback to X-ENAME-only.
+		const withAuth = await tryRequest(Boolean(token));
+		if (withAuth) {
+			return withAuth;
+		}
+
+		if (token) {
+			return await tryRequest(false);
+		}
+
+		return null;
 	} catch {
 		return null;
 	}
@@ -80,7 +101,7 @@ async function fetchFirstParsedByOntology(
 
 async function resolveVaultIdentity(
 	vault: RegistryVault,
-	token: string
+	token?: string
 ): Promise<{ name: string; type: 'user' | 'group' }> {
 	const defaultName = firstNonEmptyString(vault.ename, vault.evault, 'Unknown') || 'Unknown';
 
@@ -99,7 +120,15 @@ async function resolveVaultIdentity(
 		return {
 			type: 'group',
 			name:
-				firstNonEmptyString(groupManifest.name, groupManifest.eName, vault.ename, vault.evault) ||
+				firstNonEmptyString(
+					groupManifest.name,
+					groupManifest.displayName,
+					groupManifest.title,
+					groupManifest.eName,
+					groupManifest.ename,
+					vault.ename,
+					vault.evault
+				) ||
 				defaultName
 		};
 	}
@@ -136,7 +165,12 @@ async function requestPlatformToken(platform: string): Promise<string> {
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const platform = env.PUBLIC_CONTROL_PANEL_URL || url.origin;
-		const token = await requestPlatformToken(platform);
+		let token: string | undefined;
+		try {
+			token = await requestPlatformToken(platform);
+		} catch (tokenError) {
+			console.warn('Falling back to X-ENAME-only eVault queries:', tokenError);
+		}
 
 		// Fetch all evaults from registry
 		const registryVaults = await registryService.getEVaults();
@@ -149,17 +183,6 @@ export const GET: RequestHandler = async ({ url }) => {
 
 				const identity = await resolveVaultIdentity(vault, token);
 
-				// Check health status by attempting to fetch from URI
-				let status = 'Unknown';
-				try {
-					const healthResponse = await fetch(`${vault.uri}/health`, {
-						signal: AbortSignal.timeout(2000) // 2 second timeout
-					});
-					status = healthResponse.ok ? 'Active' : 'Inactive';
-				} catch {
-					status = 'Inactive';
-				}
-
 				return {
 					id: evaultId,
 					name: identity.name,
@@ -167,7 +190,7 @@ export const GET: RequestHandler = async ({ url }) => {
 					ename: vault.ename,
 					uri: vault.uri,
 					evault: vault.evault,
-					status: status,
+					status: 'Unknown',
 					serviceUrl: vault.uri
 				};
 			})
