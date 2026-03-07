@@ -1,5 +1,10 @@
-import type { EVault } from '../../routes/api/evaults/+server';
+import type { EVault, EVaultCounters } from '../../routes/api/evaults/+server';
 import { cacheService } from './cacheService';
+
+export interface EVaultListResponse {
+	evaults: EVault[];
+	counters: EVaultCounters | null;
+}
 
 export class EVaultService {
 	/**
@@ -28,6 +33,15 @@ export class EVaultService {
 		const freshData = await this.fetchEVaultsDirectly();
 		await cacheService.updateCache(freshData);
 		return freshData;
+	}
+
+	/**
+	 * Force refresh and include backend counters/debug stats
+	 */
+	static async forceRefreshWithCounters(): Promise<EVaultListResponse> {
+		const response = await this.fetchEVaultsDirectlyWithCounters();
+		await cacheService.updateCache(response.evaults);
+		return response;
 	}
 
 	/**
@@ -70,6 +84,23 @@ export class EVaultService {
 			return data.evaults || [];
 		} catch (error) {
 			console.error('Failed to fetch eVaults:', error);
+			throw error;
+		}
+	}
+
+	private static async fetchEVaultsDirectlyWithCounters(): Promise<EVaultListResponse> {
+		try {
+			const response = await fetch('/api/evaults');
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return {
+				evaults: data.evaults || [],
+				counters: data.counters || null
+			};
+		} catch (error) {
+			console.error('Failed to fetch eVaults with counters:', error);
 			throw error;
 		}
 	}
