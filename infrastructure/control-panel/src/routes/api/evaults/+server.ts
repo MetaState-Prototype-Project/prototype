@@ -196,8 +196,13 @@ export const GET: RequestHandler = async ({ url }) => {
 			})
 		);
 
-		console.log(`Total eVaults found: ${evaults.length}`);
-		return json({ evaults });
+		// Filter out platform-owned user profiles (e.g. "File Manager Platform").
+		const filteredEVaults = evaults.filter(
+			(vault) => !(vault.type === 'user' && /platform$/i.test(vault.name.trim()))
+		);
+
+		console.log(`Total eVaults found: ${filteredEVaults.length}`);
+		return json({ evaults: filteredEVaults });
 	} catch (error) {
 		console.error('Error fetching eVaults:', error);
 		return json({ error: 'Failed to fetch eVaults', evaults: [] }, { status: 500 });
