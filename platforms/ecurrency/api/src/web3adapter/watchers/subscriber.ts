@@ -47,8 +47,36 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
  
     }
 
+    private async loadFullEntity(
+        entityId: string,
+        tableTarget: any
+    ): Promise<any | null> {
+        try {
+            const repository = AppDataSource.getRepository(tableTarget);
+            const entityName = typeof tableTarget === "function"
+                ? tableTarget.name
+                : tableTarget;
+            const relations = this.getRelationsForEntity(entityName);
+            return await repository.findOne({
+                where: { id: entityId },
+                relations,
+            });
+        } catch (error) {
+            console.error("Error loading full entity:", error);
+            return null;
+        }
+    }
+
     async enrichEntity(entity: any, tableName: string, tableTarget: any) {
         try {
+            const entityId = entity?.id;
+            if (entityId) {
+                const fullEntity = await this.loadFullEntity(entityId, tableTarget);
+                if (fullEntity) {
+                    return this.entityToPlain(fullEntity);
+                }
+            }
+
             const enrichedEntity = { ...entity };
             return this.entityToPlain(enrichedEntity);
         } catch (error) {
@@ -263,13 +291,88 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
                     return;
                 }
 
-                const envelope = await this.adapter.handleChange({
+                if (tableName === "ledgers") {
+                    await this.syncLedgerToAllParticipantEVaults(data);
+                    return;
+                }
+
+                await this.adapter.handleChange({
                     data,
                     tableName: tableName.toLowerCase(),
                 });
             }, 3_000);
         } catch (error) {
             console.error(`Error processing change for ${tableName}:`, error);
+        }
+    }
+
+    private async resolveAccountEname(
+        accountId?: string,
+        accountType?: string | null
+    ): Promise<string | null> {
+        if (!accountId || !accountType) {
+            return null;
+        }
+
+        try {
+            if (accountType === "user") {
+                const userRepository = AppDataSource.getRepository("User");
+                const user = await userRepository.findOne({ where: { id: accountId } });
+                return user?.ename || null;
+            }
+
+            if (accountType === "group") {
+                const groupRepository = AppDataSource.getRepository("Group");
+                const group = await groupRepository.findOne({ where: { id: accountId } });
+                return group?.ename || null;
+            }
+        } catch (error) {
+            console.error("Error resolving account eName:", error);
+        }
+
+        return null;
+    }
+
+    private async resolveLedgerParticipants(ledgerData: any): Promise<string[]> {
+        const participants = new Set<string>();
+
+        const senderEname = await this.resolveAccountEname(
+            ledgerData?.senderAccountId,
+            ledgerData?.senderAccountType
+        );
+        if (senderEname) {
+            participants.add(senderEname);
+        }
+
+        const receiverEname = await this.resolveAccountEname(
+            ledgerData?.receiverAccountId,
+            ledgerData?.receiverAccountType
+        );
+        if (receiverEname) {
+            participants.add(receiverEname);
+        }
+
+        return Array.from(participants);
+    }
+
+    private async syncLedgerToAllParticipantEVaults(data: any): Promise<void> {
+        const participantEnames = await this.resolveLedgerParticipants(data);
+        if (participantEnames.length === 0) {
+            console.warn(`No participant eNames resolved for ledger ${data.id}`);
+            return;
+        }
+
+        for (const participantEname of participantEnames) {
+            const scopedLedgerData = {
+                ...data,
+                id: `${data.id}::${participantEname}`,
+                syncOwnerEname: participantEname,
+            };
+
+            await this.adapter.handleChange({
+                data: scopedLedgerData,
+                tableName: "ledgers",
+            });
         }
     }
 
@@ -387,7 +490,7 @@ export class PostgresSubscriber implements EntitySubscriberInterface {
             case "Message":
                 return ["sender", "group"];
             case "Currency":
-                return ["group", "creator"];
+                return ["group", "group.admins", "creator"];
             case "Ledger":
                 return ["currency"];
             default:

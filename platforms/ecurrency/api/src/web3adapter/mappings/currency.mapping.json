@@ -1,13 +1,16 @@
 {
     "tableName": "currencies",
     "schemaId": "550e8400-e29b-41d4-a716-446655440008",
-    "ownerEnamePath": "ename",
+    "ownerEnamePath": "groups(group.admins[].ename)||users(creator.ename)",
     "ownedJunctionTables": [],
     "localToUniversalMap": {
         "name": "name",
+        "description": "description",
         "ename": "ename",
         "groupId": "groupId",
         "allowNegative": "allowNegative",
+        "maxNegativeBalance": "maxNegativeBalance",
+        "allowNegativeGroupOnly": "allowNegativeGroupOnly",
         "createdBy": "createdBy",
         "createdAt": "createdAt",
         "updatedAt": "updatedAt"

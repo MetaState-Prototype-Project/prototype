@@ -1,16 +1,22 @@
 {
-    "tableName": "ledger",
+    "tableName": "ledgers",
     "schemaId": "550e8400-e29b-41d4-a716-446655440006",
-    "ownerEnamePath": "currency.ename",
+    "ownerEnamePath": "syncOwnerEname",
     "ownedJunctionTables": [],
     "localToUniversalMap": {
-        "currencyId": "currencyId",
+        "currencyId": "currencies(currencyId),currencyId",
         "accountId": "accountId",
         "accountType": "accountType",
         "amount": "amount",
         "type": "type",
         "description": "description",
+        "senderAccountId": "senderAccountId",
+        "senderAccountType": "senderAccountType",
+        "receiverAccountId": "receiverAccountId",
+        "receiverAccountType": "receiverAccountType",
         "balance": "balance",
+        "hash": "hash",
+        "prevHash": "prevHash",
         "createdAt": "createdAt"
     },
     "readOnly": false
