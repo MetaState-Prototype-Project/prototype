@@ -7,7 +7,7 @@
 	import { Table } from '$lib/ui';
 	import { RefreshCw, UserRound, Users } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import type { EVault, EVaultCounters } from './api/evaults/+server';
+	import type { EVault } from './api/evaults/+server';
 
 	let evaultsSearchValue = $state('');
 	let platformsSearchQuery = $state('');
@@ -17,7 +17,6 @@
 	let platformsLoading = $state(true);
 	let error = $state<string | null>(null);
 	let platformsError = $state<string | null>(null);
-	let evaultCounters = $state<EVaultCounters | null>(null);
 	let mappedData = $state<any[]>([]);
 
 	// Pagination for eVaults
@@ -279,13 +278,10 @@
 			isLoading = true;
 			error = null;
 			console.log('🔍 Fetching eVaults...');
-			const fresh = await EVaultService.forceRefreshWithCounters();
-			let data = fresh.evaults;
-			evaultCounters = fresh.counters;
+			let data = await EVaultService.forceRefresh();
 			if (!Array.isArray(data) || data.length === 0) {
 				// Fallback to cache only if fresh load returns empty/invalid.
 				data = await EVaultService.getEVaults();
-				evaultCounters = null;
 			}
 			console.log('📦 Data received:', data);
 			console.log('📊 Data type:', typeof data);
@@ -516,13 +512,6 @@
 					running.
 				</div>
 			{:else}
-				{#if evaultCounters}
-					<div class="mb-3 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-700">
-						Registry: {evaultCounters.registryCount} | Returned: {evaultCounters.returnedCount}
-						| Users: {evaultCounters.userCount} | Groups: {evaultCounters.groupCount} |
-						Auth: {evaultCounters.tokenMode}
-					</div>
-				{/if}
 				<Table
 					class="mb-4"
 					tableData={mappedEVaultsData()}

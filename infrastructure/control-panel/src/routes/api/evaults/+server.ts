@@ -29,14 +29,6 @@ export interface EVault {
 	serviceUrl?: string; // same as uri for display
 }
 
-export interface EVaultCounters {
-	registryCount: number;
-	returnedCount: number;
-	userCount: number;
-	groupCount: number;
-	tokenMode: 'bearer' | 'x-ename-only';
-}
-
 function firstNonEmptyString(...values: unknown[]): string | null {
 	for (const value of values) {
 		if (typeof value === 'string' && value.trim().length > 0) {
@@ -204,18 +196,10 @@ export const GET: RequestHandler = async ({ url }) => {
 			})
 		);
 
-		const counters: EVaultCounters = {
-			registryCount: registryVaults.length,
-			returnedCount: evaults.length,
-			userCount: evaults.filter((vault) => vault.type === 'user').length,
-			groupCount: evaults.filter((vault) => vault.type === 'group').length,
-			tokenMode: token ? 'bearer' : 'x-ename-only'
-		};
-
 		console.log(`Total eVaults found: ${evaults.length}`);
-		return json({ evaults, counters });
+		return json({ evaults });
 	} catch (error) {
 		console.error('Error fetching eVaults:', error);
-		return json({ error: 'Failed to fetch eVaults', evaults: [], counters: null }, { status: 500 });
+		return json({ error: 'Failed to fetch eVaults', evaults: [] }, { status: 500 });
 	}
 };

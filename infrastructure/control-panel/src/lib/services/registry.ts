@@ -19,7 +19,7 @@ export class RegistryService {
 	private baseUrl: string;
 
 	constructor() {
-		this.baseUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.staging.metastate.foundation';
+		this.baseUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.w3ds.metastate.foundation';
 	}
 
 	async getEVaults(): Promise<RegistryVault[]> {
