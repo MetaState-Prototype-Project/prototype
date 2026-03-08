@@ -12,6 +12,13 @@ A SvelteKit-based control panel for monitoring and managing various services and
 - **Pod Details**: Access detailed pod information including YAML configuration and resource usage
 - **Metrics**: View pod performance metrics (when metrics-server is available)
 
+### W3DS Admin Authentication
+
+- **W3DS login flow**: `/login` uses `w3ds://auth` offer + wallet signature callback
+- **Signature verification**: Auth callback verifies signatures with `signature-validator` against `PUBLIC_REGISTRY_URL`
+- **Static admin allowlist**: Access is granted only if the authenticated eName exists in `config/admin-enames.json`
+- **No local DB**: Admin authorization is file-based and reloaded from disk when changed
+
 ## Prerequisites
 
 ### Kubernetes Access
@@ -106,6 +113,27 @@ Returns the most recent logs from a specific pod.
 Returns detailed information about a specific pod.
 
 ## Configuration
+
+### Authentication Setup
+
+1. Copy `.env.example` to `.env` and configure:
+
+```env
+PUBLIC_REGISTRY_URL=https://registry.staging.metastate.foundation
+PUBLIC_CONTROL_PANEL_URL=http://localhost:5173
+CONTROL_PANEL_JWT_SECRET=replace-with-a-strong-secret
+CONTROL_PANEL_ADMIN_ENAMES_FILE=config/admin-enames.json
+```
+
+2. Add admin eNames to `config/admin-enames.json`:
+
+```json
+{
+  "admins": ["@admin1.w3id", "@admin2.w3id"]
+}
+```
+
+3. Start the app and open `/login` to authenticate with eID Wallet.
 
 ### eVault Detection
 

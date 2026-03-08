@@ -653,8 +653,8 @@
 		</div>
 	</div>
 {:else}
-	<section class="flex h-full w-full">
-		<div class="bg-gray flex h-screen w-screen flex-col">
+	<section class="flex h-[calc(100vh-180px)] w-full min-w-0 gap-4">
+		<div class="bg-gray flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200">
 			<div class="z-10 flex w-full items-center justify-between bg-white p-4">
 				<div>
 					<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>
@@ -707,7 +707,7 @@
 			</div>
 
 			{#if SvelteFlowComponent}
-				<div class="flex-grow">
+				<div class="min-h-0 flex-grow">
 					<SvelteFlow
 						bind:nodes
 						bind:edges
@@ -753,8 +753,7 @@
 
 		<!-- Flow Messages Panel -->
 		<div
-			class="flex w-[40%] cursor-default flex-col bg-white p-4 transition-colors hover:bg-gray-50"
-			style="height: calc(100vh - 80px);"
+			class="flex h-full w-[min(32rem,35vw)] min-w-[22rem] shrink-0 cursor-default flex-col rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
 		>
 			<div class="mb-4 flex-shrink-0">
 				<h3 class="text-lg font-semibold text-gray-800">Data Flow</h3>
@@ -775,7 +774,7 @@
 				</div>
 			</div>
 
-			<div class="flex-1 space-y-2 overflow-y-auto pr-2">
+			<div class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-2">
 				{#each flowMessages as message, i}
 					<div class="rounded bg-gray-50 p-2 font-mono text-sm">
 						{message}
