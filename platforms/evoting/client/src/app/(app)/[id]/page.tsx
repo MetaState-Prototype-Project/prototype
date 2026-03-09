@@ -13,6 +13,8 @@ import {
     Shield,
     ChartLine,
     CircleUser,
+    Play,
+    Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -157,6 +159,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     // Check if voting is still allowed
     const isVotingAllowed =
         selectedPoll &&
+        selectedPoll.status === "active" &&
         (!selectedPoll?.deadline ||
             new Date() < new Date(selectedPoll.deadline));
 
@@ -165,8 +168,20 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     // Calculate time remaining for polls with deadlines
     useEffect(() => {
-        if (!pollExists || !selectedPoll?.deadline) {
+        if (!pollExists) {
             setTimeRemaining("");
+            return;
+        }
+
+        // Handle status-based messages for polls without deadlines
+        if (!selectedPoll?.deadline) {
+            if (selectedPoll?.status === "draft") {
+                setTimeRemaining("Voting not started");
+            } else if (selectedPoll?.status === "ended") {
+                setTimeRemaining("Voting has ended");
+            } else {
+                setTimeRemaining("Open - no deadline");
+            }
             return;
         }
 
@@ -312,6 +327,38 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     const selectedContextHasVoted = selectedContextVoteStatus?.hasVoted === true;
     const isSelfDelegatedAway = myDelegation?.status === "active" || myDelegation?.status === "pending";
     const isCurrentContextDisabled = !isVotingAllowed || (votingContext.type === "self" && isSelfDelegatedAway);
+    const isCreator = selectedPoll?.creatorId === user?.id;
+
+    const handleStartPoll = async () => {
+        if (!pollId) return;
+        try {
+            const updated = await pollApi.startPoll(pollId);
+            setSelectedPoll(updated);
+            toast({ title: "Vote Started", description: "Voting is now open." });
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error?.response?.data?.error || "Failed to start poll.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleEndPoll = async () => {
+        if (!pollId) return;
+        try {
+            const updated = await pollApi.endPoll(pollId);
+            setSelectedPoll(updated);
+            await fetchVoteData();
+            toast({ title: "Vote Ended", description: "Voting has been closed. Results are now available." });
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error?.response?.data?.error || "Failed to end poll.",
+                variant: "destructive",
+            });
+        }
+    };
 
     if (isLoading) {
         return (
@@ -345,6 +392,15 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
 
     const handleVoteSubmit = async () => {
         if (!selectedPoll || !pollId) return;
+
+        if (selectedPoll.status === "draft") {
+            toast({
+                title: "Voting Not Started",
+                description: "The poll creator has not started voting yet.",
+                variant: "destructive",
+            });
+            return;
+        }
 
         if (votingContext.type === "self" && isSelfDelegatedAway) {
             toast({
@@ -476,6 +532,46 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                 </Badge>
                             </div>
                         )}
+                        {!selectedPoll.deadline && timeRemaining && (
+                            <div className="mt-3 flex justify-center">
+                                <Badge
+                                    variant={
+                                        selectedPoll.status === "ended"
+                                            ? "destructive"
+                                            : selectedPoll.status === "draft"
+                                                ? "secondary"
+                                                : "default"
+                                    }
+                                    className="flex items-center"
+                                >
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {timeRemaining}
+                                </Badge>
+                            </div>
+                        )}
+                        {/* Manual start/end controls for poll creator */}
+                        {isCreator && selectedPoll.status === "draft" && (
+                            <div className="mt-4 flex justify-center">
+                                <Button
+                                    onClick={handleStartPoll}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                    <Play className="w-4 h-4 mr-2" />
+                                    Start Vote
+                                </Button>
+                            </div>
+                        )}
+                        {isCreator && selectedPoll.status === "active" && !selectedPoll.deadline && (
+                            <div className="mt-4 flex justify-center">
+                                <Button
+                                    onClick={handleEndPoll}
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                    <Square className="w-4 h-4 mr-2" />
+                                    End Vote
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Keep selector mounted in a stable top slot for all group polls */}
@@ -513,7 +609,19 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                         )}
 
                     {/* Show results if poll has ended, regardless of user's vote status */}
-                    {!isVotingAllowed ? (
+                    {selectedPoll.status === "draft" ? (
+                        <div className="text-center py-8">
+                            <div className="mb-4">
+                                <Clock className="w-12 h-12 text-gray-400 mx-auto" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Voting Has Not Started</h3>
+                            <p className="text-gray-500">
+                                {isCreator
+                                    ? "Click \"Start Vote\" above to open voting."
+                                    : "The poll creator has not started voting yet. Please check back later."}
+                            </p>
+                        </div>
+                    ) : !isVotingAllowed ? (
                         <div className="space-y-6">
 
                             {/* For cryptographically blind polls (private + normal), use blind tally results */}

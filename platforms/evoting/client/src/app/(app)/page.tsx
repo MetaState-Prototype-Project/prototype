@@ -56,8 +56,17 @@ export default function Home() {
 
     // Helper function to check if a poll is actually active (not expired)
     const isPollActive = (poll: Poll) => {
+        if (poll.status === "ended") return false;
+        if (poll.status === "draft") return false;
         if (!poll.deadline) return true;
         return new Date() < new Date(poll.deadline);
+    };
+
+    const getPollStatusLabel = (poll: Poll) => {
+        if (poll.status === "draft") return "Draft";
+        if (poll.status === "ended") return "Ended";
+        if (poll.deadline && new Date() >= new Date(poll.deadline)) return "Ended";
+        return "Active";
     };
 
     // Filter polls by status
@@ -80,7 +89,7 @@ export default function Home() {
     };
 
     const getPollStatus = (poll: Poll) => {
-        return isPollActive(poll) ? "active" : "ended";
+        return getPollStatusLabel(poll).toLowerCase();
     };
 
     const handleSort = (field: string) => {
@@ -194,8 +203,8 @@ export default function Home() {
                                                 <h3 className="font-medium text-gray-900 flex-1 pr-2">
                                                     {poll.title}
                                                 </h3>
-                                                <Badge variant={isActive ? "success" : "warning"} className="shrink-0">
-                                                    {isActive ? "Active" : "Ended"}
+                                                <Badge variant={isActive ? "success" : poll.status === "draft" ? "secondary" : "warning"} className="shrink-0">
+                                                    {getPollStatusLabel(poll)}
                                                 </Badge>
                                             </div>
 
@@ -329,12 +338,12 @@ export default function Home() {
                                                         )}
                                                     </td>
                                                     <td className="py-3 px-4">
-                                                        <Badge variant={isActive ? "success" : "warning"}>
-                                                            {isActive ? "Active" : "Ended"}
+                                                        <Badge variant={isActive ? "success" : poll.status === "draft" ? "secondary" : "warning"}>
+                                                            {getPollStatusLabel(poll)}
                                                         </Badge>
                                                     </td>
                                                     <td className="py-3 px-4 text-sm text-gray-600">
-                                                        {poll.deadline ? new Date(poll.deadline).toLocaleDateString() : "No deadline"}
+                                                        {poll.deadline ? new Date(poll.deadline).toLocaleDateString() : "Manual"}
                                                     </td>
                                                 </tr>
                                             );

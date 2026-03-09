@@ -7,6 +7,7 @@ export interface Poll {
   visibility: "public" | "private";
   votingWeight: "1p1v" | "ereputation";
   options: string[];
+  status: "draft" | "active" | "ended";
   deadline?: string | null;
   creatorId: string;
   groupId?: string;
@@ -363,6 +364,18 @@ export const pollApi = {
       voteData,
       mode,
     });
+    return response.data;
+  },
+
+  // Manually start a poll (draft → active)
+  startPoll: async (id: string): Promise<Poll> => {
+    const response = await apiClient.post(`/api/polls/${id}/start`);
+    return response.data;
+  },
+
+  // Manually end a poll (active → ended)
+  endPoll: async (id: string): Promise<Poll> => {
+    const response = await apiClient.post(`/api/polls/${id}/end`);
     return response.data;
   },
 }; 

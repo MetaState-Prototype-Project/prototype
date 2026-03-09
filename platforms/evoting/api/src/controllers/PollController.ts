@@ -156,4 +156,44 @@ export class PollController {
             res.status(500).json({ error: "Failed to fetch user polls" });
         }
     };
+
+    startPoll = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const userId = (req as any).user.id;
+            const poll = await this.pollService.startPoll(id, userId);
+            res.json(poll);
+        } catch (error) {
+            console.error("Error starting poll:", error);
+            if (error instanceof Error) {
+                if (error.message === "Poll not found") {
+                    return res.status(404).json({ error: error.message });
+                }
+                if (error.message === "Not authorized to start this poll" || error.message === "Only draft polls can be started") {
+                    return res.status(400).json({ error: error.message });
+                }
+            }
+            res.status(500).json({ error: "Failed to start poll" });
+        }
+    };
+
+    endPoll = async (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            const userId = (req as any).user.id;
+            const poll = await this.pollService.endPoll(id, userId);
+            res.json(poll);
+        } catch (error) {
+            console.error("Error ending poll:", error);
+            if (error instanceof Error) {
+                if (error.message === "Poll not found") {
+                    return res.status(404).json({ error: error.message });
+                }
+                if (error.message === "Not authorized to end this poll" || error.message === "Only active polls can be ended") {
+                    return res.status(400).json({ error: error.message });
+                }
+            }
+            res.status(500).json({ error: "Failed to end poll" });
+        }
+    };
 } 
