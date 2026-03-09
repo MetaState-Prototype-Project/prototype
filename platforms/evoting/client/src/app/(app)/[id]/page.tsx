@@ -1619,7 +1619,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     ? rawRankData.ranks
                                                                     : rawRankData;
                                                                 const rank = rankData?.[index];
-                                                                return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
+                                                                return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
                                                             }
                                                             return null;
                                                         })();
@@ -2222,10 +2222,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                         <span
                                                                             key={idx}
                                                                             className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${rank === 1
-                                                                                    ? "bg-yellow-100 text-yellow-800"
-                                                                                    : rank === 2
-                                                                                        ? "bg-gray-100 text-gray-700"
-                                                                                        : "bg-orange-50 text-orange-700"
+                                                                                ? "bg-yellow-100 text-yellow-800"
+                                                                                : rank === 2
+                                                                                    ? "bg-gray-100 text-gray-700"
+                                                                                    : "bg-orange-50 text-orange-700"
                                                                                 }`}
                                                                             title={selectedPoll.options[parseInt(idx)]}
                                                                         >
@@ -2371,10 +2371,10 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     <span
                                                                         key={idx}
                                                                         className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${rank === 1
-                                                                                ? "bg-yellow-100 text-yellow-800"
-                                                                                : rank === 2
-                                                                                    ? "bg-gray-100 text-gray-700"
-                                                                                    : "bg-orange-50 text-orange-700"
+                                                                            ? "bg-yellow-100 text-yellow-800"
+                                                                            : rank === 2
+                                                                                ? "bg-gray-100 text-gray-700"
+                                                                                : "bg-orange-50 text-orange-700"
                                                                             }`}
                                                                     >
                                                                         #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
