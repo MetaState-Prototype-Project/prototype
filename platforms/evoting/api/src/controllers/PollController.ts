@@ -169,7 +169,10 @@ export class PollController {
                 if (error.message === "Poll not found") {
                     return res.status(404).json({ error: error.message });
                 }
-                if (error.message === "Not authorized to start this poll" || error.message === "Only draft polls can be started") {
+                if (error.message === "Not authorized to start this poll") {
+                    return res.status(403).json({ error: error.message });
+                }
+                if (error.message === "Only draft polls can be started") {
                     return res.status(400).json({ error: error.message });
                 }
             }
@@ -189,7 +192,10 @@ export class PollController {
                 if (error.message === "Poll not found") {
                     return res.status(404).json({ error: error.message });
                 }
-                if (error.message === "Not authorized to end this poll" || error.message === "Only active polls can be ended") {
+                if (error.message === "Not authorized to end this poll") {
+                    return res.status(403).json({ error: error.message });
+                }
+                if (error.message === "Only active polls can be ended") {
                     return res.status(400).json({ error: error.message });
                 }
             }

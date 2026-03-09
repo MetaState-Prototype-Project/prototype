@@ -51,7 +51,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
     // Add state variables for different voting modes
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [pointVotes, setPointVotes] = useState<{ [key: number]: number }>({});
-    
+
     // Voting context state for delegated voting
     const [votingContext, setVotingContext] = useState<VotingContext>({ type: "self" });
     const [delegationRefreshKey, setDelegationRefreshKey] = useState(0);
@@ -225,7 +225,7 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
         const interval = setInterval(updateTimeRemaining, 60000); // Update every minute
 
         return () => clearInterval(interval);
-    }, [selectedPoll?.deadline, pollExists]);
+    }, [selectedPoll?.deadline, selectedPoll?.status, pollExists]);
 
     const [voteStatus, setVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
     const [delegatedVoteStatus, setDelegatedVoteStatus] = useState<{ hasVoted: boolean; vote: any } | null>(null);
@@ -901,8 +901,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                 // Rank vote - show ranking
                                                 const rawRankData = voteData.data[0]?.points;
                                                 // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                    ? rawRankData.ranks 
+                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                    ? rawRankData.ranks
                                                     : rawRankData;
                                                 if (rankData && typeof rankData === "object") {
                                                     const sortedRanks = Object.entries(rankData)
@@ -952,8 +952,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                         const rawRankData = voteData.data[0]?.points;
                                                         // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                            ? rawRankData.ranks 
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                            ? rawRankData.ranks
                                                             : rawRankData;
                                                         return rankData && typeof rankData[index] === 'number';
                                                     }
@@ -972,8 +972,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                         const rawRankData = voteData.data[0]?.points;
                                                         // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                            ? rawRankData.ranks 
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                            ? rawRankData.ranks
                                                             : rawRankData;
                                                         const rank = rankData?.[index];
                                                         return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'}` : null;
@@ -1544,8 +1544,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         // Rank vote - show ranking
                                                         const rawRankData = voteData.data[0]?.points;
                                                         // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                            ? rawRankData.ranks 
+                                                        const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                            ? rawRankData.ranks
                                                             : rawRankData;
                                                         if (rankData && typeof rankData === "object") {
                                                             const sortedRanks = Object.entries(rankData)
@@ -1595,8 +1595,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                                 const rawRankData = voteData.data[0]?.points;
                                                                 // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                                    ? rawRankData.ranks 
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                                    ? rawRankData.ranks
                                                                     : rawRankData;
                                                                 return rankData && typeof rankData[index] === 'number';
                                                             }
@@ -1615,8 +1615,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                             } else if (voteData.mode === "rank" && Array.isArray(voteData.data)) {
                                                                 const rawRankData = voteData.data[0]?.points;
                                                                 // Handle both formats: { "0": 1 } or { "ranks": { "0": 1 } }
-                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object' 
-                                                                    ? rawRankData.ranks 
+                                                                const rankData = rawRankData?.ranks && typeof rawRankData.ranks === 'object'
+                                                                    ? rawRankData.ranks
                                                                     : rawRankData;
                                                                 const rank = rankData?.[index];
                                                                 return typeof rank === 'number' ? `← You ranked this ${rank}${rank === 1 ? 'st' : rank === 2 ? '2nd' : rank === 3 ? 'rd' : 'th'}` : null;
@@ -1660,12 +1660,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     </p>
                                                 </div>
                                             )}
-                                            
+
                                             {/* Regular Voting Interface based on poll mode */}
                                             {selectedPoll.mode === "normal" && (
                                                 <div>
                                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                                        {votingContext.type === "delegated" 
+                                                        {votingContext.type === "delegated"
                                                             ? `Select choice for ${votingContext.delegatorName}:`
                                                             : "Select your choice:"}
                                                     </h3>
@@ -2212,8 +2212,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                         <div className="mt-1.5 flex flex-wrap gap-1">
                                                             {(() => {
                                                                 // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
-                                                                const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
-                                                                    ? voter.rankData.ranks 
+                                                                const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object'
+                                                                    ? voter.rankData.ranks
                                                                     : voter.rankData;
                                                                 return Object.entries(actualRankData)
                                                                     .filter(([, rank]) => typeof rank === 'number')
@@ -2221,13 +2221,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                     .map(([idx, rank]) => (
                                                                         <span
                                                                             key={idx}
-                                                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                                                                rank === 1
+                                                                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${rank === 1
                                                                                     ? "bg-yellow-100 text-yellow-800"
                                                                                     : rank === 2
-                                                                                    ? "bg-gray-100 text-gray-700"
-                                                                                    : "bg-orange-50 text-orange-700"
-                                                                            }`}
+                                                                                        ? "bg-gray-100 text-gray-700"
+                                                                                        : "bg-orange-50 text-orange-700"
+                                                                                }`}
                                                                             title={selectedPoll.options[parseInt(idx)]}
                                                                         >
                                                                             #{rank} {(selectedPoll.options[parseInt(idx)] || "").slice(0, 8)}{(selectedPoll.options[parseInt(idx)] || "").length > 8 ? "..." : ""}
@@ -2362,8 +2361,8 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                                                         {(() => {
                                                             // Handle both formats: { "0": 1, "1": 2 } or { "ranks": { "0": 1, "1": 2 } }
-                                                            const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object' 
-                                                                ? voter.rankData.ranks 
+                                                            const actualRankData = voter.rankData.ranks && typeof voter.rankData.ranks === 'object'
+                                                                ? voter.rankData.ranks
                                                                 : voter.rankData;
                                                             return Object.entries(actualRankData)
                                                                 .filter(([, rank]) => typeof rank === 'number')
@@ -2371,13 +2370,12 @@ export default function Vote({ params }: { params: Promise<{ id: string }> }) {
                                                                 .map(([idx, rank]) => (
                                                                     <span
                                                                         key={idx}
-                                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                                            rank === 1
+                                                                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${rank === 1
                                                                                 ? "bg-yellow-100 text-yellow-800"
                                                                                 : rank === 2
-                                                                                ? "bg-gray-100 text-gray-700"
-                                                                                : "bg-orange-50 text-orange-700"
-                                                                        }`}
+                                                                                    ? "bg-gray-100 text-gray-700"
+                                                                                    : "bg-orange-50 text-orange-700"
+                                                                            }`}
                                                                     >
                                                                         #{rank} {(selectedPoll.options[parseInt(idx)] || "Option").slice(0, 12)}{(selectedPoll.options[parseInt(idx)] || "").length > 12 ? "..." : ""}
                                                                     </span>
