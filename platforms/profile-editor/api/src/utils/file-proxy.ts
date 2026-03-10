@@ -22,8 +22,8 @@ export async function proxyFileFromFileManager(
 		const endpoint = mode === "download" ? "download" : "preview";
 		const url = `${FILE_MANAGER_BASE_URL()}/api/files/${fileId}/${endpoint}`;
 		const response = await axios.get(url, {
-			responseType: "arraybuffer",
-			timeout: 30000,
+			responseType: "stream",
+			timeout: 60000,
 			headers: {
 				Authorization: `Bearer ${token}`,
 			},
@@ -32,17 +32,31 @@ export async function proxyFileFromFileManager(
 		const contentType =
 			response.headers["content-type"] || "application/octet-stream";
 		const contentDisposition = response.headers["content-disposition"];
+		const contentLength = response.headers["content-length"];
+
 		res.set("Content-Type", contentType);
 		if (contentDisposition) {
 			res.set("Content-Disposition", contentDisposition);
 		}
+		if (contentLength) {
+			res.set("Content-Length", contentLength);
+		}
 		res.set("Cache-Control", "public, max-age=3600");
-		res.send(response.data);
+
+		response.data.pipe(res);
 	} catch (error: any) {
 		if (error?.response?.status === 404) {
 			res.status(404).json({ error: "File not found" });
+		} else if (error?.response) {
+			const chunks: Buffer[] = [];
+			error.response.data.on("data", (chunk: Buffer) => chunks.push(chunk));
+			error.response.data.on("end", () => {
+				const body = Buffer.concat(chunks).toString();
+				console.error("File proxy error:", body);
+			});
+			res.status(502).json({ error: "Failed to fetch file" });
 		} else {
-			console.error("File proxy error:", error?.response?.data?.toString?.() ?? error.message);
+			console.error("File proxy error:", error.message);
 			res.status(502).json({ error: "Failed to fetch file" });
 		}
 	}

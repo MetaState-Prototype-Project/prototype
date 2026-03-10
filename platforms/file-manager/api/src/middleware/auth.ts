@@ -30,7 +30,10 @@ export const authMiddleware = async (
         }
 
         const userRepository = AppDataSource.getRepository(User);
-        const user = await userRepository.findOneBy({ id: decoded.userId });
+        const isEname = decoded.userId.startsWith("@");
+        const user = isEname
+            ? await userRepository.findOneBy({ ename: decoded.userId })
+            : await userRepository.findOneBy({ id: decoded.userId });
 
         if (!user) {
             return res.status(401).json({ error: "User not found" });

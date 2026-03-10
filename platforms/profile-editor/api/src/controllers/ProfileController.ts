@@ -260,7 +260,7 @@ export class ProfileController {
 			const { proxyFileFromFileManager } = await import(
 				"../utils/file-proxy"
 			);
-			await proxyFileFromFileManager(fileId, ename, res, "preview");
+			await proxyFileFromFileManager(fileId, ename, res, "download");
 		} catch (error: any) {
 			console.error("Error proxying video:", error.message);
 			res.status(500).json({ error: "Failed to fetch video" });
