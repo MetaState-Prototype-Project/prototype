@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { clearAuth } from "@/lib/authUtils";
+import { clearAuth, isUnauthorizedError } from "@/lib/authUtils";
 import { apiClient } from "@/lib/apiClient";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import OtherCalculationModal from "@/components/modals/other-calculation-modal";
 import ReferenceModal from "@/components/modals/reference-modal";
@@ -23,6 +25,8 @@ import ReferenceViewModal from "@/components/modals/reference-view-modal";
 
 export default function Dashboard() {
     const { user, isAuthenticated, isLoading } = useAuth();
+    const { toast } = useToast();
+    const queryClient = useQueryClient();
     const [otherModalOpen, setOtherModalOpen] = useState(false);
     const [referenceModalOpen, setReferenceModalOpen] = useState(false);
     const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -30,6 +34,7 @@ export default function Dashboard() {
     const [referenceViewModal, setReferenceViewModal] = useState<any>(null);
     const [activeFilter, setActiveFilter] = useState<string>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [deleteModalOpen, setDeleteModalOpen] = useState<any>(null);
 
     // This page is only rendered when authenticated, no need for redirect logic
 
@@ -70,6 +75,48 @@ export default function Dashboard() {
     const handleLogout = () => {
         clearAuth();
         window.location.href = "/";
+    };
+
+    // Delete reference mutation
+    const deleteMutation = useMutation({
+        mutationFn: async (referenceId: string) => {
+            return await apiClient.delete(`/api/references/${referenceId}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/dashboard/activities"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+            toast({
+                title: "Reference Deleted",
+                description: "The reference has been successfully deleted.",
+            });
+        },
+        onError: (error) => {
+            if (isUnauthorizedError(error)) {
+                toast({
+                    title: "Unauthorized",
+                    description: "You are logged out. Logging in again...",
+                    variant: "destructive",
+                });
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 500);
+                return;
+            }
+            toast({
+                title: "Error",
+                description: "Failed to delete reference. Please try again.",
+                variant: "destructive",
+            });
+        },
+    });
+
+    const confirmDeleteActivity = () => {
+        if (deleteModalOpen) {
+            // Activity IDs are prefixed (e.g. "ref-sent-<uuid>"), extract the actual reference UUID
+            const referenceId = deleteModalOpen.id.replace(/^ref-(sent|received)-/, '');
+            deleteMutation.mutate(referenceId);
+            setDeleteModalOpen(null);
+        }
     };
 
     const handleViewActivity = (activity: any) => {
@@ -580,6 +627,17 @@ export default function Dashboard() {
                                                                 </svg>
                                                                 View Details
                                                             </DropdownMenuItem>
+                                                            {activity.activity === 'Reference Provided' && (
+                                                                <DropdownMenuItem
+                                                                    className="text-red-600"
+                                                                    onClick={() => setDeleteModalOpen(activity)}
+                                                                >
+                                                                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            )}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </td>
@@ -626,6 +684,17 @@ export default function Dashboard() {
                                                             </svg>
                                                             View Details
                                                         </DropdownMenuItem>
+                                                        {activity.activity === 'Reference Provided' && (
+                                                            <DropdownMenuItem
+                                                                className="text-red-600"
+                                                                onClick={() => setDeleteModalOpen(activity)}
+                                                            >
+                                                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                                </svg>
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                                 <div className="flex items-center gap-2">
@@ -913,6 +982,40 @@ export default function Dashboard() {
                             </Button>
                         </div>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Reference Confirmation Modal */}
+            <Dialog open={!!deleteModalOpen} onOpenChange={(open) => !open && setDeleteModalOpen(null)}>
+                <DialogContent className="w-full max-w-sm sm:max-w-md mx-4 sm:mx-auto bg-fig-10 border-2 border-fig/20 shadow-2xl rounded-xl">
+                    <DialogHeader className="text-center">
+                        <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <DialogTitle className="text-xl font-black text-fig">Delete Reference</DialogTitle>
+                        <DialogDescription className="text-fig/70 text-sm font-medium mt-2">
+                            Are you sure you want to permanently delete the reference for <strong>{deleteModalOpen?.target}</strong>? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex gap-3 mt-6">
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteModalOpen(null)}
+                            className="flex-1 border-2 border-fig/30 text-fig/70 hover:bg-fig-10 hover:border-fig/40 font-bold h-11"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={confirmDeleteActivity}
+                            disabled={deleteMutation.isPending}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold h-11"
+                        >
+                            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>
