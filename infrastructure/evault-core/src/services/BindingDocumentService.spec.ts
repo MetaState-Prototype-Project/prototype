@@ -92,7 +92,7 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should create a binding document with social_connection type", async () => {
-            const data = { kind: "social_connection" as const, name: "Alice Smith" };
+            const data = { kind: "social_connection" as const, name: "Alice Smith", parties: ["@signer", "@test-user-123"] as [string, string], relation_description: "Friend from work" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
@@ -111,7 +111,65 @@ describe("BindingDocumentService (integration)", () => {
             expect(result.bindingDocument.data).toEqual({
                 kind: "social_connection",
                 name: "Alice Smith",
+                parties: ["@signer", "@test-user-123"],
+                relation_description: "Friend from work",
             });
+        });
+
+        it("should reject social_connection with malformed parties", async () => {
+            const cases = [
+                { parties: "not-an-array", label: "string instead of array" },
+                { parties: ["@only-one"], label: "array of 1" },
+                { parties: ["@a", "@b", "@c"], label: "array of 3" },
+                { parties: ["no-at", "@valid"], label: "missing @ prefix" },
+                { parties: ["@same", "@same"], label: "duplicate eNames" },
+            ];
+
+            for (const { parties, label } of cases) {
+                const data = { kind: "social_connection", name: "Test", parties, relation_description: "desc" } as any;
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "social_connection",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: "dummy-hash",
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("social_connection data must have parties");
+            }
+        });
+
+        it("should reject social_connection with missing or non-string relation_description", async () => {
+            const cases = [
+                { relation_description: undefined, label: "missing" },
+                { relation_description: 42, label: "number" },
+                { relation_description: { nested: true }, label: "object" },
+            ];
+
+            for (const { relation_description, label } of cases) {
+                const data = { kind: "social_connection", name: "Test", parties: ["@a", "@b"], relation_description } as any;
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "social_connection",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: "dummy-hash",
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("social_connection data must have string field: relation_description");
+            }
         });
 
         it("should create a binding document with self type", async () => {
@@ -317,7 +375,7 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should reject when the same signer attempts to sign twice", async () => {
-            const data = { kind: "social_connection" as const, name: "Duplicate Signer Test" };
+            const data = { kind: "social_connection" as const, name: "Duplicate Signer Test", parties: ["@signer", "@counterparty"] as [string, string], relation_description: "Test" };
             const subject = "@counterparty";
             const docHash = computeBindingDocumentHash({ subject, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
@@ -382,7 +440,7 @@ describe("BindingDocumentService (integration)", () => {
         it("should have an audit log entry after adding a counterparty signature", async () => {
             // For social_connection, the counterparty signer must equal the document's subject
             const counterpartyEName = "@test-user-countersign-audit";
-            const data = { kind: "social_connection" as const, name: "CounterSign Audit" };
+            const data = { kind: "social_connection" as const, name: "CounterSign Audit", parties: ["@signer", "@test-user-countersign-audit"] as [string, string], relation_description: "Audit test" };
             const docHash = computeBindingDocumentHash({ subject: counterpartyEName, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
                 {

@@ -63,7 +63,30 @@ function validateBindingDocumentData(
                     'social_connection data must have string field: name',
                 );
             }
-            return { kind: "social_connection", name: d.name } as BindingDocumentSocialConnectionData;
+            const denseParties = Array.isArray(d.parties) ? Array.from(d.parties) : null;
+            if (
+                !denseParties ||
+                denseParties.length !== 2 ||
+                !denseParties.every(
+                    (p: unknown) => typeof p === "string" && (p as string).startsWith("@"),
+                ) ||
+                denseParties[0] === denseParties[1]
+            ) {
+                throw new ValidationError(
+                    'social_connection data must have parties: array of 2 distinct eNames prefixed with @',
+                );
+            }
+            if (typeof d.relation_description !== "string") {
+                throw new ValidationError(
+                    'social_connection data must have string field: relation_description',
+                );
+            }
+            return {
+                kind: "social_connection",
+                name: d.name,
+                parties: denseParties as [string, string],
+                relation_description: d.relation_description as string,
+            } as BindingDocumentSocialConnectionData;
         }
         case "self": {
             if (typeof d.name !== "string") {

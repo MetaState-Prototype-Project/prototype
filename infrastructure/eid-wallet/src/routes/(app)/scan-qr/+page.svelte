@@ -49,6 +49,7 @@ const {
     socialBindingLoading,
     socialBindingError,
     socialBindingSuccess,
+    socialBindingRelationDescription,
 } = stores;
 
 const {
@@ -266,9 +267,11 @@ function handleSocialBindingOpenChange(value: boolean) {
     loading={$socialBindingLoading}
     error={$socialBindingError}
     success={$socialBindingSuccess}
+    relationDescription={$socialBindingRelationDescription}
     onConfirm={handleSocialBindingConfirm}
     onDecline={handleSocialBindingDecline}
     onOpenChange={handleSocialBindingOpenChange}
+    onDescriptionChange={(value) => socialBindingRelationDescription.set(value)}
 />
 
 <style>

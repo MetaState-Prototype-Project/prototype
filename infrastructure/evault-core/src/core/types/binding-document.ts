@@ -23,6 +23,8 @@ export interface BindingDocumentPhotographData {
 export interface BindingDocumentSocialConnectionData {
     kind: "social_connection";
     name: string;
+    parties: [string, string];
+    relation_description: string;
 }
 
 export interface BindingDocumentSelfData {
