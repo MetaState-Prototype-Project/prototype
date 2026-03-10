@@ -1,9 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import {
-	getDevicesWithTokens,
-	sendBulkNotifications
-} from '$lib/services/notificationService';
+import { getDevicesWithTokens, sendBulkNotifications } from '$lib/services/notificationService';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

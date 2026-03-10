@@ -129,7 +129,7 @@ CONTROL_PANEL_ADMIN_ENAMES_FILE=config/admin-enames.json
 
 ```json
 {
-  "admins": ["@admin1.w3id", "@admin2.w3id"]
+	"admins": ["@admin1.w3id", "@admin2.w3id"]
 }
 ```
 

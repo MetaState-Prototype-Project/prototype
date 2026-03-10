@@ -654,7 +654,9 @@
 	</div>
 {:else}
 	<section class="flex h-[calc(100vh-180px)] w-full min-w-0 gap-4">
-		<div class="bg-gray flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200">
+		<div
+			class="bg-gray flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200"
+		>
 			<div class="z-10 flex w-full items-center justify-between bg-white p-4">
 				<div>
 					<h4 class="text-xl font-semibold text-gray-800">Live Monitoring</h4>

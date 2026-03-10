@@ -27,7 +27,7 @@
 
 {#if isLoginRoute}
 	<main class="min-h-screen bg-gray-50">
-		<section class="px-10 pb-10 pt-10">
+		<section class="px-10 pt-10 pb-10">
 			{@render children()}
 		</section>
 	</main>
@@ -104,7 +104,8 @@
 											const evaultObjects = evaultIds
 												.map((id: string) =>
 													allEVaults.find(
-														(e: any) => (e.evault || e.ename || e.id) === id
+														(e: any) =>
+															(e.evault || e.ename || e.id) === id
 													)
 												)
 												.filter(Boolean);
@@ -125,7 +126,8 @@
 										) {
 											const { registryService } =
 												await import('$lib/services/registry');
-											const allPlatforms = await registryService.getPlatforms();
+											const allPlatforms =
+												await registryService.getPlatforms();
 											const platformObjects = platformUrls
 												.map((url: string) =>
 													allPlatforms.find((p: any) => p.url === url)
@@ -155,11 +157,15 @@
 					{/if}
 
 					{#if data?.user?.ename}
-						<div class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-700">
+						<div
+							class="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-700"
+						>
 							{data.user.ename}
 						</div>
 					{/if}
-					<ButtonAction size="sm" variant="soft" callback={handleLogout}>Logout</ButtonAction>
+					<ButtonAction size="sm" variant="soft" callback={handleLogout}
+						>Logout</ButtonAction
+					>
 				</div>
 			</header>
 			<section class="px-10 pb-10">

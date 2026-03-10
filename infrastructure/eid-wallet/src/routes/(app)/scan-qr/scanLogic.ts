@@ -709,7 +709,10 @@ export function createScanLogic({
             // Single write: signer creates the doc in the REQUESTER's vault.
             // subject=@requester, data.name=requesterName, ownerSig=@signer.
             // The requester polls their own vault, finds it, and counter-signs it there.
-            const parties: [string, string] = [signerEname, normalizedRequesterEname];
+            const parties: [string, string] = [
+                signerEname,
+                normalizedRequesterEname,
+            ];
             const relationDescription = get(socialBindingRelationDescription);
             const doc = {
                 subject: requesterEname,
