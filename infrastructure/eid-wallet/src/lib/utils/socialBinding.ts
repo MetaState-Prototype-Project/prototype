@@ -296,6 +296,8 @@ export async function createSocialConnectionDoc(
     subject: string,
     subjectName: string,
     signatureHash: string,
+    parties: [string, string],
+    relationDescription: string,
 ): Promise<string> {
     const normalizedSubject = subject.startsWith("@") ? subject : `@${subject}`;
     const normalizedSigner = signerEname.startsWith("@")
@@ -310,7 +312,12 @@ export async function createSocialConnectionDoc(
             input: {
                 subject: normalizedSubject,
                 type: "social_connection",
-                data: { kind: "social_connection", name: subjectName },
+                data: {
+                    kind: "social_connection",
+                    name: subjectName,
+                    parties,
+                    relation_description: relationDescription,
+                },
                 ownerSignature: {
                     signer: normalizedSigner,
                     signature: signatureHash,

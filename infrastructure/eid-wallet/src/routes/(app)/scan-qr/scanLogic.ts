@@ -95,6 +95,7 @@ interface ScanStores {
     socialBindingLoading: Writable<boolean>;
     socialBindingError: Writable<string | null>;
     socialBindingSuccess: Writable<boolean>;
+    socialBindingRelationDescription: Writable<string>;
 }
 
 interface ScanActions {
@@ -172,6 +173,7 @@ export function createScanLogic({
     const socialBindingLoading = writable(false);
     const socialBindingError = writable<string | null>(null);
     const socialBindingSuccess = writable(false);
+    const socialBindingRelationDescription = writable("");
 
     let permissionsNullable: PermissionState | null = null;
 
@@ -707,12 +709,16 @@ export function createScanLogic({
             // Single write: signer creates the doc in the REQUESTER's vault.
             // subject=@requester, data.name=requesterName, ownerSig=@signer.
             // The requester polls their own vault, finds it, and counter-signs it there.
+            const parties: [string, string] = [signerEname, normalizedRequesterEname];
+            const relationDescription = get(socialBindingRelationDescription);
             const doc = {
                 subject: requesterEname,
                 type: "social_connection",
                 data: {
                     kind: "social_connection",
                     name: requesterName,
+                    parties,
+                    relation_description: relationDescription,
                 } as Record<string, unknown>,
             };
             const payload = getCanonicalBindingDocString(doc);
@@ -729,6 +735,8 @@ export function createScanLogic({
                 requesterEname,
                 requesterName,
                 sig,
+                parties,
+                relationDescription,
             );
 
             socialBindingSuccess.set(true);
@@ -750,6 +758,7 @@ export function createScanLogic({
         socialBindingRequesterName.set(null);
         socialBindingError.set(null);
         socialBindingSuccess.set(false);
+        socialBindingRelationDescription.set("");
         socialBindingLoading.set(false);
     }
 
@@ -1610,6 +1619,7 @@ export function createScanLogic({
             socialBindingLoading,
             socialBindingError,
             socialBindingSuccess,
+            socialBindingRelationDescription,
         },
         actions: {
             startScan,

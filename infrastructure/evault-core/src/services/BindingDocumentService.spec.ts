@@ -92,7 +92,7 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should create a binding document with social_connection type", async () => {
-            const data = { kind: "social_connection" as const, name: "Alice Smith" };
+            const data = { kind: "social_connection" as const, name: "Alice Smith", parties: ["@signer", "@test-user-123"] as [string, string], relation_description: "Friend from work" };
             const result = await bindingDocumentService.createBindingDocument(
                 {
                     subject: "test-user-123",
@@ -111,6 +111,8 @@ describe("BindingDocumentService (integration)", () => {
             expect(result.bindingDocument.data).toEqual({
                 kind: "social_connection",
                 name: "Alice Smith",
+                parties: ["@signer", "@test-user-123"],
+                relation_description: "Friend from work",
             });
         });
 
@@ -317,7 +319,7 @@ describe("BindingDocumentService (integration)", () => {
         });
 
         it("should reject when the same signer attempts to sign twice", async () => {
-            const data = { kind: "social_connection" as const, name: "Duplicate Signer Test" };
+            const data = { kind: "social_connection" as const, name: "Duplicate Signer Test", parties: ["@signer", "@counterparty"] as [string, string], relation_description: "Test" };
             const subject = "@counterparty";
             const docHash = computeBindingDocumentHash({ subject, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
@@ -382,7 +384,7 @@ describe("BindingDocumentService (integration)", () => {
         it("should have an audit log entry after adding a counterparty signature", async () => {
             // For social_connection, the counterparty signer must equal the document's subject
             const counterpartyEName = "@test-user-countersign-audit";
-            const data = { kind: "social_connection" as const, name: "CounterSign Audit" };
+            const data = { kind: "social_connection" as const, name: "CounterSign Audit", parties: ["@signer", "@test-user-countersign-audit"] as [string, string], relation_description: "Audit test" };
             const docHash = computeBindingDocumentHash({ subject: counterpartyEName, type: "social_connection", data });
             const created = await bindingDocumentService.createBindingDocument(
                 {
