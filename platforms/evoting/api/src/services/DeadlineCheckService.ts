@@ -80,8 +80,8 @@ export class DeadlineCheckService {
                 voteId: poll.id
             });
 
-            // Mark that we've sent the deadline message
-            await this.pollRepository.update(poll.id, { deadlineMessageSent: true });
+            // Mark that we've sent the deadline message and set status to ended
+            await this.pollRepository.update(poll.id, { deadlineMessageSent: true, status: "ended" });
             
             console.log(`Successfully sent deadline message for poll: ${poll.title} (${poll.id})`);
             
