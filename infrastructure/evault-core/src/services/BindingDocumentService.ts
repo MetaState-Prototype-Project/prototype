@@ -63,15 +63,17 @@ function validateBindingDocumentData(
                     'social_connection data must have string field: name',
                 );
             }
+            const denseParties = Array.isArray(d.parties) ? Array.from(d.parties) : null;
             if (
-                !Array.isArray(d.parties) ||
-                d.parties.length !== 2 ||
-                !d.parties.every(
+                !denseParties ||
+                denseParties.length !== 2 ||
+                !denseParties.every(
                     (p: unknown) => typeof p === "string" && (p as string).startsWith("@"),
-                )
+                ) ||
+                denseParties[0] === denseParties[1]
             ) {
                 throw new ValidationError(
-                    'social_connection data must have parties: array of 2 eNames prefixed with @',
+                    'social_connection data must have parties: array of 2 distinct eNames prefixed with @',
                 );
             }
             if (typeof d.relation_description !== "string") {
@@ -82,7 +84,7 @@ function validateBindingDocumentData(
             return {
                 kind: "social_connection",
                 name: d.name,
-                parties: d.parties as [string, string],
+                parties: denseParties as [string, string],
                 relation_description: d.relation_description as string,
             } as BindingDocumentSocialConnectionData;
         }

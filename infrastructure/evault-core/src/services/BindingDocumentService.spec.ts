@@ -116,6 +116,62 @@ describe("BindingDocumentService (integration)", () => {
             });
         });
 
+        it("should reject social_connection with malformed parties", async () => {
+            const cases = [
+                { parties: "not-an-array", label: "string instead of array" },
+                { parties: ["@only-one"], label: "array of 1" },
+                { parties: ["@a", "@b", "@c"], label: "array of 3" },
+                { parties: ["no-at", "@valid"], label: "missing @ prefix" },
+                { parties: ["@same", "@same"], label: "duplicate eNames" },
+            ];
+
+            for (const { parties, label } of cases) {
+                const data = { kind: "social_connection", name: "Test", parties, relation_description: "desc" } as any;
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "social_connection",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: "dummy-hash",
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("social_connection data must have parties");
+            }
+        });
+
+        it("should reject social_connection with missing or non-string relation_description", async () => {
+            const cases = [
+                { relation_description: undefined, label: "missing" },
+                { relation_description: 42, label: "number" },
+                { relation_description: { nested: true }, label: "object" },
+            ];
+
+            for (const { relation_description, label } of cases) {
+                const data = { kind: "social_connection", name: "Test", parties: ["@a", "@b"], relation_description } as any;
+                await expect(
+                    bindingDocumentService.createBindingDocument(
+                        {
+                            subject: "test-user-123",
+                            type: "social_connection",
+                            data,
+                            ownerSignature: {
+                                signer: TEST_ENAME,
+                                signature: "dummy-hash",
+                                timestamp: new Date().toISOString(),
+                            },
+                        },
+                        TEST_ENAME,
+                    ),
+                ).rejects.toThrow("social_connection data must have string field: relation_description");
+            }
+        });
+
         it("should create a binding document with self type", async () => {
             const data = { kind: "self" as const, name: "Bob Jones" };
             const result = await bindingDocumentService.createBindingDocument(

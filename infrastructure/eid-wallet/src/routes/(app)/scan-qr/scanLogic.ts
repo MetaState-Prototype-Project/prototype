@@ -633,6 +633,7 @@ export function createScanLogic({
             socialBindingRequesterName.set(null);
             socialBindingError.set(null);
             socialBindingSuccess.set(false);
+            socialBindingRelationDescription.set("");
             socialBindingDrawerOpen.set(true);
 
             // Fetch the requester's display name eagerly so the drawer shows it immediately.

@@ -108,7 +108,7 @@
                 },
                 "parties": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": { "type": "string", "pattern": "^@[^\\s]+$" },
                     "minItems": 2,
                     "maxItems": 2,
                     "description": "eNames of both participants"
