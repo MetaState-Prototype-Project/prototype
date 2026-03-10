@@ -89,6 +89,7 @@ export default function Dashboard() {
                 title: "Reference Deleted",
                 description: "The reference has been successfully deleted.",
             });
+            setDeleteModalOpen(null);
         },
         onError: (error) => {
             if (isUnauthorizedError(error)) {
@@ -115,7 +116,6 @@ export default function Dashboard() {
             // Activity IDs are prefixed (e.g. "ref-sent-<uuid>"), extract the actual reference UUID
             const referenceId = deleteModalOpen.id.replace(/^ref-(sent|received)-/, '');
             deleteMutation.mutate(referenceId);
-            setDeleteModalOpen(null);
         }
     };
 
