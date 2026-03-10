@@ -104,11 +104,11 @@ export class ReferenceService {
             return false;
         }
 
-        // Delete related signatures first
-        const signatureRepository = AppDataSource.getRepository("ReferenceSignature");
-        await signatureRepository.delete({ referenceId });
+        await AppDataSource.manager.transaction(async (manager) => {
+            await manager.delete("ReferenceSignature", { referenceId });
+            await manager.remove(reference);
+        });
 
-        await this.referenceRepository.remove(reference);
         return true;
     }
 }
