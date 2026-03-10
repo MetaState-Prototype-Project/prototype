@@ -315,7 +315,9 @@ export async function createSocialConnectionDoc(
                 data: {
                     kind: "social_connection",
                     name: subjectName,
-                    parties: parties.map((p) => (p.startsWith("@") ? p : `@${p}`)) as [string, string],
+                    parties: parties.map((p) =>
+                        p.startsWith("@") ? p : `@${p}`,
+                    ) as [string, string],
                     relation_description: relationDescription,
                 },
                 ownerSignature: {
