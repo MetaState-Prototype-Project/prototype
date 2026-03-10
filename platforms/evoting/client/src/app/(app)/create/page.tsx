@@ -42,8 +42,9 @@ const createPollSchema = z.object({
         .min(2, "At least 2 options required"),
     deadline: z
         .string()
-        .min(1, "Deadline is required")
+        .optional()
         .refine((val) => {
+            if (!val) return true; // Allow empty (manual mode)
             const date = new Date(val);
             return !Number.isNaN(date.getTime()) && date > new Date();
         }, "Deadline must be a valid future date"),
@@ -218,7 +219,7 @@ export default function CreatePoll() {
                 votingWeight: data.votingWeight,
                 groupId: data.groupId,
                 options: data.options.filter(option => option.trim() !== ""),
-                deadline: utcDeadline
+                ...(utcDeadline ? { deadline: utcDeadline } : {})
             });
 
             toast({
@@ -374,10 +375,9 @@ export default function CreatePoll() {
                         {...register("deadline")}
                         type="datetime-local"
                         className="mt-2 focus:ring-(--crimson) focus:border-(--crimson)"
-                        required
                     />
                     <p className="mt-1 text-sm text-gray-500">
-                        Set a deadline for when voting will end.
+                        Set a deadline for when voting will end, or leave empty to manually start and end the vote.
                     </p>
                     {errors.deadline && (
                         <p className="mt-1 text-sm text-red-600">

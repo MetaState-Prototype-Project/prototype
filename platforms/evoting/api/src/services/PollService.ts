@@ -86,8 +86,8 @@ export class PollService {
         // Custom sorting based on sortField and sortDirection
         const sortedPolls = filteredPolls.sort((a, b) => {
             const now = new Date();
-            const aIsActive = !a.deadline || new Date(a.deadline) > now;
-            const bIsActive = !b.deadline || new Date(b.deadline) > now;
+            const aIsActive = a.status === "active" || (a.status !== "ended" && a.status !== "draft" && (!a.deadline || new Date(a.deadline) > now));
+            const bIsActive = b.status === "active" || (b.status !== "ended" && b.status !== "draft" && (!b.deadline || new Date(b.deadline) > now));
             
             // Apply the user's chosen sorting
             let comparison = 0;
@@ -218,13 +218,15 @@ export class PollService {
             throw new Error("Blind voting (private visibility) cannot be combined with eReputation weighted voting.");
         }
 
+        const hasDeadline = !!pollData.deadline;
         const pollDataForEntity = {
             title: pollData.title,
             mode: pollData.mode as "normal" | "point" | "rank",
             visibility: pollData.visibility as "public" | "private",
             votingWeight: votingWeight,
             options: pollData.options,
-            deadline: pollData.deadline ? new Date(pollData.deadline) : null,
+            status: hasDeadline ? "active" as const : "draft" as const,
+            deadline: hasDeadline ? new Date(pollData.deadline!) : null,
             creator,
             creatorId: pollData.creatorId,
             groupId: pollData.groupId || null
@@ -237,8 +239,8 @@ export class PollService {
         const savedPoll = await this.pollRepository.save(poll);
         console.log('🔍 Poll saved to database:', savedPoll);
 
-        // Create a system message about the new vote
-        if (pollData.groupId) {
+        // Create a system message about the new vote (only for active polls, not drafts)
+        if (pollData.groupId && hasDeadline) {
             await this.messageService.createVoteCreatedMessage(pollData.groupId, pollData.title, savedPoll.id, creator.name, savedPoll.deadline);
         }
 
@@ -300,6 +302,67 @@ export class PollService {
     }
 
 
+
+    /**
+     * Manually start a poll (draft → active). Only creator can do this.
+     */
+    async startPoll(id: string, userId: string): Promise<Poll> {
+        const poll = await this.getPollById(id);
+        if (!poll) {
+            throw new Error("Poll not found");
+        }
+        if (poll.creatorId !== userId) {
+            throw new Error("Not authorized to start this poll");
+        }
+        if (poll.status !== "draft") {
+            throw new Error("Only draft polls can be started");
+        }
+
+        await this.pollRepository.update(id, { status: "active" });
+
+        // Send system message that voting is now open
+        if (poll.groupId) {
+            await this.messageService.createVoteCreatedMessage(
+                poll.groupId,
+                poll.title,
+                poll.id,
+                poll.creator.name,
+                poll.deadline
+            );
+        }
+
+        return (await this.getPollById(id))!;
+    }
+
+    /**
+     * Manually end a poll (active → ended). Only creator can do this.
+     */
+    async endPoll(id: string, userId: string): Promise<Poll> {
+        const poll = await this.getPollById(id);
+        if (!poll) {
+            throw new Error("Poll not found");
+        }
+        if (poll.creatorId !== userId) {
+            throw new Error("Not authorized to end this poll");
+        }
+        if (poll.status !== "active") {
+            throw new Error("Only active polls can be ended");
+        }
+
+        await this.pollRepository.update(id, { status: "ended", deadlineMessageSent: true });
+
+        // Send system message that voting has ended
+        if (poll.groupId) {
+            const voteUrl = `${process.env.PUBLIC_EVOTING_URL || 'http://localhost:3000'}/${poll.id}`;
+            await this.messageService.createSystemMessage({
+                text: `eVoting Platform: Vote has been manually closed!\n\n"${poll.title}"\n\nVote ID: ${poll.id}\n\nClosed by: ${poll.creator.name}\n\n<a href="${voteUrl}" target="_blank">View results here</a>`,
+                groupId: poll.groupId,
+                voteId: poll.id
+            });
+        }
+
+        return (await this.getPollById(id))!;
+    }
 
     /**
      * Get polls by group ID

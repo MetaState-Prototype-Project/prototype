@@ -326,6 +326,7 @@
 			<ButtonAction
 				variant="solid"
 				size="sm"
+				class="w-fit"
 				isLoading={enameSending}
 				blockingClick
 				callback={sendByEName}
@@ -385,6 +386,7 @@
 			<ButtonAction
 				variant="solid"
 				size="sm"
+				class="w-fit"
 				isLoading={bulkSending}
 				blockingClick
 				callback={sendBulkAll}

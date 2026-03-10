@@ -94,4 +94,21 @@ export class ReferenceService {
         reference.status = "revoked";
         return await this.referenceRepository.save(reference);
     }
+
+    async deleteReference(referenceId: string, authorId: string): Promise<boolean> {
+        const reference = await this.referenceRepository.findOne({
+            where: { id: referenceId, authorId }
+        });
+
+        if (!reference) {
+            return false;
+        }
+
+        await AppDataSource.manager.transaction(async (manager) => {
+            await manager.delete("ReferenceSignature", { referenceId });
+            await manager.remove(reference);
+        });
+
+        return true;
+    }
 }

@@ -40,6 +40,12 @@ export class Poll {
     @Column("simple-array")
     options!: string[]; // stored as comma-separated values
 
+    @Column("enum", {
+        enum: ["draft", "active", "ended"],
+        default: "active",
+    })
+    status!: "draft" | "active" | "ended";
+
     @Column({ type: "timestamp", nullable: true })
     deadline!: Date | null;
 
