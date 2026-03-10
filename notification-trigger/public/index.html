@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notification Trigger</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 480px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #0f0f12;
+        color: #e4e4e7;
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+      }
+      label {
+        display: block;
+        font-size: 0.85rem;
+        color: #a1a1aa;
+        margin-bottom: 0.35rem;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        margin-bottom: 1rem;
+        background: #18181b;
+        border: 1px solid #27272a;
+        border-radius: 6px;
+        color: #e4e4e7;
+        font-size: 0.9rem;
+      }
+      textarea {
+        min-height: 80px;
+        resize: vertical;
+      }
+      button {
+        width: 100%;
+        padding: 0.75rem;
+        background: #3b82f6;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #2563eb;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+      }
+      .status.success {
+        background: #14532d;
+        color: #86efac;
+      }
+      .status.error {
+        background: #450a0a;
+        color: #fca5a5;
+      }
+      .status.hidden {
+        display: none;
+      }
+      .platform-hint {
+        font-size: 0.8rem;
+        color: #71717a;
+        margin-top: -0.5rem;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Notification Trigger</h1>
+    <form id="form">
+      <label for="token">Token (APNS or FCM)</label>
+      <textarea
+        id="token"
+        name="token"
+        placeholder="Paste device token here..."
+        required
+      ></textarea>
+      <div id="platform-hint" class="platform-hint"></div>
+
+      <label for="platform">Platform (optional – auto-detected from token)</label>
+      <select id="platform" name="platform">
+        <option value="">Auto-detect</option>
+        <option value="ios">iOS (APNS)</option>
+        <option value="android">Android (FCM)</option>
+      </select>
+
+      <label for="title">Title</label>
+      <input id="title" name="title" type="text" placeholder="Notification title" value="Hello" required />
+
+      <label for="body">Body</label>
+      <input id="body" name="body" type="text" placeholder="Notification body" value="This is a test notification" required />
+
+      <label for="subtitle">Subtitle (optional)</label>
+      <input id="subtitle" name="subtitle" type="text" placeholder="Subtitle" />
+
+      <button type="submit" id="submit">Send</button>
+    </form>
+
+    <div id="status" class="status hidden"></div>
+
+    <script>
+      const form = document.getElementById("form");
+      const status = document.getElementById("status");
+      const submitBtn = document.getElementById("submit");
+      const tokenInput = document.getElementById("token");
+      const platformHint = document.getElementById("platform-hint");
+
+      function detectPlatform(token) {
+        const cleaned = token.replace(/\s/g, "");
+        if (!cleaned) return null;
+        return /^[a-fA-F0-9]{64}$/.test(cleaned) ? "iOS (APNS)" : "Android (FCM)";
+      }
+
+      tokenInput.addEventListener("input", () => {
+        const platform = detectPlatform(tokenInput.value);
+        platformHint.textContent = platform ? `Detected: ${platform}` : "";
+      });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        status.classList.add("hidden");
+
+        const platformVal = document.getElementById("platform").value;
+        const payload = {
+          token: document.getElementById("token").value.trim(),
+          ...(platformVal && { platform: platformVal }),
+          payload: {
+            title: document.getElementById("title").value,
+            body: document.getElementById("body").value,
+            subtitle: document.getElementById("subtitle").value || undefined,
+          },
+        };
+
+        try {
+          const res = await fetch("/api/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+
+          status.textContent = data.success ? "Sent!" : data.error || "Failed";
+          status.classList.remove("hidden", "success", "error");
+          status.classList.add(data.success ? "success" : "error");
+        } catch (err) {
+          status.textContent = err.message || "Network error";
+          status.classList.remove("hidden", "success");
+          status.classList.add("error");
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

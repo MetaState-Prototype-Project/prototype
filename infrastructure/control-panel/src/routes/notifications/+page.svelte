@@ -326,6 +326,7 @@
 			<ButtonAction
 				variant="solid"
 				size="sm"
+				class="w-fit"
 				isLoading={enameSending}
 				blockingClick
 				callback={sendByEName}
@@ -343,7 +344,9 @@
 		</p>
 		{#if deviceCount !== null}
 			<p class="text-black-500 mt-1 text-sm font-medium">
-				{deviceCount} device{deviceCount === 1 ? '' : 's'} with push token{deviceCount === 1 ? '' : 's'}
+				{deviceCount} device{deviceCount === 1 ? '' : 's'} with push token{deviceCount === 1
+					? ''
+					: 's'}
 			</p>
 		{/if}
 		<div class="mt-4 space-y-4">
@@ -383,6 +386,7 @@
 			<ButtonAction
 				variant="solid"
 				size="sm"
+				class="w-fit"
 				isLoading={bulkSending}
 				blockingClick
 				callback={sendBulkAll}

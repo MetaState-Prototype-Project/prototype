@@ -330,9 +330,16 @@ export async function verifySignature(
             };
         }
 
+        console.log("Verifying signature for eName:", eName);
+        console.log("Registry base URL:", registryBaseUrl);
+        console.log("Signature:", signature);
+        console.log("Payload:", payload);
+
         // Get key binding certificates from eVault
         const keyBindingCertificates = await getKeyBindingCertificates(eName, registryBaseUrl);
 
+        console.log("Key binding certificates:", keyBindingCertificates);
+        
         if (keyBindingCertificates.length === 0) {
             return {
                 valid: true,

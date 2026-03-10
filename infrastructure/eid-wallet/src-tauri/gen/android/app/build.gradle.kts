@@ -27,17 +27,22 @@ android {
     }
 
     signingConfigs {
-      create("release") {
-        val keystorePropertiesFile = rootProject.file("keystore.properties")
-        val keystoreProperties = Properties()
-        if (keystorePropertiesFile.exists()) {
-          keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-        }
+      val keystorePropertiesFile = rootProject.file("keystore.properties")
+      val keystoreProperties = Properties()
+      if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+      }
+      val hasKeystore = keystoreProperties["keyAlias"] != null &&
+        keystoreProperties["password"] != null &&
+        keystoreProperties["storeFile"] != null
 
-        keyAlias = keystoreProperties["keyAlias"] as String
-        keyPassword = keystoreProperties["password"] as String
-        storeFile = file(keystoreProperties["storeFile"] as String)
-        storePassword = keystoreProperties["password"] as String
+      if (hasKeystore) {
+        create("release") {
+          keyAlias = keystoreProperties["keyAlias"] as String
+          keyPassword = keystoreProperties["password"] as String
+          storeFile = file(keystoreProperties["storeFile"] as String)
+          storePassword = keystoreProperties["password"] as String
+        }
       }
     }
 
@@ -54,7 +59,9 @@ android {
             }
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            if (signingConfigs.findByName("release") != null) {
+              signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
