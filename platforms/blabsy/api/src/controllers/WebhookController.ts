@@ -94,40 +94,47 @@ export class WebhookController {
                 axios.post(new URL("blabsy", process.env.ANCHR_URL).toString(), req.body)
             }
 
-            // Early duplicate check
-            if (adapter.lockedIds.includes(id)) {
-                console.log(`Webhook skipped - ID ${id} already locked`);
-                return res.status(200).json({ success: true, skipped: true });
-            }
-
-            console.log(`Processing webhook for ID: ${id}`);
-            
-            // Lock the global ID immediately to prevent duplicates
-            adapter.addToLockedIds(id);
-
             const mapping = Object.values(adapter.mapping).find(
                 (m) => m.schemaId === schemaId,
             );
             if (!mapping) throw new Error();
             const tableName = mapping.tableName + "s";
 
+            // For chats, skip the lock check and use timestamp comparison instead
+            const isChatData = tableName === "chats";
+
+            if (!isChatData && adapter.lockedIds.includes(id)) {
+                console.log(`Webhook skipped - ID ${id} already locked`);
+                return res.status(200).json({ success: true, skipped: true });
+            }
+
+            console.log(`Processing webhook for ID: ${id}`);
+
+            // Lock the global ID immediately to prevent duplicates (non-chat)
+            if (!isChatData) {
+                adapter.addToLockedIds(id);
+            }
+
             const local = await adapter.fromGlobal({ data, mapping });
 
-            console.log("Webhook data received:", { 
-                globalId: id, 
-                tableName, 
+            console.log("Webhook data received:", {
+                globalId: id,
+                tableName,
                 hasEname: !!local.data.ename,
-                ename: local.data.ename 
+                ename: local.data.ename
             });
-            
+
             // Get the local ID from the mapping database
             const localId = await adapter.mappingDb.getLocalId(id);
 
             if (localId) {
                 console.log(`LOCAL, updating - ID: ${id}, LocalID: ${localId}`);
-                // Lock local ID early to prevent duplicate processing
-                adapter.addToLockedIds(localId);
-                await this.updateRecord(tableName, localId, local.data);
+                if (isChatData) {
+                    await this.updateChatIfNewer(localId, local.data);
+                } else {
+                    adapter.addToLockedIds(localId);
+                    await this.updateRecord(tableName, localId, local.data);
+                }
             } else {
                 console.log(`NOT LOCAL, creating - ID: ${id}`);
                 await this.createRecord(tableName, local.data, req.body.id);
@@ -252,6 +259,33 @@ export class WebhookController {
         const mappedData = await this.mapDataToFirebase(tableName, data);
         await docRef.update(mappedData);
     }
+
+    private async updateChatIfNewer(localId: string, data: any) {
+        const docRef = this.db.collection("chats").doc(localId);
+        const docSnapshot = await docRef.get();
+
+        if (!docSnapshot.exists) {
+            console.warn(`Chat document '${localId}' does not exist. Skipping update.`);
+            return;
+        }
+
+        const existing = docSnapshot.data();
+        const mappedData = this.mapChatData(data, Timestamp.now());
+
+        // Compare updatedAt timestamps - accept if incoming is more recent
+        const existingUpdatedAt = existing?.updatedAt?.toMillis?.() ?? 0;
+        const incomingUpdatedAt = mappedData.updatedAt?.toMillis?.() ?? 0;
+
+        if (incomingUpdatedAt < existingUpdatedAt) {
+            console.log(`Chat ${localId} webhook skipped - local data is more recent (local: ${existingUpdatedAt}, incoming: ${incomingUpdatedAt})`);
+            return;
+        }
+
+        adapter.addToLockedIds(localId);
+        await docRef.update(mappedData);
+        console.log(`Chat ${localId} updated via webhook (timestamp check passed)`);
+    }
+
     private mapDataToFirebase(tableName: string, data: any): any {
         const now = Timestamp.now();
         console.log("MAPPING DATA TO ", tableName);
