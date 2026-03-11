@@ -134,18 +134,22 @@ export function CharterSigningStatus({ groupId, charterContent, currentUserId, c
                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                             >
                                 <div className="flex items-center gap-3">
-                                    {participant.hasSigned ? (
-                                        <CheckCircle className="h-5 w-5 text-green-600" />
-                                    ) : (
-                                        <Circle className="h-5 w-5 text-gray-400" />
-                                    )}
+                                    {charterContent ? (
+                                        participant.hasSigned ? (
+                                            <CheckCircle className="h-5 w-5 text-green-600" />
+                                        ) : (
+                                            <Circle className="h-5 w-5 text-gray-400" />
+                                        )
+                                    ) : null}
                                     <div>
                                         <p className="font-medium text-sm">
                                             {participant.name || participant.ename || 'Unknown User'}
                                         </p>
-                                        <p className="text-xs text-gray-500">
-                                            {participant.hasSigned ? 'Signed' : 'Not signed yet'}
-                                        </p>
+                                        {charterContent && (
+                                            <p className="text-xs text-gray-500">
+                                                {participant.hasSigned ? 'Signed' : 'Not signed yet'}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -173,7 +177,7 @@ export function CharterSigningStatus({ groupId, charterContent, currentUserId, c
                                                         Make Admin
                                                     </DropdownMenuItem>
                                                 )}
-                                                {participant.isAdmin && !participant.isOwner && currentUserIsOwner && (
+                                                {participant.isAdmin && !participant.isOwner && (
                                                     <DropdownMenuItem onClick={() => handleRoleChange(participant.id, "member")}>
                                                         <ShieldOff className="mr-2 h-4 w-4" />
                                                         Remove Admin

@@ -379,10 +379,7 @@ export class GroupController {
                 const newAdmins = [...currentAdmins, targetUserId];
                 await this.groupService.updateGroup(groupId, { admins: newAdmins } as any);
             } else if (role === "member") {
-                // Remove admin - only owner can do this
-                if (!isOwner) {
-                    return res.status(403).json({ error: "Only the owner can remove admin privileges" });
-                }
+                // Remove admin - admins and owners can do this
                 if (targetUserId === group.owner) {
                     return res.status(400).json({ error: "Cannot demote the owner" });
                 }
