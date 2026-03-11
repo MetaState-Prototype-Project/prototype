@@ -1,15 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, Circle, AlertTriangle } from "lucide-react";
+import { CheckCircle, Circle, AlertTriangle, MoreVertical, Shield, ShieldOff, Crown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/apiClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface CharterSigningStatusProps {
     groupId: string;
     charterContent: string;
+    currentUserId?: string;
+    currentUserIsAdmin?: boolean;
+    currentUserIsOwner?: boolean;
 }
 
 interface Participant {
@@ -28,7 +38,7 @@ interface SigningStatus {
     isSigned: boolean;
 }
 
-export function CharterSigningStatus({ groupId, charterContent }: CharterSigningStatusProps) {
+export function CharterSigningStatus({ groupId, charterContent, currentUserId, currentUserIsAdmin, currentUserIsOwner }: CharterSigningStatusProps) {
     const [signingStatus, setSigningStatus] = useState<SigningStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -53,6 +63,28 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
             setLoading(false);
         }
     };
+
+    const handleRoleChange = async (targetUserId: string, newRole: "admin" | "member" | "owner") => {
+        if (newRole === "owner" && !window.confirm("Are you sure you want to transfer ownership? This cannot be undone.")) {
+            return;
+        }
+        try {
+            await apiClient.patch(`/api/groups/${groupId}/members/${targetUserId}/role`, { role: newRole });
+            toast({
+                title: "Success",
+                description: newRole === "admin" ? "Admin privileges granted" : newRole === "member" ? "Admin privileges removed" : "Ownership transferred",
+            });
+            fetchSigningStatus();
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.response?.data?.error || "Failed to update role",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const canManageRoles = currentUserIsAdmin || currentUserIsOwner;
 
 
 
@@ -117,7 +149,6 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {/* Show admin role if applicable */}
                                     {participant.isAdmin && (
                                         <Badge variant="secondary" className="text-xs">
                                             Admin
@@ -127,6 +158,35 @@ export function CharterSigningStatus({ groupId, charterContent }: CharterSigning
                                         <Badge variant="default" className="text-xs">
                                             Owner
                                         </Badge>
+                                    )}
+                                    {canManageRoles && participant.id !== currentUserId && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {!participant.isAdmin && !participant.isOwner && (
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(participant.id, "admin")}>
+                                                        <Shield className="mr-2 h-4 w-4" />
+                                                        Make Admin
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {participant.isAdmin && !participant.isOwner && currentUserIsOwner && (
+                                                    <DropdownMenuItem onClick={() => handleRoleChange(participant.id, "member")}>
+                                                        <ShieldOff className="mr-2 h-4 w-4" />
+                                                        Remove Admin
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {!participant.isOwner && currentUserIsOwner && (
+                                                    <DropdownMenuItem className="text-amber-600" onClick={() => handleRoleChange(participant.id, "owner")}>
+                                                        <Crown className="mr-2 h-4 w-4" />
+                                                        Transfer Ownership
+                                                    </DropdownMenuItem>
+                                                )}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     )}
                                 </div>
                             </div>

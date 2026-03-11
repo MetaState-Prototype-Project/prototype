@@ -423,6 +423,9 @@ export default function CharterDetail({
                         <CharterSigningStatus
                             groupId={group.id}
                             charterContent={group.charter}
+                            currentUserId={user?.id}
+                            currentUserIsAdmin={group.admins?.includes(user?.id || '') || false}
+                            currentUserIsOwner={group.owner === user?.id}
                         />
                     )}
                 </div>
