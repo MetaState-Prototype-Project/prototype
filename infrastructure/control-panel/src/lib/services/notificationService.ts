@@ -28,9 +28,7 @@ function getBaseUrl(): string {
 	return `http://localhost:${port}`;
 }
 
-export async function sendNotification(
-	request: SendNotificationRequest
-): Promise<SendResult> {
+export async function sendNotification(request: SendNotificationRequest): Promise<SendResult> {
 	const baseUrl = getBaseUrl();
 	try {
 		const response = await fetch(`${baseUrl}/api/send`, {
@@ -69,9 +67,9 @@ export async function getDevicesWithTokens(): Promise<
 	}
 }
 
-export async function getDevicesByEName(eName: string): Promise<
-	{ token: string; platform: string; eName: string }[]
-> {
+export async function getDevicesByEName(
+	eName: string
+): Promise<{ token: string; platform: string; eName: string }[]> {
 	const { env } = await import('$env/dynamic/private');
 	const provisionerUrl =
 		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';
@@ -110,7 +108,10 @@ export async function sendBulkNotifications(
 	return {
 		sent,
 		failed: failed.length,
-		errors: failed.map((r) => ({ token: r.token.slice(0, 20) + '...', error: r.error ?? 'Unknown' }))
+		errors: failed.map((r) => ({
+			token: r.token.slice(0, 20) + '...',
+			error: r.error ?? 'Unknown'
+		}))
 	};
 }
 

@@ -1,9 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import {
-	getDevicesByEName,
-	sendBulkNotifications
-} from '$lib/services/notificationService';
+import { getDevicesByEName, sendBulkNotifications } from '$lib/services/notificationService';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -11,10 +8,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { eName, payload } = body;
 
 		if (!eName || typeof eName !== 'string' || !eName.trim()) {
-			return json(
-				{ success: false, error: 'Missing or invalid eName' },
-				{ status: 400 }
-			);
+			return json({ success: false, error: 'Missing or invalid eName' }, { status: 400 });
 		}
 		if (!payload?.title || !payload?.body) {
 			return json(

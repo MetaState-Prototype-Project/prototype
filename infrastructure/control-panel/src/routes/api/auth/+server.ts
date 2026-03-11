@@ -19,13 +19,10 @@ type VerifySignatureOutput = {
 };
 
 const require = createRequire(import.meta.url);
-let verifySignatureFn:
-	| ((options: VerifySignatureInput) => Promise<VerifySignatureOutput>)
-	| null = null;
+let verifySignatureFn: ((options: VerifySignatureInput) => Promise<VerifySignatureOutput>) | null =
+	null;
 
-async function verifyW3dsSignature(
-	options: VerifySignatureInput
-): Promise<VerifySignatureOutput> {
+async function verifyW3dsSignature(options: VerifySignatureInput): Promise<VerifySignatureOutput> {
 	if (!verifySignatureFn) {
 		const signatureValidator = require('signature-validator') as {
 			verifySignature: (input: VerifySignatureInput) => Promise<VerifySignatureOutput>;
@@ -82,7 +79,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		const registryBaseUrl = env.PUBLIC_REGISTRY_URL;
 		if (!registryBaseUrl) {
 			console.error('[auth] Missing PUBLIC_REGISTRY_URL');
-			publishAuthSessionResult(session, { status: 'error', message: 'Server not configured' });
+			publishAuthSessionResult(session, {
+				status: 'error',
+				message: 'Server not configured'
+			});
 			return json({ error: 'Server configuration error' }, { status: 500 });
 		}
 		console.info('[auth] Verifying signature', {

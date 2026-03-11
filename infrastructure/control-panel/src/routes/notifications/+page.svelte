@@ -343,7 +343,9 @@
 		</p>
 		{#if deviceCount !== null}
 			<p class="text-black-500 mt-1 text-sm font-medium">
-				{deviceCount} device{deviceCount === 1 ? '' : 's'} with push token{deviceCount === 1 ? '' : 's'}
+				{deviceCount} device{deviceCount === 1 ? '' : 's'} with push token{deviceCount === 1
+					? ''
+					: 's'}
 			</p>
 		{/if}
 		<div class="mt-4 space-y-4">

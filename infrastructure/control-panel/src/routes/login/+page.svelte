@@ -129,8 +129,8 @@
 	<div class="w-full rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
 		<h1 class="text-2xl font-semibold text-gray-900">Control Panel Login</h1>
 		<p class="mt-2 text-sm text-gray-600">
-			Authenticate with your eID Wallet. Only admin eNames in the server allowlist can access this
-			panel.
+			Authenticate with your eID Wallet. Only admin eNames in the server allowlist can access
+			this panel.
 		</p>
 
 		{#if error}
@@ -155,7 +155,11 @@
 						Tap to open the wallet app and complete authentication.
 					</p>
 				{:else}
-					<img src={qrDataUrl} alt="W3DS auth QR code" class="h-64 w-64 rounded-lg bg-white p-2" />
+					<img
+						src={qrDataUrl}
+						alt="W3DS auth QR code"
+						class="h-64 w-64 rounded-lg bg-white p-2"
+					/>
 					<p class="text-center text-sm text-gray-600">
 						Scan this QR code with your eID Wallet app.
 					</p>
