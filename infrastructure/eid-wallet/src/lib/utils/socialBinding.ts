@@ -304,19 +304,6 @@ export async function createSocialConnectionDoc(
         ? signerEname
         : `@${signerEname}`;
 
-    console.log(
-        "[SocialBinding] createSocialConnectionDoc sending to backend:",
-        {
-            normalizedSubject,
-            normalizedSigner,
-            subjectName,
-            parties: parties.map((p) => (p.startsWith("@") ? p : `@${p}`)),
-            relationDescription,
-            signaturePrefix: signatureHash.substring(0, 40) + "...",
-            signatureLength: signatureHash.length,
-        },
-    );
-
     const result = await vaultGqlRequest<CreateBindingDocResult>(
         targetGqlUrl,
         vaultOwnerEname,

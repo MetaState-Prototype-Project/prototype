@@ -726,26 +726,11 @@ export function createScanLogic({
                 } as Record<string, unknown>,
             };
             const payload = getCanonicalBindingDocString(doc);
-
-            console.log("[SocialBinding] signing payload:", {
-                doc,
-                canonicalPayload: payload,
-                signerEname,
-                requesterEname,
-                requesterName,
-                relationDescription,
-            });
-
             const sig = await globalState.walletSdkAdapter.signPayload(
                 "default",
                 "default",
                 payload,
             );
-
-            console.log("[SocialBinding] signature produced:", {
-                signaturePrefix: sig.substring(0, 40) + "...",
-                signatureLength: sig.length,
-            });
 
             await createSocialConnectionDoc(
                 requesterGqlUrl,
