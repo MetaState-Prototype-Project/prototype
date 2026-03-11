@@ -177,7 +177,7 @@ export function CharterSigningStatus({ groupId, charterContent, currentUserId, c
                                                         Make Admin
                                                     </DropdownMenuItem>
                                                 )}
-                                                {participant.isAdmin && !participant.isOwner && (
+                                                {participant.isAdmin && !participant.isOwner && currentUserIsOwner && (
                                                     <DropdownMenuItem onClick={() => handleRoleChange(participant.id, "member")}>
                                                         <ShieldOff className="mr-2 h-4 w-4" />
                                                         Remove Admin
