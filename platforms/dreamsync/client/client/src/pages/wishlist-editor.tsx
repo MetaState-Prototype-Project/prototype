@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Save, Heart, Sparkles, Users, LogOut, Loader2 } from 'lucide-react';
 import WysiwygEditor from '@/components/wysiwyg-editor';
 import { apiClient } from '@/lib/apiClient';
+import ProfessionalProfileEditor from '@/components/professional-profile-editor';
 
 const sampleWishlistTemplate = `# My Dream Wishlist
 
@@ -168,6 +169,15 @@ export default function WishlistEditor() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Professional Profile Accordion */}
+          <div className="mt-6">
+            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-2xl">
+              <CardContent className="p-4">
+                <ProfessionalProfileEditor />
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Logout Button */}

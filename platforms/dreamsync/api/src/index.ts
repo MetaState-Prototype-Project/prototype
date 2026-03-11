@@ -9,6 +9,7 @@ import { AuthController } from "./controllers/AuthController";
 import { WebhookController } from "./controllers/WebhookController";
 import { WishlistController } from "./controllers/WishlistController";
 import { MatchController } from "./controllers/MatchController";
+import { ProfessionalProfileController } from "./controllers/ProfessionalProfileController";
 import { authMiddleware, authGuard } from "./middleware/auth";
 import { adapter } from "./web3adapter/watchers/subscriber";
 import { MatchingJob } from "./services/MatchingJob";
@@ -85,6 +86,7 @@ const authController = new AuthController();
 const webhookController = new WebhookController();
 const wishlistController = new WishlistController();
 const matchController = new MatchController();
+const professionalProfileController = new ProfessionalProfileController();
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
@@ -122,6 +124,10 @@ app.get("/api/wishlists/public", wishlistController.getPublicWishlists);
 app.get("/api/wishlists/:id", authGuard, wishlistController.getWishlistById);
 app.put("/api/wishlists/:id", authGuard, wishlistController.updateWishlist);
 app.delete("/api/wishlists/:id", authGuard, wishlistController.deleteWishlist);
+
+// Professional profile routes
+app.get("/api/professional-profile", authGuard, professionalProfileController.getProfile);
+app.patch("/api/professional-profile", authGuard, professionalProfileController.updateProfile);
 
 // Match routes
 app.get("/api/matches", authGuard, matchController.getUserMatches);
