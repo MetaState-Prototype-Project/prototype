@@ -252,4 +252,22 @@ export class ReferenceController {
             res.status(500).json({ error: "Internal server error" });
         }
     };
+
+    deleteReference = async (req: Request, res: Response) => {
+        try {
+            const { referenceId } = req.params;
+            const userId = req.user!.id;
+
+            const deleted = await this.referenceService.deleteReference(referenceId, userId);
+
+            if (!deleted) {
+                return res.status(404).json({ error: "Reference not found or not authorized" });
+            }
+
+            res.json({ message: "Reference deleted successfully" });
+        } catch (error) {
+            console.error("Error deleting reference:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
 }

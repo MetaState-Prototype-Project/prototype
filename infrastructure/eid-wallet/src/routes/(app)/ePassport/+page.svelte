@@ -733,6 +733,14 @@ onMount(async () => {
                     </p>
                 {/if}
             </div>
+            {#if typeof socialBindingPendingDocParsed?.data?.relation_description === "string" && socialBindingPendingDocParsed.data.relation_description}
+                <div class="bg-gray rounded-2xl p-4 flex flex-col gap-1">
+                    <p class="small text-black-500">Relationship Description</p>
+                    <p class="text-sm text-black-700">
+                        {socialBindingPendingDocParsed.data.relation_description}
+                    </p>
+                </div>
+            {/if}
             {#if socialBindingError}
                 <p class="text-danger">{socialBindingError}</p>
             {/if}

@@ -105,9 +105,20 @@
                 "name": {
                     "type": "string",
                     "description": "Name of the social connection"
+                },
+                "parties": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^@[^\\s]+$" },
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "description": "eNames of both participants"
+                },
+                "relation_description": {
+                    "type": "string",
+                    "description": "Arbitrary text describing the relationship"
                 }
             },
-            "required": ["kind", "name"],
+            "required": ["kind", "name", "parties", "relation_description"],
             "additionalProperties": false
         },
         "SelfData": {

@@ -74,19 +74,25 @@ Binds an eName to a photograph (selfie or profile picture).
 
 ### social_connection
 
-Binds an eName to a social connection or relationship claim.
+Binds an eName to a social connection or relationship claim between two parties.
 
 ```json
 {
   "type": "social_connection",
   "data": {
-    "name": "Alice Smith"
+    "kind": "social_connection",
+    "name": "Alice Smith",
+    "parties": ["@ename-1", "@ename-2"],
+    "relation_description": "Known each other since university"
   }
 }
 ```
 
 **Data fields:**
+- `kind` — Discriminant field, always `"social_connection"`
 - `name` — Name of the connected person or entity
+- `parties` — Array of exactly two eNames identifying both participants in the connection
+- `relation_description` — Arbitrary text describing the nature of the relationship
 
 ### self
 

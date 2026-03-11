@@ -209,6 +209,8 @@ app.get("/api/polls/my", authGuard, pollController.getPollsByCreator);
 app.post("/api/polls", authGuard, pollController.createPoll);
 app.put("/api/polls/:id", authGuard, pollController.updatePoll);
 app.delete("/api/polls/:id", authGuard, pollController.deletePoll);
+app.post("/api/polls/:id/start", authGuard, pollController.startPoll);
+app.post("/api/polls/:id/end", authGuard, pollController.endPoll);
 
 // Vote routes
 app.post("/api/votes", voteController.createVote.bind(voteController)); // Create normal/point/rank vote (old format)

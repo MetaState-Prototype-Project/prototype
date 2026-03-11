@@ -115,6 +115,14 @@ export class VoteService {
       throw new Error('Poll not found');
     }
 
+    // Prevent voting on polls that are not active
+    if (poll.status === "draft") {
+      throw new Error('Voting has not started yet');
+    }
+    if (poll.status === "ended") {
+      throw new Error('Voting has ended');
+    }
+
     // Check if user has already voted
     const existingVote = await this.voteRepository.findOne({
       where: { pollId, userId }
@@ -176,6 +184,14 @@ export class VoteService {
 
     if (!poll) {
       throw new Error('Poll not found');
+    }
+
+    // Prevent voting on polls that are not active
+    if (poll.status === "draft") {
+      throw new Error('Voting has not started yet');
+    }
+    if (poll.status === "ended") {
+      throw new Error('Voting has ended');
     }
 
     const delegation = await this.delegationRepository.findOne({
@@ -658,6 +674,14 @@ export class VoteService {
 
       if (!poll) {
         throw new Error('Poll not found');
+      }
+
+      // Prevent voting on polls that are not active
+      if (poll.status === "draft") {
+        throw new Error('Voting has not started yet');
+      }
+      if (poll.status === "ended") {
+        throw new Error('Voting has ended');
       }
 
       // Create election if it doesn't exist

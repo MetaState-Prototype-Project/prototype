@@ -486,7 +486,33 @@ async function seed() {
 
         console.log(`\n📊 Polls created: ${pollsCreated}, Votes created: ${votesCreated}\n`);
 
-        // Optionally add a custom user to all groups
+        // Auto-add all non-seed users (created via dev-sandbox auth/webhooks) to all groups
+        const seedEnames = new Set(seedUsers.map(u => u.ename));
+        const allUsers = await userRepo.find();
+        const nonSeedUsers = allUsers.filter(u => !seedEnames.has(u.ename));
+
+        if (nonSeedUsers.length > 0) {
+            console.log(`👤 Adding ${nonSeedUsers.length} existing user(s) to all groups...`);
+
+            const groupsToUpdate = await groupRepo.find({
+                relations: ["members", "participants"],
+            });
+
+            for (const user of nonSeedUsers) {
+                for (const group of groupsToUpdate) {
+                    const isAlreadyMember = group.members.some((m) => m.id === user.id);
+
+                    if (!isAlreadyMember) {
+                        group.members.push(user);
+                        group.participants.push(user);
+                        await groupRepo.save(group);
+                        console.log(`  ✅ Added "${user.name || user.ename}" to "${group.name}"`);
+                    }
+                }
+            }
+        }
+
+        // Also support explicit ename argument
         const customEname = process.argv[2];
         if (customEname) {
             console.log(`\n👤 Adding custom user to all groups...`);
@@ -532,7 +558,8 @@ async function seed() {
 
         console.log("\n🎉 Seed completed successfully!\n");
         console.log("Summary:");
-        console.log(`  - ${seedUsers.length} users`);
+        console.log(`  - ${seedUsers.length} seed users`);
+        console.log(`  - ${nonSeedUsers.length} existing user(s) added to all groups`);
         console.log(`  - ${seedGroups.length} groups (with charters)`);
         console.log(`  - ${seedPolls.length} polls (various modes: normal, point, rank)`);
         console.log(`  - Includes public and private polls with sample votes`);
