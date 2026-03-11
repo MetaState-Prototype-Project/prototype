@@ -157,6 +157,7 @@ app.get("/api/signing/sessions/:sessionId", authGuard, (req, res) => {
 app.get("/api/groups/:groupId", authGuard, groupController.getGroup.bind(groupController));
 app.post("/api/groups/:groupId/participants", authGuard, groupController.addParticipants.bind(groupController));
 app.delete("/api/groups/:groupId/participants/:userId", authGuard, groupController.removeParticipant.bind(groupController));
+app.patch("/api/groups/:groupId/members/:userId/role", authGuard, groupController.updateMemberRole.bind(groupController));
 
 // Start server
 app.listen(port, () => {

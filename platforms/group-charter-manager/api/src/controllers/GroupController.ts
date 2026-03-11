@@ -338,6 +338,77 @@ export class GroupController {
         }
     }
 
+    async updateMemberRole(req: Request, res: Response) {
+        try {
+            const { groupId, userId: targetUserId } = req.params;
+            const requestingUserId = (req as any).user?.id;
+
+            if (!requestingUserId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            const { role } = req.body;
+            if (!["admin", "member", "owner"].includes(role)) {
+                return res.status(400).json({ error: "Invalid role. Must be 'admin', 'member', or 'owner'" });
+            }
+
+            const group = await this.groupService.getGroupById(groupId);
+            if (!group) {
+                return res.status(404).json({ error: "Group not found" });
+            }
+
+            // Verify target user is a participant
+            if (!group.participants.some(p => p.id === targetUserId)) {
+                return res.status(400).json({ error: "User is not a participant in this group" });
+            }
+
+            const isOwner = group.owner === requestingUserId;
+            const isAdmin = group.admins?.includes(requestingUserId);
+
+            if (!isOwner && !isAdmin) {
+                return res.status(403).json({ error: "Access denied" });
+            }
+
+            const currentAdmins = group.admins || [];
+
+            if (role === "admin") {
+                // Grant admin - admins and owners can do this
+                if (currentAdmins.includes(targetUserId)) {
+                    return res.status(400).json({ error: "User is already an admin" });
+                }
+                const newAdmins = [...currentAdmins, targetUserId];
+                await this.groupService.updateGroup(groupId, { admins: newAdmins } as any);
+            } else if (role === "member") {
+                // Remove admin - only owner can do this
+                if (!isOwner) {
+                    return res.status(403).json({ error: "Only the owner can remove admin privileges" });
+                }
+                if (targetUserId === group.owner) {
+                    return res.status(400).json({ error: "Cannot demote the owner" });
+                }
+                const newAdmins = currentAdmins.filter(id => id !== targetUserId);
+                await this.groupService.updateGroup(groupId, { admins: newAdmins } as any);
+            } else if (role === "owner") {
+                // Transfer ownership - only owner can do this
+                if (!isOwner) {
+                    return res.status(403).json({ error: "Only the owner can transfer ownership" });
+                }
+                // Old owner becomes admin, new owner gets added to admins if not already
+                let newAdmins = currentAdmins.includes(requestingUserId) ? [...currentAdmins] : [...currentAdmins, requestingUserId];
+                if (!newAdmins.includes(targetUserId)) {
+                    newAdmins.push(targetUserId);
+                }
+                await this.groupService.updateGroup(groupId, { owner: targetUserId, admins: newAdmins } as any);
+            }
+
+            const updatedGroup = await this.groupService.getGroupById(groupId);
+            res.json(updatedGroup);
+        } catch (error) {
+            console.error("Error updating member role:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
+
     async getCharterSigningStatus(req: Request, res: Response) {
         try {
             const { id } = req.params;
