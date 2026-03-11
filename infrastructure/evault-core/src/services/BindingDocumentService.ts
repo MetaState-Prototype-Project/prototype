@@ -127,17 +127,28 @@ export class BindingDocumentService {
         signature: string,
         doc: { subject: string; type: BindingDocumentType; data: BindingDocumentData },
     ): Promise<boolean> {
-        if (!this.registryUrl) return false;
+        if (!this.registryUrl) {
+            console.warn("[BindingDoc] verifyUserSignature: no registryUrl configured");
+            return false;
+        }
         try {
             const payload = getCanonicalBindingDocumentString(doc);
+            console.log("[BindingDoc] verifyUserSignature:", {
+                signer,
+                signaturePrefix: signature.substring(0, 40) + "...",
+                payload: payload.substring(0, 200),
+                registryBaseUrl: this.registryUrl,
+            });
             const result = await verifySignature({
                 eName: signer,
                 signature,
                 payload,
                 registryBaseUrl: this.registryUrl,
             });
+            console.log("[BindingDoc] verifyUserSignature result:", result);
             return result.valid;
-        } catch {
+        } catch (err) {
+            console.error("[BindingDoc] verifyUserSignature threw:", err);
             return false;
         }
     }
@@ -220,6 +231,19 @@ export class BindingDocumentService {
         const expectedHash = computeBindingDocumentHash(docToVerify);
         const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
         const isProvisionerSigner = /^https?:\/\//.test(input.ownerSignature.signer);
+
+        console.log("[BindingDoc] createBindingDocument signature check:", {
+            signer: input.ownerSignature.signer,
+            signaturePrefix: input.ownerSignature.signature.substring(0, 40) + "...",
+            expectedHash,
+            hasLegacyHashSignature,
+            isProvisionerSigner,
+            normalizedSubject,
+            inputType: input.type,
+            validatedDataKeys: Object.keys(validatedData),
+            canonicalPayload: getCanonicalBindingDocumentString(docToVerify).substring(0, 300),
+        });
+
         const hasValidUserSignature =
             !hasLegacyHashSignature &&
             !isProvisionerSigner &&
@@ -228,6 +252,13 @@ export class BindingDocumentService {
                 input.ownerSignature.signature,
                 docToVerify,
             ));
+
+        console.log("[BindingDoc] createBindingDocument final verdict:", {
+            hasLegacyHashSignature,
+            isProvisionerSigner,
+            hasValidUserSignature,
+        });
+
         if (!hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature) {
             throw new ValidationError("Invalid owner signature");
         }
