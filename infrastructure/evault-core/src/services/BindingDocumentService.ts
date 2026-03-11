@@ -220,6 +220,7 @@ export class BindingDocumentService {
         const expectedHash = computeBindingDocumentHash(docToVerify);
         const hasLegacyHashSignature = input.ownerSignature.signature === expectedHash;
         const isProvisionerSigner = /^https?:\/\//.test(input.ownerSignature.signer);
+
         const hasValidUserSignature =
             !hasLegacyHashSignature &&
             !isProvisionerSigner &&
@@ -228,6 +229,7 @@ export class BindingDocumentService {
                 input.ownerSignature.signature,
                 docToVerify,
             ));
+
         if (!hasLegacyHashSignature && !isProvisionerSigner && !hasValidUserSignature) {
             throw new ValidationError("Invalid owner signature");
         }
