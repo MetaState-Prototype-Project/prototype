@@ -14,11 +14,31 @@
 	let form = $state<SocialLink>({ platform: 'linkedin', url: '', label: '' });
 
 	const platforms = ['linkedin', 'github', 'twitter', 'website', 'other'];
+	const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+	function normalizeAndValidateUrl(raw: string): string | null {
+		let value = raw.trim();
+		if (!value) return null;
+		if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(value)) {
+			value = `https://${value}`;
+		}
+		try {
+			const parsed = new URL(value);
+			if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) return null;
+			return parsed.href;
+		} catch {
+			return null;
+		}
+	}
 
 	async function addLink() {
-		if (!form.url.trim()) return;
+		const normalized = normalizeAndValidateUrl(form.url);
+		if (!normalized) {
+			toast.error('Please enter a valid URL (http, https, or mailto)');
+			return;
+		}
 		try {
-			await updateSocialLinks([...links, { ...form }]);
+			await updateSocialLinks([...links, { ...form, url: normalized }]);
 			showForm = false;
 			form = { platform: 'linkedin', url: '', label: '' };
 			toast.success('Social link added');

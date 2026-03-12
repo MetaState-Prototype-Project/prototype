@@ -6,8 +6,8 @@ import type {
 	UserOntologyData,
 } from "../types/profile";
 
-const PROFESSIONAL_PROFILE_ONTOLOGY = "ProfessionalProfile";
-const USER_ONTOLOGY = "User";
+const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
+const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 const META_ENVELOPES_QUERY = `
   query MetaEnvelopes($filter: MetaEnvelopeFilterInput, $first: Int, $after: String) {
@@ -189,36 +189,38 @@ export class EVaultProfileService {
 			PROFESSIONAL_PROFILE_ONTOLOGY,
 		);
 
-		const merged: ProfessionalProfile = {
-			...(existing?.parsed as ProfessionalProfile | undefined),
-			...data,
-		};
+	const merged: ProfessionalProfile = {
+		...(existing?.parsed as ProfessionalProfile | undefined),
+		...data,
+	};
 
-		if (existing) {
-			const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
-				id: existing.id,
-				input: {
-					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload: merged,
-					acl: ["*"],
-				},
-			});
+	const acl = merged.isPublic !== false ? ["*"] : [eName];
 
-			if (result.updateMetaEnvelope.errors?.length) {
-				throw new Error(
-					result.updateMetaEnvelope.errors
-						.map((e) => e.message)
-						.join("; "),
-				);
-			}
-		} else {
-			const result = await client.request<CreateResult>(CREATE_MUTATION, {
-				input: {
-					ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
-					payload: merged,
-					acl: ["*"],
-				},
-			});
+	if (existing) {
+		const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
+			id: existing.id,
+			input: {
+				ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+				payload: merged,
+				acl,
+			},
+		});
+
+		if (result.updateMetaEnvelope.errors?.length) {
+			throw new Error(
+				result.updateMetaEnvelope.errors
+					.map((e) => e.message)
+					.join("; "),
+			);
+		}
+	} else {
+		const result = await client.request<CreateResult>(CREATE_MUTATION, {
+			input: {
+				ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+				payload: merged,
+				acl,
+			},
+		});
 
 			if (result.createMetaEnvelope.errors?.length) {
 				throw new Error(

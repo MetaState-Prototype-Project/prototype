@@ -6,7 +6,7 @@ import type {
     UserOntologyData,
 } from "../types/profile";
 
-const PROFESSIONAL_PROFILE_ONTOLOGY = "ProfessionalProfile";
+const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 /** User/UserProfile ontology UUID (from user.json schema) - eVault stores this, not "User" */
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -187,13 +187,15 @@ export class EVaultProfileService {
             ...data,
         };
 
+        const acl = merged.isPublic !== false ? ["*"] : [eName];
+
         if (existing) {
             const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
                 id: existing.id,
                 input: {
                     ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
                     payload: merged,
-                    acl: ["*"],
+                    acl,
                 },
             });
 
@@ -209,7 +211,7 @@ export class EVaultProfileService {
                 input: {
                     ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
                     payload: merged,
-                    acl: ["*"],
+                    acl,
                 },
             });
 
