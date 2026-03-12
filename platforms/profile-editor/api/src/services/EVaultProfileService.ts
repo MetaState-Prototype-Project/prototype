@@ -9,6 +9,11 @@ import type {
 const PROFESSIONAL_PROFILE_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440009";
 const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
+/** Match BindingDocumentService's normalizeSubject format for ACL entries */
+function normalizeEName(eName: string): string {
+	return eName.startsWith("@") ? eName : `@${eName}`;
+}
+
 const META_ENVELOPES_QUERY = `
   query MetaEnvelopes($filter: MetaEnvelopeFilterInput, $first: Int, $after: String) {
     metaEnvelopes(filter: $filter, first: $first, after: $after) {
@@ -161,7 +166,7 @@ export class EVaultProfileService {
 				phone: profData.phone,
 				website: profData.website,
 				location: profData.location,
-				isPublic: profData.isPublic ?? true,
+				isPublic: profData.isPublic === true,
 				workExperience: profData.workExperience ?? [],
 				education: profData.education ?? [],
 				skills: profData.skills ?? [],
@@ -194,7 +199,7 @@ export class EVaultProfileService {
 		...data,
 	};
 
-	const acl = merged.isPublic !== false ? ["*"] : [eName];
+	const acl = merged.isPublic === true ? ["*"] : [normalizeEName(eName)];
 
 	if (existing) {
 		const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
@@ -222,7 +227,32 @@ export class EVaultProfileService {
 			},
 		});
 
-			if (result.createMetaEnvelope.errors?.length) {
+		if (result.createMetaEnvelope.errors?.length) {
+			// Re-query in case a concurrent create won the race (TOCTOU)
+			const raced = await this.findMetaEnvelopeByOntology(
+				client,
+				PROFESSIONAL_PROFILE_ONTOLOGY,
+			);
+			if (raced) {
+				const updateResult = await client.request<UpdateResult>(
+					UPDATE_MUTATION,
+					{
+						id: raced.id,
+						input: {
+							ontology: PROFESSIONAL_PROFILE_ONTOLOGY,
+							payload: merged,
+							acl,
+						},
+					},
+				);
+				if (updateResult.updateMetaEnvelope.errors?.length) {
+					throw new Error(
+						updateResult.updateMetaEnvelope.errors
+							.map((e) => e.message)
+							.join("; "),
+					);
+				}
+			} else {
 				throw new Error(
 					result.createMetaEnvelope.errors
 						.map((e) => e.message)
@@ -230,6 +260,7 @@ export class EVaultProfileService {
 				);
 			}
 		}
+	}
 
 		return this.getProfile(eName);
 	}

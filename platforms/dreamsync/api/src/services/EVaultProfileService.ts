@@ -187,8 +187,9 @@ export class EVaultProfileService {
             ...data,
         };
 
-        const acl = merged.isPublic !== false ? ["*"] : [eName];
-
+        const normalizedEname = this.registryService.normalizeW3id(eName);
+        const acl = merged.isPublic !== false ? ["*"] : [normalizedEname];
+        
         if (existing) {
             const result = await client.request<UpdateResult>(UPDATE_MUTATION, {
                 id: existing.id,
