@@ -96,7 +96,7 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "prettier --check . && eslint .",
-		"prepare": "svelte-kit sync && svelte-package || echo ''",
+		"prepare": "svelte-kit sync && svelte-package",
 		"add": "shadcn-svelte add"
 	},
 	"peerDependencies": {
@@ -106,14 +106,16 @@
 		"bits-ui": "^2.15.4",
 		"clsx": "^2.1.1",
 		"mode-watcher": "^1.1.0",
-		"svelte-sonner": "^1.0.5"
+		"svelte-sonner": "^1.0.5",
+		"@lucide/svelte": "^0.564.0",
+		"@sveltejs/kit": "^2.43.2",
+		"tailwind-merge": "^3.4.1",
+		"tailwind-variants": "^3.2.2"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",
 		"@eslint/js": "^9.36.0",
 		"@internationalized/date": "^3.10.0",
-		"@lucide/svelte": "^0.564.0",
-		"@sveltejs/kit": "^2.43.2",
 		"@sveltejs/package": "^2.3.10",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
 		"@tailwindcss/vite": "^4.1.14",
@@ -127,8 +129,6 @@
 		"shadcn-svelte": "^1.1.1",
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
-		"tailwind-merge": "^3.4.1",
-		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.1.14",
 		"tw-animate-css": "^1.4.0",
 		"typescript": "^5.9.2",
