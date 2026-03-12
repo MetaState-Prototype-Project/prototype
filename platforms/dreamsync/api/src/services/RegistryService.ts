@@ -44,10 +44,20 @@ export class RegistryService {
         return this.platformToken;
     }
 
+    /**
+     * Ensure eName is in W3ID format (@uuid) for Registry/eVault.
+     * DreamSync stores ename without @; Registry expects @-prefixed w3id.
+     */
+    normalizeW3id(eName: string): string {
+        if (!eName) return eName;
+        return eName.startsWith("@") ? eName : `@${eName}`;
+    }
+
     async resolveEName(eName: string): Promise<{ uri: string; evault: string }> {
+        const w3id = this.normalizeW3id(eName);
         const response = await axios.get<ResolveResponse>(
             `${this.registryUrl}/resolve`,
-            { params: { w3id: eName } },
+            { params: { w3id } },
         );
         return { uri: response.data.uri, evault: response.data.evault };
     }

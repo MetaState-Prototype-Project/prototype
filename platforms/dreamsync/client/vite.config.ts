@@ -32,6 +32,7 @@ export default defineConfig(async () => {
       emptyOutDir: true,
     },
     server: {
+      port: 8888,
       fs: {
         strict: true,
         deny: ["**/.*"],

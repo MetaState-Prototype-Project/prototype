@@ -7,7 +7,8 @@ import type {
 } from "../types/profile";
 
 const PROFESSIONAL_PROFILE_ONTOLOGY = "ProfessionalProfile";
-const USER_ONTOLOGY = "User";
+/** User/UserProfile ontology UUID (from user.json schema) - eVault stores this, not "User" */
+const USER_ONTOLOGY = "550e8400-e29b-41d4-a716-446655440000";
 
 const META_ENVELOPES_QUERY = `
   query MetaEnvelopes($filter: MetaEnvelopeFilterInput, $first: Int, $after: String) {
@@ -91,12 +92,13 @@ export class EVaultProfileService {
     }
 
     private async getClient(eName: string): Promise<GraphQLClient> {
+        const w3id = this.registryService.normalizeW3id(eName);
         const endpoint = await this.registryService.getEvaultGraphqlUrl(eName);
         const token = await this.registryService.ensurePlatformToken();
         return new GraphQLClient(endpoint, {
             headers: {
                 Authorization: `Bearer ${token}`,
-                "X-ENAME": eName,
+                "X-ENAME": w3id,
             },
         });
     }
