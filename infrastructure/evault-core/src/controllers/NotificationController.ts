@@ -65,7 +65,7 @@ export class NotificationController {
 
     private async registerDevice(req: Request, res: Response) {
         try {
-            const { eName, deviceId, platform, fcmToken } = req.body;
+            const { eName, deviceId, platform, pushToken } = req.body;
 
             if (!eName || !deviceId || !platform) {
                 return res.status(400).json({
@@ -74,20 +74,17 @@ export class NotificationController {
                 });
             }
 
-            if (fcmToken && typeof fcmToken === "string" && fcmToken.trim()) {
-                await this.deviceTokenService.register({
-                    eName,
-                    deviceId,
-                    platform,
-                    token: fcmToken.trim(),
-                });
+            const token = typeof pushToken === "string" ? pushToken.trim() : undefined;
+
+            if (token) {
+                await this.deviceTokenService.register(eName, token);
             }
 
             const verification = await this.notificationService.registerDevice({
                 eName,
                 deviceId,
                 platform,
-                fcmToken: fcmToken.trim(),
+                pushToken: token,
                 registrationTime: new Date(),
             });
 
@@ -107,7 +104,7 @@ export class NotificationController {
 
     private async unregisterDevice(req: Request, res: Response) {
         try {
-            const { eName, deviceId } = req.body;
+            const { eName, deviceId, pushToken } = req.body;
 
             if (!eName || !deviceId) {
                 return res.status(400).json({
@@ -116,7 +113,11 @@ export class NotificationController {
                 });
             }
 
-            await this.deviceTokenService.unregister(eName, deviceId);
+            const token = typeof pushToken === "string" ? pushToken.trim() : undefined;
+            if (token) {
+                await this.deviceTokenService.unregister(eName, token);
+            }
+
             const success = await this.notificationService.unregisterDevice(eName, deviceId);
             
             res.json({

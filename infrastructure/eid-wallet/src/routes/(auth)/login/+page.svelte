@@ -96,12 +96,22 @@ onMount(async () => {
                         );
                     } catch (error) {
                         console.error("Error syncing public key:", error);
-                        // Continue to app even if sync fails - non-blocking
+                    }
+
+                    // Register device for push notifications on login
+                    try {
+                        await globalState.notificationService.registerDevice(
+                            vault.ename,
+                        );
+                    } catch (error) {
+                        console.error(
+                            "Error registering device for notifications:",
+                            error,
+                        );
                     }
                 }
             } catch (error) {
                 console.error("Error during eVault health check:", error);
-                // Continue to app even if health check fails - non-blocking
             }
 
             // Check if there's a pending deep link to process
@@ -176,12 +186,22 @@ onMount(async () => {
                         );
                     } catch (error) {
                         console.error("Error syncing public key:", error);
-                        // Continue to app even if sync fails - non-blocking
+                    }
+
+                    // Register device for push notifications on biometric login
+                    try {
+                        await globalState.notificationService.registerDevice(
+                            vault.ename,
+                        );
+                    } catch (error) {
+                        console.error(
+                            "Error registering device for notifications:",
+                            error,
+                        );
                     }
                 }
             } catch (error) {
                 console.error("Error during eVault health check:", error);
-                // Continue to app even if health check fails - non-blocking
             }
 
             // Check if there's a pending deep link to process

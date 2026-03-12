@@ -11,7 +11,7 @@ export interface DeviceRegistration {
     eName: string;
     deviceId: string;
     platform: "android" | "ios" | "desktop";
-    fcmToken?: string; // For Android/iOS push notifications
+    pushToken?: string;
     registrationTime: Date;
 }
 
@@ -76,17 +76,16 @@ class NotificationService {
                 throw new Error("Notification permissions not granted");
             }
 
-            // Get FCM token for mobile platforms
-            let fcmToken: string | undefined;
+            let pushToken: string | undefined;
             if (platform === "android" || platform === "ios") {
-                fcmToken = await this.getFCMToken();
+                pushToken = await this.getPushNotificationToken();
             }
 
             const registration: DeviceRegistration = {
                 eName,
                 deviceId,
                 platform,
-                fcmToken,
+                pushToken,
                 registrationTime: new Date(),
             };
 
@@ -173,6 +172,7 @@ class NotificationService {
                     body: JSON.stringify({
                         eName: this.deviceRegistration.eName,
                         deviceId: this.deviceRegistration.deviceId,
+                        pushToken: this.deviceRegistration.pushToken,
                     }),
                 },
             );
@@ -342,9 +342,9 @@ class NotificationService {
     }
 
     /**
-     * Get push notification token (FCM on Android, APNs on iOS)
+     * Get push notification token from the platform (FCM on Android, APNs on iOS).
      */
-    private async getFCMToken(): Promise<string | undefined> {
+    private async getPushNotificationToken(): Promise<string | undefined> {
         try {
             return await registerForPushNotifications();
         } catch (error) {
@@ -354,7 +354,7 @@ class NotificationService {
     }
 
     /**
-     * Request permissions and get push notification token (FCM on Android, APNs on iOS).
+     * Request permissions and get push notification token.
      * Returns undefined on desktop or if permission is denied.
      */
     async getPushToken(): Promise<string | undefined> {
@@ -362,7 +362,7 @@ class NotificationService {
         if (!hasPermission) return undefined;
         const platform = await this.getPlatform();
         if (platform !== "android" && platform !== "ios") return undefined;
-        return this.getFCMToken();
+        return this.getPushNotificationToken();
     }
     /**
      * Get eName from vault (helper method)

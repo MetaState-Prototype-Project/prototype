@@ -8,7 +8,7 @@ import {
 } from "typeorm";
 
 @Entity("device_token")
-@Index(["eName", "deviceId"], { unique: true })
+@Index(["eName"], { unique: true })
 export class DeviceToken {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
@@ -16,14 +16,8 @@ export class DeviceToken {
     @Column({ type: "varchar" })
     eName!: string;
 
-    @Column({ type: "varchar" })
-    token!: string;
-
-    @Column({ type: "varchar" })
-    platform!: string;
-
-    @Column({ type: "varchar" })
-    deviceId!: string;
+    @Column({ type: "text", array: true, default: "{}" })
+    tokens!: string[];
 
     @CreateDateColumn()
     createdAt!: Date;
