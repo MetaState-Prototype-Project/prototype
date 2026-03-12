@@ -156,7 +156,7 @@
 	"scripts": {
 		"dev": "chokidar \"src/**/*\" -c \"pnpm build\" --initial",
 		"build": "svelte-kit sync && svelte-package",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "prettier --check . && eslint .",
