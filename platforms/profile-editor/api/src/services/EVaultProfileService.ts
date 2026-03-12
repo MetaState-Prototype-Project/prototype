@@ -115,7 +115,7 @@ export class EVaultProfileService {
 		return new GraphQLClient(endpoint, {
 			headers: {
 				Authorization: `Bearer ${token}`,
-				"X-ENAME": eName,
+				"X-ENAME": normalizeEName(eName),
 			},
 		});
 	}
