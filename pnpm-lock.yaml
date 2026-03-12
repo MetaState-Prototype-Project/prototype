@@ -810,6 +810,12 @@ importers:
 
   packages/ui:
     dependencies:
+      '@lucide/svelte':
+        specifier: ^0.564.0
+        version: 0.564.0(svelte@5.53.10)
+      '@sveltejs/kit':
+        specifier: ^2.43.2
+        version: 2.54.0(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.10)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)(typescript@5.9.3)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       bits-ui:
         specifier: ^2.15.4
         version: 2.16.3(@internationalized/date@3.12.0)(@sveltejs/kit@2.54.0(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.10)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)(typescript@5.9.3)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)
@@ -822,6 +828,12 @@ importers:
       svelte-sonner:
         specifier: ^1.0.5
         version: 1.1.0(svelte@5.53.10)
+      tailwind-merge:
+        specifier: ^3.4.1
+        version: 3.5.0
+      tailwind-variants:
+        specifier: ^3.2.2
+        version: 3.2.2(tailwind-merge@3.5.0)(tailwindcss@4.2.1)
     devDependencies:
       '@eslint/compat':
         specifier: ^1.4.0
@@ -832,12 +844,6 @@ importers:
       '@internationalized/date':
         specifier: ^3.10.0
         version: 3.12.0
-      '@lucide/svelte':
-        specifier: ^0.564.0
-        version: 0.564.0(svelte@5.53.10)
-      '@sveltejs/kit':
-        specifier: ^2.43.2
-        version: 2.54.0(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.53.10)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)(typescript@5.9.3)(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       '@sveltejs/package':
         specifier: ^2.3.10
         version: 2.5.7(svelte@5.53.10)(typescript@5.9.3)
@@ -877,12 +883,6 @@ importers:
       svelte-check:
         specifier: ^4.3.2
         version: 4.4.5(picomatch@4.0.3)(svelte@5.53.10)(typescript@5.9.3)
-      tailwind-merge:
-        specifier: ^3.4.1
-        version: 3.5.0
-      tailwind-variants:
-        specifier: ^3.2.2
-        version: 3.2.2(tailwind-merge@3.5.0)(tailwindcss@4.2.1)
       tailwindcss:
         specifier: ^4.1.14
         version: 4.2.1
@@ -3815,6 +3815,9 @@ importers:
 
   platforms/profile-editor/client:
     dependencies:
+      '@lucide/svelte':
+        specifier: ^0.564.0
+        version: 0.564.0(svelte@5.53.10)
       '@metastate-foundation/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
@@ -3827,22 +3830,25 @@ importers:
       bits-ui:
         specifier: ^2.15.4
         version: 2.16.3(@internationalized/date@3.12.0)(@sveltejs/kit@2.54.0(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.10)(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)(typescript@5.9.3)(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.53.10)
-      svelte-qrcode:
-        specifier: ^1.0.1
-        version: 1.0.1
       svelte-qrcode-action:
         specifier: ^1.0.2
         version: 1.0.2(svelte@5.53.10)
       svelte-sonner:
         specifier: ^1.0.5
         version: 1.1.0(svelte@5.53.10)
+      tailwind-merge:
+        specifier: ^3.0.2
+        version: 3.5.0
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
     devDependencies:
-      '@lucide/svelte':
-        specifier: ^0.564.0
-        version: 0.564.0(svelte@5.53.10)
       '@sveltejs/kit':
         specifier: ^2.16.0
         version: 2.54.0(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@5.1.1(svelte@5.53.10)(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)))(svelte@5.53.10)(typescript@5.9.3)(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -3852,24 +3858,15 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.2.1(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       svelte:
         specifier: ^5.0.0
         version: 5.53.10
       svelte-check:
         specifier: ^4.0.0
         version: 4.4.5(picomatch@4.0.3)(svelte@5.53.10)(typescript@5.9.3)
-      tailwind-merge:
-        specifier: ^3.0.2
-        version: 3.5.0
       tailwindcss:
         specifier: ^4.0.0
         version: 4.2.1
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
