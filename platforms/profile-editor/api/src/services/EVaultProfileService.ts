@@ -228,6 +228,15 @@ export class EVaultProfileService {
 		});
 
 		if (result.createMetaEnvelope.errors?.length) {
+			const errors = result.createMetaEnvelope.errors;
+			const couldBeConflict = errors.some(
+				(e) => e.code === "CREATE_FAILED" || e.code === "ONTOLOGY_ALREADY_EXISTS",
+			);
+
+			if (!couldBeConflict) {
+				throw new Error(errors.map((e) => e.message).join("; "));
+			}
+
 			// Re-query in case a concurrent create won the race (TOCTOU)
 			const raced = await this.findMetaEnvelopeByOntology(
 				client,
@@ -253,11 +262,8 @@ export class EVaultProfileService {
 					);
 				}
 			} else {
-				throw new Error(
-					result.createMetaEnvelope.errors
-						.map((e) => e.message)
-						.join("; "),
-				);
+				// No existing envelope found — this wasn't a conflict, surface original errors
+				throw new Error(errors.map((e) => e.message).join("; "));
 			}
 		}
 	}
