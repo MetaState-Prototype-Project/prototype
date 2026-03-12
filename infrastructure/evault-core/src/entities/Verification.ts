@@ -44,8 +44,8 @@ export class Verification {
     @Column({ type: "varchar", nullable: true })
     platform!: string;
 
-    @Column({ type: "varchar", nullable: true })
-    fcmToken!: string;
+    @Column({ type: "text", array: true, default: "{}", nullable: true })
+    pushTokens!: string[];
 
     @Column({ type: "boolean", default: true })
     deviceActive!: boolean;

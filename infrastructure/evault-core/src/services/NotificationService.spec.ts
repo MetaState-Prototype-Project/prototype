@@ -39,7 +39,7 @@ describe("NotificationService", () => {
                 eName: "test@example.com",
                 deviceId: "device-123",
                 platform: "android" as const,
-                fcmToken: "fcm-token-123",
+                pushToken: "push-token-123",
                 registrationTime: new Date(),
             };
 
@@ -49,7 +49,7 @@ describe("NotificationService", () => {
             expect(verification.linkedEName).toBe("test@example.com");
             expect(verification.deviceId).toBe("device-123");
             expect(verification.platform).toBe("android");
-            expect(verification.fcmToken).toBe("fcm-token-123");
+            expect(verification.pushTokens).toContain("push-token-123");
             expect(verification.deviceActive).toBe(true);
             expect(verification.approved).toBe(true);
         });
@@ -66,7 +66,7 @@ describe("NotificationService", () => {
 
             const registration2 = {
                 ...registration1,
-                fcmToken: "new-fcm-token",
+                pushToken: "new-push-token",
                 platform: "ios" as const,
             };
 
@@ -74,7 +74,7 @@ describe("NotificationService", () => {
 
             expect(verification.deviceId).toBe("device-123");
             expect(verification.platform).toBe("ios");
-            expect(verification.fcmToken).toBe("new-fcm-token");
+            expect(verification.pushTokens).toContain("new-push-token");
         });
     });
 

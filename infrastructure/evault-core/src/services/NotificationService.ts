@@ -6,7 +6,7 @@ export interface DeviceRegistration {
     eName: string;
     deviceId: string;
     platform: 'android' | 'ios' | 'desktop';
-    fcmToken?: string;
+    pushToken?: string;
     registrationTime: Date;
 }
 
@@ -29,31 +29,48 @@ export class NotificationService {
     ) {}
 
     async registerDevice(registration: DeviceRegistration): Promise<Verification> {
-        // Check if verification already exists for this eName AND deviceId combination
+        const token = registration.pushToken?.trim();
+
+        // If a token is provided, remove it from any OTHER eName's pushTokens
+        if (token) {
+            const others = await this.verificationRepository
+                .createQueryBuilder("v")
+                .where("v.linkedEName != :eName", { eName: registration.eName })
+                .andWhere(":token = ANY(v.pushTokens)", { token })
+                .getMany();
+
+            for (const other of others) {
+                other.pushTokens = (other.pushTokens ?? []).filter((t) => t !== token);
+                other.updatedAt = new Date();
+                await this.verificationRepository.save(other);
+            }
+        }
+
         let verification = await this.verificationRepository.findOne({
-            where: { 
+            where: {
                 linkedEName: registration.eName,
                 deviceId: registration.deviceId
             }
         });
 
         if (verification) {
-            // Update existing verification with device info
             verification.platform = registration.platform;
-            if (registration.fcmToken) {
-                verification.fcmToken = registration.fcmToken;
+            if (token) {
+                const existing = verification.pushTokens ?? [];
+                if (!existing.includes(token)) {
+                    verification.pushTokens = [...existing, token];
+                }
             }
             verification.deviceActive = true;
             verification.updatedAt = new Date();
         } else {
-            // Create new verification record with device info
             verification = this.verificationRepository.create({
                 linkedEName: registration.eName,
                 deviceId: registration.deviceId,
                 platform: registration.platform,
-                fcmToken: registration.fcmToken,
+                pushTokens: token ? [token] : [],
                 deviceActive: true,
-                approved: true, // Auto-approve for device registration
+                approved: true,
                 consumed: false
             });
         }
@@ -89,7 +106,6 @@ export class NotificationService {
             return false;
         }
 
-        // Store the notification in the database
         const notificationEntity = this.notificationRepository.create({
             eName: eName,
             title: notification.title,
@@ -99,7 +115,6 @@ export class NotificationService {
         });
 
         await this.notificationRepository.save(notificationEntity);
-        console.log(`📱 Notification stored for eName: ${eName} (ID: ${notificationEntity.id})`);
         
         return true;
     }
@@ -126,7 +141,7 @@ export class NotificationService {
 
     async getDevicesWithPushTokens(): Promise<Verification[]> {
         const all = await this.getAllDevices();
-        return all.filter((v) => v.fcmToken && v.fcmToken.trim().length > 0);
+        return all.filter((v) => v.pushTokens && v.pushTokens.length > 0);
     }
 
     async getDeviceStats(): Promise<{ totalDevices: number; devicesByPlatform: Record<string, number> }> {

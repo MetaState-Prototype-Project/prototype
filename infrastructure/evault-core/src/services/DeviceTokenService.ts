@@ -1,71 +1,61 @@
 import { Repository } from "typeorm";
 import { DeviceToken } from "../entities/DeviceToken";
 
-export interface DeviceTokenRegistration {
-    eName: string;
-    deviceId: string;
-    platform: string;
-    token: string;
-}
-
 export class DeviceTokenService {
     constructor(private deviceTokenRepository: Repository<DeviceToken>) {}
 
-    async register(registration: DeviceTokenRegistration): Promise<DeviceToken> {
-        const { eName, deviceId, platform, token } = registration;
+    async register(eName: string, token: string): Promise<DeviceToken> {
+        // Remove this token from any OTHER eName (device switched accounts)
+        const others = await this.deviceTokenRepository
+            .createQueryBuilder("dt")
+            .where("dt.eName != :eName", { eName })
+            .andWhere(":token = ANY(dt.tokens)", { token })
+            .getMany();
 
-        // 1. Exact match: same eName + deviceId → update token/platform
-        const byEnameAndDevice = await this.deviceTokenRepository.findOne({
-            where: { eName, deviceId },
-        });
-        if (byEnameAndDevice) {
-            byEnameAndDevice.token = token;
-            byEnameAndDevice.platform = platform;
-            byEnameAndDevice.updatedAt = new Date();
-            return this.deviceTokenRepository.save(byEnameAndDevice);
+        for (const other of others) {
+            other.tokens = other.tokens.filter((t) => t !== token);
+            other.updatedAt = new Date();
+            await this.deviceTokenRepository.save(other);
         }
 
-        // 2. Same token (same physical device) but different eName or deviceId → update eName/deviceId
-        const byToken = await this.deviceTokenRepository.findOne({
-            where: { token },
+        // Find or create the row for this eName
+        let row = await this.deviceTokenRepository.findOne({
+            where: { eName },
         });
-        if (byToken) {
-            byToken.eName = eName;
-            byToken.deviceId = deviceId;
-            byToken.platform = platform;
-            byToken.updatedAt = new Date();
-            return this.deviceTokenRepository.save(byToken);
+
+        if (row) {
+            if (!row.tokens.includes(token)) {
+                row.tokens = [...row.tokens, token];
+            }
+            row.updatedAt = new Date();
+            return this.deviceTokenRepository.save(row);
         }
 
-        // 3. Both eName and token are new → create
-        const deviceToken = this.deviceTokenRepository.create({
+        row = this.deviceTokenRepository.create({
             eName,
-            deviceId,
-            platform,
-            token,
+            tokens: [token],
         });
-        return this.deviceTokenRepository.save(deviceToken);
+        return this.deviceTokenRepository.save(row);
     }
 
     async getDevicesWithTokens(): Promise<
-        { token: string; platform: string; eName: string }[]
+        { token: string; eName: string }[]
     > {
-        const tokens = await this.deviceTokenRepository.find({
+        const rows = await this.deviceTokenRepository.find({
             order: { updatedAt: "DESC" },
         });
-        return tokens.map((t) => ({
-            token: t.token,
-            platform: t.platform,
-            eName: t.eName,
-        }));
+        return rows.flatMap((r) =>
+            r.tokens.map((token) => ({ token, eName: r.eName })),
+        );
     }
 
     async getDevicesByEName(eName: string): Promise<
-        { token: string; platform: string; eName: string }[]
+        { token: string; eName: string }[]
     > {
         const normalized = eName.startsWith("@") ? eName : `@${eName}`;
         const withoutAt = eName.replace(/^@/, "");
-        const tokens = await this.deviceTokenRepository
+
+        const rows = await this.deviceTokenRepository
             .createQueryBuilder("dt")
             .where("dt.eName = :e1 OR dt.eName = :e2", {
                 e1: normalized,
@@ -73,22 +63,31 @@ export class DeviceTokenService {
             })
             .orderBy("dt.updatedAt", "DESC")
             .getMany();
-        return tokens.map((t) => ({
-            token: t.token,
-            platform: t.platform,
-            eName: t.eName,
-        }));
+
+        return rows.flatMap((r) =>
+            r.tokens.map((token) => ({ token, eName: r.eName })),
+        );
     }
 
     async getDeviceCount(): Promise<number> {
-        return this.deviceTokenRepository.count();
+        const rows = await this.deviceTokenRepository.find();
+        return rows.reduce((sum, r) => sum + (r.tokens?.length ?? 0), 0);
     }
 
-    async unregister(eName: string, deviceId: string): Promise<boolean> {
-        const result = await this.deviceTokenRepository.delete({
-            eName,
-            deviceId,
+    async unregister(eName: string, token: string): Promise<boolean> {
+        const row = await this.deviceTokenRepository.findOne({
+            where: { eName },
         });
-        return (result.affected ?? 0) > 0;
+
+        if (!row) return false;
+
+        const before = row.tokens.length;
+        row.tokens = row.tokens.filter((t) => t !== token);
+
+        if (row.tokens.length === before) return false;
+
+        row.updatedAt = new Date();
+        await this.deviceTokenRepository.save(row);
+        return true;
     }
 }
