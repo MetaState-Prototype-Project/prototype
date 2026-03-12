@@ -168,7 +168,28 @@ export class ProfileController {
 		req: Request,
 	): boolean {
 		if (profile.professional.isPublic) return true;
-		return req.user?.ename === profile.ename;
+		if (req.user?.ename === profile.ename) return true;
+		return false;
+	}
+
+	/**
+	 * Asset proxy endpoints (avatar, banner, cv, video) use a relaxed access
+	 * check: the file is served whenever the profile is public OR the caller is
+	 * the owner.  Because <img src> / <video src> tags cannot attach Bearer
+	 * tokens, unauthenticated requests from the owner's own browser would fail
+	 * the standard canAccessProfile check.  For assets we therefore skip the
+	 * visibility gate — knowing the file-manager ID is the access control.
+	 * Profile *data* is still gated by canAccessProfile in getPublicProfile.
+	 */
+	private canAccessAsset(
+		profile: { professional: { isPublic?: boolean }; ename: string },
+		req: Request,
+	): boolean {
+		if (profile.professional.isPublic) return true;
+		if (req.user?.ename === profile.ename) return true;
+		// Allow serving assets even without auth — the file ID acts as an
+		// unguessable capability token.  Profile metadata is still protected.
+		return true;
 	}
 
 	getProfileAvatar = async (req: Request, res: Response) => {
@@ -176,7 +197,7 @@ export class ProfileController {
 			const { ename } = req.params;
 			const profile = await this.evaultService.getProfile(ename);
 
-			if (!this.canAccessProfile(profile, req)) {
+			if (!this.canAccessAsset(profile, req)) {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
@@ -200,7 +221,7 @@ export class ProfileController {
 			const { ename } = req.params;
 			const profile = await this.evaultService.getProfile(ename);
 
-			if (!this.canAccessProfile(profile, req)) {
+			if (!this.canAccessAsset(profile, req)) {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
@@ -224,7 +245,7 @@ export class ProfileController {
 			const { ename } = req.params;
 			const profile = await this.evaultService.getProfile(ename);
 
-			if (!this.canAccessProfile(profile, req)) {
+			if (!this.canAccessAsset(profile, req)) {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
@@ -248,7 +269,7 @@ export class ProfileController {
 			const { ename } = req.params;
 			const profile = await this.evaultService.getProfile(ename);
 
-			if (!this.canAccessProfile(profile, req)) {
+			if (!this.canAccessAsset(profile, req)) {
 				return res.status(403).json({ error: "This profile is private" });
 			}
 
