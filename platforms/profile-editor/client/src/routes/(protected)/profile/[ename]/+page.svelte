@@ -23,6 +23,12 @@
 	onMount(async () => {
 		const ename = $page.params.ename;
 
+		if (!ename) {
+			errorMsg = 'Invalid profile URL.';
+			loading = false;
+			return;
+		}
+
 		if ($currentUser?.ename === ename) {
 			goto('/profile');
 			return;

@@ -7,6 +7,15 @@ const config = {
 		adapter: adapter(),
 		env: {
 			dir: '../../../'
+		},
+		prerender: {
+			handleHttpError: (details) => {
+				// Ignore 404 for favicon - linked from app.html but may be missing
+				if (details.path?.includes('favicon') || details.message?.includes('favicon')) {
+					return 'ignore';
+				}
+				return 'fail';
+			}
 		}
 	}
 };
