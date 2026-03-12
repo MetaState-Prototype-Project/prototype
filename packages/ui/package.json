@@ -13,11 +13,6 @@
 		"./styles": {
 			"default": "./src/app.css"
 		},
-		"./accordion": {
-			"types": "./dist/components/ui/accordion/index.d.ts",
-			"svelte": "./dist/components/ui/accordion/index.js",
-			"default": "./dist/components/ui/accordion/index.js"
-		},
 		"./avatar": {
 			"types": "./dist/components/ui/avatar/index.d.ts",
 			"svelte": "./dist/components/ui/avatar/index.js",
@@ -38,35 +33,6 @@
 			"svelte": "./dist/components/ui/card/index.js",
 			"default": "./dist/components/ui/card/index.js"
 		},
-		"./carousel": {
-			"types": "./dist/components/ui/carousel/index.d.ts",
-			"svelte": "./dist/components/ui/carousel/index.js",
-			"default": "./dist/components/ui/carousel/index.js"
-		},
-		"./carousel/context": {
-			"types": "./dist/components/ui/carousel/context.d.ts",
-			"default": "./dist/components/ui/carousel/context.js"
-		},
-		"./dialog": {
-			"types": "./dist/components/ui/dialog/index.d.ts",
-			"svelte": "./dist/components/ui/dialog/index.js",
-			"default": "./dist/components/ui/dialog/index.js"
-		},
-		"./dropdown-menu": {
-			"types": "./dist/components/ui/dropdown-menu/index.d.ts",
-			"svelte": "./dist/components/ui/dropdown-menu/index.js",
-			"default": "./dist/components/ui/dropdown-menu/index.js"
-		},
-		"./field": {
-			"types": "./dist/components/ui/field/index.d.ts",
-			"svelte": "./dist/components/ui/field/index.js",
-			"default": "./dist/components/ui/field/index.js"
-		},
-		"./form": {
-			"types": "./dist/components/ui/form/index.d.ts",
-			"svelte": "./dist/components/ui/form/index.js",
-			"default": "./dist/components/ui/form/index.js"
-		},
 		"./input": {
 			"types": "./dist/components/ui/input/index.d.ts",
 			"svelte": "./dist/components/ui/input/index.js",
@@ -76,11 +42,6 @@
 			"types": "./dist/components/ui/label/index.d.ts",
 			"svelte": "./dist/components/ui/label/index.js",
 			"default": "./dist/components/ui/label/index.js"
-		},
-		"./pagination": {
-			"types": "./dist/components/ui/pagination/index.d.ts",
-			"svelte": "./dist/components/ui/pagination/index.js",
-			"default": "./dist/components/ui/pagination/index.js"
 		},
 		"./progress": {
 			"types": "./dist/components/ui/progress/index.d.ts",
@@ -97,16 +58,6 @@
 			"svelte": "./dist/components/ui/separator/index.js",
 			"default": "./dist/components/ui/separator/index.js"
 		},
-		"./sheet": {
-			"types": "./dist/components/ui/sheet/index.d.ts",
-			"svelte": "./dist/components/ui/sheet/index.js",
-			"default": "./dist/components/ui/sheet/index.js"
-		},
-		"./sidebar": {
-			"types": "./dist/components/ui/sidebar/index.d.ts",
-			"svelte": "./dist/components/ui/sidebar/index.js",
-			"default": "./dist/components/ui/sidebar/index.js"
-		},
 		"./skeleton": {
 			"types": "./dist/components/ui/skeleton/index.d.ts",
 			"svelte": "./dist/components/ui/skeleton/index.js",
@@ -117,25 +68,10 @@
 			"svelte": "./dist/components/ui/sonner/index.js",
 			"default": "./dist/components/ui/sonner/index.js"
 		},
-		"./tabs": {
-			"types": "./dist/components/ui/tabs/index.d.ts",
-			"svelte": "./dist/components/ui/tabs/index.js",
-			"default": "./dist/components/ui/tabs/index.js"
-		},
-		"./table": {
-			"types": "./dist/components/ui/table/index.d.ts",
-			"svelte": "./dist/components/ui/table/index.js",
-			"default": "./dist/components/ui/table/index.js"
-		},
 		"./textarea": {
 			"types": "./dist/components/ui/textarea/index.d.ts",
 			"svelte": "./dist/components/ui/textarea/index.js",
 			"default": "./dist/components/ui/textarea/index.js"
-		},
-		"./tooltip": {
-			"types": "./dist/components/ui/tooltip/index.d.ts",
-			"svelte": "./dist/components/ui/tooltip/index.js",
-			"default": "./dist/components/ui/tooltip/index.js"
 		},
 		"./utils": {
 			"types": "./dist/utils.d.ts",
@@ -169,11 +105,8 @@
 	"dependencies": {
 		"bits-ui": "^2.15.4",
 		"clsx": "^2.1.1",
-		"embla-carousel-svelte": "^8.6.0",
-		"formsnap": "^2.0.1",
 		"mode-watcher": "^1.1.0",
-		"svelte-sonner": "^1.0.5",
-		"sveltekit-superforms": "^2.27.2"
+		"svelte-sonner": "^1.0.5"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",
