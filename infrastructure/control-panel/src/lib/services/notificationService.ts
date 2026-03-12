@@ -48,9 +48,7 @@ export async function sendNotification(request: SendNotificationRequest): Promis
 	}
 }
 
-export async function getDevicesWithTokens(): Promise<
-	{ token: string; eName: string }[]
-> {
+export async function getDevicesWithTokens(): Promise<{ token: string; eName: string }[]> {
 	const { env } = await import('$env/dynamic/private');
 	const provisionerUrl =
 		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';

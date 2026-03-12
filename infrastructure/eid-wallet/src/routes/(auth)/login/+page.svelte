@@ -104,7 +104,10 @@ onMount(async () => {
                             vault.ename,
                         );
                     } catch (error) {
-                        console.error("Error registering device for notifications:", error);
+                        console.error(
+                            "Error registering device for notifications:",
+                            error,
+                        );
                     }
                 }
             } catch (error) {
@@ -191,7 +194,10 @@ onMount(async () => {
                             vault.ename,
                         );
                     } catch (error) {
-                        console.error("Error registering device for notifications:", error);
+                        console.error(
+                            "Error registering device for notifications:",
+                            error,
+                        );
                     }
                 }
             } catch (error) {

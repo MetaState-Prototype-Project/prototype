@@ -13,7 +13,7 @@
     "dev:core": "pnpm dev:core:docker && pnpm dev:core:wait && pnpm dev:core:migrate && pnpm dev:core:apps",
     "dev:core:docker": "pnpm docker:core",
     "dev:core:wait": "pnpm exec wait-on tcp:127.0.0.1:5432 tcp:127.0.0.1:7687",
-    "dev:core:migrate": "pnpm --filter registry migration:run && pnpm --filter evault-core build && cross-env REGISTRY_DATABASE_URL= pnpm --filter evault-core migration:run",
+    "dev:core:migrate": "pnpm --filter registry migration:run && pnpm --filter evault-core build && pnpm --filter evault-core migration:run",
     "dev:core:apps": "pnpm exec concurrently -n registry,evault,sandbox \"pnpm --filter registry dev\" \"pnpm --filter evault-core dev\" \"pnpm --filter dev-sandbox dev\"",
     "docker:core": "docker compose -f docker-compose.databases.yml up -d",
     "docker:core:down": "docker compose -f docker-compose.databases.yml down",
