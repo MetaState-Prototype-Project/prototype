@@ -26,11 +26,6 @@ class NotificationService {
     private static instance: NotificationService;
     private deviceRegistration: DeviceRegistration | null = null;
     private provisionerEndpoint: string;
-    private pendingMessageNavigation: {
-        globalMessageId: string;
-        globalChatId: string;
-    } | null = null;
-    private onNavigate: ((path: string) => void) | null = null;
 
     constructor() {
         // Get the provisioner endpoint from environment or use default
@@ -120,25 +115,10 @@ class NotificationService {
     }
 
     /**
-     * Set a navigation callback for handling notification taps
-     */
-    setNavigationHandler(handler: (path: string) => void): void {
-        this.onNavigate = handler;
-
-        // If there's a pending navigation from a tapped notification, go to notifications page
-        if (this.pendingMessageNavigation) {
-            this.pendingMessageNavigation = null;
-            handler("/notifications");
-        }
-    }
-
-    /**
      * Send a local notification
      */
     async sendLocalNotification(payload: NotificationPayload): Promise<void> {
         try {
-            console.log("Attempting to send local notification:", payload);
-
             // Store notification for the notification panel
             const data = payload.data as Record<string, string> | undefined;
             addNotification({
@@ -146,12 +126,6 @@ class NotificationService {
                 body: payload.body,
                 data,
             });
-
-            // Navigate to notifications page when notification is tapped
-            this.pendingMessageNavigation = {
-                globalMessageId: "",
-                globalChatId: "",
-            };
 
             // Check permissions first
             const hasPermission = await isPermissionGranted();
@@ -225,7 +199,7 @@ class NotificationService {
     /**
      * Check for notifications from provisioner and show them locally
      */
-    async checkAndShowNotifications(): Promise<void> {
+    async checkAndShowNotifications(): Promise<{ globalMessageId?: string; globalChatId?: string } | null> {
         try {
             console.log("🔍 Checking for notifications from provisioner...");
 
@@ -253,17 +227,17 @@ class NotificationService {
                             console.log("Device registered successfully");
                         } else {
                             console.log("Failed to register device");
-                            return;
+                            return null;
                         }
                     } else {
                         console.log(
                             "No eName found in vault, skipping notification check",
                         );
-                        return;
+                        return null;
                     }
                 } catch (error) {
                     console.error("Error getting vault eName:", error);
-                    return;
+                    return null;
                 }
             }
 
@@ -271,7 +245,7 @@ class NotificationService {
                 console.log(
                     "Still no device registration, skipping notification check",
                 );
-                return;
+                return null;
             }
 
             // Check for notifications from provisioner
@@ -293,24 +267,37 @@ class NotificationService {
                 const data = await response.json();
                 if (data.notifications && data.notifications.length > 0) {
                     console.log(
-                        `📱 Found ${data.notifications.length} notification(s)`,
+                        `Found ${data.notifications.length} notification(s)`,
                     );
 
                     // Show each notification locally
+                    let lastMessageNotif: { globalMessageId?: string; globalChatId?: string; title?: string; body?: string } | null = null;
                     for (const notification of data.notifications) {
                         await this.sendLocalNotification(notification);
+                        if (notification.data?.type === "new_message") {
+                            lastMessageNotif = {
+                                globalMessageId: notification.data.globalMessageId,
+                                globalChatId: notification.data.globalChatId,
+                                title: notification.title,
+                                body: notification.body,
+                            };
+                        }
                     }
+                    return lastMessageNotif;
                 } else {
                     console.log("No new notifications");
+                    return null;
                 }
             } else {
                 console.log(
                     "No notifications endpoint available or error:",
                     response.status,
                 );
+                return null;
             }
         } catch (error) {
             console.error("Error checking notifications:", error);
+            return null;
         }
     }
 

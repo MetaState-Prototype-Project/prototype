@@ -1,5 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
+import { AppNav } from "$lib/fragments";
 import {
     getNotifications,
     clearNotificationsForChat,
@@ -34,7 +35,7 @@ function handleNotificationClick(notification: StoredNotification) {
         }
         // Navigate to open-message page
         goto(
-            `/open-message/${encodeURIComponent(data.globalMessageId)}?chatId=${encodeURIComponent(data.globalChatId || data.globalMessageId)}`,
+            `/open-message/${encodeURIComponent(data.globalMessageId)}?chatId=${encodeURIComponent(data.globalChatId || data.globalMessageId)}&title=${encodeURIComponent(notification.title)}&body=${encodeURIComponent(notification.body)}`,
         );
     }
 }
@@ -56,47 +57,48 @@ function formatTime(dateStr: string): string {
 
     return date.toLocaleDateString();
 }
+
+function handleClearAll() {
+    clearAllNotifications();
+    refresh();
+}
 </script>
 
-<div class="flex items-center justify-between mb-6">
-    <button onclick={() => goto("/main")} class="text-gray-500 text-sm">
-        &larr; Back
-    </button>
-    <h1 class="text-xl font-semibold">Notifications</h1>
-    {#if notifications.length > 0}
+<AppNav title="Notifications" />
+
+{#if notifications.length > 0}
+    <div class="flex justify-end mb-4">
         <button
-            onclick={clearAllNotifications}
-            class="text-sm text-blue-500"
+            onclick={handleClearAll}
+            class="text-sm text-primary"
         >
             Clear all
         </button>
-    {:else}
-        <div class="w-16"></div>
-    {/if}
-</div>
+    </div>
+{/if}
 
 {#if notifications.length === 0}
-    <div class="flex flex-col items-center justify-center mt-20 text-gray-400">
-        <p class="text-lg">No notifications</p>
-        <p class="text-sm mt-1">You're all caught up</p>
+    <div class="flex flex-col items-center justify-center mt-20">
+        <p class="text-lg text-black-700">No notifications</p>
+        <p class="text-sm text-black-500 mt-1">You're all caught up</p>
     </div>
 {:else}
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-3">
         {#each notifications as notification (notification.id)}
             <button
                 onclick={() => handleNotificationClick(notification)}
-                class="w-full text-left p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all"
+                class="w-full text-left p-4 bg-gray rounded-2xl active:opacity-80 transition-opacity"
             >
                 <div class="flex justify-between items-start">
-                    <h3 class="font-medium text-gray-800 text-sm">
+                    <p class="font-medium text-sm">
                         {notification.title}
-                    </h3>
-                    <span class="text-xs text-gray-400 ml-2 shrink-0">
+                    </p>
+                    <span class="text-xs text-black-500 ml-2 shrink-0">
                         {formatTime(notification.createdAt)}
                     </span>
                 </div>
                 {#if notification.body}
-                    <p class="text-sm text-gray-500 mt-1 line-clamp-2">
+                    <p class="text-sm text-black-700 mt-1 line-clamp-2">
                         {notification.body}
                     </p>
                 {/if}

@@ -4,11 +4,17 @@
 	import { ArrowLeft01Icon, ArrowLeft02Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { heading as headingStore } from '../../../routes/store';
 
 	const { ...restProps }: HTMLAttributes<HTMLElement> = $props();
 
 	let route = $derived(page.url.pathname);
 	let heading = $state('');
+
+	// Subscribe to the heading store for dynamic titles (e.g. chat names)
+	headingStore.subscribe((value) => {
+		if (value) heading = value;
+	});
 
 	$effect(() => {
 		if (route.includes('home')) {

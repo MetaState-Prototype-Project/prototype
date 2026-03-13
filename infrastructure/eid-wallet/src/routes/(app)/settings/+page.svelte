@@ -107,6 +107,16 @@ async function handleVersionTap() {
     }
 }
 
+async function openPrivacy(e: Event) {
+    e.preventDefault();
+    try {
+        const { openUrl } = await import("@tauri-apps/plugin-opener");
+        await openUrl("https://metastate.foundation/");
+    } catch {
+        window.location.href = "https://metastate.foundation/";
+    }
+}
+
 $effect(() => {
     runtime.header.title = "Settings";
 });
@@ -130,11 +140,14 @@ $effect(() => {
             label="Recovery Passphrase"
             href="/settings/passphrase"
         />
-        <SettingsNavigationBtn
-            icon={Shield01Icon}
-            label="Privacy"
-            href="https://metastate.foundation/"
-        />
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div onclick={openPrivacy}>
+            <SettingsNavigationBtn
+                icon={Shield01Icon}
+                label="Privacy"
+                href="https://metastate.foundation/"
+            />
+        </div>
     </div>
     <div>
         <ButtonAction class="mt-5 w-full" callback={showDeleteConfirmation}
