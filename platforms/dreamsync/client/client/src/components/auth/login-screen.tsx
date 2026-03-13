@@ -56,7 +56,7 @@ export function LoginScreen() {
   const handleAutoLogin = async (ename: string, session: string, signature: string, appVersion: string) => {
     setIsConnecting(true);
     try {
-      const apiBaseUrl = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:8888";
+      const apiBaseUrl = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:4001";
       const response = await fetch(`${apiBaseUrl}/api/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,7 +90,7 @@ export function LoginScreen() {
     if (!sessionId) return;
 
     const eventSource = new EventSource(
-      `${import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:8888"}/api/auth/sessions/${sessionId}`
+      `${import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:4001"}/api/auth/sessions/${sessionId}`
     );
 
     eventSource.onmessage = (event) => {

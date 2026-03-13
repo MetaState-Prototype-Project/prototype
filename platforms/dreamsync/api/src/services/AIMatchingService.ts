@@ -8,6 +8,9 @@ import { MatchingService, MatchResult, WishlistData, GroupData } from "./Matchin
 import { withOperationContext } from "../context/OperationContext";
 import OpenAI from "openai";
 import { WishlistSummaryService } from "./WishlistSummaryService";
+import { RegistryService } from "./RegistryService";
+import { EVaultProfileService } from "./EVaultProfileService";
+import type { ProfessionalProfile } from "../types/profile";
 
 export class AIMatchingService {
     private matchingService: MatchingService;
@@ -17,6 +20,8 @@ export class AIMatchingService {
     private notificationService: MatchNotificationService;
     private openai: OpenAI;
     private wishlistSummaryService: WishlistSummaryService;
+
+    private evaultProfileService: EVaultProfileService;
 
     constructor() {
         this.matchingService = new MatchingService();
@@ -28,6 +33,7 @@ export class AIMatchingService {
             apiKey: process.env.OPENAI_API_KEY,
         });
         this.wishlistSummaryService = WishlistSummaryService.getInstance();
+        this.evaultProfileService = new EVaultProfileService(new RegistryService());
     }
 
     async findMatches(): Promise<void> {
@@ -51,25 +57,60 @@ export class AIMatchingService {
             const existingGroups = await this.getExistingGroups();
             console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
 
+            // Fetch professional profiles from eVault (batch, with caching)
+            const profileCache = new Map<string, ProfessionalProfile | null>();
+            const uniqueEnames = [...new Set(wishlists.map((w) => w.user.ename).filter(Boolean))];
+            await Promise.all(
+                uniqueEnames.map(async (ename) => {
+                    try {
+                        const prof = await this.evaultProfileService.getProfessionalProfile(ename);
+                        if (prof.isDreamsyncVisible !== false) {
+                            profileCache.set(ename, prof);
+                        } else {
+                            profileCache.set(ename, null);
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch professional profile for ${ename}:`, err);
+                        profileCache.set(ename, null);
+                    }
+                }),
+            );
+
             // Convert to shared service format, filtering out wishlists without summaries
             const wishlistData: WishlistData[] = wishlists
                 .filter(wishlist => {
-                    // Only include wishlists with valid summary arrays
                     return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
                            wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
                 })
-                .map(wishlist => ({
-                    id: wishlist.id,
-                    content: wishlist.content,
-                    summaryWants: wishlist.summaryWants || [],
-                    summaryOffers: wishlist.summaryOffers || [],
-                    userId: wishlist.userId,
-                    user: {
-                        id: wishlist.user.id,
-                        name: wishlist.user.name || wishlist.user.ename,
-                        ename: wishlist.user.ename
-                    }
-                }));
+                .map(wishlist => {
+                    const prof = profileCache.get(wishlist.user.ename) ?? undefined;
+                    return {
+                        id: wishlist.id,
+                        content: wishlist.content,
+                        summaryWants: wishlist.summaryWants || [],
+                        summaryOffers: wishlist.summaryOffers || [],
+                        userId: wishlist.userId,
+                        user: {
+                            id: wishlist.user.id,
+                            name: wishlist.user.name || wishlist.user.ename,
+                            ename: wishlist.user.ename,
+                            professional: prof ? {
+                                headline: prof.headline,
+                                skills: prof.skills,
+                                location: prof.location,
+                                workExperience: prof.workExperience?.map((w) => ({
+                                    company: w.company,
+                                    role: w.role,
+                                })),
+                                education: prof.education?.map((e) => ({
+                                    institution: e.institution,
+                                    degree: e.degree,
+                                    fieldOfStudy: e.fieldOfStudy,
+                                })),
+                            } : undefined,
+                        },
+                    };
+                });
 
             // Use matching service for parallel processing
             const matchResults = await this.matchingService.findMatches(wishlistData, existingGroups);

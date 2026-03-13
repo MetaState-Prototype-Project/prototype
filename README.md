@@ -9,6 +9,7 @@
 ### Port Assignments
 
 #### Core Services (Always Running)
+
 - **4321** - Registry Service
 - **3001** - evault-core Provisioning API (Express)
 - **4000** - evault-core GraphQL/HTTP API (Fastify)
@@ -17,6 +18,7 @@
 - **7687** - Neo4j Bolt Protocol
 
 #### Platform APIs
+
 - **3000** - Blabsy W3DS Auth API
 - **3002** - Cerberus API
 - **3003** - Group Charter Manager API
@@ -28,6 +30,7 @@
 - **1111** - Pictique API
 
 #### Frontend Services
+
 - **8080** - Dev sandbox (W3DS) / Blabsy Frontend
 - **5173** - Pictique Frontend
 - **3004** - Group Charter Manager Frontend
@@ -37,19 +40,24 @@
 ### Docker Compose Profiles
 
 #### `socials` Profile
+
 Runs core services plus social media platforms:
+
 - Core: registry, evault-core, postgres, neo4j
 - Pictique API + Frontend
 - Blabsy API + Frontend
 
 #### `charter-blabsy` Profile
+
 Runs core services plus charter and blabsy:
+
 - Core: registry, evault-core, postgres, neo4j
 - Group Charter Manager API + Frontend
 - Blabsy API + Frontend
 - Cerberus
 
 #### `all` Profile
+
 Runs all services (core + all APIs + all frontends)
 
 ### Usage

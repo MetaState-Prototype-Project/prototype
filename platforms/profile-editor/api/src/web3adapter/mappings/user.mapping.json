@@ -1,0 +1,20 @@
+{
+	"tableName": "users",
+	"schemaId": "550e8400-e29b-41d4-a716-446655440000",
+	"ownerEnamePath": "ename",
+	"ownedJunctionTables": [],
+	"localToUniversalMap": {
+		"handle": "username",
+		"name": "displayName",
+		"bio": "bio",
+		"avatarFileId": "avatarFileId",
+		"bannerFileId": "bannerFileId",
+		"ename": "ename",
+		"isVerified": "isVerified",
+		"isPublic": "isPublic",
+		"location": "location",
+		"createdAt": "createdAt",
+		"updatedAt": "updatedAt",
+		"isArchived": "isArchived"
+	}
+}

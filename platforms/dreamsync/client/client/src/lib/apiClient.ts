@@ -1,6 +1,6 @@
 import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
 
-const baseURL = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:8888";
+const baseURL = import.meta.env.VITE_DREAMSYNC_BASE_URL || "http://localhost:4001";
 
 
 console.log("🔍 Environment variables:", {
