@@ -105,6 +105,18 @@ app.get("/api/auth/offer", authController.getOffer);
 app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.post("/api/webhook", webhookController.handleWebhook);
+app.get("/api/resolve/:globalId", async (req, res) => {
+    try {
+        const localId = await adapter.mappingDb.getLocalId(req.params.globalId);
+        if (!localId) {
+            return res.status(404).json({ error: "Mapping not found" });
+        }
+        res.json({ localId });
+    } catch (error) {
+        console.error("Error resolving global ID:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 // Debug endpoints for monitoring duplicate prevention
 app.get("/api/debug/watcher-stats", (req, res) => {

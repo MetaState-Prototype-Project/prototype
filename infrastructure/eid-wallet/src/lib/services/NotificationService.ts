@@ -6,6 +6,7 @@ import {
     sendNotification,
 } from "@choochmeque/tauri-plugin-notifications-api";
 import { invoke } from "@tauri-apps/api/core";
+import { addNotification } from "$lib/stores/notifications";
 
 export interface DeviceRegistration {
     eName: string;
@@ -25,6 +26,11 @@ class NotificationService {
     private static instance: NotificationService;
     private deviceRegistration: DeviceRegistration | null = null;
     private provisionerEndpoint: string;
+    private pendingMessageNavigation: {
+        globalMessageId: string;
+        globalChatId: string;
+    } | null = null;
+    private onNavigate: ((path: string) => void) | null = null;
 
     constructor() {
         // Get the provisioner endpoint from environment or use default
@@ -114,11 +120,44 @@ class NotificationService {
     }
 
     /**
+     * Set a navigation callback for handling notification taps
+     */
+    setNavigationHandler(handler: (path: string) => void): void {
+        this.onNavigate = handler;
+
+        // If there's a pending navigation, execute it immediately
+        if (this.pendingMessageNavigation) {
+            const { globalMessageId, globalChatId } =
+                this.pendingMessageNavigation;
+            this.pendingMessageNavigation = null;
+            handler(
+                `/open-message/${encodeURIComponent(globalMessageId)}?chatId=${encodeURIComponent(globalChatId)}`,
+            );
+        }
+    }
+
+    /**
      * Send a local notification
      */
     async sendLocalNotification(payload: NotificationPayload): Promise<void> {
         try {
             console.log("Attempting to send local notification:", payload);
+
+            // Store notification for the notification panel
+            const data = payload.data as Record<string, string> | undefined;
+            addNotification({
+                title: payload.title,
+                body: payload.body,
+                data,
+            });
+
+            // Store navigation data for new_message notifications
+            if (data?.type === "new_message" && data.globalMessageId) {
+                this.pendingMessageNavigation = {
+                    globalMessageId: data.globalMessageId,
+                    globalChatId: data.globalChatId || data.globalMessageId,
+                };
+            }
 
             // Check permissions first
             const hasPermission = await isPermissionGranted();

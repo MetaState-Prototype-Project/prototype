@@ -12,6 +12,8 @@ import {
 import { exampleQueries } from "./examples/examples";
 import { typeDefs } from "./typedefs";
 import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
+import { MessageNotificationService } from "../../services/MessageNotificationService";
+import { AppDataSource } from "../../config/database";
 
 export class GraphQLServer {
     private db: DbService;
@@ -25,6 +27,7 @@ export class GraphQLServer {
     private evaultPublicKey: string | null;
     private evaultW3ID: string | null;
     private evaultInstance: any; // Reference to the eVault instance
+    private messageNotificationService: MessageNotificationService | null = null;
 
     constructor(
         db: DbService,
@@ -43,6 +46,17 @@ export class GraphQLServer {
 
     public getSchema(): GraphQLSchema {
         return this.schema;
+    }
+
+    private getMessageNotificationService(): MessageNotificationService {
+        if (!this.messageNotificationService) {
+            this.messageNotificationService = new MessageNotificationService(
+                AppDataSource.getRepository("Verification"),
+                AppDataSource.getRepository("Notification"),
+                this.db,
+            );
+        }
+        return this.messageNotificationService;
     }
 
     /**
@@ -396,6 +410,20 @@ export class GraphQLServer {
                                     webhookPayload,
                                 );
                             }, 3_000);
+
+                            // Send push notifications for new messages
+                            if (MessageNotificationService.isMessageSchema(input.ontology)) {
+                                this.getMessageNotificationService()
+                                    .notifyParticipants({
+                                        messageGlobalId: result.metaEnvelope.id,
+                                        payload: input.payload,
+                                        senderEName: context.eName,
+                                        acl: input.acl,
+                                    })
+                                    .catch((err) =>
+                                        console.error("Message notification failed:", err),
+                                    );
+                            }
 
                             // Log envelope operation best-effort
                             const platform =

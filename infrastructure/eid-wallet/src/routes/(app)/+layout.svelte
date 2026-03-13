@@ -47,9 +47,12 @@ onMount(async () => {
             );
         }
 
-        // Check for notifications after successful authentication
+        // Set up notification navigation handler and check for notifications
         try {
             const notificationService = globalState.notificationService;
+            notificationService.setNavigationHandler((path: string) => {
+                goto(path);
+            });
             await notificationService.checkAndShowNotifications();
         } catch (error) {
             console.error("Failed to check notifications:", error);

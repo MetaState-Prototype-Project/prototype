@@ -63,6 +63,18 @@ app.post("/api/auth", authController.login);
 app.get("/api/auth/sessions/:id", authController.sseStream);
 app.get("/api/chats/:chatId/events", messageController.getChatEvents);
 app.post("/api/webhook", webhookController.handleWebhook);
+app.get("/api/resolve/:globalId", async (req, res) => {
+    try {
+        const localId = await adapter.mappingDb.getLocalId(req.params.globalId);
+        if (!localId) {
+            return res.status(404).json({ error: "Mapping not found" });
+        }
+        res.json({ localId });
+    } catch (error) {
+        console.error("Error resolving global ID:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 // Protected routes (auth required)
 app.use(authMiddleware); // Apply auth middleware to all routes below
