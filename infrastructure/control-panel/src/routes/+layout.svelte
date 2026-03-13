@@ -14,7 +14,8 @@
 		{ label: 'Dashboard', href: '/' },
 		{ label: 'Monitoring', href: '/monitoring' },
 		{ label: 'Actions', href: '/actions' },
-		{ label: 'Notifications', href: '/notifications' }
+		{ label: 'Notifications', href: '/notifications' },
+		{ label: 'Visualizer', href: '/visualizer' }
 	];
 
 	const isActive = (href: string) => (href === '/' ? pageUrl === '/' : pageUrl.startsWith(href));

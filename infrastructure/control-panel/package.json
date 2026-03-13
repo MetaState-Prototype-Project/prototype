@@ -56,6 +56,7 @@
 		"lucide-svelte": "^0.561.0",
 		"qrcode": "^1.5.4",
 		"signature-validator": "workspace:*",
-		"tailwind-merge": "^3.0.2"
+		"tailwind-merge": "^3.0.2",
+		"vis-network": "^10.0.2"
 	}
 }
