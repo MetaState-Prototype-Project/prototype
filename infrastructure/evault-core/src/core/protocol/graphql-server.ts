@@ -131,14 +131,14 @@ export class GraphQLServer {
                             timeout: 5000, // 5 second timeout
                         });
                     } catch (error) {
-                        // Silenced webhook delivery logs
+                        console.log(`Webhook delivery failed to ${platformUrl}`);
                     }
                 },
             );
 
             await Promise.allSettled(webhookPromises);
         } catch (error) {
-            // Silenced webhook delivery logs
+            console.log("Webhook delivery failed");
         }
     }
 

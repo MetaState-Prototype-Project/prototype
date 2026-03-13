@@ -125,14 +125,10 @@ class NotificationService {
     setNavigationHandler(handler: (path: string) => void): void {
         this.onNavigate = handler;
 
-        // If there's a pending navigation, execute it immediately
+        // If there's a pending navigation from a tapped notification, go to notifications page
         if (this.pendingMessageNavigation) {
-            const { globalMessageId, globalChatId } =
-                this.pendingMessageNavigation;
             this.pendingMessageNavigation = null;
-            handler(
-                `/open-message/${encodeURIComponent(globalMessageId)}?chatId=${encodeURIComponent(globalChatId)}`,
-            );
+            handler("/notifications");
         }
     }
 
@@ -151,13 +147,11 @@ class NotificationService {
                 data,
             });
 
-            // Store navigation data for new_message notifications
-            if (data?.type === "new_message" && data.globalMessageId) {
-                this.pendingMessageNavigation = {
-                    globalMessageId: data.globalMessageId,
-                    globalChatId: data.globalChatId || data.globalMessageId,
-                };
-            }
+            // Navigate to notifications page when notification is tapped
+            this.pendingMessageNavigation = {
+                globalMessageId: "",
+                globalChatId: "",
+            };
 
             // Check permissions first
             const hasPermission = await isPermissionGranted();
