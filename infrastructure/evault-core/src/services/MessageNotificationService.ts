@@ -38,46 +38,69 @@ export class MessageNotificationService {
     async notifyParticipants(params: MessageNotificationParams): Promise<void> {
         const { messageGlobalId, payload, senderEName } = params;
 
+        console.log(`[NOTIF] Processing message notification for message ${messageGlobalId} from ${senderEName}`);
+        console.log(`[NOTIF] Message payload keys: ${Object.keys(payload).join(", ")}`);
+
         const globalChatId = payload.chatId || "";
         if (!globalChatId) {
-            console.log("Message notification skipped: no chatId in payload");
+            console.log("[NOTIF] SKIPPED: no chatId in payload");
             return;
         }
+
+        console.log(`[NOTIF] Looking up chat data for globalChatId: ${globalChatId}`);
 
         // Look up the chat MetaEnvelope to find participants, admins, and owner
         const chatData = await this.getChatData(globalChatId);
         if (!chatData) {
-            console.log(
-                `Message notification skipped: chat ${globalChatId} not found`
-            );
+            console.log(`[NOTIF] SKIPPED: chat ${globalChatId} not found in Neo4j`);
             return;
         }
 
-        // Merge all participant arrays: participantIds + admins + owner
-        const allParticipants = new Set<string>();
+        console.log(`[NOTIF] Chat data found. Keys: ${Object.keys(chatData).join(", ")}`);
+        console.log(`[NOTIF] participantIds: ${JSON.stringify(chatData.participantIds)}`);
+        console.log(`[NOTIF] admins: ${JSON.stringify(chatData.admins)}`);
+        console.log(`[NOTIF] owner: ${JSON.stringify(chatData.owner)}`);
+        console.log(`[NOTIF] name: ${JSON.stringify(chatData.name)}`);
+
+        // Merge all participant MetaEnvelope IDs: participantIds + admins + owner
+        const allParticipantMetaIds = new Set<string>();
 
         if (Array.isArray(chatData.participantIds)) {
             for (const p of chatData.participantIds) {
-                if (p) allParticipants.add(String(p));
+                if (p) allParticipantMetaIds.add(String(p));
             }
         }
         if (Array.isArray(chatData.admins)) {
             for (const a of chatData.admins) {
-                if (a) allParticipants.add(String(a));
+                if (a) allParticipantMetaIds.add(String(a));
             }
         }
         if (chatData.owner) {
-            allParticipants.add(String(chatData.owner));
+            allParticipantMetaIds.add(String(chatData.owner));
+        }
+
+        console.log(`[NOTIF] Participant MetaEnvelope IDs: ${[...allParticipantMetaIds].join(", ")}`);
+
+        // Resolve MetaEnvelope IDs to eNames
+        const eNameMap = await this.resolveMetaEnvelopeIdsToENames([...allParticipantMetaIds]);
+        console.log(`[NOTIF] Resolved eNames: ${JSON.stringify(Object.fromEntries(eNameMap))}`);
+
+        const allENames = new Set<string>();
+        for (const [metaId, eName] of eNameMap) {
+            if (eName) allENames.add(eName);
         }
 
         // Remove the sender
-        allParticipants.delete(senderEName);
+        allENames.delete(senderEName);
 
-        const recipients = [...allParticipants];
+        const recipients = [...allENames];
 
         if (recipients.length === 0) {
+            console.log(`[NOTIF] SKIPPED: no recipients after removing sender ${senderEName}`);
             return;
         }
+
+        console.log(`[NOTIF] Recipients (eNames): ${recipients.join(", ")}`);
 
         const messageText = payload.content || payload.text || "";
         const truncatedText =
@@ -90,7 +113,7 @@ export class MessageNotificationService {
             : `@${senderEName}`;
 
         // Determine DM vs group based on total participant count
-        const isDM = allParticipants.size <= 1; // only 1 left after removing sender = 2 people total
+        const isDM = allENames.size <= 1; // only 1 left after removing sender = 2 people total
 
         let title: string;
         let body: string;
@@ -104,6 +127,8 @@ export class MessageNotificationService {
             body = `${senderDisplay}: ${truncatedText || "Sent a message"}`;
         }
 
+        console.log(`[NOTIF] isDM: ${isDM}, title: "${title}", body: "${body}"`);
+
         const notificationPayload = {
             title,
             body,
@@ -113,6 +138,8 @@ export class MessageNotificationService {
                 globalChatId,
             },
         };
+
+        console.log(`[NOTIF] Sending notifications to ${recipients.length} recipient(s)...`);
 
         const results = await Promise.allSettled(
             recipients.map((eName) =>
@@ -128,20 +155,69 @@ export class MessageNotificationService {
         ).length;
         const failed = results.length - succeeded;
 
-        if (failed > 0) {
-            console.log(
-                `Message notifications: ${succeeded} sent, ${failed} failed (message: ${messageGlobalId})`
+        console.log(`[NOTIF] Results: ${succeeded} sent, ${failed} failed (message: ${messageGlobalId})`);
+
+        // Log individual failures
+        results.forEach((r, i) => {
+            if (r.status === "rejected") {
+                console.error(`[NOTIF] Failed to notify ${recipients[i]}:`, r.reason);
+            } else if (!r.value) {
+                console.log(`[NOTIF] No devices found for ${recipients[i]}`);
+            }
+        });
+    }
+
+    /**
+     * Resolves MetaEnvelope IDs to their owner eNames by querying Neo4j.
+     * The participant/admin/owner fields in chat data store MetaEnvelope IDs
+     * for user profiles, not eNames directly.
+     */
+    private async resolveMetaEnvelopeIdsToENames(
+        metaIds: string[]
+    ): Promise<Map<string, string | null>> {
+        const result = new Map<string, string | null>();
+        if (metaIds.length === 0) return result;
+
+        try {
+            const queryResult = await this.db.runQuery(
+                `
+                MATCH (m:MetaEnvelope)
+                WHERE m.id IN $ids
+                RETURN m.id AS id, m.eName AS eName
+                `,
+                { ids: metaIds }
             );
+
+            for (const record of queryResult.records) {
+                const id = record.get("id");
+                const eName = record.get("eName");
+                result.set(id, eName || null);
+                console.log(`[NOTIF] Resolved MetaEnvelope ${id} → eName: ${eName}`);
+            }
+
+            // Mark any unresolved IDs
+            for (const id of metaIds) {
+                if (!result.has(id)) {
+                    console.log(`[NOTIF] Could not resolve MetaEnvelope ${id} to eName`);
+                    result.set(id, null);
+                }
+            }
+        } catch (error) {
+            console.error("[NOTIF] Failed to resolve MetaEnvelope IDs to eNames:", error);
+            for (const id of metaIds) {
+                result.set(id, null);
+            }
         }
+
+        return result;
     }
 
     private async getChatData(
         globalChatId: string
     ): Promise<Record<string, any> | null> {
         try {
-            // Query Neo4j directly for the chat MetaEnvelope by ID
-            // We don't filter by eName since this is an internal operation
-            // and the chat may be stored under any participant's eName
+            console.log(`[NOTIF] Querying Neo4j for chat MetaEnvelope: id=${globalChatId}, ontology=${GROUP_SCHEMA_ID}`);
+
             const result = await this.db.runQuery(
                 `
                 MATCH (m:MetaEnvelope { id: $id, ontology: $ontology })-[:LINKS_TO]->(e:Envelope)
@@ -151,24 +227,28 @@ export class MessageNotificationService {
                 { id: globalChatId, ontology: GROUP_SCHEMA_ID }
             );
 
-            if (!result.records[0]) return null;
+            if (!result.records[0]) {
+                console.log(`[NOTIF] No MetaEnvelope found for chat ${globalChatId}`);
+                return null;
+            }
 
             const record = result.records[0];
             const envelopes = record.get("envelopes");
+            console.log(`[NOTIF] Found ${envelopes.length} envelope(s) for chat ${globalChatId}`);
 
             // Parse envelopes into a flat object
             const parsed: Record<string, any> = {};
             for (const node of envelopes) {
                 const props = node.properties;
-                parsed[props.ontology] = deserializeValue(
-                    props.value,
-                    props.valueType
-                );
+                const key = props.ontology;
+                const value = deserializeValue(props.value, props.valueType);
+                parsed[key] = value;
+                console.log(`[NOTIF] Envelope field "${key}": ${JSON.stringify(value)}`);
             }
 
             return parsed;
         } catch (error) {
-            console.error("Failed to fetch chat data for notification:", error);
+            console.error("[NOTIF] Failed to fetch chat data for notification:", error);
             return null;
         }
     }
