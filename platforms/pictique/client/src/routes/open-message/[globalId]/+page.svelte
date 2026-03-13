@@ -4,7 +4,7 @@
 	import { PUBLIC_PICTIQUE_BASE_URL } from '$env/static/public';
 	import { onMount } from 'svelte';
 
-	const globalId = page.params.globalId;
+	const globalId = page.params.globalId as string;
 	let error = $state('');
 	let loading = $state(true);
 
