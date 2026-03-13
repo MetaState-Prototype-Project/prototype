@@ -35,7 +35,7 @@
 	});
 </script>
 
-<div class="flex flex-col items-center justify-center min-h-screen p-6">
+<div class="flex min-h-screen flex-col items-center justify-center p-6">
 	{#if loading}
 		<p class="text-gray-500">Opening conversation...</p>
 	{:else if error}

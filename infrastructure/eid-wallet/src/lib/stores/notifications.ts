@@ -42,7 +42,9 @@ export function getUnreadCount(): number {
     return loadNotifications().length;
 }
 
-export function addNotification(notification: Omit<StoredNotification, "id" | "createdAt">): void {
+export function addNotification(
+    notification: Omit<StoredNotification, "id" | "createdAt">,
+): void {
     const notifications = loadNotifications();
     notifications.unshift({
         ...notification,
@@ -56,7 +58,7 @@ export function addNotification(notification: Omit<StoredNotification, "id" | "c
 export function clearNotificationsForChat(globalChatId: string): void {
     const notifications = loadNotifications();
     const filtered = notifications.filter(
-        (n) => n.data?.globalChatId !== globalChatId
+        (n) => n.data?.globalChatId !== globalChatId,
     );
     saveNotifications(filtered);
     notify();

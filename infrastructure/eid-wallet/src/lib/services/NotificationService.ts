@@ -199,7 +199,10 @@ class NotificationService {
     /**
      * Check for notifications from provisioner and show them locally
      */
-    async checkAndShowNotifications(): Promise<{ globalMessageId?: string; globalChatId?: string } | null> {
+    async checkAndShowNotifications(): Promise<{
+        globalMessageId?: string;
+        globalChatId?: string;
+    } | null> {
         try {
             console.log("🔍 Checking for notifications from provisioner...");
 
@@ -271,12 +274,18 @@ class NotificationService {
                     );
 
                     // Show each notification locally
-                    let lastMessageNotif: { globalMessageId?: string; globalChatId?: string; title?: string; body?: string } | null = null;
+                    let lastMessageNotif: {
+                        globalMessageId?: string;
+                        globalChatId?: string;
+                        title?: string;
+                        body?: string;
+                    } | null = null;
                     for (const notification of data.notifications) {
                         await this.sendLocalNotification(notification);
                         if (notification.data?.type === "new_message") {
                             lastMessageNotif = {
-                                globalMessageId: notification.data.globalMessageId,
+                                globalMessageId:
+                                    notification.data.globalMessageId,
                                 globalChatId: notification.data.globalChatId,
                                 title: notification.title,
                                 body: notification.body,
