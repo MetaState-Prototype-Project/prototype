@@ -48,9 +48,7 @@ export async function sendNotification(request: SendNotificationRequest): Promis
 	}
 }
 
-export async function getDevicesWithTokens(): Promise<
-	{ token: string; platform: string; eName: string }[]
-> {
+export async function getDevicesWithTokens(): Promise<{ token: string; eName: string }[]> {
 	const { env } = await import('$env/dynamic/private');
 	const provisionerUrl =
 		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';
@@ -69,7 +67,7 @@ export async function getDevicesWithTokens(): Promise<
 
 export async function getDevicesByEName(
 	eName: string
-): Promise<{ token: string; platform: string; eName: string }[]> {
+): Promise<{ token: string; eName: string }[]> {
 	const { env } = await import('$env/dynamic/private');
 	const provisionerUrl =
 		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';

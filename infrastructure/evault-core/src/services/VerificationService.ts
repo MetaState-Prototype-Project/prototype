@@ -1,4 +1,4 @@
-import { DeepPartial, Repository } from "typeorm";
+import { DeepPartial, FindOptionsWhere, Repository } from "typeorm";
 import { Verification } from "../entities/Verification";
 
 export class VerificationService {
@@ -37,12 +37,12 @@ export class VerificationService {
         }
     }
 
-    async findOne(where: Partial<Verification>): Promise<Verification | null> {
+    async findOne(where: FindOptionsWhere<Verification>): Promise<Verification | null> {
         return await this.verificationRepository.findOneBy(where);
     }
 
     async findManyAndCount(
-        where: Partial<Verification>,
+        where: FindOptionsWhere<Verification>,
         relations: Record<string, boolean> = {},
         order: Record<string, "ASC" | "DESC"> = {},
         pagination: { take: number; skip: number } = { take: 10, skip: 0 },
