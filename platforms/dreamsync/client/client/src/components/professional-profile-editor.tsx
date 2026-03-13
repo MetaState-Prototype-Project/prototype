@@ -360,7 +360,10 @@ export default function ProfessionalProfileEditor({
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-xs">
-                                                End Date
+                                                End Date{" "}
+                                                <span className="text-gray-400 font-normal">
+                                                    (leave empty if current)
+                                                </span>
                                             </Label>
                                             <Input
                                                 type="date"
@@ -486,7 +489,10 @@ export default function ProfessionalProfileEditor({
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-xs">
-                                                End Date
+                                                End Date{" "}
+                                                <span className="text-gray-400 font-normal">
+                                                    (leave empty if current)
+                                                </span>
                                             </Label>
                                             <Input
                                                 type="date"
