@@ -8,7 +8,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { tokens, platform, payload } = body;
 
 		if (!Array.isArray(tokens) || tokens.length === 0) {
-			return json({ success: false, error: 'tokens must be a non-empty array' }, { status: 400 });
+			return json(
+				{ success: false, error: 'tokens must be a non-empty array' },
+				{ status: 400 }
+			);
 		}
 		if (!payload?.title || !payload?.body) {
 			return json(

@@ -10,9 +10,11 @@ export let requesterName: string | null;
 export let loading: boolean;
 export let error: string | null;
 export let success: boolean;
+export let relationDescription: string;
 export let onConfirm: () => void;
 export let onDecline: () => void;
 export let onOpenChange: (value: boolean) => void;
+export let onDescriptionChange: (value: string) => void;
 
 let internalOpen = isOpen;
 let lastReportedOpen = internalOpen;
@@ -121,6 +123,23 @@ $: displayName = requesterName ?? requesterEname ?? "Unknown";
                                 {/if}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="w-full mt-4">
+                        <label
+                            for="relation-description"
+                            class="text-xs font-semibold text-black-500 uppercase tracking-wider block mb-1"
+                        >
+                            Relationship Description
+                        </label>
+                        <textarea
+                            id="relation-description"
+                            class="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-black-700 resize-none focus:outline-none focus:border-primary"
+                            rows="3"
+                            placeholder="Describe how you know this person..."
+                            value={relationDescription}
+                            oninput={(e) => onDescriptionChange(e.currentTarget.value)}
+                        ></textarea>
                     </div>
 
                     {#if error}

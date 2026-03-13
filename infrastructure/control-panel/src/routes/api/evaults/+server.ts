@@ -110,8 +110,12 @@ async function resolveVaultIdentity(
 		return {
 			type: 'user',
 			name:
-				firstNonEmptyString(userProfile.displayName, userProfile.username, vault.ename, vault.evault) ||
-				defaultName
+				firstNonEmptyString(
+					userProfile.displayName,
+					userProfile.username,
+					vault.ename,
+					vault.evault
+				) || defaultName
 		};
 	}
 
@@ -128,8 +132,7 @@ async function resolveVaultIdentity(
 					groupManifest.ename,
 					vault.ename,
 					vault.evault
-				) ||
-				defaultName
+				) || defaultName
 		};
 	}
 
