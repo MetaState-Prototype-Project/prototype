@@ -145,8 +145,8 @@ export function GroupSettings({
         <Dialog open={open} onClose={onClose} className='relative z-10'>
             <div className='fixed inset-0 bg-black/30' aria-hidden='true' />
             <div className='fixed inset-0 flex items-center justify-center p-4'>
-                <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
-                    <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
+                <Dialog.Panel className='flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
+                    <Dialog.Title className='shrink-0 flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
                         {isGroup
                             ? isAdmin
                                 ? 'Edit Group Settings'
@@ -158,7 +158,7 @@ export function GroupSettings({
                         />
                     </Dialog.Title>
                     <form
-                        className='mt-4 flex flex-col gap-4'
+                        className='mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto'
                         onSubmit={(e) => {
                             e.preventDefault();
                             void handleSave();
