@@ -153,15 +153,15 @@ export function MemberList({
         <Dialog open={open} onClose={onClose} className='relative z-10'>
             <div className='fixed inset-0 bg-black/30' aria-hidden='true' />
             <div className='fixed inset-0 flex items-center justify-center p-4'>
-                <Dialog.Panel className='w-full max-w-md transform overflow-visible rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
-                    <Dialog.Title className='flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
+                <Dialog.Panel className='flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-900'>
+                    <Dialog.Title className='shrink-0 flex items-center justify-between text-lg font-medium leading-6 text-gray-900 dark:text-white'>
                         Members
                         <XMarkIcon
                             className='h-6 w-6 cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                             onClick={onClose}
                         />
                     </Dialog.Title>
-                    <div className='mt-4 flex flex-col gap-2'>
+                    <div className='mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto'>
                         {currentChat?.participants.map((participantId) => (
                             <div
                                 key={participantId}
@@ -334,7 +334,7 @@ export function MemberList({
                     </div>
                     {((user && currentChat?.admins?.includes(user?.id)) ||
                         currentChat?.owner === user?.id) && (
-                        <div className='flex justify-center gap-2 mt-4'>
+                        <div className='flex shrink-0 justify-center gap-2 mt-4'>
                             <button
                                 type='button'
                                 onClick={onOpenAddMemberModal}
