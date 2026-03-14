@@ -3,6 +3,7 @@ import { goto } from "$app/navigation";
 import { SettingsNavigationBtn } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
 import { runtime } from "$lib/global/runtime.svelte";
+import { clearAllNotifications } from "$lib/stores/notifications";
 import { BottomSheet, ButtonAction } from "$lib/ui";
 import {
     Key01Icon,
@@ -40,6 +41,7 @@ function confirmDelete() {
 }
 
 async function nukeWallet() {
+    clearAllNotifications();
     const newGlobalState = await globalState.reset();
     setGlobalState(newGlobalState);
     globalState = newGlobalState;
