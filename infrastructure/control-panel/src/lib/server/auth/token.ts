@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { CONTROL_PANEL_JWT_SECRET } from '$env/static/private';
 import { jwtVerify, SignJWT } from 'jose';
 
 export const AUTH_COOKIE_NAME = 'control_panel_auth';
@@ -9,7 +9,7 @@ type AuthTokenPayload = {
 };
 
 function getJwtSecret(): Uint8Array {
-	const secret = env.CONTROL_PANEL_JWT_SECRET || 'control-panel-dev-secret-change-me';
+	const secret = CONTROL_PANEL_JWT_SECRET || 'control-panel-dev-secret-change-me';
 	return new TextEncoder().encode(secret);
 }
 

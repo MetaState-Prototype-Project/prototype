@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/public';
+import { PUBLIC_CONTROL_PANEL_URL } from '$env/static/public';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { createAuthSession } from '$lib/server/auth/sessions';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const sessionId = createAuthSession();
-	const baseUrl = env.PUBLIC_CONTROL_PANEL_URL || url.origin;
+	const baseUrl = PUBLIC_CONTROL_PANEL_URL || url.origin;
 	const redirect = new URL('/api/auth', baseUrl).toString();
 	const platform = 'control-panel';
 	const uri = `w3ds://auth?redirect=${encodeURIComponent(redirect)}&session=${encodeURIComponent(sessionId)}&platform=${encodeURIComponent(platform)}`;

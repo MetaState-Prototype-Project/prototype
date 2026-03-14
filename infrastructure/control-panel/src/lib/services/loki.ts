@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { LOKI_PASSWORD, LOKI_URL, LOKI_USERNAME } from '$env/static/private';
 
 export interface LogEntry {
 	timestamp: string;
@@ -34,9 +34,9 @@ export class LokiService {
 	private processedLogIds = new Set<string>(); // Track processed logs to prevent duplicates
 
 	constructor() {
-		this.baseUrl = env.LOKI_URL || 'http://localhost:3100';
-		this.username = env.LOKI_USERNAME || 'admin';
-		this.password = env.LOKI_PASSWORD || 'admin';
+		this.baseUrl = LOKI_URL || 'http://localhost:3100';
+		this.username = LOKI_USERNAME || 'admin';
+		this.password = LOKI_PASSWORD || 'admin';
 	}
 
 	private getAuthHeaders() {

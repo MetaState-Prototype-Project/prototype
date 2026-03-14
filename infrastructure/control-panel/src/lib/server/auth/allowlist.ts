@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { CONTROL_PANEL_ADMIN_ENAMES_FILE } from '$env/static/private';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -19,7 +19,7 @@ export function normalizeEName(value: string): string {
 }
 
 function getAllowlistPath(): string {
-	const configuredPath = env.CONTROL_PANEL_ADMIN_ENAMES_FILE?.trim();
+	const configuredPath = CONTROL_PANEL_ADMIN_ENAMES_FILE?.trim();
 	return resolve(process.cwd(), configuredPath || DEFAULT_ALLOWLIST_PATH);
 }
 

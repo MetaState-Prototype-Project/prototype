@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/public';
+import { PUBLIC_REGISTRY_URL } from '$env/static/public';
 
 export interface Platform {
 	name: string;
@@ -19,7 +19,7 @@ export class RegistryService {
 	private baseUrl: string;
 
 	constructor() {
-		this.baseUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.w3ds.metastate.foundation';
+		this.baseUrl = PUBLIC_REGISTRY_URL || 'https://registry.w3ds.metastate.foundation';
 	}
 
 	async getEVaults(): Promise<RegistryVault[]> {
