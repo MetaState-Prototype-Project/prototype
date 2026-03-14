@@ -2,14 +2,16 @@
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
 import type { GlobalState } from "$lib/global";
+import type { PluginListener } from "@tauri-apps/api/core";
 import type { Snippet } from "svelte";
-import { getContext, onMount } from "svelte";
+import { getContext, onDestroy, onMount } from "svelte";
 import type { LayoutData } from "./$types";
 
 let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
 let currentRoute = $derived(page.url.pathname.split("/").pop() || "home");
 let globalState: GlobalState | undefined = $state(undefined);
+let notificationListener: PluginListener | undefined;
 
 onMount(async () => {
     // Get global state
@@ -47,6 +49,14 @@ onMount(async () => {
             );
         }
 
+        // Listen for push notifications while app is in the foreground
+        try {
+            notificationListener =
+                await globalState.notificationService.listenForForegroundNotifications();
+        } catch (error) {
+            console.error("Failed to set up notification listener:", error);
+        }
+
         // Check for pending notifications and navigate to the message's open page
         try {
             const notificationService = globalState.notificationService;
@@ -70,6 +80,10 @@ onMount(async () => {
         await goto("/login");
         return;
     }
+});
+
+onDestroy(() => {
+    notificationListener?.unregister();
 });
 
 $effect(() => {

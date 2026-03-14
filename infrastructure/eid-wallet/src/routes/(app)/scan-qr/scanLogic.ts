@@ -471,7 +471,6 @@ export function createScanLogic({
             // Ensure auth drawer is closed before opening logged in drawer
             codeScannedDrawerOpen.set(false);
             loggedInDrawerOpen.set(true);
-            startScan();
         } catch (error) {
             console.error("Error completing authentication:", error);
 
