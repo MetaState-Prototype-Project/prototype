@@ -12,6 +12,8 @@ import {
 import { exampleQueries } from "./examples/examples";
 import { typeDefs } from "./typedefs";
 import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
+import { MessageNotificationService } from "../../services/MessageNotificationService";
+import { AppDataSource } from "../../config/database";
 
 export class GraphQLServer {
     private db: DbService;
@@ -25,6 +27,7 @@ export class GraphQLServer {
     private evaultPublicKey: string | null;
     private evaultW3ID: string | null;
     private evaultInstance: any; // Reference to the eVault instance
+    private messageNotificationService: MessageNotificationService | null = null;
 
     constructor(
         db: DbService,
@@ -45,6 +48,17 @@ export class GraphQLServer {
         return this.schema;
     }
 
+    private getMessageNotificationService(): MessageNotificationService {
+        if (!this.messageNotificationService) {
+            this.messageNotificationService = new MessageNotificationService(
+                AppDataSource.getRepository("Verification"),
+                AppDataSource.getRepository("Notification"),
+                this.db,
+            );
+        }
+        return this.messageNotificationService;
+    }
+
     /**
      * Fetches the list of active platforms from the registry
      * @returns Promise<string[]> - Array of platform URLs
@@ -52,7 +66,6 @@ export class GraphQLServer {
     private async getActivePlatforms(): Promise<string[]> {
         try {
             if (!process.env.PUBLIC_REGISTRY_URL) {
-                console.error("REGISTRY_URL is not set");
                 return [];
             }
 
@@ -64,7 +77,6 @@ export class GraphQLServer {
             );
             return response.data;
         } catch (error) {
-            console.error("Failed to fetch active platforms:", error);
             return [];
         }
     }
@@ -100,13 +112,9 @@ export class GraphQLServer {
                 } catch (error) {
                     // If requestingPlatform is not a valid URL, don't filter it out
                     // (treat it as a different platform identifier)
-                    console.warn(
-                        `Invalid platform URL in token: ${requestingPlatform}`,
-                    );
                     return true;
                 }
             });
-            console.log("sending webhooks to ", platformsToNotify);
 
             // Send webhooks to all other platforms
             const webhookPromises = platformsToNotify.map(
@@ -122,21 +130,15 @@ export class GraphQLServer {
                             },
                             timeout: 5000, // 5 second timeout
                         });
-                        console.log(
-                            `Webhook delivered successfully to ${platformUrl}`,
-                        );
                     } catch (error) {
-                        console.error(
-                            `Failed to deliver webhook to ${platformUrl}:`,
-                            error,
-                        );
+                        console.log(`Webhook delivery failed to ${platformUrl}`);
                     }
                 },
             );
 
             await Promise.allSettled(webhookPromises);
         } catch (error) {
-            console.error("Error in webhook delivery:", error);
+            console.log("Webhook delivery failed");
         }
     }
 
@@ -396,6 +398,22 @@ export class GraphQLServer {
                                     webhookPayload,
                                 );
                             }, 3_000);
+
+                            // Send push notifications for new messages
+                            console.log(`[NOTIF] createMetaEnvelope ontology: "${input.ontology}"`);
+                            if (MessageNotificationService.isMessageSchema(input.ontology)) {
+                                console.log(`[NOTIF] Message schema detected, triggering notification for envelope ${result.metaEnvelope.id}`);
+                                this.getMessageNotificationService()
+                                    .notifyParticipants({
+                                        messageGlobalId: result.metaEnvelope.id,
+                                        payload: input.payload,
+                                        senderEName: context.eName,
+                                        acl: input.acl,
+                                    })
+                                    .catch((err) =>
+                                        console.error("Message notification failed:", err),
+                                    );
+                            }
 
                             // Log envelope operation best-effort
                             const platform =
@@ -737,12 +755,9 @@ export class GraphQLServer {
                                     this.deliverWebhooks(
                                         requestingPlatform,
                                         webhookPayload,
-                                    ).catch((err) =>
-                                        console.error(
-                                            "Webhook delivery failed in bulk create:",
-                                            err,
-                                        ),
-                                    );
+                                    ).catch((err) => {
+                                        console.error(`[WEBHOOK] Delivery failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
+                                    });
                                 }
 
                                 // Log envelope operation best-effort
@@ -1112,6 +1127,22 @@ export class GraphQLServer {
                                 webhookPayload,
                             );
                         }, 3_000);
+
+                        // Send push notifications for new messages
+                        console.log(`[NOTIF] storeMetaEnvelope ontology: "${input.ontology}"`);
+                        if (MessageNotificationService.isMessageSchema(input.ontology)) {
+                            console.log(`[NOTIF] Message schema detected in storeMetaEnvelope, triggering notification for envelope ${result.metaEnvelope.id}`);
+                            this.getMessageNotificationService()
+                                .notifyParticipants({
+                                    messageGlobalId: result.metaEnvelope.id,
+                                    payload: input.payload,
+                                    senderEName: context.eName,
+                                    acl: input.acl,
+                                })
+                                .catch((err) =>
+                                    console.error("[NOTIF] Message notification failed:", err),
+                                );
+                        }
 
                         // Log envelope operation best-effort (do not fail mutation)
                         const platform = context.tokenPayload?.platform ?? null;

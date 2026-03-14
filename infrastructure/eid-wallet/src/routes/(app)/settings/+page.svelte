@@ -107,6 +107,16 @@ async function handleVersionTap() {
     }
 }
 
+async function openPrivacy(e: Event) {
+    e.preventDefault();
+    try {
+        const { openUrl } = await import("@tauri-apps/plugin-opener");
+        await openUrl("https://metastate.foundation/");
+    } catch {
+        window.location.href = "https://metastate.foundation/";
+    }
+}
+
 $effect(() => {
     runtime.header.title = "Settings";
 });
@@ -134,6 +144,7 @@ $effect(() => {
             icon={Shield01Icon}
             label="Privacy"
             href="https://metastate.foundation/"
+            onclick={openPrivacy}
         />
     </div>
     <div>
@@ -148,7 +159,7 @@ $effect(() => {
                 onclick={handleVersionTap}
                 disabled={isRetrying}
             >
-                Version v0.6.0.0
+                Version v0.7.0
             </button>
 
             {#if retryMessage}
@@ -184,8 +195,10 @@ $effect(() => {
                 <li>• This action cannot be undone</li>
             </ul>
             <div class="flex gap-3">
-                <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
-                    >Cancel</ButtonAction
+                <ButtonAction
+                    variant="soft"
+                    class="flex-1"
+                    callback={cancelDelete}>Cancel</ButtonAction
                 >
                 <ButtonAction
                     variant="danger"
@@ -217,8 +230,10 @@ $effect(() => {
                 Are you absolutely certain you want to proceed?
             </p>
             <div class="flex gap-3">
-                <ButtonAction variant="soft" class="flex-1" callback={cancelDelete}
-                    >Cancel</ButtonAction
+                <ButtonAction
+                    variant="soft"
+                    class="flex-1"
+                    callback={cancelDelete}>Cancel</ButtonAction
                 >
                 <ButtonAction
                     variant="danger"

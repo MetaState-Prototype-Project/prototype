@@ -100,12 +100,8 @@ export class NotificationService {
 
     async sendNotificationToEName(eName: string, notification: NotificationPayload): Promise<boolean> {
         const verifications = await this.getDevicesByEName(eName);
-        
-        if (verifications.length === 0) {
-            console.log(`No active devices found for eName: ${eName}`);
-            return false;
-        }
 
+        // Save to DB for in-app polling regardless of device presence
         const notificationEntity = this.notificationRepository.create({
             eName: eName,
             title: notification.title,
@@ -113,10 +109,83 @@ export class NotificationService {
             data: notification.data,
             delivered: false
         });
-
         await this.notificationRepository.save(notificationEntity);
-        
-        return true;
+
+        if (verifications.length === 0) {
+            console.log(`[NOTIF] No active devices found for eName: ${eName}`);
+            return false;
+        }
+
+        // Send actual push notification via notification-trigger service
+        const triggerUrl = process.env.NOTIFICATION_TRIGGER_URL || `http://localhost:${process.env.NOTIFICATION_TRIGGER_PORT || 3998}`;
+        const pushPayload = {
+            title: notification.title,
+            body: notification.body,
+            sound: "default",
+            ...(notification.data && {
+                data: Object.fromEntries(
+                    Object.entries(notification.data).map(([k, v]) => [k, String(v)])
+                ),
+            }),
+        };
+
+        // Collect all push tokens from all active devices for this eName, deduped
+        const seenTokens = new Set<string>();
+        const allTokens: { token: string; platform?: string }[] = [];
+        for (const v of verifications) {
+            if (v.pushTokens && v.pushTokens.length > 0) {
+                for (const token of v.pushTokens) {
+                    if (!seenTokens.has(token)) {
+                        seenTokens.add(token);
+                        allTokens.push({ token, platform: v.platform });
+                    }
+                }
+            }
+        }
+
+        console.log(`[NOTIF] ${verifications.length} verification(s), ${seenTokens.size} unique token(s) for eName: ${eName}`);
+
+        if (allTokens.length === 0) {
+            console.log(`[NOTIF] No push tokens for eName: ${eName} (${verifications.length} device(s) but no tokens)`);
+            return true; // Still saved to DB for in-app polling
+        }
+
+        console.log(`[NOTIF] Sending push to ${allTokens.length} token(s) for eName: ${eName}`);
+
+        const pushResults = await Promise.allSettled(
+            allTokens.map(async ({ token, platform }) => {
+                const res = await fetch(`${triggerUrl}/api/send`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        token,
+                        ...(platform && platform !== "desktop" ? { platform } : {}),
+                        payload: pushPayload,
+                    }),
+                    signal: AbortSignal.timeout(10000),
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.error || "Push send failed");
+                }
+                return data;
+            })
+        );
+
+        const pushSucceeded = pushResults.filter(r => r.status === "fulfilled").length;
+        const pushFailed = pushResults.filter(r => r.status === "rejected").length;
+        if (pushFailed > 0) {
+            console.log(`[NOTIF] Push results for ${eName}: ${pushSucceeded} sent, ${pushFailed} failed`);
+            pushResults.forEach((r, i) => {
+                if (r.status === "rejected") {
+                    console.error(`[NOTIF] Push failed for token index ${i}:`, r.reason);
+                }
+            });
+        } else {
+            console.log(`[NOTIF] Push sent successfully to ${pushSucceeded} token(s) for ${eName}`);
+        }
+
+        return pushSucceeded > 0 || pushFailed === 0;
     }
 
     async getUndeliveredNotifications(eName: string): Promise<Notification[]> {

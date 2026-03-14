@@ -47,10 +47,21 @@ onMount(async () => {
             );
         }
 
-        // Check for notifications after successful authentication
+        // Check for pending notifications and navigate to the message's open page
         try {
             const notificationService = globalState.notificationService;
-            await notificationService.checkAndShowNotifications();
+            const notifData =
+                await notificationService.checkAndShowNotifications();
+            if (notifData?.globalChatId) {
+                const params = new URLSearchParams({
+                    chatId: notifData.globalChatId,
+                    ...(notifData.title && { title: notifData.title }),
+                    ...(notifData.body && { body: notifData.body }),
+                });
+                await goto(
+                    `/open-message/${encodeURIComponent(notifData.globalMessageId || notifData.globalChatId)}?${params.toString()}`,
+                );
+            }
         } catch (error) {
             console.error("Failed to check notifications:", error);
         }
