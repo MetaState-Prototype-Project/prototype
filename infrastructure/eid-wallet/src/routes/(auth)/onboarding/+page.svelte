@@ -1438,10 +1438,25 @@ onMount(async () => {
                 {diditRejectionReason ??
                     "Your verification could not be completed."}
             </p>
+            <p class="text-black-500 text-xs">
+                If you believe this was a mistake, please contact us at
+                <a href="mailto:info@metastate.foundation" class="text-primary underline">info@metastate.foundation</a>.
+            </p>
             <div class="flex flex-col gap-3 pt-2">
                 <ButtonAction class="w-full" callback={handleKycNext}>
                     Try Again
                 </ButtonAction>
+                {#if !upgradeMode}
+                    <ButtonAction
+                        variant="soft"
+                        class="w-full"
+                        callback={() => {
+                            step = "anonymous-form";
+                        }}
+                    >
+                        Self-declare instead
+                    </ButtonAction>
+                {/if}
                 <ButtonAction
                     variant="soft"
                     class="w-full"
