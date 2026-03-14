@@ -7,6 +7,10 @@ import {
 } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import {
+    getUnreadCount,
+    subscribe as subscribeNotifications,
+} from "$lib/stores/notifications";
 import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
@@ -20,10 +24,6 @@ import { HugeiconsIcon } from "@hugeicons/svelte";
 import axios from "axios";
 import { type Snippet, getContext, onMount } from "svelte";
 import { onDestroy } from "svelte";
-import {
-    getUnreadCount,
-    subscribe as subscribeNotifications,
-} from "$lib/stores/notifications";
 import { Shadow } from "svelte-loading-spinners";
 import QrCode from "svelte-qrcode";
 
@@ -522,7 +522,7 @@ onDestroy(() => {
         </Hero>
 
         <div class="flex items-center gap-2">
-            <Button.Nav href="/notifications" class="relative">
+            <Button.Nav href="/notifications" class="relative" aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : "Notifications"}>
                 <HugeiconsIcon
                     size={28}
                     strokeWidth={2}
@@ -537,7 +537,7 @@ onDestroy(() => {
                     </span>
                 {/if}
             </Button.Nav>
-            <Button.Nav href="/settings">
+            <Button.Nav href="/settings" aria-label="Settings">
                 <HugeiconsIcon
                     size={32}
                     strokeWidth={2}

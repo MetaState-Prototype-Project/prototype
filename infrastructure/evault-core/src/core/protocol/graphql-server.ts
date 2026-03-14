@@ -755,8 +755,8 @@ export class GraphQLServer {
                                     this.deliverWebhooks(
                                         requestingPlatform,
                                         webhookPayload,
-                                    ).catch(() => {
-                                        // Silenced webhook delivery logs
+                                    ).catch((err) => {
+                                        console.error(`[WEBHOOK] Delivery failed for bulk-create envelope ${result.metaEnvelope.id}:`, err);
                                     });
                                 }
 

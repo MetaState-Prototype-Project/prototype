@@ -1,8 +1,8 @@
 <script lang="ts">
 import { page } from "$app/state";
 import {
-    PUBLIC_PICTIQUE_BASE_URL,
     PUBLIC_BLABSY_BASE_URL,
+    PUBLIC_PICTIQUE_BASE_URL,
 } from "$env/static/public";
 
 const globalId = page.params.globalId;

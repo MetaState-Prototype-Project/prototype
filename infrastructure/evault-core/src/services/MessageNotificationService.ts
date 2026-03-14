@@ -192,7 +192,7 @@ export class MessageNotificationService {
                 const field = rec.get("field");
                 const raw = rec.get("value");
                 const vt = rec.get("valueType");
-                console.log(`[NOTIF] User envelope field "${field}" = ${JSON.stringify(raw)} (type: ${vt})`);
+                console.log(`[NOTIF] User envelope field "${field}" (type: ${vt})`);
                 if (field === "displayName") {
                     return deserializeValue(raw, vt) || null;
                 }

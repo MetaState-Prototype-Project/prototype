@@ -140,14 +140,12 @@ $effect(() => {
             label="Recovery Passphrase"
             href="/settings/passphrase"
         />
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div onclick={openPrivacy}>
-            <SettingsNavigationBtn
-                icon={Shield01Icon}
-                label="Privacy"
-                href="https://metastate.foundation/"
-            />
-        </div>
+        <SettingsNavigationBtn
+            icon={Shield01Icon}
+            label="Privacy"
+            href="https://metastate.foundation/"
+            onclick={openPrivacy}
+        />
     </div>
     <div>
         <ButtonAction class="mt-5 w-full" callback={showDeleteConfirmation}

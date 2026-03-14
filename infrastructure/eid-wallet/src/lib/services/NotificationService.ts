@@ -1,4 +1,5 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { addNotification } from "$lib/stores/notifications";
 import {
     isPermissionGranted,
     registerForPushNotifications,
@@ -6,7 +7,6 @@ import {
     sendNotification,
 } from "@choochmeque/tauri-plugin-notifications-api";
 import { invoke } from "@tauri-apps/api/core";
-import { addNotification } from "$lib/stores/notifications";
 
 export interface DeviceRegistration {
     eName: string;
@@ -119,12 +119,19 @@ class NotificationService {
      */
     async sendLocalNotification(payload: NotificationPayload): Promise<void> {
         try {
-            // Store notification for the notification panel
-            const data = payload.data as Record<string, string> | undefined;
+            // Store notification for the notification panel — coerce to string values only
+            const data = payload.data
+                ? Object.fromEntries(
+                      Object.entries(payload.data).filter(
+                          (entry): entry is [string, string] =>
+                              typeof entry[1] === "string",
+                      ),
+                  )
+                : undefined;
             addNotification({
                 title: payload.title,
                 body: payload.body,
-                data,
+                data: Object.keys(data ?? {}).length > 0 ? data : undefined,
             });
 
             // Check permissions first
@@ -202,6 +209,8 @@ class NotificationService {
     async checkAndShowNotifications(): Promise<{
         globalMessageId?: string;
         globalChatId?: string;
+        title?: string;
+        body?: string;
     } | null> {
         try {
             console.log("🔍 Checking for notifications from provisioner...");
@@ -273,7 +282,8 @@ class NotificationService {
                         `Found ${data.notifications.length} notification(s)`,
                     );
 
-                    // Show each notification locally
+                    // Show each notification locally — intentionally keep only the
+                    // most recent new_message so the caller navigates to it.
                     let lastMessageNotif: {
                         globalMessageId?: string;
                         globalChatId?: string;
@@ -293,17 +303,15 @@ class NotificationService {
                         }
                     }
                     return lastMessageNotif;
-                } else {
-                    console.log("No new notifications");
-                    return null;
                 }
-            } else {
-                console.log(
-                    "No notifications endpoint available or error:",
-                    response.status,
-                );
+                console.log("No new notifications");
                 return null;
             }
+            console.log(
+                "No notifications endpoint available or error:",
+                response.status,
+            );
+            return null;
         } catch (error) {
             console.error("Error checking notifications:", error);
             return null;
@@ -318,7 +326,7 @@ class NotificationService {
         await this.sendLocalNotification({
             title: "Test Notification",
             body: "This is a test notification from eid-wallet!",
-            data: { test: true, timestamp: new Date().toISOString() },
+            data: { test: "true", timestamp: new Date().toISOString() },
         });
     }
 

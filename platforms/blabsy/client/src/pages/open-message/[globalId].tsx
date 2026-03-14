@@ -8,13 +8,23 @@ export default function OpenMessagePage(): JSX.Element {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!globalId || typeof globalId !== 'string') return;
+        const id = Array.isArray(globalId) ? globalId[0] : globalId;
+        if (!id || typeof id !== 'string') {
+            setLoading(false);
+            setError('Could not find this conversation.');
+            return;
+        }
 
         const resolve = async (): Promise<void> => {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+                if (!baseUrl) {
+                    setError('Application configuration error.');
+                    setLoading(false);
+                    return;
+                }
                 const response = await fetch(
-                    `${baseUrl}/api/resolve/${encodeURIComponent(globalId)}`
+                    `${baseUrl}/api/resolve/${encodeURIComponent(id)}`
                 );
 
                 if (!response.ok) {
@@ -25,7 +35,11 @@ export default function OpenMessagePage(): JSX.Element {
 
                 const data = await response.json();
                 if (data.localId) {
-                    await router.replace(`/chat?chatId=${data.localId}`);
+                    await router.replace(
+                        `/chat?chatId=${encodeURIComponent(
+                            String(data.localId)
+                        )}`
+                    );
                 } else {
                     setError('Could not find this conversation.');
                     setLoading(false);

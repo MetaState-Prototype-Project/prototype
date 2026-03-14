@@ -7,17 +7,25 @@ export interface StoredNotification {
 }
 
 const STORAGE_KEY = "eid_wallet_notifications";
+const MAX_NOTIFICATIONS = 200;
+
+let cachedNotifications: StoredNotification[] | null = null;
 
 function loadNotifications(): StoredNotification[] {
+    if (cachedNotifications !== null) return cachedNotifications;
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
+        const parsed: StoredNotification[] = raw ? JSON.parse(raw) : [];
+        cachedNotifications = parsed;
+        return parsed;
     } catch {
-        return [];
+        cachedNotifications = [];
+        return cachedNotifications;
     }
 }
 
 function saveNotifications(notifications: StoredNotification[]): void {
+    cachedNotifications = notifications;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
 }
 
@@ -51,7 +59,7 @@ export function addNotification(
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
     });
-    saveNotifications(notifications);
+    saveNotifications(notifications.slice(0, MAX_NOTIFICATIONS));
     notify();
 }
 

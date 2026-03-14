@@ -108,7 +108,7 @@ async function captureImage() {
             <div
                 class="relative mt-3 flex flex-col items-center justify-center"
             >
-                <!-- svelte-ignore a11y-media-has-caption -->
+                <!-- svelte-ignore a11y_media_has_caption -->
                 <video
                     bind:this={video}
                     autoplay

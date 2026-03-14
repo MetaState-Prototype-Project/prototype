@@ -5,6 +5,7 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { heading as headingStore } from '../../../routes/store';
+	import { onDestroy } from 'svelte';
 
 	const { ...restProps }: HTMLAttributes<HTMLElement> = $props();
 
@@ -12,9 +13,10 @@
 	let heading = $state('');
 
 	// Subscribe to the heading store for dynamic titles (e.g. chat names)
-	headingStore.subscribe((value) => {
-		if (value) heading = value;
+	const unsubscribeHeading = headingStore.subscribe((value) => {
+		heading = value;
 	});
+	onDestroy(unsubscribeHeading);
 
 	$effect(() => {
 		if (route.includes('home')) {

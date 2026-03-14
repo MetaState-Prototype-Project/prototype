@@ -2,13 +2,13 @@
 import { goto } from "$app/navigation";
 import { AppNav } from "$lib/fragments";
 import {
-    getNotifications,
-    clearNotificationsForChat,
-    clearAllNotifications,
-    subscribe,
     type StoredNotification,
+    clearAllNotifications,
+    clearNotificationsForChat,
+    getNotifications,
+    subscribe,
 } from "$lib/stores/notifications";
-import { onMount, onDestroy } from "svelte";
+import { onDestroy, onMount } from "svelte";
 
 let notifications: StoredNotification[] = $state([]);
 let unsubscribe: (() => void) | undefined;
@@ -28,14 +28,17 @@ onDestroy(() => {
 
 function handleNotificationClick(notification: StoredNotification) {
     const data = notification.data;
-    if (data?.type === "new_message" && data.globalMessageId) {
+    if (
+        data?.type === "new_message" &&
+        (data.globalMessageId || data.globalChatId)
+    ) {
+        const messageId = data.globalMessageId || data.globalChatId || "";
+        const chatId = data.globalChatId ?? messageId;
         // Clear all notifications from the same chat
-        if (data.globalChatId) {
-            clearNotificationsForChat(data.globalChatId);
-        }
+        clearNotificationsForChat(chatId);
         // Navigate to open-message page
         goto(
-            `/open-message/${encodeURIComponent(data.globalMessageId)}?chatId=${encodeURIComponent(data.globalChatId || data.globalMessageId)}&title=${encodeURIComponent(notification.title)}&body=${encodeURIComponent(notification.body)}`,
+            `/open-message/${encodeURIComponent(messageId)}?chatId=${encodeURIComponent(chatId)}&title=${encodeURIComponent(notification.title)}&body=${encodeURIComponent(notification.body)}`,
         );
     }
 }

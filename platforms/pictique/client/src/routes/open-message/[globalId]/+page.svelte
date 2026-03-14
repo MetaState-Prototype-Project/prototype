@@ -22,7 +22,8 @@
 
 			const data = await response.json();
 			if (data.localId) {
-				await goto(`/messages/${data.localId}`);
+				const id = String(data.localId);
+				await goto(`/messages/${encodeURIComponent(id)}`);
 			} else {
 				error = 'Could not find this conversation.';
 				loading = false;

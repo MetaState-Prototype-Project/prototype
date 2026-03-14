@@ -101,12 +101,7 @@ export class NotificationService {
     async sendNotificationToEName(eName: string, notification: NotificationPayload): Promise<boolean> {
         const verifications = await this.getDevicesByEName(eName);
 
-        if (verifications.length === 0) {
-            console.log(`[NOTIF] No active devices found for eName: ${eName}`);
-            return false;
-        }
-
-        // Save to DB for in-app polling
+        // Save to DB for in-app polling regardless of device presence
         const notificationEntity = this.notificationRepository.create({
             eName: eName,
             title: notification.title,
@@ -115,6 +110,11 @@ export class NotificationService {
             delivered: false
         });
         await this.notificationRepository.save(notificationEntity);
+
+        if (verifications.length === 0) {
+            console.log(`[NOTIF] No active devices found for eName: ${eName}`);
+            return false;
+        }
 
         // Send actual push notification via notification-trigger service
         const triggerUrl = process.env.NOTIFICATION_TRIGGER_URL || `http://localhost:${process.env.NOTIFICATION_TRIGGER_PORT || 3998}`;
@@ -178,14 +178,14 @@ export class NotificationService {
             console.log(`[NOTIF] Push results for ${eName}: ${pushSucceeded} sent, ${pushFailed} failed`);
             pushResults.forEach((r, i) => {
                 if (r.status === "rejected") {
-                    console.error(`[NOTIF] Push failed for token ${allTokens[i].token.slice(0, 20)}...:`, r.reason);
+                    console.error(`[NOTIF] Push failed for token index ${i}:`, r.reason);
                 }
             });
         } else {
             console.log(`[NOTIF] Push sent successfully to ${pushSucceeded} token(s) for ${eName}`);
         }
 
-        return true;
+        return pushSucceeded > 0 || pushFailed === 0;
     }
 
     async getUndeliveredNotifications(eName: string): Promise<Notification[]> {
