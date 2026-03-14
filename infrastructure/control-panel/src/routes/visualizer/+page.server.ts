@@ -17,7 +17,6 @@ export interface ReferenceEdge {
 	createdAt: string;
 }
 
-
 export const load: PageServerLoad = async ({ fetch }) => {
 	try {
 		const response = await fetch('/api/references');
