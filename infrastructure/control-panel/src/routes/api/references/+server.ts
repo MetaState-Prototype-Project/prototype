@@ -1,15 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
+import { EREPUTATION_BASE_URL, VISUALIZER_API_KEY } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
-	const baseUrl = env.EREPUTATION_BASE_URL || 'http://localhost:8765';
+	const baseUrl = EREPUTATION_BASE_URL || 'http://localhost:8765';
 
 	try {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), 5000);
 		const response = await fetch(`${baseUrl}/api/references/all`, {
-			headers: env.VISUALIZER_API_KEY ? { 'x-visualizer-key': env.VISUALIZER_API_KEY } : {},
+			headers: VISUALIZER_API_KEY ? { 'x-visualizer-key': VISUALIZER_API_KEY } : {},
 			signal: controller.signal
 		});
 		clearTimeout(timeout);

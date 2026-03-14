@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_CONTROL_PANEL_URL, PUBLIC_REGISTRY_URL } from '$env/static/public';
 import { registryService, type RegistryVault } from '$lib/services/registry';
 
 const USER_ONTOLOGY_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -143,7 +143,7 @@ async function resolveVaultIdentity(
 }
 
 async function requestPlatformToken(platform: string): Promise<string> {
-	const registryUrl = env.PUBLIC_REGISTRY_URL || 'https://registry.staging.metastate.foundation';
+	const registryUrl = PUBLIC_REGISTRY_URL || 'https://registry.staging.metastate.foundation';
 	const response = await fetch(new URL('/platforms/certification', registryUrl).toString(), {
 		method: 'POST',
 		headers: {
@@ -167,7 +167,7 @@ async function requestPlatformToken(platform: string): Promise<string> {
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
-		const platform = env.PUBLIC_CONTROL_PANEL_URL || url.origin;
+		const platform = PUBLIC_CONTROL_PANEL_URL || url.origin;
 		let token: string | undefined;
 		try {
 			token = await requestPlatformToken(platform);

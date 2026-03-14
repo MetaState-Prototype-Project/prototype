@@ -1,4 +1,9 @@
-import { env } from '$env/dynamic/private';
+import {
+	NOTIFICATION_TRIGGER_PORT,
+	NOTIFICATION_TRIGGER_URL,
+	PROVISIONER_URL,
+	PUBLIC_PROVISIONER_URL
+} from '$env/static/private';
 
 export interface NotificationPayload {
 	title: string;
@@ -22,9 +27,9 @@ export interface SendResult {
 }
 
 function getBaseUrl(): string {
-	const url = env.NOTIFICATION_TRIGGER_URL;
+	const url = NOTIFICATION_TRIGGER_URL;
 	if (url) return url;
-	const port = env.NOTIFICATION_TRIGGER_PORT || '3998';
+	const port = NOTIFICATION_TRIGGER_PORT || '3998';
 	return `http://localhost:${port}`;
 }
 
@@ -49,9 +54,7 @@ export async function sendNotification(request: SendNotificationRequest): Promis
 }
 
 export async function getDevicesWithTokens(): Promise<{ token: string; eName: string }[]> {
-	const { env } = await import('$env/dynamic/private');
-	const provisionerUrl =
-		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';
+	const provisionerUrl = PUBLIC_PROVISIONER_URL || PROVISIONER_URL || 'http://localhost:3001';
 	try {
 		const response = await fetch(`${provisionerUrl}/api/devices/list`, {
 			signal: AbortSignal.timeout(10000)
@@ -68,9 +71,7 @@ export async function getDevicesWithTokens(): Promise<{ token: string; eName: st
 export async function getDevicesByEName(
 	eName: string
 ): Promise<{ token: string; eName: string }[]> {
-	const { env } = await import('$env/dynamic/private');
-	const provisionerUrl =
-		env.PUBLIC_PROVISIONER_URL || env.PROVISIONER_URL || 'http://localhost:3001';
+	const provisionerUrl = PUBLIC_PROVISIONER_URL || PROVISIONER_URL || 'http://localhost:3001';
 	try {
 		const response = await fetch(
 			`${provisionerUrl}/api/devices/by-ename/${encodeURIComponent(eName)}`,
