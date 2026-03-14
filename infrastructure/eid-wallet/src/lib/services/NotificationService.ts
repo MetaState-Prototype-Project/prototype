@@ -1,5 +1,5 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { addNotification } from "$lib/stores/notifications";
+import { addNotification, hasNotification } from "$lib/stores/notifications";
 import {
     isPermissionGranted,
     onNotificationReceived,
@@ -422,11 +422,11 @@ class NotificationService {
                 ),
             );
 
-            addNotification({
-                title,
-                body: notification.body ?? "",
-                data: Object.keys(data).length > 0 ? data : undefined,
-            });
+            const body = notification.body ?? "";
+            const payload = Object.keys(data).length > 0 ? data : undefined;
+            if (!hasNotification(title, body, payload)) {
+                addNotification({ title, body, data: payload });
+            }
         });
     }
 
