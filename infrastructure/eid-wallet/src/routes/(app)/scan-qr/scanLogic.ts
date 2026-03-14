@@ -205,6 +205,15 @@ export function createScanLogic({
             const formats = [Format.QRCode];
             const windowed = true;
             if (get(scanning)) return;
+            // Don't start scanning if any drawer is already open
+            if (
+                get(codeScannedDrawerOpen) ||
+                get(loggedInDrawerOpen) ||
+                get(signingDrawerOpen) ||
+                get(isRevealRequest) ||
+                get(socialBindingDrawerOpen)
+            )
+                return;
             scanning.set(true);
 
             scan({ formats, windowed })
@@ -414,7 +423,6 @@ export function createScanLogic({
                             // Ensure auth drawer is closed before opening logged in drawer
                             codeScannedDrawerOpen.set(false);
                             loggedInDrawerOpen.set(true);
-                            startScan();
                             return;
                         }
 
@@ -425,7 +433,6 @@ export function createScanLogic({
                             // Ensure auth drawer is closed before opening logged in drawer
                             codeScannedDrawerOpen.set(false);
                             loggedInDrawerOpen.set(true);
-                            startScan();
                             return;
                         }
 
@@ -471,7 +478,6 @@ export function createScanLogic({
             // Ensure auth drawer is closed before opening logged in drawer
             codeScannedDrawerOpen.set(false);
             loggedInDrawerOpen.set(true);
-            startScan();
         } catch (error) {
             console.error("Error completing authentication:", error);
 
@@ -1317,7 +1323,10 @@ export function createScanLogic({
                 return;
             }
 
-            if (data.type === "auth" && get(codeScannedDrawerOpen)) {
+            if (
+                data.type === "auth" &&
+                (get(codeScannedDrawerOpen) || get(loggedInDrawerOpen))
+            ) {
                 console.log(
                     "Auth request already in progress, ignoring duplicate",
                 );

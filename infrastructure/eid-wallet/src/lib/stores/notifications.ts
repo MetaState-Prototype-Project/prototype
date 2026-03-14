@@ -50,6 +50,18 @@ export function getUnreadCount(): number {
     return loadNotifications().length;
 }
 
+export function hasNotification(
+    title: string,
+    body: string,
+    data?: Record<string, string>,
+): boolean {
+    const notifications = loadNotifications();
+    const key = `${title}\0${body}\0${JSON.stringify(data ?? {})}`;
+    return notifications.some(
+        (n) => `${n.title}\0${n.body}\0${JSON.stringify(n.data ?? {})}` === key,
+    );
+}
+
 export function addNotification(
     notification: Omit<StoredNotification, "id" | "createdAt">,
 ): void {

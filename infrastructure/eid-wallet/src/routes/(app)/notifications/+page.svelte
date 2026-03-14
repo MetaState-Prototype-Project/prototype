@@ -11,6 +11,7 @@ import {
 import { onDestroy, onMount } from "svelte";
 
 let notifications: StoredNotification[] = $state([]);
+let loaded = $state(false);
 let unsubscribe: (() => void) | undefined;
 
 function refresh() {
@@ -19,6 +20,7 @@ function refresh() {
 
 onMount(() => {
     refresh();
+    loaded = true;
     unsubscribe = subscribe(refresh);
 });
 
@@ -80,7 +82,11 @@ function handleClearAll() {
     </div>
 {/if}
 
-{#if notifications.length === 0}
+{#if !loaded}
+    <div class="flex flex-col items-center justify-center mt-20">
+        <p class="text-sm text-black-500">Loading...</p>
+    </div>
+{:else if notifications.length === 0}
     <div class="flex flex-col items-center justify-center mt-20">
         <p class="text-lg text-black-700">No notifications</p>
         <p class="text-sm text-black-500 mt-1">You're all caught up</p>

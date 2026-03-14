@@ -10,10 +10,9 @@ export const GET: RequestHandler = async () => {
 		const timeout = setTimeout(() => controller.abort(), 5000);
 		const response = await fetch(`${baseUrl}/api/references/all`, {
 			headers: env.VISUALIZER_API_KEY ? { 'x-visualizer-key': env.VISUALIZER_API_KEY } : {},
-			signal: controller.signal,
+			signal: controller.signal
 		});
 		clearTimeout(timeout);
-		
 
 		if (!response.ok) {
 			console.error('eReputation API error:', response.status, response.statusText);
@@ -24,6 +23,9 @@ export const GET: RequestHandler = async () => {
 		return json(data);
 	} catch (error) {
 		console.error('Error fetching references from eReputation:', error);
-		return json({ error: 'Failed to connect to eReputation API', references: [] }, { status: 500 });
+		return json(
+			{ error: 'Failed to connect to eReputation API', references: [] },
+			{ status: 500 }
+		);
 	}
 };

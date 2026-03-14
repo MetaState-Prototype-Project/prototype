@@ -1,11 +1,13 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
-import { addNotification } from "$lib/stores/notifications";
+import { addNotification, hasNotification } from "$lib/stores/notifications";
 import {
     isPermissionGranted,
+    onNotificationReceived,
     registerForPushNotifications,
     requestPermission,
     sendNotification,
 } from "@choochmeque/tauri-plugin-notifications-api";
+import type { PluginListener } from "@tauri-apps/api/core";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface DeviceRegistration {
@@ -401,6 +403,33 @@ class NotificationService {
         if (platform !== "android" && platform !== "ios") return undefined;
         return this.getPushNotificationToken();
     }
+    /**
+     * Listen for push notifications arriving while the app is in the foreground.
+     * Stores them in the notification panel so they appear in the notifications tab.
+     * Returns a cleanup function to remove the listener.
+     */
+    async listenForForegroundNotifications(): Promise<PluginListener> {
+        return onNotificationReceived((notification) => {
+            if (notification.source !== "push") return;
+            const title = notification.title ?? "";
+            if (!title) return;
+
+            const raw = (notification.extra ?? {}) as Record<string, unknown>;
+            const data = Object.fromEntries(
+                Object.entries(raw).filter(
+                    (entry): entry is [string, string] =>
+                        typeof entry[1] === "string",
+                ),
+            );
+
+            const body = notification.body ?? "";
+            const payload = Object.keys(data).length > 0 ? data : undefined;
+            if (!hasNotification(title, body, payload)) {
+                addNotification({ title, body, data: payload });
+            }
+        });
+    }
+
     /**
      * Get eName from vault (helper method)
      */
