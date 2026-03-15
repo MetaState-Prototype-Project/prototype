@@ -1,9 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { EREPUTATION_BASE_URL, VISUALIZER_API_KEY } from '$env/static/private';
+import { PUBLIC_EREPUTATION_BASE_URL } from '$env/static/public';
+import { VISUALIZER_API_KEY } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
-	const baseUrl = EREPUTATION_BASE_URL || 'http://localhost:8765';
+	const baseUrl = PUBLIC_EREPUTATION_BASE_URL || 'http://localhost:8765';
 
 	try {
 		const controller = new AbortController();

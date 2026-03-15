@@ -1,9 +1,5 @@
-import {
-	NOTIFICATION_TRIGGER_PORT,
-	NOTIFICATION_TRIGGER_URL,
-	PROVISIONER_URL,
-	PUBLIC_PROVISIONER_URL
-} from '$env/static/private';
+import { PUBLIC_PROVISIONER_URL } from '$env/static/public';
+import { NOTIFICATION_TRIGGER_PORT, NOTIFICATION_TRIGGER_URL } from '$env/static/private';
 
 export interface NotificationPayload {
 	title: string;
@@ -54,7 +50,7 @@ export async function sendNotification(request: SendNotificationRequest): Promis
 }
 
 export async function getDevicesWithTokens(): Promise<{ token: string; eName: string }[]> {
-	const provisionerUrl = PUBLIC_PROVISIONER_URL || PROVISIONER_URL || 'http://localhost:3001';
+	const provisionerUrl = PUBLIC_PROVISIONER_URL || 'http://localhost:3001';
 	try {
 		const response = await fetch(`${provisionerUrl}/api/devices/list`, {
 			signal: AbortSignal.timeout(10000)
@@ -71,7 +67,7 @@ export async function getDevicesWithTokens(): Promise<{ token: string; eName: st
 export async function getDevicesByEName(
 	eName: string
 ): Promise<{ token: string; eName: string }[]> {
-	const provisionerUrl = PUBLIC_PROVISIONER_URL || PROVISIONER_URL || 'http://localhost:3001';
+	const provisionerUrl = PUBLIC_PROVISIONER_URL || 'http://localhost:3001';
 	try {
 		const response = await fetch(
 			`${provisionerUrl}/api/devices/by-ename/${encodeURIComponent(eName)}`,
