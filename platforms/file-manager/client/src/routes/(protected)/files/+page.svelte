@@ -230,21 +230,7 @@
     async function handleFileUpload(filesToUpload: globalThis.File[]) {
         if (filesToUpload.length === 0) return;
 
-        // Client-side validation
-        const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
-        const validFiles: globalThis.File[] = [];
-
-        for (const file of filesToUpload) {
-            if (file.size > MAX_FILE_SIZE) {
-                toast.error(
-                    `File "${file.name}" exceeds 1GB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
-                );
-            } else {
-                validFiles.push(file);
-            }
-        }
-
-        if (validFiles.length === 0) return;
+        const validFiles = filesToUpload;
 
         isUploading = true;
         uploadProgress = {};
@@ -308,7 +294,7 @@
                         );
                     } else {
                         toast.error(
-                            `File "${file.name}" size exceeds 1GB limit`,
+                            `File "${file.name}" exceeds the size limit`,
                         );
                     }
                 } else {

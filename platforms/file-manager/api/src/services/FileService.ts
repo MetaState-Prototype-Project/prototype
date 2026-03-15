@@ -4,6 +4,7 @@ import { Folder } from "../database/entities/Folder";
 import { FileAccess } from "../database/entities/FileAccess";
 import { FolderAccess } from "../database/entities/FolderAccess";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
+import { User } from "../database/entities/User";
 import { In, IsNull, Not } from "typeorm";
 import crypto from "crypto";
 import { Readable } from "stream";
@@ -16,6 +17,7 @@ export class FileService {
     private fileAccessRepository = AppDataSource.getRepository(FileAccess);
     private folderRepository = AppDataSource.getRepository(Folder);
     private signatureRepository = AppDataSource.getRepository(SignatureContainer);
+    private userRepository = AppDataSource.getRepository(User);
 
     async calculateMD5(buffer: Buffer): Promise<string> {
         return crypto.createHash('md5').update(buffer).digest('hex');
@@ -355,7 +357,13 @@ export class FileService {
         const folderSize = folderCount * FOLDER_SIZE;
 
         const used = fileSize + folderSize;
-        const limit = 1073741824; // 1GB in bytes
+
+        const user = await this.userRepository.findOne({
+            where: { id: userId },
+            select: ["size"],
+        });
+        const sizeInGB = user?.size ?? 1;
+        const limit = sizeInGB * 1024 * 1024 * 1024;
 
         return { used, limit, fileCount, folderCount };
     }

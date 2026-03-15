@@ -7,12 +7,10 @@ import os from "os";
 import { FileService } from "../services/FileService";
 
 const upload = multer({
-    limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit
     storage: multer.memoryStorage(),
 });
 
 const uploadMultiple = multer({
-    limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit
     storage: multer.memoryStorage(),
 });
 
@@ -43,19 +41,19 @@ export class FileController {
                         .json({ error: "Authentication required" });
                 }
 
-                // Check file size limit (1GB)
-                const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
-                if (req.file.size > MAX_FILE_SIZE) {
+                // Check user's storage quota
+                const { used, limit } =
+                    await this.fileService.getUserStorageUsage(req.user.id);
+
+                // Check individual file size against user's limit
+                if (req.file.size > limit) {
                     return res.status(413).json({
-                        error: "File size exceeds 1GB limit",
-                        maxSize: MAX_FILE_SIZE,
+                        error: `File size exceeds ${Math.round(limit / (1024 * 1024 * 1024))}GB limit`,
+                        maxSize: limit,
                         fileSize: req.file.size,
                     });
                 }
 
-                // Check user's storage quota (1GB total)
-                const { used, limit } =
-                    await this.fileService.getUserStorageUsage(req.user.id);
                 if (used + req.file.size > limit) {
                     return res.status(413).json({
                         error: "Storage quota exceeded",
@@ -124,7 +122,6 @@ export class FileController {
                         .json({ error: "Authentication required" });
                 }
 
-                const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
                 const { used, limit } =
                     await this.fileService.getUserStorageUsage(req.user.id);
 
@@ -169,10 +166,10 @@ export class FileController {
                 for (const file of files) {
                     try {
                         // Check file size limit
-                        if (file.size > MAX_FILE_SIZE) {
+                        if (file.size > limit) {
                             errors.push({
                                 fileName: file.originalname,
-                                error: "File size exceeds 1GB limit",
+                                error: `File size exceeds ${Math.round(limit / (1024 * 1024 * 1024))}GB limit`,
                                 fileSize: file.size,
                             });
                             continue;
