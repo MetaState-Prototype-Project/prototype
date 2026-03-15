@@ -4,7 +4,7 @@
 	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { apiClient, getAuthToken } from '$lib/utils/axios';
 	import moment from 'moment';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { heading } from '../../../store';
 	import type { Chat } from '$lib/types';
 
@@ -13,7 +13,22 @@
 	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
+	let eventSourceRef: EventSource | null = null;
 	let historyLoaded = $state(false);
+	let hasMore = $state(true);
+	let loadingOlder = $state(false);
+	let oldestMessageId = $state<string | null>(null);
+	let shouldScrollToBottom = $state(false);
+	let readTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function markMessagesRead() {
+		if (readTimeout) clearTimeout(readTimeout);
+		readTimeout = setTimeout(() => {
+			apiClient.post(`/api/chats/${id}/messages/read`).catch((err: unknown) => {
+				console.error('Failed to mark messages as read:', err);
+			});
+		}, 500);
+	}
 
 	// Function to remove duplicate messages by ID
 	function removeDuplicateMessages(
@@ -23,7 +38,6 @@
 		return messagesArray.filter((msg) => {
 			const id = msg.id as string;
 			if (seen.has(id)) {
-				console.log(`Removing duplicate message with ID: ${id}`);
 				return false;
 			}
 			seen.add(id);
@@ -37,74 +51,33 @@
 		}
 	}
 
-	// Scroll to bottom when messages change
+	// Scroll to bottom only when new messages arrive (not when older messages are prepended)
 	$effect(() => {
-		if (messages) {
-			// Use setTimeout to ensure DOM has updated
+		if (shouldScrollToBottom) {
 			setTimeout(scrollToBottom, 0);
+			shouldScrollToBottom = false;
 		}
 	});
 
-	async function watchEventStream() {
-		const sseUrl = new URL(
-			`/api/chats/${id}/events?token=${getAuthToken()}`,
-			PUBLIC_PICTIQUE_BASE_URL
-		).toString();
-		const eventSource = new EventSource(sseUrl);
-
-		eventSource.onopen = () => {
-			console.log('Successfully connected.');
-			historyLoaded = true;
-		};
-
-		eventSource.onmessage = (e) => {
-			try {
-				const data = JSON.parse(e.data);
-				console.log('📨 SSE message received:', data);
-				console.log('Current messages count before adding:', messages.length);
-				addMessages(data);
-				console.log('Messages count after adding:', messages.length);
-				// Use setTimeout to ensure DOM has updated
-				setTimeout(scrollToBottom, 0);
-			} catch (error) {
-				console.error('Error parsing SSE message:', error);
-			}
-		};
-	}
-
-	async function handleSend() {
-		await apiClient.post(`/api/chats/${id}/messages`, {
-			text: messageValue
-		});
-		messageValue = '';
-	}
-
-	function addMessages(arr: Record<string, unknown>[]) {
-		console.log('Raw messages:', arr);
-		console.log('Current userId:', userId);
-
-		const newMessages = arr.map((m) => {
-			// Check if this is a system message (no sender)
+	// Transform raw API messages into display format
+	function transformMessages(arr: Record<string, unknown>[]): Record<string, unknown>[] {
+		return arr.map((m) => {
 			const isSystemMessage =
 				!m.sender || m.text?.toString().startsWith('$$system-message$$');
 
 			if (isSystemMessage) {
-				// Handle system messages - they don't have a sender
 				return {
 					id: m.id,
-					isOwn: false, // System messages are not "owned" by any user
-					userImgSrc: '/images/system-message.png', // Default system message icon
+					isOwn: false,
+					userImgSrc: '/images/system-message.png',
 					time: moment(m.createdAt as string).fromNow(),
 					message: m.text,
 					isSystemMessage: true
 				};
 			}
 
-			// Handle regular user messages
 			const sender = m.sender as Record<string, string>;
 			const isOwn = sender.id !== userId;
-
-			console.log('Message sender ID:', sender.id, 'User ID:', userId, 'IsOwn:', isOwn);
 
 			return {
 				id: m.id,
@@ -118,26 +91,30 @@
 				senderHandle: sender.handle
 			};
 		});
-		apiClient.post(`/api/chats/${id}/messages/read`);
+	}
 
-		// Process messages to determine which ones need heads and timestamps
-		const processedMessages = newMessages.map((msg, index) => {
-			const prevMessage = index > 0 ? newMessages[index - 1] : null;
-			const nextMessage = index < newMessages.length - 1 ? newMessages[index + 1] : null;
+	// Compute head/timestamp flags for the full messages array
+	function computeGroupFlags(
+		messagesArray: Record<string, unknown>[]
+	): Record<string, unknown>[] {
+		return messagesArray.map((msg, index) => {
+			const prevMessage = index > 0 ? messagesArray[index - 1] : null;
+			const nextMessage =
+				index < messagesArray.length - 1 ? messagesArray[index + 1] : null;
 
-			// Show head (avatar, pointer) on first message of group
-			// Check if isOwn changed OR if the sender changed (for non-own messages)
 			const isHeadNeeded =
 				!prevMessage ||
 				prevMessage.isOwn !== msg.isOwn ||
-				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId);
+				(prevMessage.senderId &&
+					msg.senderId &&
+					prevMessage.senderId !== msg.senderId);
 
-			// Show timestamp on last message of group
-			// Check if isOwn will change OR if the sender will change (for non-own messages)
 			const isTimestampNeeded =
 				!nextMessage ||
 				nextMessage.isOwn !== msg.isOwn ||
-				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId);
+				(nextMessage.senderId &&
+					msg.senderId &&
+					nextMessage.senderId !== msg.senderId);
 
 			return {
 				...msg,
@@ -145,24 +122,104 @@
 				isTimestampNeeded
 			};
 		});
+	}
 
-		// Prevent duplicate messages by checking IDs
-		const existingIds = new Set(messages.map((msg) => msg.id));
-		const uniqueNewMessages = processedMessages.filter((msg) => !existingIds.has(msg.id));
+	async function watchEventStream() {
+		const sseUrl = new URL(
+			`/api/chats/${id}/events?token=${getAuthToken()}`,
+			PUBLIC_PICTIQUE_BASE_URL
+		).toString();
+		const eventSource = new EventSource(sseUrl);
+		eventSourceRef = eventSource;
 
-		if (uniqueNewMessages.length > 0) {
-			console.log(`Adding ${uniqueNewMessages.length} new unique messages`);
-			const newMessagesArray = messages.concat(uniqueNewMessages);
-			// Final safety check to remove any duplicates
-			messages = removeDuplicateMessages(newMessagesArray);
-		} else {
-			console.log('No new unique messages to add');
+		eventSource.onopen = () => {
+			console.log('Successfully connected.');
+		};
+
+		eventSource.onmessage = (e) => {
+			try {
+				const data = JSON.parse(e.data);
+
+				// Handle initial payload with metadata vs real-time new messages
+				if (data.type === 'initial') {
+					// Initial batch from SSE connection
+					const transformed = transformMessages(data.messages);
+					messages = computeGroupFlags(removeDuplicateMessages(transformed));
+					hasMore = data.hasMore;
+					if (data.messages.length > 0) {
+						oldestMessageId = data.messages[0].id;
+					}
+					historyLoaded = true;
+					shouldScrollToBottom = true;
+				} else {
+					// Real-time new message(s) — could be array or wrapped
+					const rawMessages = Array.isArray(data) ? data : [data];
+					const transformed = transformMessages(rawMessages);
+
+					const existingIds = new Set(messages.map((msg) => msg.id));
+					const uniqueNew = transformed.filter((msg) => !existingIds.has(msg.id));
+
+					if (uniqueNew.length > 0) {
+						const merged = removeDuplicateMessages([...messages, ...uniqueNew]);
+						messages = computeGroupFlags(merged);
+						shouldScrollToBottom = true;
+					}
+				}
+
+				markMessagesRead();
+			} catch (error) {
+				console.error('Error parsing SSE message:', error);
+			}
+		};
+	}
+
+	async function handleSend() {
+		await apiClient.post(`/api/chats/${id}/messages`, {
+			text: messageValue
+		});
+		messageValue = '';
+	}
+
+	async function loadOlderMessages() {
+		if (!oldestMessageId || loadingOlder || !hasMore) return;
+		loadingOlder = true;
+
+		const savedScrollHeight = messagesContainer.scrollHeight;
+		const savedScrollTop = messagesContainer.scrollTop;
+
+		try {
+			const { data } = await apiClient.get(
+				`/api/chats/${id}/messages/before?before=${oldestMessageId}&limit=30`
+			);
+
+			if (data.messages.length > 0) {
+				const transformed = transformMessages(data.messages);
+				const merged = removeDuplicateMessages([...transformed, ...messages]);
+				messages = computeGroupFlags(merged);
+				oldestMessageId = data.messages[0].id;
+
+				// Restore scroll position after DOM update
+				await tick();
+				messagesContainer.scrollTop =
+					messagesContainer.scrollHeight - savedScrollHeight + savedScrollTop;
+			}
+
+			hasMore = data.hasMore;
+		} catch (error) {
+			console.error('Failed to load older messages:', error);
+		}
+
+		loadingOlder = false;
+	}
+
+	function handleScroll() {
+		if (messagesContainer.scrollTop < 100 && hasMore && !loadingOlder) {
+			loadOlderMessages();
 		}
 	}
 
 	async function loadChatInfo() {
 		try {
-			// Load chat info to set the header correctly
 			const { data: chatsData } = await apiClient.get<{
 				chats: Chat[];
 			}>(`/api/chats?page=1&limit=100`);
@@ -172,7 +229,6 @@
 				const members = chat.participants.filter((u) => u.id !== userId);
 				const isGroup = members.length > 1;
 
-				// For 2-person chats, show the other person's name, not the group name
 				const displayName = isGroup
 					? chat.name || members.map((m) => m.name ?? m.handle ?? m.ename).join(', ')
 					: members[0]?.name || members[0]?.handle || members[0]?.ename || 'Unknown User';
@@ -190,14 +246,42 @@
 		await loadChatInfo();
 		watchEventStream();
 	});
+
+	onDestroy(() => {
+		if (eventSourceRef) {
+			eventSourceRef.close();
+			eventSourceRef = null;
+		}
+		if (readTimeout) {
+			clearTimeout(readTimeout);
+		}
+	});
 </script>
 
 <section class="chat relative px-0">
-	<div class="h-[calc(100vh-220px)] overflow-auto" bind:this={messagesContainer}>
-		{#if historyLoaded && messages.length === 0}
-			<p class="m-4 text-center text-gray-500">No messages yet. Start the conversation!</p>
+	<div
+		class="h-[calc(100vh-220px)] overflow-auto"
+		bind:this={messagesContainer}
+		onscroll={handleScroll}
+	>
+		{#if !historyLoaded}
+			<div class="flex h-full items-center justify-center">
+				<span class="loading loading-spinner loading-md text-gray-500"></span>
+			</div>
+		{:else}
+			{#if loadingOlder}
+				<div class="flex justify-center p-3">
+					<span class="loading loading-spinner loading-sm text-gray-500"></span>
+				</div>
+			{/if}
+			{#if !hasMore && messages.length > 0}
+				<p class="m-4 text-center text-xs text-gray-400">No more messages</p>
+			{/if}
+			{#if messages.length === 0}
+				<p class="m-4 text-center text-gray-500">No messages yet. Start the conversation!</p>
+			{/if}
 		{/if}
-		{#each removeDuplicateMessages(messages) as msg (msg.id)}
+		{#each messages as msg (msg.id)}
 			<ChatMessage
 				isOwn={msg.isOwn as boolean}
 				userImgSrc={msg.userImgSrc as string}

@@ -3,7 +3,7 @@ import { Chat } from "../database/entities/Chat";
 import { Message } from "../database/entities/Message";
 import { User } from "../database/entities/User";
 import { MessageReadStatus } from "../database/entities/MessageReadStatus";
-import { In } from "typeorm";
+import { In, LessThan, Brackets } from "typeorm";
 import { EventEmitter } from "events";
 import { emitter } from "./event-emitter";
 
@@ -264,6 +264,76 @@ export class ChatService {
             total,
             page,
             totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async getLatestMessages(
+        chatId: string,
+        limit: number = 30
+    ): Promise<{
+        messages: Message[];
+        total: number;
+        hasMore: boolean;
+    }> {
+        const [messages, total] = await this.messageRepository.findAndCount({
+            where: { chat: { id: chatId } },
+            relations: ["sender", "readStatuses", "readStatuses.user"],
+            order: { createdAt: "DESC" },
+            take: limit,
+        });
+
+        return {
+            messages: messages.reverse(), // Return in ASC order for display
+            total,
+            hasMore: total > limit,
+        };
+    }
+
+    async getChatMessagesBefore(
+        chatId: string,
+        beforeId: string,
+        limit: number = 30
+    ): Promise<{
+        messages: Message[];
+        hasMore: boolean;
+    }> {
+        const cursorMessage = await this.messageRepository.findOne({
+            where: { id: beforeId, chat: { id: chatId } },
+        });
+        if (!cursorMessage) {
+            throw new Error("Cursor message not found");
+        }
+
+        const messages = await this.messageRepository
+            .createQueryBuilder("message")
+            .leftJoinAndSelect("message.sender", "sender")
+            .leftJoinAndSelect("message.readStatuses", "readStatuses")
+            .leftJoinAndSelect("readStatuses.user", "readStatusUser")
+            .where("message.chat.id = :chatId", { chatId })
+            .andWhere(
+                new Brackets((qb) => {
+                    qb.where("message.createdAt < :createdAt", {
+                        createdAt: cursorMessage.createdAt,
+                    }).orWhere(
+                        "message.createdAt = :createdAt AND message.id < :beforeId",
+                        {
+                            createdAt: cursorMessage.createdAt,
+                            beforeId,
+                        }
+                    );
+                })
+            )
+            .orderBy("message.createdAt", "DESC")
+            .addOrderBy("message.id", "DESC")
+            .take(limit + 1)
+            .getMany();
+
+        const hasMore = messages.length > limit;
+        const resultMessages = hasMore ? messages.slice(0, limit) : messages;
+
+        return {
+            messages: resultMessages.reverse(),
+            hasMore,
         };
     }
 

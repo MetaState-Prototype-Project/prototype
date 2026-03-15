@@ -121,6 +121,11 @@ app.get(
     authGuard,
     messageController.getMessages,
 );
+app.get(
+    "/api/chats/:chatId/messages/before",
+    authGuard,
+    messageController.getMessagesBefore,
+);
 app.delete(
     "/api/chats/:chatId/messages/:messageId",
     authGuard,
