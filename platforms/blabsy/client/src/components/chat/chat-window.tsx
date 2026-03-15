@@ -221,15 +221,20 @@ export function ChatWindow(): JSX.Element {
         void fetchParticipantsData();
     }, [currentChat, user]);
 
+    // Show loading until messages arrive for the current chat
     useEffect(() => {
         if (currentChat) {
             setIsLoading(true);
-            const timer = setTimeout(() => {
-                setIsLoading(false);
-            }, 500);
-            return () => clearTimeout(timer);
+        } else {
+            setIsLoading(false);
         }
     }, [currentChat]);
+
+    useEffect(() => {
+        if (messages !== null && isLoading) {
+            setIsLoading(false);
+        }
+    }, [messages, isLoading]);
 
     // Auto-scroll to bottom only when a NEW message arrives (not older messages prepended)
     useEffect(() => {
