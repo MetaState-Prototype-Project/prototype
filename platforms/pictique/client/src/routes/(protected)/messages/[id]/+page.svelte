@@ -122,7 +122,6 @@
 
 		eventSource.onopen = () => {
 			console.log('Successfully connected.');
-			historyLoaded = true;
 		};
 
 		eventSource.onmessage = (e) => {
@@ -138,6 +137,7 @@
 					if (data.messages.length > 0) {
 						oldestMessageId = data.messages[0].id;
 					}
+					historyLoaded = true;
 					shouldScrollToBottom = true;
 				} else {
 					// Real-time new message(s) — could be array or wrapped
@@ -244,12 +244,12 @@
 	>
 		{#if !historyLoaded}
 			<div class="flex h-full items-center justify-center">
-				<span class="loading loading-spinner loading-md"></span>
+				<span class="loading loading-spinner loading-md text-gray-500"></span>
 			</div>
 		{:else}
 			{#if loadingOlder}
 				<div class="flex justify-center p-3">
-					<span class="loading loading-spinner loading-sm"></span>
+					<span class="loading loading-spinner loading-sm text-gray-500"></span>
 				</div>
 			{/if}
 			{#if !hasMore && messages.length > 0}

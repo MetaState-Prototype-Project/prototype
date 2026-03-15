@@ -116,7 +116,7 @@ export function ChatContextProvider({
                     updatedAt: Timestamp.fromDate(new Date()),
                     lastMessage: {
                         senderId: 'user_4',
-                        text: 'Let's meet tomorrow.',
+                        text: "Let's meet tomorrow.",
                         timestamp: Timestamp.fromDate(new Date())
                     },
                     name: 'Project Team'
