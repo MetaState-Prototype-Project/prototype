@@ -43,5 +43,8 @@ export class User {
 
     @Column({ default: false })
     isArchived!: boolean;
+
+    @Column({ type: "int", default: 1 })
+    size!: number;
 }
 

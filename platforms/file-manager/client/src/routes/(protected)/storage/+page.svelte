@@ -210,7 +210,7 @@
 					<h4 class="text-sm font-semibold text-blue-900 mb-1">Storage Information</h4>
 					<ul class="text-sm text-blue-700 space-y-1">
 						<li>• Maximum file size: 5 MB per file</li>
-						<li>• Total storage quota: 1 GB</li>
+						<li>• Total storage quota: {formatBytes(limit)}</li>
 						<li>• Each folder counts as 4 KB</li>
 						<li>• Deleted files are permanently removed and cannot be recovered</li>
 					</ul>
