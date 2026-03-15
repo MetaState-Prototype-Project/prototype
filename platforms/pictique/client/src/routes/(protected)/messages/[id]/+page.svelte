@@ -4,7 +4,7 @@
 	import { ChatMessage, MessageInput } from '$lib/fragments';
 	import { apiClient, getAuthToken } from '$lib/utils/axios';
 	import moment from 'moment';
-	import { onMount, tick } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { heading } from '../../../store';
 	import type { Chat } from '$lib/types';
 
@@ -13,11 +13,22 @@
 	let messages: Record<string, unknown>[] = $state([]);
 	let messageValue = $state('');
 	let messagesContainer: HTMLDivElement;
+	let eventSourceRef: EventSource | null = null;
 	let historyLoaded = $state(false);
 	let hasMore = $state(true);
 	let loadingOlder = $state(false);
 	let oldestMessageId = $state<string | null>(null);
 	let shouldScrollToBottom = $state(false);
+	let readTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function markMessagesRead() {
+		if (readTimeout) clearTimeout(readTimeout);
+		readTimeout = setTimeout(() => {
+			apiClient.post(`/api/chats/${id}/messages/read`).catch((err: unknown) => {
+				console.error('Failed to mark messages as read:', err);
+			});
+		}, 500);
+	}
 
 	// Function to remove duplicate messages by ID
 	function removeDuplicateMessages(
@@ -66,7 +77,7 @@
 			}
 
 			const sender = m.sender as Record<string, string>;
-			const isOwn = sender.id !== userId;
+			const isOwn = sender.id === userId;
 
 			return {
 				id: m.id,
@@ -119,6 +130,7 @@
 			PUBLIC_PICTIQUE_BASE_URL
 		).toString();
 		const eventSource = new EventSource(sseUrl);
+		eventSourceRef = eventSource;
 
 		eventSource.onopen = () => {
 			console.log('Successfully connected.');
@@ -154,7 +166,7 @@
 					}
 				}
 
-				apiClient.post(`/api/chats/${id}/messages/read`);
+				markMessagesRead();
 			} catch (error) {
 				console.error('Error parsing SSE message:', error);
 			}
@@ -233,6 +245,16 @@
 		userId = userData.id;
 		await loadChatInfo();
 		watchEventStream();
+	});
+
+	onDestroy(() => {
+		if (eventSourceRef) {
+			eventSourceRef.close();
+			eventSourceRef = null;
+		}
+		if (readTimeout) {
+			clearTimeout(readTimeout);
+		}
 	});
 </script>
 

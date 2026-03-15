@@ -233,6 +233,17 @@ export class MessageController {
                     .json({ error: "before parameter is required" });
             }
 
+            // Verify user is a participant
+            const chat = await this.chatService.findById(chatId);
+            if (!chat) {
+                return res.status(404).json({ error: "Chat not found" });
+            }
+            if (!chat.participants.some((p) => p.id === userId)) {
+                return res
+                    .status(403)
+                    .json({ error: "Not a participant in this chat" });
+            }
+
             const result = await this.chatService.getChatMessagesBefore(
                 chatId,
                 beforeId,

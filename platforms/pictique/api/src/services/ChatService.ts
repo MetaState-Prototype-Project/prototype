@@ -3,7 +3,7 @@ import { Chat } from "../database/entities/Chat";
 import { Message } from "../database/entities/Message";
 import { User } from "../database/entities/User";
 import { MessageReadStatus } from "../database/entities/MessageReadStatus";
-import { In, LessThan } from "typeorm";
+import { In, LessThan, Brackets } from "typeorm";
 import { EventEmitter } from "events";
 import { emitter } from "./event-emitter";
 
@@ -304,15 +304,29 @@ export class ChatService {
             throw new Error("Cursor message not found");
         }
 
-        const messages = await this.messageRepository.find({
-            where: {
-                chat: { id: chatId },
-                createdAt: LessThan(cursorMessage.createdAt),
-            },
-            relations: ["sender", "readStatuses", "readStatuses.user"],
-            order: { createdAt: "DESC" },
-            take: limit + 1,
-        });
+        const messages = await this.messageRepository
+            .createQueryBuilder("message")
+            .leftJoinAndSelect("message.sender", "sender")
+            .leftJoinAndSelect("message.readStatuses", "readStatuses")
+            .leftJoinAndSelect("readStatuses.user", "readStatusUser")
+            .where("message.chat.id = :chatId", { chatId })
+            .andWhere(
+                new Brackets((qb) => {
+                    qb.where("message.createdAt < :createdAt", {
+                        createdAt: cursorMessage.createdAt,
+                    }).orWhere(
+                        "message.createdAt = :createdAt AND message.id < :beforeId",
+                        {
+                            createdAt: cursorMessage.createdAt,
+                            beforeId,
+                        }
+                    );
+                })
+            )
+            .orderBy("message.createdAt", "DESC")
+            .addOrderBy("message.id", "DESC")
+            .take(limit + 1)
+            .getMany();
 
         const hasMore = messages.length > limit;
         const resultMessages = hasMore ? messages.slice(0, limit) : messages;

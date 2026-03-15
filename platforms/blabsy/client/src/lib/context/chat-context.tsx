@@ -39,7 +39,7 @@ type ChatContext = {
     hasMoreMessages: boolean;
     loadingOlderMessages: boolean;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (participants: string[], name?: string) => Promise<string>;
+    createNewChat: (participants: string[], name?: string, description?: string) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;

@@ -398,7 +398,7 @@ export function ChatWindow(): JSX.Element {
                             </div>
                         ) : messages?.length ? (
                             <div className='flex flex-col gap-2'>
-                                {!hasMoreMessages && (
+                                {!hasMoreMessages && messages.length > 0 && (
                                     <p className='text-center text-xs text-gray-400 dark:text-gray-500 my-2'>
                                         No more messages
                                     </p>
