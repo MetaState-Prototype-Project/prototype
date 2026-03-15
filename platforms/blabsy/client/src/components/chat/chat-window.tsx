@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useChat } from '@lib/context/chat-context';
 import { useAuth } from '@lib/context/auth-context';
 import { useWindow } from '@lib/context/window-context';
@@ -148,12 +148,18 @@ export function ChatWindow(): JSX.Element {
         sendNewMessage,
         markAsRead,
         loading,
-        setCurrentChat
+        setCurrentChat,
+        hasMoreMessages,
+        loadingOlderMessages,
+        loadOlderMessages
     } = useChat();
     const { user } = useAuth();
     const { isMobile } = useWindow();
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const savedScrollInfo = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+    const prevNewestMessageId = useRef<string | null>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [participantsData, setParticipantsData] = useState<
         Record<string, User>
@@ -204,20 +210,7 @@ export function ChatWindow(): JSX.Element {
                         otherParticipant &&
                         newParticipantsData[otherParticipant]
                     ) {
-                        console.log(
-                            'ChatWindow: Setting otherUser:',
-                            newParticipantsData[otherParticipant]
-                        );
                         setOtherUser(newParticipantsData[otherParticipant]);
-                    } else {
-                        console.log(
-                            'ChatWindow: Could not set otherUser. otherParticipant:',
-                            otherParticipant,
-                            'userData:',
-                            otherParticipant
-                                ? newParticipantsData[otherParticipant]
-                                : 'undefined'
-                        );
                     }
                 }
             } catch (error) {
@@ -231,7 +224,6 @@ export function ChatWindow(): JSX.Element {
     useEffect(() => {
         if (currentChat) {
             setIsLoading(true);
-            // Simulate loading time for messages
             const timer = setTimeout(() => {
                 setIsLoading(false);
             }, 500);
@@ -239,9 +231,29 @@ export function ChatWindow(): JSX.Element {
         }
     }, [currentChat]);
 
+    // Auto-scroll to bottom only when a NEW message arrives (not older messages prepended)
     useEffect(() => {
-        if (messagesEndRef.current)
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        if (!messages || messages.length === 0) return;
+
+        // The messages array is sorted desc, so newest is at index 0
+        const newestId = messages[0]?.id;
+
+        if (newestId !== prevNewestMessageId.current) {
+            prevNewestMessageId.current = newestId;
+            if (messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }, [messages]);
+
+    // Restore scroll position after older messages are prepended
+    useLayoutEffect(() => {
+        const el = scrollContainerRef.current;
+        const saved = savedScrollInfo.current;
+        if (el && saved) {
+            el.scrollTop = el.scrollHeight - saved.scrollHeight + saved.scrollTop;
+            savedScrollInfo.current = null;
+        }
     }, [messages]);
 
     useEffect(() => {
@@ -269,6 +281,20 @@ export function ChatWindow(): JSX.Element {
             setMessageText('');
         } catch (error) {
             console.error('Failed to send message:', error);
+        }
+    };
+
+    const handleScroll = (): void => {
+        const el = scrollContainerRef.current;
+        if (!el) return;
+
+        if (el.scrollTop < 100 && hasMoreMessages && !loadingOlderMessages) {
+            // Save scroll position before loading older messages
+            savedScrollInfo.current = {
+                scrollHeight: el.scrollHeight,
+                scrollTop: el.scrollTop
+            };
+            void loadOlderMessages();
         }
     };
 
@@ -356,13 +382,27 @@ export function ChatWindow(): JSX.Element {
                             </div>
                         )}
                     </div>
-                    <div className='flex-1 p-4 overflow-y-auto'>
+                    <div
+                        ref={scrollContainerRef}
+                        onScroll={handleScroll}
+                        className='flex-1 p-4 overflow-y-auto'
+                    >
                         {isLoading ? (
                             <div className='flex h-full w-full items-center justify-center'>
                                 <Loading className='h-8 w-8' />
                             </div>
                         ) : messages?.length ? (
                             <div className='flex flex-col gap-2'>
+                                {!hasMoreMessages && (
+                                    <p className='text-center text-xs text-gray-400 dark:text-gray-500 my-2'>
+                                        No more messages
+                                    </p>
+                                )}
+                                {loadingOlderMessages && (
+                                    <div className='flex justify-center my-2'>
+                                        <Loading className='h-6 w-6' />
+                                    </div>
+                                )}
                                 {[...messages]
                                     .reverse()
                                     .map((message, index, reversedMessages) => {
@@ -379,10 +419,6 @@ export function ChatWindow(): JSX.Element {
                                             nextMessage.senderId !==
                                                 message.senderId;
 
-                                        // Show user info if:
-                                        // 1. It's a group chat AND
-                                        // 2. Previous message is from different sender OR doesn't exist OR
-                                        // 3. Previous message is from same sender but more than 5 minutes ago
                                         const showUserInfo =
                                             getChatType(currentChat) ===
                                                 'group' &&

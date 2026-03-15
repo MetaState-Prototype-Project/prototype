@@ -216,6 +216,35 @@ export class MessageController {
         }
     };
 
+    getMessagesBefore = async (req: Request, res: Response) => {
+        try {
+            const { chatId } = req.params;
+            const userId = req.user?.id;
+            const beforeId = req.query.before as string;
+            const limit = parseInt(req.query.limit as string) || 30;
+
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            if (!beforeId) {
+                return res
+                    .status(400)
+                    .json({ error: "before parameter is required" });
+            }
+
+            const result = await this.chatService.getChatMessagesBefore(
+                chatId,
+                beforeId,
+                limit
+            );
+            res.json(result);
+        } catch (error) {
+            console.error("Error fetching older messages:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     markAsRead = async (req: Request, res: Response) => {
         try {
             const { chatId } = req.params;
@@ -309,7 +338,7 @@ export class MessageController {
             });
 
             const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 2000;
+            const limit = parseInt(req.query.limit as string) || 30;
 
             if (!userId) {
                 return res.status(401).json({ error: "Unauthorized" });
@@ -323,8 +352,13 @@ export class MessageController {
                 limit
             );
 
-            // Send initial connection message
-            res.write(`data: ${JSON.stringify(messages.messages)}\n\n`);
+            // Send initial connection message with metadata
+            res.write(`data: ${JSON.stringify({
+                type: "initial",
+                messages: messages.messages,
+                total: messages.total,
+                hasMore: messages.total > limit,
+            })}\n\n`);
 
             // Create event listener for this chat
             const eventEmitter = this.chatService.getEventEmitter();

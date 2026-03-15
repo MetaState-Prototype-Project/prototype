@@ -3,7 +3,7 @@ import { Chat } from "../database/entities/Chat";
 import { Message } from "../database/entities/Message";
 import { User } from "../database/entities/User";
 import { MessageReadStatus } from "../database/entities/MessageReadStatus";
-import { In } from "typeorm";
+import { In, LessThan } from "typeorm";
 import { EventEmitter } from "events";
 import { emitter } from "./event-emitter";
 
@@ -264,6 +264,40 @@ export class ChatService {
             total,
             page,
             totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async getChatMessagesBefore(
+        chatId: string,
+        beforeId: string,
+        limit: number = 30
+    ): Promise<{
+        messages: Message[];
+        hasMore: boolean;
+    }> {
+        const cursorMessage = await this.messageRepository.findOne({
+            where: { id: beforeId, chat: { id: chatId } },
+        });
+        if (!cursorMessage) {
+            throw new Error("Cursor message not found");
+        }
+
+        const messages = await this.messageRepository.find({
+            where: {
+                chat: { id: chatId },
+                createdAt: LessThan(cursorMessage.createdAt),
+            },
+            relations: ["sender", "readStatuses", "readStatuses.user"],
+            order: { createdAt: "DESC" },
+            take: limit + 1,
+        });
+
+        const hasMore = messages.length > limit;
+        const resultMessages = hasMore ? messages.slice(0, limit) : messages;
+
+        return {
+            messages: resultMessages.reverse(),
+            hasMore,
         };
     }
 
