@@ -337,27 +337,20 @@ export class MessageController {
                 Connection: "keep-alive",
             });
 
-            const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 30;
 
-            if (!userId) {
-                return res.status(401).json({ error: "Unauthorized" });
-            }
-
-            // Get messages for the chat
-            const messages = await this.chatService.getChatMessages(
+            // Get the most recent messages for the chat
+            const result = await this.chatService.getLatestMessages(
                 chatId,
-                userId,
-                page,
                 limit
             );
 
             // Send initial connection message with metadata
             res.write(`data: ${JSON.stringify({
                 type: "initial",
-                messages: messages.messages,
-                total: messages.total,
-                hasMore: messages.total > limit,
+                messages: result.messages,
+                total: result.total,
+                hasMore: result.hasMore,
             })}\n\n`);
 
             // Create event listener for this chat

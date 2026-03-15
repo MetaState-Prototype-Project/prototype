@@ -267,6 +267,28 @@ export class ChatService {
         };
     }
 
+    async getLatestMessages(
+        chatId: string,
+        limit: number = 30
+    ): Promise<{
+        messages: Message[];
+        total: number;
+        hasMore: boolean;
+    }> {
+        const [messages, total] = await this.messageRepository.findAndCount({
+            where: { chat: { id: chatId } },
+            relations: ["sender", "readStatuses", "readStatuses.user"],
+            order: { createdAt: "DESC" },
+            take: limit,
+        });
+
+        return {
+            messages: messages.reverse(), // Return in ASC order for display
+            total,
+            hasMore: total > limit,
+        };
+    }
+
     async getChatMessagesBefore(
         chatId: string,
         beforeId: string,
