@@ -77,7 +77,7 @@
 			}
 
 			const sender = m.sender as Record<string, string>;
-			const isOwn = sender.id === userId;
+			const isOwn = sender.id !== userId;
 
 			return {
 				id: m.id,
