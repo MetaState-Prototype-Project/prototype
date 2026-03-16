@@ -69,7 +69,7 @@ export default function ProfessionalProfileEditor({
                 skills: profile.skills,
                 workExperience: profile.workExperience,
                 education: profile.education,
-                isDreamsyncVisible: profile.isDreamsyncVisible,
+                isPublic: profile.isPublic,
             });
             setProfile(updated);
             setHasChanges(false);
@@ -175,21 +175,22 @@ export default function ProfessionalProfileEditor({
                 </AccordionTrigger>
                 <AccordionContent className="px-4">
                     <div className="space-y-6">
-                        {/* DreamSync Visibility Toggle */}
+                        {/* Public visibility - controls both discovery and DreamSync matching */}
                         <div className="flex items-center justify-between rounded-lg border p-4 bg-purple-50/50">
                             <div>
                                 <Label className="text-sm font-medium">
-                                    Show in DreamSync Matching
+                                    Public profile
                                 </Label>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                    When enabled, your professional background
-                                    will be considered during AI matching
+                                    When enabled, your profile is visible in discovery
+                                    and your professional background is considered
+                                    during DreamSync AI matching
                                 </p>
                             </div>
                             <Switch
-                                checked={profile.isDreamsyncVisible ?? true}
+                                checked={profile.isPublic ?? true}
                                 onCheckedChange={(checked) =>
-                                    updateField("isDreamsyncVisible", checked)
+                                    updateField("isPublic", checked)
                                 }
                             />
                         </div>

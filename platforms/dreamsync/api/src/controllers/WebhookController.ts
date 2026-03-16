@@ -4,6 +4,7 @@ import { GroupService } from "../services/GroupService";
 import { MessageService } from "../services/MessageService";
 import { ConsentService } from "../services/ConsentService";
 import { WebhookProcessingService } from "../services/WebhookProcessingService";
+import { ProfessionalProfileService } from "../services/ProfessionalProfileService";
 import { adapter } from "../web3adapter/watchers/subscriber";
 import { User } from "../database/entities/User";
 import { Group } from "../database/entities/Group";
@@ -16,6 +17,7 @@ export class WebhookController {
     messageService: MessageService;
     consentService: ConsentService;
     webhookProcessingService: WebhookProcessingService;
+    professionalProfileService: ProfessionalProfileService;
     adapter: typeof adapter;
 
     constructor() {
@@ -24,6 +26,7 @@ export class WebhookController {
         this.messageService = new MessageService();
         this.consentService = new ConsentService();
         this.webhookProcessingService = new WebhookProcessingService();
+        this.professionalProfileService = new ProfessionalProfileService();
         this.adapter = adapter;
     }
 
@@ -352,10 +355,16 @@ export class WebhookController {
                     }
                 }
             } else if (mapping.tableName === "professional_profiles") {
-                // Professional profiles are stored in evault only - DreamSync fetches on demand.
-                // No local storage; just acknowledge the webhook to prevent retries.
-                console.log("Professional profile webhook - no local storage (fetched from evault on demand)");
-                finalLocalId = null;
+                // Maintain local copy for matching (avoids per-user evault calls during matching)
+                const ename = req.body.w3id;
+                const data = req.body.data ?? {};
+                const prof = await this.professionalProfileService.upsertFromWebhook(ename, data);
+                if (prof) {
+                    console.log("Professional profile webhook - upserted for ename:", prof.ename);
+                    finalLocalId = prof.id;
+                } else {
+                    finalLocalId = null;
+                }
             }
             
             // Mark webhook as completed

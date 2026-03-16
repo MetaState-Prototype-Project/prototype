@@ -9,6 +9,7 @@ import { Wishlist } from "./entities/Wishlist";
 import { Match } from "./entities/Match";
 import { UserEVaultMapping } from "./entities/UserEVaultMapping";
 import { WebhookProcessing } from "./entities/WebhookProcessing";
+import { ProfessionalProfile } from "./entities/ProfessionalProfile";
 import { PostgresSubscriber } from "../web3adapter/watchers/subscriber";
 
 // Use absolute path for better CLI compatibility
@@ -20,7 +21,7 @@ export const dataSourceOptions: DataSourceOptions = {
     type: "postgres",
     url: process.env.DREAMSYNC_DATABASE_URL,
     synchronize: false, // Auto-sync in development
-    entities: [User, Group, Message, Wishlist, Match, UserEVaultMapping, WebhookProcessing],
+    entities: [User, Group, Message, Wishlist, Match, UserEVaultMapping, WebhookProcessing, ProfessionalProfile],
     migrations: [path.join(__dirname, "migrations", "*.ts")],
     logging: process.env.NODE_ENV === "development",
     subscribers: [PostgresSubscriber],

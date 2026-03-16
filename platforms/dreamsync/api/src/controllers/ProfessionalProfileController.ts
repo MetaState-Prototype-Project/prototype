@@ -70,7 +70,7 @@ export class ProfessionalProfileController {
                 "skills",
                 "workExperience",
                 "education",
-                "isDreamsyncVisible",
+                "isPublic",
             ];
 
             const updateData: Record<string, unknown> = {};

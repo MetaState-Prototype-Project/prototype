@@ -28,5 +28,5 @@ export interface ProfessionalProfile {
     skills?: string[];
     workExperience?: WorkExperience[];
     education?: Education[];
-    isDreamsyncVisible?: boolean;
+    isPublic?: boolean;
 }

@@ -162,7 +162,6 @@ export class EVaultProfileService {
                 website: profData.website,
                 location: profData.location,
                 isPublic: profData.isPublic ?? true,
-                isDreamsyncVisible: profData.isDreamsyncVisible ?? true,
                 workExperience: profData.workExperience ?? [],
                 education: profData.education ?? [],
                 skills: profData.skills ?? [],

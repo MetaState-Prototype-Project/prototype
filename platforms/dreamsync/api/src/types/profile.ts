@@ -40,7 +40,6 @@ export interface ProfessionalProfile {
     website?: string;
     location?: string;
     isPublic?: boolean;
-    isDreamsyncVisible?: boolean;
     workExperience?: WorkExperience[];
     education?: Education[];
     skills?: string[];
