@@ -136,6 +136,7 @@ export class NotificationService {
 
         // Send actual push notification via notification-trigger service
         const triggerUrl = process.env.NOTIFICATION_TRIGGER_URL || `http://localhost:${process.env.NOTIFICATION_TRIGGER_PORT || 3998}`;
+        console.log(`[NOTIF] Using trigger URL: ${triggerUrl}`);
         const pushPayload = {
             title: notification.title,
             body: notification.body,
@@ -199,7 +200,11 @@ export class NotificationService {
 
                 // Send returned an explicit failure
                 const error = data.error || "Push send failed";
-                console.error(`[NOTIF] Push failed for token ${token.slice(0, 8)}…:`, error);
+                console.error(
+                    `[NOTIF] Push rejected for token ${token.slice(0, 8)}…\n` +
+                    `  platform : ${platform ?? "auto-detect"}\n` +
+                    `  error    : ${error}`,
+                );
 
                 if (isBadTokenError(error)) {
                     badTokens.push(token);
@@ -207,7 +212,24 @@ export class NotificationService {
                 }
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
-                console.error(`[NOTIF] Push error for token ${token.slice(0, 8)}…:`, msg);
+                const errObj = err as Record<string, unknown>;
+                const rawCause = errObj?.cause;
+                const cause = rawCause
+                    ? rawCause instanceof Error ? rawCause.message : String(rawCause)
+                    : null;
+                console.error(
+                    `[NOTIF] Push error for token ${token.slice(0, 8)}…\n` +
+                    `  platform : ${platform ?? "auto-detect"}\n` +
+                    `  url      : ${triggerUrl}/api/send\n` +
+                    `  error    : ${msg}\n` +
+                    (cause ? `  cause    : ${cause}\n` : "") +
+                    `  full     :`, err,
+                );
+
+                if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED")) {
+                    console.error(`[NOTIF] notification-trigger service appears to be DOWN at ${triggerUrl} — skipping remaining tokens`);
+                    break;
+                }
 
                 if (isBadTokenError(err)) {
                     badTokens.push(token);
