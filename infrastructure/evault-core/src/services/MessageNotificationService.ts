@@ -77,7 +77,11 @@ export class MessageNotificationService {
         const recipients = [...allENames];
         if (recipients.length === 0) return;
 
-        const messageText = payload.content || payload.text || "";
+        const rawText: string = payload.content || payload.text || "";
+        const isSystemMessage = rawText.startsWith("$$system-message$$");
+        const messageText = isSystemMessage
+            ? rawText.replace("$$system-message$$", "").trim()
+            : rawText;
         const truncatedText =
             messageText.length > 100
                 ? messageText.substring(0, 100) + "..."
@@ -93,7 +97,11 @@ export class MessageNotificationService {
         let title: string;
         let body: string;
 
-        if (isDM) {
+        if (isSystemMessage) {
+            const groupName = chatData.name || "a chat";
+            title = `New system message in ${groupName}`;
+            body = truncatedText || "System update";
+        } else if (isDM) {
             title = `New message from ${senderDisplay}`;
             body = truncatedText || "Sent a message";
         } else {
