@@ -13,6 +13,8 @@ export class DiscoveryController {
 			const { q, page, limit, sortBy } = req.query;
 
 			if (!q) {
+				res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+				res.setHeader("Pragma", "no-cache");
 				return res
 					.status(400)
 					.json({ error: 'Query parameter "q" is required' });
@@ -31,9 +33,17 @@ export class DiscoveryController {
 				(sortBy as string) || "relevance",
 			);
 
+			res.setHeader(
+				"Cache-Control",
+				"no-store, no-cache, must-revalidate, proxy-revalidate",
+			);
+			res.setHeader("Pragma", "no-cache");
+			res.setHeader("Expires", "0");
 			res.json(results);
 		} catch (error: any) {
 			console.error("Discovery error:", error.message);
+			res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+			res.setHeader("Pragma", "no-cache");
 			res.status(500).json({ error: "Search service unavailable" });
 		}
 	};

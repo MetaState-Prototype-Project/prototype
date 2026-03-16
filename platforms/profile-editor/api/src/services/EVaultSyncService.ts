@@ -99,7 +99,7 @@ export class EVaultSyncService {
 			avatarFileId: profile.professional.avatarFileId,
 			bannerFileId: profile.professional.bannerFileId,
 			skills: profile.professional.skills,
-			isPublic: profile.professional.isPublic ?? true,
+			isPublic: profile.professional.isPublic !== false,
 			isArchived: false,
 		});
 	}

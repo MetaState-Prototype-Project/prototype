@@ -36,12 +36,18 @@ export async function searchProfiles(
 ): Promise<SearchResponse> {
 	searchLoading.set(true);
 	try {
-		const params: Record<string, string> = { q: query };
+		const params: Record<string, string> = { q: query, _: String(Date.now()) };
 		if (options?.skills?.length) params.skills = options.skills.join(',');
 		if (options?.page) params.page = String(options.page);
 		if (options?.limit) params.limit = String(options.limit);
 
-		const response = await apiClient.get('/api/discover', { params });
+		const response = await apiClient.get('/api/discover', {
+			params,
+			headers: {
+				'Cache-Control': 'no-cache',
+				Pragma: 'no-cache',
+			},
+		});
 		const data: SearchResponse = response.data;
 
 		searchResults.set(data.results);

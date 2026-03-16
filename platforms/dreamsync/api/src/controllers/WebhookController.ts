@@ -351,6 +351,11 @@ export class WebhookController {
                         }
                     }
                 }
+            } else if (mapping.tableName === "professional_profiles") {
+                // Professional profiles are stored in evault only - DreamSync fetches on demand.
+                // No local storage; just acknowledge the webhook to prevent retries.
+                console.log("Professional profile webhook - no local storage (fetched from evault on demand)");
+                finalLocalId = null;
             }
             
             // Mark webhook as completed

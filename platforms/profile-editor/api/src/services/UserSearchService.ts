@@ -18,11 +18,11 @@ export class UserSearchService {
 		const searchQuery = query.trim();
 
 		if (searchQuery.length < 1) {
-			return { results: [], total: 0, page, limit };
+			return { results: [], total: 0, page, limit, totalPages: 0 };
 		}
 
 		if (page < 1 || limit < 1 || limit > 100) {
-			return { results: [], total: 0, page, limit };
+			return { results: [], total: 0, page, limit, totalPages: 0 };
 		}
 
 		const queryBuilder = this.userRepository
@@ -43,25 +43,27 @@ export class UserSearchService {
 				`
 				CASE
 					WHEN user.ename ILIKE :exactQuery THEN 100
-					WHEN user.name ILIKE :exactQuery THEN 90
+					WHEN COALESCE(user.name, '') ILIKE :exactQuery THEN 90
 					WHEN user.handle ILIKE :exactQuery THEN 80
 					WHEN user.ename ILIKE :query THEN 70
-					WHEN user.name ILIKE :query THEN 60
+					WHEN COALESCE(user.name, '') ILIKE :query THEN 60
 					WHEN user.handle ILIKE :query THEN 50
-					WHEN user.headline ILIKE :query THEN 45
-					WHEN user.bio ILIKE :query THEN 30
-					WHEN user.location ILIKE :query THEN 25
+					WHEN COALESCE(user.headline, '') ILIKE :query THEN 45
+					WHEN COALESCE(user.bio, '') ILIKE :query THEN 30
+					WHEN COALESCE(user.location, '') ILIKE :query THEN 25
 					WHEN user.ename ILIKE :fuzzyQuery THEN 40
-					WHEN user.name ILIKE :fuzzyQuery THEN 35
+					WHEN COALESCE(user.name, '') ILIKE :fuzzyQuery THEN 35
 					WHEN user.handle ILIKE :fuzzyQuery THEN 30
+					WHEN EXISTS (SELECT 1 FROM unnest(COALESCE(user.skills, ARRAY[]::text[])) AS s WHERE s ILIKE :query) THEN 20
 					ELSE 0
 				END`,
 				"relevance_score",
 			)
 			.where(
-				`(user.name ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query
-				OR user.headline ILIKE :query OR user.bio ILIKE :query OR user.location ILIKE :query
-				OR user.ename ILIKE :fuzzyQuery OR user.name ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery)`,
+				`(COALESCE(user.name, '') ILIKE :query OR user.ename ILIKE :query OR user.handle ILIKE :query
+				OR COALESCE(user.headline, '') ILIKE :query OR COALESCE(user.bio, '') ILIKE :query OR COALESCE(user.location, '') ILIKE :query
+				OR user.ename ILIKE :fuzzyQuery OR COALESCE(user.name, '') ILIKE :fuzzyQuery OR user.handle ILIKE :fuzzyQuery
+				OR EXISTS (SELECT 1 FROM unnest(COALESCE(user.skills, ARRAY[]::text[])) AS s WHERE s ILIKE :query))`,
 				{
 					query: `%${searchQuery}%`,
 					exactQuery: searchQuery,
@@ -108,6 +110,7 @@ export class UserSearchService {
 			total,
 			page,
 			limit,
+			totalPages: Math.ceil(total / limit),
 		};
 	}
 
