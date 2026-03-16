@@ -47,7 +47,7 @@ export const AppDataSource = new DataSource({
         min: 2,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,
-        statement_timeout: 10000,
+        statement_timeout: 3600000,
     },
 });
 
