@@ -170,8 +170,13 @@ export class NotificationService {
 
         console.log(`[NOTIF] Sending push to ${allTokens.length} token(s) for eName: ${eName}`);
 
-        const pushResults = await Promise.allSettled(
-            allTokens.map(async ({ token, platform }) => {
+        // Cycle through tokens sequentially: try each one, remove bad tokens
+        // inline, and keep going until at least one succeeds.
+        const badTokens: string[] = [];
+        let delivered = false;
+
+        for (const { token, platform } of allTokens) {
+            try {
                 const res = await fetch(`${triggerUrl}/api/send`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -183,31 +188,32 @@ export class NotificationService {
                     signal: AbortSignal.timeout(10000),
                 });
                 const data = await res.json();
-                if (!data.success) {
-                    throw new Error(data.error || "Push send failed");
+
+                if (data.success) {
+                    console.log(`[NOTIF] Push delivered via token ${token.slice(0, 8)}… for ${eName}`);
+                    delivered = true;
+                    // Keep sending to remaining tokens — user may have multiple
+                    // devices (phone + tablet) that should all receive the notif.
+                    continue;
                 }
-                return data;
-            })
-        );
 
-        const pushSucceeded = pushResults.filter(r => r.status === "fulfilled").length;
-        const pushFailed = pushResults.filter(r => r.status === "rejected").length;
+                // Send returned an explicit failure
+                const error = data.error || "Push send failed";
+                console.error(`[NOTIF] Push failed for token ${token.slice(0, 8)}…:`, error);
 
-        // Collect tokens that returned a known "bad token" error so we can purge them
-        const badTokens: string[] = [];
-        pushResults.forEach((r, i) => {
-            if (r.status === "rejected") {
-                console.error(`[NOTIF] Push failed for token index ${i}:`, r.reason);
-                if (isBadTokenError(r.reason)) {
-                    badTokens.push(allTokens[i].token);
+                if (isBadTokenError(error)) {
+                    badTokens.push(token);
+                    console.log(`[NOTIF] Bad token ${token.slice(0, 8)}… queued for removal, trying next…`);
+                }
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error(`[NOTIF] Push error for token ${token.slice(0, 8)}…:`, msg);
+
+                if (isBadTokenError(err)) {
+                    badTokens.push(token);
+                    console.log(`[NOTIF] Bad token ${token.slice(0, 8)}… queued for removal, trying next…`);
                 }
             }
-        });
-
-        if (pushFailed > 0) {
-            console.log(`[NOTIF] Push results for ${eName}: ${pushSucceeded} sent, ${pushFailed} failed`);
-        } else {
-            console.log(`[NOTIF] Push sent successfully to ${pushSucceeded} token(s) for ${eName}`);
         }
 
         // Purge bad tokens from both Verification and DeviceToken tables
@@ -216,7 +222,13 @@ export class NotificationService {
             await this.removeBadTokens(eName, badTokens);
         }
 
-        return pushSucceeded > 0 || pushFailed === 0;
+        if (delivered) {
+            console.log(`[NOTIF] Push delivered for ${eName}`);
+        } else {
+            console.log(`[NOTIF] Push failed for all ${allTokens.length} token(s) for ${eName}`);
+        }
+
+        return delivered;
     }
 
     private async removeBadTokens(eName: string, badTokens: string[]): Promise<void> {
