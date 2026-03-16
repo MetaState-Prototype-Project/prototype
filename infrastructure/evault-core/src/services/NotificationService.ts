@@ -26,12 +26,9 @@ export interface SendNotificationRequest {
 const BAD_TOKEN_ERRORS = [
     "messaging/registration-token-not-valid",
     "messaging/invalid-registration-token",
-    "messaging/mismatched-credential",
     "BadDeviceToken",
     "Unregistered",
     "DeviceTokenNotForTopic",
-    "ExpiredProviderToken",
-    "InvalidProviderToken",
 ];
 
 function isBadTokenError(error: unknown): boolean {
