@@ -9,9 +9,6 @@ export class S3Service {
     private originEndpoint: string;
 
     constructor() {
-        // S3_ORIGIN = https://<space-name>.<region>.digitaloceanspaces.com
-        // S3_CDN = https://<space-name>.<region>.cdn.digitaloceanspaces.com
-        // S3_ACCESS_KEY, S3_SECRET_KEY
         this.originEndpoint = process.env.S3_ORIGIN || "";
         this.cdnEndpoint = process.env.S3_CDN || "";
 
