@@ -312,7 +312,11 @@ export class WebhookController {
                         file.folderId = folderId;
                     }
 
-                    // Decode base64 data if provided
+                    // Store URL if provided
+                    if (local.data.url && typeof local.data.url === "string") {
+                        file.url = local.data.url;
+                    }
+                    // Legacy: decode base64 data if provided (backward compat)
                     if (local.data.data && typeof local.data.data === "string") {
                         file.data = Buffer.from(local.data.data, "base64");
                     }
@@ -320,13 +324,6 @@ export class WebhookController {
                     this.adapter.addToLockedIds(localId);
                     await this.fileRepository.save(file);
                 } else {
-                    // Create new file with binary data
-                    // Decode base64 data if provided
-                    let fileData: Buffer = Buffer.alloc(0);
-                    if (local.data.data && typeof local.data.data === "string") {
-                        fileData = Buffer.from(local.data.data, "base64");
-                    }
-                    
                     const file = this.fileRepository.create({
                         name: local.data.name as string,
                         displayName: local.data.displayName as string | null,
@@ -336,7 +333,8 @@ export class WebhookController {
                         md5Hash: local.data.md5Hash as string,
                         ownerId: owner.id,
                         folderId: folderId,
-                        data: fileData,
+                        url: (local.data.url as string) || null,
+                        data: local.data.data ? Buffer.from(local.data.data as string, "base64") : null,
                     });
 
                     this.adapter.addToLockedIds(file.id);

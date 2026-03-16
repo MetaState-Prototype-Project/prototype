@@ -1,5 +1,5 @@
 import { dev } from '$app/environment';
-import { env } from '$env/dynamic/public';
+import { PUBLIC_REGISTRY_URL } from '$env/static/public';
 import { isAdminEName, normalizeEName } from '$lib/server/auth/allowlist';
 import { consumeAuthSession, publishAuthSessionResult } from '$lib/server/auth/sessions';
 import { AUTH_COOKIE_NAME, signAuthToken } from '$lib/server/auth/token';
@@ -76,7 +76,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 		console.info('[auth] Session consumed successfully', { ename, session: sessionPreview });
 
-		const registryBaseUrl = env.PUBLIC_REGISTRY_URL;
+		const registryBaseUrl = PUBLIC_REGISTRY_URL;
 		if (!registryBaseUrl) {
 			console.error('[auth] Missing PUBLIC_REGISTRY_URL');
 			publishAuthSessionResult(session, {

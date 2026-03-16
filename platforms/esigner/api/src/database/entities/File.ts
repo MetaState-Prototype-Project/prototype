@@ -35,8 +35,11 @@ export class File {
     @Column({ type: "text" })
     md5Hash!: string;
 
-    @Column({ type: "bytea" })
-    data!: Buffer;
+    @Column({ type: "bytea", nullable: true })
+    data!: Buffer | null;
+
+    @Column({ type: "text", nullable: true })
+    url!: string | null;
 
     @Column()
     ownerId!: string;

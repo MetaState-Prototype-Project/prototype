@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { FileService, ReservedFileNameError } from "../services/FileService";
 import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
 
 export const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB limit
 
@@ -15,6 +16,80 @@ export class FileController {
     constructor() {
         this.fileService = new FileService();
     }
+
+    presignUpload = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { filename, mimeType, size } = req.body;
+
+            if (!filename || !mimeType || !size) {
+                return res.status(400).json({ error: "filename, mimeType, and size are required" });
+            }
+
+            const fileId = uuidv4();
+            const key = this.fileService.s3Service.generateKey(req.user.id, fileId, filename);
+            const uploadUrl = await this.fileService.s3Service.generateUploadUrl(key, mimeType);
+
+            res.json({ uploadUrl, key, fileId });
+        } catch (error) {
+            console.error("Error generating presigned URL:", error);
+            res.status(500).json({ error: "Failed to generate upload URL" });
+        }
+    };
+
+    confirmUpload = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { key, fileId, filename, mimeType, size, displayName, description } = req.body;
+
+            if (!key || !fileId || !filename || !mimeType || !size) {
+                return res.status(400).json({ error: "key, fileId, filename, mimeType, and size are required" });
+            }
+
+            const head = await this.fileService.s3Service.headObject(key);
+            const md5Hash = head.etag;
+            const url = this.fileService.s3Service.getPublicUrl(key);
+
+            const file = await this.fileService.createFileWithUrl(
+                fileId,
+                filename,
+                mimeType,
+                size,
+                md5Hash,
+                url,
+                req.user.id,
+                displayName,
+                description,
+            );
+
+            res.status(201).json({
+                id: file.id,
+                name: file.name,
+                displayName: file.displayName,
+                description: file.description,
+                mimeType: file.mimeType,
+                size: file.size,
+                md5Hash: file.md5Hash,
+                url: file.url,
+                createdAt: file.createdAt,
+            });
+        } catch (error) {
+            console.error("Error confirming upload:", error);
+            if (error instanceof ReservedFileNameError) {
+                return res.status(400).json({ error: error.message });
+            }
+            if (error instanceof Error) {
+                return res.status(400).json({ error: error.message });
+            }
+            res.status(500).json({ error: "Failed to confirm upload" });
+        }
+    };
 
     uploadFile = [
         upload.single('file'),
@@ -97,6 +172,7 @@ export class FileController {
                 mimeType: file.mimeType,
                 size: file.size,
                 md5Hash: file.md5Hash,
+                url: file.url,
                 ownerId: file.ownerId,
                 createdAt: file.createdAt,
                 updatedAt: file.updatedAt,
@@ -158,6 +234,11 @@ export class FileController {
                 return res.status(404).json({ error: "File not found" });
             }
 
+            if (file.url) {
+                return res.redirect(file.url);
+            }
+
+            // Legacy fallback for files still in DB
             res.setHeader('Content-Type', file.mimeType);
             res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
             res.setHeader('Content-Length', file.size.toString());

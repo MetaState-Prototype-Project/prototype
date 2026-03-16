@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext, useMemo } from 'react';
+import { useState, useEffect, useContext, createContext, useMemo, useCallback } from 'react';
 import {
     collection,
     query,
@@ -6,7 +6,10 @@ import {
     orderBy,
     onSnapshot,
     limit,
-    Timestamp
+    Timestamp,
+    getDocs,
+    startAfter,
+    QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@lib/firebase/app';
 import {
@@ -25,18 +28,23 @@ import type { ReactNode } from 'react';
 import type { Chat } from '@lib/types/chat';
 import type { Message } from '@lib/types/message';
 
+const MESSAGES_PER_PAGE = 30;
+
 type ChatContext = {
     chats: Chat[] | null;
     currentChat: Chat | null;
     messages: Message[] | null;
     loading: boolean;
     error: Error | null;
+    hasMoreMessages: boolean;
+    loadingOlderMessages: boolean;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (participants: string[], name?: string) => Promise<string>;
+    createNewChat: (participants: string[], name?: string, description?: string) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
     removeParticipant: (userId: string) => Promise<void>;
+    loadOlderMessages: () => Promise<void>;
 };
 
 const ChatContext = createContext<ChatContext | null>(null);
@@ -51,15 +59,41 @@ export function ChatContextProvider({
     const { user } = useAuth();
     const [chats, setChats] = useState<Chat[] | null>(null);
     const [currentChat, setCurrentChat] = useState<Chat | null>(null);
-    const [messages, setMessages] = useState<Message[] | null>(null);
+    const [realtimeMessages, setRealtimeMessages] = useState<Message[] | null>(null);
+    const [olderMessages, setOlderMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+    const [oldestDocSnapshot, setOldestDocSnapshot] = useState<QueryDocumentSnapshot | null>(null);
+
+    // Merge realtime + older messages, deduplicating by id
+    const messages = useMemo(() => {
+        if (!realtimeMessages) return null;
+
+        const messageMap = new Map<string, Message>();
+
+        // Add older messages first
+        for (const msg of olderMessages) {
+            messageMap.set(msg.id, msg);
+        }
+
+        // Realtime messages overwrite any overlapping older ones
+        for (const msg of realtimeMessages) {
+            messageMap.set(msg.id, msg);
+        }
+
+        // Sort descending by createdAt (matching the existing convention; UI reverses for display)
+        return Array.from(messageMap.values()).sort((a, b) => {
+            const aTime = a.createdAt?.toMillis?.() ?? 0;
+            const bTime = b.createdAt?.toMillis?.() ?? 0;
+            return bTime - aTime;
+        });
+    }, [realtimeMessages, olderMessages]);
 
     // Listen to user's chats
     useEffect(() => {
         if (!user) {
-            // setChats(null);
-            // setLoading(false);
             setChats([
                 {
                     id: 'dummy-chat-1',
@@ -82,7 +116,7 @@ export function ChatContextProvider({
                     updatedAt: Timestamp.fromDate(new Date()),
                     lastMessage: {
                         senderId: 'user_4',
-                        text: 'Let’s meet tomorrow.',
+                        text: "Let's meet tomorrow.",
                         timestamp: Timestamp.fromDate(new Date())
                     },
                     name: 'Project Team'
@@ -103,31 +137,23 @@ export function ChatContextProvider({
             (snapshot) => {
                 const chatsData = snapshot.docs.map((doc) => doc.data());
 
-                // Sort chats by most recent activity (most recent first)
-                // Priority: lastMessage timestamp > updatedAt > createdAt
                 const sortedChats = chatsData.sort((a, b) => {
-                    // Get the most recent activity timestamp for each chat
                     const getMostRecentTimestamp = (chat: typeof a): number => {
-                        // Priority 1: lastMessage timestamp (most recent activity)
                         if (chat.lastMessage?.timestamp) {
                             return chat.lastMessage.timestamp.toMillis();
                         }
-                        // Priority 2: updatedAt (for updated chats without messages)
                         if (chat.updatedAt) {
                             return chat.updatedAt.toMillis();
                         }
-                        // Priority 3: createdAt (for new chats)
                         if (chat.createdAt) {
                             return chat.createdAt.toMillis();
                         }
-                        // Fallback: 0 for chats with no timestamps
                         return 0;
                     };
 
                     const aTimestamp = getMostRecentTimestamp(a);
                     const bTimestamp = getMostRecentTimestamp(b);
 
-                    // Sort by most recent timestamp (descending)
                     return bTimestamp - aTimestamp;
                 });
 
@@ -147,24 +173,43 @@ export function ChatContextProvider({
         };
     }, [user]);
 
-    // Listen to current chat messages
+    // Listen to current chat messages (realtime — most recent batch)
     useEffect(() => {
         if (!currentChat) {
-            setMessages(null);
+            setRealtimeMessages(null);
+            setOlderMessages([]);
+            setHasMoreMessages(true);
+            setOldestDocSnapshot(null);
             return;
         }
+
+        // Reset pagination state on chat change
+        setOlderMessages([]);
+        setHasMoreMessages(true);
+        setOldestDocSnapshot(null);
 
         const messagesQuery = query(
             chatMessagesCollection(currentChat.id),
             orderBy('createdAt', 'desc'),
-            limit(50)
+            limit(MESSAGES_PER_PAGE)
         );
 
         const unsubscribe = onSnapshot(
             messagesQuery,
             (snapshot) => {
                 const messagesData = snapshot.docs.map((doc) => doc.data());
-                setMessages(messagesData);
+                setRealtimeMessages(messagesData);
+
+                // Store the oldest doc snapshot as cursor for pagination (only on first load)
+                if (snapshot.docs.length > 0) {
+                    const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+                    setOldestDocSnapshot((prev) => prev ?? lastDoc);
+                }
+
+                // If we got fewer than the limit, there are no more messages
+                if (snapshot.docs.length < MESSAGES_PER_PAGE) {
+                    setHasMoreMessages(false);
+                }
             },
             (error) => {
                 setError(error as Error);
@@ -175,6 +220,38 @@ export function ChatContextProvider({
             unsubscribe();
         };
     }, [currentChat]);
+
+    const loadOlderMessages = useCallback(async (): Promise<void> => {
+        if (!currentChat || !hasMoreMessages || loadingOlderMessages || !oldestDocSnapshot) return;
+
+        setLoadingOlderMessages(true);
+
+        try {
+            const olderQuery = query(
+                chatMessagesCollection(currentChat.id),
+                orderBy('createdAt', 'desc'),
+                startAfter(oldestDocSnapshot),
+                limit(MESSAGES_PER_PAGE)
+            );
+
+            const snapshot = await getDocs(olderQuery);
+            const olderData = snapshot.docs.map((doc) => doc.data());
+
+            if (olderData.length > 0) {
+                setOlderMessages((prev) => [...prev, ...olderData]);
+                setOldestDocSnapshot(snapshot.docs[snapshot.docs.length - 1]);
+            }
+
+            if (olderData.length < MESSAGES_PER_PAGE) {
+                setHasMoreMessages(false);
+            }
+        } catch (error) {
+            console.error('Error loading older messages:', error);
+            setError(error as Error);
+        }
+
+        setLoadingOlderMessages(false);
+    }, [currentChat, hasMoreMessages, loadingOlderMessages, oldestDocSnapshot]);
 
     const createNewChat = async (
         participants: string[],
@@ -249,12 +326,15 @@ export function ChatContextProvider({
         messages,
         loading,
         error,
+        hasMoreMessages,
+        loadingOlderMessages,
         setCurrentChat,
         createNewChat,
         sendNewMessage,
         markAsRead,
         addParticipant,
-        removeParticipant
+        removeParticipant,
+        loadOlderMessages
     };
 
     return (

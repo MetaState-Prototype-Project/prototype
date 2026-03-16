@@ -102,23 +102,26 @@
 
 	async function createPreview() {
 		if (!file) return;
-		
+
 		const isImage = file.mimeType?.startsWith('image/');
 		const isPDF = file.mimeType === 'application/pdf';
-		
+
 		if (isImage || isPDF) {
-			try {
-				const response = await apiClient.get(`/api/files/${file.id}/download`, {
-					responseType: 'blob'
-				});
-				const blob = new Blob([response.data], { type: file.mimeType });
-				// Clean up old URL if exists
-				if (previewUrl) {
-					URL.revokeObjectURL(previewUrl);
+			if (file.url) {
+				previewUrl = file.url;
+			} else {
+				try {
+					const response = await apiClient.get(`/api/files/${file.id}/download`, {
+						responseType: 'blob'
+					});
+					const blob = new Blob([response.data], { type: file.mimeType });
+					if (previewUrl) {
+						URL.revokeObjectURL(previewUrl);
+					}
+					previewUrl = URL.createObjectURL(blob);
+				} catch (err) {
+					console.error('Failed to load preview:', err);
 				}
-				previewUrl = URL.createObjectURL(blob);
-			} catch (err) {
-				console.error('Failed to load preview:', err);
 			}
 		}
 	}
@@ -245,18 +248,28 @@
 
 	async function downloadDocument() {
 		try {
-			const response = await apiClient.get(`/api/files/${file.id}/download`, {
-				responseType: 'blob'
-			});
-			const blob = new Blob([response.data], { type: file.mimeType });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = file.name;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			if (file.url) {
+				const a = document.createElement('a');
+				a.href = file.url;
+				a.download = file.name;
+				a.target = '_blank';
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+			} else {
+				const response = await apiClient.get(`/api/files/${file.id}/download`, {
+					responseType: 'blob'
+				});
+				const blob = new Blob([response.data], { type: file.mimeType });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = file.name;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
 			showDownloadModal = false;
 		} catch (err) {
 			console.error('Failed to download document:', err);

@@ -11,7 +11,8 @@ export class NotificationController {
     constructor() {
         this.notificationService = new NotificationService(
             AppDataSource.getRepository("Verification"),
-            AppDataSource.getRepository("Notification")
+            AppDataSource.getRepository("Notification"),
+            AppDataSource.getRepository(DeviceToken),
         );
         this.deviceTokenService = new DeviceTokenService(
             AppDataSource.getRepository(DeviceToken)
@@ -76,8 +77,15 @@ export class NotificationController {
 
             const token = typeof pushToken === "string" ? pushToken.trim() : undefined;
 
+            // Look up old tokens for this device so we can clean them from DeviceToken table
             if (token) {
-                await this.deviceTokenService.register(eName, token);
+                const existing = await AppDataSource.getRepository("Verification").findOne({
+                    where: { linkedEName: eName, deviceId },
+                }) as { pushTokens?: string[] } | null;
+                const oldTokens = (existing?.pushTokens ?? []).filter((t) => t !== token);
+                for (const stale of oldTokens) {
+                    await this.deviceTokenService.unregister(eName, stale);
+                }
             }
 
             const verification = await this.notificationService.registerDevice({
@@ -87,6 +95,10 @@ export class NotificationController {
                 pushToken: token,
                 registrationTime: new Date(),
             });
+
+            if (token) {
+                await this.deviceTokenService.register(eName, token);
+            }
 
             res.json({
                 success: true,

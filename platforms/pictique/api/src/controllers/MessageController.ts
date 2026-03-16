@@ -216,6 +216,46 @@ export class MessageController {
         }
     };
 
+    getMessagesBefore = async (req: Request, res: Response) => {
+        try {
+            const { chatId } = req.params;
+            const userId = req.user?.id;
+            const beforeId = req.query.before as string;
+            const limit = parseInt(req.query.limit as string) || 30;
+
+            if (!userId) {
+                return res.status(401).json({ error: "Unauthorized" });
+            }
+
+            if (!beforeId) {
+                return res
+                    .status(400)
+                    .json({ error: "before parameter is required" });
+            }
+
+            // Verify user is a participant
+            const chat = await this.chatService.findById(chatId);
+            if (!chat) {
+                return res.status(404).json({ error: "Chat not found" });
+            }
+            if (!chat.participants.some((p) => p.id === userId)) {
+                return res
+                    .status(403)
+                    .json({ error: "Not a participant in this chat" });
+            }
+
+            const result = await this.chatService.getChatMessagesBefore(
+                chatId,
+                beforeId,
+                limit
+            );
+            res.json(result);
+        } catch (error) {
+            console.error("Error fetching older messages:", error);
+            res.status(500).json({ error: "Internal server error" });
+        }
+    };
+
     markAsRead = async (req: Request, res: Response) => {
         try {
             const { chatId } = req.params;
@@ -308,23 +348,21 @@ export class MessageController {
                 Connection: "keep-alive",
             });
 
-            const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 2000;
+            const limit = parseInt(req.query.limit as string) || 30;
 
-            if (!userId) {
-                return res.status(401).json({ error: "Unauthorized" });
-            }
-
-            // Get messages for the chat
-            const messages = await this.chatService.getChatMessages(
+            // Get the most recent messages for the chat
+            const result = await this.chatService.getLatestMessages(
                 chatId,
-                userId,
-                page,
                 limit
             );
 
-            // Send initial connection message
-            res.write(`data: ${JSON.stringify(messages.messages)}\n\n`);
+            // Send initial connection message with metadata
+            res.write(`data: ${JSON.stringify({
+                type: "initial",
+                messages: result.messages,
+                total: result.total,
+                hasMore: result.hasMore,
+            })}\n\n`);
 
             // Create event listener for this chat
             const eventEmitter = this.chatService.getEventEmitter();

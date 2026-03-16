@@ -1,10 +1,13 @@
 import { PUBLIC_PROVISIONER_URL } from "$env/static/public";
+import { addNotification, hasNotification } from "$lib/stores/notifications";
 import {
     isPermissionGranted,
+    onNotificationReceived,
     registerForPushNotifications,
     requestPermission,
     sendNotification,
 } from "@choochmeque/tauri-plugin-notifications-api";
+import type { PluginListener } from "@tauri-apps/api/core";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface DeviceRegistration {
@@ -118,7 +121,20 @@ class NotificationService {
      */
     async sendLocalNotification(payload: NotificationPayload): Promise<void> {
         try {
-            console.log("Attempting to send local notification:", payload);
+            // Store notification for the notification panel — coerce to string values only
+            const data = payload.data
+                ? Object.fromEntries(
+                      Object.entries(payload.data).filter(
+                          (entry): entry is [string, string] =>
+                              typeof entry[1] === "string",
+                      ),
+                  )
+                : undefined;
+            addNotification({
+                title: payload.title,
+                body: payload.body,
+                data: Object.keys(data ?? {}).length > 0 ? data : undefined,
+            });
 
             // Check permissions first
             const hasPermission = await isPermissionGranted();
@@ -192,7 +208,12 @@ class NotificationService {
     /**
      * Check for notifications from provisioner and show them locally
      */
-    async checkAndShowNotifications(): Promise<void> {
+    async checkAndShowNotifications(): Promise<{
+        globalMessageId?: string;
+        globalChatId?: string;
+        title?: string;
+        body?: string;
+    } | null> {
         try {
             console.log("🔍 Checking for notifications from provisioner...");
 
@@ -220,17 +241,17 @@ class NotificationService {
                             console.log("Device registered successfully");
                         } else {
                             console.log("Failed to register device");
-                            return;
+                            return null;
                         }
                     } else {
                         console.log(
                             "No eName found in vault, skipping notification check",
                         );
-                        return;
+                        return null;
                     }
                 } catch (error) {
                     console.error("Error getting vault eName:", error);
-                    return;
+                    return null;
                 }
             }
 
@@ -238,7 +259,7 @@ class NotificationService {
                 console.log(
                     "Still no device registration, skipping notification check",
                 );
-                return;
+                return null;
             }
 
             // Check for notifications from provisioner
@@ -260,24 +281,42 @@ class NotificationService {
                 const data = await response.json();
                 if (data.notifications && data.notifications.length > 0) {
                     console.log(
-                        `📱 Found ${data.notifications.length} notification(s)`,
+                        `Found ${data.notifications.length} notification(s)`,
                     );
 
-                    // Show each notification locally
+                    // Show each notification locally — intentionally keep only the
+                    // most recent new_message so the caller navigates to it.
+                    let lastMessageNotif: {
+                        globalMessageId?: string;
+                        globalChatId?: string;
+                        title?: string;
+                        body?: string;
+                    } | null = null;
                     for (const notification of data.notifications) {
                         await this.sendLocalNotification(notification);
+                        if (notification.data?.type === "new_message") {
+                            lastMessageNotif = {
+                                globalMessageId:
+                                    notification.data.globalMessageId,
+                                globalChatId: notification.data.globalChatId,
+                                title: notification.title,
+                                body: notification.body,
+                            };
+                        }
                     }
-                } else {
-                    console.log("No new notifications");
+                    return lastMessageNotif;
                 }
-            } else {
-                console.log(
-                    "No notifications endpoint available or error:",
-                    response.status,
-                );
+                console.log("No new notifications");
+                return null;
             }
+            console.log(
+                "No notifications endpoint available or error:",
+                response.status,
+            );
+            return null;
         } catch (error) {
             console.error("Error checking notifications:", error);
+            return null;
         }
     }
 
@@ -289,7 +328,7 @@ class NotificationService {
         await this.sendLocalNotification({
             title: "Test Notification",
             body: "This is a test notification from eid-wallet!",
-            data: { test: true, timestamp: new Date().toISOString() },
+            data: { test: "true", timestamp: new Date().toISOString() },
         });
     }
 
@@ -364,6 +403,33 @@ class NotificationService {
         if (platform !== "android" && platform !== "ios") return undefined;
         return this.getPushNotificationToken();
     }
+    /**
+     * Listen for push notifications arriving while the app is in the foreground.
+     * Stores them in the notification panel so they appear in the notifications tab.
+     * Returns a cleanup function to remove the listener.
+     */
+    async listenForForegroundNotifications(): Promise<PluginListener> {
+        return onNotificationReceived((notification) => {
+            if (notification.source !== "push") return;
+            const title = notification.title ?? "";
+            if (!title) return;
+
+            const raw = (notification.extra ?? {}) as Record<string, unknown>;
+            const data = Object.fromEntries(
+                Object.entries(raw).filter(
+                    (entry): entry is [string, string] =>
+                        typeof entry[1] === "string",
+                ),
+            );
+
+            const body = notification.body ?? "";
+            const payload = Object.keys(data).length > 0 ? data : undefined;
+            if (!hasNotification(title, body, payload)) {
+                addNotification({ title, body, data: payload });
+            }
+        });
+    }
+
     /**
      * Get eName from vault (helper method)
      */

@@ -4,15 +4,14 @@ import archiver from "archiver";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { v4 as uuidv4 } from "uuid";
 import { FileService } from "../services/FileService";
 
 const upload = multer({
-    limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit
     storage: multer.memoryStorage(),
 });
 
 const uploadMultiple = multer({
-    limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB limit
     storage: multer.memoryStorage(),
 });
 
@@ -29,6 +28,97 @@ export class FileController {
         }
     }
 
+    presignUpload = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { filename, mimeType, size, folderId, displayName, description } = req.body;
+
+            if (!filename || !mimeType || !size) {
+                return res.status(400).json({ error: "filename, mimeType, and size are required" });
+            }
+
+            // Check user's storage quota
+            const { used, limit } = await this.fileService.getUserStorageUsage(req.user.id);
+            if (used + size > limit) {
+                return res.status(413).json({
+                    error: "Storage quota exceeded",
+                    used,
+                    limit,
+                    fileSize: size,
+                    available: limit - used,
+                });
+            }
+
+            const fileId = uuidv4();
+            const key = this.fileService.s3Service.generateKey(req.user.id, fileId, filename);
+            const uploadUrl = await this.fileService.s3Service.generateUploadUrl(key, mimeType);
+
+            res.json({ uploadUrl, key, fileId });
+        } catch (error) {
+            console.error("Error generating presigned URL:", error);
+            res.status(500).json({ error: "Failed to generate upload URL" });
+        }
+    };
+
+    confirmUpload = async (req: Request, res: Response) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ error: "Authentication required" });
+            }
+
+            const { key, fileId, filename, mimeType, size, folderId, displayName, description } = req.body;
+
+            if (!key || !fileId || !filename || !mimeType || !size) {
+                return res.status(400).json({ error: "key, fileId, filename, mimeType, and size are required" });
+            }
+
+            // Verify file exists in S3 and get ETag for md5Hash
+            const head = await this.fileService.s3Service.headObject(key);
+            const md5Hash = head.etag;
+            const url = this.fileService.s3Service.getPublicUrl(key);
+
+            const normalizedFolderId =
+                folderId === "null" || folderId === "" || folderId === null || folderId === undefined
+                    ? null
+                    : folderId;
+
+            const file = await this.fileService.createFileWithUrl(
+                fileId,
+                filename,
+                mimeType,
+                size,
+                md5Hash,
+                url,
+                req.user.id,
+                normalizedFolderId,
+                displayName,
+                description,
+            );
+
+            res.status(201).json({
+                id: file.id,
+                name: file.name,
+                displayName: file.displayName,
+                description: file.description,
+                mimeType: file.mimeType,
+                size: file.size,
+                md5Hash: file.md5Hash,
+                url: file.url,
+                folderId: file.folderId,
+                createdAt: file.createdAt,
+            });
+        } catch (error) {
+            console.error("Error confirming upload:", error);
+            if (error instanceof Error) {
+                return res.status(400).json({ error: error.message });
+            }
+            res.status(500).json({ error: "Failed to confirm upload" });
+        }
+    };
+
     uploadFile = [
         upload.single("file"),
         async (req: Request, res: Response) => {
@@ -43,19 +133,19 @@ export class FileController {
                         .json({ error: "Authentication required" });
                 }
 
-                // Check file size limit (1GB)
-                const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
-                if (req.file.size > MAX_FILE_SIZE) {
+                // Check user's storage quota
+                const { used, limit } =
+                    await this.fileService.getUserStorageUsage(req.user.id);
+
+                // Check individual file size against user's limit
+                if (req.file.size > limit) {
                     return res.status(413).json({
-                        error: "File size exceeds 1GB limit",
-                        maxSize: MAX_FILE_SIZE,
+                        error: `File size exceeds ${Math.round(limit / (1024 * 1024 * 1024))}GB limit`,
+                        maxSize: limit,
                         fileSize: req.file.size,
                     });
                 }
 
-                // Check user's storage quota (1GB total)
-                const { used, limit } =
-                    await this.fileService.getUserStorageUsage(req.user.id);
                 if (used + req.file.size > limit) {
                     return res.status(413).json({
                         error: "Storage quota exceeded",
@@ -124,7 +214,6 @@ export class FileController {
                         .json({ error: "Authentication required" });
                 }
 
-                const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB in bytes
                 const { used, limit } =
                     await this.fileService.getUserStorageUsage(req.user.id);
 
@@ -169,10 +258,10 @@ export class FileController {
                 for (const file of files) {
                     try {
                         // Check file size limit
-                        if (file.size > MAX_FILE_SIZE) {
+                        if (file.size > limit) {
                             errors.push({
                                 fileName: file.originalname,
-                                error: "File size exceeds 1GB limit",
+                                error: `File size exceeds ${Math.round(limit / (1024 * 1024 * 1024))}GB limit`,
                                 fileSize: file.size,
                             });
                             continue;
@@ -267,6 +356,7 @@ export class FileController {
                     mimeType: file.mimeType,
                     size: file.size,
                     md5Hash: file.md5Hash,
+                    url: file.url,
                     ownerId: file.ownerId,
                     owner: file.owner
                         ? {
@@ -317,6 +407,7 @@ export class FileController {
                 mimeType: file.mimeType,
                 size: file.size,
                 md5Hash: file.md5Hash,
+                url: file.url,
                 ownerId: file.ownerId,
                 folderId: file.folderId,
                 createdAt: file.createdAt,
@@ -419,6 +510,11 @@ export class FileController {
                 return res.status(404).json({ error: "File not found" });
             }
 
+            if (file.url) {
+                return res.redirect(file.url);
+            }
+
+            // Legacy fallback for files still in DB
             res.setHeader("Content-Type", file.mimeType);
             res.setHeader(
                 "Content-Disposition",
@@ -453,6 +549,11 @@ export class FileController {
                     .json({ error: "File type cannot be previewed" });
             }
 
+            if (file.url) {
+                return res.redirect(file.url);
+            }
+
+            // Legacy fallback for files still in DB
             res.setHeader("Content-Type", file.mimeType);
             res.setHeader(
                 "Content-Disposition",

@@ -7,10 +7,15 @@ import {
 } from "$env/static/public";
 import { Hero, IdentityCard } from "$lib/fragments";
 import type { GlobalState } from "$lib/global";
+import {
+    getUnreadCount,
+    subscribe as subscribeNotifications,
+} from "$lib/stores/notifications";
 import { BottomSheet, Toast } from "$lib/ui";
 import * as Button from "$lib/ui/Button";
 import { capitalize } from "$lib/utils";
 import {
+    ChatNotificationIcon,
     LinkSquare02Icon,
     QrCodeIcon,
     Settings02Icon,
@@ -95,6 +100,8 @@ let diditRejectionReason = $state<string | null>(null);
 let duplicateEName = $state<string | null>(null);
 // ─────────────────────────────────────────────────────────────────────────────
 
+let notificationCount = $state(0);
+let unsubNotifications: (() => void) | undefined;
 let shareQRdrawerOpen = $state(false);
 let statusInterval: ReturnType<typeof setInterval> | undefined =
     $state(undefined);
@@ -424,6 +431,11 @@ async function handleUpgrade() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 onMount(() => {
+    notificationCount = getUnreadCount();
+    unsubNotifications = subscribeNotifications(() => {
+        notificationCount = getUnreadCount();
+    });
+
     const shouldSkipProfileSetupGate =
         localStorage.getItem(RECOVERY_SKIP_PROFILE_SETUP_KEY) === "true";
     if (shouldSkipProfileSetupGate) {
@@ -467,6 +479,7 @@ onDestroy(() => {
     if (statusInterval) {
         clearInterval(statusInterval);
     }
+    unsubNotifications?.();
 });
 </script>
 
@@ -508,14 +521,31 @@ onDestroy(() => {
             {/snippet}
         </Hero>
 
-        <Button.Nav href="/settings">
-            <HugeiconsIcon
-                size={32}
-                strokeWidth={2}
-                className="mt-1.5"
-                icon={Settings02Icon}
-            />
-        </Button.Nav>
+        <div class="flex items-center gap-2">
+            <Button.Nav href="/notifications" class="relative" aria-label={notificationCount > 0 ? `Notifications (${notificationCount} unread)` : "Notifications"}>
+                <HugeiconsIcon
+                    size={28}
+                    strokeWidth={2}
+                    className="mt-1.5"
+                    icon={ChatNotificationIcon}
+                />
+                {#if notificationCount > 0}
+                    <span
+                        class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
+                    >
+                        {notificationCount > 99 ? "99+" : notificationCount}
+                    </span>
+                {/if}
+            </Button.Nav>
+            <Button.Nav href="/settings" aria-label="Settings">
+                <HugeiconsIcon
+                    size={32}
+                    strokeWidth={2}
+                    className="mt-1.5"
+                    icon={Settings02Icon}
+                />
+            </Button.Nav>
+        </div>
     </div>
 
     {#snippet Section(title: string, children: Snippet)}

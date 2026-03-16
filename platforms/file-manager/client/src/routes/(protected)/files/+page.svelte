@@ -230,21 +230,7 @@
     async function handleFileUpload(filesToUpload: globalThis.File[]) {
         if (filesToUpload.length === 0) return;
 
-        // Client-side validation
-        const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
-        const validFiles: globalThis.File[] = [];
-
-        for (const file of filesToUpload) {
-            if (file.size > MAX_FILE_SIZE) {
-                toast.error(
-                    `File "${file.name}" exceeds 1GB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB`,
-                );
-            } else {
-                validFiles.push(file);
-            }
-        }
-
-        if (validFiles.length === 0) return;
+        const validFiles = filesToUpload;
 
         isUploading = true;
         uploadProgress = {};
@@ -271,24 +257,49 @@
             try {
                 fileUploadStatus[file.name] = "uploading";
 
-                const formData = new FormData();
-                formData.append("file", file);
-                if (currentFolderId !== undefined) {
-                    formData.append("folderId", currentFolderId || "null");
-                }
+                // Step 1: Get presigned upload URL
+                const presignResponse = await apiClient.post("/api/files/presign", {
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size,
+                    folderId: currentFolderId || null,
+                });
+                const { uploadUrl, key, fileId } = presignResponse.data;
 
-                const response = await apiClient.post("/api/files", formData, {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    onUploadProgress: (progressEvent) => {
-                        if (progressEvent.total) {
+                // Step 2: Upload directly to S3
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("PUT", uploadUrl);
+                    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+                    xhr.setRequestHeader("x-amz-acl", "public-read");
+
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
                             uploadProgress[file.name] = Math.round(
-                                (progressEvent.loaded / progressEvent.total) *
-                                    100,
+                                (event.loaded / event.total) * 95,
                             );
                         }
-                    },
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`S3 upload failed with status ${xhr.status}`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error("S3 upload failed"));
+                    xhr.send(file);
+                });
+
+                // Step 3: Confirm upload
+                await apiClient.post("/api/files/confirm", {
+                    key,
+                    fileId,
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size,
+                    folderId: currentFolderId || null,
                 });
 
                 fileUploadStatus[file.name] = "success";
@@ -308,7 +319,7 @@
                         );
                     } else {
                         toast.error(
-                            `File "${file.name}" size exceeds 1GB limit`,
+                            `File "${file.name}" exceeds the size limit`,
                         );
                     }
                 } else {
