@@ -114,6 +114,7 @@ export const uploadFile = async (
             body: file,
             headers: {
                 "Content-Type": file.type || "application/octet-stream",
+                "x-amz-acl": "public-read",
             },
         });
         if (!uploadResponse.ok) {

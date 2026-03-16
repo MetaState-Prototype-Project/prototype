@@ -271,11 +271,12 @@
                     const xhr = new XMLHttpRequest();
                     xhr.open("PUT", uploadUrl);
                     xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+                    xhr.setRequestHeader("x-amz-acl", "public-read");
 
                     xhr.upload.onprogress = (event) => {
                         if (event.lengthComputable) {
                             uploadProgress[file.name] = Math.round(
-                                (event.loaded / event.total) * 95, // Reserve 5% for confirm
+                                (event.loaded / event.total) * 95,
                             );
                         }
                     };
