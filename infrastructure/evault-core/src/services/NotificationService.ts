@@ -1,6 +1,7 @@
 import { Repository } from "typeorm";
 import { Verification } from "../entities/Verification";
 import { Notification } from "../entities/Notification";
+import { DeviceToken } from "../entities/DeviceToken";
 
 export interface DeviceRegistration {
     eName: string;
@@ -22,10 +23,24 @@ export interface SendNotificationRequest {
     sharedSecret: string;
 }
 
+const BAD_TOKEN_ERRORS = [
+    "messaging/registration-token-not-valid",
+    "messaging/invalid-registration-token",
+    "BadDeviceToken",
+    "Unregistered",
+    "DeviceTokenNotForTopic",
+];
+
+function isBadTokenError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error);
+    return BAD_TOKEN_ERRORS.some((e) => msg.includes(e));
+}
+
 export class NotificationService {
     constructor(
         private verificationRepository: Repository<Verification>,
-        private notificationRepository: Repository<Notification>
+        private notificationRepository: Repository<Notification>,
+        private deviceTokenRepository?: Repository<DeviceToken>,
     ) {}
 
     async registerDevice(registration: DeviceRegistration): Promise<Verification> {
@@ -56,10 +71,10 @@ export class NotificationService {
         if (verification) {
             verification.platform = registration.platform;
             if (token) {
-                const existing = verification.pushTokens ?? [];
-                if (!existing.includes(token)) {
-                    verification.pushTokens = [...existing, token];
-                }
+                // Replace all tokens for this device — the latest token from the
+                // OS is the only valid one. Appending caused stale tokens to
+                // accumulate and never get cleaned up.
+                verification.pushTokens = [token];
             }
             verification.deviceActive = true;
             verification.updatedAt = new Date();
@@ -118,6 +133,7 @@ export class NotificationService {
 
         // Send actual push notification via notification-trigger service
         const triggerUrl = process.env.NOTIFICATION_TRIGGER_URL || `http://localhost:${process.env.NOTIFICATION_TRIGGER_PORT || 3998}`;
+        console.log(`[NOTIF] Using trigger URL: ${triggerUrl}`);
         const pushPayload = {
             title: notification.title,
             body: notification.body,
@@ -152,8 +168,13 @@ export class NotificationService {
 
         console.log(`[NOTIF] Sending push to ${allTokens.length} token(s) for eName: ${eName}`);
 
-        const pushResults = await Promise.allSettled(
-            allTokens.map(async ({ token, platform }) => {
+        // Cycle through tokens sequentially: try each one, remove bad tokens
+        // inline, and keep going until at least one succeeds.
+        const badTokens: string[] = [];
+        let delivered = false;
+
+        for (const { token, platform } of allTokens) {
+            try {
                 const res = await fetch(`${triggerUrl}/api/send`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -165,27 +186,106 @@ export class NotificationService {
                     signal: AbortSignal.timeout(10000),
                 });
                 const data = await res.json();
-                if (!data.success) {
-                    throw new Error(data.error || "Push send failed");
-                }
-                return data;
-            })
-        );
 
-        const pushSucceeded = pushResults.filter(r => r.status === "fulfilled").length;
-        const pushFailed = pushResults.filter(r => r.status === "rejected").length;
-        if (pushFailed > 0) {
-            console.log(`[NOTIF] Push results for ${eName}: ${pushSucceeded} sent, ${pushFailed} failed`);
-            pushResults.forEach((r, i) => {
-                if (r.status === "rejected") {
-                    console.error(`[NOTIF] Push failed for token index ${i}:`, r.reason);
+                if (data.success) {
+                    console.log(`[NOTIF] Push delivered via token ${token.slice(0, 8)}… for ${eName}`);
+                    delivered = true;
+                    // Keep sending to remaining tokens — user may have multiple
+                    // devices (phone + tablet) that should all receive the notif.
+                    continue;
                 }
-            });
-        } else {
-            console.log(`[NOTIF] Push sent successfully to ${pushSucceeded} token(s) for ${eName}`);
+
+                // Send returned an explicit failure
+                const error = data.error || "Push send failed";
+                console.error(
+                    `[NOTIF] Push rejected for token ${token.slice(0, 8)}…\n` +
+                    `  platform : ${platform ?? "auto-detect"}\n` +
+                    `  error    : ${error}`,
+                );
+
+                if (isBadTokenError(error)) {
+                    badTokens.push(token);
+                    console.log(`[NOTIF] Bad token ${token.slice(0, 8)}… queued for removal, trying next…`);
+                }
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                const errObj = err as Record<string, unknown>;
+                const rawCause = errObj?.cause;
+                const cause = rawCause
+                    ? rawCause instanceof Error ? rawCause.message : String(rawCause)
+                    : null;
+                console.error(
+                    `[NOTIF] Push error for token ${token.slice(0, 8)}…\n` +
+                    `  platform : ${platform ?? "auto-detect"}\n` +
+                    `  url      : ${triggerUrl}/api/send\n` +
+                    `  error    : ${msg}\n` +
+                    (cause ? `  cause    : ${cause}\n` : "") +
+                    `  full     :`, err,
+                );
+
+                if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED")) {
+                    console.error(`[NOTIF] notification-trigger service appears to be DOWN at ${triggerUrl} — skipping remaining tokens`);
+                    break;
+                }
+
+                if (isBadTokenError(err)) {
+                    badTokens.push(token);
+                    console.log(`[NOTIF] Bad token ${token.slice(0, 8)}… queued for removal, trying next…`);
+                }
+            }
         }
 
-        return pushSucceeded > 0 || pushFailed === 0;
+        // Purge bad tokens from both Verification and DeviceToken tables
+        if (badTokens.length > 0) {
+            console.log(`[NOTIF] Removing ${badTokens.length} bad token(s) for ${eName}`);
+            await this.removeBadTokens(eName, badTokens);
+        }
+
+        if (delivered) {
+            console.log(`[NOTIF] Push delivered for ${eName}`);
+        } else {
+            console.log(`[NOTIF] Push failed for all ${allTokens.length} token(s) for ${eName}`);
+        }
+
+        return delivered;
+    }
+
+    private async removeBadTokens(eName: string, badTokens: string[]): Promise<void> {
+        try {
+            // Clean Verification table
+            const verifications = await this.verificationRepository.find({
+                where: { linkedEName: eName },
+            });
+            for (const v of verifications) {
+                const before = v.pushTokens?.length ?? 0;
+                v.pushTokens = (v.pushTokens ?? []).filter((t) => !badTokens.includes(t));
+                if (v.pushTokens.length !== before) {
+                    v.updatedAt = new Date();
+                    await this.verificationRepository.save(v);
+                }
+            }
+
+            // Clean DeviceToken table
+            if (this.deviceTokenRepository) {
+                const normalized = eName.startsWith("@") ? eName : `@${eName}`;
+                const withoutAt = eName.replace(/^@/, "");
+                const rows = await this.deviceTokenRepository
+                    .createQueryBuilder("dt")
+                    .where("dt.eName = :e1 OR dt.eName = :e2", { e1: normalized, e2: withoutAt })
+                    .getMany();
+
+                for (const row of rows) {
+                    const before = row.tokens.length;
+                    row.tokens = row.tokens.filter((t) => !badTokens.includes(t));
+                    if (row.tokens.length !== before) {
+                        row.updatedAt = new Date();
+                        await this.deviceTokenRepository.save(row);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(`[NOTIF] Failed to remove bad tokens for ${eName}:`, err);
+        }
     }
 
     async getUndeliveredNotifications(eName: string): Promise<Notification[]> {

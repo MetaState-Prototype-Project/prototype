@@ -1,6 +1,7 @@
 import { Repository } from "typeorm";
 import { Notification } from "../entities/Notification";
 import { Verification } from "../entities/Verification";
+import { DeviceToken } from "../entities/DeviceToken";
 import { NotificationService } from "./NotificationService";
 import type { DbService } from "../core/db/db.service";
 import { deserializeValue } from "../core/db/schema";
@@ -23,11 +24,13 @@ export class MessageNotificationService {
     constructor(
         verificationRepository: Repository<Verification>,
         notificationRepository: Repository<Notification>,
-        db: DbService
+        db: DbService,
+        deviceTokenRepository?: Repository<DeviceToken>,
     ) {
         this.notificationService = new NotificationService(
             verificationRepository,
-            notificationRepository
+            notificationRepository,
+            deviceTokenRepository,
         );
         this.db = db;
     }
@@ -74,7 +77,11 @@ export class MessageNotificationService {
         const recipients = [...allENames];
         if (recipients.length === 0) return;
 
-        const messageText = payload.content || payload.text || "";
+        const rawText: string = payload.content || payload.text || "";
+        const isSystemMessage = rawText.startsWith("$$system-message$$");
+        const messageText = isSystemMessage
+            ? rawText.replace("$$system-message$$", "").trim()
+            : rawText;
         const truncatedText =
             messageText.length > 100
                 ? messageText.substring(0, 100) + "..."
@@ -90,7 +97,11 @@ export class MessageNotificationService {
         let title: string;
         let body: string;
 
-        if (isDM) {
+        if (isSystemMessage) {
+            const groupName = chatData.name || "a chat";
+            title = `New system message in ${groupName}`;
+            body = truncatedText || "System update";
+        } else if (isDM) {
             title = `New message from ${senderDisplay}`;
             body = truncatedText || "Sent a message";
         } else {
