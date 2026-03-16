@@ -22,6 +22,17 @@ export interface WishlistData {
         id: string;
         name: string;
         ename: string;
+        professional?: {
+            headline?: string;
+            skills?: string[];
+            location?: string;
+            workExperience?: { company: string; role: string }[];
+            education?: {
+                institution: string;
+                degree: string;
+                fieldOfStudy?: string;
+            }[];
+        };
     };
 }
 
@@ -80,19 +91,45 @@ export class MatchingService {
         }
     }
 
+    private formatProfessionalInfo(professional?: WishlistData["user"]["professional"]): string {
+        if (!professional) return "";
+        const parts: string[] = [];
+        if (professional.headline) parts.push(professional.headline);
+        if (professional.workExperience?.length) {
+            const roles = professional.workExperience
+                .slice(0, 3)
+                .map((w) => `${w.role} at ${w.company}`)
+                .join(", ");
+            parts.push(roles);
+        }
+        if (professional.skills?.length) {
+            parts.push(`skills: ${professional.skills.join(", ")}`);
+        }
+        if (professional.location) parts.push(professional.location);
+        if (professional.education?.length) {
+            const edu = professional.education
+                .slice(0, 2)
+                .map((e) => `${e.degree}${e.fieldOfStudy ? " " + e.fieldOfStudy : ""} (${e.institution})`)
+                .join(", ");
+            parts.push(edu);
+        }
+        return parts.join("; ");
+    }
+
     private buildAllMatchesPrompt(wishlists: WishlistData[], existingGroups?: GroupData[]): string {
         const delimiter = "<|>";
-        const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers`;
+        const wishlistHeader = `userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers${delimiter}professionalInfo`;
         const wishlistRows = wishlists.map((wishlist) => {
-            // Join array items with semicolons for CSV format
             const wants = (wishlist.summaryWants || []).join('; ');
             const offers = (wishlist.summaryOffers || []).join('; ');
+            const profInfo = this.formatProfessionalInfo(wishlist.user.professional);
             return [
                 this.sanitizeField(wishlist.userId),
                 this.sanitizeField(wishlist.user.ename),
                 this.sanitizeField(wishlist.user.name || wishlist.user.ename),
                 this.sanitizeField(wants),
                 this.sanitizeField(offers),
+                this.sanitizeField(profInfo),
             ].join(delimiter);
         }).join("\n");
 
@@ -121,12 +158,13 @@ Use the exact groupId from the table above in the format: "JOIN_EXISTING_GROUP:<
         }
 
         return `
-You are an AI matching assistant. Your task is to find meaningful connections between users based on their wishlists.
+You are an AI matching assistant. Your task is to find meaningful connections between users based on their wishlists and professional backgrounds.
 
 The wishlists are provided as delimiter-separated rows (delimiter: "${delimiter}").
-Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers
+Columns: userId${delimiter}userEname${delimiter}userName${delimiter}wants${delimiter}offers${delimiter}professionalInfo
 
 The "wants" and "offers" columns contain semicolon-separated arrays of short phrases extracted from each user's wishlist.
+The "professionalInfo" column contains a condensed summary of the user's professional background (headline, roles, skills, location, education). It may be empty if the user has not shared their professional profile.
 
 ${wishlistHeader}
 ${wishlistRows}
@@ -139,6 +177,10 @@ CRITICAL INSTRUCTIONS:
 - Look for complementary needs: when User A wants something that User B offers, or vice versa
 - Look for shared interests: when multiple users want or offer similar things
 - Look for skill exchanges: when one can teach what another wants to learn
+- Consider professional background when matching: if a user's wants mention needing
+  a professional (e.g., "need a lawyer", "looking for a designer"), check the
+  professionalInfo column to find users whose skills, roles, or education match
+- Professional info is supplementary context; wishlists remain the primary matching signal
 - You should actively search for connections - do NOT return an empty array unless there are truly ZERO possible connections
 - All wishlists provided have valid content - analyze them thoroughly
 

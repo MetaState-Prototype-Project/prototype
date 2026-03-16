@@ -8,6 +8,8 @@ import { MatchingService, MatchResult, WishlistData, GroupData } from "./Matchin
 import { withOperationContext } from "../context/OperationContext";
 import OpenAI from "openai";
 import { WishlistSummaryService } from "./WishlistSummaryService";
+import { ProfessionalProfileService } from "./ProfessionalProfileService";
+import type { ProfessionalProfile } from "../types/profile";
 
 export class AIMatchingService {
     private matchingService: MatchingService;
@@ -17,6 +19,7 @@ export class AIMatchingService {
     private notificationService: MatchNotificationService;
     private openai: OpenAI;
     private wishlistSummaryService: WishlistSummaryService;
+    private professionalProfileService: ProfessionalProfileService;
 
     constructor() {
         this.matchingService = new MatchingService();
@@ -28,6 +31,7 @@ export class AIMatchingService {
             apiKey: process.env.OPENAI_API_KEY,
         });
         this.wishlistSummaryService = WishlistSummaryService.getInstance();
+        this.professionalProfileService = new ProfessionalProfileService();
     }
 
     async findMatches(): Promise<void> {
@@ -51,25 +55,45 @@ export class AIMatchingService {
             const existingGroups = await this.getExistingGroups();
             console.log(`🏠 Found ${existingGroups.length} existing groups to consider`);
 
+            // Load professional profiles from local DB (populated via webhooks)
+            const uniqueEnames = [...new Set(wishlists.map((w) => w.user.ename).filter(Boolean))];
+            const profileCache = await this.professionalProfileService.getByEnames(uniqueEnames);
+
             // Convert to shared service format, filtering out wishlists without summaries
             const wishlistData: WishlistData[] = wishlists
                 .filter(wishlist => {
-                    // Only include wishlists with valid summary arrays
                     return wishlist.summaryWants && wishlist.summaryWants.length > 0 &&
                            wishlist.summaryOffers && wishlist.summaryOffers.length > 0;
                 })
-                .map(wishlist => ({
-                    id: wishlist.id,
-                    content: wishlist.content,
-                    summaryWants: wishlist.summaryWants || [],
-                    summaryOffers: wishlist.summaryOffers || [],
-                    userId: wishlist.userId,
-                    user: {
-                        id: wishlist.user.id,
-                        name: wishlist.user.name || wishlist.user.ename,
-                        ename: wishlist.user.ename
-                    }
-                }));
+                .map(wishlist => {
+                    const prof = profileCache.get(wishlist.user.ename) ?? undefined;
+                    return {
+                        id: wishlist.id,
+                        content: wishlist.content,
+                        summaryWants: wishlist.summaryWants || [],
+                        summaryOffers: wishlist.summaryOffers || [],
+                        userId: wishlist.userId,
+                        user: {
+                            id: wishlist.user.id,
+                            name: wishlist.user.name || wishlist.user.ename,
+                            ename: wishlist.user.ename,
+                            professional: prof ? {
+                                headline: prof.headline,
+                                skills: prof.skills,
+                                location: prof.location,
+                                workExperience: prof.workExperience?.map((w) => ({
+                                    company: w.company,
+                                    role: w.role,
+                                })),
+                                education: prof.education?.map((e) => ({
+                                    institution: e.institution,
+                                    degree: e.degree,
+                                    fieldOfStudy: e.fieldOfStudy,
+                                })),
+                            } : undefined,
+                        },
+                    };
+                });
 
             // Use matching service for parallel processing
             const matchResults = await this.matchingService.findMatches(wishlistData, existingGroups);

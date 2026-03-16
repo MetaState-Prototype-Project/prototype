@@ -46,6 +46,7 @@ const config: Config = {
                     sidebarPath: './sidebars.ts',
                     editUrl: 'https://github.com/MetaState-Prototype-Project/prototype/tree/main/docs/',
                 },
+                blog: false,
             } satisfies Preset.Options,
         ],
     ],
