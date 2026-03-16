@@ -1,6 +1,7 @@
 import { Repository } from "typeorm";
 import { Notification } from "../entities/Notification";
 import { Verification } from "../entities/Verification";
+import { DeviceToken } from "../entities/DeviceToken";
 import { NotificationService } from "./NotificationService";
 import type { DbService } from "../core/db/db.service";
 import { deserializeValue } from "../core/db/schema";
@@ -23,11 +24,13 @@ export class MessageNotificationService {
     constructor(
         verificationRepository: Repository<Verification>,
         notificationRepository: Repository<Notification>,
-        db: DbService
+        db: DbService,
+        deviceTokenRepository?: Repository<DeviceToken>,
     ) {
         this.notificationService = new NotificationService(
             verificationRepository,
-            notificationRepository
+            notificationRepository,
+            deviceTokenRepository,
         );
         this.db = db;
     }

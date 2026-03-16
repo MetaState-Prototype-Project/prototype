@@ -13,6 +13,7 @@ import { exampleQueries } from "./examples/examples";
 import { typeDefs } from "./typedefs";
 import { VaultAccessGuard, type VaultContext } from "./vault-access-guard";
 import { MessageNotificationService } from "../../services/MessageNotificationService";
+import { DeviceToken } from "../../entities/DeviceToken";
 import { AppDataSource } from "../../config/database";
 
 export class GraphQLServer {
@@ -54,6 +55,7 @@ export class GraphQLServer {
                 AppDataSource.getRepository("Verification"),
                 AppDataSource.getRepository("Notification"),
                 this.db,
+                AppDataSource.getRepository(DeviceToken),
             );
         }
         return this.messageNotificationService;
