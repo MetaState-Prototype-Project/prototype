@@ -166,7 +166,7 @@ export class EVaultProfileService {
 				phone: profData.phone,
 				website: profData.website,
 				location: profData.location,
-				isPublic: profData.isPublic !== false, // default to public when not explicitly set
+				isPublic: profData.isPublic === true, // default to public when not explicitly set
 				workExperience: profData.workExperience ?? [],
 				education: profData.education ?? [],
 				skills: profData.skills ?? [],
