@@ -2,6 +2,7 @@ import { AppDataSource } from "../database/data-source";
 import { File } from "../database/entities/File";
 import { FileSignee } from "../database/entities/FileSignee";
 import { SignatureContainer } from "../database/entities/SignatureContainer";
+import { S3Service } from "./S3Service";
 import crypto from "crypto";
 
 /** Soft-deleted marker from File Manager (no delete webhook); hide these in eSigner. */
@@ -19,6 +20,7 @@ export class FileService {
     private fileRepository = AppDataSource.getRepository(File);
     private fileSigneeRepository = AppDataSource.getRepository(FileSignee);
     private signatureRepository = AppDataSource.getRepository(SignatureContainer);
+    public s3Service = new S3Service();
 
     /**
      * Validates that the given filename is not the reserved soft-delete sentinel.
@@ -55,6 +57,39 @@ export class FileService {
             size,
             md5Hash,
             data,
+            ownerId,
+        };
+
+        if (description !== undefined) {
+            fileData.description = description || null;
+        }
+
+        const file = this.fileRepository.create(fileData);
+        const savedFile = await this.fileRepository.save(file);
+        return savedFile;
+    }
+
+    async createFileWithUrl(
+        id: string,
+        name: string,
+        mimeType: string,
+        size: number,
+        md5Hash: string,
+        url: string,
+        ownerId: string,
+        displayName?: string,
+        description?: string
+    ): Promise<File> {
+        this.validateFileName(name);
+
+        const fileData: Partial<File> = {
+            id,
+            name,
+            displayName: displayName || name,
+            mimeType,
+            size,
+            md5Hash,
+            url,
             ownerId,
         };
 
@@ -174,6 +209,7 @@ export class FileService {
                 mimeType: file.mimeType,
                 size: file.size,
                 md5Hash: file.md5Hash,
+                url: file.url,
                 ownerId: file.ownerId,
                 owner: file.owner ? {
                     id: file.owner.id,

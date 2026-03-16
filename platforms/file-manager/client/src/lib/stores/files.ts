@@ -12,6 +12,7 @@ export interface File {
     mimeType: string;
     size: number;
     md5Hash: string;
+    url: string | null;
     ownerId: string;
     folderId: string | null;
     createdAt: string;

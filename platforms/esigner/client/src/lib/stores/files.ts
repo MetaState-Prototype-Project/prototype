@@ -22,6 +22,7 @@ export interface Document {
     mimeType: string;
     size: number;
     md5Hash: string;
+    url: string | null;
     ownerId: string;
     owner?: {
         id: string;
@@ -98,19 +99,38 @@ export const uploadFile = async (
     try {
         isLoading.set(true);
         error.set(null);
-        const formData = new FormData();
-        formData.append("file", file);
-        if (displayName) {
-            formData.append("displayName", displayName);
-        }
-        if (description) {
-            formData.append("description", description);
-        }
-        const response = await apiClient.post("/api/files", formData, {
+
+        // Step 1: Get presigned upload URL
+        const presignResponse = await apiClient.post("/api/files/presign", {
+            filename: file.name,
+            mimeType: file.type || "application/octet-stream",
+            size: file.size,
+        });
+        const { uploadUrl, key, fileId } = presignResponse.data;
+
+        // Step 2: Upload directly to S3
+        const uploadResponse = await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
             headers: {
-                "Content-Type": "multipart/form-data",
+                "Content-Type": file.type || "application/octet-stream",
             },
         });
+        if (!uploadResponse.ok) {
+            throw new Error(`S3 upload failed with status ${uploadResponse.status}`);
+        }
+
+        // Step 3: Confirm upload
+        const response = await apiClient.post("/api/files/confirm", {
+            key,
+            fileId,
+            filename: file.name,
+            mimeType: file.type || "application/octet-stream",
+            size: file.size,
+            displayName,
+            description,
+        });
+
         await fetchDocuments();
         return response.data;
     } catch (err: unknown) {
