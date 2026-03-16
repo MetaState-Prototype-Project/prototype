@@ -68,9 +68,13 @@
 
 			// Generate preview URL if file can be previewed
 			if (file.canPreview) {
-				const API_BASE_URL = PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
-				const token = localStorage.getItem('file_manager_auth_token');
-				previewUrl = `${API_BASE_URL}/api/files/${fileId}/preview?token=${token || ''}`;
+				if (file.url) {
+					previewUrl = file.url;
+				} else {
+					const API_BASE_URL = PUBLIC_FILE_MANAGER_BASE_URL || 'http://localhost:3005';
+					const token = localStorage.getItem('file_manager_auth_token');
+					previewUrl = `${API_BASE_URL}/api/files/${fileId}/preview?token=${token || ''}`;
+				}
 			}
 
 			// Build breadcrumbs based on file's folder
@@ -130,16 +134,26 @@
 
 	async function downloadFile() {
 		try {
-			const response = await apiClient.get(`/api/files/${file.id}/download`, {
-				responseType: 'blob'
-			});
-			const url = window.URL.createObjectURL(new Blob([response.data]));
-			const link = document.createElement('a');
-			link.href = url;
-			link.setAttribute('download', file.name);
-			document.body.appendChild(link);
-			link.click();
-			link.remove();
+			if (file.url) {
+				const link = document.createElement('a');
+				link.href = file.url;
+				link.setAttribute('download', file.name);
+				link.target = '_blank';
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+			} else {
+				const response = await apiClient.get(`/api/files/${file.id}/download`, {
+					responseType: 'blob'
+				});
+				const url = window.URL.createObjectURL(new Blob([response.data]));
+				const link = document.createElement('a');
+				link.href = url;
+				link.setAttribute('download', file.name);
+				document.body.appendChild(link);
+				link.click();
+				link.remove();
+			}
 			toast.success('File downloaded');
 		} catch (error) {
 			console.error('Download failed:', error);

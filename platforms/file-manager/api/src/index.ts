@@ -85,6 +85,8 @@ app.post("/api/webhook", webhookController.handleWebhook);
 app.use(authMiddleware);
 
 // File routes
+app.post("/api/files/presign", authGuard, fileController.presignUpload);
+app.post("/api/files/confirm", authGuard, fileController.confirmUpload);
 app.post("/api/files", authGuard, fileController.uploadFile);
 app.post("/api/files/download-zip", authGuard, fileController.downloadFilesAsZip);
 app.get("/api/files", authGuard, fileController.getFiles);

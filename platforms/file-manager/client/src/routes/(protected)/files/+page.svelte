@@ -257,24 +257,49 @@
             try {
                 fileUploadStatus[file.name] = "uploading";
 
-                const formData = new FormData();
-                formData.append("file", file);
-                if (currentFolderId !== undefined) {
-                    formData.append("folderId", currentFolderId || "null");
-                }
+                // Step 1: Get presigned upload URL
+                const presignResponse = await apiClient.post("/api/files/presign", {
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size,
+                    folderId: currentFolderId || null,
+                });
+                const { uploadUrl, key, fileId } = presignResponse.data;
 
-                const response = await apiClient.post("/api/files", formData, {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    onUploadProgress: (progressEvent) => {
-                        if (progressEvent.total) {
+                // Step 2: Upload directly to S3
+                await new Promise<void>((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("PUT", uploadUrl);
+                    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+                    xhr.setRequestHeader("x-amz-acl", "public-read");
+
+                    xhr.upload.onprogress = (event) => {
+                        if (event.lengthComputable) {
                             uploadProgress[file.name] = Math.round(
-                                (progressEvent.loaded / progressEvent.total) *
-                                    100,
+                                (event.loaded / event.total) * 95,
                             );
                         }
-                    },
+                    };
+
+                    xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else {
+                            reject(new Error(`S3 upload failed with status ${xhr.status}`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error("S3 upload failed"));
+                    xhr.send(file);
+                });
+
+                // Step 3: Confirm upload
+                await apiClient.post("/api/files/confirm", {
+                    key,
+                    fileId,
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    size: file.size,
+                    folderId: currentFolderId || null,
                 });
 
                 fileUploadStatus[file.name] = "success";

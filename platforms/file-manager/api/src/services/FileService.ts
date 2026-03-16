@@ -8,6 +8,7 @@ import { User } from "../database/entities/User";
 import { In, IsNull, Not } from "typeorm";
 import crypto from "crypto";
 import { Readable } from "stream";
+import { S3Service } from "./S3Service";
 
 /** Soft-delete marker: file is hidden and syncs to eSigner so they can hide it too (no delete webhook). */
 export const SOFT_DELETED_FILE_NAME = "[[deleted]]";
@@ -18,6 +19,7 @@ export class FileService {
     private folderRepository = AppDataSource.getRepository(Folder);
     private signatureRepository = AppDataSource.getRepository(SignatureContainer);
     private userRepository = AppDataSource.getRepository(User);
+    public s3Service = new S3Service();
 
     async calculateMD5(buffer: Buffer): Promise<string> {
         return crypto.createHash('md5').update(buffer).digest('hex');
@@ -55,6 +57,50 @@ export class FileService {
             size,
             md5Hash,
             data,
+            ownerId,
+            folderId: normalizedFolderId,
+        };
+
+        if (description !== undefined) {
+            fileData.description = description || null;
+        }
+
+        const file = this.fileRepository.create(fileData);
+        const savedFile = await this.fileRepository.save(file);
+        return savedFile;
+    }
+
+    async createFileWithUrl(
+        id: string,
+        name: string,
+        mimeType: string,
+        size: number,
+        md5Hash: string,
+        url: string,
+        ownerId: string,
+        folderId?: string | null,
+        displayName?: string,
+        description?: string
+    ): Promise<File> {
+        const normalizedFolderId = folderId === 'null' || folderId === '' || folderId === null || folderId === undefined ? null : folderId;
+
+        if (normalizedFolderId) {
+            const folder = await this.folderRepository.findOne({
+                where: { id: normalizedFolderId, ownerId },
+            });
+            if (!folder) {
+                throw new Error("Folder not found or user is not the owner");
+            }
+        }
+
+        const fileData: Partial<File> = {
+            id,
+            name,
+            displayName: displayName || name,
+            mimeType,
+            size,
+            md5Hash,
+            url,
             ownerId,
             folderId: normalizedFolderId,
         };
@@ -374,7 +420,7 @@ export class FileService {
     async getFileMetadataById(id: string, userId: string): Promise<Omit<File, 'data'> | null> {
         const file = await this.fileRepository.findOne({
             where: { id },
-            select: ["id", "name", "displayName", "mimeType", "size", "md5Hash", "ownerId", "folderId", "createdAt", "updatedAt"],
+            select: ["id", "name", "displayName", "mimeType", "size", "md5Hash", "url", "ownerId", "folderId", "createdAt", "updatedAt"],
         });
 
         if (!file || file.name === SOFT_DELETED_FILE_NAME) {
@@ -413,13 +459,24 @@ export class FileService {
      * PostgreSQL large objects or file system storage.
      */
     async getFileDataStream(id: string, userId: string): Promise<{ stream: Readable; size: number; name: string; mimeType: string } | null> {
-        // First verify access with metadata only
         const metadata = await this.getFileMetadataById(id, userId);
         if (!metadata) {
             return null;
         }
 
-        // Fetch only the data column
+        if (metadata.url) {
+            // Stream from S3
+            const key = this.s3Service.extractKeyFromUrl(metadata.url);
+            const stream = await this.s3Service.getObjectStream(key);
+            return {
+                stream,
+                size: Number(metadata.size),
+                name: metadata.displayName || metadata.name,
+                mimeType: metadata.mimeType,
+            };
+        }
+
+        // Fallback: read from DB (legacy files not yet migrated)
         const result = await this.fileRepository
             .createQueryBuilder('file')
             .select('file.data')
@@ -430,9 +487,7 @@ export class FileService {
             return null;
         }
 
-        // Convert Buffer to Readable stream
         const stream = Readable.from(result.file_data);
-
         return {
             stream,
             size: Number(metadata.size),

@@ -11,6 +11,7 @@
         "size": "size",
         "md5Hash": "md5Hash",
         "data": "data",
+        "url": "url",
         "ownerId": "users(owner.id),ownerId",
         "folderId": "folderId",
         "createdAt": "__date(createdAt)",

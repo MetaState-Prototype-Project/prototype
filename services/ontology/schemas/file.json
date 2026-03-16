@@ -37,7 +37,12 @@
         "data": {
             "type": "string",
             "format": "base64",
-            "description": "Base64-encoded file content (binary data)"
+            "description": "Base64-encoded file content (binary data, legacy)"
+        },
+        "url": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "URL to the file stored in S3-compatible object storage"
         },
         "ownerId": {
             "type": "string",
