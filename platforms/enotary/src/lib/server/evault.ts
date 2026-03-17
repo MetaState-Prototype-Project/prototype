@@ -5,13 +5,17 @@ import { PUBLIC_REGISTRY_URL } from "$env/static/public";
 import type { BindingDocument, SocialConnection } from "@metastate-foundation/types";
 
 const BINDING_DOCUMENTS_QUERY = gql`
-    query GetBindingDocuments($first: Int!) {
-        bindingDocuments(first: $first) {
+    query GetBindingDocuments($first: Int!, $after: String) {
+        bindingDocuments(first: $first, after: $after) {
             edges {
                 node {
                     id
                     parsed
                 }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
             }
         }
     }
@@ -48,6 +52,10 @@ interface BindingDocumentsResponse {
                 parsed: Record<string, unknown> | null;
             };
         }>;
+        pageInfo: {
+            hasNextPage: boolean;
+            endCursor: string | null;
+        };
     };
 }
 
@@ -151,12 +159,25 @@ class EvaultService {
             },
         });
 
-        const response = await client.request<BindingDocumentsResponse>(
-            BINDING_DOCUMENTS_QUERY,
-            { first: 100 },
-        );
+        const allEdges: Array<{
+            node: { id: string; parsed: Record<string, unknown> | null };
+        }> = [];
+        let afterCursor: string | null = null;
 
-        const documents: BindingDocument[] = response.bindingDocuments.edges
+        do {
+            const response = await client.request<BindingDocumentsResponse>(
+                BINDING_DOCUMENTS_QUERY,
+                { first: 100, after: afterCursor ?? undefined },
+            );
+            allEdges.push(...response.bindingDocuments.edges);
+            if (response.bindingDocuments.pageInfo.hasNextPage) {
+                afterCursor = response.bindingDocuments.pageInfo.endCursor;
+            } else {
+                afterCursor = null;
+            }
+        } while (afterCursor !== null);
+
+        const documents: BindingDocument[] = allEdges
             .map((edge) => {
                 const parsed = edge.node.parsed;
                 if (!parsed || typeof parsed !== "object") return null;
@@ -193,7 +214,12 @@ class EvaultService {
 
                     if (!otherPartyEName) return null;
 
-                    const name = await this.resolveDisplayNameForEName(otherPartyEName);
+                    let name: string;
+                    try {
+                        name = await this.resolveDisplayNameForEName(otherPartyEName);
+                    } catch {
+                        name = otherPartyEName;
+                    }
 
                     return {
                         id: doc.id,

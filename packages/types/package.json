@@ -12,12 +12,12 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./binding-document": {
-      "import": "./dist/binding-document.js",
-      "types": "./dist/binding-document.d.ts"
+      "types": "./dist/binding-document.d.ts",
+      "import": "./dist/binding-document.js"
     }
   },
   "files": [

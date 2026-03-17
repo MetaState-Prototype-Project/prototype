@@ -255,13 +255,20 @@
 							{:else}
 								<div class="mt-4 space-y-4">
 									{#each photoDocuments as doc}
+										{@const photoSrc = typeof doc.data?.photoBlob === 'string' && doc.data.photoBlob ? doc.data.photoBlob : null}
 										<div class="rounded-md border border-slate-200 p-3">
 											<p class="text-xs text-slate-500">ID: {doc.id}</p>
-											<img
-												class="mt-2 max-h-[100px] w-full rounded object-contain"
-												src={getDataValue(doc.data, 'photoBlob')}
-												alt="Binding"
-											/>
+											{#if photoSrc}
+												<img
+													class="mt-2 max-h-[100px] w-full rounded object-contain"
+													src={photoSrc}
+													alt="Binding"
+												/>
+											{:else}
+												<div class="mt-2 flex max-h-[100px] w-full items-center justify-center rounded bg-slate-100 text-sm text-slate-500">
+													No image
+												</div>
+											{/if}
 										</div>
 									{/each}
 								</div>
