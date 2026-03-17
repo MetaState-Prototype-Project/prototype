@@ -76,7 +76,7 @@ export class CalculationService {
             const referencesData = references.map(ref => ({
                 content: ref.content,
                 numericScore: ref.numericScore,
-                author: ref.author.ename || ref.author.name || "Anonymous"
+                author: ref.anonymous ? "Anonymous" : (ref.author?.ename || ref.author?.name || "Unknown")
             }));
 
             // Fetch user's wishlist if userValues is not provided or empty

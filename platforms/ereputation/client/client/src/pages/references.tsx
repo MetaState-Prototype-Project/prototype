@@ -243,7 +243,14 @@ export default function References() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {reference.forFrom}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {reference.forFrom}
+                          {reference.anonymous && (
+                            <Badge variant="secondary" className="text-xs font-medium bg-fig/10 text-fig border border-fig/20">
+                              Anonymous
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
                         {reference.date}
@@ -374,7 +381,14 @@ export default function References() {
                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       {reference.type === 'Received' ? 'From' : 'To'}
                     </div>
-                    <div className="text-sm font-medium text-gray-900">{reference.forFrom}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-gray-900">{reference.forFrom}</span>
+                      {reference.anonymous && (
+                        <Badge variant="secondary" className="text-xs font-medium bg-fig/10 text-fig border border-fig/20">
+                          Anonymous
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <div>

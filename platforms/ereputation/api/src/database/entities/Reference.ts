@@ -34,6 +34,9 @@ export class Reference {
     @Column({ nullable: true })
     status!: string; // "signed", "revoked"
 
+    @Column({ default: false })
+    anonymous!: boolean;
+
     @CreateDateColumn()
     createdAt!: Date;
 

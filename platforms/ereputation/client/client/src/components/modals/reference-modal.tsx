@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 interface ReferenceModalProps {
   open: boolean;
@@ -61,6 +62,7 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
   const [selectedTarget, setSelectedTarget] = useState<any>(null);
   const [referenceText, setReferenceText] = useState("");
   const [referenceType, setReferenceType] = useState("");
+  const [anonymous, setAnonymous] = useState(false);
   const [signingSession, setSigningSession] = useState<{ sessionId: string; qrData: string; expiresAt: string } | null>(null);
   const [signingStatus, setSigningStatus] = useState<"pending" | "connecting" | "signed" | "expired" | "error" | "security_violation">("pending");
   const [timeRemaining, setTimeRemaining] = useState<number>(900); // 15 minutes in seconds
@@ -259,6 +261,7 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
     setSelectedTarget(null);
     setReferenceText("");
     setReferenceType("");
+    setAnonymous(false);
     setSigningSession(null);
     setSigningStatus("pending");
     setTimeRemaining(900);
@@ -326,7 +329,8 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
       targetId: selectedTarget.id,
       targetName: selectedTarget.name || selectedTarget.ename || selectedTarget.handle || 'Unknown',
       content: referenceText,
-      referenceType: 'general'
+      referenceType: 'general',
+      anonymous
     });
   };
 
@@ -562,6 +566,23 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Anonymous Toggle */}
+              <div className="flex items-center justify-between rounded-2xl border-2 border-fig/20 p-4 bg-fig-10">
+                <div>
+                  <Label htmlFor="anonymous" className="text-sm font-black text-fig">
+                    Post anonymously
+                  </Label>
+                  <p className="text-xs text-fig/70 mt-0.5">
+                    Your name will not be shown to the recipient
+                  </p>
+                </div>
+                <Switch
+                  id="anonymous"
+                  checked={anonymous}
+                  onCheckedChange={setAnonymous}
+                />
               </div>
 
               {/* Reference Text */}
