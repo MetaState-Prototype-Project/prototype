@@ -1,4 +1,5 @@
 import type { EVault } from '../../routes/api/evaults/+server';
+import type { BindingDocument, SocialConnection } from '@metastate-foundation/types';
 import { cacheService } from './cacheService';
 
 export class EVaultService {
@@ -111,6 +112,32 @@ export class EVaultService {
 			return data.evault || {};
 		} catch (error) {
 			console.error('Failed to fetch eVault details:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Get binding documents for a specific eVault by evaultId
+	 */
+	static async getBindingDocuments(
+		evaultId: string
+	): Promise<{ documents: BindingDocument[]; socialConnections: SocialConnection[]; eName: string }> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(evaultId)}/binding-documents`
+			);
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.error || `HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return {
+				documents: data.documents || [],
+				socialConnections: data.socialConnections || [],
+				eName: data.eName || ''
+			};
+		} catch (error) {
+			console.error('Failed to fetch binding documents:', error);
 			throw error;
 		}
 	}

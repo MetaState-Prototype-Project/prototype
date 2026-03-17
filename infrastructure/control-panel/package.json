@@ -43,6 +43,8 @@
 		"vite": "^7.0.4"
 	},
 	"dependencies": {
+		"graphql-request": "^7.3.1",
+		"@metastate-foundation/types": "workspace:*",
 		"@hugeicons/core-free-icons": "^1.0.13",
 		"@hugeicons/svelte": "^1.0.2",
 		"@inlang/paraglide-js": "^2.0.0",

@@ -2,7 +2,7 @@ import axios from "axios";
 import { GraphQLClient, gql } from "graphql-request";
 import { env } from "$env/dynamic/private";
 import { PUBLIC_REGISTRY_URL } from "$env/static/public";
-import type { BindingDocument, SocialConnection } from "./types";
+import type { BindingDocument, SocialConnection } from "@metastate-foundation/types";
 
 const BINDING_DOCUMENTS_QUERY = gql`
     query GetBindingDocuments($first: Int!) {
