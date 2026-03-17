@@ -102,7 +102,7 @@ export class VotingReputationService {
             const referencesData = references.map(ref => ({
                 content: ref.content,
                 numericScore: ref.numericScore,
-                author: ref.author.ename || ref.author.name || "Anonymous"
+                author: ref.anonymous ? "Anonymous" : (ref.author?.ename || ref.author?.name || "Unknown")
             }));
             
             memberReferencesMap.set(member.id, referencesData);
@@ -292,7 +292,7 @@ export class VotingReputationService {
             const referencesData = references.map(ref => ({
                 content: ref.content,
                 numericScore: ref.numericScore,
-                author: ref.author.ename || ref.author.name || "Anonymous"
+                author: ref.anonymous ? "Anonymous" : (ref.author?.ename || ref.author?.name || "Unknown")
             }));
 
             // Build prompt for AI

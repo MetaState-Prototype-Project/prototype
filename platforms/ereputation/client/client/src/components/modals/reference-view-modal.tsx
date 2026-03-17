@@ -24,7 +24,13 @@ export default function ReferenceViewModal({ open, onOpenChange, reference }: Re
             </svg>
           </div>
           <DialogTitle className="text-lg sm:text-xl font-black text-fig">
-            eReference {reference?.type === 'Sent' ? 'for' : 'from'} {reference?.forFrom}
+            eReference {reference?.type === 'Sent' ? 'for' : 'from'}{' '}
+            {reference?.forFrom}
+            {reference?.anonymous && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-fig/10 text-fig border border-fig/20">
+                Anonymous
+              </span>
+            )}
           </DialogTitle>
           <DialogDescription className="text-fig/70 text-sm font-medium mt-2">
             Professional reference details and status
