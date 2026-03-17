@@ -236,18 +236,12 @@ export default function ReferenceModal({ open, onOpenChange }: ReferenceModalPro
     };
   }, [eventSource]);
 
-  // Reset signing state when modal closes
+  // Reset form and signing state when modal closes (Cancel, backdrop click, escape, etc.)
   useEffect(() => {
     if (!open) {
-      if (eventSource) {
-        eventSource.close();
-        setEventSource(null);
-      }
-      setSigningSession(null);
-      setSigningStatus("pending");
-      setTimeRemaining(900);
+      resetForm();
     }
-  }, [open, eventSource]);
+  }, [open]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

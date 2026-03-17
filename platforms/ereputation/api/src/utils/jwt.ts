@@ -1,6 +1,5 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 
-// Fail fast if JWT_SECRET is missing
 if (!process.env.EREPUTATION_JWT_SECRET) {
     throw new Error("EREPUTATION_JWT_SECRET environment variable is required but was not provided. Please set EREPUTATION_JWT_SECRET in your environment configuration.");
 }
