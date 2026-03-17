@@ -165,16 +165,14 @@ class EvaultService {
         let afterCursor: string | null = null;
 
         do {
-            const response = await client.request<BindingDocumentsResponse>(
+            const res: BindingDocumentsResponse = await client.request<BindingDocumentsResponse>(
                 BINDING_DOCUMENTS_QUERY,
                 { first: 100, after: afterCursor ?? undefined },
             );
-            allEdges.push(...response.bindingDocuments.edges);
-            if (response.bindingDocuments.pageInfo.hasNextPage) {
-                afterCursor = response.bindingDocuments.pageInfo.endCursor;
-            } else {
-                afterCursor = null;
-            }
+            allEdges.push(...res.bindingDocuments.edges);
+            afterCursor = res.bindingDocuments.pageInfo.hasNextPage
+                ? res.bindingDocuments.pageInfo.endCursor
+                : null;
         } while (afterCursor !== null);
 
         const documents: BindingDocument[] = allEdges
