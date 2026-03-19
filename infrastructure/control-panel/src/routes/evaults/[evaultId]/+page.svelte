@@ -339,6 +339,11 @@
 											<p class="text-sm text-slate-600">
 												Witness eName: {connection.witnessEName || 'Unknown'}
 											</p>
+											{#if connection.relationDescription}
+												<p class="mt-2 text-sm text-slate-600 italic">
+													{connection.relationDescription}
+												</p>
+											{/if}
 										</div>
 									{/each}
 								</div>

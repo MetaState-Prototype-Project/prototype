@@ -22,6 +22,7 @@ export interface SocialConnection {
 	id: string;
 	name: string;
 	witnessEName: string | null;
+	relationDescription?: string | null;
 	signatures?: BindingDocumentSignature[];
 }
 

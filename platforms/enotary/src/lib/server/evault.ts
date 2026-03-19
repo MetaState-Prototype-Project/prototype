@@ -219,10 +219,16 @@ class EvaultService {
                         name = otherPartyEName;
                     }
 
+                    const relationDescription =
+                        typeof doc.data?.relation_description === "string"
+                            ? doc.data.relation_description
+                            : undefined;
+
                     return {
                         id: doc.id,
                         name,
                         witnessEName: otherPartyEName,
+                        relationDescription,
                         signatures: doc.signatures,
                     };
                 }),
