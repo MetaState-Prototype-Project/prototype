@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import GroupContributionDonut from '$lib/components/charts/GroupContributionDonut.svelte';
 	import type { GroupInsights } from '$lib/services/evaultService';
 	import { EVaultService } from '$lib/services/evaultService';
 	import { onMount } from 'svelte';
@@ -70,10 +71,14 @@
 		{@const stats = insights.messageStats}
 		{@const withSender = stats.messagesWithSenderBucket}
 		{@const withoutSender = stats.messagesWithoutSender}
+		<p class="text-sm font-medium text-gray-500">Real name</p>
 		<h1 class="text-3xl font-bold text-gray-900">
 			{asString(m.name) || insights.evault.ename || evaultId}
 		</h1>
-		<p class="mt-1 font-mono text-sm text-gray-500">{insights.evault.ename}</p>
+		<p class="mt-3 text-sm text-gray-600">
+			<span class="text-gray-500">eName</span>
+			<span class="ml-2 font-mono text-gray-900">{insights.evault.ename}</span>
+		</p>
 		{#if asString(m.description)}
 			<p class="mt-3 max-w-3xl text-gray-700">{asString(m.description)}</p>
 		{/if}
@@ -98,12 +103,6 @@
 						</dd>
 					</div>
 				</dl>
-				<a
-					href="/evaults/{encodeURIComponent(evaultId)}"
-					class="mt-4 inline-block text-sm text-blue-600 hover:underline"
-				>
-					Open pod logs &amp; health →
-				</a>
 			</div>
 
 			<div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -129,6 +128,10 @@
 			</div>
 		</div>
 
+		<div class="mt-8">
+			<GroupContributionDonut senderRows={stats.senderRows ?? []} groupEvaultId={evaultId} />
+		</div>
+
 		<div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
 			<div class="border-b border-gray-200 px-5 py-3">
 				<h2 class="text-lg font-semibold text-gray-900">Messages by sender</h2>
@@ -150,9 +153,23 @@
 						<tbody class="divide-y divide-gray-100">
 							{#each stats.senderRows as row}
 								<tr class={row.ename === '—' ? 'bg-gray-50/80' : ''}>
-									<td class="px-4 py-2 text-gray-900">{row.displayName}</td>
+									<td class="px-4 py-2 text-gray-900">
+										{#if row.evaultPageId}
+											<a
+												href="/evaults/{encodeURIComponent(row.evaultPageId)}"
+												class="font-medium text-blue-600 hover:underline">{row.displayName}</a>
+										{:else}
+											{row.displayName}
+										{/if}
+									</td>
 									<td class="px-4 py-2 font-mono text-gray-900">{row.ename}</td>
-									<td class="px-4 py-2 text-right font-medium text-gray-900">{row.messageCount}</td>
+									<td class="px-4 py-2 text-right font-medium">
+										<a
+											href="/groups/{encodeURIComponent(evaultId)}/messages?bucket={encodeURIComponent(
+												row.bucketKey
+											)}"
+											class="text-blue-600 hover:underline">{row.messageCount}</a>
+									</td>
 								</tr>
 							{/each}
 						</tbody>
