@@ -17,9 +17,13 @@ const defaultData: CacheData = {
 	isStale: true
 };
 
+const DEFAULT_SENDER_PROFILE_TTL_MS = 10 * 60 * 1000;
+
 class CacheService {
 	private db: any | null = null;
 	private isInitialized = false;
+	/** Server-only: MetaEnvelope id (message sender global id) → resolved display name; reduces cross-vault probes. */
+	private senderProfileDisplayByGlobalId = new Map<string, { value: string; expiresAt: number }>();
 
 	constructor() {
 		// Only initialize on the server side
@@ -172,6 +176,38 @@ class CacheService {
 			this.db.data = defaultData;
 			await this.db.write();
 		}
+	}
+
+	/**
+	 * In-memory TTL cache (Node only). Returns undefined if missing or expired.
+	 */
+	getCachedSenderProfileDisplayName(globalMetaEnvelopeId: string): string | undefined {
+		if (typeof window !== 'undefined') {
+			return undefined;
+		}
+		const row = this.senderProfileDisplayByGlobalId.get(globalMetaEnvelopeId);
+		if (!row) {
+			return undefined;
+		}
+		if (Date.now() > row.expiresAt) {
+			this.senderProfileDisplayByGlobalId.delete(globalMetaEnvelopeId);
+			return undefined;
+		}
+		return row.value;
+	}
+
+	setCachedSenderProfileDisplayName(
+		globalMetaEnvelopeId: string,
+		displayName: string,
+		ttlMs: number = DEFAULT_SENDER_PROFILE_TTL_MS
+	): void {
+		if (typeof window !== 'undefined' || !displayName.trim()) {
+			return;
+		}
+		this.senderProfileDisplayByGlobalId.set(globalMetaEnvelopeId, {
+			value: displayName.trim(),
+			expiresAt: Date.now() + ttlMs
+		});
 	}
 }
 

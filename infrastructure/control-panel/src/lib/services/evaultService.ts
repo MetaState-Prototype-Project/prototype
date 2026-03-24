@@ -1,6 +1,29 @@
 import type { EVault } from '../../routes/api/evaults/+server';
 import { cacheService } from './cacheService';
 
+export type GroupSenderRow = {
+	/** User ontology display name / username, same idea as the dashboard. */
+	displayName: string;
+	/** W3ID ename when known, raw sender id when not in registry, or "—" for system/no sender. */
+	ename: string;
+	messageCount: number;
+};
+
+export type GroupInsights = {
+	evault: { ename: string; uri: string; evault: string };
+	manifest: Record<string, unknown>;
+	messageStats: {
+		totalCount: number;
+		messagesScanned: number;
+		/** Messages bucketed to a sender id or resolvable ename (excludes null / missing sender). */
+		messagesWithSenderBucket: number;
+		/** Messages with no sender id in the payload. */
+		messagesWithoutSender: number;
+		capped: boolean;
+		senderRows: GroupSenderRow[];
+	};
+};
+
 export class EVaultService {
 	/**
 	 * Get eVaults - load from cache first, then fetch fresh data
@@ -111,6 +134,38 @@ export class EVaultService {
 			return data.evault || {};
 		} catch (error) {
 			console.error('Failed to fetch eVault details:', error);
+			throw error;
+		}
+	}
+
+	static async getGroupEVaults(): Promise<EVault[]> {
+		try {
+			const response = await fetch('/api/evaults/groups');
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.evaults || [];
+		} catch (error) {
+			console.error('Failed to fetch group eVaults:', error);
+			throw error;
+		}
+	}
+
+	static async getGroupInsights(evaultId: string): Promise<GroupInsights> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(evaultId)}/group-insights`
+			);
+			if (!response.ok) {
+				const errBody = await response.json().catch(() => ({}));
+				const message =
+					typeof errBody?.error === 'string' ? errBody.error : `HTTP ${response.status}`;
+				throw new Error(message);
+			}
+			return (await response.json()) as GroupInsights;
+		} catch (error) {
+			console.error('Failed to fetch group insights:', error);
 			throw error;
 		}
 	}
