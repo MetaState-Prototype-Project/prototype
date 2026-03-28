@@ -82,7 +82,7 @@ async function fetchExistingEnvelopes(
     let hasNextPage = true;
 
     while (hasNextPage) {
-        const response = await axios.post(
+        const response: any = await axios.post(
             graphqlUrl,
             {
                 query: FETCH_EXISTING_QUERY,
@@ -106,7 +106,7 @@ async function fetchExistingEnvelopes(
             throw new Error(`GraphQL errors: ${JSON.stringify(response.data.errors)}`);
         }
 
-        const data = response.data.data.metaEnvelopes;
+        const data: any = response.data.data.metaEnvelopes;
         for (const edge of data.edges) {
             all.push({ id: edge.node.id, parsed: edge.node.parsed });
         }
