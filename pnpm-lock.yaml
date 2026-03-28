@@ -3716,12 +3716,21 @@ importers:
 
   services/trust-score:
     dependencies:
+      axios:
+        specifier: ^1.13.6
+        version: 1.13.6
       cors:
         specifier: ^2.8.5
         version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.22.1
+      graphql:
+        specifier: ^16.13.1
+        version: 16.13.1
+      graphql-request:
+        specifier: ^7.4.0
+        version: 7.4.0(graphql@16.13.1)
     devDependencies:
       nodemon:
         specifier: ^3.0.2
