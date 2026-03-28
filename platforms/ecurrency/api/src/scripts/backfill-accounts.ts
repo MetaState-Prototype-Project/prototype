@@ -89,7 +89,7 @@ async function fetchExistingEnvelopes(
                 variables: {
                     first: 100,
                     after: cursor,
-                    filter: { ontology },
+                    filter: { ontologyId: ontology },
                 },
             },
             {
@@ -382,9 +382,11 @@ async function main() {
                     );
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             const msg = error instanceof Error ? error.message : String(error);
+            const responseData = error?.response?.data ? JSON.stringify(error.response.data) : "no response body";
             console.error(`[BACKFILL ERROR] Vault ${vaultOwnerEname}: ${msg}`);
+            console.error(`[BACKFILL ERROR] Response: ${responseData}`);
             totalErrors += inputs.length;
         }
     }
