@@ -13,8 +13,11 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "axios": "^1.13.6",
         "cors": "^2.8.5",
-        "express": "^4.21.2"
+        "express": "^4.21.2",
+        "graphql": "^16.13.1",
+        "graphql-request": "^7.4.0"
     },
     "devDependencies": {
         "nodemon": "^3.0.2",
