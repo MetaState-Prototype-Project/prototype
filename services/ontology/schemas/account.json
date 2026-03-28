@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "schemaId": "6fda64db-fd14-4fa2-bd38-77d2e5e6136d",
+    "title": "Account",
+    "type": "object",
+    "properties": {
+        "accountId": {
+            "type": "string",
+            "description": "Account identifier matching accountId in ledger MetaEnvelopes"
+        },
+        "accountEname": {
+            "type": "string",
+            "description": "Global eName of the account holder (user or group)"
+        },
+        "accountType": {
+            "type": "string",
+            "enum": ["user", "group"],
+            "description": "Type of account holder"
+        },
+        "currencyEname": {
+            "type": "string",
+            "description": "Global eName of the currency"
+        },
+        "currencyName": {
+            "type": "string",
+            "description": "Display name of the currency"
+        },
+        "balance": {
+            "type": "number",
+            "description": "Current account balance"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the account was first active"
+        }
+    },
+    "required": ["accountId", "accountEname", "accountType", "currencyEname", "currencyName", "balance", "createdAt"],
+    "additionalProperties": false
+}
