@@ -1,7 +1,8 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const { calculateTrustScore } = require("./score");
-const { fetchUserTrustData } = require("./userDataService");
+const { fetchUserTrustData, setRegistryUrl } = require("./userDataService");
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -10,9 +11,22 @@ const PORT = process.env.PORT || 3005;
 app.use(cors());
 app.use(express.json());
 
+// Serve the test UI
+app.use(express.static(path.join(__dirname, "public")));
+
 // Health check
 app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
+});
+
+// Runtime config — set registry URL from UI
+app.post("/config", (req, res) => {
+    const { registryUrl } = req.body;
+    if (!registryUrl || typeof registryUrl !== "string") {
+        return res.status(400).json({ error: "registryUrl is required" });
+    }
+    setRegistryUrl(registryUrl);
+    return res.json({ ok: true, registryUrl });
 });
 
 /**

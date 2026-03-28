@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trust Score Tester</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e1e4e8; padding: 2rem; }
+  h1 { font-size: 1.4rem; margin-bottom: 1.5rem; color: #58a6ff; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; max-width: 520px; margin: 0 auto; }
+  label { display: block; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.3rem; }
+  input { width: 100%; padding: 0.5rem 0.7rem; border: 1px solid #30363d; border-radius: 4px; background: #0d1117; color: #c9d1d9; font-size: 0.95rem; margin-bottom: 1rem; }
+  input:focus { outline: none; border-color: #58a6ff; }
+  button { padding: 0.6rem 1.4rem; border: none; border-radius: 4px; font-size: 0.95rem; cursor: pointer; font-weight: 600; }
+  .btn-config { background: #30363d; color: #c9d1d9; margin-bottom: 1rem; }
+  .btn-config:hover { background: #3a424d; }
+  .btn-score { background: #238636; color: #fff; }
+  .btn-score:hover { background: #2ea043; }
+  .btn-score:disabled { opacity: 0.5; cursor: not-allowed; }
+  .divider { border-top: 1px solid #30363d; margin: 1.2rem 0; }
+  .status { font-size: 0.8rem; padding: 0.4rem 0; }
+  .status.ok { color: #3fb950; }
+  .status.err { color: #f85149; }
+  #result { margin-top: 1.5rem; display: none; }
+  .score-big { font-size: 3rem; font-weight: 700; text-align: center; margin: 0.5rem 0; }
+  .score-big .max { font-size: 1.2rem; color: #8b949e; }
+  .breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 1rem; }
+  .param { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 0.8rem; }
+  .param-label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .param-value { font-size: 1.3rem; font-weight: 600; margin-top: 0.2rem; }
+  .param-value.on { color: #3fb950; }
+  .param-value.off { color: #8b949e; }
+  .raw { margin-top: 1rem; }
+  .raw summary { font-size: 0.8rem; color: #8b949e; cursor: pointer; }
+  .raw pre { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; padding: 0.8rem; margin-top: 0.5rem; font-size: 0.8rem; overflow-x: auto; }
+  .error-box { background: #2d1215; border: 1px solid #f85149; border-radius: 6px; padding: 1rem; margin-top: 1rem; color: #f85149; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Trust Score Tester</h1>
+
+  <label for="registry">Registry URL</label>
+  <input id="registry" type="text" placeholder="http://localhost:4321" value="http://localhost:4321">
+  <button class="btn-config" onclick="configure()">Set Registry</button>
+  <div id="configStatus" class="status"></div>
+
+  <div class="divider"></div>
+
+  <label for="ename">eName (W3ID)</label>
+  <input id="ename" type="text" placeholder="@julien.w3id">
+  <button class="btn-score" id="scoreBtn" onclick="getScore()">Get Trust Score</button>
+
+  <div id="result">
+    <div class="score-big"><span id="scoreValue">0</span><span class="max"> / 10</span></div>
+    <div class="breakdown">
+      <div class="param">
+        <div class="param-label">KYC Verified</div>
+        <div class="param-value" id="pVerification">-</div>
+      </div>
+      <div class="param">
+        <div class="param-label">Account Age</div>
+        <div class="param-value" id="pAccountAge">-</div>
+      </div>
+      <div class="param">
+        <div class="param-label">Key Location</div>
+        <div class="param-value" id="pKeyLocation">-</div>
+      </div>
+      <div class="param">
+        <div class="param-label">Social Connections</div>
+        <div class="param-value" id="pSocial">-</div>
+      </div>
+    </div>
+    <details class="raw">
+      <summary>Raw JSON</summary>
+      <pre id="rawJson"></pre>
+    </details>
+  </div>
+
+  <div id="errorBox" class="error-box" style="display:none"></div>
+</div>
+
+<script>
+const API = '';  // same origin
+
+async function configure() {
+  const url = document.getElementById('registry').value.trim();
+  const status = document.getElementById('configStatus');
+  if (!url) { status.className = 'status err'; status.textContent = 'Enter a registry URL'; return; }
+  try {
+    const res = await fetch(API + '/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ registryUrl: url }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      status.className = 'status ok';
+      status.textContent = 'Registry set: ' + data.registryUrl;
+    } else {
+      status.className = 'status err';
+      status.textContent = data.error || 'Failed';
+    }
+  } catch (e) {
+    status.className = 'status err';
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function getScore() {
+  const eName = document.getElementById('ename').value.trim();
+  const errBox = document.getElementById('errorBox');
+  const resultDiv = document.getElementById('result');
+  errBox.style.display = 'none';
+  resultDiv.style.display = 'none';
+
+  if (!eName) { errBox.textContent = 'Enter an eName'; errBox.style.display = 'block'; return; }
+
+  const btn = document.getElementById('scoreBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+
+  try {
+    const res = await fetch(API + '/trust-score/' + encodeURIComponent(eName));
+    const data = await res.json();
+
+    if (!res.ok) {
+      errBox.textContent = data.error || 'Request failed (' + res.status + ')';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    document.getElementById('scoreValue').textContent = data.score;
+    const b = data.breakdown;
+
+    const vEl = document.getElementById('pVerification');
+    vEl.textContent = b.verification === 4 ? 'Yes (+4)' : 'No (+0)';
+    vEl.className = 'param-value ' + (b.verification > 0 ? 'on' : 'off');
+
+    const aEl = document.getElementById('pAccountAge');
+    aEl.textContent = b.accountAge === 1 ? '>180d (+1)' : '<=180d (+0)';
+    aEl.className = 'param-value ' + (b.accountAge > 0 ? 'on' : 'off');
+
+    const kEl = document.getElementById('pKeyLocation');
+    kEl.textContent = b.keyLocation === 1 ? 'TPM (+1)' : 'SW (+0)';
+    kEl.className = 'param-value ' + (b.keyLocation > 0 ? 'on' : 'off');
+
+    const sEl = document.getElementById('pSocial');
+    sEl.textContent = '+' + b.socialConnections;
+    sEl.className = 'param-value ' + (b.socialConnections > 0 ? 'on' : 'off');
+
+    document.getElementById('rawJson').textContent = JSON.stringify(data, null, 2);
+    resultDiv.style.display = 'block';
+  } catch (e) {
+    errBox.textContent = 'Error: ' + e.message;
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Get Trust Score';
+  }
+}
+
+document.getElementById('ename').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') getScore();
+});
+</script>
+</body>
+</html>
