@@ -17,10 +17,12 @@ export class ReferenceService {
         referenceType: string;
         numericScore?: number;
         authorId: string;
+        anonymous?: boolean;
     }): Promise<Reference> {
         // References start as "pending" and require a signature to become "signed"
         const reference = this.referenceRepository.create({
             ...data,
+            anonymous: data.anonymous ?? false,
             status: "pending"
         });
         return await this.referenceRepository.save(reference);

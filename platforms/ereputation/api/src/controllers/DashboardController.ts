@@ -84,8 +84,14 @@ export class DashboardController {
             // Add received references (only if filter allows)
             if (filter === 'all' || filter === 'received-references') {
                 receivedReferences.forEach(ref => {
-                    // Get author name, preferring name over ename, with fallback
-                    const authorName = ref.author?.name || ref.author?.ename || ref.author?.handle || 'Unknown';
+                    // Get author name; use "Anonymous" when reference is anonymous
+                    const authorName = ref.anonymous
+                        ? 'Anonymous'
+                        : (ref.author?.name || ref.author?.ename || ref.author?.handle || 'Unknown');
+                    // For anonymous refs, exclude author from data to avoid leaking identity
+                    const refData = ref.anonymous
+                        ? { ...ref, author: undefined, authorId: undefined }
+                        : ref;
                     activities.push({
                         id: `ref-received-${ref.id}`,
                         type: 'reference',
@@ -94,7 +100,7 @@ export class DashboardController {
                         targetType: 'user',
                         date: ref.createdAt,
                         status: this.mapReferenceStatus(ref.status),
-                        data: ref
+                        data: { ...refData, anonymous: ref.anonymous ?? false }
                     });
                 });
             }
