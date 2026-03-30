@@ -22,6 +22,9 @@ type HardwareFallbackEvent = {
     originalError: unknown;
 };
 
+type EvaultKeyResolver = () => Promise<string[]>;
+type EvaultSyncHandler = () => Promise<void>;
+
 const CONTEXTS_KEY = "keyService.contexts";
 const READY_KEY = "keyService.ready";
 
@@ -33,6 +36,9 @@ export class KeyService {
     #onHardwareFallback:
         | ((event: HardwareFallbackEvent) => Promise<void> | void)
         | null = null;
+    #evaultKeyResolver: EvaultKeyResolver | null = null;
+    #evaultSyncHandler: EvaultSyncHandler | null = null;
+    #syncedKeyIds = new Set<string>();
 
     constructor(store: Store) {
         this.#store = store;
@@ -63,6 +69,7 @@ export class KeyService {
     async reset(): Promise<void> {
         this.#managerCache.clear();
         this.#contexts.clear();
+        this.#syncedKeyIds.clear();
         await this.#store.delete(CONTEXTS_KEY);
         await this.#store.delete(READY_KEY);
         this.#ready = false;
@@ -89,8 +96,40 @@ export class KeyService {
             this.#managerCache.delete(cacheKey);
         }
 
+        // Check persisted context — exact match first, then cross-context by keyId
+        const persisted =
+            this.#contexts.get(cacheKey) ??
+            this.#findPersistedByKeyId(keyId);
+        if (persisted) {
+            const restoredManager = await KeyManagerFactory.getKeyManager({
+                keyId,
+                useHardware: persisted.managerType === "hardware",
+                preVerificationMode: false,
+            });
+            const keyExists = await restoredManager.exists(keyId);
+            if (keyExists) {
+                this.#managerCache.set(cacheKey, restoredManager);
+                await this.#touchContext(cacheKey, restoredManager);
+                return restoredManager;
+            }
+            // Key missing from storage — clear stale persisted entry, fall through
+            this.#contexts.delete(cacheKey);
+            await this.#store.set(
+                CONTEXTS_KEY,
+                Object.fromEntries(this.#contexts),
+            );
+        }
+
+        // Check eVault for which local key is actually registered (source of truth)
+        const evaultMatch = await this.#resolveManagerByEvaultKey(keyId);
+        if (evaultMatch) {
+            this.#managerCache.set(cacheKey, evaultMatch);
+            await this.#persistContext(cacheKey, evaultMatch, keyId, context);
+            return evaultMatch;
+        }
+
+        // Last resort: factory logic (for fresh users with no persisted context and no eVault key yet)
         const isFake = await this.#isPreVerificationUser();
-        // Force pre-verification mode if user is fake/pre-verification
         const effectiveContext = isFake ? "pre-verification" : context;
         const manager = await KeyManagerFactory.getKeyManagerForContext(
             keyId,
@@ -185,6 +224,10 @@ export class KeyService {
             );
         }
 
+        // Ensure the key we're about to use is synced to the eVault before signing.
+        // Only done once per session per keyId to avoid repeated network calls.
+        await this.#ensureKeySyncedToEvault(keyId, manager);
+
         const cacheKey = this.#getCacheKey(keyId, context);
         try {
             console.log("=".repeat(70));
@@ -198,12 +241,8 @@ export class KeyService {
             await this.#touchContext(cacheKey, manager);
             return signature;
         } catch (signError) {
-            if (managerType !== "hardware") {
-                throw signError;
-            }
-
             console.warn(
-                "[KeyService] Hardware signing failed; falling back to software key",
+                `[KeyService] Signing failed (${managerType}); attempting eVault key resolution`,
                 {
                     keyId,
                     context,
@@ -212,6 +251,42 @@ export class KeyService {
                             ? signError.message
                             : String(signError),
                 },
+            );
+
+            // Try eVault resolution: find whichever local key matches the registered one
+            this.#syncedKeyIds.delete(keyId);
+            const evaultMatch = await this.#resolveManagerByEvaultKey(keyId);
+            if (evaultMatch && evaultMatch.getType() !== managerType) {
+                console.log(
+                    `[KeyService] eVault match found (${evaultMatch.getType()}), retrying sign`,
+                );
+                const retrySignature = await evaultMatch.signPayload(
+                    keyId,
+                    payload,
+                );
+                this.#managerCache.set(cacheKey, evaultMatch);
+                await this.#persistContext(
+                    cacheKey,
+                    evaultMatch,
+                    keyId,
+                    context,
+                );
+                this.#syncedKeyIds.add(keyId);
+                console.log(
+                    `✅ [KeyService] eVault-resolved signature: ${retrySignature.substring(0, 50)}...`,
+                );
+                console.log("=".repeat(70));
+                return retrySignature;
+            }
+
+            // If not hardware, no further fallback possible
+            if (managerType !== "hardware") {
+                throw signError;
+            }
+
+            // Hardware-specific fallback: try software key, generate if needed, then sync
+            console.warn(
+                "[KeyService] No eVault match; falling back to software key generation",
             );
 
             const softwareManager = await KeyManagerFactory.getKeyManager({
@@ -325,6 +400,7 @@ export class KeyService {
     async clear() {
         this.#managerCache.clear();
         this.#contexts.clear();
+        this.#syncedKeyIds.clear();
         await this.#store.delete(CONTEXTS_KEY);
         await this.#store.delete(READY_KEY);
         this.#ready = false;
@@ -336,6 +412,14 @@ export class KeyService {
             | null,
     ): void {
         this.#onHardwareFallback = handler;
+    }
+
+    setEvaultKeyResolver(resolver: EvaultKeyResolver | null): void {
+        this.#evaultKeyResolver = resolver;
+    }
+
+    setEvaultSyncHandler(handler: EvaultSyncHandler | null): void {
+        this.#evaultSyncHandler = handler;
     }
 
     async #runHardwareFallbackCallback(
@@ -350,5 +434,122 @@ export class KeyService {
                 callbackError,
             );
         }
+    }
+
+    /**
+     * Ensure the key we're about to use is synced to the eVault.
+     * Checks the eVault once per session per keyId; if our public key
+     * is not in the registered keys, triggers a sync before signing.
+     */
+    async #ensureKeySyncedToEvault(
+        keyId: string,
+        manager: KeyManager,
+    ): Promise<void> {
+        if (this.#syncedKeyIds.has(keyId)) return;
+        if (!this.#evaultKeyResolver || !this.#evaultSyncHandler) return;
+
+        try {
+            const publicKey = await manager.getPublicKey(keyId);
+            if (!publicKey) return;
+
+            const registeredKeys = await this.#evaultKeyResolver();
+            if (registeredKeys.includes(publicKey)) {
+                // Already synced — mark and skip future checks
+                this.#syncedKeyIds.add(keyId);
+                return;
+            }
+
+            // Our key is not registered — sync it before signing
+            console.warn(
+                `[KeyService] Key ${keyId} (${manager.getType()}) not found in eVault; syncing before sign`,
+            );
+            await this.#evaultSyncHandler();
+            this.#syncedKeyIds.add(keyId);
+        } catch (error) {
+            // Non-fatal: if sync check fails (offline, etc), proceed with signing
+            console.warn(
+                "[KeyService] Pre-sign eVault sync check failed:",
+                error instanceof Error ? error.message : String(error),
+            );
+        }
+    }
+
+    /**
+     * Find any persisted context entry for the given keyId, regardless of context.
+     * This handles the case where a key was created with "onboarding" context
+     * but is now being used with "signing" context.
+     */
+    #findPersistedByKeyId(keyId: string): PersistedContext | undefined {
+        for (const entry of this.#contexts.values()) {
+            if (entry.keyId === keyId) {
+                return entry;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Query the eVault for registered public keys and find a local key manager
+     * whose public key matches. The eVault is the source of truth — only a key
+     * that is synced there can produce valid signatures.
+     */
+    async #resolveManagerByEvaultKey(
+        keyId: string,
+    ): Promise<KeyManager | null> {
+        if (!this.#evaultKeyResolver) return null;
+
+        let registeredKeys: string[];
+        try {
+            registeredKeys = await this.#evaultKeyResolver();
+        } catch {
+            return null;
+        }
+        if (registeredKeys.length === 0) return null;
+
+        // Check software key first (more likely to be the mismatched one)
+        try {
+            const softwareManager = await KeyManagerFactory.getKeyManager({
+                keyId,
+                useHardware: false,
+                preVerificationMode: false,
+            });
+            if (await softwareManager.exists(keyId)) {
+                const pubKey = await softwareManager.getPublicKey(keyId);
+                if (pubKey && registeredKeys.includes(pubKey)) {
+                    console.log(
+                        "[KeyService] eVault key matches local software key",
+                    );
+                    return softwareManager;
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+
+        // Check hardware key
+        try {
+            const hardwareAvailable =
+                await KeyManagerFactory.isHardwareAvailable();
+            if (hardwareAvailable) {
+                const hardwareManager = await KeyManagerFactory.getKeyManager({
+                    keyId,
+                    useHardware: true,
+                    preVerificationMode: false,
+                });
+                if (await hardwareManager.exists(keyId)) {
+                    const pubKey = await hardwareManager.getPublicKey(keyId);
+                    if (pubKey && registeredKeys.includes(pubKey)) {
+                        console.log(
+                            "[KeyService] eVault key matches local hardware key",
+                        );
+                        return hardwareManager;
+                    }
+                }
+            }
+        } catch {
+            /* ignore */
+        }
+
+        return null;
     }
 }

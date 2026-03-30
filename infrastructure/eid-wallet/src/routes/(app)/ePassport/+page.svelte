@@ -537,7 +537,7 @@ async function confirmSocialBinding() {
         });
         const sig = await globalState.walletSdkAdapter.signPayload(
             "default",
-            "default",
+            "signing",
             payload,
         );
         await addCounterpartySignature(

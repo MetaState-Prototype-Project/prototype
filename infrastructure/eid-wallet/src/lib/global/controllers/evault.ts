@@ -681,6 +681,63 @@ export class VaultController {
         }
     }
 
+    /**
+     * Fetch the public key(s) currently registered in the eVault via /whois.
+     * Decodes JWT payloads from keyBindingCertificates without full verification
+     * — we only need the public key strings for local comparison.
+     * Returns empty array on any failure (network, parse, etc).
+     */
+    async fetchRegisteredPublicKeys(eName: string): Promise<string[]> {
+        const vault = await this.vault;
+        if (!vault?.uri) {
+            console.warn("No vault URI available, cannot fetch registered keys");
+            return [];
+        }
+
+        try {
+            const base = vault.uri.replace(/\/$/, "");
+            const whoisUrl = new URL("/whois", base).toString();
+            const headers: Record<string, string> = { "X-ENAME": eName };
+            if (PUBLIC_EID_WALLET_TOKEN) {
+                headers.Authorization = `Bearer ${PUBLIC_EID_WALLET_TOKEN}`;
+            }
+
+            const response = await axios.get(whoisUrl, {
+                headers,
+                timeout: 5000,
+            });
+            const certs = response.data?.keyBindingCertificates;
+            if (!Array.isArray(certs) || certs.length === 0) {
+                return [];
+            }
+
+            const publicKeys: string[] = [];
+            for (const jwt of certs) {
+                try {
+                    const parts = (jwt as string).split(".");
+                    if (parts.length !== 3) continue;
+                    // Decode base64url payload
+                    const b64 = parts[1]
+                        .replace(/-/g, "+")
+                        .replace(/_/g, "/");
+                    const payload = JSON.parse(atob(b64)) as {
+                        ename?: string;
+                        publicKey?: string;
+                    };
+                    if (payload.ename === eName && payload.publicKey) {
+                        publicKeys.push(payload.publicKey);
+                    }
+                } catch {
+                    // skip malformed certs
+                }
+            }
+            return publicKeys;
+        } catch (error) {
+            console.error("Failed to fetch registered public keys:", error);
+            return [];
+        }
+    }
+
     async clear() {
         await this.#store.delete("vault");
     }

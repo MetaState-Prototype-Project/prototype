@@ -221,7 +221,12 @@ export function createScanLogic({
                     scannedData.set(res);
                     const content = res.content;
                     if (content.startsWith("w3ds://social_binding")) {
-                        void handleSocialBindingRequest(content);
+                        handleSocialBindingRequest(content).catch((err) => {
+                            console.error("[SocialBinding] unhandled error:", err);
+                            socialBindingError.set(
+                                "Failed to process social binding request.",
+                            );
+                        });
                     } else if (content.startsWith("w3ds://sign")) {
                         handleSigningRequest(content);
                     } else if (content.startsWith("w3ds://reveal")) {
@@ -666,9 +671,14 @@ export function createScanLogic({
                     "[SocialBinding] failed to fetch requester name:",
                     err,
                 );
+                // Show eName as fallback instead of "Unknown"
+                socialBindingRequesterName.set(normalized);
             }
         } catch (err) {
             console.error("[SocialBinding] failed to parse QR:", err);
+            socialBindingError.set(
+                "Failed to process social binding request.",
+            );
         }
     }
 
@@ -734,7 +744,7 @@ export function createScanLogic({
             const payload = getCanonicalBindingDocString(doc);
             const sig = await globalState.walletSdkAdapter.signPayload(
                 "default",
-                "default",
+                "signing",
                 payload,
             );
 

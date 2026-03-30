@@ -77,6 +77,18 @@ export class GlobalState {
                 }
             },
         );
+
+        this.keyService.setEvaultKeyResolver(async () => {
+            const vault = await this.vaultController.vault;
+            if (!vault?.ename) return [];
+            return this.vaultController.fetchRegisteredPublicKeys(vault.ename);
+        });
+
+        this.keyService.setEvaultSyncHandler(async () => {
+            const vault = await this.vaultController.vault;
+            if (!vault?.ename) return;
+            await this.vaultController.syncPublicKey(vault.ename);
+        });
     }
 
     /**
