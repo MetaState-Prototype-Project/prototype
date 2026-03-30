@@ -22,8 +22,14 @@ type HardwareFallbackEvent = {
     originalError: unknown;
 };
 
-type EvaultKeyResolver = () => Promise<string[]>;
-type EvaultSyncHandler = () => Promise<void>;
+type EvaultKeyResolver = (
+    keyId: string,
+    context: string,
+) => Promise<string[]>;
+type EvaultSyncHandler = (
+    keyId: string,
+    context: string,
+) => Promise<boolean>;
 
 const CONTEXTS_KEY = "keyService.contexts";
 const READY_KEY = "keyService.ready";
@@ -97,12 +103,17 @@ export class KeyService {
         }
 
         // Check persisted context — exact match first, then cross-context by keyId
-        const persisted =
-            this.#contexts.get(cacheKey) ?? this.#findPersistedByKeyId(keyId);
-        if (persisted) {
+        const exactPersisted = this.#contexts.get(cacheKey);
+        const crossContext = exactPersisted
+            ? undefined
+            : this.#findPersistedByKeyId(keyId);
+        const persistedEntry = exactPersisted ?? crossContext?.entry;
+        const persistedMapKey = exactPersisted ? cacheKey : crossContext?.mapKey;
+
+        if (persistedEntry && persistedMapKey) {
             const restoredManager = await KeyManagerFactory.getKeyManager({
                 keyId,
-                useHardware: persisted.managerType === "hardware",
+                useHardware: persistedEntry.managerType === "hardware",
                 preVerificationMode: false,
             });
             const keyExists = await restoredManager.exists(keyId);
@@ -111,8 +122,8 @@ export class KeyService {
                 await this.#touchContext(cacheKey, restoredManager);
                 return restoredManager;
             }
-            // Key missing from storage — clear stale persisted entry, fall through
-            this.#contexts.delete(cacheKey);
+            // Key missing from storage — clear the actual stale persisted entry
+            this.#contexts.delete(persistedMapKey);
             await this.#store.set(
                 CONTEXTS_KEY,
                 Object.fromEntries(this.#contexts),
@@ -120,7 +131,7 @@ export class KeyService {
         }
 
         // Check eVault for which local key is actually registered (source of truth)
-        const evaultMatch = await this.#resolveManagerByEvaultKey(keyId);
+        const evaultMatch = await this.#resolveManagerByEvaultKey(keyId, context);
         if (evaultMatch) {
             this.#managerCache.set(cacheKey, evaultMatch);
             await this.#persistContext(cacheKey, evaultMatch, keyId, context);
@@ -225,7 +236,7 @@ export class KeyService {
 
         // Ensure the key we're about to use is synced to the eVault before signing.
         // Only done once per session per keyId to avoid repeated network calls.
-        await this.#ensureKeySyncedToEvault(keyId, manager);
+        await this.#ensureKeySyncedToEvault(keyId, context, manager);
 
         const cacheKey = this.#getCacheKey(keyId, context);
         try {
@@ -253,8 +264,12 @@ export class KeyService {
             );
 
             // Try eVault resolution: find whichever local key matches the registered one
-            this.#syncedKeyIds.delete(keyId);
-            const evaultMatch = await this.#resolveManagerByEvaultKey(keyId);
+            const syncCacheKey = `${keyId}:${context}`;
+            this.#syncedKeyIds.delete(syncCacheKey);
+            const evaultMatch = await this.#resolveManagerByEvaultKey(
+                keyId,
+                context,
+            );
             if (evaultMatch && evaultMatch.getType() !== managerType) {
                 console.log(
                     `[KeyService] eVault match found (${evaultMatch.getType()}), retrying sign`,
@@ -270,7 +285,7 @@ export class KeyService {
                     keyId,
                     context,
                 );
-                this.#syncedKeyIds.add(keyId);
+                this.#syncedKeyIds.add(syncCacheKey);
                 console.log(
                     `✅ [KeyService] eVault-resolved signature: ${retrySignature.substring(0, 50)}...`,
                 );
@@ -437,24 +452,27 @@ export class KeyService {
 
     /**
      * Ensure the key we're about to use is synced to the eVault.
-     * Checks the eVault once per session per keyId; if our public key
+     * Checks the eVault once per session per (keyId, context); if our public key
      * is not in the registered keys, triggers a sync before signing.
+     * Only caches as synced when the handler confirms success.
      */
     async #ensureKeySyncedToEvault(
         keyId: string,
+        context: KeyServiceContext,
         manager: KeyManager,
     ): Promise<void> {
-        if (this.#syncedKeyIds.has(keyId)) return;
+        const syncCacheKey = `${keyId}:${context}`;
+        if (this.#syncedKeyIds.has(syncCacheKey)) return;
         if (!this.#evaultKeyResolver || !this.#evaultSyncHandler) return;
 
         try {
             const publicKey = await manager.getPublicKey(keyId);
             if (!publicKey) return;
 
-            const registeredKeys = await this.#evaultKeyResolver();
+            const registeredKeys = await this.#evaultKeyResolver(keyId, context);
             if (registeredKeys.includes(publicKey)) {
                 // Already synced — mark and skip future checks
-                this.#syncedKeyIds.add(keyId);
+                this.#syncedKeyIds.add(syncCacheKey);
                 return;
             }
 
@@ -462,8 +480,10 @@ export class KeyService {
             console.warn(
                 `[KeyService] Key ${keyId} (${manager.getType()}) not found in eVault; syncing before sign`,
             );
-            await this.#evaultSyncHandler();
-            this.#syncedKeyIds.add(keyId);
+            const synced = await this.#evaultSyncHandler(keyId, context);
+            if (synced) {
+                this.#syncedKeyIds.add(syncCacheKey);
+            }
         } catch (error) {
             // Non-fatal: if sync check fails (offline, etc), proceed with signing
             console.warn(
@@ -477,11 +497,14 @@ export class KeyService {
      * Find any persisted context entry for the given keyId, regardless of context.
      * This handles the case where a key was created with "onboarding" context
      * but is now being used with "signing" context.
+     * Returns both the entry and its map key so the caller can delete the correct one.
      */
-    #findPersistedByKeyId(keyId: string): PersistedContext | undefined {
-        for (const entry of this.#contexts.values()) {
+    #findPersistedByKeyId(
+        keyId: string,
+    ): { mapKey: string; entry: PersistedContext } | undefined {
+        for (const [mapKey, entry] of this.#contexts.entries()) {
             if (entry.keyId === keyId) {
-                return entry;
+                return { mapKey, entry };
             }
         }
         return undefined;
@@ -494,12 +517,13 @@ export class KeyService {
      */
     async #resolveManagerByEvaultKey(
         keyId: string,
+        context: KeyServiceContext = "signing",
     ): Promise<KeyManager | null> {
         if (!this.#evaultKeyResolver) return null;
 
         let registeredKeys: string[];
         try {
-            registeredKeys = await this.#evaultKeyResolver();
+            registeredKeys = await this.#evaultKeyResolver(keyId, context);
         } catch {
             return null;
         }

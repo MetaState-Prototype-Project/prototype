@@ -158,33 +158,39 @@ export class VaultController {
     /**
      * Sync public key to eVault core via wallet-sdk.
      * SDK checks /whois and skips PATCH if current key already in certs; otherwise PATCHes /public-key.
+     * Returns true if the sync succeeded, false otherwise.
      */
-    async syncPublicKey(eName: string): Promise<void> {
+    async syncPublicKey(
+        eName: string,
+        keyId = "default",
+        context = "onboarding",
+    ): Promise<boolean> {
         if (!this.#walletSdkAdapter) {
             console.warn(
                 "Wallet SDK adapter not available, cannot sync public key",
             );
-            return;
+            return false;
         }
         const vault = await this.vault;
         if (!vault?.uri) {
             console.warn("No vault URI available, cannot sync public key");
-            return;
+            return false;
         }
         try {
             await syncPublicKeyToEvault(this.#walletSdkAdapter, {
                 evaultUri: vault.uri,
                 eName,
-                keyId: "default",
-                context: "onboarding",
+                keyId,
+                context,
                 authToken: PUBLIC_EID_WALLET_TOKEN || null,
                 registryUrl: PUBLIC_REGISTRY_URL,
             });
             localStorage.setItem(`publicKeySaved_${eName}`, "true");
             console.log(`Public key synced successfully for ${eName}`);
+            return true;
         } catch (error) {
             console.error("Failed to sync public key:", error);
-            // Don't throw - this is a non-critical operation
+            return false;
         }
     }
 
@@ -718,8 +724,11 @@ export class VaultController {
                 try {
                     const parts = (jwt as string).split(".");
                     if (parts.length !== 3) continue;
-                    // Decode base64url payload
-                    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+                    // Decode base64url payload (add padding for atob)
+                    let b64 = parts[1]
+                        .replace(/-/g, "+")
+                        .replace(/_/g, "/");
+                    while (b64.length % 4 !== 0) b64 += "=";
                     const payload = JSON.parse(atob(b64)) as {
                         ename?: string;
                         publicKey?: string;

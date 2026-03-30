@@ -78,16 +78,20 @@ export class GlobalState {
             },
         );
 
-        this.keyService.setEvaultKeyResolver(async () => {
+        this.keyService.setEvaultKeyResolver(async (keyId, context) => {
             const vault = await this.vaultController.vault;
             if (!vault?.ename) return [];
             return this.vaultController.fetchRegisteredPublicKeys(vault.ename);
         });
 
-        this.keyService.setEvaultSyncHandler(async () => {
+        this.keyService.setEvaultSyncHandler(async (keyId, context) => {
             const vault = await this.vaultController.vault;
-            if (!vault?.ename) return;
-            await this.vaultController.syncPublicKey(vault.ename);
+            if (!vault?.ename) return false;
+            return this.vaultController.syncPublicKey(
+                vault.ename,
+                keyId,
+                context,
+            );
         });
     }
 
