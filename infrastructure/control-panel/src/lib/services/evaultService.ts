@@ -1,6 +1,50 @@
 import type { EVault } from '../../routes/api/evaults/+server';
 import { cacheService } from './cacheService';
 
+/** Must match `NO_SENDER_BUCKET` in `$lib/server/group-message-buckets`. */
+export const GROUP_NO_SENDER_BUCKET_KEY = '__no_sender__';
+
+export type GroupSenderRow = {
+	/** User ontology display name / username, same idea as the dashboard. */
+	displayName: string;
+	/** W3ID ename when known, raw sender id when not in registry, or "—" for system/no sender. */
+	ename: string;
+	messageCount: number;
+	/** Aggregation key; pass as `bucket` to group messages API / messages page. */
+	bucketKey: string;
+	/** Target for `/evaults/[id]` when we can resolve a registry vault or non-UUID handle. */
+	evaultPageId: string | null;
+};
+
+export type GroupMessagesForSenderResponse = {
+	evault: { ename: string; uri: string; evault: string };
+	/** Group manifest display name (fallback: vault eName / route id). */
+	groupDisplayName: string;
+	senderDisplayName: string;
+	senderEname: string;
+	bucket: string;
+	messages: Array<{ id: string | null; preview: string | undefined; senderBucket: string }>;
+	matchedCount: number;
+	messagesScanned: number;
+	totalCount: number;
+	capped: boolean;
+};
+
+export type GroupInsights = {
+	evault: { ename: string; uri: string; evault: string };
+	manifest: Record<string, unknown>;
+	messageStats: {
+		totalCount: number;
+		messagesScanned: number;
+		/** Messages bucketed to a sender id or resolvable ename (excludes null / missing sender). */
+		messagesWithSenderBucket: number;
+		/** Messages with no sender id in the payload. */
+		messagesWithoutSender: number;
+		capped: boolean;
+		senderRows: GroupSenderRow[];
+	};
+};
+
 export class EVaultService {
 	/**
 	 * Get eVaults - load from cache first, then fetch fresh data
@@ -113,6 +157,57 @@ export class EVaultService {
 			console.error('Failed to fetch eVault details:', error);
 			throw error;
 		}
+	}
+
+	static async getGroupEVaults(): Promise<EVault[]> {
+		try {
+			const response = await fetch('/api/evaults/groups');
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const data = await response.json();
+			return data.evaults || [];
+		} catch (error) {
+			console.error('Failed to fetch group eVaults:', error);
+			throw error;
+		}
+	}
+
+	static async getGroupInsights(evaultId: string): Promise<GroupInsights> {
+		try {
+			const response = await fetch(
+				`/api/evaults/${encodeURIComponent(evaultId)}/group-insights`
+			);
+			if (!response.ok) {
+				const errBody = await response.json().catch(() => ({}));
+				const message =
+					typeof errBody?.error === 'string' ? errBody.error : `HTTP ${response.status}`;
+				throw new Error(message);
+			}
+			return (await response.json()) as GroupInsights;
+		} catch (error) {
+			console.error('Failed to fetch group insights:', error);
+			throw error;
+		}
+	}
+
+	static async getGroupMessagesForSender(
+		evaultId: string,
+		bucketKey: string
+	): Promise<GroupMessagesForSenderResponse> {
+		const url = new URL(
+			`/api/evaults/${encodeURIComponent(evaultId)}/group-messages`,
+			window.location.origin
+		);
+		url.searchParams.set('bucket', bucketKey);
+		const response = await fetch(url.toString());
+		if (!response.ok) {
+			const errBody = await response.json().catch(() => ({}));
+			const message =
+				typeof errBody?.error === 'string' ? errBody.error : `HTTP ${response.status}`;
+			throw new Error(message);
+		}
+		return (await response.json()) as GroupMessagesForSenderResponse;
 	}
 
 	/**
