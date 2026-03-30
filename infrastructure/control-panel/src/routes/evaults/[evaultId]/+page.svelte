@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { EVaultService } from '$lib/services/evaultService';
 	import { onMount } from 'svelte';
+	import type { BindingDocument, SocialConnection } from '@metastate-foundation/types';
 	import type { EVault } from '../../api/evaults/+server';
 
 	let evault = $state<EVault | null>(null);
@@ -12,7 +13,17 @@
 	let error = $state<string | null>(null);
 	let selectedTab = $state('logs');
 
+	let bindingDocumentsLoading = $state(false);
+	let bindingDocumentsError = $state<string | null>(null);
+	let documents = $state<BindingDocument[]>([]);
+	let socialConnections = $state<SocialConnection[]>([]);
+
 	const evaultId = $page.params.evaultId;
+
+	function getDataValue(data: Record<string, unknown>, key: string): string {
+		const value = data[key];
+		return typeof value === 'string' ? value : 'N/A';
+	}
 
 	const fetchEVaultDetails = async () => {
 		if (!evaultId) {
@@ -50,13 +61,44 @@
 		}
 	};
 
+	const fetchBindingDocuments = async () => {
+		if (!evaultId) return;
+
+		bindingDocumentsLoading = true;
+		bindingDocumentsError = null;
+		try {
+			const result = await EVaultService.getBindingDocuments(evaultId);
+			documents = result.documents;
+			socialConnections = result.socialConnections;
+		} catch (err) {
+			bindingDocumentsError =
+				err instanceof Error ? err.message : 'Failed to fetch binding documents';
+		} finally {
+			bindingDocumentsLoading = false;
+		}
+	};
+
 	const refreshData = () => {
 		fetchEVaultDetails();
+		if (selectedTab === 'binding-documents') {
+			fetchBindingDocuments();
+		}
+	};
+
+	const selectTab = (tab: string) => {
+		selectedTab = tab;
+		if (tab === 'binding-documents') {
+			fetchBindingDocuments();
+		}
 	};
 
 	onMount(() => {
 		fetchEVaultDetails();
 	});
+
+	let idDocuments = $derived(documents.filter((doc) => doc.type === 'id_document'));
+	let selfDocuments = $derived(documents.filter((doc) => doc.type === 'self'));
+	let photoDocuments = $derived(documents.filter((doc) => doc.type === 'photograph'));
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -110,7 +152,7 @@
 					class="border-b-2 px-1 py-2 text-sm font-medium {selectedTab === 'logs'
 						? 'border-blue-500 text-blue-600'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
-					onclick={() => (selectedTab = 'logs')}
+					onclick={() => selectTab('logs')}
 				>
 					Logs
 				</button>
@@ -118,9 +160,17 @@
 					class="border-b-2 px-1 py-2 text-sm font-medium {selectedTab === 'details'
 						? 'border-blue-500 text-blue-600'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
-					onclick={() => (selectedTab = 'details')}
+					onclick={() => selectTab('details')}
 				>
 					Details
+				</button>
+				<button
+					class="border-b-2 px-1 py-2 text-sm font-medium {selectedTab === 'binding-documents'
+						? 'border-blue-500 text-blue-600'
+						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
+					onclick={() => selectTab('binding-documents')}
+				>
+					Binding Documents
 				</button>
 			</nav>
 		</div>
@@ -197,6 +247,125 @@
 						<p class="text-gray-500">No details available</p>
 					{/if}
 				</div>
+			</div>
+		{:else if selectedTab === 'binding-documents'}
+			<div class="rounded-lg bg-white p-6 shadow">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900">Binding Documents</h3>
+				{#if bindingDocumentsLoading}
+					<p class="text-slate-600">Loading binding documents...</p>
+				{:else if bindingDocumentsError}
+					<p class="rounded-md bg-red-50 p-3 text-red-700">{bindingDocumentsError}</p>
+					<button
+						onclick={fetchBindingDocuments}
+						class="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+					>
+						Retry
+					</button>
+				{:else}
+					<section class="mt-6 grid gap-4 lg:grid-cols-3">
+						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+							<h2 class="text-lg font-semibold">Photographs</h2>
+							{#if photoDocuments.length === 0}
+								<p class="mt-2 text-sm text-slate-500">No photograph binding documents.</p>
+							{:else}
+								<div class="mt-4 space-y-4">
+									{#each photoDocuments as doc}
+										{@const photoSrc = typeof doc.data?.photoBlob === 'string' && doc.data.photoBlob ? doc.data.photoBlob : null}
+										<div class="rounded-md border border-slate-200 p-3">
+											<p class="text-xs text-slate-500">ID: {doc.id}</p>
+											{#if photoSrc}
+												<img
+													class="mt-2 max-h-[100px] w-full rounded object-contain"
+													src={photoSrc}
+													alt="Binding"
+												/>
+											{:else}
+												<div class="mt-2 flex max-h-[100px] w-full items-center justify-center rounded bg-slate-100 text-sm text-slate-500">
+													No image
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+
+						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+							<h2 class="text-lg font-semibold">ID Document</h2>
+							{#if idDocuments.length === 0}
+								<p class="mt-2 text-sm text-slate-500">No id_document binding documents.</p>
+							{:else}
+								<table class="mt-4 w-full text-left text-sm">
+									<thead class="bg-slate-50 text-slate-600">
+										<tr>
+											<th class="px-3 py-2">Vendor</th>
+											<th class="px-3 py-2">Reference</th>
+											<th class="px-3 py-2">Name</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each idDocuments as doc}
+											<tr class="border-t border-slate-200">
+												<td class="px-3 py-2">{getDataValue(doc.data, 'vendor')}</td>
+												<td class="px-3 py-2">{getDataValue(doc.data, 'reference')}</td>
+												<td class="px-3 py-2">{getDataValue(doc.data, 'name')}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{/if}
+						</div>
+
+						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+							<h2 class="text-lg font-semibold">Self Binding</h2>
+							{#if selfDocuments.length === 0}
+								<p class="mt-2 text-sm text-slate-500">No self binding documents.</p>
+							{:else}
+								<table class="mt-4 w-full text-left text-sm">
+									<thead class="bg-slate-50 text-slate-600">
+										<tr>
+											<th class="px-3 py-2">Name</th>
+											<th class="px-3 py-2">Subject</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each selfDocuments as doc}
+											<tr class="border-t border-slate-200">
+												<td class="px-3 py-2">{getDataValue(doc.data, 'name')}</td>
+												<td class="px-3 py-2">{doc.subject}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{/if}
+						</div>
+					</section>
+
+					<section class="mt-6">
+						<div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+							<h2 class="text-lg font-semibold">Social Connections</h2>
+							{#if socialConnections.length === 0}
+								<p class="mt-2 text-sm text-slate-500">No social connections found.</p>
+							{:else}
+								<div class="mt-4 space-y-3">
+									{#each socialConnections as connection}
+										<div class="rounded-md border border-slate-200 p-3">
+											<p class="font-medium text-gray-900">{connection.name}</p>
+											<p class="text-sm text-slate-600">
+												Witness eName: {connection.witnessEName || 'Unknown'}
+											</p>
+											{#if connection.relationDescription}
+												<p class="mt-2 text-sm text-slate-600 italic">
+													{connection.relationDescription}
+												</p>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					</section>
+				{/if}
 			</div>
 		{/if}
 	{/if}
