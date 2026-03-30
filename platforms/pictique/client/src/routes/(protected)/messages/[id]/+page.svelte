@@ -99,22 +99,17 @@
 	): Record<string, unknown>[] {
 		return messagesArray.map((msg, index) => {
 			const prevMessage = index > 0 ? messagesArray[index - 1] : null;
-			const nextMessage =
-				index < messagesArray.length - 1 ? messagesArray[index + 1] : null;
+			const nextMessage = index < messagesArray.length - 1 ? messagesArray[index + 1] : null;
 
 			const isHeadNeeded =
 				!prevMessage ||
 				prevMessage.isOwn !== msg.isOwn ||
-				(prevMessage.senderId &&
-					msg.senderId &&
-					prevMessage.senderId !== msg.senderId);
+				(prevMessage.senderId && msg.senderId && prevMessage.senderId !== msg.senderId);
 
 			const isTimestampNeeded =
 				!nextMessage ||
 				nextMessage.isOwn !== msg.isOwn ||
-				(nextMessage.senderId &&
-					msg.senderId &&
-					nextMessage.senderId !== msg.senderId);
+				(nextMessage.senderId && msg.senderId && nextMessage.senderId !== msg.senderId);
 
 			return {
 				...msg,
@@ -278,7 +273,9 @@
 				<p class="m-4 text-center text-xs text-gray-400">No more messages</p>
 			{/if}
 			{#if messages.length === 0}
-				<p class="m-4 text-center text-gray-500">No messages yet. Start the conversation!</p>
+				<p class="m-4 text-center text-gray-500">
+					No messages yet. Start the conversation!
+				</p>
 			{/if}
 		{/if}
 		{#each messages as msg (msg.id)}

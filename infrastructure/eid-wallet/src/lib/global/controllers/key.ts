@@ -98,8 +98,7 @@ export class KeyService {
 
         // Check persisted context — exact match first, then cross-context by keyId
         const persisted =
-            this.#contexts.get(cacheKey) ??
-            this.#findPersistedByKeyId(keyId);
+            this.#contexts.get(cacheKey) ?? this.#findPersistedByKeyId(keyId);
         if (persisted) {
             const restoredManager = await KeyManagerFactory.getKeyManager({
                 keyId,

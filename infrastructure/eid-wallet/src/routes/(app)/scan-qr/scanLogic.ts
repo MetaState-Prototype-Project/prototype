@@ -222,7 +222,10 @@ export function createScanLogic({
                     const content = res.content;
                     if (content.startsWith("w3ds://social_binding")) {
                         handleSocialBindingRequest(content).catch((err) => {
-                            console.error("[SocialBinding] unhandled error:", err);
+                            console.error(
+                                "[SocialBinding] unhandled error:",
+                                err,
+                            );
                             socialBindingError.set(
                                 "Failed to process social binding request.",
                             );
@@ -676,9 +679,7 @@ export function createScanLogic({
             }
         } catch (err) {
             console.error("[SocialBinding] failed to parse QR:", err);
-            socialBindingError.set(
-                "Failed to process social binding request.",
-            );
+            socialBindingError.set("Failed to process social binding request.");
         }
     }
 

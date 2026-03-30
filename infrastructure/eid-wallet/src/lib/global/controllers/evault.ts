@@ -690,7 +690,9 @@ export class VaultController {
     async fetchRegisteredPublicKeys(eName: string): Promise<string[]> {
         const vault = await this.vault;
         if (!vault?.uri) {
-            console.warn("No vault URI available, cannot fetch registered keys");
+            console.warn(
+                "No vault URI available, cannot fetch registered keys",
+            );
             return [];
         }
 
@@ -717,9 +719,7 @@ export class VaultController {
                     const parts = (jwt as string).split(".");
                     if (parts.length !== 3) continue;
                     // Decode base64url payload
-                    const b64 = parts[1]
-                        .replace(/-/g, "+")
-                        .replace(/_/g, "/");
+                    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
                     const payload = JSON.parse(atob(b64)) as {
                         ename?: string;
                         publicKey?: string;
