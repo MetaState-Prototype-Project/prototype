@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { EVaultService } from '$lib/services/evaultService';
 	import { onMount } from 'svelte';
@@ -112,6 +113,20 @@
 			<p class="text-sm text-gray-500">
 				URI: {evault.uri}
 			</p>
+		{/if}
+		{#if evault?.type === 'group' && evaultId}
+			<div
+				class="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900"
+			>
+				This vault is a <strong>group</strong>.
+				<button
+					type="button"
+					class="ml-2 font-medium text-violet-700 underline hover:text-violet-900"
+					onclick={() => goto(`/groups/${encodeURIComponent(evaultId)}`)}
+				>
+					View members &amp; message stats
+				</button>
+			</div>
 		{/if}
 	</div>
 

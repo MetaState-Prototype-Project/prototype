@@ -142,6 +142,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      d3-shape:
+        specifier: ^3.2.0
+        version: 3.2.0
       flowbite:
         specifier: ^3.1.2
         version: 3.1.2(rollup@4.59.0)
@@ -157,6 +160,9 @@ importers:
       jose:
         specifier: ^6.2.0
         version: 6.2.1
+      layercake:
+        specifier: ^10.0.2
+        version: 10.0.2(svelte@5.53.11)(typescript@5.8.2)
       lowdb:
         specifier: ^7.0.1
         version: 7.0.1
@@ -200,6 +206,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.2.1(vite@7.3.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.98.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      '@types/d3-shape':
+        specifier: ^3.1.8
+        version: 3.1.8
       '@types/node':
         specifier: ^22
         version: 22.19.15
@@ -3138,7 +3147,7 @@ importers:
         version: 1.1.1(@types/react-dom@18.3.7(@types/react@18.3.27))(@types/react@18.3.27)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       draft-js:
         specifier: ^0.11.7
-        version: 0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       lucide-react:
         specifier: ^0.561.0
         version: 0.561.0(react@18.3.1)
@@ -3159,7 +3168,7 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-draft-wysiwyg:
         specifier: ^1.15.0
-        version: 1.15.0(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 1.15.0(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-hook-form:
         specifier: ^7.55.0
         version: 7.71.2(react@18.3.1)
@@ -3743,12 +3752,21 @@ importers:
 
   services/trust-score:
     dependencies:
+      axios:
+        specifier: ^1.13.6
+        version: 1.13.6
       cors:
         specifier: ^2.8.5
         version: 2.8.6
       express:
         specifier: ^4.21.2
         version: 4.22.1
+      graphql:
+        specifier: ^16.13.1
+        version: 16.13.1
+      graphql-request:
+        specifier: ^7.4.0
+        version: 7.4.0(graphql@16.13.1)
     devDependencies:
       nodemon:
         specifier: ^3.0.2
@@ -15053,6 +15071,13 @@ packages:
 
   launch-editor@2.13.1:
     resolution: {integrity: sha512-lPSddlAAluRKJ7/cjRFoXUFzaX7q/YKI7yPHuEvSJVqoXvFnJov1/Ud87Aa4zULIbA9Nja4mSPK8l0z/7eV2wA==}
+
+  layercake@10.0.2:
+    resolution: {integrity: sha512-cYtPVA+AL/HbAzsH5xDL9/pbuNuhboGUI9GBtrC1Akjsx4V74rvBmUHZW8lO2ufCDMu+J2CtBRKgO8rkONsYBw==}
+    engines: {node: ^20.17.0 || >=22.9.0}
+    peerDependencies:
+      svelte: '>=5'
+      typescript: ^5.0.2
 
   layout-base@1.0.2:
     resolution: {integrity: sha512-8h2oVEZNktL4BH2JCOI90iD1yXwL6iNW7KcCKT2QZgQJR2vbqDsldCTPRU9NifTCqHZci57XvQQ15YTu+sTYPg==}
@@ -31672,9 +31697,9 @@ snapshots:
 
   dotenv@17.3.1: {}
 
-  draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
-      fbjs: 2.0.0(encoding@0.1.13)
+      fbjs: 2.0.0
       immutable: 3.7.6
       object-assign: 4.1.1
       react: 18.3.1
@@ -31682,9 +31707,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  draftjs-utils@0.10.2(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5):
+  draftjs-utils@0.10.2(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5):
     dependencies:
-      draft-js: 0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      draft-js: 0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       immutable: 5.1.5
 
   drizzle-kit@0.31.9:
@@ -33033,7 +33058,7 @@ snapshots:
 
   fbjs-css-vars@1.0.2: {}
 
-  fbjs@2.0.0(encoding@0.1.13):
+  fbjs@2.0.0:
     dependencies:
       core-js: 3.48.0
       cross-fetch: 3.2.0(encoding@0.1.13)
@@ -33914,9 +33939,9 @@ snapshots:
 
   html-tags@3.3.1: {}
 
-  html-to-draftjs@1.5.0(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5):
+  html-to-draftjs@1.5.0(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5):
     dependencies:
-      draft-js: 0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      draft-js: 0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       immutable: 5.1.5
 
   html-url-attributes@3.0.1: {}
@@ -35447,6 +35472,15 @@ snapshots:
     dependencies:
       picocolors: 1.1.1
       shell-quote: 1.8.3
+
+  layercake@10.0.2(svelte@5.53.11)(typescript@5.8.2):
+    dependencies:
+      d3-array: 3.2.4
+      d3-color: 3.1.0
+      d3-scale: 4.0.2
+      d3-shape: 3.2.0
+      svelte: 5.53.11
+      typescript: 5.8.2
 
   layout-base@1.0.2: {}
 
@@ -38217,12 +38251,12 @@ snapshots:
       react: 18.3.1
       scheduler: 0.23.2
 
-  react-draft-wysiwyg@1.15.0(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-draft-wysiwyg@1.15.0(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       classnames: 2.5.1
-      draft-js: 0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      draftjs-utils: 0.10.2(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)
-      html-to-draftjs: 1.5.0(draft-js@0.11.7(encoding@0.1.13)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)
+      draft-js: 0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      draftjs-utils: 0.10.2(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)
+      html-to-draftjs: 1.5.0(draft-js@0.11.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(immutable@5.1.5)
       immutable: 5.1.5
       linkify-it: 2.2.0
       prop-types: 15.8.1

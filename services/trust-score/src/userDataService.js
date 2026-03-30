@@ -1,109 +1,244 @@
 /**
  * User Data Service
  *
- * Responsible for fetching all the data inputs the trust score needs
- * for a given user (identified by their eName / W3ID).
+ * Fetches all trust-score inputs for a given user (by eName / W3ID)
+ * from their eVault binding documents.
  *
- * Currently MOCKED — each function returns placeholder data.
- * Once binding documents are written to the eVault, replace each mock
- * with a real API call.
+ * Flow (mirrors platforms/enotary):
+ *   1. Resolve eName → eVault URL via the registry
+ *   2. Obtain a platform bearer token from the registry
+ *   3. Query the eVault GraphQL API for binding documents
+ *   4. Derive verification status, account age, key location,
+ *      and social-connection count from the returned documents
  */
 
-const EVAULT_CORE_URL = process.env.EVAULT_CORE_URL || "http://localhost:3001";
-const EVAULT_DATA_URL = process.env.EVAULT_DATA_URL || "http://localhost:4000";
+const axios = require("axios");
+
+let REGISTRY_URL =
+    process.env.REGISTRY_URL ||
+    process.env.PUBLIC_REGISTRY_URL ||
+    "http://localhost:4321";
+
+function setRegistryUrl(url) {
+    REGISTRY_URL = url;
+    // Clear cached token since it belongs to the old registry
+    _platformToken = null;
+}
+
+const BINDING_DOCUMENTS_QUERY = `
+    query GetBindingDocuments($first: Int!) {
+        bindingDocuments(first: $first) {
+            edges {
+                node {
+                    id
+                    parsed
+                }
+            }
+        }
+    }
+`;
+
+// ---------------------------------------------------------------------------
+// Registry helpers
+// ---------------------------------------------------------------------------
+
+let _platformToken = null;
+
+function normalizeEName(value) {
+    return value.startsWith("@") ? value : `@${value}`;
+}
 
 /**
- * Fetch the user's KYC verification status from evault-core.
+ * Resolve an eName to its eVault base URL via the registry.
+ */
+async function resolveEVaultUrl(eName) {
+    const normalized = normalizeEName(eName);
+    const endpoint = new URL(
+        `/resolve?w3id=${encodeURIComponent(normalized)}`,
+        REGISTRY_URL,
+    ).toString();
+
+    const response = await axios.get(endpoint, { timeout: 10_000 });
+    const resolved = response.data?.evaultUrl || response.data?.uri;
+    if (!resolved) {
+        throw new Error(`Registry did not return an eVault URL for ${normalized}`);
+    }
+    return resolved;
+}
+
+/**
+ * Obtain a platform bearer token from the registry.
+ */
+async function getPlatformToken() {
+    if (_platformToken) return _platformToken;
+
+    const endpoint = new URL("/platforms/certification", REGISTRY_URL).toString();
+    const response = await axios.post(
+        endpoint,
+        { platform: "trust-score" },
+        { timeout: 10_000 },
+    );
+    _platformToken = response.data.token;
+    return _platformToken;
+}
+
+/** Reset cached token (useful when a token expires). */
+function clearPlatformToken() {
+    _platformToken = null;
+}
+
+// ---------------------------------------------------------------------------
+// eVault GraphQL helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all binding documents from a user's eVault.
  *
- * Real implementation will query:
- *   GET {EVAULT_CORE_URL}/verification?linkedEName={eName}
- *   → look at the `approved` field on the Verification entity
- *
- * @param {string} eName  The user's W3ID / eName
- * @returns {Promise<boolean>}
+ * @param {string} eName
+ * @returns {Promise<Array<{ id: string, subject: string, type: string, data: object, signatures: Array }>>}
+ */
+async function fetchBindingDocuments(eName) {
+    const normalized = normalizeEName(eName);
+    const [evaultBaseUrl, token] = await Promise.all([
+        resolveEVaultUrl(normalized),
+        getPlatformToken(),
+    ]);
+
+    const graphqlUrl = new URL("/graphql", evaultBaseUrl).toString();
+
+    const response = await axios.post(
+        graphqlUrl,
+        { query: BINDING_DOCUMENTS_QUERY, variables: { first: 100 } },
+        {
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                "X-ENAME": normalized,
+            },
+            timeout: 10_000,
+        },
+    );
+
+    const edges = response.data?.data?.bindingDocuments?.edges ?? [];
+
+    return edges
+        .map((edge) => {
+            const parsed = edge.node?.parsed;
+            if (!parsed || typeof parsed !== "object") return null;
+            const { subject, type, data, signatures } = parsed;
+            if (
+                typeof subject !== "string" ||
+                typeof type !== "string" ||
+                typeof data !== "object" ||
+                data === null ||
+                !Array.isArray(signatures)
+            ) {
+                return null;
+            }
+            return { id: edge.node.id, subject, type, data, signatures };
+        })
+        .filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// Individual trust-data extractors
+// ---------------------------------------------------------------------------
+
+/**
+ * Is the user KYC-verified?
+ * True when at least one `id_document` binding document exists.
  */
 async function fetchVerificationStatus(eName) {
-    // TODO: Replace with real evault-core API call
-    // const res = await fetch(`${EVAULT_CORE_URL}/verification?linkedEName=${eName}`);
-    // const data = await res.json();
-    // return data.approved === true;
-    return false;
+    const docs = await fetchBindingDocuments(eName);
+    return docs.some((doc) => doc.type === "id_document");
 }
 
 /**
- * Fetch the user's account age in days from evault-core.
- *
- * Real implementation will query:
- *   GET {EVAULT_CORE_URL}/verification?linkedEName={eName}
- *   → compute days since `createdAt`
- *
- * @param {string} eName  The user's W3ID / eName
- * @returns {Promise<number>}
+ * Account age in days.
+ * Derived from the earliest signature timestamp across all binding documents.
  */
 async function fetchAccountAgeDays(eName) {
-    // TODO: Replace with real evault-core API call
-    // const res = await fetch(`${EVAULT_CORE_URL}/verification?linkedEName=${eName}`);
-    // const data = await res.json();
-    // const created = new Date(data.createdAt);
-    // return Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
-    return 0;
+    const docs = await fetchBindingDocuments(eName);
+
+    let earliest = Infinity;
+    for (const doc of docs) {
+        for (const sig of doc.signatures) {
+            const ts = new Date(sig.timestamp).getTime();
+            if (!isNaN(ts) && ts < earliest) {
+                earliest = ts;
+            }
+        }
+    }
+
+    if (earliest === Infinity) return 0;
+    return Math.floor((Date.now() - earliest) / (1000 * 60 * 60 * 24));
 }
 
 /**
- * Fetch the user's key storage location from their eVault.
- *
- * Real implementation will query the eVault GraphQL API for a
- * binding document with ontology "KeyStorageInfo" that records
- * whether the private key is stored in TPM or SW.
- *
- * @param {string} eName  The user's W3ID / eName
- * @returns {Promise<"TPM" | "SW">}
+ * Key storage location ("TPM" or "SW").
+ * Looks for a binding document whose data contains a `keyLocation` field.
  */
 async function fetchKeyLocation(eName) {
-    // TODO: Replace with real eVault GraphQL query
-    // const query = `{ metaEnvelopes(filter: { ontology: "KeyStorageInfo" }) { envelopes { value } } }`;
-    // const res = await fetch(`${EVAULT_DATA_URL}/graphql`, {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json', 'X-ENAME': eName },
-    //     body: JSON.stringify({ query }),
-    // });
-    // const data = await res.json();
-    // return data?.data?.metaEnvelopes?.[0]?.envelopes?.[0]?.value?.location ?? 'SW';
+    const docs = await fetchBindingDocuments(eName);
+
+    for (const doc of docs) {
+        const loc = doc.data?.keyLocation || doc.data?.location;
+        if (loc === "TPM" || loc === "SW") return loc;
+    }
     return "SW";
 }
 
 /**
- * Fetch the user's number of 3rd-degree social connections.
- *
- * Real implementation will query the social graph (to be built
- * in the control panel) or aggregate follower/following data
- * from the user's eVault MetaEnvelopes across platforms.
- *
- * @param {string} eName  The user's W3ID / eName
- * @returns {Promise<number>}
+ * Number of social connections (1st-degree).
+ * Counts `social_connection` binding documents that have two signatures
+ * (i.e. both parties signed).
  */
 async function fetchThirdDegreeConnections(eName) {
-    // TODO: Replace with real social graph API call
-    // const res = await fetch(`${CONTROL_PANEL_URL}/api/social-graph/${eName}/third-degree-count`);
-    // const data = await res.json();
-    // return data.count;
-    return 0;
+    const docs = await fetchBindingDocuments(eName);
+    return docs.filter(
+        (doc) => doc.type === "social_connection" && doc.signatures.length === 2,
+    ).length;
 }
 
 /**
- * Fetch all trust score inputs for a user.
- *
- * @param {string} eName  The user's W3ID / eName
- * @returns {Promise<{ isVerified: boolean, accountAgeDays: number, keyLocation: string, thirdDegreeConnections: number }>}
+ * Fetch all trust-score inputs for a user in a single pass
+ * (one GraphQL call instead of four).
  */
 async function fetchUserTrustData(eName) {
-    const [isVerified, accountAgeDays, keyLocation, thirdDegreeConnections] =
-        await Promise.all([
-            fetchVerificationStatus(eName),
-            fetchAccountAgeDays(eName),
-            fetchKeyLocation(eName),
-            fetchThirdDegreeConnections(eName),
-        ]);
+    const docs = await fetchBindingDocuments(eName);
+
+    // Verification — at least one id_document
+    const isVerified = docs.some((doc) => doc.type === "id_document");
+
+    // Account age — earliest signature timestamp
+    let earliest = Infinity;
+    for (const doc of docs) {
+        for (const sig of doc.signatures) {
+            const ts = new Date(sig.timestamp).getTime();
+            if (!isNaN(ts) && ts < earliest) {
+                earliest = ts;
+            }
+        }
+    }
+    const accountAgeDays =
+        earliest === Infinity
+            ? 0
+            : Math.floor((Date.now() - earliest) / (1000 * 60 * 60 * 24));
+
+    // Key location
+    let keyLocation = "SW";
+    for (const doc of docs) {
+        const loc = doc.data?.keyLocation || doc.data?.location;
+        if (loc === "TPM" || loc === "SW") {
+            keyLocation = loc;
+            break;
+        }
+    }
+
+    // Social connections
+    const thirdDegreeConnections = docs.filter(
+        (doc) => doc.type === "social_connection" && doc.signatures.length === 2,
+    ).length;
 
     return { isVerified, accountAgeDays, keyLocation, thirdDegreeConnections };
 }
@@ -114,4 +249,11 @@ module.exports = {
     fetchKeyLocation,
     fetchThirdDegreeConnections,
     fetchUserTrustData,
+    setRegistryUrl,
+    // Exposed for testing
+    fetchBindingDocuments,
+    resolveEVaultUrl,
+    getPlatformToken,
+    clearPlatformToken,
+    normalizeEName,
 };
