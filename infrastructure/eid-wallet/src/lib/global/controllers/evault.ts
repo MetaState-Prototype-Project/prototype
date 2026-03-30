@@ -158,33 +158,39 @@ export class VaultController {
     /**
      * Sync public key to eVault core via wallet-sdk.
      * SDK checks /whois and skips PATCH if current key already in certs; otherwise PATCHes /public-key.
+     * Returns true if the sync succeeded, false otherwise.
      */
-    async syncPublicKey(eName: string): Promise<void> {
+    async syncPublicKey(
+        eName: string,
+        keyId = "default",
+        context = "onboarding",
+    ): Promise<boolean> {
         if (!this.#walletSdkAdapter) {
             console.warn(
                 "Wallet SDK adapter not available, cannot sync public key",
             );
-            return;
+            return false;
         }
         const vault = await this.vault;
         if (!vault?.uri) {
             console.warn("No vault URI available, cannot sync public key");
-            return;
+            return false;
         }
         try {
             await syncPublicKeyToEvault(this.#walletSdkAdapter, {
                 evaultUri: vault.uri,
                 eName,
-                keyId: "default",
-                context: "onboarding",
+                keyId,
+                context,
                 authToken: PUBLIC_EID_WALLET_TOKEN || null,
                 registryUrl: PUBLIC_REGISTRY_URL,
             });
             localStorage.setItem(`publicKeySaved_${eName}`, "true");
             console.log(`Public key synced successfully for ${eName}`);
+            return true;
         } catch (error) {
             console.error("Failed to sync public key:", error);
-            // Don't throw - this is a non-critical operation
+            return false;
         }
     }
 
@@ -678,6 +684,64 @@ export class VaultController {
             return response.data?.hasPassphrase === true;
         } catch {
             return false;
+        }
+    }
+
+    /**
+     * Fetch the public key(s) currently registered in the eVault via /whois.
+     * Decodes JWT payloads from keyBindingCertificates without full verification
+     * — we only need the public key strings for local comparison.
+     * Returns empty array on any failure (network, parse, etc).
+     */
+    async fetchRegisteredPublicKeys(eName: string): Promise<string[]> {
+        const vault = await this.vault;
+        if (!vault?.uri) {
+            console.warn(
+                "No vault URI available, cannot fetch registered keys",
+            );
+            return [];
+        }
+
+        try {
+            const base = vault.uri.replace(/\/$/, "");
+            const whoisUrl = new URL("/whois", base).toString();
+            const headers: Record<string, string> = { "X-ENAME": eName };
+            if (PUBLIC_EID_WALLET_TOKEN) {
+                headers.Authorization = `Bearer ${PUBLIC_EID_WALLET_TOKEN}`;
+            }
+
+            const response = await axios.get(whoisUrl, {
+                headers,
+                timeout: 5000,
+            });
+            const certs = response.data?.keyBindingCertificates;
+            if (!Array.isArray(certs) || certs.length === 0) {
+                return [];
+            }
+
+            const publicKeys: string[] = [];
+            for (const jwt of certs) {
+                try {
+                    const parts = (jwt as string).split(".");
+                    if (parts.length !== 3) continue;
+                    // Decode base64url payload (add padding for atob)
+                    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+                    while (b64.length % 4 !== 0) b64 += "=";
+                    const payload = JSON.parse(atob(b64)) as {
+                        ename?: string;
+                        publicKey?: string;
+                    };
+                    if (payload.ename === eName && payload.publicKey) {
+                        publicKeys.push(payload.publicKey);
+                    }
+                } catch {
+                    // skip malformed certs
+                }
+            }
+            return publicKeys;
+        } catch (error) {
+            console.error("Failed to fetch registered public keys:", error);
+            return [];
         }
     }
 

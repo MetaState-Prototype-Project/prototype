@@ -1,4 +1,11 @@
-import { useState, useEffect, useContext, createContext, useMemo, useCallback } from 'react';
+import {
+    useState,
+    useEffect,
+    useContext,
+    createContext,
+    useMemo,
+    useCallback
+} from 'react';
 import {
     collection,
     query,
@@ -39,7 +46,11 @@ type ChatContext = {
     hasMoreMessages: boolean;
     loadingOlderMessages: boolean;
     setCurrentChat: (chat: Chat | null) => void;
-    createNewChat: (participants: string[], name?: string, description?: string) => Promise<string>;
+    createNewChat: (
+        participants: string[],
+        name?: string,
+        description?: string
+    ) => Promise<string>;
     sendNewMessage: (text: string) => Promise<void>;
     markAsRead: (messageId: string) => Promise<void>;
     addParticipant: (userId: string) => Promise<void>;
@@ -59,13 +70,16 @@ export function ChatContextProvider({
     const { user } = useAuth();
     const [chats, setChats] = useState<Chat[] | null>(null);
     const [currentChat, setCurrentChat] = useState<Chat | null>(null);
-    const [realtimeMessages, setRealtimeMessages] = useState<Message[] | null>(null);
+    const [realtimeMessages, setRealtimeMessages] = useState<Message[] | null>(
+        null
+    );
     const [olderMessages, setOlderMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
     const [hasMoreMessages, setHasMoreMessages] = useState(true);
     const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
-    const [oldestDocSnapshot, setOldestDocSnapshot] = useState<QueryDocumentSnapshot | null>(null);
+    const [oldestDocSnapshot, setOldestDocSnapshot] =
+        useState<QueryDocumentSnapshot | null>(null);
 
     // Merge realtime + older messages, deduplicating by id
     const messages = useMemo(() => {
@@ -222,7 +236,13 @@ export function ChatContextProvider({
     }, [currentChat]);
 
     const loadOlderMessages = useCallback(async (): Promise<void> => {
-        if (!currentChat || !hasMoreMessages || loadingOlderMessages || !oldestDocSnapshot) return;
+        if (
+            !currentChat ||
+            !hasMoreMessages ||
+            loadingOlderMessages ||
+            !oldestDocSnapshot
+        )
+            return;
 
         setLoadingOlderMessages(true);
 

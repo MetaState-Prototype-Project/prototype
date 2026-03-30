@@ -118,7 +118,9 @@ export const uploadFile = async (
             },
         });
         if (!uploadResponse.ok) {
-            throw new Error(`S3 upload failed with status ${uploadResponse.status}`);
+            throw new Error(
+                `S3 upload failed with status ${uploadResponse.status}`,
+            );
         }
 
         // Step 3: Confirm upload

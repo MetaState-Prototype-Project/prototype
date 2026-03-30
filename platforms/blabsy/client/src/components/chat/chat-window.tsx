@@ -158,7 +158,10 @@ export function ChatWindow(): JSX.Element {
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const savedScrollInfo = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+    const savedScrollInfo = useRef<{
+        scrollHeight: number;
+        scrollTop: number;
+    } | null>(null);
     const prevNewestMessageId = useRef<string | null>(null);
     const [otherUser, setOtherUser] = useState<User | null>(null);
     const [participantsData, setParticipantsData] = useState<
@@ -256,7 +259,8 @@ export function ChatWindow(): JSX.Element {
         const el = scrollContainerRef.current;
         const saved = savedScrollInfo.current;
         if (el && saved) {
-            el.scrollTop = el.scrollHeight - saved.scrollHeight + saved.scrollTop;
+            el.scrollTop =
+                el.scrollHeight - saved.scrollHeight + saved.scrollTop;
             savedScrollInfo.current = null;
         }
     }, [messages]);
