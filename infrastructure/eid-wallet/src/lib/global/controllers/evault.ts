@@ -725,9 +725,7 @@ export class VaultController {
                     const parts = (jwt as string).split(".");
                     if (parts.length !== 3) continue;
                     // Decode base64url payload (add padding for atob)
-                    let b64 = parts[1]
-                        .replace(/-/g, "+")
-                        .replace(/_/g, "/");
+                    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
                     while (b64.length % 4 !== 0) b64 += "=";
                     const payload = JSON.parse(atob(b64)) as {
                         ename?: string;

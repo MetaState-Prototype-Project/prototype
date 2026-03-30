@@ -22,14 +22,8 @@ type HardwareFallbackEvent = {
     originalError: unknown;
 };
 
-type EvaultKeyResolver = (
-    keyId: string,
-    context: string,
-) => Promise<string[]>;
-type EvaultSyncHandler = (
-    keyId: string,
-    context: string,
-) => Promise<boolean>;
+type EvaultKeyResolver = (keyId: string, context: string) => Promise<string[]>;
+type EvaultSyncHandler = (keyId: string, context: string) => Promise<boolean>;
 
 const CONTEXTS_KEY = "keyService.contexts";
 const READY_KEY = "keyService.ready";
@@ -108,7 +102,9 @@ export class KeyService {
             ? undefined
             : this.#findPersistedByKeyId(keyId);
         const persistedEntry = exactPersisted ?? crossContext?.entry;
-        const persistedMapKey = exactPersisted ? cacheKey : crossContext?.mapKey;
+        const persistedMapKey = exactPersisted
+            ? cacheKey
+            : crossContext?.mapKey;
 
         if (persistedEntry && persistedMapKey) {
             const restoredManager = await KeyManagerFactory.getKeyManager({
@@ -131,7 +127,10 @@ export class KeyService {
         }
 
         // Check eVault for which local key is actually registered (source of truth)
-        const evaultMatch = await this.#resolveManagerByEvaultKey(keyId, context);
+        const evaultMatch = await this.#resolveManagerByEvaultKey(
+            keyId,
+            context,
+        );
         if (evaultMatch) {
             this.#managerCache.set(cacheKey, evaultMatch);
             await this.#persistContext(cacheKey, evaultMatch, keyId, context);
@@ -469,7 +468,10 @@ export class KeyService {
             const publicKey = await manager.getPublicKey(keyId);
             if (!publicKey) return;
 
-            const registeredKeys = await this.#evaultKeyResolver(keyId, context);
+            const registeredKeys = await this.#evaultKeyResolver(
+                keyId,
+                context,
+            );
             if (registeredKeys.includes(publicKey)) {
                 // Already synced — mark and skip future checks
                 this.#syncedKeyIds.add(syncCacheKey);
